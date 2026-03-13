@@ -1,0 +1,59 @@
+/* CONTAINER & SIDEBAR (Galing sa OwnerDashboard) */
+.page-container { display: flex; height: 100vh; background-color: #f8fafc; overflow: hidden; font-family: 'Inter', sans-serif; }
+.sidebar { width: 280px; background-color: #01538b; color: white; display: flex; flexDirection: column; padding: 20px 0; overflow-y: auto; scrollbar-gutter: stable; }
+.sidebar::-webkit-scrollbar { width: 6px; background-color: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+.logo-container { padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; display: flex; justify-content: center; }
+.sidebar-logo { max-width: 150px; }
+.nav-menu { flex: 1; display: flex; flex-direction: column; padding: 0 15px; }
+.nav-item { display: flex; align-items: center; padding: 12px 15px; margin-bottom: 5px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; color: #e2e8f0; font-size: 15px; font-weight: 500; }
+.nav-item:hover, .nav-item.active { background-color: rgba(255,255,255,0.1); color: white; }
+.nav-icon { width: 20px; height: 20px; margin-right: 12px; filter: brightness(0) invert(1); }
+.dropdown-menu { background-color: rgba(0,0,0,0.15); border-radius: 8px; padding: 5px 0; margin-top: 5px; }
+.dropdown-item { display: flex; align-items: center; padding: 10px 15px 10px 45px; cursor: pointer; color: #e2e8f0; font-size: 14px; transition: 0.2s; }
+.dropdown-item:hover { color: white; background-color: rgba(255,255,255,0.05); }
+.dropdown-item .nav-icon { width: 16px; height: 16px; margin-right: 10px; }
+
+/* MAIN CONTENT & HEADER */
+.main-content { flex: 1; padding: 30px 40px; overflow-y: auto; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.title { font-size: 28px; color: #1e293b; margin: 0 0 5px 0; }
+.subtitle { color: #64748b; margin: 0; font-size: 15px; }
+.header-right { display: flex; align-items: center; gap: 15px; }
+.user-info { display: flex; flex-direction: column; text-align: right; }
+.user-name { font-weight: 600; color: #1e293b; font-size: 15px; }
+.user-role { color: #64748b; font-size: 13px; }
+.profile-pic { width: 45px; height: 45px; border-radius: 50%; background-color: #e2e8f0; }
+
+/* MANAGE STAFF SPECIFIC STYLES */
+.controls-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.search-bar { padding: 12px 20px; width: 350px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; }
+.search-bar:focus { border-color: #01538b; box-shadow: 0 0 0 3px rgba(1, 83, 139, 0.1); }
+
+.add-btn { display: flex; align-items: center; background-color: #01538b; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.add-btn:hover { background-color: #014372; }
+.btn-icon { width: 18px; height: 18px; margin-right: 8px; filter: brightness(0) invert(1); }
+
+/* TABLE STYLES */
+.table-container { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e2e8f0; }
+.staff-table { width: 100%; border-collapse: collapse; text-align: left; }
+.staff-table th { background-color: #f8fafc; padding: 16px 20px; color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; }
+.staff-table td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 14px; vertical-align: middle; }
+.staff-table tr:last-child td { border-bottom: none; }
+.staff-table tr:hover { background-color: #f8fafc; }
+
+.fw-bold { font-weight: 600; color: #0f172a !important; }
+
+/* BADGES & DOTS */
+.role-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.role-dentist { background-color: #e0f2fe; color: #0369a1; }
+.role-secretary { background-color: #f3e8ff; color: #7e22ce; }
+
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+.status-active { background-color: #22c55e; }
+.status-leave { background-color: #f59e0b; }
+
+.action-btn { background: none; border: none; color: #01538b; font-size: 14px; font-weight: 600; cursor: pointer; padding: 5px 10px; margin-right: 5px; border-radius: 5px; transition: 0.2s; }
+.action-btn:hover { background-color: #f1f5f9; }
+.delete-btn { color: #ef4444; }
+.delete-btn:hover { background-color: #fef2f2; }
