@@ -164,7 +164,7 @@
     width: fit-content;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 84, 102, 0.2);
+    box-shadow: 0 4px 15px rgba(1, 83, 139, 0.2);
     opacity: 0; /* Start hidden */
     animation: fadeUp 0.8s ease-out 0.4s forwards; /* May 0.4s delay */
 }
@@ -172,5 +172,5 @@
 .visit-btn:hover {
     background-color: #01426f;
     transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(0, 84, 102, 0.3);
+    box-shadow: 0 6px 20px rgba(1, 83, 139, 0.3);
 }

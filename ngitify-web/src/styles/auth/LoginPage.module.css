@@ -55,7 +55,7 @@
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
     text-align: center;
-    border: 1px solid rgba(0, 84, 102, 0.1);
+    border: 1px solid rgba(1, 83, 139, 0.1);
     animation: fadeInPop 0.8s ease-out 0.1s backwards; /* Dahan-dahang papasok ang card */
 }
 
@@ -101,7 +101,7 @@
 
 .input-field:focus {
     border-color: #01538b;
-    box-shadow: 0 0 0 4px rgba(0, 84, 102, 0.1);
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.15);
 }
 
 .error {
