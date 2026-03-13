@@ -1,10 +1,11 @@
-import { View, Text } from 'react-native'
 import React from 'react'
 
-export default function FinancialReports() {
+function FinancialReports() {
   return (
-    <View>
-      <Text>FinancialReports</Text>
-    </View>
+    <div>
+      <p>Financial Reports</p>
+    </div>
   )
 }
+
+export default FinancialReports

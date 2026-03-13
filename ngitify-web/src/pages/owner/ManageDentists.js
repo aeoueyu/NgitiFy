@@ -1,10 +1,11 @@
-import { View, Text } from 'react-native'
 import React from 'react'
 
-export default function ManageDentists() {
+function ManageDentists() {
   return (
-    <View>
-      <Text>ManageDentists</Text>
-    </View>
+    <div>
+      <p>Manage Dentists</p>
+    </div>
   )
 }
+
+export default ManageDentists
