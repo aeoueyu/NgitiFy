@@ -58,7 +58,7 @@
 }
 
 .nav-item:hover {
-    color: #01538b;
+    color: #01538b; /* Light blue kapag hovered! */
 }
 
 .nav-item::after {
@@ -68,7 +68,7 @@
     height: 2px;
     bottom: 0;
     left: 0;
-    background-color: #01538b;
+    background-color: #2dccf6;
     transition: width 0.3s ease;
 }
 
