@@ -99,7 +99,7 @@ export default function LoginPage() {
                     LOGIN
                 </button>
 
-                <div className={styles['change-role']}>
+                <div className={styles['back-home']}>
                     Don't have an account? <span onClick={() => navigate('/')}>Go back to Home</span>
                 </div>
             </div>
