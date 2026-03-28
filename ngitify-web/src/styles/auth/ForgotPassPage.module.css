@@ -11,7 +11,7 @@
     min-height: 100vh;
     font-family: 'Lexend Deca', sans-serif;
     background-color: white;
-    background-image: url('../../assets/images/bg2.svg'); /* Updated to match Login */
+    background-image: url('../../assets/images/login-bg.svg'); /* Updated to match Login */
     display: flex;
     flex-direction: column;
     align-items: center;
