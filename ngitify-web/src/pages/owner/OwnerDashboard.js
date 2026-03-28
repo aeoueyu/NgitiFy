@@ -1,25 +1,30 @@
 import React, { useState } from 'react';
-import styles from './OwnerDashboard.module.css';
+import styles from '../../styles/owner/OwnerDashboard.module.css';
 
-// STRICT PLACEHOLDER: Re-using a single existing icon to avoid import errors.
-import PlaceholderIcon from '../../assets/icons/User.svg';
+// STRICT IMPORTS: Only using icons verified to exist in src/assets/icons/
+import PatientVolumeIcon from '../../assets/icons/Patient.svg';
+import UtilizationIcon from '../../assets/icons/MyPatients.svg'; // Placeholder for Utilization
+import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
+import CalendarIcon from '../../assets/icons/Calendar.svg';
 
 const OwnerDashboard = () => {
-  // Mock data utilizing the needsReorder logic concept
+  // Mock data utilizing the Inventory model's logic (needsReorder threshold)
   const [inventory] = useState([
-    { id: 1, item: 'Lidocaine 2%', stock: 4, threshold: 10 },
-    { id: 2, item: 'Composite Resin A2', stock: 2, threshold: 5 },
-    { id: 3, item: 'Sterilization Pouches', stock: 150, threshold: 100 },
+    { id: 1, itemName: 'Lidocaine 2%', currentStock: 4, threshold: 10 },
+    { id: 2, itemName: 'Composite Resin A2', currentStock: 2, threshold: 5 },
+    { id: 3, itemName: 'Sterilization Pouches', currentStock: 150, threshold: 100 },
+    { id: 4, itemName: 'Saliva Ejectors', currentStock: 15, threshold: 50 },
   ]);
 
+  // Mock data for the Clinic Calendar widget
   const [appointments] = useState([
-    { id: 1, time: '09:00 AM', patient: 'Sarah Jenkins', type: 'Consultation', room: 'Op 1' },
-    { id: 2, time: '10:30 AM', patient: 'Michael Chang', type: 'Root Canal', room: 'Op 2' },
-    { id: 3, time: '01:00 PM', patient: 'Emily Davis', type: 'Crown Prep', room: 'Op 1' },
+    { id: 1, time: '09:00 AM', patientName: 'Sarah Jenkins', type: 'Consultation', chair: 'Operatory 1' },
+    { id: 2, time: '10:30 AM', patientName: 'Michael Chang', type: 'Root Canal', chair: 'Operatory 2' },
+    { id: 3, time: '01:00 PM', patientName: 'Emily Davis', type: 'Crown Prep', chair: 'Operatory 1' },
   ]);
 
-  // Derived state for the alert widget
-  const lowStockItems = inventory.filter(item => item.stock <= item.threshold);
+  // Derived state: Only items that require reordering
+  const lowStockAlerts = inventory.filter(item => item.currentStock <= item.threshold);
 
   return (
     <div className={styles['owner-dashboard']}>
@@ -28,73 +33,80 @@ const OwnerDashboard = () => {
         <p className={styles['owner-dashboard__subtitle']}>Real-time patient volume and resource utilization tracking.</p>
       </header>
 
-      <div className={styles['owner-dashboard__metrics']}>
-        {/* Metric: Patient Volume */}
+      {/* Analytics Section (No Financials) */}
+      <section className={styles['owner-dashboard__metrics']}>
         <div className={styles['metric-card']}>
           <div className={styles['metric-card__header']}>
-            <img src={PlaceholderIcon} alt="Icon" className={styles['metric-card__icon']} />
+            <img src={PatientVolumeIcon} alt="Patient Volume" className={styles['metric-card__icon']} />
             <h2 className={styles['metric-card__title']}>Weekly Patient Volume</h2>
           </div>
           <div className={styles['metric-card__data']}>
             <span className={styles['metric-card__value']}>184</span>
-            <span className={styles['metric-card__trend--up']}>+14% vs last week</span>
+            <span className={styles['metric-card__trend--positive']}>+14% vs last week</span>
           </div>
         </div>
 
-        {/* Metric: Clinic Utilization */}
         <div className={styles['metric-card']}>
           <div className={styles['metric-card__header']}>
-            <img src={PlaceholderIcon} alt="Icon" className={styles['metric-card__icon']} />
-            <h2 className={styles['metric-card__title']}>Chair Utilization</h2>
+            <img src={UtilizationIcon} alt="Clinic Utilization" className={styles['metric-card__icon']} />
+            <h2 className={styles['metric-card__title']}>Chair Utilization Rate</h2>
           </div>
           <div className={styles['metric-card__data']}>
             <span className={styles['metric-card__value']}>88%</span>
             <span className={styles['metric-card__trend--neutral']}>Optimal Capacity</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className={styles['owner-dashboard__widgets']}>
-        {/* Live Widget: Low Stock Alerts */}
+      {/* Live Widgets Section */}
+      <section className={styles['owner-dashboard__widgets']}>
+        
+        {/* Widget: Low Stock Alerts */}
         <div className={styles['widget']}>
           <div className={styles['widget__header']}>
-            <img src={PlaceholderIcon} alt="Icon" className={styles['widget__icon']} />
+            <img src={InventoryIcon} alt="Inventory Alerts" className={styles['widget__icon']} />
             <h3 className={styles['widget__title']}>Low Stock Alerts</h3>
           </div>
           <ul className={styles['widget__list']}>
-            {lowStockItems.map(item => (
-              <li key={item.id} className={styles['widget__list-item']}>
-                <span className={styles['widget__item-name']}>{item.item}</span>
-                <span className={styles['widget__item-stock']}>
-                  {item.stock} / {item.threshold}
-                </span>
-              </li>
-            ))}
-            {lowStockItems.length === 0 && (
-              <li className={styles['widget__list-item']}>All inventory levels optimal.</li>
+            {lowStockAlerts.length > 0 ? (
+              lowStockAlerts.map(item => (
+                <li key={item.id} className={styles['widget__list-item']}>
+                  <span className={styles['widget__item-name']}>{item.itemName}</span>
+                  <span className={styles['widget__item-stock']}>
+                    {item.currentStock} / {item.threshold}
+                  </span>
+                </li>
+              ))
+            ) : (
+              <li className={styles['widget__list-item']}>All inventory levels are optimal.</li>
             )}
           </ul>
         </div>
 
-        {/* Live Widget: Clinic Calendar */}
+        {/* Widget: Clinic Calendar */}
         <div className={styles['widget']}>
           <div className={styles['widget__header']}>
-            <img src={PlaceholderIcon} alt="Icon" className={styles['widget__icon']} />
+            <img src={CalendarIcon} alt="Calendar" className={styles['widget__icon']} />
             <h3 className={styles['widget__title']}>Today's Schedule</h3>
           </div>
           <ul className={styles['widget__list']}>
-            {appointments.map(appt => (
-              <li key={appt.id} className={styles['widget__list-item']}>
-                <div className={styles['widget__appt-time']}>{appt.time}</div>
-                <div className={styles['widget__appt-details']}>
-                  <p className={styles['widget__appt-patient']}>{appt.patient}</p>
-                  <p className={styles['widget__appt-type']}>{appt.type} • {appt.room}</p>
-                </div>
-              </li>
-            ))}
+            {appointments.length > 0 ? (
+              appointments.map(appt => (
+                <li key={appt.id} className={styles['widget__list-item']}>
+                  <div className={styles['widget__appt-time']}>{appt.time}</div>
+                  <div className={styles['widget__appt-details']}>
+                    <p className={styles['widget__appt-patient']}>{appt.patientName}</p>
+                    <p className={styles['widget__appt-type']}>{appt.type} • {appt.chair}</p>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <li className={styles['widget__list-item']}>No appointments scheduled for today.</li>
+            )}
           </ul>
         </div>
-      </div>
+
+      </section>
     </div>
   );
 };
