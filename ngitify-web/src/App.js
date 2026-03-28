@@ -1,8 +1,14 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './routes/ProtectedRoute';
 
 // Layouts
 import DashboardLayout from './components/layout/DashboardLayout';
+
+// Auth & Public Pages
+import LoginPage from './pages/auth/LoginPage';
+import WebsiteHome from './pages/website/WebsiteHome';
 
 // Pages - Owner
 import OwnerDashboard from './pages/owner/OwnerDashboard';
@@ -12,20 +18,28 @@ import SystemAuditLogs from './pages/owner/SystemAuditLogs';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Default Redirect */}
-        <Route path="/" element={<Navigate to="/owner/dashboard" replace />} />
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<WebsiteHome />} />
+          <Route path="/login" element={<LoginPage />} />
 
-        {/* Dashboard Layout Wrapper */}
-        <Route element={<DashboardLayout />}>
-          <Route path="/owner/dashboard" element={<OwnerDashboard />} />
-          <Route path="/owner/manage-staff" element={<ManageStaff />} /> 
-          <Route path="/owner/financial-reports" element={<FinancialReports />} />
-          <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
-        </Route>
-      </Routes>
-    </Router>
+          {/* Protected Routes - Owner Area */}
+          <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
+            <Route element={<DashboardLayout />}>
+              <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+              <Route path="/owner/manage-staff" element={<ManageStaff />} /> 
+              <Route path="/owner/financial-reports" element={<FinancialReports />} />
+              <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
+            </Route>
+          </Route>
+
+          {/* Fallback Redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
