@@ -1,0 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.container {
+    padding: 20px 30px;
+    font-family: 'Lexend Deca', sans-serif;
+    animation: fadeIn 0.5s ease;
+}
+
+.header {
+    margin-bottom: 30px;
+}
+
+.title {
+    color: #01538b; /* Primary Blue */
+    font-size: 24px;
+    margin: 0;
+    font-weight: 700;
+}
+
+.subtitle {
+    color: #64748b;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* --- CONTROLS ROW (Search & Filter) --- */
+.controlsRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    gap: 20px;
+}
+
+.searchFilterGroup {
+    display: flex;
+    gap: 15px;
+    flex: 1;
+    max-width: 600px;
+}
+
+.searchWrapper {
+    position: relative;
+    flex: 2;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 12px 15px 12px 45px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.searchInput:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
+}
+
+.filterSelect {
+    flex: 1;
+    padding: 12px 20px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px;
+    outline: none;
+    color: #334155;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2301538b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 20px center; 
+    background-size: 16px;
+    padding-right: 45px;
+}
+
+.filterSelect:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
+}
+
+.exportBtn {
+    background-color: white;
+    color: #01538b;
+    border: 1.5px solid #01538b;
+    padding: 12px 25px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.exportBtn:hover {
+    background-color: #f0f7fb;
+    transform: translateY(-2px);
+}
+
+/* --- TABLE STYLING --- */
+.tableContainer {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.userTable {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.userTable thead {
+    background-color: #f8fafc;
+}
+
+.userTable th {
+    padding: 15px 20px;
+    color: #475569;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.userTable td {
+    padding: 18px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.fwBold {
+    font-weight: 600;
+    color: #01538b;
+}
+
+.timeText {
+    color: #64748b;
+    font-size: 13px;
+    display: block;
+    margin-top: 4px;
+}
+
+/* Role Badges */
+.roleBadge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+    display: inline-block;
+}
+
+.roleOwner { background-color: #e0e7ff; color: #0f172a; border: 1px solid #c7d2fe; }
+.roleDentist { background-color: #e6f2f9; color: #01538b; border: 1px solid #bce1f4; }
+.roleSecretary { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.roleSystem { background-color: #fef3c7; color: #4f46e5; border: 1px solid #ede9fe; }
+
+.actionText {
+    color: #334155;
+    line-height: 1.5;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.userTable tr:hover {
+    background-color: #f8fbff;
+}

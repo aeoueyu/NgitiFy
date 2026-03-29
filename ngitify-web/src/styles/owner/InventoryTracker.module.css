@@ -1,0 +1,160 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.container {
+    padding: 20px 30px;
+    font-family: 'Lexend Deca', sans-serif;
+    animation: fadeIn 0.5s ease;
+}
+
+.header {
+    margin-bottom: 30px;
+}
+
+.title {
+    color: #01538b; /* Primary Blue */
+    font-size: 24px;
+    margin: 0;
+    font-weight: 700;
+}
+
+.subtitle {
+    color: #64748b;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* --- CONTROLS ROW (Search & Add Button) --- */
+.controlsRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    gap: 20px;
+}
+
+.searchWrapper {
+    position: relative;
+    flex: 1;
+    max-width: 400px;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 12px 15px 12px 45px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.searchInput:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
+}
+
+.addBtn {
+    background-color: #01538b;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
+}
+
+.addBtn:hover {
+    background-color: #013f6b;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(1, 83, 139, 0.3);
+}
+
+/* --- TABLE STYLING --- */
+.tableContainer {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.userTable {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.userTable thead {
+    background-color: #f8fafc;
+}
+
+.userTable th {
+    padding: 15px 20px;
+    color: #475569;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.userTable td {
+    padding: 18px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.fwBold {
+    font-weight: 600;
+}
+
+/* --- ACTION BUTTONS --- */
+.iconBtn {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    margin-right: 5px;
+}
+
+.iconBtn:hover {
+    background-color: #f1f5f9;
+    color: #01538b;
+}
+
+.deleteBtn:hover {
+    background-color: #fef2f2;
+    color: #ef4444;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Status specific coloring for row feedback */
+.userTable tr:hover {
+    background-color: #f8fbff;
+}

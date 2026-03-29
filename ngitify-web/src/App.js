@@ -25,6 +25,7 @@ import AddDentist from './pages/owner/AddDentist';
 import AddSecretary from './pages/owner/AddSecretary';
 import AddPatient from './pages/owner/AddPatient';
 import EditDentist from './pages/owner/EditDentist';
+import InventoryTracker from './pages/owner/InventoryTracker';
 
 
 
@@ -53,6 +54,7 @@ function App() {
               <Route path="/owner/manage-patients" element={<ManagePatients />} />
               <Route path="/owner/add-patient" element={<AddPatient />} />
               <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
+              <Route path="/owner/inventory" element={<InventoryTracker />} />
             </Route>
           </Route>
 

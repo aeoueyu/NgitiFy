@@ -9,11 +9,11 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto'); 
 
 // Import Model
-const User = require('../models/User'); 
-const AuditLog = require('../models/AuditLog'); // Import the new model
-const Patient = require('../models/Patient');
-const Surgery = require('../models/Surgery');
-const Inventory = require('../models/Inventory');
+const User = require('./models/User'); 
+const AuditLog = require('./models/AuditLog'); // Import the new model
+const Patient = require('./models/Patient');
+const Surgery = require('./models/Surgery');
+const Inventory = require('./models/Inventory');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
