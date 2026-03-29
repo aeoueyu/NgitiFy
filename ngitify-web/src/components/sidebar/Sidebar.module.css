@@ -58,6 +58,7 @@
     cursor: pointer;
     background-color: transparent;
     transition: all 0.2s ease-in-out;
+    user-select: none; /* Prevents text highlighting when clicking dropdown arrows */
 }
 
 .dropdown-item {
@@ -111,10 +112,10 @@
    4. DROPDOWN BOX CONTAINER (Clean White)
    ========================================= */
 .dropdown-menu {
-    background-color: transparent; /* Inalis ang background color para white lang */
+    background-color: transparent; 
     padding: 0;
     margin-top: 5px;
     display: flex;
     flex-direction: column;
-    gap: 5px; /* Dinagdagan ng spacing para malinis tingnan pag hinover isa-isa */
+    gap: 5px; 
 }

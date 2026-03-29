@@ -10,6 +10,7 @@ export default function NewPasswordPage() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     
     // UI State: Show checklist only when focused
     const [showChecklist, setShowChecklist] = useState(false);
@@ -22,6 +23,15 @@ export default function NewPasswordPage() {
         number: false,
         special: false
     });
+
+    const userEmail = location.state?.email;
+
+    // Redirect if accessed directly without going through the OTP flow
+    useEffect(() => {
+        if (!userEmail) {
+            navigate('/forgot-password');
+        }
+    }, [userEmail, navigate]);
 
     useEffect(() => {
         setValidations({
@@ -40,25 +50,43 @@ export default function NewPasswordPage() {
 
     const isButtonDisabled = Object.values(validations).some(v => !v) || newPassword !== confirmNewPassword;
 
-    const handleReset = async () => {
+    const handleReset = async (e) => {
+        e.preventDefault();
+        if (isButtonDisabled) return;
+
+        setIsLoading(true);
+        setErrorMessage('');
+
         try {
             const response = await fetch('http://localhost:5000/api/reset-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: location.state?.email, newPassword }),
+                body: JSON.stringify({ 
+                    email: userEmail, 
+                    newPassword 
+                }),
             });
-        
+            
+            const data = await response.json();
+
             if (response.ok) {
                 navigate('/password-reset-success'); 
             } else {
-                setErrorMessage("Failed to reset password.");
+                setErrorMessage(data.message || "Failed to reset password.");
             }
-        } catch(e) { setErrorMessage("Server Error"); }
+        } catch(e) { 
+            console.error(e);
+            setErrorMessage("Server Error. Please try again."); 
+        } finally {
+            setIsLoading(false);
+        }
     };
+
+    if (!userEmail) return null; // Prevent flash before redirect
 
     return (
         <div className={styles['main-container']}>
-            <div className={styles['container']}>
+            <form className={styles['container']} onSubmit={handleReset}>
                 <img src={logo} alt='Logo' className={styles.logo}/>
                 <div className={styles['page-title']}><p className={styles['newpass-title']}>New Password</p></div>
                 <div className={styles['page-header']}><p>Please enter your new password.</p></div>
@@ -70,8 +98,10 @@ export default function NewPasswordPage() {
                     className={styles['input-field']} 
                     value={newPassword} 
                     onChange={(e)=>setNewPassword(e.target.value)} 
-                    onFocus={() => setShowChecklist(true)} // Show checklist
-                    onBlur={() => setShowChecklist(false)} // Hide checklist
+                    onFocus={() => setShowChecklist(true)} 
+                    onBlur={() => setShowChecklist(false)} 
+                    disabled={isLoading}
+                    required
                 />
                 
                 {/* CHECKLIST BOX (Visible only when focused) */}
@@ -102,15 +132,33 @@ export default function NewPasswordPage() {
                 )}
 
                 <div className={styles['label-container']} style={{marginTop: '15px'}}><p className={styles.label}>CONFIRM PASSWORD</p></div>
-                <input type='password' className={styles['input-field']} value={confirmNewPassword} onChange={(e)=>setConfirmNewPassword(e.target.value)} />
+                <input 
+                    type='password' 
+                    className={styles['input-field']} 
+                    value={confirmNewPassword} 
+                    onChange={(e)=>setConfirmNewPassword(e.target.value)} 
+                    disabled={isLoading}
+                    required
+                />
                 
-                <div className={styles.error}>{errorMessage}</div>
-                <button className={styles['enter-button']} onClick={handleReset} disabled={isButtonDisabled}>ENTER</button>
+                <div className={styles.error} style={{ minHeight: '20px', color: '#ff4d4d', fontSize: '14px', textAlign: 'center', marginTop: '10px' }}>
+                    {errorMessage}
+                </div>
+                
+                <button 
+                    type="submit"
+                    className={styles['enter-button']} 
+                    disabled={isButtonDisabled || isLoading}
+                >
+                    {isLoading ? 'UPDATING...' : 'ENTER'}
+                </button>
 
                 <div className={styles['back-container']}>
-                    <span onClick={() => navigate('/login')}>Back to Login</span>
+                    <span onClick={() => navigate('/login')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
+                        Back to Login
+                    </span>
                 </div>
-            </div>
+            </form>
         </div>
     )
 }

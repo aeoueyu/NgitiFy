@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import styles from '../../styles/auth/LoginPage.module.css';
-import logo from '../../assets/icons/logo-dentime.svg'; // Updated logo path strictly as requested
+import logo from '../../assets/icons/logo-dentime.svg'; 
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext'; // Imported AuthContext directly
 
 export default function LoginPage() {
     const navigate = useNavigate();
+    // Use useContext directly with your AuthContext to extract the login function
+    const { login } = useContext(AuthContext); 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setErrorMessage(""); // Clear previous errors
+        setIsLoading(true);
         
         try {
             const response = await fetch('http://localhost:5000/api/login', {
@@ -26,34 +31,46 @@ export default function LoginPage() {
             const data = await response.json();
 
             if (response.ok) {
-                // Login Success
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('role', data.role); // Save role for future checks
-                localStorage.setItem('userId', data.userId);
-                localStorage.setItem('userEmail', email);
+                // Pass the token and user data to update the global AuthContext state.
+                // Depending on how your context is written, if login is not async, 
+                // the await here is harmless.
+                await login({
+                    token: data.token,
+                    role: data.role,
+                    userId: data.userId,
+                    userEmail: email
+                });
 
                 // Redirect based on role returned by backend
-                if (data.role === 'owner') navigate('/owner/dashboard');
-                else if (data.role === 'dentist') navigate('/dentist/dashboard');
-                else if (data.role === 'secretary') navigate('/secretary/dashboard');
-                else if (data.role === 'patient') navigate('/patient/dashboard');
+                if (data.role === 'owner') {
+                    navigate('/owner/dashboard');
+                } else if (data.role === 'dentist') {
+                    navigate('/dentist/dashboard');
+                } else if (data.role === 'secretary') {
+                    navigate('/secretary/dashboard');
+                } else if (data.role === 'patient') {
+                    navigate('/patient/dashboard');
+                } else {
+                    setErrorMessage("Unrecognized user role.");
+                }
             } else {
                 // Show Error
-                setErrorMessage(data.message);
+                setErrorMessage(data.message || "Invalid email or password.");
             }
         } catch (error) {
             console.error("Login failed", error);
             setErrorMessage("Cannot connect to server.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
     return (
         <div className={styles['main-container']}>
-            <div className={styles['container']}>
+            <form className={styles['container']} onSubmit={handleLogin}>
                 <img src={logo} alt='Lardizabal Dental Clinic' className={styles['logo']} />
                 
                 <div className={styles['header-text']}>
-                    {/* Changed class name from pink-text to accent-text to match new Cyan color */}
                     <h2>Login to your <span className={styles['accent-text']}>Account</span></h2>
                 </div>
 
@@ -66,6 +83,7 @@ export default function LoginPage() {
                         value={email}
                         onChange={(e)=>setEmail(e.target.value)}
                         required
+                        disabled={isLoading}
                     />
                 </div>
 
@@ -78,6 +96,7 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e)=>setPassword(e.target.value)}
                         required
+                        disabled={isLoading}
                     />
                     <span 
                         onClick={() => navigate('/forgot-password')} 
@@ -90,19 +109,23 @@ export default function LoginPage() {
 
                 {/* Error Message Display */}
                 {errorMessage && (
-                    <div className={styles.error}>
+                    <div className={styles.error} style={{ color: 'red', marginBottom: '10px', fontSize: '14px', textAlign: 'center' }}>
                         {errorMessage}
                     </div>
                 )}
 
-                <button className={styles['login-button']} onClick={handleLogin}>
-                    LOGIN
+                <button 
+                    type="submit" 
+                    className={styles['login-button']} 
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'LOGGING IN...' : 'LOGIN'}
                 </button>
 
                 <div className={styles['back-home']}>
-                    Don't have an account? <span onClick={() => navigate('/')}>Go back to Home</span>
+                    Don't have an account? <span onClick={() => navigate('/')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>Go back to Home</span>
                 </div>
-            </div>
+            </form>
         </div>
     );
 }

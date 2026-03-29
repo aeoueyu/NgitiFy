@@ -1,28 +1,106 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../../styles/owner/ManageStaff.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaTrash } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom'; // I-import ang useNavigate
+import { FaSearch, FaUserPlus, FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 export default function ManageStaff() {
-    const navigate = useNavigate(); // I-initialize ang navigate
+    const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('Dentist');
+    const [usersList, setUsersList] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [usersList, setUsersList] = useState([
-        { id: 1, name: 'Dr. Aeiou Garcia', role: 'Dentist', contact: '0912-345-6789', status: 'Active' },
-        { id: 3, name: 'Maria Clara', role: 'Secretary', contact: '0911-111-2222', status: 'Active' },
-        { id: 5, name: 'Juan Dela Cruz', role: 'Patient', contact: '0933-444-5555', status: 'Active' },
-    ]);
+    // Fetch Users on Component Mount
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                setIsLoading(true);
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://localhost:5000/api/users', {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
 
+                if (response.ok) {
+                    const data = await response.json();
+                    // Map backend data to match your UI's expected format
+                    const mappedUsers = data.map(u => ({
+                        id: u._id,
+                        name: u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.name || u.email), // Fallback
+                        role: u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : 'Unknown', // Capitalize for UI
+                        rawRole: u.role || 'unknown', // Keep raw role for precise filtering
+                        contact: u.contactNumber || u.phoneNumber || 'N/A',
+                        status: u.status === 'active' ? 'Active' : 'Inactive',
+                        isVerified: u.isVerified
+                    }));
+                    setUsersList(mappedUsers);
+                }
+            } catch (error) {
+                console.error("Failed to fetch users:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchUsers();
+    }, []);
+
+    // Filter by Active Tab and Search Query
     const filteredUsers = usersList.filter(user => 
-        user.role === activeTab && user.name.toLowerCase().includes(searchQuery.toLowerCase())
+        String(user.rawRole || '').toLowerCase() === String(activeTab || '').toLowerCase() && 
+        String(user.name || '').toLowerCase().includes(String(searchQuery || '').toLowerCase())
     );
 
-    // Function para pumunta sa tamang Add Page depende sa active tab
+    // Route to the respective Add Pages
     const handleAddNew = () => {
         if (activeTab === 'Dentist') navigate('/owner/add-dentist');
         else if (activeTab === 'Secretary') navigate('/owner/add-secretary');
         else if (activeTab === 'Patient') navigate('/owner/add-patient');
+    };
+
+    // Soft Delete / Toggle Status Implementation
+    const handleToggleStatus = async (user) => {
+        const newStatus = user.status === 'Active' ? 'inactive' : 'active';
+        
+        // Backend Security Check: Prevent activating unverified users
+        if (newStatus === 'active' && !user.isVerified) {
+            alert(`Cannot activate ${user.name}. Their email is not yet verified.`);
+            return;
+        }
+
+        const confirmMsg = newStatus === 'active' 
+            ? `Are you sure you want to ACTIVATE ${user.name}?` 
+            : `Are you sure you want to DEACTIVATE ${user.name}?`;
+            
+        if (!window.confirm(confirmMsg)) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`http://localhost:5000/api/user/toggle-status/${user.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                // Update local state to reflect change immediately without needing to refresh
+                setUsersList(prevList => prevList.map(u => 
+                    u.id === user.id ? { ...u, status: newStatus === 'active' ? 'Active' : 'Inactive' } : u
+                ));
+            } else {
+                alert(data.message || "Failed to update status.");
+            }
+        } catch (error) {
+            console.error("Error toggling status:", error);
+            alert("Cannot connect to server.");
+        }
     };
 
     return (
@@ -41,10 +119,15 @@ export default function ManageStaff() {
             <div className={styles.controlsRow}>
                 <div className={styles.searchWrapper}>
                     <FaSearch className={styles.searchIcon} />
-                    <input type="text" placeholder={`Search ${activeTab.toLowerCase()}...`} className={styles.searchInput} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <input 
+                        type="text" 
+                        placeholder={`Search ${activeTab.toLowerCase()}...`} 
+                        className={styles.searchInput} 
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                    />
                 </div>
                 
-                {/* DITO NAGBAGO: Tatawagin na niya ang handleAddNew para lumipat ng page */}
                 <button className={styles.addBtn} onClick={handleAddNew}>
                     <FaUserPlus className={styles.btnIcon} /> Add New {activeTab}
                 </button>
@@ -52,17 +135,56 @@ export default function ManageStaff() {
 
             <div className={styles.tableContainer}>
                 <table className={styles.userTable}>
-                    <thead><tr><th>Name</th><th>Role</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Contact</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        {filteredUsers.length > 0 ? filteredUsers.map((user) => (
-                            <tr key={user.id}>
-                                <td className={styles.fwBold}>{user.name}</td>
-                                <td><span className={`${styles.roleBadge} ${styles[user.role.toLowerCase()]}`}>{user.role}</span></td>
-                                <td>{user.contact}</td>
-                                <td><span className={`${styles.statusDot} ${styles.activeDot}`}></span>{user.status}</td>
-                                <td><button className={styles.iconBtn}><FaEdit /></button><button className={`${styles.iconBtn} ${styles.deleteBtn}`}><FaTrash /></button></td>
-                            </tr>
-                        )) : <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No records found.</td></tr>}
+                        {isLoading ? (
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                        ) : filteredUsers.length > 0 ? (
+                            filteredUsers.map((user) => (
+                                <tr key={user.id} style={{ opacity: user.status === 'Inactive' ? 0.6 : 1 }}>
+                                    <td className={styles.fwBold}>
+                                        {user.name}
+                                        {!user.isVerified && <span style={{fontSize: '11px', color: '#ff4d4d', display: 'block', fontWeight: 'normal'}}>Unverified</span>}
+                                    </td>
+                                    <td><span className={`${styles.roleBadge} ${styles[user.role.toLowerCase()]}`}>{user.role}</span></td>
+                                    <td>{user.contact}</td>
+                                    <td>
+                                        <span className={`${styles.statusDot} ${user.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
+                                        {user.status}
+                                    </td>
+                                    <td>
+                                        {/* Edit Button Setup (Route placeholder) */}
+                                        <button 
+                                            className={styles.iconBtn} 
+                                            onClick={() => navigate(`/owner/edit-${user.rawRole}/${user.id}`)}
+                                            title="Edit User"
+                                        >
+                                            <FaEdit />
+                                        </button>
+                                        
+                                        {/* Toggle Status Button */}
+                                        <button 
+                                            className={`${styles.iconBtn} ${user.status === 'Active' ? styles.deleteBtn : styles.activeBtn}`} 
+                                            onClick={() => handleToggleStatus(user)}
+                                            title={user.status === 'Active' ? "Deactivate User" : "Activate User"}
+                                            style={{ color: user.status === 'Inactive' ? 'green' : undefined }}
+                                        >
+                                            {user.status === 'Active' ? <FaTrash /> : <FaCheckCircle />}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No records found.</td></tr>
+                        )}
                     </tbody>
                 </table>
             </div>

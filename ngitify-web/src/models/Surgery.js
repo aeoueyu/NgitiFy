@@ -1,25 +1,14 @@
-export class Surgery {
-    constructor({ 
-      id = '', 
-      patientId = '', 
-      dentistId = '', 
-      procedureName = '', 
-      scheduledDate = '', 
-      status = 'Scheduled', 
-      notes = '', 
-      durationMinutes = 60 
-    } = {}) {
-      this.id = id;
-      this.patientId = patientId;
-      this.dentistId = dentistId;
-      this.procedureName = procedureName;
-      this.scheduledDate = scheduledDate; // ISO string
-      this.status = status; // 'Scheduled', 'Completed', 'Cancelled', 'In Progress'
-      this.notes = notes;
-      this.durationMinutes = durationMinutes;
-    }
-  
-    isUpcoming() {
-      return new Date(this.scheduledDate) > new Date() && this.status === 'Scheduled';
-    }
-  }
+const mongoose = require('mongoose');
+
+const surgerySchema = new mongoose.Schema({
+    patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
+    dentist: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    branch: { type: String, required: true }, // e.g., 'Main Clinic', 'Downtown Branch'
+    date: { type: Date, required: true },
+    procedure: { type: String, required: true }, // e.g., 'Wisdom Tooth Extraction'
+    notes: { type: String },
+    fee: { type: Number, required: true },
+    isPaid: { type: Boolean, default: false }
+}, { timestamps: true });
+
+module.exports = mongoose.model('Surgery', surgerySchema);

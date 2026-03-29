@@ -16,8 +16,17 @@ import NewPasswordRedirectPage from './pages/auth/NewPasswordRedirectPage';
 
 // Pages - Owner
 import OwnerDashboard from './pages/owner/OwnerDashboard';
-import ManageStaff from './pages/owner/ManageStaff'; 
+import ManageDentists from './pages/owner/ManageDentists'; 
 import SystemAuditLogs from './pages/owner/SystemAuditLogs';
+
+import ManageSecretaries from './pages/owner/ManageSecretaries';
+import ManagePatients from './pages/owner/ManagePatients';
+import AddDentist from './pages/owner/AddDentist';
+import AddSecretary from './pages/owner/AddSecretary';
+import AddPatient from './pages/owner/AddPatient';
+import EditDentist from './pages/owner/EditDentist';
+
+
 
 function App() {
   return (
@@ -36,7 +45,13 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
             <Route element={<DashboardLayout />}>
               <Route path="/owner/dashboard" element={<OwnerDashboard />} />
-              <Route path="/owner/manage-staff" element={<ManageStaff />} /> 
+              <Route path="/owner/manage-dentists" element={<ManageDentists />} /> 
+              <Route path="/owner/add-dentist" element={<AddDentist />} /> 
+              <Route path="/owner/edit-dentist" element={<EditDentist />} /> 
+              <Route path="/owner/manage-secretaries" element={<ManageSecretaries />} />
+              <Route path="/owner/add-secretary" element={<AddSecretary />} />
+              <Route path="/owner/manage-patients" element={<ManagePatients />} />
+              <Route path="/owner/add-patient" element={<AddPatient />} />
               <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
             </Route>
           </Route>

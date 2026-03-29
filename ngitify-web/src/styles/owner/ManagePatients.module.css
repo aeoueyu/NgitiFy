@@ -1,0 +1,336 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700&display=swap');
+
+.container {
+    padding: 30px;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    font-family: 'Lexend Deca', sans-serif;
+    flex: 1;
+}
+
+.header {
+    margin-bottom: 30px;
+}
+
+.title {
+    font-size: 28px;
+    color: #1e293b;
+    margin: 0 0 5px 0;
+}
+
+.subtitle {
+    color: #64748b;
+    margin: 0;
+    font-size: 15px;
+}
+
+/* CONTROLS AREA (Search, Dropdown, Add Button) */
+.controlsRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.searchFilterGroup {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.searchWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 15px;
+    color: #94a3b8;
+}
+
+.searchInput {
+    padding: 12px 15px 12px 40px;
+    width: 280px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Lexend Deca', sans-serif;
+    outline: none;
+    transition: 0.2s;
+}
+
+.searchInput:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 3px rgba(1, 83, 139, 0.1);
+}
+
+.dropdownFilter {
+    padding: 12px 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Lexend Deca', sans-serif;
+    color: #334155;
+    background-color: white;
+    cursor: pointer;
+    outline: none;
+}
+
+.addBtn {
+    display: flex;
+    align-items: center;
+    background-color: #01538b;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Lexend Deca', sans-serif;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.addBtn:hover {
+    background-color: #014372;
+}
+
+.btnIcon {
+    margin-right: 8px;
+}
+
+/* =========================================
+   TAB NAVIGATION (Dentist | Secretary | Patient)
+   ========================================= */
+   .tabsContainer {
+    display: flex;
+    gap: 20px;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 25px;
+}
+
+.tabButton {
+    background: none;
+    border: none;
+    padding: 10px 15px;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: 'Lexend Deca', sans-serif;
+    color: #64748b;
+    cursor: pointer;
+    position: relative;
+    transition: 0.3s ease;
+}
+
+.tabButton:hover {
+    color: #01538b;
+}
+
+/* Kapag active yung tab, kulay Blue at may guhit sa ilalim */
+.activeTab {
+    color: #01538b;
+    font-weight: 600;
+}
+
+.activeTab::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; /* Nakapatong sa border-bottom ng tabsContainer */
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: #01538b;
+    border-radius: 3px 3px 0 0;
+}
+
+/* TABLE STYLES */
+.tableContainer {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.userTable {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.userTable th {
+    background-color: #f1f5f9;
+    padding: 16px 20px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.userTable td {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f8fafc;
+    color: #334155;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.userTable tr:last-child td { border-bottom: none; }
+.userTable tr:hover { background-color: #f8fafc; }
+
+.fwBold { font-weight: 500; color: #0f172a !important; }
+
+/* ROLE BADGES */
+.roleBadge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.dentist { background-color: #e0f2fe; color: #0369a1; }
+.secretary { background-color: #f3e8ff; color: #7e22ce; }
+.patient { background-color: #dcfce7; color: #15803d; }
+
+/* STATUS DOTS */
+.statusDot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+.activeDot { background-color: #22c55e; }
+.leaveDot { background-color: #f59e0b; }
+
+/* ACTION BUTTONS */
+.iconBtn {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 6px;
+    margin-right: 8px;
+    border-radius: 5px;
+    transition: 0.2s;
+}
+
+.iconBtn:hover {
+    color: #01538b;
+    background-color: #f1f5f9;
+}
+
+.deleteBtn:hover {
+    color: #ef4444;
+    background-color: #fef2f2;
+}
+
+/* =========================================
+   MODAL / POP-UP STYLES
+   ========================================= */
+   .modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(15, 23, 42, 0.6); /* Dark semi-transparent background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalBox {
+    background-color: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 450px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    font-family: 'Lexend Deca', sans-serif;
+}
+
+.modalHeader {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 15px;
+}
+
+.modalTitle {
+    margin: 0;
+    font-size: 20px;
+    color: #1e293b;
+}
+
+.formGroup {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.formGroup label {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.formInput {
+    padding: 10px 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: 0.2s;
+}
+
+.formInput:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 3px rgba(1, 83, 139, 0.1);
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.cancelBtn {
+    padding: 10px 20px;
+    background-color: #f1f5f9;
+    color: #475569;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+.cancelBtn:hover {
+    background-color: #e2e8f0;
+}
+
+.saveBtn {
+    padding: 10px 20px;
+    background-color: #01538b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+.saveBtn:hover {
+    background-color: #014372;
+}
+
