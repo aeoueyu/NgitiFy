@@ -653,6 +653,72 @@ app.post('/api/check-email', async (req, res) => {
     }
 });
 
+app.get('/api/inventory', async (req, res) => {
+    try {
+        const items = await Inventory.find().sort({ createdAt: -1 });
+        res.status(200).json(items);
+    } catch (error) {
+        console.error("Error fetching inventory:", error);
+        res.status(500).json({ message: "Server error fetching inventory" });
+    }
+});
+
+// POST a new inventory item
+app.post('/api/inventory', async (req, res) => {
+    try {
+        const newItem = new Inventory(req.body);
+        await newItem.save();
+        res.status(201).json(newItem);
+    } catch (error) {
+        console.error("Error adding inventory item:", error);
+        res.status(500).json({ message: "Server error adding item" });
+    }
+});
+
+app.get('/api/inventory/:id', async (req, res) => {
+    try {
+        const item = await Inventory.findById(req.params.id);
+        if (!item) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+        res.status(200).json(item);
+    } catch (error) {
+        console.error("Error fetching single inventory item:", error);
+        if (error.name === 'CastError') {
+            return res.status(400).json({ message: "Invalid item ID format" });
+        }
+        res.status(500).json({ message: "Server error fetching item" });
+    }
+});
+
+// PUT to update an existing inventory item
+app.put('/api/inventory/:id', async (req, res) => {
+    try {
+        const updatedItem = await Inventory.findByIdAndUpdate(
+            req.params.id, 
+            req.body, 
+            { new: true, runValidators: true }
+        );
+        if (!updatedItem) return res.status(404).json({ message: "Item not found" });
+        res.status(200).json(updatedItem);
+    } catch (error) {
+        console.error("Error updating inventory item:", error);
+        res.status(500).json({ message: "Server error updating item" });
+    }
+});
+
+// DELETE an inventory item
+app.delete('/api/inventory/:id', async (req, res) => {
+    try {
+        const deletedItem = await Inventory.findByIdAndDelete(req.params.id);
+        if (!deletedItem) return res.status(404).json({ message: "Item not found" });
+        res.status(200).json({ message: "Item deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting inventory item:", error);
+        res.status(500).json({ message: "Server error deleting item" });
+    }
+});
+
 
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

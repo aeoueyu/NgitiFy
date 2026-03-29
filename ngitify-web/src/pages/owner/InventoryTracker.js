@@ -2,17 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/InventoryTracker.module.css'; 
 import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle } from 'react-icons/fa';
 
-import AddInventoryItem from './AddInventoryItem'; // NEW: Imported Modal
+import AddInventoryItem from './AddInventoryItem'; 
+import EditInventoryItem from './EditInventoryItem'; 
 
 export default function InventoryTracker() {
     const [searchQuery, setSearchQuery] = useState('');
     const [inventoryList, setInventoryList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // NEW: Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
+    const [selectedItemId, setSelectedItemId] = useState(null);    
 
-    // Fetch Inventory Data
     const fetchInventory = useCallback(async () => {
         try {
             setIsLoading(true);
@@ -29,10 +30,11 @@ export default function InventoryTracker() {
                 
                 const mappedInventory = data.map(item => ({
                     id: item._id,
-                    name: item.name || item.itemName || 'Unknown Item',
+                    name: item.itemName || item.name || 'Unknown Item',
                     category: item.category || 'Uncategorized',
-                    currentStock: item.currentStock || 0,
-                    threshold: item.threshold || 0,
+                    currentStock: item.quantity !== undefined ? item.quantity : (item.currentStock || 0),
+                    // FIXED: Now safely checks for reorderLevel
+                    threshold: item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0),
                     unit: item.unit || 'pcs'
                 }));
                 
@@ -81,6 +83,16 @@ export default function InventoryTracker() {
         }
     };
 
+    const handleEditClick = (id) => {
+        setSelectedItemId(id);
+        setIsEditModalOpen(true);
+    };
+
+    const handleCloseEditModal = () => {
+        setIsEditModalOpen(false);
+        setSelectedItemId(null);
+    };
+
     const getStatusBadge = (current, threshold) => {
         if (current <= 0) {
             return <span style={{ color: '#dc3545', fontWeight: '600', fontSize: '13px' }}>Out of Stock</span>;
@@ -114,7 +126,6 @@ export default function InventoryTracker() {
                     />
                 </div>
                 
-                {/* NEW: Open Add Modal */}
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
                     <FaPlus className={styles.btnIcon} style={{ fontSize: '12px' }} /> Add New Item
                 </button>
@@ -154,7 +165,7 @@ export default function InventoryTracker() {
                                     <td>
                                         <button 
                                             className={styles.iconBtn} 
-                                            onClick={() => alert("Edit Modal coming soon!")}
+                                            onClick={() => handleEditClick(item.id)}
                                             title="Edit Item"
                                         >
                                             <FaEdit />
@@ -177,10 +188,17 @@ export default function InventoryTracker() {
                 </table>
             </div>
 
-            {/* NEW: Render Add Modal */}
             {isAddModalOpen && (
                 <AddInventoryItem 
                     onClose={() => setIsAddModalOpen(false)} 
+                    onSuccess={fetchInventory} 
+                />
+            )}
+
+            {isEditModalOpen && selectedItemId && (
+                <EditInventoryItem 
+                    itemId={selectedItemId}
+                    onClose={handleCloseEditModal} 
                     onSuccess={fetchInventory} 
                 />
             )}

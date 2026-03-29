@@ -21,7 +21,7 @@ export default function AddInventoryItem({ onClose, onSuccess }) {
         name: '',
         category: '',
         currentStock: '',
-        threshold: '',
+        threshold: '10',
         unit: 'pcs'
     });
 
@@ -76,10 +76,10 @@ export default function AddInventoryItem({ onClose, onSuccess }) {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    name: formData.name.trim(),
+                    itemName: formData.name.trim(), 
                     category: formData.category,
-                    currentStock: Number(formData.currentStock),
-                    threshold: Number(formData.threshold),
+                    quantity: Number(formData.currentStock), 
+                    reorderLevel: Number(formData.threshold), // FIXED: Maps to your schema exactly
                     unit: formData.unit
                 }),
             });
