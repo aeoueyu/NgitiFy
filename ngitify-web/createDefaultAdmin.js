@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 // Siguraduhin na tama ang path papunta sa User model
-const User = require('./src/models/User'); 
+const User = require('../backend/models/User'); 
 
 // LOCAL Database Connection String
 const MONGO_URI = 'mongodb://127.0.0.1:27017/ngitify';
