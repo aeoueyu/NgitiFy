@@ -57,11 +57,17 @@ export default function OwnerDashboard() {
                     setActivePatients(activePatientsFromUsers);
                 }
 
-                // 2. Fetch Inventory for Low Stock
+                // 2. Fetch Inventory for Low Stock (FIXED LOGIC DITO)
                 const invRes = await fetch('http://localhost:5000/api/inventory', { headers });
                 if (invRes.ok) {
                     const invData = await invRes.json();
-                    const lowStockCount = invData.filter(item => item.currentStock <= item.threshold).length;
+                    const lowStockCount = invData.filter(item => {
+                        // Kinuha natin ang logic ng AI na may fallbacks para sa Mongoose schema mo
+                        const stock = Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0));
+                        const limit = Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0));
+                        return stock <= limit;
+                    }).length;
+                    
                     setLowStockAlerts(lowStockCount);
                 }
 

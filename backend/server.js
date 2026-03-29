@@ -697,7 +697,7 @@ app.put('/api/inventory/:id', async (req, res) => {
         const updatedItem = await Inventory.findByIdAndUpdate(
             req.params.id, 
             req.body, 
-            { new: true, runValidators: true }
+            { returnDocument: 'after', runValidators: true } // FIXED: Mongoose Deprecation
         );
         if (!updatedItem) return res.status(404).json({ message: "Item not found" });
         res.status(200).json(updatedItem);
