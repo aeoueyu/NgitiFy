@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManageDentists.module.css'; 
-import { FaSearch, FaUserPlus, FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaTrash, FaCheckCircle, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 // Removed useNavigate since we are using Modals for everything now!
 
 import AddDentist from './AddDentist'; 
@@ -152,18 +152,27 @@ export default function ManageDentists() {
                 <table className={styles.userTable}>
                     <thead>
                         <tr>
+                            <th style={{ width: '70px' }}></th>
                             <th>Dentist Name</th>
                             <th>Contact Number</th>
-                            <th>Account Status</th>
-                            <th>Actions</th>
+                            <th style={{ width: '180px' }}>Account Status</th>
+                            <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredDentists.length > 0 ? (
                             filteredDentists.map((dentist) => (
                                 <tr key={dentist.id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
+                                    <td>
+                                        <div style={{ 
+                                            width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
+                                        }}>
+                                            {dentist.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
+                                        </div>
+                                    </td>
                                     <td className={styles.fwBold}>
                                         Dr. {dentist.name}
                                         {!dentist.isVerified && <span style={{fontSize: '11px', color: '#ff4d4d', display: 'block', fontWeight: 'normal'}}>Unverified Email</span>}
@@ -173,29 +182,21 @@ export default function ManageDentists() {
                                         <span className={`${styles.statusDot} ${dentist.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
                                         {dentist.status}
                                     </td>
-                                    <td>
-                                        {/* CHANGED: Now opens the Edit Modal instead of navigating */}
+                                    <td style={{ textAlign: 'center' }}>
+                                        <button className={styles.iconBtn} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
                                         <button 
-                                            className={styles.iconBtn} 
-                                            onClick={() => handleEditClick(dentist.id)}
-                                            title="Edit Profile"
-                                        >
-                                            <FaEdit />
-                                        </button>
-                                        
-                                        <button 
-                                            className={`${styles.iconBtn} ${dentist.status === 'Active' ? styles.deleteBtn : styles.activeBtn}`} 
+                                            className={`${styles.iconBtn}`} 
                                             onClick={() => handleToggleStatus(dentist)}
                                             title={dentist.status === 'Active' ? "Deactivate Account" : "Activate Account"}
-                                            style={{ color: dentist.status === 'Inactive' ? 'green' : undefined }}
+                                            style={{ color: dentist.status === 'Inactive' ? '#22c55e' : '#64748b', fontSize: '20px' }}
                                         >
-                                            {dentist.status === 'Active' ? <FaTrash /> : <FaCheckCircle />}
+                                            {dentist.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                         </button>
                                     </td>
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No dentists found.</td></tr>
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No dentists found.</td></tr>
                         )}
                     </tbody>
                 </table>

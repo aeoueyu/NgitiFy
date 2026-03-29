@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManageSecretaries.module.css'; 
-import { FaSearch, FaUserPlus, FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaTrash, FaCheckCircle, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 
 import AddSecretary from './AddSecretary'; 
 import EditSecretary from './EditSecretary'; // NEW: Import the Edit Modal
@@ -148,18 +148,28 @@ export default function ManageSecretaries() {
                 <table className={styles.userTable}>
                     <thead>
                         <tr>
+                            <th style={{ width: '70px' }}></th>
                             <th>Secretary Name</th>
                             <th>Contact Number</th>
-                            <th>Account Status</th>
-                            <th>Actions</th>
+                            <th style={{ width: '180px' }}>Account Status</th>
+                            <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredSecretaries.length > 0 ? (
                             filteredSecretaries.map((secretary) => (
                                 <tr key={secretary.id} style={{ opacity: secretary.status === 'Inactive' ? 0.6 : 1 }}>
+                                    <td>
+                                        <div style={{ 
+                                            width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
+                                        }}>
+                                            {/* Kukuha ng initials base sa secretary.name */}
+                                            {secretary.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
+                                        </div>
+                                    </td>
                                     <td className={styles.fwBold}>
                                         {secretary.name}
                                         {!secretary.isVerified && <span style={{fontSize: '11px', color: '#ff4d4d', display: 'block', fontWeight: 'normal'}}>Unverified Email</span>}
@@ -169,29 +179,21 @@ export default function ManageSecretaries() {
                                         <span className={`${styles.statusDot} ${secretary.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
                                         {secretary.status}
                                     </td>
-                                    <td>
-                                        {/* CHANGED: Opens Modal */}
+                                    <td style={{ textAlign: 'center' }}>
+                                        <button className={styles.iconBtn} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
                                         <button 
-                                            className={styles.iconBtn} 
-                                            onClick={() => handleEditClick(secretary.id)}
-                                            title="Edit Profile"
-                                        >
-                                            <FaEdit />
-                                        </button>
-                                        
-                                        <button 
-                                            className={`${styles.iconBtn} ${secretary.status === 'Active' ? styles.deleteBtn : styles.activeBtn}`} 
+                                            className={`${styles.iconBtn}`} 
                                             onClick={() => handleToggleStatus(secretary)}
                                             title={secretary.status === 'Active' ? "Deactivate Account" : "Activate Account"}
-                                            style={{ color: secretary.status === 'Inactive' ? 'green' : undefined }}
+                                            style={{ color: secretary.status === 'Inactive' ? '#22c55e' : '#64748b', fontSize: '20px' }}
                                         >
-                                            {secretary.status === 'Active' ? <FaTrash /> : <FaCheckCircle />}
+                                            {secretary.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                         </button>
                                     </td>
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found.</td></tr>
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found.</td></tr>
                         )}
                     </tbody>
                 </table>
