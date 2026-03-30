@@ -2,7 +2,7 @@
 
 .container {
     padding: 30px;
-    background-color: #f8fafc;
+    background-color: #f4f7fa;
     min-height: 100vh;
     font-family: 'Lexend Deca', sans-serif;
     flex: 1;
@@ -13,15 +13,17 @@
 }
 
 .title {
-    font-size: 28px;
-    color: #1e293b;
+    color: #01538b;
+    font-size: 26px;
+    font-weight: 800;
     margin: 0 0 5px 0;
 }
 
 .subtitle {
-    color: #64748b;
+    color: #888;
     margin: 0;
-    font-size: 15px;
+    font-size: 13px;
+    font-weight: 500;
 }
 
 /* CONTROLS AREA (Search, Dropdown, Add Button) */
@@ -40,30 +42,33 @@
 
 .searchWrapper {
     position: relative;
-    display: flex;
-    align-items: center;
+    flex: 1;
+    max-width: 400px;
 }
 
 .searchIcon {
     position: absolute;
     left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
     color: #94a3b8;
+    font-size: 14px;
 }
 
 .searchInput {
-    padding: 12px 15px 12px 40px;
-    width: 280px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 14px;
+    width: 100%;
+    padding: 12px 15px 12px 45px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
     font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px;
     outline: none;
-    transition: 0.2s;
+    transition: all 0.3s ease;
 }
 
 .searchInput:focus {
     border-color: #01538b;
-    box-shadow: 0 0 0 3px rgba(1, 83, 139, 0.1);
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
 }
 
 .dropdownFilter {
@@ -79,22 +84,25 @@
 }
 
 .addBtn {
-    display: flex;
-    align-items: center;
     background-color: #01538b;
     color: white;
     border: none;
-    padding: 12px 20px;
-    border-radius: 8px;
+    padding: 12px 25px;
+    border-radius: 50px;
+    font-weight: 600;
     font-size: 14px;
-    font-weight: 500;
-    font-family: 'Lexend Deca', sans-serif;
     cursor: pointer;
-    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
 }
 
 .addBtn:hover {
-    background-color: #014372;
+    background-color: #013f6b;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(1, 83, 139, 0.3);
 }
 
 .btnIcon {

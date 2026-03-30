@@ -79,7 +79,7 @@
 /* --- MAIN CONTENT STYLES --- */
 .main-content {
     flex: 1;
-    padding: 30px 40px;
+    padding: 30px;
     overflow-y: auto;
 }
 
