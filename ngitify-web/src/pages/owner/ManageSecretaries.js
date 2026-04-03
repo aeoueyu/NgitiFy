@@ -48,7 +48,8 @@ export default function ManageSecretaries() {
                             name: parsedName,
                             contact: u.contactNumber || u.phoneNumber || 'N/A',
                             status: u.status === 'active' ? 'Active' : 'Inactive',
-                            isVerified: u.isVerified
+                            isVerified: u.isVerified,
+                            profileImage: u.profileImage
                         };
                     });
                     
@@ -162,13 +163,22 @@ export default function ManageSecretaries() {
                             filteredSecretaries.map((secretary) => (
                                 <tr key={secretary.id} style={{ opacity: secretary.status === 'Inactive' ? 0.6 : 1 }}>
                                     <td>
-                                        <div style={{ 
-                                            width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
-                                        }}>
-                                            {/* Kukuha ng initials base sa secretary.name */}
-                                            {secretary.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
-                                        </div>
+                                        {secretary.profileImage ? (
+                                            <img
+                                                src={secretary.profileImage}
+                                                alt={secretary.name}
+                                                style={{
+                                                    width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{ 
+                                                width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
+                                            }}>
+                                                {(() => { const p = secretary.name.trim().split(/\s+/); return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); })()}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className={styles.fwBold}>
                                         {secretary.name}

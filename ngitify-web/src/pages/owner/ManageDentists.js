@@ -50,7 +50,8 @@ export default function ManageDentists() {
                             name: parsedName,
                             contact: u.contactNumber || u.phoneNumber || 'N/A',
                             status: u.status === 'active' ? 'Active' : 'Inactive',
-                            isVerified: u.isVerified
+                            isVerified: u.isVerified,
+                            profileImage: u.profileImage
                         };
                     });
                     
@@ -164,14 +165,24 @@ export default function ManageDentists() {
                             <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredDentists.length > 0 ? (
                             filteredDentists.map((dentist) => (
-                                <tr key={dentist.id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
+                                <tr key={dentist._id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
                                     <td>
-                                        <div style={{ 
-                                            width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
-                                        }}>
-                                            {dentist.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
-                                        </div>
+                                        {dentist.profileImage ? (
+                                            <img 
+                                                src={dentist.profileImage} 
+                                                alt={dentist.name} 
+                                                style={{ 
+                                                    width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' 
+                                                }} 
+                                            />
+                                        ) : (
+                                            <div style={{ 
+                                                width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
+                                            }}>
+                                                {dentist.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className={styles.fwBold}>
                                         Dr. {dentist.name}

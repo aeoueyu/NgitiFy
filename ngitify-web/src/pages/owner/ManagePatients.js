@@ -60,7 +60,8 @@ export default function ManagePatients() {
                             email: p.email || 'N/A',
                             dob: dobFormatted,
                             status: p.status === 'active' ? 'Active' : 'Inactive',
-                            isVerified: p.isVerified 
+                            isVerified: p.isVerified,
+                            profileImage: p.profileImage
                         };
                     });
                     
@@ -175,12 +176,22 @@ export default function ManagePatients() {
                             filteredPatients.map((patient) => (
                                 <tr key={patient.id} style={{ opacity: patient.status === 'Inactive' ? 0.6 : 1 }}>
                                     <td>
-                                        <div style={{ 
-                                            width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
-                                        }}>
-                                            {patient.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
-                                        </div>
+                                        {patient.profileImage ? (
+                                            <img
+                                                src={patient.profileImage}
+                                                alt={patient.name}
+                                                style={{
+                                                    width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{ 
+                                                width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
+                                            }}>
+                                                {(() => { const p = patient.name.trim().split(/\s+/); return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); })()}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className={styles.fwBold}>
                                         {patient.name}
