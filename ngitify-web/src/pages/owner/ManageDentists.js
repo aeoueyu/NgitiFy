@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManageDentists.module.css'; 
-import { FaSearch, FaUserPlus, FaEdit, FaTrash, FaCheckCircle, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 // Removed useNavigate since we are using Modals for everything now!
 
 import AddDentist from './AddDentist'; 
-import EditDentist from './EditDentist'; // NEW: Import the Edit Modal
+import EditDentist from './EditDentist';
+import ViewDentist from './ViewDentist';
 
 export default function ManageDentists() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -13,8 +14,9 @@ export default function ManageDentists() {
     
     // Modal States
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false); // NEW
-    const [selectedDentistId, setSelectedDentistId] = useState(null); // NEW
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [selectedDentistId, setSelectedDentistId] = useState(null);
 
     // Extracted fetch function
     const fetchDentists = useCallback(async () => {
@@ -115,6 +117,7 @@ export default function ManageDentists() {
 
     // NEW: Open Edit Modal Handler
     const handleEditClick = (dentistId) => {
+        setIsViewModalOpen(false);
         setSelectedDentistId(dentistId);
         setIsEditModalOpen(true);
     };
@@ -122,6 +125,17 @@ export default function ManageDentists() {
     // NEW: Close Edit Modal Handler
     const handleCloseEditModal = () => {
         setIsEditModalOpen(false);
+        setSelectedDentistId(null);
+    };
+
+    const handleViewClick = (dentistId) => {
+        setIsEditModalOpen(false);
+        setSelectedDentistId(dentistId);
+        setIsViewModalOpen(true);
+    };
+
+    const handleCloseViewModal = () => {
+        setIsViewModalOpen(false);
         setSelectedDentistId(null);
     };
 
@@ -165,7 +179,7 @@ export default function ManageDentists() {
                             <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredDentists.length > 0 ? (
                             filteredDentists.map((dentist) => (
-                                <tr key={dentist._id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
+                                <tr key={dentist.id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
                                     <td>
                                         {dentist.profileImage ? (
                                             <img 
@@ -194,6 +208,7 @@ export default function ManageDentists() {
                                         {dentist.status}
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
+                                        <button className={styles.iconBtn} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
                                         <button className={styles.iconBtn} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
                                         <button 
                                             className={`${styles.iconBtn}`} 
@@ -222,6 +237,17 @@ export default function ManageDentists() {
             )}
 
             {/* NEW: Conditionally Render the Edit Modal */}
+            {isViewModalOpen && selectedDentistId && (
+                <ViewDentist
+                    dentistId={selectedDentistId}
+                    onClose={handleCloseViewModal}
+                    onEdit={() => {
+                        setIsViewModalOpen(false);
+                        setIsEditModalOpen(true);
+                    }}
+                />
+            )}
+
             {isEditModalOpen && selectedDentistId && (
                 <EditDentist 
                     dentistId={selectedDentistId}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManageSecretaries.module.css'; 
-import { FaSearch, FaUserPlus, FaEdit, FaTrash, FaCheckCircle, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 
 import AddSecretary from './AddSecretary'; 
-import EditSecretary from './EditSecretary'; // NEW: Import the Edit Modal
+import EditSecretary from './EditSecretary';
+import ViewSecretary from './ViewSecretary';
 
 export default function ManageSecretaries() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -12,8 +13,9 @@ export default function ManageSecretaries() {
     
     // Modal States
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false); // NEW
-    const [selectedSecretaryId, setSelectedSecretaryId] = useState(null); // NEW
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [selectedSecretaryId, setSelectedSecretaryId] = useState(null);
 
     const fetchSecretaries = useCallback(async () => {
         try {
@@ -111,13 +113,25 @@ export default function ManageSecretaries() {
 
     // NEW: Open Edit Modal Handler
     const handleEditClick = (id) => {
+        setIsViewModalOpen(false);
         setSelectedSecretaryId(id);
         setIsEditModalOpen(true);
+    };
+
+    const handleViewClick = (id) => {
+        setIsEditModalOpen(false);
+        setSelectedSecretaryId(id);
+        setIsViewModalOpen(true);
     };
 
     // NEW: Close Edit Modal Handler
     const handleCloseEditModal = () => {
         setIsEditModalOpen(false);
+        setSelectedSecretaryId(null);
+    };
+
+    const handleCloseViewModal = () => {
+        setIsViewModalOpen(false);
         setSelectedSecretaryId(null);
     };
 
@@ -190,6 +204,7 @@ export default function ManageSecretaries() {
                                         {secretary.status}
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
+                                        <button className={styles.iconBtn} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
                                         <button className={styles.iconBtn} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
                                         <button 
                                             className={`${styles.iconBtn}`} 
@@ -212,6 +227,17 @@ export default function ManageSecretaries() {
             {/* Modals */}
             {isAddModalOpen && (
                 <AddSecretary onClose={() => setIsAddModalOpen(false)} onSuccess={fetchSecretaries} />
+            )}
+
+            {isViewModalOpen && selectedSecretaryId && (
+                <ViewSecretary
+                    secretaryId={selectedSecretaryId}
+                    onClose={handleCloseViewModal}
+                    onEdit={() => {
+                        setIsViewModalOpen(false);
+                        setIsEditModalOpen(true);
+                    }}
+                />
             )}
 
             {isEditModalOpen && selectedSecretaryId && (

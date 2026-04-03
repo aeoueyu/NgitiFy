@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManagePatients.module.css'; 
-import { FaSearch, FaUserPlus, FaEdit, FaTrash, FaCheckCircle, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 
 import AddPatient from './AddPatient'; 
-import EditPatient from './EditPatient'; // NEW: Import the Edit Modal
+import EditPatient from './EditPatient';
+import ViewPatient from './ViewPatient';
 
 export default function ManagePatients() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -12,8 +13,9 @@ export default function ManagePatients() {
 
     // Modal States
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false); // NEW
-    const [selectedPatientId, setSelectedPatientId] = useState(null); // NEW
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [selectedPatientId, setSelectedPatientId] = useState(null);
 
     const fetchPatients = useCallback(async () => {
         try {
@@ -124,13 +126,25 @@ export default function ManagePatients() {
 
     // NEW: Open Edit Modal Handler
     const handleEditClick = (id) => {
+        setIsViewModalOpen(false);
         setSelectedPatientId(id);
         setIsEditModalOpen(true);
+    };
+
+    const handleViewClick = (id) => {
+        setIsEditModalOpen(false);
+        setSelectedPatientId(id);
+        setIsViewModalOpen(true);
     };
 
     // NEW: Close Edit Modal Handler
     const handleCloseEditModal = () => {
         setIsEditModalOpen(false);
+        setSelectedPatientId(null);
+    };
+
+    const handleCloseViewModal = () => {
+        setIsViewModalOpen(false);
         setSelectedPatientId(null);
     };
 
@@ -171,7 +185,7 @@ export default function ManagePatients() {
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredPatients.length > 0 ? (
                             filteredPatients.map((patient) => (
                                 <tr key={patient.id} style={{ opacity: patient.status === 'Inactive' ? 0.6 : 1 }}>
@@ -203,6 +217,7 @@ export default function ManagePatients() {
                                         {patient.status}
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
+                                        <button className={styles.iconBtn} onClick={() => handleViewClick(patient.id)} title="View Profile"><FaEye /></button>
                                         <button className={styles.iconBtn} onClick={() => handleEditClick(patient.id)} title="Edit Profile"><FaEdit /></button>
                                         <button 
                                             className={`${styles.iconBtn}`} 
@@ -216,7 +231,7 @@ export default function ManagePatients() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No patients found.</td></tr>
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No patients found.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -225,6 +240,17 @@ export default function ManagePatients() {
             {/* Modals */}
             {isAddModalOpen && (
                 <AddPatient onClose={() => setIsAddModalOpen(false)} onSuccess={fetchPatients} />
+            )}
+
+            {isViewModalOpen && selectedPatientId && (
+                <ViewPatient
+                    patientId={selectedPatientId}
+                    onClose={handleCloseViewModal}
+                    onEdit={() => {
+                        setIsViewModalOpen(false);
+                        setIsEditModalOpen(true);
+                    }}
+                />
             )}
 
             {isEditModalOpen && selectedPatientId && (
