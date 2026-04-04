@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 // Siguraduhin na tama ang path papunta sa User model
-const User = require('../backend/models/User'); 
+const User = require('./models/User'); 
 
 // LOCAL Database Connection String
 const MONGO_URI = 'mongodb://127.0.0.1:27017/ngitify';
@@ -16,6 +16,7 @@ const createAdmin = async () => {
         const email = 'admin@gmail.com';
         const rawPassword = 'AdminUser_123';
         const role = 'owner'; // Important: Lowercase
+        const defaultContact = '+639123456789'; // Standardized backend format
 
         // 1. Hash ang password
         const hashedPassword = await bcrypt.hash(rawPassword, 10);
@@ -29,10 +30,14 @@ const createAdmin = async () => {
             user.password = hashedPassword;
             user.role = role;
             user.isVerified = true;
+            user.status = 'active'; // Siguraduhing active
             
-            // Siguraduhin na may pangalan para hindi mag-error
+            // Fail-safe updates para sa existing document
             if (!user.name || !user.name.first) {
                 user.name = { first: 'Admin', last: 'User' };
+            }
+            if (!user.contactNumber) {
+                user.contactNumber = defaultContact;
             }
             
             await user.save();
@@ -45,8 +50,9 @@ const createAdmin = async () => {
                 email,
                 password: hashedPassword,
                 role,
-                contactNumber: '09123456789',
-                isVerified: true
+                contactNumber: defaultContact,
+                isVerified: true,
+                status: 'active'
             });
             await newAdmin.save();
             console.log('🎉 Admin created successfully! Pwede ka na mag-login.');

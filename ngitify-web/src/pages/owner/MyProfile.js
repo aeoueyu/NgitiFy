@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/owner/MyProfile.module.css';
+import { useAuth } from '../../hooks/useAuth';
 import BackIcon from '../../assets/icons/Back.svg';
 import successIcon from '../../assets/alert/success.svg';
 
@@ -52,13 +53,16 @@ export default function MyProfile() {
 
                 if (response.ok) {
                     const data = await response.json();
+                    
+                    // ULTIMATE FAIL-SAFE DATA MAPPING
                     const fetchedData = {
-                        firstName: data.name?.first || data.firstName || '',
-                        lastName: data.name?.last || data.lastName || '',
-                        email: data.email || '',
-                        phone: data.contactNumber ? data.contactNumber.replace('+63', '') : '',
-                        profileImage: data.profileImage || ''
+                        firstName: data?.name?.first || data?.firstName || '',
+                        lastName: data?.name?.last || data?.lastName || '',
+                        email: data?.email || '',
+                        phone: data?.contactNumber ? String(data.contactNumber).replace('+63', '') : '',
+                        profileImage: data?.profileImage || ''
                     };
+                    
                     setFormData(fetchedData);
                     setInitialData(fetchedData);
                 } else {
@@ -66,7 +70,6 @@ export default function MyProfile() {
                 }
             } catch (error) {
                 console.error("Error fetching profile:", error);
-                // Dynamically display the exact error message
                 setFetchError("Error: " + error.message);
             } finally {
                 setIsLoading(false);
@@ -85,7 +88,7 @@ export default function MyProfile() {
         if (errors[name]) setErrors(prev => { const n = {...prev}; delete n[name]; return n; });
         
         if (name === 'phone') {
-            const val = value.replace(/[^0-9]/g, '');
+            const val = value ? String(value).replace(/[^0-9]/g, '') : '';
             if (val.length > 10) return;
             setFormData({ ...formData, phone: val });
         } else {
@@ -128,7 +131,7 @@ export default function MyProfile() {
                 return;
             }
 
-            // Safe JWT Decode: Replace Base64URL characters before atob()
+            // Safe JWT Decode
             const base64Url = token.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             const payload = JSON.parse(atob(base64));
@@ -212,7 +215,7 @@ export default function MyProfile() {
                                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageUpload} />
                             </div>
                             <div className={styles.profileText}>
-                                <h2>{formData.firstName} {formData.lastName}</h2>
+                                <h2>{formData.firstName || 'Owner'} {formData.lastName || 'Account'}</h2>
                                 <span className={styles.roleTag}>Clinic Owner</span>
                             </div>
                         </div>
