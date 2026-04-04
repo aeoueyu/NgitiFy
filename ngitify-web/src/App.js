@@ -27,6 +27,8 @@ import AddPatient from './pages/owner/AddPatient';
 import EditDentist from './pages/owner/EditDentist';
 import InventoryTracker from './pages/owner/InventoryTracker';
 
+import MyProfile from './pages/owner/MyProfile';
+
 
 
 function App() {
@@ -46,6 +48,8 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
             <Route element={<DashboardLayout />}>
               <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+
+              <Route path="/owner/profile" element={<MyProfile />} />
               
               {/* UPDATED: URL-based Routing for User Management Tabs */}
               <Route path="/owner/manage-users" element={<Navigate to="/owner/manage-users/dentists" replace />} />

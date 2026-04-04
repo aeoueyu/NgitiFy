@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.container {
+    padding: 30px;
+    background-color: #f4f7fa;
+    min-height: 100vh;
+    font-family: 'Lexend Deca', sans-serif;
+    flex: 1;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.headerWrapper {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 30px;
+}
+
+.backIconButton {
+    background: none; border: none; cursor: pointer;
+    padding: 5px; margin-right: 15px; margin-top: 2px;
+    border-radius: 50%; transition: background-color 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+
+.backIconButton:hover { background-color: rgba(1, 83, 139, 0.1); }
+.backIconButton img { width: 24px; height: 24px; filter: invert(16%) sepia(91%) saturate(3015%) hue-rotate(193deg) brightness(91%) contrast(97%); }
+
+.header { display: flex; flex-direction: column; }
+.title { color: #01538b; font-size: 26px; font-weight: 800; margin: 0 0 5px 0; }
+.subtitle { color: #888; margin: 0; font-size: 13px; font-weight: 500; }
+
+.card {
+    background: white; padding: 40px; border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    max-width: 800px; margin: 0 auto;
+}
+
+.profileSection {
+    display: flex; align-items: center; gap: 30px;
+    padding-bottom: 30px; border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 30px;
+}
+
+.imageWrapper { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
+.profileImage { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid #2dccf6; }
+.profileInitials { width: 100%; height: 100%; border-radius: 50%; background-color: #01538b; color: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 700; border: 3px solid #2dccf6; }
+
+.imageOverlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.5);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 11px; font-weight: 600; opacity: 0; cursor: pointer; transition: opacity 0.2s;
+}
+.imageWrapper:hover .imageOverlay { opacity: 1; }
+
+.profileText h2 { color: #01538b; font-size: 22px; font-weight: 700; margin: 0 0 5px 0; }
+.roleTag { background-color: #e0f2fe; color: #0284c7; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+
+.mainSectionTitle { color: #01538b; font-size: 16px; margin-bottom: 20px; border-left: 4px solid #2dccf6; padding-left: 10px; }
+
+.row { display: flex; gap: 20px; margin-bottom: 20px; }
+.formGroup { flex: 1; display: flex; flex-direction: column; }
+.formGroup label { font-size: 12px; font-weight: 700; color: #01538b; margin-bottom: 8px; margin-left: 10px; text-transform: uppercase; }
+
+.inputField {
+    width: 100%; height: 46px; padding: 0 20px; border-radius: 50px;
+    border: 1.5px solid #e2e8f0; font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px; outline: none; transition: all 0.3s ease; background-color: #fcfcfc; box-sizing: border-box; color: #334155;
+}
+.inputField:focus { border-color: #01538b; box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1); background-color: white; }
+.inputField:disabled { background-color: #f8fafc; cursor: not-allowed; color: #94a3b8; border-color: #f1f5f9; }
+
+.errorBorder { border: 1.5px solid #dc3545 !important; background-color: #ffe6e6 !important; }
+.errorText { color: #dc3545; font-size: 11px; font-weight: 600; margin-top: 4px; margin-left: 10px; }
+
+.buttonGroup { display: flex; justify-content: flex-end; gap: 15px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9; }
+
+.submitBtn { background-color: #01538b; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2); font-family: 'Lexend Deca'; font-size: 13px; }
+.submitBtn:hover { background-color: #013f6b; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(1, 83, 139, 0.3); }
+.submitBtn:disabled { background-color: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.editBtn { background-color: white; color: #01538b; border: 1.5px solid #01538b; padding: 12px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: 'Lexend Deca'; font-size: 13px; }
+.editBtn:hover { background-color: #f0f7fb; transform: translateY(-2px); }
+
+.cancelBtn { background-color: white; color: #64748b; border: 1px solid #e2e8f0; padding: 12px 30px; border-radius: 50px; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.3s ease; font-family: 'Lexend Deca'; }
+.cancelBtn:hover { background-color: #f8fafc; color: #334155; }
+
+/* Modal Styles */
+.modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(3px); }
+.modalCard { background: white; padding: 40px 50px; border-radius: 20px; text-align: center; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; align-items: center; max-width: 400px; width: 90%; }
+.modalIcon { width: 80px; height: 80px; margin-bottom: 25px; }
+.modalTitle { color: #01538b; font-size: 22px; font-weight: 700; margin: 0 0 10px 0; }
+.modalMessage { color: #666; font-size: 14px; margin: 0 0 30px 0; line-height: 1.5; }
+.modalButton { background-color: #01538b; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; }

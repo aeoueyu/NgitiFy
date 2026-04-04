@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // NEW: Imported useNavigate
+import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/owner/OwnerDashboard.module.css';
 import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { FaBoxOpen, FaHistory, FaCheckCircle, FaUserClock } from 'react-icons/fa';
@@ -28,9 +28,12 @@ const PH_HOLIDAYS = [
 
 export default function OwnerDashboard() {
     const { logout } = useAuth();
-    const navigate = useNavigate(); // NEW: Initialize navigation
+    const navigate = useNavigate(); 
     const [currentTime, setCurrentTime] = useState(new Date());
+    
+    // Header & Modal States
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false); 
 
     // Interactive Calendar States
     const [currentMonthView, setCurrentMonthView] = useState(new Date());
@@ -205,6 +208,16 @@ export default function OwnerDashboard() {
         if (day.faded) setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
     };
 
+    const handleLogoutClick = () => {
+        setIsProfileOpen(false);
+        setShowLogoutModal(true);
+    };
+
+    const handleProfileNavigation = () => {
+        setIsProfileOpen(false);
+        navigate('/owner/profile');
+    };
+
     const calendarDays = getCalendarDays();
     const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
@@ -212,175 +225,191 @@ export default function OwnerDashboard() {
     const PIE_COLORS = ['#01538b', '#2dccf6', '#ea8b89', '#f3ca63'];
 
     return (
-        <main className={styles['main-content']}>
-            <header className={styles['header']}>
-                <div className={styles['header-left']}>
-                    <h1 className={styles['title']}>Owner Overview</h1>
-                    <p className={styles['subtitle']}>
-                        {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong>
-                    </p>
-                </div>
-                <div className={styles['header-right']}>
-                    <div className={styles['user-info']}>
-                        <span className={styles['user-name']}>Hello, Admin!</span>
-                        <span className={styles['user-role']}>Clinic Owner</span>
+        <>
+            <main className={styles['main-content']}>
+                <header className={styles['header']}>
+                    <div className={styles['header-left']}>
+                        <h1 className={styles['title']}>Owner Overview</h1>
+                        <p className={styles['subtitle']}>
+                            {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong>
+                        </p>
                     </div>
-                    <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                        <img src={ProfilePicPlaceholder} alt="Profile" className={styles['profile-pic']} />
-                        {isProfileOpen && (
-                            <div className={styles['profile-dropdown']}>
-                                <div className={styles['profile-dropdown-item']}>My Profile</div>
-                                <div className={styles['profile-dropdown-item']}>Settings</div>
-                                <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={logout}>Logout</div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </header>
-
-            {/* ROW 1: STATS GRID */}
-            <div className={styles['stats-grid']}>
-                <div 
-                    className={`${styles['stat-card']} ${styles['clickable']}`} 
-                    onClick={() => navigate('/owner/manage-users/patients')} // UPDATED PATH
-                >
-                    <div className={styles['stat-header']}>
-                        <p className={styles['stat-title']}>Active Patients</p>
-                        <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}><img src={PatientIcon} className={styles['stat-icon']} alt="icon" /></div>
-                    </div>
-                    <h2 className={styles['stat-value']}>{activePatients}</h2>
-                    <p className={styles['stat-desc']}>Verified active records</p>
-                </div>
-                
-                <div 
-                    className={`${styles['stat-card']} ${styles['clickable']}`} 
-                    onClick={() => navigate('/owner/manage-users/dentists')} // UPDATED PATH
-                >
-                    <div className={styles['stat-header']}>
-                        <p className={styles['stat-title']}>Total Staff</p>
-                        <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}><img src={StaffIcon} className={styles['stat-icon']} alt="icon" /></div>
-                    </div>
-                    <h2 className={styles['stat-value']}>{totalStaff}</h2>
-                    <p className={`${styles['stat-desc']} ${styles['neutral']}`}>{staffBreakdown}</p>
-                </div>
-                
-                <div 
-                    className={`${styles['stat-card']} ${styles['clickable']}`}
-                    onClick={() => navigate('/owner/inventory')}
-                >
-                    <div className={styles['stat-header']}>
-                        <p className={styles['stat-title']}>Critical Inventory Alerts</p>
-                        <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}><img src={InventoryIcon} className={styles['stat-icon']} alt="icon" /></div>
-                    </div>
-                    <h2 className={styles['stat-value']} style={{ color: '#ea8b89' }}>{lowStockAlerts}</h2>
-                    <p className={`${styles['stat-desc']} ${lowStockAlerts > 0 ? styles['danger'] : styles['neutral']}`}>
-                        {lowStockAlerts > 0 ? '⚠ Action required' : 'Inventory optimal'}
-                    </p>
-                </div>
-            </div>
-
-            <div className={styles['main-grid']}>
-                <div className={styles['left-column']}>
-                    <div 
-                        className={`${styles['widget-card']} ${styles['clickable']}`} 
-                        onClick={() => navigate('/owner/audit-logs')}
-                    >
-                        <div className={styles['widget-header']}>
-                            <FaHistory className={styles['widget-icon']} />
-                            <h2 className={styles['widget-title']}>Recent System Activity</h2>
+                    <div className={styles['header-right']}>
+                        <div className={styles['user-info']}>
+                            <span className={styles['user-name']}>Hello, Admin!</span>
+                            <span className={styles['user-role']}>Clinic Owner</span>
                         </div>
-                        {recentLogs.length > 0 ? (
-                            <ul className={styles['timeline']}>
-                                {recentLogs.map(log => (
-                                    <li key={log.id} className={styles['timeline-item']}>
-                                        <div className={styles['timeline-dot']}><FaUserClock /></div>
-                                        <div className={styles['timeline-content']}>
-                                            <p className={styles['log-action']}>{log.action}</p>
-                                            <div className={styles['log-meta']}>
-                                                <span className={styles['role-tag']}>{log.role}</span>
-                                                <span>• {log.userName}</span>
-                                                <span>• {log.timeDisplay}</span>
-                                            </div>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <div className={styles['empty-state']}><p>No recent system activity found.</p></div>
-                        )}
-                    </div>
-
-                    <div className={styles['widget-card']}>
-                        <div className={styles['widget-header']}>
-                            <h2 className={styles['widget-title']}>
-                                {isTodaySelected ? "Today's Appointments" : `Appointments for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                            </h2>
-                            <span className={styles['view-all']}>View All</span>
-                        </div>
-                        <div className={styles['list-content']}>
-                            {displayedAppointments.length > 0 ? (
-                                displayedAppointments.map((apt, idx) => (
-                                    <div key={idx} className={styles['appointment-item']}>
-                                        <div className={styles['patient-info']}>
-                                            <div className={styles['patient-avatar']}>{apt.name.charAt(0)}</div>
-                                            <div className={styles['patient-details']}>
-                                                <p className={styles['patient-name']}>{apt.name}</p>
-                                                <p className={styles['treatment-type']}>{apt.type}</p>
-                                            </div>
-                                        </div>
-                                        <div className={styles['appointment-time']}>
-                                            <p className={styles['time-text']}>{apt.time}</p>
-                                            <span className={`${styles['status-badge']} ${apt.status === 'Done' ? styles['status-done'] : styles['status-pending']}`}>
-                                                {apt.status}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className={styles['empty-state']}>
-                                    <p>No appointments scheduled for this date.</p>
+                        <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
+                            <img src={ProfilePicPlaceholder} alt="Profile" className={styles['profile-pic']} />
+                            {isProfileOpen && (
+                                <div className={styles['profile-dropdown']}>
+                                    {/* UPDATED: Route to My Profile */}
+                                    <div className={styles['profile-dropdown-item']} onClick={handleProfileNavigation}>My Profile</div>
+                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/owner/settings')}>Settings</div>
+                                    <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={handleLogoutClick}>Logout</div>
                                 </div>
                             )}
                         </div>
                     </div>
+                </header>
+
+                <div className={styles['stats-grid']}>
+                    <div 
+                        className={`${styles['stat-card']} ${styles['clickable']}`} 
+                        onClick={() => navigate('/owner/manage-users/patients')}
+                    >
+                        <div className={styles['stat-header']}>
+                            <p className={styles['stat-title']}>Active Patients</p>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}><img src={PatientIcon} className={styles['stat-icon']} alt="icon" /></div>
+                        </div>
+                        <h2 className={styles['stat-value']}>{activePatients}</h2>
+                        <p className={styles['stat-desc']}>Verified active records</p>
+                    </div>
+                    
+                    <div 
+                        className={`${styles['stat-card']} ${styles['clickable']}`} 
+                        onClick={() => navigate('/owner/manage-users/dentists')}
+                    >
+                        <div className={styles['stat-header']}>
+                            <p className={styles['stat-title']}>Total Staff</p>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}><img src={StaffIcon} className={styles['stat-icon']} alt="icon" /></div>
+                        </div>
+                        <h2 className={styles['stat-value']}>{totalStaff}</h2>
+                        <p className={`${styles['stat-desc']} ${styles['neutral']}`}>{staffBreakdown}</p>
+                    </div>
+                    
+                    <div 
+                        className={`${styles['stat-card']} ${styles['clickable']}`}
+                        onClick={() => navigate('/owner/inventory')}
+                    >
+                        <div className={styles['stat-header']}>
+                            <p className={styles['stat-title']}>Critical Inventory Alerts</p>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}><img src={InventoryIcon} className={styles['stat-icon']} alt="icon" /></div>
+                        </div>
+                        <h2 className={styles['stat-value']} style={{ color: '#ea8b89' }}>{lowStockAlerts}</h2>
+                        <p className={`${styles['stat-desc']} ${lowStockAlerts > 0 ? styles['danger'] : styles['neutral']}`}>
+                            {lowStockAlerts > 0 ? '⚠ Action required' : 'Inventory optimal'}
+                        </p>
+                    </div>
                 </div>
 
-                <div className={styles['right-column']}>
-                    <div className={styles['calendar-card']}>
-                        <div className={styles['calendar-header']}>
-                            <h3 className={styles['month-text']}>{dynamicMonthYear}</h3>
-                            <div className={styles['cal-nav']}>
-                                <button className={styles['cal-nav-btn']} onClick={handlePrevMonth}>&lt;</button>
-                                <button className={styles['cal-nav-btn']} onClick={handleNextMonth}>&gt;</button>
+                <div className={styles['main-grid']}>
+                    <div className={styles['left-column']}>
+                        <div 
+                            className={`${styles['widget-card']} ${styles['clickable']}`} 
+                            onClick={() => navigate('/owner/audit-logs')}
+                        >
+                            <div className={styles['widget-header']}>
+                                <FaHistory className={styles['widget-icon']} />
+                                <h2 className={styles['widget-title']}>Recent System Activity</h2>
+                            </div>
+                            {recentLogs.length > 0 ? (
+                                <ul className={styles['timeline']}>
+                                    {recentLogs.map(log => (
+                                        <li key={log.id} className={styles['timeline-item']}>
+                                            <div className={styles['timeline-dot']}><FaUserClock /></div>
+                                            <div className={styles['timeline-content']}>
+                                                <p className={styles['log-action']}>{log.action}</p>
+                                                <div className={styles['log-meta']}>
+                                                    <span className={styles['role-tag']}>{log.role}</span>
+                                                    <span>• {log.userName}</span>
+                                                    <span>• {log.timeDisplay}</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className={styles['empty-state']}><p>No recent system activity found.</p></div>
+                            )}
+                        </div>
+
+                        <div className={styles['widget-card']}>
+                            <div className={styles['widget-header']}>
+                                <h2 className={styles['widget-title']}>
+                                    {isTodaySelected ? "Today's Appointments" : `Appointments for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                                </h2>
+                                <span className={styles['view-all']}>View All</span>
+                            </div>
+                            <div className={styles['list-content']}>
+                                {displayedAppointments.length > 0 ? (
+                                    displayedAppointments.map((apt, idx) => (
+                                        <div key={idx} className={styles['appointment-item']}>
+                                            <div className={styles['patient-info']}>
+                                                <div className={styles['patient-avatar']}>{apt.name.charAt(0)}</div>
+                                                <div className={styles['patient-details']}>
+                                                    <p className={styles['patient-name']}>{apt.name}</p>
+                                                    <p className={styles['treatment-type']}>{apt.type}</p>
+                                                </div>
+                                            </div>
+                                            <div className={styles['appointment-time']}>
+                                                <p className={styles['time-text']}>{apt.time}</p>
+                                                <span className={`${styles['status-badge']} ${apt.status === 'Done' ? styles['status-done'] : styles['status-pending']}`}>
+                                                    {apt.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className={styles['empty-state']}>
+                                        <p>No appointments scheduled for this date.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        
-                        <div className={styles['calendar-grid']}>
-                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                                <div key={day} className={styles['day-name']}>{day}</div>
-                            ))}
-                            
-                            {calendarDays.map((day, idx) => (
-                                <div 
-                                    key={idx} 
-                                    title={day.holidayName || ''}
-                                    onClick={() => handleDateClick(day)}
-                                    className={`
-                                        ${styles['date-num']} 
-                                        ${day.faded ? styles['faded'] : ''} 
-                                        ${day.isToday && !day.faded ? styles['today'] : ''}
-                                        ${day.active ? styles['active'] : ''}
-                                        ${day.isHoliday && !day.faded ? styles['holiday'] : ''}
-                                    `}
-                                >
-                                    {day.num}
-                                    {day.hasEvent && <div className={`${styles['event-dot']} ${day.active ? styles['white'] : ''}`}></div>}
+                    </div>
+
+                    <div className={styles['right-column']}>
+                        <div className={styles['calendar-card']}>
+                            <div className={styles['calendar-header']}>
+                                <h3 className={styles['month-text']}>{dynamicMonthYear}</h3>
+                                <div className={styles['cal-nav']}>
+                                    <button className={styles['cal-nav-btn']} onClick={handlePrevMonth}>&lt;</button>
+                                    <button className={styles['cal-nav-btn']} onClick={handleNextMonth}>&gt;</button>
                                 </div>
-                            ))}
+                            </div>
+                            
+                            <div className={styles['calendar-grid']}>
+                                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                                    <div key={day} className={styles['day-name']}>{day}</div>
+                                ))}
+                                
+                                {calendarDays.map((day, idx) => (
+                                    <div 
+                                        key={idx} 
+                                        title={day.holidayName || ''}
+                                        onClick={() => handleDateClick(day)}
+                                        className={`
+                                            ${styles['date-num']} 
+                                            ${day.faded ? styles['faded'] : ''} 
+                                            ${day.isToday && !day.faded ? styles['today'] : ''}
+                                            ${day.active ? styles['active'] : ''}
+                                            ${day.isHoliday && !day.faded ? styles['holiday'] : ''}
+                                        `}
+                                    >
+                                        {day.num}
+                                        {day.hasEvent && <div className={`${styles['event-dot']} ${day.active ? styles['white'] : ''}`}></div>}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </main>
+            </main>
+
+            {/* LOGOUT CONFIRMATION MODAL */}
+            {showLogoutModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <h3 className={styles.modalTitle}>Confirm Logout</h3>
+                        <p className={styles.modalMessage}>Are you sure you want to end your session and logout of the system?</p>
+                        <div className={styles.modalButtonGroup}>
+                            <button className={styles.cancelBtn} onClick={() => setShowLogoutModal(false)}>Cancel</button>
+                            <button className={styles.confirmBtn} onClick={logout}>Yes, Logout</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
