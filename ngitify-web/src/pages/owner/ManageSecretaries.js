@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManageSecretaries.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 
+import UserTabs from './UserTabs'; // NEW: Imported UserTabs
 import AddSecretary from './AddSecretary'; 
 import EditSecretary from './EditSecretary';
 import ViewSecretary from './ViewSecretary';
@@ -111,7 +112,6 @@ export default function ManageSecretaries() {
         }
     };
 
-    // NEW: Open Edit Modal Handler
     const handleEditClick = (id) => {
         setIsViewModalOpen(false);
         setSelectedSecretaryId(id);
@@ -124,7 +124,6 @@ export default function ManageSecretaries() {
         setIsViewModalOpen(true);
     };
 
-    // NEW: Close Edit Modal Handler
     const handleCloseEditModal = () => {
         setIsEditModalOpen(false);
         setSelectedSecretaryId(null);
@@ -158,6 +157,9 @@ export default function ManageSecretaries() {
                     <FaUserPlus className={styles.btnIcon} /> Add New Secretary
                 </button>
             </div>
+
+            {/* NEW: Inserted UserTabs here */}
+            <UserTabs activeTab="secretaries" />
 
             <div className={styles.tableContainer}>
                 <table className={styles.userTable}>
@@ -224,7 +226,6 @@ export default function ManageSecretaries() {
                 </table>
             </div>
 
-            {/* Modals */}
             {isAddModalOpen && (
                 <AddSecretary onClose={() => setIsAddModalOpen(false)} onSuccess={fetchSecretaries} />
             )}

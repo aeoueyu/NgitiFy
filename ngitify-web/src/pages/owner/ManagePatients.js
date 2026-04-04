@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManagePatients.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 
+import UserTabs from './UserTabs'; // NEW: Imported UserTabs
 import AddPatient from './AddPatient'; 
 import EditPatient from './EditPatient';
 import ViewPatient from './ViewPatient';
@@ -46,8 +47,8 @@ export default function ManagePatients() {
                         }
 
                         let dobFormatted = 'N/A';
-                        if (p.dateOfBirth || p.dob || p.birthdate) {
-                            const d = new Date(p.dateOfBirth || p.dob || p.birthdate);
+                        if (p.dateOfBirth || p.dob) {
+                            const d = new Date(p.dateOfBirth || p.dob);
                             if (!isNaN(d)) {
                                 dobFormatted = d.toLocaleDateString('en-US', { 
                                     year: 'numeric', month: 'short', day: 'numeric' 
@@ -166,9 +167,12 @@ export default function ManagePatients() {
                 </div>
                 
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} style={{marginRight: '8px'}} /> Add New Patient
+                    <FaUserPlus className={styles.btnIcon} /> Add New Patient
                 </button>
             </div>
+
+            {/* NEW: Inserted UserTabs here */}
+            <UserTabs activeTab="patients" />
 
             <div className={styles.tableContainer}>
                 <table className={styles.userTable}>

@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #f4f7fa;
+    font-family: 'Lexend Deca', sans-serif;
+    overflow: hidden; /* Locks the master layout, lets the inner content scroll */
+}
+
+/* --- TAB HEADER STYLES --- */
+.tabContainer {
+    display: flex;
+    gap: 20px;
+    padding: 30px 30px 0 30px;
+    background-color: #f4f7fa;
+    border-bottom: 2px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.tabButton {
+    padding: 12px 25px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #64748b;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'Lexend Deca', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: -2px; /* Smoothly overlaps the bottom border */
+}
+
+.tabButton:hover:not(.activeTab) {
+    color: #01538b;
+    background-color: rgba(1, 83, 139, 0.05);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.activeTab {
+    color: #01538b;
+    border-bottom: 3px solid #2dccf6;
+}
+
+/* --- CONTENT AREA --- */
+.contentArea {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    scrollbar-gutter: stable;
+}
+
+.contentArea::-webkit-scrollbar { width: 8px; }
+.contentArea::-webkit-scrollbar-thumb { background-color: rgba(1, 83, 139, 0.2); border-radius: 10px; }
+.contentArea::-webkit-scrollbar-thumb:hover { background-color: rgba(1, 83, 139, 0.4); }
+
+/* CSS Overrides for Nested Components:
+   This gracefully removes the min-height locks from your nested 
+   ManageDentist/Secretary/Patient files so they sit perfectly inside the tabs.
+*/
+.contentArea > div {
+    min-height: auto !important; 
+    height: auto !important;
+    padding-top: 25px !important; 
+}

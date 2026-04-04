@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
@@ -9,31 +9,24 @@ import DashboardIcon from '../../assets/icons/FinancialReports.svg';
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
 import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
 import AuditIcon from '../../assets/icons/SystemAuditLogs.svg';
-import PatientIcon from '../../assets/icons/Patient.svg';
-import DentistIcon from '../../assets/icons/Dentist.svg';
 
 export default function Sidebar() {
     const { logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    
-    const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
-    useEffect(() => {
-        if (location.pathname.includes('/owner/manage-')) {
-            setIsUserManagementOpen(true);
+    // Helper to apply the active class for individual direct routes
+    const getNavClass = (path) => {
+        // Keeps the tab active if the user is anywhere inside user management
+        if (path === '/owner/manage-users' && location.pathname.includes('/owner/manage-')) {
+            return `${styles['nav-item']} ${styles.active}`;
         }
-    }, [location.pathname]);
-
-    const getNavClass = (path) => location.pathname === path ? `${styles['nav-item']} ${styles.active}` : styles['nav-item'];
-    const getDropdownClass = (path) => location.pathname === path ? `${styles['dropdown-item']} ${styles.active}` : styles['dropdown-item'];
-
-    const handleMainNavigation = (path) => {
-        setIsUserManagementOpen(false);
-        navigate(path);
+        return location.pathname === path ? `${styles['nav-item']} ${styles.active}` : styles['nav-item'];
     };
 
-    const isManageStaffActive = location.pathname.includes('/owner/manage-');
+    const handleMainNavigation = (path) => {
+        navigate(path);
+    };
 
     return (
         <aside className={styles.sidebar}>
@@ -46,34 +39,10 @@ export default function Sidebar() {
                     <img src={DashboardIcon} alt="Dashboard" className={styles['nav-icon']} /> <span>Dashboard</span>
                 </div>
 
-                <div 
-                    className={`${styles['nav-item']} ${isManageStaffActive ? styles.active : ''}`} 
-                    onClick={() => {
-                        setIsUserManagementOpen(true);
-                        navigate('/owner/manage-dentists'); 
-                    }}
-                    style={{ justifyContent: 'space-between' }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <img src={StaffIcon} alt="Manage Staff" className={styles['nav-icon']} /> 
-                        <span>Manage Staff</span>
-                    </div>
-                    <span style={{ fontSize: '12px' }}>{isUserManagementOpen ? '▲' : '▼'}</span>
+                {/* NEW: Single Link for User Management */}
+                <div className={getNavClass('/owner/manage-users')} onClick={() => handleMainNavigation('/owner/manage-users')}>
+                    <img src={StaffIcon} alt="User Management" className={styles['nav-icon']} /> <span>User Management</span>
                 </div>
-
-                {isUserManagementOpen && (
-                    <div className={styles['dropdown-menu']}>
-                        <div className={getDropdownClass('/owner/manage-dentists')} onClick={() => navigate('/owner/manage-dentists')}>
-                            <img src={DentistIcon} alt="Dentists" className={styles['nav-icon']} /> Dentists
-                        </div>
-                        <div className={getDropdownClass('/owner/manage-secretaries')} onClick={() => navigate('/owner/manage-secretaries')}>
-                            <img src={StaffIcon} alt="Secretaries" className={styles['nav-icon']} /> Secretaries
-                        </div>
-                        <div className={getDropdownClass('/owner/manage-patients')} onClick={() => navigate('/owner/manage-patients')}>
-                            <img src={PatientIcon} alt="Patients" className={styles['nav-icon']} /> Patients
-                        </div>
-                    </div>
-                )}
 
                 <div className={getNavClass('/owner/inventory')} onClick={() => handleMainNavigation('/owner/inventory')}>
                     <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} /> <span>Inventory</span>
@@ -84,7 +53,6 @@ export default function Sidebar() {
                 </div>
             </div>
 
-            {/* UPDATED: Clean Footer Section */}
             <div className={styles['footer-section']}>
                 <div className={styles['settings-link']} onClick={() => handleMainNavigation('/owner/settings')}>
                     <FaCog className={styles['nav-icon']} /> 

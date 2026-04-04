@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // NEW: Imported useNavigate
 import styles from '../../styles/owner/OwnerDashboard.module.css';
 import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { FaBoxOpen, FaHistory, FaCheckCircle, FaUserClock } from 'react-icons/fa';
@@ -27,6 +28,7 @@ const PH_HOLIDAYS = [
 
 export default function OwnerDashboard() {
     const { logout } = useAuth();
+    const navigate = useNavigate(); // NEW: Initialize navigation
     const [currentTime, setCurrentTime] = useState(new Date());
     const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -170,14 +172,14 @@ export default function OwnerDashboard() {
         for (let i = 1; i <= daysInMonth; i++) {
             const currentDate = new Date(year, month, i);
             const isSelected = currentDate.toDateString() === selectedDate.toDateString();
-            const isToday = currentDate.toDateString() === new Date().toDateString(); // NEW
+            const isToday = currentDate.toDateString() === new Date().toDateString(); 
             const hasEvent = allAppointments.some(apt => apt.rawDate.toDateString() === currentDate.toDateString());
             const holidayObj = PH_HOLIDAYS.find(h => h.month === month && h.day === i);
 
             days.push({
                 num: i,
                 active: isSelected,
-                isToday: isToday, // Passed to JSX
+                isToday: isToday, 
                 hasEvent: hasEvent,
                 isHoliday: !!holidayObj,
                 holidayName: holidayObj ? holidayObj.name : null,
@@ -236,8 +238,12 @@ export default function OwnerDashboard() {
                 </div>
             </header>
 
+            {/* ROW 1: STATS GRID */}
             <div className={styles['stats-grid']}>
-                <div className={styles['stat-card']}>
+                <div 
+                    className={`${styles['stat-card']} ${styles['clickable']}`} 
+                    onClick={() => navigate('/owner/manage-users/patients')} // UPDATED PATH
+                >
                     <div className={styles['stat-header']}>
                         <p className={styles['stat-title']}>Active Patients</p>
                         <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}><img src={PatientIcon} className={styles['stat-icon']} alt="icon" /></div>
@@ -245,7 +251,11 @@ export default function OwnerDashboard() {
                     <h2 className={styles['stat-value']}>{activePatients}</h2>
                     <p className={styles['stat-desc']}>Verified active records</p>
                 </div>
-                <div className={styles['stat-card']}>
+                
+                <div 
+                    className={`${styles['stat-card']} ${styles['clickable']}`} 
+                    onClick={() => navigate('/owner/manage-users/dentists')} // UPDATED PATH
+                >
                     <div className={styles['stat-header']}>
                         <p className={styles['stat-title']}>Total Staff</p>
                         <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}><img src={StaffIcon} className={styles['stat-icon']} alt="icon" /></div>
@@ -253,7 +263,11 @@ export default function OwnerDashboard() {
                     <h2 className={styles['stat-value']}>{totalStaff}</h2>
                     <p className={`${styles['stat-desc']} ${styles['neutral']}`}>{staffBreakdown}</p>
                 </div>
-                <div className={styles['stat-card']}>
+                
+                <div 
+                    className={`${styles['stat-card']} ${styles['clickable']}`}
+                    onClick={() => navigate('/owner/inventory')}
+                >
                     <div className={styles['stat-header']}>
                         <p className={styles['stat-title']}>Critical Inventory Alerts</p>
                         <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}><img src={InventoryIcon} className={styles['stat-icon']} alt="icon" /></div>
@@ -267,7 +281,10 @@ export default function OwnerDashboard() {
 
             <div className={styles['main-grid']}>
                 <div className={styles['left-column']}>
-                    <div className={styles['widget-card']}>
+                    <div 
+                        className={`${styles['widget-card']} ${styles['clickable']}`} 
+                        onClick={() => navigate('/owner/audit-logs')}
+                    >
                         <div className={styles['widget-header']}>
                             <FaHistory className={styles['widget-icon']} />
                             <h2 className={styles['widget-title']}>Recent System Activity</h2>
@@ -343,7 +360,6 @@ export default function OwnerDashboard() {
                                 <div key={day} className={styles['day-name']}>{day}</div>
                             ))}
                             
-                            {/* UPDATED: Applied today logic securely */}
                             {calendarDays.map((day, idx) => (
                                 <div 
                                     key={idx} 

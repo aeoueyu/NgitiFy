@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManageDentists.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
-// Removed useNavigate since we are using Modals for everything now!
 
+import UserTabs from './UserTabs'; // NEW: Imported UserTabs
 import AddDentist from './AddDentist'; 
 import EditDentist from './EditDentist';
 import ViewDentist from './ViewDentist';
@@ -18,7 +18,6 @@ export default function ManageDentists() {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedDentistId, setSelectedDentistId] = useState(null);
 
-    // Extracted fetch function
     const fetchDentists = useCallback(async () => {
         try {
             setIsLoading(true);
@@ -66,12 +65,10 @@ export default function ManageDentists() {
         }
     }, []);
 
-    // Initial Fetch
     useEffect(() => {
         fetchDentists();
     }, [fetchDentists]);
 
-    // Filter by Search Query
     const filteredDentists = dentistsList.filter(dentist => 
         dentist.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -115,14 +112,12 @@ export default function ManageDentists() {
         }
     };
 
-    // NEW: Open Edit Modal Handler
     const handleEditClick = (dentistId) => {
         setIsViewModalOpen(false);
         setSelectedDentistId(dentistId);
         setIsEditModalOpen(true);
     };
 
-    // NEW: Close Edit Modal Handler
     const handleCloseEditModal = () => {
         setIsEditModalOpen(false);
         setSelectedDentistId(null);
@@ -162,6 +157,9 @@ export default function ManageDentists() {
                     <FaUserPlus className={styles.btnIcon} /> Add New Dentist
                 </button>
             </div>
+
+            {/* NEW: Inserted UserTabs here */}
+            <UserTabs activeTab="dentists" />
 
             <div className={styles.tableContainer}>
                 <table className={styles.userTable}>
@@ -228,7 +226,6 @@ export default function ManageDentists() {
                 </table>
             </div>
 
-            {/* Conditionally Render the Add Modal */}
             {isAddModalOpen && (
                 <AddDentist 
                     onClose={() => setIsAddModalOpen(false)} 
@@ -236,7 +233,6 @@ export default function ManageDentists() {
                 />
             )}
 
-            {/* NEW: Conditionally Render the Edit Modal */}
             {isViewModalOpen && selectedDentistId && (
                 <ViewDentist
                     dentistId={selectedDentistId}

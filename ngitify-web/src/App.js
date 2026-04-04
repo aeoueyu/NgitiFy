@@ -16,11 +16,11 @@ import NewPasswordRedirectPage from './pages/auth/NewPasswordRedirectPage';
 
 // Pages - Owner
 import OwnerDashboard from './pages/owner/OwnerDashboard';
-import ManageDentists from './pages/owner/ManageDentists'; 
-import SystemAuditLogs from './pages/owner/SystemAuditLogs';
-
+import ManageDentists from './pages/owner/ManageDentists';
 import ManageSecretaries from './pages/owner/ManageSecretaries';
 import ManagePatients from './pages/owner/ManagePatients';
+import SystemAuditLogs from './pages/owner/SystemAuditLogs';
+
 import AddDentist from './pages/owner/AddDentist';
 import AddSecretary from './pages/owner/AddSecretary';
 import AddPatient from './pages/owner/AddPatient';
@@ -46,13 +46,19 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
             <Route element={<DashboardLayout />}>
               <Route path="/owner/dashboard" element={<OwnerDashboard />} />
-              <Route path="/owner/manage-dentists" element={<ManageDentists />} /> 
+              
+              {/* UPDATED: URL-based Routing for User Management Tabs */}
+              <Route path="/owner/manage-users" element={<Navigate to="/owner/manage-users/dentists" replace />} />
+              <Route path="/owner/manage-users/dentists" element={<ManageDentists />} /> 
+              <Route path="/owner/manage-users/secretaries" element={<ManageSecretaries />} />
+              <Route path="/owner/manage-users/patients" element={<ManagePatients />} />
+              
+              {/* Add/Edit specific routes kept for deep linking */}
               <Route path="/owner/add-dentist" element={<AddDentist />} /> 
               <Route path="/owner/edit-dentist" element={<EditDentist />} /> 
-              <Route path="/owner/manage-secretaries" element={<ManageSecretaries />} />
               <Route path="/owner/add-secretary" element={<AddSecretary />} />
-              <Route path="/owner/manage-patients" element={<ManagePatients />} />
               <Route path="/owner/add-patient" element={<AddPatient />} />
+              
               <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
               <Route path="/owner/inventory" element={<InventoryTracker />} />
             </Route>
