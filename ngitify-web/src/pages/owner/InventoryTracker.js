@@ -33,7 +33,6 @@ export default function InventoryTracker() {
                     name: item.itemName || item.name || 'Unknown Item',
                     category: item.category || 'Uncategorized',
                     currentStock: item.quantity !== undefined ? item.quantity : (item.currentStock || 0),
-                    // FIXED: Now safely checks for reorderLevel
                     threshold: item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0),
                     unit: item.unit || 'pcs'
                 }));
@@ -127,7 +126,7 @@ export default function InventoryTracker() {
                 </div>
                 
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaPlus className={styles.btnIcon} style={{ fontSize: '12px' }} /> Add New Item
+                    <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add New Item
                 </button>
             </div>
 

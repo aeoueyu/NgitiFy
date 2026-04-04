@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import styles from '../../styles/owner/EditInventoryItem.module.css'; 
+import styles from '../../styles/owner/AddInventoryItem.module.css'; // Reusing the shared CSS module!
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
 
@@ -19,16 +19,10 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
     const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
-        name: '',
-        category: '',
-        currentStock: '',
-        threshold: '',
-        unit: 'pcs'
+        name: '', category: '', currentStock: '', threshold: '', unit: 'pcs'
     });
-
     const [initialData, setInitialData] = useState(null);
 
-    // --- FETCH EXISTING ITEM DATA ---
     useEffect(() => {
         const fetchItemData = async () => {
             try {
@@ -39,16 +33,13 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
 
                 if (response.ok) {
                     const data = await response.json();
-                    
                     const fetchedData = {
                         name: data.itemName || data.name || '',
                         category: data.category || '',
                         currentStock: data.quantity !== undefined ? data.quantity.toString() : (data.currentStock !== undefined ? data.currentStock.toString() : ''),
-                        // FIXED: Safely fetch reorderLevel from the database
                         threshold: data.reorderLevel !== undefined ? data.reorderLevel.toString() : '',
                         unit: data.unit || 'pcs'
                     };
-
                     setFormData(fetchedData);
                     setInitialData(fetchedData);
                 } else {
@@ -71,9 +62,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
         if ((name === 'currentStock' || name === 'threshold') && value !== '' && Number(value) < 0) return;
-        
         setFormData(prev => ({ ...prev, [name]: value }));
         
         if (errors[name]) {
@@ -88,20 +77,17 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
     const validateForm = () => {
         let newErrors = {};
         let isValid = true;
-
         if (!formData.name.trim()) { newErrors.name = "Item name is required"; isValid = false; }
         if (!formData.category) { newErrors.category = "Category is required"; isValid = false; }
         if (formData.currentStock === '') { newErrors.currentStock = "Stock level is required"; isValid = false; }
         if (formData.threshold === '') { newErrors.threshold = "Threshold is required"; isValid = false; }
         
         setErrors(newErrors);
-        
         if (!isValid) {
             const firstErrorKey = Object.keys(newErrors)[0];
             const el = document.getElementsByName(firstErrorKey)[0];
             if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
         }
-
         return isValid;
     };
 
@@ -122,7 +108,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
                     itemName: formData.name.trim(), 
                     category: formData.category,
                     quantity: Number(formData.currentStock), 
-                    reorderLevel: Number(formData.threshold), // FIXED: Submit back as reorderLevel
+                    reorderLevel: Number(formData.threshold), 
                     unit: formData.unit
                 }),
             });
@@ -176,12 +162,8 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
                                     <label>ITEM NAME <span style={{color:'red'}}>*</span></label>
                                     <input 
                                         className={`${styles.inputField} ${errors.name ? styles.errorBorder : ''}`} 
-                                        name="name" 
-                                        value={formData.name} 
-                                        onChange={handleChange} 
-                                        placeholder="e.g. Disposable Saliva Ejector"
-                                        maxLength={100}
-                                        disabled={isSaving}
+                                        name="name" value={formData.name} onChange={handleChange} 
+                                        placeholder="e.g. Disposable Saliva Ejector" maxLength={100} disabled={isSaving}
                                     />
                                     {errors.name && <span className={styles.errorText}>{errors.name}</span>}
                                 </div>
@@ -190,13 +172,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
                             <div className={styles.row}>
                                 <div className={styles.formGroup}>
                                     <label>CATEGORY <span style={{color:'red'}}>*</span></label>
-                                    <select 
-                                        name="category" 
-                                        className={`${styles.inputField} ${errors.category ? styles.errorBorder : ''}`} 
-                                        value={formData.category} 
-                                        onChange={handleChange}
-                                        disabled={isSaving}
-                                    >
+                                    <select name="category" className={`${styles.inputField} ${errors.category ? styles.errorBorder : ''}`} value={formData.category} onChange={handleChange} disabled={isSaving}>
                                         <option value="" hidden>Select Category</option>
                                         {categoryOptions.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                     </select>
@@ -204,13 +180,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label>UNIT <span style={{color:'red'}}>*</span></label>
-                                    <select 
-                                        name="unit" 
-                                        className={styles.inputField} 
-                                        value={formData.unit} 
-                                        onChange={handleChange}
-                                        disabled={isSaving}
-                                    >
+                                    <select name="unit" className={styles.inputField} value={formData.unit} onChange={handleChange} disabled={isSaving}>
                                         {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
                                     </select>
                                 </div>
@@ -219,30 +189,12 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
                             <div className={styles.row}>
                                 <div className={styles.formGroup}>
                                     <label>CURRENT STOCK LEVEL <span style={{color:'red'}}>*</span></label>
-                                    <input 
-                                        type="number"
-                                        className={`${styles.inputField} ${errors.currentStock ? styles.errorBorder : ''}`} 
-                                        name="currentStock" 
-                                        value={formData.currentStock} 
-                                        onChange={handleChange} 
-                                        placeholder="0"
-                                        min="0"
-                                        disabled={isSaving}
-                                    />
+                                    <input type="number" className={`${styles.inputField} ${errors.currentStock ? styles.errorBorder : ''}`} name="currentStock" value={formData.currentStock} onChange={handleChange} placeholder="0" min="0" disabled={isSaving}/>
                                     {errors.currentStock && <span className={styles.errorText}>{errors.currentStock}</span>}
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label>LOW STOCK THRESHOLD <span style={{color:'red'}}>*</span></label>
-                                    <input 
-                                        type="number"
-                                        className={`${styles.inputField} ${errors.threshold ? styles.errorBorder : ''}`} 
-                                        name="threshold" 
-                                        value={formData.threshold} 
-                                        onChange={handleChange} 
-                                        placeholder="Alert when below..."
-                                        min="0"
-                                        disabled={isSaving}
-                                    />
+                                    <input type="number" className={`${styles.inputField} ${errors.threshold ? styles.errorBorder : ''}`} name="threshold" value={formData.threshold} onChange={handleChange} placeholder="Alert when below..." min="0" disabled={isSaving}/>
                                     {errors.threshold && <span className={styles.errorText}>{errors.threshold}</span>}
                                 </div>
                             </div>

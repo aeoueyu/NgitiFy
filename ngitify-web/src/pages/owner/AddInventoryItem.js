@@ -27,12 +27,9 @@ export default function AddInventoryItem({ onClose, onSuccess }) {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
-        // Prevent negative numbers for stock and threshold inputs
         if ((name === 'currentStock' || name === 'threshold') && value !== '' && Number(value) < 0) return;
         
         setFormData(prev => ({ ...prev, [name]: value }));
-        
         if (errors[name]) {
             setErrors(prev => {
                 const newErrors = { ...prev };
@@ -58,7 +55,6 @@ export default function AddInventoryItem({ onClose, onSuccess }) {
             const el = document.getElementsByName(firstErrorKey)[0];
             if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
         }
-
         return isValid;
     };
 
@@ -79,7 +75,7 @@ export default function AddInventoryItem({ onClose, onSuccess }) {
                     itemName: formData.name.trim(), 
                     category: formData.category,
                     quantity: Number(formData.currentStock), 
-                    reorderLevel: Number(formData.threshold), // FIXED: Maps to your schema exactly
+                    reorderLevel: Number(formData.threshold), 
                     unit: formData.unit
                 }),
             });
