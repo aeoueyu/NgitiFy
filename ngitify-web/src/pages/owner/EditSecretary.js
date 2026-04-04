@@ -17,6 +17,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
 
     const [formData, setFormData] = useState({
         firstName: '', middleName: '', lastName: '', birthdate: '',
+        gender: '',
         email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
     });
 
@@ -47,15 +48,29 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                         formattedDob = new Date(data.birthdate || data.dob).toISOString().split('T')[0];
                     }
 
+                    const fetchedCurrent = data?.currentAddress || { ...initialAddressState };
+                    const fetchedPermanent = data?.permanentAddress || { ...initialAddressState };
+
+                    const isAddressSame = (
+                        fetchedCurrent.region === fetchedPermanent.region &&
+                        fetchedCurrent.province === fetchedPermanent.province &&
+                        fetchedCurrent.city === fetchedPermanent.city &&
+                        fetchedCurrent.barangay === fetchedPermanent.barangay &&
+                        fetchedCurrent.street === fetchedPermanent.street &&
+                        fetchedCurrent.houseNumber === fetchedPermanent.houseNumber
+                    );
+                    setIsSameAddress(isAddressSame);
+
                     const fetchedFormData = {
                         firstName: fName,
                         middleName: mName,
                         lastName: lName,
                         birthdate: formattedDob,
+                        gender: data.gender || '',        // <-- ADDED
                         email: data.email || '',
                         phone: phoneNum,
-                        currentAddress: data.currentAddress || { ...initialAddressState },
-                        permanentAddress: data.permanentAddress || { ...initialAddressState }
+                        currentAddress: { ...initialAddressState, ...fetchedCurrent },
+                        permanentAddress: { ...initialAddressState, ...fetchedPermanent }
                     };
 
                     setFormData(fetchedFormData);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { regions, provinces, cities } from '../../utils/addressData';
 import styles from '../../styles/owner/StaffModals.module.css';
 import BackIcon from '../../assets/icons/Back.svg'; 
 
@@ -30,9 +31,13 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
         return `${first?.charAt(0) || ''}${last?.charAt(0) || ''}`.toUpperCase() || '?';
     };
 
+    // ✅ REPLACE WITH
     const formatAddress = (addr) => {
         if (!addr || !addr.region) return "Not provided";
-        return `${addr.houseNumber ? addr.houseNumber + ' ' : ''}${addr.street ? addr.street + ', ' : ''}${addr.barangay}, ${addr.city}, ${addr.province}, ${addr.region}`;
+        const rName = regions.find(r => r.code === addr.region)?.name || addr.region;
+        const pName = provinces[addr.region]?.find(p => p.code === addr.province)?.name || addr.province;
+        const cName = cities[addr.province]?.find(c => c.code === addr.city)?.name || addr.city;
+        return `${addr.houseNumber ? addr.houseNumber + ' ' : ''}${addr.street ? addr.street + ', ' : ''}${addr.barangay || ''}, ${cName}, ${pName}, ${rName}`;
     };
 
     return (
@@ -77,6 +82,10 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Birthdate</span>
                                 <p className={styles.infoValue}>{secretary.birthdate ? new Date(secretary.birthdate).toLocaleDateString() : 'Not provided'}</p>
+                            </div>
+                            <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Gender</span>
+                                <p className={styles.infoValue}>{secretary.gender || 'Not provided'}</p>
                             </div>
                         </div>
 

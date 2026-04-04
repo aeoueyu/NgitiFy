@@ -17,7 +17,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
     const [isSaving, setIsSaving] = useState(false);
     
     const [formData, setFormData] = useState({
-        firstName: '', middleName: '', lastName: '', birthdate: '', licenseNumber: '', specialization: '',
+        firstName: '', middleName: '', lastName: '', birthdate: '', gender: '', licenseNumber: '', specialization: '',
         email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
     });
 
@@ -49,21 +49,35 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                         formattedDob = new Date(data.birthdate || data.dob).toISOString().split('T')[0];
                     }
 
+                    const fetchedCurrent = data?.currentAddress || { ...initialAddressState };
+                    const fetchedPermanent = data?.permanentAddress || { ...initialAddressState };
+
+                    const isAddressSame = (
+                        fetchedCurrent.region === fetchedPermanent.region &&
+                        fetchedCurrent.province === fetchedPermanent.province &&
+                        fetchedCurrent.city === fetchedPermanent.city &&
+                        fetchedCurrent.barangay === fetchedPermanent.barangay &&
+                        fetchedCurrent.street === fetchedPermanent.street &&
+                        fetchedCurrent.houseNumber === fetchedPermanent.houseNumber
+                    );
+                    setIsSameAddress(isAddressSame);
+
                     const fetchedFormData = {
                         firstName: fName,
                         middleName: mName,
                         lastName: lName,
                         birthdate: formattedDob,
+                        gender: data.gender || '',        // <-- ADDED
                         licenseNumber: data.licenseNumber || '',
                         specialization: data.specialization || '',
                         email: data.email || '',
                         phone: phoneNum,
-                        currentAddress: data.currentAddress || { ...initialAddressState },
-                        permanentAddress: data.permanentAddress || { ...initialAddressState }
+                        currentAddress: { ...initialAddressState, ...fetchedCurrent },
+                        permanentAddress: { ...initialAddressState, ...fetchedPermanent }
                     };
 
                     setFormData(fetchedFormData);
-                    setInitialData(fetchedFormData); // Capture the initial state for comparison
+                    setInitialData(fetchedFormData);
 
                     if (data.profileImage) {
                         setProfileImage(data.profileImage);

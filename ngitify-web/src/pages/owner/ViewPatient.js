@@ -112,6 +112,10 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                                 <span className={styles.infoLabel}>Age</span>
                                 <p className={styles.infoValue}>{age !== null ? `${age} years old` : 'Unknown'}</p>
                             </div>
+                            <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Gender</span>
+                                <p className={styles.infoValue}>{patient.gender || 'Not provided'}</p>
+                            </div>
                         </div>
 
                         {/* CONDITIONAL GUARDIAN SECTION */}
