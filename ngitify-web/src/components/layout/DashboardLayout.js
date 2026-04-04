@@ -1,14 +1,16 @@
+// src/components/layout/DashboardLayout.js
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../sidebar/Sidebar'; 
-import styles from '../../styles/owner/OwnerDashboard.module.css'; // I-import ang css mo para sa container background
+import styles from './DashboardLayout.module.css'; // Dito na siya kukuha ng design!
 
 export default function DashboardLayout() {
     return (
-        // HETO ANG DATING NASA LABAS NG OWNERDASHBOARD MO
-        <div className={styles['dashboard-container']}>
+        <div className={styles.dashboardContainer}>
             <Sidebar />
-            <Outlet /> {/* Dito magpapalit-palit ang mga pages sa kanan */}
+            <div className={styles.mainContent}>
+                <Outlet />
+            </div>
         </div>
     );
 }

@@ -8,9 +8,7 @@
     flex: 1;
 }
 
-.header {
-    margin-bottom: 30px;
-}
+.header { margin-bottom: 30px; }
 
 .title {
     color: #01538b;
@@ -26,25 +24,27 @@
     font-weight: 500;
 }
 
-/* --- CONTROLS ROW (Search & Filter) --- */
+/* --- CONTROLS ROW --- */
 .controlsRow {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 25px;
     gap: 20px;
+    flex-wrap: wrap; /* Allows wrapping on smaller screens */
 }
 
 .searchFilterGroup {
     display: flex;
     gap: 15px;
     flex: 1;
-    max-width: 600px;
+    align-items: center;
 }
 
 .searchWrapper {
     position: relative;
     flex: 2;
+    min-width: 250px;
 }
 
 .searchIcon {
@@ -57,7 +57,7 @@
 }
 
 .searchInput {
-    width: 400px;
+    width: 100%;
     padding: 12px 15px 12px 45px;
     border-radius: 50px;
     border: 1.5px solid #e2e8f0;
@@ -65,6 +65,7 @@
     font-size: 14px;
     outline: none;
     transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
 .searchInput:focus {
@@ -74,6 +75,7 @@
 
 .filterSelect {
     flex: 1;
+    min-width: 150px;
     padding: 12px 20px;
     border-radius: 50px;
     border: 1.5px solid #e2e8f0;
@@ -93,16 +95,40 @@
     padding-right: 45px;
 }
 
-.filterSelect:focus {
-    border-color: #01538b;
-    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
+.filterSelect:focus { border-color: #01538b; box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1); }
+
+/* --- NEW: DATE FILTER STYLES --- */
+.dateFilterWrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 50px;
+    padding: 0 15px;
+}
+
+.dateInput {
+    border: none;
+    padding: 11px 5px;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    color: #475569;
+    outline: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.dateSeparator {
+    color: #94a3b8;
+    font-weight: 500;
 }
 
 .exportBtn {
     background-color: white;
     color: #01538b;
     border: 1.5px solid #01538b;
-    padding: 12px 25px;
+    padding: 11px 25px;
     border-radius: 50px;
     font-weight: 600;
     font-size: 14px;
@@ -111,6 +137,7 @@
     align-items: center;
     gap: 8px;
     transition: all 0.3s ease;
+    white-space: nowrap;
 }
 
 .exportBtn:hover {
@@ -132,9 +159,7 @@
     text-align: left;
 }
 
-.userTable thead {
-    background-color: #f8fafc;
-}
+.userTable thead { background-color: #f8fafc; }
 
 .userTable th {
     padding: 15px 20px;
@@ -154,17 +179,9 @@
     vertical-align: middle;
 }
 
-.fwBold {
-    font-weight: 600;
-    color: #01538b;
-}
+.fwBold { font-weight: 600; color: #01538b; }
 
-.timeText {
-    color: #64748b;
-    font-size: 13px;
-    display: block;
-    margin-top: 4px;
-}
+.timeText { color: #64748b; font-size: 13px; display: block; margin-top: 4px; }
 
 /* Role Badges */
 .roleBadge {
@@ -181,17 +198,60 @@
 .roleSecretary { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 .roleSystem { background-color: #fef3c7; color: #4f46e5; border: 1px solid #ede9fe; }
 
-.actionText {
+.actionText { color: #334155; line-height: 1.5; }
+.userTable tr:hover { background-color: #f8fbff; }
+
+/* --- NEW: PAGINATION CONTROLS --- */
+.paginationContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    padding: 0 10px;
+}
+
+.paginationText {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.paginationControls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.pageIndicator {
     color: #334155;
-    line-height: 1.5;
+    font-size: 14px;
+    font-weight: 600;
 }
 
-/* Animations */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+.pageBtn {
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    color: #01538b;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
 }
 
-.userTable tr:hover {
-    background-color: #f8fbff;
+.pageBtn:hover:not(:disabled) {
+    background-color: #f0f7fb;
+    border-color: #01538b;
+}
+
+.pageBtn:disabled {
+    color: #94a3b8;
+    background-color: #f8fafc;
+    cursor: not-allowed;
+    border-color: #e2e8f0;
 }
