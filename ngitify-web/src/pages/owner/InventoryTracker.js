@@ -1,12 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from '../../styles/owner/InventoryTracker.module.css'; 
 import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle } from 'react-icons/fa';
 
 import AddInventoryItem from './AddInventoryItem'; 
 import EditInventoryItem from './EditInventoryItem'; 
 
+const BASE_CATEGORIES = [
+    "Personal Protective Equipment (PPE)", "Consumables", "Restorative Materials", 
+    "Diagnostic Supplies", "Surgical Supplies", "Endodontic Supplies", 
+    "Cleaning & Sterilization", "General Clinic Supplies"
+];
+
+const BASE_UNITS = ["pcs", "box", "set", "pack", "bottle", "tube"];
+
 export default function InventoryTracker() {
     const [searchQuery, setSearchQuery] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('All');
     const [inventoryList, setInventoryList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -52,13 +61,28 @@ export default function InventoryTracker() {
         fetchInventory();
     }, [fetchInventory]);
 
-    const filteredInventory = inventoryList.filter(item => 
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Dynamic Categories
+    const dynamicCategories = useMemo(() => {
+        const fetchedCategories = inventoryList.map(item => item.category).filter(Boolean);
+        const uniqueCategories = [...new Set([...BASE_CATEGORIES, ...fetchedCategories])];
+        return uniqueCategories.sort();
+    }, [inventoryList]);
+
+    // NEW: Dynamic Units
+    const dynamicUnits = useMemo(() => {
+        const fetchedUnits = inventoryList.map(item => item.unit).filter(Boolean);
+        const uniqueUnits = [...new Set([...BASE_UNITS, ...fetchedUnits])];
+        return uniqueUnits.sort();
+    }, [inventoryList]);
+
+    const filteredInventory = inventoryList.filter(item => {
+        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
+        return matchesSearch && matchesCategory;
+    });
 
     const handleDelete = async (id, itemName) => {
-        if (!window.confirm(`Are you sure you want to permanently delete ${itemName}?`)) return;
+        if (!window.confirm(`Are you sure you want to permanently delete ${itemName} from inventory?`)) return;
 
         try {
             const token = localStorage.getItem('token');
@@ -94,16 +118,16 @@ export default function InventoryTracker() {
 
     const getStatusBadge = (current, threshold) => {
         if (current <= 0) {
-            return <span style={{ color: '#dc3545', fontWeight: '600', fontSize: '13px' }}>Out of Stock</span>;
+            return <span style={{ backgroundColor: '#fef2f2', color: '#dc3545', padding: '5px 12px', borderRadius: '20px', fontWeight: '600', fontSize: '12px', border: '1px solid #fecaca' }}>Out of Stock</span>;
         }
         if (current <= threshold) {
             return (
-                <span style={{ color: '#f59e0b', fontWeight: '600', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '5px 12px', borderRadius: '20px', fontWeight: '600', fontSize: '12px', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <FaExclamationCircle /> Low Stock
                 </span>
             );
         }
-        return <span style={{ color: '#28a745', fontWeight: '600', fontSize: '13px' }}>In Stock</span>;
+        return <span style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '5px 12px', borderRadius: '20px', fontWeight: '600', fontSize: '12px', border: '1px solid #bbf7d0' }}>In Stock</span>;
     };
 
     return (
@@ -114,15 +138,28 @@ export default function InventoryTracker() {
             </header>
 
             <div className={styles.controlsRow}>
-                <div className={styles.searchWrapper}>
-                    <FaSearch className={styles.searchIcon} />
-                    <input 
-                        type="text" 
-                        placeholder="Search items by name or category..." 
-                        className={styles.searchInput} 
-                        value={searchQuery} 
-                        onChange={(e) => setSearchQuery(e.target.value)} 
-                    />
+                <div className={styles.searchFilterGroup}>
+                    <div className={styles.searchWrapper}>
+                        <FaSearch className={styles.searchIcon} />
+                        <input 
+                            type="text" 
+                            placeholder="Search items by name..." 
+                            className={styles.searchInput} 
+                            value={searchQuery} 
+                            onChange={(e) => setSearchQuery(e.target.value)} 
+                        />
+                    </div>
+                    
+                    <select 
+                        className={styles.filterSelect} 
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                    >
+                        <option value="All">All Categories</option>
+                        {dynamicCategories.map(cat => (
+                            <option key={`filter-${cat}`} value={cat}>{cat}</option>
+                        ))}
+                    </select>
                 </div>
                 
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
@@ -139,7 +176,7 @@ export default function InventoryTracker() {
                             <th>Stock Level</th>
                             <th>Threshold (Min)</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th style={{ textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -150,7 +187,7 @@ export default function InventoryTracker() {
                                 <tr key={item.id}>
                                     <td className={styles.fwBold} style={{ color: '#01538b' }}>{item.name}</td>
                                     <td>
-                                        <span style={{ backgroundColor: '#f0f4f8', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', color: '#555' }}>
+                                        <span style={{ backgroundColor: '#f1f5f9', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', color: '#475569', fontWeight: '500' }}>
                                             {item.category}
                                         </span>
                                     </td>
@@ -161,22 +198,9 @@ export default function InventoryTracker() {
                                         {item.threshold} {item.unit}
                                     </td>
                                     <td>{getStatusBadge(item.currentStock, item.threshold)}</td>
-                                    <td>
-                                        <button 
-                                            className={styles.iconBtn} 
-                                            onClick={() => handleEditClick(item.id)}
-                                            title="Edit Item"
-                                        >
-                                            <FaEdit />
-                                        </button>
-                                        
-                                        <button 
-                                            className={`${styles.iconBtn} ${styles.deleteBtn}`} 
-                                            onClick={() => handleDelete(item.id, item.name)}
-                                            title="Delete Item"
-                                        >
-                                            <FaTrash />
-                                        </button>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <button className={styles.iconBtn} onClick={() => handleEditClick(item.id)} title="Edit Item"><FaEdit /></button>
+                                        <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(item.id, item.name)} title="Delete Item" style={{ color: '#dc3545' }}><FaTrash /></button>
                                     </td>
                                 </tr>
                             ))
@@ -189,6 +213,8 @@ export default function InventoryTracker() {
 
             {isAddModalOpen && (
                 <AddInventoryItem 
+                    existingCategories={dynamicCategories} 
+                    existingUnits={dynamicUnits}
                     onClose={() => setIsAddModalOpen(false)} 
                     onSuccess={fetchInventory} 
                 />
@@ -196,7 +222,9 @@ export default function InventoryTracker() {
 
             {isEditModalOpen && selectedItemId && (
                 <EditInventoryItem 
-                    itemId={selectedItemId}
+                    itemId={selectedItemId} 
+                    existingCategories={dynamicCategories} 
+                    existingUnits={dynamicUnits}
                     onClose={handleCloseEditModal} 
                     onSuccess={fetchInventory} 
                 />

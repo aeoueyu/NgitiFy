@@ -46,8 +46,8 @@ export default function ManagePatients() {
                         }
 
                         let dobFormatted = 'N/A';
-                        if (p.dateOfBirth || p.dob) {
-                            const d = new Date(p.dateOfBirth || p.dob);
+                        if (p.dateOfBirth || p.dob || p.birthdate) {
+                            const d = new Date(p.dateOfBirth || p.dob || p.birthdate);
                             if (!isNaN(d)) {
                                 dobFormatted = d.toLocaleDateString('en-US', { 
                                     year: 'numeric', month: 'short', day: 'numeric' 
@@ -124,7 +124,6 @@ export default function ManagePatients() {
         }
     };
 
-    // NEW: Open Edit Modal Handler
     const handleEditClick = (id) => {
         setIsViewModalOpen(false);
         setSelectedPatientId(id);
@@ -137,7 +136,6 @@ export default function ManagePatients() {
         setIsViewModalOpen(true);
     };
 
-    // NEW: Close Edit Modal Handler
     const handleCloseEditModal = () => {
         setIsEditModalOpen(false);
         setSelectedPatientId(null);
@@ -168,7 +166,7 @@ export default function ManagePatients() {
                 </div>
                 
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} /> Add New Patient
+                    <FaUserPlus className={styles.btnIcon} style={{marginRight: '8px'}} /> Add New Patient
                 </button>
             </div>
 
@@ -237,7 +235,6 @@ export default function ManagePatients() {
                 </table>
             </div>
 
-            {/* Modals */}
             {isAddModalOpen && (
                 <AddPatient onClose={() => setIsAddModalOpen(false)} onSuccess={fetchPatients} />
             )}

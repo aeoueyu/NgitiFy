@@ -24,12 +24,21 @@
     font-weight: 500;
 }
 
+/* --- CONTROLS ROW & SPACING FIX --- */
 .controlsRow {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 25px;
     gap: 20px;
+    flex-wrap: wrap;
+}
+
+.searchFilterGroup {
+    display: flex;
+    gap: 20px; /* This ensures the spacing between Search and Filter */
+    flex: 1;
+    align-items: center;
 }
 
 .searchWrapper {
@@ -56,9 +65,37 @@
     font-size: 14px;
     outline: none;
     transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
 .searchInput:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
+}
+
+.filterSelect {
+    flex: 1;
+    max-width: 250px;
+    padding: 12px 20px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px;
+    outline: none;
+    color: #334155;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2301538b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 20px center; 
+    background-size: 16px;
+    padding-right: 45px;
+}
+
+.filterSelect:focus {
     border-color: #01538b;
     box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
 }
@@ -76,6 +113,7 @@
     align-items: center;
     transition: all 0.3s ease;
     box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
+    white-space: nowrap;
 }
 
 .addBtn:hover {
@@ -84,6 +122,7 @@
     box-shadow: 0 6px 15px rgba(1, 83, 139, 0.3);
 }
 
+/* --- TABLE STYLING --- */
 .tableContainer {
     background: white;
     border-radius: 15px;
@@ -138,7 +177,7 @@
 
 .deleteBtn:hover {
     background-color: #fef2f2;
-    color: #ef4444;
+    color: #ef4444 !important;
 }
 
 .userTable tr:hover { background-color: #f8fbff; }

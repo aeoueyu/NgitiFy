@@ -1,295 +1,179 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FaEdit } from 'react-icons/fa';
-import formStyles from '../../styles/owner/AddPatient.module.css';
-import styles from '../../styles/owner/ViewPatient.module.css';
-import { regions, provinces, cities } from '../../utils/addressData';
+import React, { useState, useEffect } from 'react';
+import styles from '../../styles/owner/StaffModals.module.css'; // Utilizing unified UI
+import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
 
-function resolveRegionName(code) {
-    if (!code) return '—';
-    return regions.find((r) => r.code === code)?.name || code;
-}
-
-function resolveProvinceName(regionCode, provCode) {
-    if (!provCode) return '—';
-    const list = provinces[regionCode] || [];
-    return list.find((p) => p.code === provCode)?.name || provCode;
-}
-
-function resolveCityName(provCode, cityCode) {
-    if (!cityCode) return '—';
-    const list = cities[provCode] || [];
-    return list.find((c) => c.code === cityCode)?.name || cityCode;
-}
-
-function formatDisplayDate(isoOrDate) {
-    if (!isoOrDate) return '—';
-    const d = new Date(isoOrDate);
-    if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function formatPhoneDisplay(raw) {
-    if (!raw) return '—';
-    const s = String(raw).trim();
-    if (s.startsWith('+63')) return s;
-    if (/^\d{10}$/.test(s.replace(/\s/g, ''))) return `+63${s.replace(/\s/g, '')}`;
-    return s;
-}
-
-function getAgeFromBirth(birth) {
-    if (!birth) return null;
-    const today = new Date();
-    const b = new Date(birth);
-    if (Number.isNaN(b.getTime())) return null;
-    let age = today.getFullYear() - b.getFullYear();
-    const m = today.getMonth() - b.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
-    return age;
-}
-
-function getFullNameParts(data) {
-    if (!data) return { fullName: '—' };
-    const fName = data.name?.first || data.firstName || '';
-    const mName = data.name?.middle || data.middleName || '';
-    const lName = data.name?.last || data.lastName || '';
-    const fullName = [fName, mName, lName].filter(Boolean).join(' ') || data.email || '—';
-    return { fullName };
-}
-
-function getBirthRaw(data) {
-    return data?.birthdate || data?.dob || data?.dateOfBirth;
-}
-
-function getStatusLabel(data) {
-    if (!data) return '—';
-    return data.status === 'active'
-        ? 'Active'
-        : data.status === 'inactive'
-          ? 'Inactive'
-          : data.status || '—';
-}
-
 export default function ViewPatient({ patientId, onClose, onEdit }) {
+    const [patient, setPatient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [data, setData] = useState(null);
-
-    const fetchUser = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/user/${patientId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            if (!response.ok) {
-                alert('Failed to load user data.');
-                onClose();
-                return;
-            }
-            setData(await response.json());
-        } catch (e) {
-            console.error(e);
-            alert('Cannot connect to server.');
-            onClose();
-        } finally {
-            setIsLoading(false);
-        }
-    }, [patientId, onClose]);
 
     useEffect(() => {
-        if (patientId) fetchUser();
-    }, [patientId, fetchUser]);
+        const fetchPatient = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:5000/api/user/${patientId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setPatient(data);
+                } else {
+                    alert("Failed to load patient data");
+                    onClose();
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Cannot connect to server");
+                onClose();
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        if (patientId) fetchPatient();
+    }, [patientId, onClose]);
 
-    const { fullName } = getFullNameParts(data);
-    const birthRaw = getBirthRaw(data);
-    const statusLabel = getStatusLabel(data);
-    const age = getAgeFromBirth(birthRaw);
-    const isMinor = data != null && age !== null && age < 18;
-
-    const renderAddress = (title, addr) => {
-        if (!addr || typeof addr !== 'object') {
-            return (
-                <div className={formStyles.addressSection}>
-                    <h3 className={formStyles.sectionTitle}>{title}</h3>
-                    <p className={styles.viewValueMuted}>No address on file.</p>
-                </div>
-            );
-        }
-        const regionName = resolveRegionName(addr.region);
-        const provinceName = resolveProvinceName(addr.region, addr.province);
-        const cityName = resolveCityName(addr.province, addr.city);
-        return (
-            <div className={formStyles.addressSection}>
-                <h3 className={formStyles.sectionTitle}>{title}</h3>
-                <div className={styles.viewRow}>
-                    <div className={styles.viewField}>
-                        <div className={styles.viewLabel}>REGION</div>
-                        <div className={styles.viewValue}>{regionName}</div>
-                    </div>
-                    <div className={styles.viewField}>
-                        <div className={styles.viewLabel}>PROVINCE</div>
-                        <div className={styles.viewValue}>{provinceName}</div>
-                    </div>
-                </div>
-                <div className={styles.viewRow}>
-                    <div className={styles.viewField}>
-                        <div className={styles.viewLabel}>CITY / MUNICIPALITY</div>
-                        <div className={styles.viewValue}>{cityName}</div>
-                    </div>
-                    <div className={styles.viewField}>
-                        <div className={styles.viewLabel}>BARANGAY</div>
-                        <div className={styles.viewValue}>{addr.barangay || '—'}</div>
-                    </div>
-                </div>
-                <div className={styles.viewRow}>
-                    <div className={styles.viewField}>
-                        <div className={styles.viewLabel}>STREET</div>
-                        <div className={styles.viewValue}>{addr.street || '—'}</div>
-                    </div>
-                    <div className={styles.viewField}>
-                        <div className={styles.viewLabel}>HOUSE NO.</div>
-                        <div className={styles.viewValue}>{addr.houseNumber || '—'}</div>
-                    </div>
-                </div>
-            </div>
-        );
+    const getInitials = (first, last) => {
+        return `${first?.charAt(0) || ''}${last?.charAt(0) || ''}`.toUpperCase() || '?';
     };
 
+    const getAge = (birthDateString) => {
+        if (!birthDateString) return null;
+        const today = new Date();
+        const birthDate = new Date(birthDateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+        return age;
+    };
+
+    const formatAddress = (addr) => {
+        if (!addr || !addr.region) return "Not provided";
+        const rName = regions.find(r => r.code === addr.region)?.name || addr.region;
+        const pName = provinces[addr.region]?.find(p => p.code === addr.province)?.name || addr.province;
+        const cName = cities[addr.province]?.find(c => c.code === addr.city)?.name || addr.city;
+        
+        return `${addr.houseNumber ? addr.houseNumber + ' ' : ''}${addr.street ? addr.street + ', ' : ''}${addr.barangay || ''}, ${cName}, ${pName}, ${rName}`;
+    };
+
+    // Calculate core data safely
+    const birthRaw = patient?.birthdate || patient?.dob || patient?.dateOfBirth;
+    const age = getAge(birthRaw);
+    const isMinor = age !== null && age < 18;
+
     return (
-        <div className={formStyles.mainOverlay}>
-            <div className={formStyles.overlayBackground} onClick={onClose} />
-            <div className={formStyles.formCard}>
+        <div className={styles.mainOverlay}>
+            <div className={styles.overlayBackground} onClick={onClose}></div>
+            <div className={styles.formCard}>
                 {isLoading ? (
-                    <div className={styles.loadingState}>Loading profile...</div>
-                ) : !data ? null : (
+                    <div style={{ textAlign: 'center', padding: '50px', color: '#01538b' }}>Loading Profile...</div>
+                ) : patient ? (
                     <>
-                        <div className={formStyles.headerWrapper}>
-                            <button className={formStyles.backIconButton} onClick={onClose} type="button">
-                                <img src={BackIcon} alt="Back" />
-                            </button>
-                            <div className={formStyles.header}>
-                                <h2>
-                                    View <span className={formStyles.highlight}>Patient</span> Profile
-                                </h2>
-                                <p>This patient&apos;s records (read-only).</p>
+                        <div className={styles.headerWrapper}>
+                            <div className={styles.headerLeft}>
+                                <button className={styles.backIconButton} onClick={onClose}>
+                                    <img src={BackIcon} alt="Back" />
+                                </button>
+                                <div className={styles.header}>
+                                    <h2>Patient <span className={styles.highlight}>Profile</span></h2>
+                                </div>
+                            </div>
+                            <button className={styles.editActionBtn} onClick={onEdit}>EDIT PROFILE</button>
+                        </div>
+
+                        <div className={styles.profileHeader}>
+                            {patient.profileImage ? (
+                                <img src={patient.profileImage} alt="Profile" className={styles.profileImageLg} />
+                            ) : (
+                                <div className={styles.profileInitialsLg}>{getInitials(patient.name?.first, patient.name?.last)}</div>
+                            )}
+                            <div>
+                                <h3 className={styles.profileName}>{patient.name?.first} {patient.name?.last}</h3>
+                                <p className={styles.profileRole} style={{backgroundColor: '#dcfce7', color: '#15803d'}}>Registered Patient</p>
                             </div>
                         </div>
 
-                        <div className={formStyles.uploadSection}>
-                            <div className={formStyles.imageWrapper} style={{ cursor: 'default' }}>
-                                {data.profileImage ? (
-                                    <img
-                                        src={data.profileImage}
-                                        alt={fullName}
-                                        className={formStyles.previewImage}
-                                    />
-                                ) : (
-                                    <div className={formStyles.uploadPlaceholder}>
-                                        <span>No photo</span>
-                                    </div>
-                                )}
+                        <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px' }}>Core Information</h3>
+                        <div className={styles.infoGrid}>
+                            <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Email Address</span>
+                                <p className={styles.infoValue}>{patient.email}</p>
+                            </div>
+                            <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Contact Number</span>
+                                <p className={styles.infoValue}>{patient.contactNumber || patient.phoneNumber || 'Not provided'}</p>
+                            </div>
+                            <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Date of Birth</span>
+                                <p className={styles.infoValue}>
+                                    {birthRaw ? new Date(birthRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not provided'}
+                                </p>
+                            </div>
+                            <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Age</span>
+                                <p className={styles.infoValue}>{age !== null ? `${age} years old` : 'Unknown'}</p>
                             </div>
                         </div>
 
-                        <h3 className={formStyles.mainSectionTitle}>Personal information</h3>
-                        <div className={styles.viewRow}>
-                            <div className={styles.viewField}>
-                                <div className={styles.viewLabel}>FULL NAME</div>
-                                <div className={styles.viewValue}>{fullName}</div>
-                            </div>
-                            <div className={styles.viewField}>
-                                <div className={styles.viewLabel}>EMAIL</div>
-                                <div className={styles.viewValue}>{data.email || '—'}</div>
-                            </div>
-                        </div>
-                        <div className={styles.viewRow}>
-                            <div className={styles.viewField}>
-                                <div className={styles.viewLabel}>PHONE</div>
-                                <div className={styles.viewValue}>
-                                    {formatPhoneDisplay(data.contactNumber || data.phoneNumber)}
-                                </div>
-                            </div>
-                            <div className={styles.viewField}>
-                                <div className={styles.viewLabel}>DATE OF BIRTH</div>
-                                <div className={styles.viewValue}>{formatDisplayDate(birthRaw)}</div>
-                            </div>
-                        </div>
-                        <div className={styles.viewRow}>
-                            <div className={styles.viewField}>
-                                <div className={styles.viewLabel}>EMAIL VERIFIED</div>
-                                <div className={styles.viewValue}>
-                                    <span
-                                        className={`${styles.statusBadge} ${
-                                            data.isVerified ? styles.verifiedYes : styles.verifiedNo
-                                        }`}
-                                    >
-                                        {data.isVerified ? 'Yes' : 'No'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className={styles.viewField}>
-                                <div className={styles.viewLabel}>ACCOUNT STATUS</div>
-                                <div className={styles.viewValue}>
-                                    <span className={styles.accountStatus}>
-                                        <span
-                                            className={`${styles.dot} ${
-                                                data.status === 'active' ? styles.dotActive : styles.dotInactive
-                                            }`}
-                                        />
-                                        {statusLabel}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
+                        {/* CONDITIONAL GUARDIAN SECTION */}
                         {isMinor && (
                             <>
-                                <hr className={formStyles.divider} />
-                                <h3 className={formStyles.mainSectionTitle}>Guardian information</h3>
-                                {data.guardian ? (
-                                    <>
-                                        <div className={styles.viewRow}>
-                                            <div className={styles.viewField}>
-                                                <div className={styles.viewLabel}>GUARDIAN NAME</div>
-                                                <div className={styles.viewValue}>{data.guardian.name || '—'}</div>
-                                            </div>
-                                            <div className={styles.viewField}>
-                                                <div className={styles.viewLabel}>RELATIONSHIP</div>
-                                                <div className={styles.viewValue}>
-                                                    {data.guardian.relationship || '—'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className={styles.viewRow}>
-                                            <div className={styles.viewField}>
-                                                <div className={styles.viewLabel}>GUARDIAN PHONE</div>
-                                                <div className={styles.viewValue}>
-                                                    {formatPhoneDisplay(data.guardian.contactNumber)}
-                                                </div>
-                                            </div>
-                                            <div className={styles.viewField} />
-                                        </div>
-                                    </>
-                                ) : (
-                                    <p className={styles.viewValueMuted}>No guardian on file.</p>
-                                )}
+                                <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px', marginTop: '30px', borderLeftColor: '#f59e0b' }}>
+                                    Guardian Information (Minor)
+                                </h3>
+                                <div className={styles.infoGrid}>
+                                    <div className={styles.infoBox} style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}>
+                                        <span className={styles.infoLabel}>Guardian Name</span>
+                                        <p className={styles.infoValue}>{patient.guardian?.name || 'Not provided'}</p>
+                                    </div>
+                                    <div className={styles.infoBox} style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}>
+                                        <span className={styles.infoLabel}>Relationship</span>
+                                        <p className={styles.infoValue}>{patient.guardian?.relationship || 'Not provided'}</p>
+                                    </div>
+                                    <div className={styles.infoBox} style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}>
+                                        <span className={styles.infoLabel}>Guardian Contact</span>
+                                        <p className={styles.infoValue}>{patient.guardian?.contactNumber || 'Not provided'}</p>
+                                    </div>
+                                </div>
                             </>
                         )}
 
-                        <hr className={formStyles.divider} />
-                        {renderAddress('Current address', data.currentAddress)}
-                        {renderAddress('Permanent address', data.permanentAddress)}
+                        {/* MEDICAL HISTORY SECTION (Non-Financial Ops) */}
+                        <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px', marginTop: '30px', borderLeftColor: '#dc3545' }}>
+                            Medical History Summary
+                        </h3>
+                        <div className={styles.infoGrid}>
+                            <div className={styles.infoBox} style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}>
+                                <span className={styles.infoLabel} style={{ color: '#dc3545' }}>Known Allergies</span>
+                                <p className={styles.infoValue}>
+                                    {patient.medicalHistory?.allergies?.length > 0 
+                                        ? patient.medicalHistory.allergies.join(', ') 
+                                        : 'None reported'}
+                                </p>
+                            </div>
+                            <div className={styles.infoBox} style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}>
+                                <span className={styles.infoLabel} style={{ color: '#dc3545' }}>Medical Conditions</span>
+                                <p className={styles.infoValue}>
+                                    {patient.medicalHistory?.conditions?.length > 0 
+                                        ? patient.medicalHistory.conditions.join(', ') 
+                                        : 'None reported'}
+                                </p>
+                            </div>
+                        </div>
 
-                        <div className={styles.footer}>
-                            <button type="button" className={styles.closeBtn} onClick={onClose}>
-                                Close
-                            </button>
-                            <button type="button" className={styles.editBtn} onClick={onEdit}>
-                                <FaEdit aria-hidden />
-                                Edit
-                            </button>
+                        <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px', marginTop: '30px' }}>Address Details</h3>
+                        <div className={styles.infoGrid}>
+                            <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Current Address</span>
+                                <p className={styles.infoValue}>{formatAddress(patient.currentAddress)}</p>
+                            </div>
+                            <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Permanent Address</span>
+                                <p className={styles.infoValue}>{formatAddress(patient.permanentAddress)}</p>
+                            </div>
                         </div>
                     </>
+                ) : (
+                    <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>Profile not found.</div>
                 )}
             </div>
         </div>

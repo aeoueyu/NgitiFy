@@ -1,18 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import styles from '../../styles/owner/AddInventoryItem.module.css'; // Reusing the shared CSS module!
+import styles from '../../styles/owner/StaffModals.module.css'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
 
-const categoryOptions = [
-    "Diagnostic Supplies", "Preventive Supplies", "Restorative Materials", 
-    "Surgical Supplies", "Endodontic Supplies", "Periodontic Supplies", 
-    "Orthodontic Supplies", "Personal Protective Equipment (PPE)", "Cleaning & Sterilization",
-    "General Clinic Supplies"
-];
-
-const unitOptions = ["pcs", "box", "set", "pack", "bottle", "tube", "vial"];
-
-export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
+export default function EditInventoryItem({ itemId, onClose, onSuccess, existingCategories = [], existingUnits = [] }) {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -22,6 +13,9 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
         name: '', category: '', currentStock: '', threshold: '', unit: 'pcs'
     });
     const [initialData, setInitialData] = useState(null);
+
+    const [customCategory, setCustomCategory] = useState('');
+    const [customUnit, setCustomUnit] = useState('');
 
     useEffect(() => {
         const fetchItemData = async () => {
@@ -33,15 +27,27 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
 
                 if (response.ok) {
                     const data = await response.json();
-                    const fetchedData = {
+                    
+                    const fetchedCat = data.category || '';
+                    const isCustomCat = !existingCategories.includes(fetchedCat) && fetchedCat !== '';
+                    
+                    const fetchedUnit = data.unit || 'pcs';
+                    const isCustomUnit = !existingUnits.includes(fetchedUnit) && fetchedUnit !== '';
+
+                    const mappedData = {
                         name: data.itemName || data.name || '',
-                        category: data.category || '',
+                        category: isCustomCat ? 'Other' : fetchedCat,
                         currentStock: data.quantity !== undefined ? data.quantity.toString() : (data.currentStock !== undefined ? data.currentStock.toString() : ''),
                         threshold: data.reorderLevel !== undefined ? data.reorderLevel.toString() : '',
-                        unit: data.unit || 'pcs'
+                        unit: isCustomUnit ? 'Other' : fetchedUnit
                     };
-                    setFormData(fetchedData);
-                    setInitialData(fetchedData);
+
+                    setFormData(mappedData);
+                    setInitialData(mappedData);
+                    
+                    if (isCustomCat) setCustomCategory(fetchedCat);
+                    if (isCustomUnit) setCustomUnit(fetchedUnit);
+
                 } else {
                     alert("Failed to load item data.");
                     onClose();
@@ -56,38 +62,36 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
         };
 
         if (itemId) fetchItemData();
-    }, [itemId, onClose]);
+    }, [itemId, onClose, existingCategories, existingUnits]);
 
-    const hasChanges = initialData ? JSON.stringify(formData) !== JSON.stringify(initialData) : false;
+    const hasChanges = initialData ? (
+        JSON.stringify(formData) !== JSON.stringify(initialData) ||
+        (formData.category === 'Other' && customCategory !== initialData.category) ||
+        (formData.unit === 'Other' && customUnit !== initialData.unit)
+    ) : false;
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         if ((name === 'currentStock' || name === 'threshold') && value !== '' && Number(value) < 0) return;
         setFormData(prev => ({ ...prev, [name]: value }));
-        
-        if (errors[name]) {
-            setErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[name];
-                return newErrors;
-            });
-        }
+        if (errors[name]) setErrors(prev => ({ ...prev, [name]: undefined }));
     };
 
     const validateForm = () => {
-        let newErrors = {};
-        let isValid = true;
-        if (!formData.name.trim()) { newErrors.name = "Item name is required"; isValid = false; }
-        if (!formData.category) { newErrors.category = "Category is required"; isValid = false; }
-        if (formData.currentStock === '') { newErrors.currentStock = "Stock level is required"; isValid = false; }
-        if (formData.threshold === '') { newErrors.threshold = "Threshold is required"; isValid = false; }
+        let newErrors = {}; let isValid = true;
+        
+        if (!formData.name.trim()) { newErrors.name = "Required"; isValid = false; }
+        
+        if (!formData.category) { newErrors.category = "Required"; isValid = false; }
+        else if (formData.category === 'Other' && !customCategory.trim()) { newErrors.customCategory = "Custom category is required"; isValid = false; }
+        
+        if (!formData.unit) { newErrors.unit = "Required"; isValid = false; }
+        else if (formData.unit === 'Other' && !customUnit.trim()) { newErrors.customUnit = "Custom unit is required"; isValid = false; }
+
+        if (formData.currentStock === '') { newErrors.currentStock = "Required"; isValid = false; }
+        if (formData.threshold === '') { newErrors.threshold = "Required"; isValid = false; }
         
         setErrors(newErrors);
-        if (!isValid) {
-            const firstErrorKey = Object.keys(newErrors)[0];
-            const el = document.getElementsByName(firstErrorKey)[0];
-            if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-        }
         return isValid;
     };
 
@@ -96,20 +100,21 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
         if (!validateForm()) return;
 
         setIsSaving(true);
+        
+        const finalCategory = formData.category === 'Other' ? customCategory.trim() : formData.category;
+        const finalUnit = formData.unit === 'Other' ? customUnit.trim() : formData.unit;
+
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`http://localhost:5000/api/inventory/${itemId}`, {
                 method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     itemName: formData.name.trim(), 
-                    category: formData.category,
+                    category: finalCategory,
                     quantity: Number(formData.currentStock), 
                     reorderLevel: Number(formData.threshold), 
-                    unit: formData.unit
+                    unit: finalUnit
                 }),
             });
 
@@ -127,30 +132,24 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
         }
     };
 
-    const handleSuccessClose = () => {
-        setShowSuccessModal(false);
-        onSuccess(); 
-        onClose();   
-    };
+    const handleSuccessClose = () => { setShowSuccessModal(false); onSuccess(); onClose(); };
 
     return (
         <div className={styles.mainOverlay}>
             <div className={styles.overlayBackground} onClick={!isSaving && !showSuccessModal ? onClose : undefined}></div>
             
             <div className={styles.formCard}>
-                {isLoading ? (
-                    <div style={{ textAlign: 'center', padding: '50px', color: '#01538b', fontWeight: 'bold' }}>
-                        Loading Item Data...
-                    </div>
-                ) : (
+                {isLoading ? <div style={{ textAlign: 'center', padding: '50px', color: '#01538b' }}>Loading Item Data...</div> : (
                     <>
                         <div className={styles.headerWrapper}>
-                            <button className={styles.backIconButton} onClick={onClose} type="button" disabled={isSaving}>
-                                <img src={BackIcon} alt="Back" />
-                            </button>
-                            <div className={styles.header}>
-                                <h2>Edit <span className={styles.highlight}>Inventory Item</span></h2>
-                                <p>Update the details and stock thresholds for this item.</p>
+                            <div className={styles.headerLeft}>
+                                <button className={styles.backIconButton} onClick={onClose} type="button" disabled={isSaving}>
+                                    <img src={BackIcon} alt="Back" />
+                                </button>
+                                <div className={styles.header}>
+                                    <h2>Edit <span className={styles.highlight}>Inventory Item</span></h2>
+                                    <p>Update the details and stock thresholds for this item.</p>
+                                </div>
                             </div>
                         </div>
 
@@ -160,11 +159,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
                             <div className={styles.row}>
                                 <div className={styles.formGroup}>
                                     <label>ITEM NAME <span style={{color:'red'}}>*</span></label>
-                                    <input 
-                                        className={`${styles.inputField} ${errors.name ? styles.errorBorder : ''}`} 
-                                        name="name" value={formData.name} onChange={handleChange} 
-                                        placeholder="e.g. Disposable Saliva Ejector" maxLength={100} disabled={isSaving}
-                                    />
+                                    <input className={`${styles.inputField} ${errors.name ? styles.errorBorder : ''}`} name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Latex Gloves" maxLength={100} disabled={isSaving} />
                                     {errors.name && <span className={styles.errorText}>{errors.name}</span>}
                                 </div>
                             </div>
@@ -174,34 +169,65 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess }) {
                                     <label>CATEGORY <span style={{color:'red'}}>*</span></label>
                                     <select name="category" className={`${styles.inputField} ${errors.category ? styles.errorBorder : ''}`} value={formData.category} onChange={handleChange} disabled={isSaving}>
                                         <option value="" hidden>Select Category</option>
-                                        {categoryOptions.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                        {existingCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                        <option value="Other">Other (Custom...)</option>
                                     </select>
                                     {errors.category && <span className={styles.errorText}>{errors.category}</span>}
+
+                                    {formData.category === 'Other' && (
+                                        <div style={{ marginTop: '10px' }}>
+                                            <input 
+                                                className={`${styles.inputField} ${errors.customCategory ? styles.errorBorder : ''}`} 
+                                                placeholder="Type custom category name..." 
+                                                value={customCategory} 
+                                                onChange={(e) => { setCustomCategory(e.target.value); if(errors.customCategory) setErrors(prev => ({...prev, customCategory: undefined})); }} 
+                                                disabled={isSaving}
+                                            />
+                                            {errors.customCategory && <span className={styles.errorText}>{errors.customCategory}</span>}
+                                        </div>
+                                    )}
                                 </div>
+
                                 <div className={styles.formGroup}>
                                     <label>UNIT <span style={{color:'red'}}>*</span></label>
-                                    <select name="unit" className={styles.inputField} value={formData.unit} onChange={handleChange} disabled={isSaving}>
-                                        {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+                                    <select name="unit" className={`${styles.inputField} ${errors.unit ? styles.errorBorder : ''}`} value={formData.unit} onChange={handleChange} disabled={isSaving}>
+                                        <option value="" hidden>Select Unit</option>
+                                        {existingUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                                        <option value="Other">Other (Custom...)</option>
                                     </select>
+                                    {errors.unit && <span className={styles.errorText}>{errors.unit}</span>}
+
+                                    {formData.unit === 'Other' && (
+                                        <div style={{ marginTop: '10px' }}>
+                                            <input 
+                                                className={`${styles.inputField} ${errors.customUnit ? styles.errorBorder : ''}`} 
+                                                placeholder="Type custom unit (e.g. rolls)..." 
+                                                value={customUnit} 
+                                                onChange={(e) => { setCustomUnit(e.target.value); if(errors.customUnit) setErrors(prev => ({...prev, customUnit: undefined})); }} 
+                                                disabled={isSaving}
+                                            />
+                                            {errors.customUnit && <span className={styles.errorText}>{errors.customUnit}</span>}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             <div className={styles.row}>
                                 <div className={styles.formGroup}>
                                     <label>CURRENT STOCK LEVEL <span style={{color:'red'}}>*</span></label>
-                                    <input type="number" className={`${styles.inputField} ${errors.currentStock ? styles.errorBorder : ''}`} name="currentStock" value={formData.currentStock} onChange={handleChange} placeholder="0" min="0" disabled={isSaving}/>
+                                    <input type="number" className={`${styles.inputField} ${errors.currentStock ? styles.errorBorder : ''}`} name="currentStock" value={formData.currentStock} onChange={handleChange} placeholder="0" min="0" disabled={isSaving} />
                                     {errors.currentStock && <span className={styles.errorText}>{errors.currentStock}</span>}
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label>LOW STOCK THRESHOLD <span style={{color:'red'}}>*</span></label>
-                                    <input type="number" className={`${styles.inputField} ${errors.threshold ? styles.errorBorder : ''}`} name="threshold" value={formData.threshold} onChange={handleChange} placeholder="Alert when below..." min="0" disabled={isSaving}/>
+                                    <input type="number" className={`${styles.inputField} ${errors.threshold ? styles.errorBorder : ''}`} name="threshold" value={formData.threshold} onChange={handleChange} placeholder="Alert when below..." min="0" disabled={isSaving} />
                                     {errors.threshold && <span className={styles.errorText}>{errors.threshold}</span>}
                                 </div>
                             </div>
 
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
-                                <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>
+                                <button type="submit" className={styles.submitBtn} disabled={isSaving || (!hasChanges && formData.category !== 'Other' && formData.unit !== 'Other')}>
                                     {isSaving ? 'SAVING CHANGES...' : 'UPDATE ITEM'}
                                 </button>
                             </div>
