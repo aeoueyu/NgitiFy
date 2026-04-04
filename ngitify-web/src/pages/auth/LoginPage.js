@@ -31,9 +31,10 @@ export default function LoginPage() {
             const data = await response.json();
 
             if (response.ok) {
-                // Pass the token and user data to update the global AuthContext state.
-                // Depending on how your context is written, if login is not async, 
-                // the await here is harmless.
+                // === FIX: EXPLICITLY SAVE THE CLEAN TOKEN STRING HERE ===
+                localStorage.setItem('token', data.token);
+
+                // Pass the user data to update the global AuthContext state.
                 await login({
                     token: data.token,
                     role: data.role,

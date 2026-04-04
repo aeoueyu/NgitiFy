@@ -5,10 +5,15 @@ import { useAuth } from '../../hooks/useAuth';
 import BackIcon from '../../assets/icons/Back.svg';
 import successIcon from '../../assets/alert/success.svg';
 
+// Strict Static Imports
+import { regions, provinces, cities, barangays } from '../../utils/addressData';
+
 export default function MyProfile() {
+    const { logout } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
 
+    // View States
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -16,10 +21,35 @@ export default function MyProfile() {
     const [errors, setErrors] = useState({});
     const [fetchError, setFetchError] = useState(null); 
 
+    // Email Change Modal States
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [emailFormData, setEmailFormData] = useState({ newEmail: '', currentPassword: '' });
+    const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
+    const [emailError, setEmailError] = useState('');
+
+    // Main Form State
     const [formData, setFormData] = useState({
-        firstName: '', lastName: '', email: '', phone: '', profileImage: ''
+        firstName: '', middleName: '', lastName: '', email: '', phone: '', profileImage: '',
+        birthdate: '', gender: '',
+        region: '', regionName: '',
+        province: '', provinceName: '',
+        city: '', cityName: '',
+        barangay: '', street: '', houseNumber: ''
     });
+    
     const [initialData, setInitialData] = useState(null);
+
+    // Exact derived properties
+    const availableProvinces = formData.region ? provinces[formData.region] || [] : [];
+    const availableCities = formData.province ? cities[formData.province] || [] : [];
+    const availableBarangays = formData.city ? barangays[formData.city] || [] : [];
+
+    // Helper: Calculate max date for 18+ validation
+    const getMaxDate = () => {
+        const today = new Date();
+        const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+        return maxDate.toISOString().split('T')[0];
+    };
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -28,23 +58,25 @@ export default function MyProfile() {
                 setFetchError(null);
                 
                 const token = localStorage.getItem('token');
-                
                 if (!token) {
                     setFetchError("No authentication token found.");
-                    setIsLoading(false);
-                    return;
+                    setIsLoading(false); return;
                 }
 
-                // Safe JWT Decode: Replace Base64URL characters before atob()
-                const base64Url = token.split('.')[1];
+                const parts = token.split('.');
+                const base64Url = parts[1];
+                if (!base64Url) {
+                    setFetchError("Invalid token format. Please log out and log back in.");
+                    setIsLoading(false); return;
+                }
+
                 const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                 const payload = JSON.parse(atob(base64));
                 const userId = payload.userId || payload.id || payload._id;
                 
                 if (!userId) {
-                    setFetchError("User ID not found in token. Please try logging out and logging back in.");
-                    setIsLoading(false); 
-                    return;
+                    setFetchError("User ID not found in token. Please log out and log back in.");
+                    setIsLoading(false); return;
                 }
 
                 const response = await fetch(`http://localhost:5000/api/user/${userId}`, {
@@ -54,13 +86,47 @@ export default function MyProfile() {
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // ULTIMATE FAIL-SAFE DATA MAPPING
+                    let formattedDate = '';
+                    if (data?.birthdate) {
+                        formattedDate = new Date(data.birthdate).toISOString().split('T')[0];
+                    }
+
+                    // Reverse Lookup to get the Address Codes from DB names
+                    const dbRegion = data?.currentAddress?.region || '';
+                    const dbProv = data?.currentAddress?.province || '';
+                    const dbCity = data?.currentAddress?.city || '';
+                    const dbBrgy = data?.currentAddress?.barangay || '';
+                    
+                    let rCode = '', pCode = '', cCode = '';
+
+                    if (dbRegion && regions && regions.length > 0) {
+                        const rMatch = regions.find(r => r.name === dbRegion);
+                        rCode = rMatch ? rMatch.code : '';
+                    }
+                    if (dbProv && rCode && provinces[rCode]) {
+                        const pMatch = provinces[rCode].find(p => p.name === dbProv);
+                        pCode = pMatch ? pMatch.code : '';
+                    }
+                    if (dbCity && pCode && cities[pCode]) {
+                        const cMatch = cities[pCode].find(c => c.name === dbCity);
+                        cCode = cMatch ? cMatch.code : '';
+                    }
+
                     const fetchedData = {
                         firstName: data?.name?.first || data?.firstName || '',
+                        middleName: data?.name?.middle || '',
                         lastName: data?.name?.last || data?.lastName || '',
                         email: data?.email || '',
                         phone: data?.contactNumber ? String(data.contactNumber).replace('+63', '') : '',
-                        profileImage: data?.profileImage || ''
+                        profileImage: data?.profileImage || '',
+                        birthdate: formattedDate,
+                        gender: data?.gender || '',
+                        region: rCode, regionName: dbRegion,
+                        province: pCode, provinceName: dbProv,
+                        city: cCode, cityName: dbCity,
+                        barangay: dbBrgy, 
+                        street: data?.currentAddress?.street || '',
+                        houseNumber: data?.currentAddress?.houseNumber || '' 
                     };
                     
                     setFormData(fetchedData);
@@ -96,6 +162,42 @@ export default function MyProfile() {
         }
     };
 
+    // --- CASCADING ADDRESS HANDLERS ---
+    const handleRegionChange = (e) => {
+        const code = e.target.value;
+        const name = e.target.options[e.target.selectedIndex].text;
+        setFormData(prev => ({
+            ...prev, region: code, regionName: name,
+            province: '', provinceName: '', city: '', cityName: '', barangay: ''
+        }));
+        if (errors.region) setErrors(prev => { const n = {...prev}; delete n.region; return n; });
+    };
+
+    const handleProvinceChange = (e) => {
+        const code = e.target.value;
+        const name = e.target.options[e.target.selectedIndex].text;
+        setFormData(prev => ({
+            ...prev, province: code, provinceName: name,
+            city: '', cityName: '', barangay: ''
+        }));
+        if (errors.province) setErrors(prev => { const n = {...prev}; delete n.province; return n; });
+    };
+
+    const handleCityChange = (e) => {
+        const code = e.target.value;
+        const name = e.target.options[e.target.selectedIndex].text;
+        setFormData(prev => ({
+            ...prev, city: code, cityName: name, barangay: ''
+        }));
+        if (errors.city) setErrors(prev => { const n = {...prev}; delete n.city; return n; });
+    };
+
+    const handleBarangayChange = (e) => {
+        const name = e.target.value;
+        setFormData(prev => ({ ...prev, barangay: name }));
+        if (errors.barangay) setErrors(prev => { const n = {...prev}; delete n.barangay; return n; });
+    };
+
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -108,11 +210,26 @@ export default function MyProfile() {
     };
 
     const validateForm = () => {
-        let newErrors = {}; let isValid = true;
+        let newErrors = {}; 
+        let isValid = true;
+
         if (!formData.firstName.trim()) { newErrors.firstName = "Required"; isValid = false; }
         if (!formData.lastName.trim()) { newErrors.lastName = "Required"; isValid = false; }
-        if (!formData.phone) { newErrors.phone = "Required"; isValid = false; }
-        else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = "Invalid format (e.g. 9xxxxxxxxx)"; isValid = false; }
+        if (!formData.birthdate) { newErrors.birthdate = "Required"; isValid = false; }
+        if (!formData.gender) { newErrors.gender = "Required"; isValid = false; }
+        
+        if (!formData.phone) { 
+            newErrors.phone = "Required"; isValid = false; 
+        } else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { 
+            newErrors.phone = "Invalid format (e.g. 9xxxxxxxxx)"; isValid = false; 
+        }
+
+        if (!formData.region) { newErrors.region = "Required"; isValid = false; }
+        if (!formData.province) { newErrors.province = "Required"; isValid = false; }
+        if (!formData.city) { newErrors.city = "Required"; isValid = false; }
+        if (!formData.barangay) { newErrors.barangay = "Required"; isValid = false; }
+        if (!formData.houseNumber.trim()) { newErrors.houseNumber = "Required"; isValid = false; }
+        if (!formData.street.trim()) { newErrors.street = "Required"; isValid = false; }
         
         setErrors(newErrors);
         return isValid;
@@ -125,31 +242,39 @@ export default function MyProfile() {
 
         try {
             const token = localStorage.getItem('token');
-            if (!token) {
-                alert("Authentication token missing. Cannot save changes.");
-                setIsSaving(false);
-                return;
-            }
+            if (!token) { alert("Authentication token missing."); setIsSaving(false); return; }
 
-            // Safe JWT Decode
-            const base64Url = token.split('.')[1];
+            const parts = token.split('.');
+            const base64Url = parts[1];
+            if (!base64Url) { alert("Invalid token format."); setIsSaving(false); return; }
+
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             const payload = JSON.parse(atob(base64));
             const userId = payload.userId || payload.id || payload._id;
 
-            if (!userId) {
-                alert("User ID missing from token. Cannot save changes.");
-                setIsSaving(false);
-                return;
-            }
+            if (!userId) { alert("User ID missing from token."); setIsSaving(false); return; }
 
             const response = await fetch(`http://localhost:5000/api/user/update-profile/${userId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
-                    name: { first: formData.firstName.trim(), last: formData.lastName.trim() },
+                    name: { 
+                        first: formData.firstName.trim(), 
+                        middle: formData.middleName.trim(), 
+                        last: formData.lastName.trim() 
+                    },
                     contactNumber: `+63${formData.phone}`,
-                    profileImage: formData.profileImage
+                    profileImage: formData.profileImage,
+                    birthdate: formData.birthdate,
+                    gender: formData.gender,
+                    currentAddress: {
+                        region: formData.regionName,
+                        province: formData.provinceName,
+                        city: formData.cityName,
+                        barangay: formData.barangay,
+                        street: formData.street.trim(),
+                        houseNumber: formData.houseNumber.trim()
+                    }
                 }),
             });
 
@@ -173,6 +298,41 @@ export default function MyProfile() {
         setFormData(initialData);
         setErrors({});
         setIsEditing(false);
+    };
+
+    // --- CHANGE EMAIL LOGIC ---
+    const handleRequestEmailChange = async (e) => {
+        e.preventDefault();
+        setEmailError('');
+        if (!emailFormData.newEmail || !emailFormData.currentPassword) {
+            setEmailError('All fields are required.'); return;
+        }
+        setIsSubmittingEmail(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/user/request-email-change`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    newEmail: emailFormData.newEmail,
+                    currentPassword: emailFormData.currentPassword
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                logout();
+                navigate('/login', { state: { message: 'We sent a verification link to your new email. Please verify it to continue.' } });
+            } else {
+                setEmailError(data.message || 'Failed to request email change.');
+            }
+        } catch (error) {
+            setEmailError('Cannot connect to server.');
+        } finally {
+            setIsSubmittingEmail(false);
+        }
     };
 
     return (
@@ -215,11 +375,14 @@ export default function MyProfile() {
                                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageUpload} />
                             </div>
                             <div className={styles.profileText}>
-                                <h2>{formData.firstName || 'Owner'} {formData.lastName || 'Account'}</h2>
+                                <h2>
+                                    {formData.firstName || 'Owner'} {formData.middleName ? `${formData.middleName.charAt(0)}.` : ''} {formData.lastName || 'Account'}
+                                </h2>
                                 <span className={styles.roleTag}>Clinic Owner</span>
                             </div>
                         </div>
 
+                        {/* --- PERSONAL INFORMATION --- */}
                         <h3 className={styles.mainSectionTitle}>Personal Information</h3>
                         
                         <div className={styles.row}>
@@ -231,6 +394,14 @@ export default function MyProfile() {
                                     disabled={!isEditing || isSaving}
                                 />
                                 {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>MIDDLE NAME</label>
+                                <input 
+                                    className={styles.inputField} 
+                                    name="middleName" value={formData.middleName} onChange={handleChange} 
+                                    disabled={!isEditing || isSaving}
+                                />
                             </div>
                             <div className={styles.formGroup}>
                                 <label>LAST NAME <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
@@ -245,8 +416,17 @@ export default function MyProfile() {
 
                         <div className={styles.row}>
                             <div className={styles.formGroup}>
-                                <label>EMAIL ADDRESS (Read-Only)</label>
-                                <input className={styles.inputField} value={formData.email} disabled={true} title="Email cannot be changed here" />
+                                <label>EMAIL ADDRESS</label>
+                                <div className={styles.emailRow}>
+                                    <input className={styles.inputField} value={formData.email} disabled={true} />
+                                    <button 
+                                        type="button" 
+                                        className={styles.changeEmailBtn} 
+                                        onClick={() => setShowEmailModal(true)}
+                                    >
+                                        Change Email
+                                    </button>
+                                </div>
                             </div>
                             <div className={styles.formGroup}>
                                 <label>CONTACT NUMBER <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
@@ -260,6 +440,114 @@ export default function MyProfile() {
                                     />
                                 </div>
                                 {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
+                            </div>
+                        </div>
+
+                        {/* --- DEMOGRAPHICS --- */}
+                        <h3 className={styles.mainSectionTitle}>Demographics</h3>
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}>
+                                <label>BIRTHDATE <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                <input 
+                                    type="date"
+                                    max={getMaxDate()}
+                                    className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} 
+                                    name="birthdate" 
+                                    value={formData.birthdate} 
+                                    onChange={handleChange} 
+                                    disabled={!isEditing || isSaving}
+                                />
+                                {errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>GENDER <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                <select 
+                                    className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} 
+                                    name="gender" 
+                                    value={formData.gender} 
+                                    onChange={handleChange} 
+                                    disabled={!isEditing || isSaving}
+                                >
+                                    <option value="" disabled>Select Gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                    <option value="Prefer not to say">Prefer not to say</option>
+                                </select>
+                                {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
+                            </div>
+                        </div>
+
+                        {/* --- COMPLETE ADDRESS --- */}
+                        <h3 className={styles.mainSectionTitle}>Complete Address</h3>
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}>
+                                <label>REGION <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                <select className={`${styles.inputField} ${errors.region ? styles.errorBorder : ''}`} value={formData.region} onChange={handleRegionChange} disabled={!isEditing || isSaving}>
+                                    <option value="" disabled>Select Region</option>
+                                    {regions.map(r => (
+                                        <option key={r.code} value={r.code}>{r.name}</option>
+                                    ))}
+                                </select>
+                                {errors.region && <span className={styles.errorText}>{errors.region}</span>}
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>PROVINCE <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                <select className={`${styles.inputField} ${errors.province ? styles.errorBorder : ''}`} value={formData.province} onChange={handleProvinceChange} disabled={!isEditing || !formData.region || isSaving}>
+                                    <option value="" disabled>Select Province</option>
+                                    {availableProvinces.map(p => (
+                                        <option key={p.code} value={p.code}>{p.name}</option>
+                                    ))}
+                                </select>
+                                {errors.province && <span className={styles.errorText}>{errors.province}</span>}
+                            </div>
+                        </div>
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}>
+                                <label>CITY / MUNICIPALITY <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                <select className={`${styles.inputField} ${errors.city ? styles.errorBorder : ''}`} value={formData.city} onChange={handleCityChange} disabled={!isEditing || !formData.province || isSaving}>
+                                    <option value="" disabled>Select City</option>
+                                    {availableCities.map(c => (
+                                        <option key={c.code} value={c.code}>{c.name}</option>
+                                    ))}
+                                </select>
+                                {errors.city && <span className={styles.errorText}>{errors.city}</span>}
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>BARANGAY <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                <select className={`${styles.inputField} ${errors.barangay ? styles.errorBorder : ''}`} value={formData.barangay} onChange={handleBarangayChange} disabled={!isEditing || !formData.city || isSaving}>
+                                    <option value="" disabled>Select Barangay</option>
+                                    {availableBarangays.map(b => (
+                                        <option key={b} value={b}>{b}</option>
+                                    ))}
+                                </select>
+                                {errors.barangay && <span className={styles.errorText}>{errors.barangay}</span>}
+                            </div>
+                        </div>
+                        <div className={styles.row}>
+                            <div className={styles.formGroup} style={{ flex: 1 }}>
+                                <label>HOUSE NO. <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                <input 
+                                    className={`${styles.inputField} ${errors.houseNumber ? styles.errorBorder : ''}`} 
+                                    name="houseNumber" 
+                                    value={formData.houseNumber} 
+                                    onChange={handleChange} 
+                                    placeholder="e.g. Blk 1 Lot 2"
+                                    disabled={!isEditing || isSaving}
+                                />
+                                {errors.houseNumber && <span className={styles.errorText}>{errors.houseNumber}</span>}
+                            </div>
+                            <div className={styles.formGroup} style={{ flex: 2 }}>
+                                <label>STREET <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                <input 
+                                    className={`${styles.inputField} ${errors.street ? styles.errorBorder : ''}`} 
+                                    name="street" 
+                                    value={formData.street} 
+                                    onChange={handleChange} 
+                                    placeholder="e.g. Main St."
+                                    disabled={!isEditing || isSaving}
+                                />
+                                {errors.street && <span className={styles.errorText}>{errors.street}</span>}
                             </div>
                         </div>
 
@@ -283,6 +571,7 @@ export default function MyProfile() {
                 )}
             </div>
 
+            {/* Profile Update Success Modal */}
             {showSuccessModal && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalCard}>
@@ -290,6 +579,52 @@ export default function MyProfile() {
                         <h3 className={styles.modalTitle}>Success!</h3>
                         <p className={styles.modalMessage}>Your profile has been successfully updated.</p>
                         <button className={styles.modalButton} onClick={() => setShowSuccessModal(false)}>DONE</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Request Email Change Modal */}
+            {showEmailModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard} style={{ padding: '30px 40px' }}>
+                        <h3 className={styles.modalTitle}>Change Email Address</h3>
+                        <p className={styles.modalMessage} style={{ marginBottom: '20px' }}>
+                            Enter your new email address and your current password to verify this request.
+                        </p>
+                        
+                        <form onSubmit={handleRequestEmailChange} style={{ width: '100%', textAlign: 'left' }}>
+                            <div className={styles.formGroup} style={{ marginBottom: '15px' }}>
+                                <label>NEW EMAIL ADDRESS</label>
+                                <input 
+                                    type="email"
+                                    className={styles.inputField} 
+                                    value={emailFormData.newEmail} 
+                                    onChange={(e) => setEmailFormData({...emailFormData, newEmail: e.target.value})}
+                                    required
+                                    disabled={isSubmittingEmail}
+                                />
+                            </div>
+                            <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
+                                <label>CURRENT PASSWORD</label>
+                                <input 
+                                    type="password"
+                                    className={styles.inputField} 
+                                    value={emailFormData.currentPassword} 
+                                    onChange={(e) => setEmailFormData({...emailFormData, currentPassword: e.target.value})}
+                                    required
+                                    disabled={isSubmittingEmail}
+                                />
+                            </div>
+
+                            {emailError && <div className={styles.errorText} style={{ textAlign: 'center', marginBottom: '15px' }}>{emailError}</div>}
+
+                            <button type="submit" className={styles.submitBtn} style={{ width: '100%', marginBottom: '10px' }} disabled={isSubmittingEmail}>
+                                {isSubmittingEmail ? 'REQUESTING...' : 'SEND VERIFICATION LINK'}
+                            </button>
+                            <button type="button" className={styles.cancelBtn} style={{ width: '100%' }} onClick={() => { setShowEmailModal(false); setEmailError(''); setEmailFormData({newEmail: '', currentPassword: ''}); }} disabled={isSubmittingEmail}>
+                                CANCEL
+                            </button>
+                        </form>
                     </div>
                 </div>
             )}

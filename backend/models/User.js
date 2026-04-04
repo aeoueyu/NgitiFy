@@ -31,6 +31,7 @@ const userSchema = new mongoose.Schema({
     // 3. PERSONAL DETAILS
     contactNumber: { type: String },
     birthdate: { type: Date },
+    gender: { type: String }, // <-- ADD THIS LINE
     profileImage: { type: String }, // Base64 string
     
     // 4. DENTIST SPECIFIC

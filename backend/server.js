@@ -473,6 +473,70 @@ app.put('/api/user/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Error updating user." }); }
 });
 
+// --- UPDATE PROFILE (OWNER/USER OWN PROFILE) ---
+// --- UPDATE PROFILE (OWNER/USER OWN PROFILE) ---
+app.put('/api/user/update-profile/:id', async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { 
+            name, 
+            contactNumber, 
+            birthdate, 
+            gender, 
+            currentAddress, 
+            profileImage 
+        } = req.body;
+
+        // 1. Find the user
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // 2. Safely update Name fields (including Middle Name)
+        if (name) {
+            if (name.first !== undefined) user.name.first = name.first;
+            if (name.middle !== undefined) user.name.middle = name.middle;
+            if (name.last !== undefined) user.name.last = name.last;
+        }
+
+        // 3. Safely update Personal Demographics
+        if (contactNumber !== undefined) user.contactNumber = contactNumber;
+        if (birthdate !== undefined) user.birthdate = birthdate;
+        if (gender !== undefined) user.gender = gender;
+        if (profileImage !== undefined) user.profileImage = profileImage;
+
+        // 4. Safely update Address
+        if (currentAddress) {
+            user.currentAddress = {
+                ...user.currentAddress,
+                ...currentAddress
+            };
+        }
+
+        // 5. Save to database
+        await user.save();
+
+        // 6. Log the action
+        await AuditLog.create({
+            action: "UPDATE_PROFILE",
+            user: user.email,
+            role: user.role,
+            details: `User updated their personal profile.`
+        });
+
+        // 7. Return success
+        res.status(200).json({ 
+            message: "Profile updated successfully.", 
+            user 
+        });
+
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: "Server error updating profile." });
+    }
+});
+
 // --- FORGOT PASSWORD ---
 // --- FORGOT PASSWORD (UPDATED) ---
 app.post('/api/forgot-password', async (req, res) => {

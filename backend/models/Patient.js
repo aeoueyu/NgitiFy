@@ -18,7 +18,10 @@ const patientSchema = new mongoose.Schema({
         last: { type: String, required: true }
     },
     birthdate: { type: Date, required: true },
-    gender: { type: String, enum: ['Male', 'Female', 'Other'], required: true },
+    
+    // FIXED: Added 'Prefer not to say' to the enum
+    gender: { type: String, enum: ['Male', 'Female', 'Other', 'Prefer not to say'], required: true },
+    
     contactNumber: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     currentAddress: addressSchema,
@@ -40,7 +43,14 @@ const patientSchema = new mongoose.Schema({
     }],
 
     // Link to the main user account if they have one
-    userAccount: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, sparse: true }
+    userAccount: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, sparse: true },
+
+    // Guardian Information (For Minors)
+    guardian: {
+        name: { type: String },
+        relationship: { type: String },
+        contactNumber: { type: String }
+    }
 
 }, { timestamps: true });
 

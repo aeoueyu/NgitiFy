@@ -56,19 +56,26 @@
 .profileText h2 { color: #01538b; font-size: 22px; font-weight: 700; margin: 0 0 5px 0; }
 .roleTag { background-color: #e0f2fe; color: #0284c7; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
 
-.mainSectionTitle { color: #01538b; font-size: 16px; margin-bottom: 20px; border-left: 4px solid #2dccf6; padding-left: 10px; }
+.mainSectionTitle { color: #01538b; font-size: 16px; margin-bottom: 20px; margin-top: 30px; border-left: 4px solid #2dccf6; padding-left: 10px; }
+.mainSectionTitle:first-of-type { margin-top: 0; }
 
-.row { display: flex; gap: 20px; margin-bottom: 20px; }
-.formGroup { flex: 1; display: flex; flex-direction: column; }
+.row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+.formGroup { flex: 1; display: flex; flex-direction: column; min-width: 200px; }
 .formGroup label { font-size: 12px; font-weight: 700; color: #01538b; margin-bottom: 8px; margin-left: 10px; text-transform: uppercase; }
 
 .inputField {
     width: 100%; height: 46px; padding: 0 20px; border-radius: 50px;
     border: 1.5px solid #e2e8f0; font-family: 'Lexend Deca', sans-serif;
     font-size: 14px; outline: none; transition: all 0.3s ease; background-color: #fcfcfc; box-sizing: border-box; color: #334155;
+    appearance: none; 
 }
+select.inputField { cursor: pointer; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2301538b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 20px top 50%; background-size: 10px auto; padding-right: 40px; }
 .inputField:focus { border-color: #01538b; box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1); background-color: white; }
-.inputField:disabled { background-color: #f8fafc; cursor: not-allowed; color: #94a3b8; border-color: #f1f5f9; }
+.inputField:disabled { background-color: #f8fafc; cursor: not-allowed; color: #94a3b8; border-color: #f1f5f9; background-image: none; }
+
+.emailRow { display: flex; align-items: center; gap: 15px; }
+.changeEmailBtn { flex-shrink: 0; background-color: #f0f7fb; color: #01538b; border: 1.5px solid #01538b; padding: 0 20px; height: 46px; border-radius: 50px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca'; font-size: 13px; }
+.changeEmailBtn:hover { background-color: #01538b; color: white; }
 
 .errorBorder { border: 1.5px solid #dc3545 !important; background-color: #ffe6e6 !important; }
 .errorText { color: #dc3545; font-size: 11px; font-weight: 600; margin-top: 4px; margin-left: 10px; }
@@ -87,8 +94,9 @@
 
 /* Modal Styles */
 .modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(3px); }
-.modalCard { background: white; padding: 40px 50px; border-radius: 20px; text-align: center; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; align-items: center; max-width: 400px; width: 90%; }
+.modalCard { background: white; padding: 40px 50px; border-radius: 20px; text-align: center; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; align-items: center; max-width: 450px; width: 90%; }
 .modalIcon { width: 80px; height: 80px; margin-bottom: 25px; }
 .modalTitle { color: #01538b; font-size: 22px; font-weight: 700; margin: 0 0 10px 0; }
-.modalMessage { color: #666; font-size: 14px; margin: 0 0 30px 0; line-height: 1.5; }
-.modalButton { background-color: #01538b; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; }
+.modalMessage { color: #666; font-size: 14px; margin: 0 0 25px 0; line-height: 1.5; }
+.modalButton { background-color: #01538b; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca'; width: 100%; margin-top: 10px; }
+.modalButton:hover { background-color: #013f6b; }

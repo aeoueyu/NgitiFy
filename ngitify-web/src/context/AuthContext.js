@@ -8,37 +8,48 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for an existing session on app load
+    // Check local storage for BOTH the user object and the JWT token
     const storedUser = localStorage.getItem('ngitify_user');
-    if (storedUser) {
+    const token = localStorage.getItem('token');
+
+    // Only hydrate the session if both exist
+    if (storedUser && token) {
       setCurrentUser(new User(JSON.parse(storedUser)));
+    } else {
+      // Safety cleanup if they somehow get out of sync
+      localStorage.removeItem('ngitify_user');
+      localStorage.removeItem('token');
     }
+    
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
-    // TODO: Replace with actual backend API call.
-    // Simulating Previous Repo's login validation logic:
-    const mockUser = new User({
-      id: 'usr_001',
-      firstName: 'Admin',
-      lastName: 'Owner',
-      email: email,
-      role: 'owner', // Defaulting to owner for current active routes
+  // Update login to accept the userData object passed from LoginPage.js
+  const login = async (userData) => {
+    
+    // Hydrate the User model with the REAL data from your backend
+    const loggedInUser = new User({
+      id: userData.userId,
+      email: userData.userEmail,
+      role: userData.role,
     });
     
-    setCurrentUser(mockUser);
-    localStorage.setItem('ngitify_user', JSON.stringify(mockUser));
-    return mockUser;
+    setCurrentUser(loggedInUser);
+    
+    // Store the user object for UI purposes (Token is already saved in LoginPage.js)
+    localStorage.setItem('ngitify_user', JSON.stringify(loggedInUser));
   };
 
   const logout = () => {
     setCurrentUser(null);
+    // Remove BOTH the user object and the JWT token on logout
     localStorage.removeItem('ngitify_user');
+    localStorage.removeItem('token'); 
   };
 
   const value = {
-    currentUser,
+    user: currentUser, // Exposed as 'user' so MyProfile.js (const { user } = useAuth()) works perfectly!
+    currentUser,       // Kept for backwards compatibility if your other files use it
     login,
     logout,
     isAuthenticated: !!currentUser,
