@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
+import { useAuth } from '../../hooks/useAuth';
+import { FaCog, FaSignOutAlt } from 'react-icons/fa';
 
-// --- IMPORTS ---
 import DentimeLogo from '../../assets/images/logo-dentime.svg';
 import DashboardIcon from '../../assets/icons/FinancialReports.svg'; 
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
@@ -12,34 +13,26 @@ import PatientIcon from '../../assets/icons/Patient.svg';
 import DentistIcon from '../../assets/icons/Dentist.svg';
 
 export default function Sidebar() {
+    const { logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     
     const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
-    // Auto-expand dropdowns if the user refreshes the page while already inside one of those routes
     useEffect(() => {
         if (location.pathname.includes('/owner/manage-')) {
             setIsUserManagementOpen(true);
         }
     }, [location.pathname]);
 
-    // Helpers to apply the active class for individual direct routes
-    const getNavClass = (path) => {
-        return location.pathname === path ? `${styles['nav-item']} ${styles.active}` : styles['nav-item'];
-    };
+    const getNavClass = (path) => location.pathname === path ? `${styles['nav-item']} ${styles.active}` : styles['nav-item'];
+    const getDropdownClass = (path) => location.pathname === path ? `${styles['dropdown-item']} ${styles.active}` : styles['dropdown-item'];
 
-    const getDropdownClass = (path) => {
-        return location.pathname === path ? `${styles['dropdown-item']} ${styles.active}` : styles['dropdown-item'];
-    };
-
-    // Helper to handle main navigation clicks (auto-collapse dropdowns)
     const handleMainNavigation = (path) => {
         setIsUserManagementOpen(false);
         navigate(path);
     };
 
-    // Parent Active State Checks
     const isManageStaffActive = location.pathname.includes('/owner/manage-');
 
     return (
@@ -49,17 +42,15 @@ export default function Sidebar() {
             </div>
 
             <div className={styles['nav-menu']}>
-                {/* Main Dashboard */}
                 <div className={getNavClass('/owner/dashboard')} onClick={() => handleMainNavigation('/owner/dashboard')}>
                     <img src={DashboardIcon} alt="Dashboard" className={styles['nav-icon']} /> <span>Dashboard</span>
                 </div>
 
-                {/* Manage Staff Dropdown Trigger */}
                 <div 
                     className={`${styles['nav-item']} ${isManageStaffActive ? styles.active : ''}`} 
                     onClick={() => {
                         setIsUserManagementOpen(true);
-                        navigate('/owner/manage-dentists'); // Default instant route
+                        navigate('/owner/manage-dentists'); 
                     }}
                     style={{ justifyContent: 'space-between' }}
                 >
@@ -70,7 +61,6 @@ export default function Sidebar() {
                     <span style={{ fontSize: '12px' }}>{isUserManagementOpen ? '▲' : '▼'}</span>
                 </div>
 
-                {/* Manage Staff Dropdown Items */}
                 {isUserManagementOpen && (
                     <div className={styles['dropdown-menu']}>
                         <div className={getDropdownClass('/owner/manage-dentists')} onClick={() => navigate('/owner/manage-dentists')}>
@@ -91,6 +81,19 @@ export default function Sidebar() {
 
                 <div className={getNavClass('/owner/audit-logs')} onClick={() => handleMainNavigation('/owner/audit-logs')}>
                     <img src={AuditIcon} alt="Audit" className={styles['nav-icon']} /> <span>Audit Logs</span>
+                </div>
+            </div>
+
+            {/* UPDATED: Clean Footer Section */}
+            <div className={styles['footer-section']}>
+                <div className={styles['settings-link']} onClick={() => handleMainNavigation('/owner/settings')}>
+                    <FaCog className={styles['nav-icon']} /> 
+                    <span>Settings</span>
+                </div>
+                
+                <div className={styles['logout-btn']} onClick={logout}>
+                    <FaSignOutAlt className={styles['nav-icon']} /> 
+                    <span>Logout</span>
                 </div>
             </div>
         </aside>
