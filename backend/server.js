@@ -618,6 +618,29 @@ app.post('/api/reset-password', async (req, res) => {
     }
 });
 
+// --- VERIFY CURRENT PASSWORD (STEP 1 OF CHANGE PASSWORD) ---
+app.post('/api/verify-current-password', async (req, res) => {
+    try {
+        const { userId, currentPassword } = req.body;
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        
+        if (isMatch) {
+            res.status(200).json({ success: true, message: "Password verified." });
+        } else {
+            res.status(400).json({ success: false, message: "Incorrect current password." });
+        }
+    } catch (error) {
+        console.error("Error verifying current password:", error);
+        res.status(500).json({ message: "Server error during verification." });
+    }
+});
+
 // --- CHANGE PASSWORD ---
 app.post('/api/change-password', async (req, res) => {
     try {

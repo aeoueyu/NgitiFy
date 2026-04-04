@@ -27,7 +27,7 @@ const PH_HOLIDAYS = [
 ];
 
 export default function OwnerDashboard() {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate(); 
     const [currentTime, setCurrentTime] = useState(new Date());
     
@@ -51,6 +51,8 @@ export default function OwnerDashboard() {
     const [inventoryAlerts, setInventoryAlerts] = useState([]);
     const [recentLogs, setRecentLogs] = useState([]);
 
+    const [ownerProfile, setOwnerProfile] = useState(null);
+
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
@@ -68,6 +70,20 @@ export default function OwnerDashboard() {
                     fetch('http://localhost:5000/api/surgeries', { headers }),
                     fetch('http://localhost:5000/api/audit-logs', { headers })
                 ]);
+
+                const base64Url = token?.split('.')?.[1];
+                if (base64Url) {
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(atob(base64));
+                    const userId = payload.userId || payload.id || payload._id;
+                    const profileRes = await fetch(`http://localhost:5000/api/user/${userId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (profileRes.ok) {
+                        const profileData = await profileRes.json();
+                        setOwnerProfile(profileData);
+                    }
+                }
 
                 if (usersRes.ok) {
                     const usersData = await usersRes.json();
@@ -236,14 +252,38 @@ export default function OwnerDashboard() {
                     </div>
                     <div className={styles['header-right']}>
                         <div className={styles['user-info']}>
-                            <span className={styles['user-name']}>Hello, Admin!</span>
-                            <span className={styles['user-role']}>Clinic Owner</span>
+                            <span className={styles['user-name']}>Hello, {ownerProfile?.name?.first || user?.name?.first || 'Admin'}!</span>
+                            <span className={styles['user-role']}>
+                                {(() => {
+                                    const role = ownerProfile?.role || user?.role || '';
+                                    const roleMap = {
+                                        'owner': 'Clinic Owner',
+                                        'dentist': 'Dentist',
+                                        'secretary': 'Front Desk Personnel',
+                                        'patient': 'Patient'
+                                    };
+                                    return roleMap[role] || 'Staff';
+                                })()}
+                            </span>
                         </div>
                         <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                            <img src={ProfilePicPlaceholder} alt="Profile" className={styles['profile-pic']} />
+                            {ownerProfile?.profileImage ? (
+                                <img src={ownerProfile.profileImage} alt="Profile" className={styles['profile-pic']} />
+                            ) : (
+                                <div className={styles['profile-pic']} style={{
+                                    backgroundColor: '#01538b', display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '16px',
+                                    borderRadius: '50%'
+                                }}>
+                                    {(() => {
+                                        const first = ownerProfile?.name?.first || user?.name?.first || '';
+                                        const last = ownerProfile?.name?.last || user?.name?.last || '';
+                                        return (first.charAt(0) + last.charAt(0)).toUpperCase() || '?';
+                                    })()}
+                                </div>
+                            )}
                             {isProfileOpen && (
                                 <div className={styles['profile-dropdown']}>
-                                    {/* UPDATED: Route to My Profile */}
                                     <div className={styles['profile-dropdown-item']} onClick={handleProfileNavigation}>My Profile</div>
                                     <div className={styles['profile-dropdown-item']} onClick={() => navigate('/owner/settings')}>Settings</div>
                                     <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={handleLogoutClick}>Logout</div>
