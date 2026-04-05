@@ -16,8 +16,9 @@ export default function AddDentist({ onClose, onSuccess }) {
     const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
     
     const [formData, setFormData] = useState({
-        firstName: '', middleName: '', lastName: '', birthdate: '', gender: '', licenseNumber: '', specialization: '',
-        email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
+        firstName: '', middleName: '', lastName: '', birthdate: '', licenseNumber: '', specialization: '',
+        email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
+        permissions: { patients: 'none', appointments: 'none', inventory: 'none' } // Added Permissions
     });
 
     const validateEmail = (email) => {
@@ -101,9 +102,17 @@ export default function AddDentist({ onClose, onSuccess }) {
         }
     };
 
+    // Added Permissions Handler
+    const handlePermissionChange = (module, value) => {
+        setFormData(prev => ({
+            ...prev,
+            permissions: { ...prev.permissions, [module]: value }
+        }));
+    };
+
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email'];
+        const required = ['firstName', 'lastName', 'birthdate', 'licenseNumber', 'specialization', 'email'];
         required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
         if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
         else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
@@ -136,10 +145,10 @@ export default function AddDentist({ onClose, onSuccess }) {
             role: 'dentist', firstName: formData.firstName, lastName: formData.lastName,
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email: formData.email, contactNumber: `+63${formData.phone}`, birthdate: formData.birthdate,
-            gender: formData.gender,
             licenseNumber: formData.licenseNumber, specialization: formData.specialization, profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
+            permissions: formData.permissions, // Added permissions to payload
             medicalHistory: { allergies: [], conditions: [] }
         };
 
@@ -216,23 +225,17 @@ export default function AddDentist({ onClose, onSuccess }) {
                     </div>
 
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>
-                    {/* Row 1: Name */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
                         <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/></div>
                         <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                     </div>
-                    {/* Row 2: Demographics */}
+                    
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                        <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
-                    </div>
-                    {/* Row 3: Professional */}
-                    <div className={styles.row}>
                         <div className={styles.formGroup}><label>LICENSE NO. <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.licenseNumber ? styles.errorBorder : ''}`} name="licenseNumber" value={formData.licenseNumber} onChange={handleLicenseChange} onBlur={handleBlur} maxLength={7} disabled={isLoading}/>{errors.licenseNumber && <span className={styles.errorText}>{errors.licenseNumber}</span>}</div>
                         <div className={styles.formGroup}><label>SPECIALIZATION <span style={{color:'red'}}>*</span></label><select name="specialization" className={`${styles.inputField} ${errors.specialization?styles.errorBorder:''}`} value={formData.specialization} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Specialization</option>{specializationOptions.map(o=><option key={o} value={o}>{o}</option>)}</select>{errors.specialization && <span className={styles.errorText}>{errors.specialization}</span>}</div>
                     </div>
-                    {/* Row 4: Contact */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                         <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
@@ -248,6 +251,43 @@ export default function AddDentist({ onClose, onSuccess }) {
                     {renderAddressFields('currentAddress', 'Current Address')}
                     <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
                     {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
+
+                    {/* SYSTEM PERMISSIONS SECTION */}
+                    <hr className={styles.divider} />
+                    <h3 className={styles.mainSectionTitle}>System Permissions</h3>
+                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>
+
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>PATIENTS <span style={{color:'red'}}>*</span></label>
+                            <select className={styles.inputField} value={formData.permissions.patients} onChange={(e) => handlePermissionChange('patients', e.target.value)} disabled={isLoading}>
+                                <option value="none">No Access</option>
+                                <option value="read">Read-Only</option>
+                                <option value="edit">Editor</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>APPOINTMENTS <span style={{color:'red'}}>*</span></label>
+                            <select className={styles.inputField} value={formData.permissions.appointments} onChange={(e) => handlePermissionChange('appointments', e.target.value)} disabled={isLoading}>
+                                <option value="none">No Access</option>
+                                <option value="read">Read-Only</option>
+                                <option value="edit">Editor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>INVENTORY <span style={{color:'red'}}>*</span></label>
+                            <select className={styles.inputField} value={formData.permissions.inventory} onChange={(e) => handlePermissionChange('inventory', e.target.value)} disabled={isLoading}>
+                                <option value="none">No Access</option>
+                                <option value="read">Read-Only</option>
+                                <option value="edit">Editor</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            {/* Empty flex placeholder to maintain layout grid */}
+                        </div>
+                    </div>
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>

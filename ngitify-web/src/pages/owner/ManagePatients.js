@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManagePatients.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { usePermissions } from '../../hooks/usePermissions'; // NEW: RBAC Hook
+import { useAuth } from '../../hooks/useAuth';
 
-import UserTabs from './UserTabs'; // NEW: Imported UserTabs
+import UserTabs from './UserTabs'; 
 import AddPatient from './AddPatient'; 
 import EditPatient from './EditPatient';
 import ViewPatient from './ViewPatient';
 
 export default function ManagePatients() {
+    const { user } = useAuth();
+    const { canReadPatients, canEditPatients } = usePermissions(); // Pull permissions
+    
     const [searchQuery, setSearchQuery] = useState('');
     const [patientsList, setPatientsList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -17,6 +22,8 @@ export default function ManagePatients() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
+
+    const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
 
     const fetchPatients = useCallback(async () => {
         try {
@@ -78,8 +85,21 @@ export default function ManagePatients() {
     }, []);
 
     useEffect(() => {
-        fetchPatients();
-    }, [fetchPatients]);
+        if (canReadPatients) {
+            fetchPatients();
+        }
+    }, [fetchPatients, canReadPatients]);
+
+    // --- HARD STOP: PAGE PROTECTION ---
+    if (!canReadPatients) {
+        return (
+            <div className={styles.container}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#dc3545', fontWeight: 'bold', fontSize: '18px' }}>
+                    Access Denied. You do not have permission to view the Patients module.
+                </div>
+            </div>
+        );
+    }
 
     const filteredPatients = patientsList.filter(patient => 
         patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -166,15 +186,18 @@ export default function ManagePatients() {
                     />
                 </div>
                 
-                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} /> Add New Patient
-                </button>
+                {/* PROTECTED: ADD BUTTON */}
+                {canEditPatients && (
+                    <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                        <FaUserPlus className={styles.btnIcon} /> Add New Patient
+                    </button>
+                )}
             </div>
 
-            {/* NEW: Inserted UserTabs here */}
-            <UserTabs activeTab="patients" />
+            {/* Conditionally render UserTabs for Owners/Co-owners only */}
+            {isOwner && <UserTabs activeTab="patients" />}
 
-            <div className={styles.tableContainer}>
+            <div className={styles.tableContainer} style={{ marginTop: !isOwner ? '20px' : '0' }}>
                 <table className={styles.userTable}>
                     <thead>
                         <tr>
@@ -219,16 +242,23 @@ export default function ManagePatients() {
                                         {patient.status}
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
+                                        {/* VIEW IS ALWAYS ALLOWED IF canReadPatients IS TRUE */}
                                         <button className={styles.iconBtn} onClick={() => handleViewClick(patient.id)} title="View Profile"><FaEye /></button>
-                                        <button className={styles.iconBtn} onClick={() => handleEditClick(patient.id)} title="Edit Profile"><FaEdit /></button>
-                                        <button 
-                                            className={`${styles.iconBtn}`} 
-                                            onClick={() => handleToggleStatus(patient)}
-                                            title={patient.status === 'Active' ? "Deactivate Account" : "Activate Account"}
-                                            style={{ color: patient.status === 'Inactive' ? '#22c55e' : '#64748b', fontSize: '20px' }}
-                                        >
-                                            {patient.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
-                                        </button>
+                                        
+                                        {/* PROTECTED: EDIT & DELETE BUTTONS */}
+                                        {canEditPatients && (
+                                            <>
+                                                <button className={styles.iconBtn} onClick={() => handleEditClick(patient.id)} title="Edit Profile"><FaEdit /></button>
+                                                <button 
+                                                    className={`${styles.iconBtn}`} 
+                                                    onClick={() => handleToggleStatus(patient)}
+                                                    title={patient.status === 'Active' ? "Deactivate Account" : "Activate Account"}
+                                                    style={{ color: patient.status === 'Inactive' ? '#22c55e' : '#64748b', fontSize: '20px' }}
+                                                >
+                                                    {patient.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                </button>
+                                            </>
+                                        )}
                                     </td>
                                 </tr>
                             ))

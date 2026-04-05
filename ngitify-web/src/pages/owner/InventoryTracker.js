@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from '../../styles/owner/InventoryTracker.module.css'; 
 import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle } from 'react-icons/fa';
+import { usePermissions } from '../../hooks/usePermissions';
 
 import AddInventoryItem from './AddInventoryItem'; 
 import EditInventoryItem from './EditInventoryItem'; 
@@ -14,6 +15,8 @@ const BASE_CATEGORIES = [
 const BASE_UNITS = ["pcs", "box", "set", "pack", "bottle", "tube"];
 
 export default function InventoryTracker() {
+    const { canReadInventory, canEditInventory } = usePermissions();
+
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
     const [inventoryList, setInventoryList] = useState([]);
@@ -58,9 +61,15 @@ export default function InventoryTracker() {
     }, []);
 
     useEffect(() => {
-        fetchInventory();
-    }, [fetchInventory]);
+        if (canReadInventory) {
+            fetchInventory();
+        }
+    }, [fetchInventory, canReadInventory]);
 
+    // ==========================================
+    // ALL HOOKS MUST BE ABOVE EARLY RETURNS
+    // ==========================================
+    
     // Dynamic Categories
     const dynamicCategories = useMemo(() => {
         const fetchedCategories = inventoryList.map(item => item.category).filter(Boolean);
@@ -68,12 +77,26 @@ export default function InventoryTracker() {
         return uniqueCategories.sort();
     }, [inventoryList]);
 
-    // NEW: Dynamic Units
+    // Dynamic Units
     const dynamicUnits = useMemo(() => {
         const fetchedUnits = inventoryList.map(item => item.unit).filter(Boolean);
         const uniqueUnits = [...new Set([...BASE_UNITS, ...fetchedUnits])];
         return uniqueUnits.sort();
     }, [inventoryList]);
+
+
+    // ==========================================
+    // HARD STOP: PAGE PROTECTION
+    // ==========================================
+    if (!canReadInventory) {
+        return (
+            <div className={styles.container}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#dc3545', fontWeight: 'bold', fontSize: '18px' }}>
+                    Access Denied. You do not have permission to view the Inventory module.
+                </div>
+            </div>
+        );
+    }
 
     const filteredInventory = inventoryList.filter(item => {
         const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -162,9 +185,12 @@ export default function InventoryTracker() {
                     </select>
                 </div>
                 
-                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add New Item
-                </button>
+                {/* PROTECTED: ADD BUTTON */}
+                {canEditInventory && (
+                    <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                        <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add New Item
+                    </button>
+                )}
             </div>
 
             <div className={styles.tableContainer}>
@@ -199,8 +225,15 @@ export default function InventoryTracker() {
                                     </td>
                                     <td>{getStatusBadge(item.currentStock, item.threshold)}</td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <button className={styles.iconBtn} onClick={() => handleEditClick(item.id)} title="Edit Item"><FaEdit /></button>
-                                        <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(item.id, item.name)} title="Delete Item" style={{ color: '#dc3545' }}><FaTrash /></button>
+                                        {/* PROTECTED: EDIT & DELETE BUTTONS */}
+                                        {canEditInventory ? (
+                                            <>
+                                                <button className={styles.iconBtn} onClick={() => handleEditClick(item.id)} title="Edit Item"><FaEdit /></button>
+                                                <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(item.id, item.name)} title="Delete Item" style={{ color: '#dc3545' }}><FaTrash /></button>
+                                            </>
+                                        ) : (
+                                            <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Read Only</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))

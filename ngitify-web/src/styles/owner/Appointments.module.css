@@ -1,0 +1,332 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.container {
+    padding: 30px;
+    background-color: #f4f7fa;
+    min-height: 100vh;
+    font-family: 'Lexend Deca', sans-serif;
+    flex: 1;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.headerWrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.header { display: flex; flex-direction: column; }
+.title { color: #01538b; font-size: 26px; font-weight: 800; margin: 0 0 5px 0; }
+.subtitle { color: #888; margin: 0; font-size: 13px; font-weight: 500; }
+
+.addBtn {
+    background-color: #01538b;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
+    font-family: 'Lexend Deca', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.addBtn:hover {
+    background-color: #013f6b;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(1, 83, 139, 0.3);
+}
+
+/* Two-Column Layout */
+.mainGrid {
+    display: grid;
+    grid-template-columns: 380px 1fr; 
+    gap: 30px;
+    align-items: start;
+}
+
+/* Left Column Container */
+.leftColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* Left Column: Calendar */
+.calendarCard {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.calendarHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.monthText {
+    color: #01538b;
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.calNav { display: flex; gap: 10px; }
+
+.calNavBtn {
+    background-color: #f0f7fb;
+    color: #01538b;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.calNavBtn:hover { background-color: #01538b; color: white; }
+
+.calendarGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    text-align: center;
+}
+
+.dayName {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.dateNum {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: all 0.2s;
+    position: relative;
+    border: 2px solid transparent;
+}
+
+.dateNum:hover:not(.faded) { background-color: #f0f7fb; }
+.dateNum.faded { color: #cbd5e1; cursor: default; }
+.dateNum.today:not(.active) { color: #2dccf6; border-color: #2dccf6; }
+.dateNum.active { background-color: #01538b; color: white; box-shadow: 0 4px 10px rgba(1, 83, 139, 0.3); }
+
+.eventDot { width: 6px; height: 6px; background-color: #2dccf6; border-radius: 50%; margin-top: 4px; }
+.eventDot.white { background-color: white; }
+
+/* AI Suggestions Panel - COLUMN LAYOUT REFINEMENT */
+.aiPanel {
+    background: linear-gradient(135deg, #f0f8ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 20px 25px; 
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.aiHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+.aiIconWrapper {
+    background-color: white; width: 42px; height: 42px; 
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: #0ea5e9; font-size: 20px; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15); flex-shrink: 0;
+}
+.aiTitle { color: #01538b; font-size: 15px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+.aiMessage { color: #334155; font-size: 14px; margin: 0; font-weight: 500; line-height: 1.5; margin-top: 5px;}
+.aiActionBtn {
+    background: white; border: 1px solid #bae6fd;
+    color: #0284c7; font-weight: 700; font-size: 13px;
+    cursor: pointer; padding: 8px 16px; border-radius: 8px; transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    align-self: flex-start;
+    margin-top: 5px;
+}
+.aiActionBtn:hover { background-color: #f0f9ff; border-color: #7dd3fc; }
+
+/* Right Column: Appointment List */
+.listCard {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    height: 600px; 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; 
+}
+
+/* Sticky Header inside List Card */
+.listHeaderSticky {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+    padding: 25px 30px 15px 30px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.listHeaderTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.listTitle { color: #01538b; font-size: 18px; font-weight: 800; margin: 0; }
+
+/* Full Width Search Bar */
+.searchWrapperFull { position: relative; display: flex; align-items: center; width: 100%; margin-top: 15px; }
+.searchIcon { position: absolute; left: 18px; color: #94a3b8; font-size: 14px; }
+.searchInput {
+    width: 100%; height: 40px; padding: 0 20px 0 45px; border-radius: 8px; 
+    border: 1.5px solid #e2e8f0; font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px; outline: none; transition: all 0.2s; background-color: #f8fafc;
+}
+.searchInput:focus { border-color: #2dccf6; background-color: white; box-shadow: 0 0 0 3px rgba(45, 204, 246, 0.1); }
+
+.emptyState { text-align: center; color: #94a3b8; padding: 60px 20px; font-weight: 500; font-size: 14px; }
+
+/* Scrollable List Container */
+.appointmentList {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Appointment Cards */
+.appointmentItem {
+    display: flex; flex-direction: column;
+    padding: 18px 20px;
+    border: 1.5px solid #f1f5f9; border-radius: 12px;
+    transition: all 0.2s; cursor: pointer; background-color: white;
+}
+.appointmentItem:hover {
+    border-color: #2dccf6; box-shadow: 0 4px 15px rgba(45, 204, 246, 0.1);
+    transform: translateY(-2px);
+}
+
+.itemTopRow { display: flex; justify-content: space-between; align-items: flex-start; }
+.patientInfo { display: flex; align-items: center; gap: 15px; }
+.patientAvatar {
+    width: 42px; height: 42px; border-radius: 50%; background-color: #f0f7fb; color: #01538b;
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; border: 2px solid #e0f2fe;
+}
+.patientDetails { display: flex; flex-direction: column; gap: 3px; }
+.patientName { margin: 0; font-weight: 800; color: #1e293b; font-size: 14px; } 
+.treatmentType { margin: 0; color: #64748b; font-size: 12px; font-weight: 600; } 
+
+.appointmentTimeInfo { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.timeText { margin: 0; color: #01538b; font-weight: 800; font-size: 13px; } 
+
+.statusBadge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; } 
+.statusConfirmed { background-color: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.statusPending { background-color: #fef9c3; color: #d97706; border: 1px solid #fde047; }
+.statusCompleted { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+/* Item Bottom Row */
+.itemBottomRow {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; 
+    border-top: 1px dashed #e2e8f0; 
+    margin-top: 15px; padding-top: 15px;
+}
+.metaBadge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 600; color: #64748b; 
+    background-color: #f8fafc; 
+    padding: 5px 10px; 
+    border-radius: 6px;
+    border: 1px solid #f1f5f9;
+}
+.metaIcon { font-size: 11px; color: #94a3b8; } 
+
+/* Pagination Controls */
+.paginationContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    border-top: 1px solid #f1f5f9;
+    background-color: #f8fafc;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+}
+.pageControls { display: flex; gap: 8px; }
+.pageBtn {
+    background-color: white; border: 1px solid #e2e8f0; color: #334155;
+    padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif; transition: all 0.2s;
+}
+.pageBtn:hover:not(:disabled) { background-color: #f1f5f9; color: #01538b; border-color: #cbd5e1; }
+.pageBtn:disabled { color: #94a3b8; cursor: not-allowed; background-color: #f8fafc; }
+
+/* Modals */
+.modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(4px); }
+.modalCard { background: white; padding: 45px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); max-width: 550px; width: 90%; }
+.modalTitle { color: #01538b; font-size: 24px; font-weight: 800; margin: 0 0 10px 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 18px;}
+
+.row { display: flex; gap: 25px; margin-bottom: 25px; margin-top: 20px; } 
+.formGroup { flex: 1; display: flex; flex-direction: column; }
+.formGroup label { font-size: 13px; font-weight: 800; color: #01538b; margin-bottom: 10px; margin-left: 10px; text-transform: uppercase; }
+
+.inputField {
+    width: 100%; height: 50px; padding: 0 20px; border-radius: 50px;
+    border: 1.5px solid #e2e8f0; font-family: 'Lexend Deca', sans-serif;
+    font-size: 15px; outline: none; transition: all 0.3s ease; background-color: #fcfcfc; box-sizing: border-box; color: #334155;
+    appearance: none;
+}
+select.inputField {
+    cursor: pointer; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2301538b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat; background-position: right 20px top 50%; background-size: 12px auto; padding-right: 40px;
+}
+.inputField:focus { border-color: #01538b; box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1); background-color: white; }
+
+.errorText { color: #dc3545; font-size: 13px; font-weight: 600; margin-top: 8px; margin-left: 10px; display: block; }
+.errorBorder { border: 1.5px solid #dc3545 !important; background-color: #ffe6e6 !important; }
+
+.modalButtonGroup { display: flex; justify-content: flex-end; gap: 15px; margin-top: 35px; padding-top: 25px; border-top: 1px solid #f1f5f9; }
+.submitBtn { background-color: #01538b; color: white; border: none; padding: 14px 35px; border-radius: 50px; font-weight: 800; cursor: pointer; transition: all 0.3s; font-family: 'Lexend Deca'; font-size: 14px; }
+.submitBtn:hover { background-color: #013f6b; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(1, 83, 139, 0.2); }
+.cancelBtn { background-color: white; color: #64748b; border: 1px solid #e2e8f0; padding: 14px 35px; border-radius: 50px; font-weight: 800; font-size: 14px; cursor: pointer; transition: all 0.3s ease; font-family: 'Lexend Deca'; }
+.cancelBtn:hover { background-color: #f8fafc; color: #334155; }
+
+/* View Modal Specifics */
+.viewDetailRow { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px dashed #f1f5f9; padding-bottom: 15px; align-items: center; }
+.viewLabel { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; }
+.viewValue { color: #334155; font-size: 15px; font-weight: 800; margin: 0; text-align: right;}
+
+@media (max-width: 1024px) {
+    .mainGrid { grid-template-columns: 1fr; }
+}

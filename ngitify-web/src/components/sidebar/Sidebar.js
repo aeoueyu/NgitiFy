@@ -1,19 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
+import { usePermissions } from '../../hooks/usePermissions';
 import { FaCog, FaSignOutAlt } from 'react-icons/fa';
 
 import DentimeLogo from '../../assets/images/logo-dentime.svg';
 import DashboardIcon from '../../assets/icons/FinancialReports.svg'; 
+import ScheduleIcon from '../../assets/icons/MySchedule.svg'; // NEW: Schedule Icon
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
 import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
 import AuditIcon from '../../assets/icons/SystemAuditLogs.svg';
 
 export default function Sidebar() {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+    
+    // Fetch RBAC Permissions
+    const { canReadPatients, canReadInventory } = usePermissions();
+    const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
     
     // State for Logout Modal
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -41,17 +47,38 @@ export default function Sidebar() {
                         <img src={DashboardIcon} alt="Dashboard" className={styles['nav-icon']} /> <span>Dashboard</span>
                     </div>
 
-                    <div className={getNavClass('/owner/manage-users')} onClick={() => handleMainNavigation('/owner/manage-users')}>
-                        <img src={StaffIcon} alt="User Management" className={styles['nav-icon']} /> <span>User Management</span>
+                    {/* NEW: APPOINTMENTS MODULE */}
+                    <div className={getNavClass('/owner/appointments')} onClick={() => handleMainNavigation('/owner/appointments')}>
+                        <img src={ScheduleIcon} alt="Appointments" className={styles['nav-icon']} /> <span>Appointments</span>
                     </div>
 
-                    <div className={getNavClass('/owner/inventory')} onClick={() => handleMainNavigation('/owner/inventory')}>
-                        <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} /> <span>Inventory</span>
-                    </div>
+                    {/* OWNER VIEW: Full User Management */}
+                    {isOwner && (
+                        <div className={getNavClass('/owner/manage-users')} onClick={() => handleMainNavigation('/owner/manage-users')}>
+                            <img src={StaffIcon} alt="User Management" className={styles['nav-icon']} /> <span>User Management</span>
+                        </div>
+                    )}
 
-                    <div className={getNavClass('/owner/audit-logs')} onClick={() => handleMainNavigation('/owner/audit-logs')}>
-                        <img src={AuditIcon} alt="Audit" className={styles['nav-icon']} /> <span>Audit Logs</span>
-                    </div>
+                    {/* STAFF VIEW: Direct Patient Access (If permitted) */}
+                    {!isOwner && canReadPatients && (
+                        <div className={getNavClass('/owner/manage-users/patients')} onClick={() => handleMainNavigation('/owner/manage-users/patients')}>
+                            <img src={StaffIcon} alt="Patients" className={styles['nav-icon']} /> <span>Patients</span>
+                        </div>
+                    )}
+
+                    {/* INVENTORY: Render based on RBAC */}
+                    {canReadInventory && (
+                        <div className={getNavClass('/owner/inventory')} onClick={() => handleMainNavigation('/owner/inventory')}>
+                            <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} /> <span>Inventory</span>
+                        </div>
+                    )}
+
+                    {/* AUDIT LOGS: Owner/Co-Owner Only */}
+                    {isOwner && (
+                        <div className={getNavClass('/owner/audit-logs')} onClick={() => handleMainNavigation('/owner/audit-logs')}>
+                            <img src={AuditIcon} alt="Audit" className={styles['nav-icon']} /> <span>Audit Logs</span>
+                        </div>
+                    )}
                 </div>
 
                 <div className={styles['footer-section']}>

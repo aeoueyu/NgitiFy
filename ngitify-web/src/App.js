@@ -16,6 +16,7 @@ import NewPasswordRedirectPage from './pages/auth/NewPasswordRedirectPage';
 
 // Pages - Owner
 import OwnerDashboard from './pages/owner/OwnerDashboard';
+import Appointments from './pages/owner/Appointments'; // NEW: Appointments Page
 import ManageDentists from './pages/owner/ManageDentists';
 import ManageSecretaries from './pages/owner/ManageSecretaries';
 import ManagePatients from './pages/owner/ManagePatients';
@@ -29,8 +30,6 @@ import InventoryTracker from './pages/owner/InventoryTracker';
 
 import MyProfile from './pages/owner/MyProfile';
 import Settings from './pages/owner/Settings';
-
-
 
 function App() {
   return (
@@ -53,7 +52,10 @@ function App() {
               <Route path="/owner/profile" element={<MyProfile />} />
               <Route path="/owner/settings" element={<Settings />} />
               
-              {/* UPDATED: URL-based Routing for User Management Tabs */}
+              {/* NEW: Appointments Route */}
+              <Route path="/owner/appointments" element={<Appointments />} />
+              
+              {/* URL-based Routing for User Management Tabs */}
               <Route path="/owner/manage-users" element={<Navigate to="/owner/manage-users/dentists" replace />} />
               <Route path="/owner/manage-users/dentists" element={<ManageDentists />} /> 
               <Route path="/owner/manage-users/secretaries" element={<ManageSecretaries />} />

@@ -18,10 +18,10 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
     
     const [formData, setFormData] = useState({
         firstName: '', middleName: '', lastName: '', birthdate: '', gender: '', licenseNumber: '', specialization: '',
-        email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
+        email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
+        permissions: { patients: 'none', appointments: 'none', inventory: 'none' } // Added Permissions
     });
 
-    // NEW STATES: To track the original untouched data
     const [initialData, setInitialData] = useState(null);
     const [initialProfileImage, setInitialProfileImage] = useState(null);
 
@@ -67,13 +67,19 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                         middleName: mName,
                         lastName: lName,
                         birthdate: formattedDob,
-                        gender: data.gender || '',        // <-- ADDED
+                        gender: data.gender || '',        
                         licenseNumber: data.licenseNumber || '',
                         specialization: data.specialization || '',
                         email: data.email || '',
                         phone: phoneNum,
                         currentAddress: { ...initialAddressState, ...fetchedCurrent },
-                        permanentAddress: { ...initialAddressState, ...fetchedPermanent }
+                        permanentAddress: { ...initialAddressState, ...fetchedPermanent },
+                        // Fetching existing permissions or defaulting to 'none'
+                        permissions: {
+                            patients: data.permissions?.patients || 'none',
+                            appointments: data.permissions?.appointments || 'none',
+                            inventory: data.permissions?.inventory || 'none'
+                        }
                     };
 
                     setFormData(fetchedFormData);
@@ -81,7 +87,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
 
                     if (data.profileImage) {
                         setProfileImage(data.profileImage);
-                        setInitialProfileImage(data.profileImage); // Capture initial image
+                        setInitialProfileImage(data.profileImage);
                     }
                 } else {
                     alert("Failed to load dentist data.");
@@ -99,7 +105,6 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         if (dentistId) fetchDentistData();
     }, [dentistId, onClose]);
 
-    // NEW: Deep compare current formData with initialData, and check image
     const hasChanges = initialData ? (JSON.stringify(formData) !== JSON.stringify(initialData)) || (profileImage !== initialProfileImage) : false;
 
     // --- HELPER FUNCTIONS ---
@@ -184,6 +189,14 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         }
     };
 
+    // Added Permissions Handler
+    const handlePermissionChange = (module, value) => {
+        setFormData(prev => ({
+            ...prev,
+            permissions: { ...prev.permissions, [module]: value }
+        }));
+    };
+
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
         const required = ['firstName', 'lastName', 'birthdate', 'licenseNumber', 'specialization', 'email'];
@@ -218,10 +231,11 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email: formData.email, contactNumber: `+63${formData.phone}`, birthdate: formData.birthdate,
-            gender: formData.gender, // <-- FIXED
+            gender: formData.gender, 
             licenseNumber: formData.licenseNumber, specialization: formData.specialization, profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
-            permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress }
+            permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
+            permissions: formData.permissions // Added permissions to payload
         };
 
         try {
@@ -305,27 +319,27 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                             <h3 className={styles.mainSectionTitle}>Personal Information</h3>
                             {/* Row 1: Name */}
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
-                                <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/></div>
-                                <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
+                                <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isSaving}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
+                                <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isSaving}/></div>
+                                <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isSaving}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                             </div>
                             {/* Row 2: Demographics */}
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                                <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
+                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                                <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
                             {/* Row 3: Professional */}
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>LICENSE NO. <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.licenseNumber ? styles.errorBorder : ''}`} name="licenseNumber" value={formData.licenseNumber} onChange={handleLicenseChange} onBlur={handleBlur} maxLength={7} disabled={isLoading}/>{errors.licenseNumber && <span className={styles.errorText}>{errors.licenseNumber}</span>}</div>
-                                <div className={styles.formGroup}><label>SPECIALIZATION <span style={{color:'red'}}>*</span></label><select name="specialization" className={`${styles.inputField} ${errors.specialization?styles.errorBorder:''}`} value={formData.specialization} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Specialization</option>{specializationOptions.map(o=><option key={o} value={o}>{o}</option>)}</select>{errors.specialization && <span className={styles.errorText}>{errors.specialization}</span>}</div>
+                                <div className={styles.formGroup}><label>LICENSE NO. <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.licenseNumber ? styles.errorBorder : ''}`} name="licenseNumber" value={formData.licenseNumber} onChange={handleLicenseChange} onBlur={handleBlur} maxLength={7} disabled={isSaving}/>{errors.licenseNumber && <span className={styles.errorText}>{errors.licenseNumber}</span>}</div>
+                                <div className={styles.formGroup}><label>SPECIALIZATION <span style={{color:'red'}}>*</span></label><select name="specialization" className={`${styles.inputField} ${errors.specialization?styles.errorBorder:''}`} value={formData.specialization} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Specialization</option>{specializationOptions.map(o=><option key={o} value={o}>{o}</option>)}</select>{errors.specialization && <span className={styles.errorText}>{errors.specialization}</span>}</div>
                             </div>
                             {/* Row 4: Contact */}
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
+                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isSaving}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                                 <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
                                     <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
                                         <span className={styles.phonePrefix}>+63</span>
-                                        <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading}/>
+                                        <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving}/>
                                     </div>
                                     {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                                 </div>
@@ -336,9 +350,45 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                             <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isSaving} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
                             {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
 
+                            {/* NEW: SYSTEM PERMISSIONS SECTION */}
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>System Permissions</h3>
+                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>
+
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>PATIENTS <span style={{color:'red'}}>*</span></label>
+                                    <select className={styles.inputField} value={formData.permissions.patients} onChange={(e) => handlePermissionChange('patients', e.target.value)} disabled={isSaving}>
+                                        <option value="none">No Access</option>
+                                        <option value="read">Read-Only</option>
+                                        <option value="edit">Editor</option>
+                                    </select>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>APPOINTMENTS <span style={{color:'red'}}>*</span></label>
+                                    <select className={styles.inputField} value={formData.permissions.appointments} onChange={(e) => handlePermissionChange('appointments', e.target.value)} disabled={isSaving}>
+                                        <option value="none">No Access</option>
+                                        <option value="read">Read-Only</option>
+                                        <option value="edit">Editor</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>INVENTORY <span style={{color:'red'}}>*</span></label>
+                                    <select className={styles.inputField} value={formData.permissions.inventory} onChange={(e) => handlePermissionChange('inventory', e.target.value)} disabled={isSaving}>
+                                        <option value="none">No Access</option>
+                                        <option value="read">Read-Only</option>
+                                        <option value="edit">Editor</option>
+                                    </select>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    {/* Empty flex placeholder to maintain layout grid */}
+                                </div>
+                            </div>
+
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
-                                {/* DISABLED FLAG UPDATED TO CHECK hasChanges */}
                                 <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>{isSaving ? 'SAVING CHANGES...' : 'UPDATE DENTIST'}</button>
                             </div>
                         </form>
