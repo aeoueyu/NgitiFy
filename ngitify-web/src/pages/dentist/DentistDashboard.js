@@ -1,229 +1,372 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/DentistDashboard.module.css';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { 
+    FaClock, FaUserInjured, FaClipboardList, 
+    FaCheckCircle, FaFileMedical, FaRegCalendarCheck
+} from 'react-icons/fa';
+import { useAuth } from '../../hooks/useAuth';
 
-// --- IMPORTS (ALL SVG NOW) ---
-import DentimeLogo from '../../assets/images/logo-dentime.svg';
-import ProfilePicPlaceholder from '../../assets/icons/MyProfile.svg';
-import DashboardIcon from '../../assets/icons/FinancialReports.svg'; 
-import PatientIcon from '../../assets/icons/MyPatients.svg';
-import ScheduleIcon from '../../assets/icons/MySchedule.svg';
-import OdontogramIcon from '../../assets/icons/Odontogram.svg';
-import EPrescriptionIcon from '../../assets/icons/EPrescription.svg';
-import AIPredictIcon from '../../assets/icons/AIPredict.svg';
+// Import the EMR Patient Profile component
+import PatientProfile from '../owner/PatientProfile';
+
+const PH_HOLIDAYS = [
+    { month: 0, day: 1, name: "New Year's Day" },
+    { month: 3, day: 9, name: "Araw ng Kagitingan" },
+    { month: 4, day: 1, name: "Labor Day" },
+    { month: 5, day: 12, name: "Independence Day" },
+    { month: 11, day: 25, name: "Christmas Day" },
+    { month: 11, day: 31, name: "New Year's Eve" }
+];
+
+// --- MOCK CLINICAL DATA ---
+const MOCK_SCHEDULE = [
+    { id: 1, patientId: 'PT-2023-0842', time: '09:00 AM', duration: '60 Min', patientName: 'Eleanor Vance', procedure: 'Root Canal Therapy', status: 'In Clinic', rawDate: new Date() },
+    { id: 2, patientId: 'PT-2024-1105', time: '10:30 AM', duration: '30 Min', patientName: 'Marcus Chen', procedure: 'Routine Prophylaxis', status: 'Confirmed', rawDate: new Date() },
+    { id: 3, patientId: 'PT-2023-0199', time: '11:15 AM', duration: '45 Min', patientName: 'Sophia Reyes', procedure: 'Composite Filling', status: 'Confirmed', rawDate: new Date() },
+    { id: 4, patientId: 'PT-2022-0441', time: '01:00 PM', duration: '60 Min', patientName: 'James Wilson', procedure: 'Tooth Extraction', status: 'Completed', rawDate: new Date() },
+    { id: 5, patientId: 'PT-2021-0911', time: '09:00 AM', duration: '60 Min', patientName: 'David Lee', procedure: 'Braces Adjustment', status: 'Confirmed', rawDate: new Date(new Date().setDate(new Date().getDate() + 1)) },
+];
 
 export default function DentistDashboard() {
+    const { user, logout } = useAuth();
+    const navigate = useNavigate(); 
     
-    // --- LIVE DATE & TIME ---
+    // Live Clock State
     const [currentTime, setCurrentTime] = useState(new Date());
+    
+    // Profile Data State
+    const [dentistProfile, setDentistProfile] = useState(null);
 
+    // Header & Global Modal States
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false); 
+    
+    // EMR Modal States
+    const [isEMRModalOpen, setIsEMRModalOpen] = useState(false);
+    const [selectedPatientId, setSelectedPatientId] = useState(null);
+
+    // Interactive Calendar States
+    const [currentMonthView, setCurrentMonthView] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date());
+
+    // Live Clock Effect
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        return () => clearInterval(timer); 
+        return () => clearInterval(timer);
     }, []);
 
-    const todayDate = currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
-    const todayTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    // Extract JWT & Fetch Profile
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
 
-    // --- DUMMY DATA ---
-    const patientsThisWeek = [
-        { name: 'Mon', patients: 8 }, { name: 'Tue', patients: 12 }, { name: 'Wed', patients: 10 },
-        { name: 'Thu', patients: 15 }, { name: 'Fri', patients: 14 }, { name: 'Sat', patients: 20 },
-    ];
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(base64));
+                const userId = payload.userId || payload.id || payload._id;
 
-    const treatmentData = [
-        { name: 'Consultation', value: 35 }, { name: 'Restoration', value: 25 },
-        { name: 'Extraction', value: 15 }, { name: 'Orthodontics', value: 25 },
-    ];
-    const PIE_COLORS = ['#01538b', '#2dccf6', '#ea8b89', '#f3ca63'];
+                const response = await fetch(`http://localhost:5000/api/user/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
-    const calendarDays = [
-        { num: 26, faded: true }, { num: 27, faded: true }, { num: 28, faded: true }, { num: 29, faded: true }, { num: 30, faded: true }, { num: 1 }, { num: 2 },
-        { num: 3 }, { num: 4 }, { num: 5, hasEvent: true }, { num: 6 }, { num: 7 }, { num: 8 }, { num: 9 },
-        { num: 10 }, { num: 11 }, { num: 12 }, { num: 13, active: true, hasEvent: true }, { num: 14 }, { num: 15, hasEvent: true }, { num: 16 },
-        { num: 17 }, { num: 18 }, { num: 19 }, { num: 20 }, { num: 21 }, { num: 22 }, { num: 23 },
-        { num: 24 }, { num: 25 }, { num: 26 }, { num: 27 }, { num: 28, hasEvent: true }, { num: 29 }, { num: 30 }
-    ];
+                if (response.ok) {
+                    const profileData = await response.json();
+                    setDentistProfile(profileData);
+                }
+            } catch (error) {
+                console.error("Error fetching dentist profile:", error);
+            }
+        };
+
+        fetchProfile();
+    }, []);
+
+    // Filter Schedule based on selected calendar date
+    const displayedAppointments = MOCK_SCHEDULE.filter(apt => 
+        apt.rawDate.toDateString() === selectedDate.toDateString()
+    );
+
+    // Calculate Stats (Based on currently selected date)
+    const totalPatients = displayedAppointments.length;
+    const pendingTreatments = displayedAppointments.filter(apt => apt.status === 'Confirmed' || apt.status === 'In Clinic').length;
+    const completedTreatments = displayedAppointments.filter(apt => apt.status === 'Completed').length;
+
+    // --- CALENDAR LOGIC ---
+    const getCalendarDays = () => {
+        const year = currentMonthView.getFullYear();
+        const month = currentMonthView.getMonth();
+        const firstDay = new Date(year, month, 1).getDay(); 
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+        const days = [];
+
+        for (let i = firstDay - 1; i >= 0; i--) {
+            days.push({ num: daysInPrevMonth - i, faded: true, date: new Date(year, month - 1, daysInPrevMonth - i) });
+        }
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const currentDate = new Date(year, month, i);
+            const isSelected = currentDate.toDateString() === selectedDate.toDateString();
+            const isToday = currentDate.toDateString() === new Date().toDateString(); 
+            const hasEvent = MOCK_SCHEDULE.some(apt => apt.rawDate.toDateString() === currentDate.toDateString());
+            const holidayObj = PH_HOLIDAYS.find(h => h.month === month && h.day === i);
+
+            days.push({
+                num: i,
+                active: isSelected,
+                isToday: isToday, 
+                hasEvent: hasEvent,
+                isHoliday: !!holidayObj,
+                holidayName: holidayObj ? holidayObj.name : null,
+                date: currentDate,
+                faded: false
+            });
+        }
+
+        const totalCells = days.length > 35 ? 42 : 35;
+        const extra = totalCells - days.length;
+        for (let i = 1; i <= extra; i++) {
+            days.push({ num: i, faded: true, date: new Date(year, month + 1, i) });
+        }
+
+        return days;
+    };
+
+    const handlePrevMonth = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1));
+    const handleNextMonth = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1));
+    
+    const handleDateClick = (day) => {
+        setSelectedDate(day.date);
+        if (day.faded) setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
+    };
+
+    const calendarDays = getCalendarDays();
+    const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
+
+    // --- RENDER HELPERS ---
+    const getStatusClass = (status) => {
+        switch (status) {
+            case 'Confirmed': return styles['status-pending'];
+            case 'In Clinic': return styles['status-in-clinic'];
+            case 'Completed': return styles['status-done'];
+            default: return '';
+        }
+    };
+
+    const handleLogoutClick = () => {
+        setIsProfileOpen(false);
+        setShowLogoutModal(true);
+    };
+
+    const handleProfileNavigation = () => {
+        setIsProfileOpen(false);
+        navigate('/owner/profile'); 
+    };
+
+    const handleViewEMR = (patientId) => {
+        setSelectedPatientId(patientId);
+        setIsEMRModalOpen(true);
+    };
 
     return (
-        <div className={styles['dashboard-container']}>
-            
-            {/* SIDEBAR FOR DENTIST */}
-            <aside className={styles['sidebar']}>
-                <div className={styles['logo-container']}>
-                    <img src={DentimeLogo} alt="Dentime Logo" className={styles['sidebar-logo']} />
-                </div>
-                <div className={styles['nav-menu']}>
-                    <div className={`${styles['nav-item']} ${styles['active']}`}>
-                        <img src={DashboardIcon} alt="Dashboard" className={styles['nav-icon']} /> Dashboard
-                    </div>
-                    <div className={styles['nav-item']}>
-                        <img src={PatientIcon} alt="Patients" className={styles['nav-icon']} /> My Patients
-                    </div>
-                    <div className={styles['nav-item']}>
-                        <img src={ScheduleIcon} alt="Schedule" className={styles['nav-icon']} /> Appointments
-                    </div>
-                    <div className={styles['nav-item']}>
-                        <img src={OdontogramIcon} alt="Odontogram" className={styles['nav-icon']} /> Odontogram
-                    </div>
-                    <div className={styles['nav-item']}>
-                        <img src={EPrescriptionIcon} alt="E-Prescription" className={styles['nav-icon']} /> E-Prescription
-                    </div>
-                    <div className={styles['nav-item']}>
-                        <img src={AIPredictIcon} alt="AI Predict" className={styles['nav-icon']} /> AI Predict
-                    </div>
-                </div>
-            </aside>
-
-            {/* MAIN CONTENT */}
+        <>
             <main className={styles['main-content']}>
-                
                 {/* HEADER */}
                 <header className={styles['header']}>
                     <div className={styles['header-left']}>
-                        <h1 className={styles['title']}>Welcome back, Dr. Smith!</h1>
+                        <h1 className={styles['title']}>Clinical Dashboard</h1>
                         <p className={styles['subtitle']}>
-                            {todayDate} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{todayTime}</strong>
+                            {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong>
                         </p>
                     </div>
                     <div className={styles['header-right']}>
                         <div className={styles['user-info']}>
-                            <span className={styles['user-name']}>Dr. John Smith</span>
-                            <span className={styles['user-role']}>Head Dentist</span>
+                            <span className={styles['user-name']}>Hello, Dr. {dentistProfile?.name?.first || user?.name?.first || 'Dentist'}!</span>
+                            <span className={styles['user-role']}>
+                                {dentistProfile?.role || user?.role === 'dentist' ? 'Dentist' : 'Staff'}
+                            </span>
                         </div>
-                        <img src={ProfilePicPlaceholder} alt="Profile" className={styles['profile-pic']} />
+                        <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
+                            {dentistProfile?.profileImage || user?.profileImage ? (
+                                <img src={dentistProfile?.profileImage || user?.profileImage} alt="Profile" className={styles['profile-pic']} />
+                            ) : (
+                                <div className={styles['profile-pic']} style={{
+                                    backgroundColor: '#01538b', display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '16px',
+                                    borderRadius: '50%'
+                                }}>
+                                    {(() => {
+                                        const first = dentistProfile?.name?.first || user?.name?.first || 'S';
+                                        const last = dentistProfile?.name?.last || user?.name?.last || 'D';
+                                        return (first.charAt(0) + last.charAt(0)).toUpperCase();
+                                    })()}
+                                </div>
+                            )}
+                            {isProfileOpen && (
+                                <div className={styles['profile-dropdown']}>
+                                    <div className={styles['profile-dropdown-item']} onClick={handleProfileNavigation}>My Profile</div>
+                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/owner/settings')}>Settings</div>
+                                    <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={handleLogoutClick}>Logout</div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </header>
 
-                {/* STATS GRID FOR DENTIST */}
+                {/* STATS GRID */}
                 <div className={styles['stats-grid']}>
                     <div className={styles['stat-card']}>
                         <div className={styles['stat-header']}>
-                            <p className={styles['stat-title']}>Today's Patients</p>
-                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-blue']}`}><img src={PatientIcon} className={styles['stat-icon']} alt="icon" /></div>
-                        </div>
-                        <h2 className={styles['stat-value']}>12</h2>
-                        <p className={styles['stat-desc']}>4 remaining for today</p>
-                    </div>
-                    <div className={styles['stat-card']}>
-                        <div className={styles['stat-header']}>
-                            <p className={styles['stat-title']}>Completed Tx</p>
-                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}><img src={OdontogramIcon} className={styles['stat-icon']} alt="icon" /></div>
-                        </div>
-                        <h2 className={styles['stat-value']}>8</h2>
-                        <p className={`${styles['stat-desc']} ${styles['neutral']}`}>Treatments done today</p>
-                    </div>
-                    <div className={styles['stat-card']}>
-                        <div className={styles['stat-header']}>
-                            <p className={styles['stat-title']}>Pending E-Rx</p>
-                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}><img src={EPrescriptionIcon} className={styles['stat-icon']} alt="icon" /></div>
-                        </div>
-                        <h2 className={styles['stat-value']} style={{ color: '#ea8b89' }}>3</h2>
-                        <p className={`${styles['stat-desc']} ${styles['danger']}`}>Needs signing</p>
-                    </div>
-                    <div className={styles['stat-card']}>
-                        <div className={styles['stat-header']}>
-                            <p className={styles['stat-title']}>Upcoming Surgeries</p>
-                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}><img src={ScheduleIcon} className={styles['stat-icon']} alt="icon" /></div>
-                        </div>
-                        <h2 className={styles['stat-value']}>2</h2>
-                        <p className={styles['stat-desc']}>Scheduled for tomorrow</p>
-                    </div>
-                </div>
-
-                {/* CHARTS SECTION */}
-                <div className={styles['charts-section']}>
-                    {/* BAR CHART: PATIENTS THIS WEEK */}
-                    <div className={styles['chart-card']}>
-                        <div className={styles['chart-header']}><h3 className={styles['chart-title']}>Patients This Week</h3></div>
-                        <div className={styles['chart-container']}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={patientsThisWeek} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} />
-                                    <Tooltip cursor={{fill: 'rgba(1, 83, 139, 0.05)'}} contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }} />
-                                    <Bar dataKey="patients" fill="#01538b" radius={[6, 6, 0, 0]} barSize={30} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    {/* PIE CHART */}
-                    <div className={styles['chart-card']}>
-                        <div className={styles['chart-header']}><h3 className={styles['chart-title']}>My Treatments</h3></div>
-                        <div className={styles['chart-container']}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie data={treatmentData} cx="50%" cy="45%" innerRadius={60} outerRadius={85} paddingAngle={5} dataKey="value" stroke="none">
-                                        {treatmentData.map((entry, index) => (<Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />))}
-                                    </Pie>
-                                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }} />
-                                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#555', paddingTop: '20px' }} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-                {/* BOTTOM SECTION (LIST + CALENDAR) */}
-                <div className={styles['bottom-section']}>
-                    {/* MY APPOINTMENTS */}
-                    <div className={styles['list-card']}>
-                        <div className={styles['list-header']}>
-                            <h3 className={styles['list-title']}>My Schedule for Today</h3>
-                            <span className={styles['view-all']}>View All</span>
-                        </div>
-                        <div className={styles['list-content']}>
-                            {[
-                                { name: "Maria Clara", type: "Orthodontic Adj.", time: "09:00 AM", status: "Done" },
-                                { name: "Juan Dela Cruz", type: "Wisdom Tooth Ext.", time: "11:30 AM", status: "Done" },
-                                { name: "Jose Rizal", type: "Prophylaxis", time: "02:00 PM", status: "Next" },
-                                { name: "Andres B.", type: "Initial Consultation", time: "04:00 PM", status: "Pending" }
-                            ].map((apt, idx) => (
-                                <div key={idx} className={styles['appointment-item']}>
-                                    <div className={styles['patient-info']}>
-                                        <div className={styles['patient-avatar']}>{apt.name.charAt(0)}</div>
-                                        <div className={styles['patient-details']}>
-                                            <p className={styles['patient-name']}>{apt.name}</p>
-                                            <p className={styles['treatment-type']}>{apt.type}</p>
-                                        </div>
-                                    </div>
-                                    <div className={styles['appointment-time']}>
-                                        <p className={styles['time-text']}>{apt.time}</p>
-                                        <span className={`${styles['status-badge']} ${apt.status === 'Done' ? styles['status-done'] : styles['status-pending']}`}>
-                                            {apt.status}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* CALENDAR */}
-                    <div className={styles['calendar-card']}>
-                        <div className={styles['calendar-header']}>
-                            <h3 className={styles['month-text']}>October 2024</h3>
-                            <div className={styles['cal-nav']}>
-                                <button className={styles['cal-nav-btn']}>&lt;</button>
-                                <button className={styles['cal-nav-btn']}>&gt;</button>
+                            <p className={styles['stat-title']}>Patients Today</p>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-blue']}`}>
+                                <FaUserInjured className={`${styles['stat-icon']} ${styles['raw']}`} />
                             </div>
                         </div>
-                        
-                        <div className={styles['calendar-grid']}>
-                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                                <div key={day} className={styles['day-name']}>{day}</div>
-                            ))}
-                            {calendarDays.map((day, idx) => (
-                                <div key={idx} className={`${styles['date-num']} ${day.faded ? styles['faded'] : ''} ${day.active ? styles['active'] : ''}`}>
-                                    {day.num}
-                                    {day.hasEvent && <div className={`${styles['event-dot']} ${day.active ? styles['white'] : ''}`}></div>}
-                                </div>
-                            ))}
+                        <h2 className={styles['stat-value']}>{totalPatients}</h2>
+                        <p className={styles['stat-desc']}>Scheduled appointments</p>
+                    </div>
+                    
+                    <div className={styles['stat-card']}>
+                        <div className={styles['stat-header']}>
+                            <p className={styles['stat-title']}>Pending Treatments</p>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}>
+                                <FaClipboardList className={`${styles['stat-icon']} ${styles['raw']}`} />
+                            </div>
                         </div>
+                        <h2 className={styles['stat-value']}>{pendingTreatments}</h2>
+                        <p className={styles['stat-desc']}>Awaiting clinical action</p>
+                    </div>
+                    
+                    <div className={styles['stat-card']}>
+                        <div className={styles['stat-header']}>
+                            <p className={styles['stat-title']}>Completed</p>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}>
+                                <FaCheckCircle className={`${styles['stat-icon']} ${styles['raw']}`} />
+                            </div>
+                        </div>
+                        <h2 className={styles['stat-value']}>{completedTreatments}</h2>
+                        <p className={styles['stat-desc']}>Successfully treated today</p>
                     </div>
                 </div>
 
+                {/* MAIN TWO-COLUMN GRID */}
+                <div className={styles['main-grid']}>
+                    
+                    {/* LEFT COLUMN: SCHEDULE */}
+                    <div className={styles['left-column']}>
+                        <div className={styles['widget-card']}>
+                            <div className={styles['widget-header']}>
+                                <h2 className={styles['widget-title']}>
+                                    <FaRegCalendarCheck className={styles['widget-icon']} /> 
+                                    {isTodaySelected ? "Today's Clinical Schedule" : `Schedule for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                                </h2>
+                            </div>
+                            
+                            <div className={styles['list-content']}>
+                                {displayedAppointments.length > 0 ? (
+                                    displayedAppointments.map((apt) => (
+                                        <div key={apt.id} className={styles['appointment-item']}>
+                                            
+                                            <div className={styles['time-block']}>
+                                                <p className={styles['time-text']}>{apt.time}</p>
+                                                <p className={styles['stat-desc']} style={{margin: 0, display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                                    <FaClock style={{ fontSize: '10px' }}/> {apt.duration}
+                                                </p>
+                                            </div>
+                                            
+                                            <div className={styles['patient-block']}>
+                                                <p className={styles['patient-name']}>{apt.patientName}</p>
+                                                <p className={styles['treatment-type']}>{apt.procedure}</p>
+                                            </div>
+
+                                            <div className={styles['action-block']}>
+                                                <span className={`${styles['status-badge']} ${getStatusClass(apt.status)}`}>
+                                                    {apt.status}
+                                                </span>
+                                                
+                                                <button className={styles['emr-btn']} onClick={() => handleViewEMR(apt.patientId)}>
+                                                    <FaFileMedical /> View EMR
+                                                </button>
+                                            </div>
+
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className={styles['empty-state']}>
+                                        <p>Your schedule is clear for this date.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: CALENDAR */}
+                    <div className={styles['right-column']}>
+                        <div className={styles['calendar-card']}>
+                            <div className={styles['calendar-header']}>
+                                <h3 className={styles['month-text']}>{dynamicMonthYear}</h3>
+                                <div className={styles['cal-nav']}>
+                                    <button className={styles['cal-nav-btn']} onClick={handlePrevMonth}>&lt;</button>
+                                    <button className={styles['cal-nav-btn']} onClick={handleNextMonth}>&gt;</button>
+                                </div>
+                            </div>
+                            
+                            <div className={styles['calendar-grid']}>
+                                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                                    <div key={day} className={styles['day-name']}>{day}</div>
+                                ))}
+                                
+                                {calendarDays.map((day, idx) => (
+                                    <div 
+                                        key={idx} 
+                                        title={day.holidayName || ''}
+                                        onClick={() => handleDateClick(day)}
+                                        className={`
+                                            ${styles['date-num']} 
+                                            ${day.faded ? styles['faded'] : ''} 
+                                            ${day.isToday && !day.faded ? styles['today'] : ''}
+                                            ${day.active ? styles['active'] : ''}
+                                            ${day.isHoliday && !day.faded ? styles['holiday'] : ''}
+                                        `}
+                                    >
+                                        {day.num}
+                                        {day.hasEvent && <div className={`${styles['event-dot']} ${day.active ? styles['white'] : ''}`}></div>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
             </main>
-        </div>
+
+            {/* EMR MODAL INJECTION */}
+            {isEMRModalOpen && selectedPatientId && (
+                <PatientProfile
+                    patientId={selectedPatientId}
+                    onClose={() => setIsEMRModalOpen(false)}
+                    onEdit={() => alert("Edit Profile action placeholder")}
+                />
+            )}
+
+            {/* LOGOUT CONFIRMATION MODAL */}
+            {showLogoutModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <h3 className={styles.modalTitle}>Confirm Logout</h3>
+                        <p className={styles.modalMessage}>Are you sure you want to end your session and logout of the system?</p>
+                        <div className={styles.modalButtonGroup}>
+                            <button className={styles.cancelBtn} onClick={() => setShowLogoutModal(false)}>Cancel</button>
+                            <button className={styles.confirmBtn} onClick={logout}>Yes, Logout</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }

@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManagePatients.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
-import { usePermissions } from '../../hooks/usePermissions'; // NEW: RBAC Hook
+import { usePermissions } from '../../hooks/usePermissions'; 
 import { useAuth } from '../../hooks/useAuth';
 
 import UserTabs from './UserTabs'; 
 import AddPatient from './AddPatient'; 
 import EditPatient from './EditPatient';
-import ViewPatient from './ViewPatient';
+import PatientProfile from './PatientProfile'; // NEW: Import the Modal Profile
 
 export default function ManagePatients() {
     const { user } = useAuth();
-    const { canReadPatients, canEditPatients } = usePermissions(); // Pull permissions
+    const { canReadPatients, canEditPatients } = usePermissions(); 
     
     const [searchQuery, setSearchQuery] = useState('');
     const [patientsList, setPatientsList] = useState([]);
@@ -20,7 +20,7 @@ export default function ManagePatients() {
     // Modal States
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false); // Restored state
     const [selectedPatientId, setSelectedPatientId] = useState(null);
 
     const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
@@ -90,17 +90,6 @@ export default function ManagePatients() {
         }
     }, [fetchPatients, canReadPatients]);
 
-    // --- HARD STOP: PAGE PROTECTION ---
-    if (!canReadPatients) {
-        return (
-            <div className={styles.container}>
-                <div style={{ textAlign: 'center', padding: '100px', color: '#dc3545', fontWeight: 'bold', fontSize: '18px' }}>
-                    Access Denied. You do not have permission to view the Patients module.
-                </div>
-            </div>
-        );
-    }
-
     const filteredPatients = patientsList.filter(patient => 
         patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         patient.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -151,6 +140,7 @@ export default function ManagePatients() {
         setIsEditModalOpen(true);
     };
 
+    // UPDATED: Spawns the full EMR modal overlay
     const handleViewClick = (id) => {
         setIsEditModalOpen(false);
         setSelectedPatientId(id);
@@ -166,6 +156,17 @@ export default function ManagePatients() {
         setIsViewModalOpen(false);
         setSelectedPatientId(null);
     };
+
+    // --- HARD STOP: PAGE PROTECTION ---
+    if (!canReadPatients) {
+        return (
+            <div className={styles.container}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#dc3545', fontWeight: 'bold', fontSize: '18px' }}>
+                    Access Denied. You do not have permission to view the Patients module.
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.container}>
@@ -243,12 +244,12 @@ export default function ManagePatients() {
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
                                         {/* VIEW IS ALWAYS ALLOWED IF canReadPatients IS TRUE */}
-                                        <button className={styles.iconBtn} onClick={() => handleViewClick(patient.id)} title="View Profile"><FaEye /></button>
+                                        <button className={styles.iconBtn} onClick={() => handleViewClick(patient.id)} title="View Full EMR Profile"><FaEye /></button>
                                         
                                         {/* PROTECTED: EDIT & DELETE BUTTONS */}
                                         {canEditPatients && (
                                             <>
-                                                <button className={styles.iconBtn} onClick={() => handleEditClick(patient.id)} title="Edit Profile"><FaEdit /></button>
+                                                <button className={styles.iconBtn} onClick={() => handleEditClick(patient.id)} title="Edit Quick Details"><FaEdit /></button>
                                                 <button 
                                                     className={`${styles.iconBtn}`} 
                                                     onClick={() => handleToggleStatus(patient)}
@@ -273,8 +274,9 @@ export default function ManagePatients() {
                 <AddPatient onClose={() => setIsAddModalOpen(false)} onSuccess={fetchPatients} />
             )}
 
+            {/* NEW: Render the Patient Profile Modal */}
             {isViewModalOpen && selectedPatientId && (
-                <ViewPatient
+                <PatientProfile
                     patientId={selectedPatientId}
                     onClose={handleCloseViewModal}
                     onEdit={() => {

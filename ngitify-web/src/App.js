@@ -16,7 +16,7 @@ import NewPasswordRedirectPage from './pages/auth/NewPasswordRedirectPage';
 
 // Pages - Owner
 import OwnerDashboard from './pages/owner/OwnerDashboard';
-import Appointments from './pages/owner/Appointments'; // NEW: Appointments Page
+import Appointments from './pages/owner/Appointments'; 
 import ManageDentists from './pages/owner/ManageDentists';
 import ManageSecretaries from './pages/owner/ManageSecretaries';
 import ManagePatients from './pages/owner/ManagePatients';
@@ -31,6 +31,9 @@ import InventoryTracker from './pages/owner/InventoryTracker';
 import MyProfile from './pages/owner/MyProfile';
 import Settings from './pages/owner/Settings';
 
+import DentistDashboard from './pages/dentist/DentistDashboard';
+import DentistAppointments from './pages/dentist/DentistAppointments';
+
 function App() {
   return (
     <AuthProvider>
@@ -44,6 +47,13 @@ function App() {
           <Route path="/new-password" element={<NewPasswordPage />} />
           <Route path="/password-reset-success" element={<NewPasswordRedirectPage />} />
 
+          <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>
+            <Route element={<DashboardLayout />}>
+              <Route path="/dentist/dashboard" element={<DentistDashboard />} />
+              <Route path="/dentist/appointments" element={<DentistAppointments />} />
+            </Route>
+          </Route>
+
           {/* Protected Routes - Owner Area */}
           <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
             <Route element={<DashboardLayout />}>
@@ -52,7 +62,7 @@ function App() {
               <Route path="/owner/profile" element={<MyProfile />} />
               <Route path="/owner/settings" element={<Settings />} />
               
-              {/* NEW: Appointments Route */}
+              {/* Appointments Route */}
               <Route path="/owner/appointments" element={<Appointments />} />
               
               {/* URL-based Routing for User Management Tabs */}
