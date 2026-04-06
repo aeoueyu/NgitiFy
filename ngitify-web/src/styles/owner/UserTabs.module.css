@@ -1,11 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
 
+/* --- UNIFIED TAB HEADER STYLES --- */
 .tabContainer {
     display: flex;
     gap: 20px;
-    margin-bottom: 20px; /* Perfect spacing between tabs and your table container */
+    margin-bottom: 25px; 
     border-bottom: 2px solid #e2e8f0;
     font-family: 'Lexend Deca', sans-serif;
+    flex-shrink: 0;
 }
 
 .tabButton {

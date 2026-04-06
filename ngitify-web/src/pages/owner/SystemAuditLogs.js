@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from '../../styles/owner/SystemAuditLogs.module.css'; 
 import { FaSearch, FaHistory, FaDownload, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { authFetch } from '../../utils/api'; 
+import { formatDateShort, formatTime } from '../../utils/dateUtils'; // NEW: Imported Date Utilities
 
 export default function SystemAuditLogs() {
     // Original States
@@ -18,13 +20,8 @@ export default function SystemAuditLogs() {
     const fetchAuditLogs = useCallback(async () => {
         try {
             setIsLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/audit-logs', {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            
+            const response = await authFetch('/audit-logs');
 
             if (response.ok) {
                 const data = await response.json();
@@ -45,12 +42,9 @@ export default function SystemAuditLogs() {
                     }
 
                     const logDate = new Date(log.createdAt || log.timestamp);
-                    const formattedDate = !isNaN(logDate) 
-                        ? logDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-                        : 'Unknown Date';
-                    const formattedTime = !isNaN(logDate)
-                        ? logDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-                        : '';
+                    // --- TASK 1.2 UPDATE: dateUtils implementation ---
+                    const formattedDate = formatDateShort(logDate) !== 'N/A' ? formatDateShort(logDate) : 'Unknown Date';
+                    const formattedTime = formatTime(logDate) !== 'N/A' ? formatTime(logDate) : '';
 
                     return {
                         id: log._id || Math.random().toString(),
@@ -237,7 +231,7 @@ export default function SystemAuditLogs() {
                             paginatedLogs.map((log) => (
                                 <tr key={log.id}>
                                     <td>
-                                        <span className={styles.fwBold}>{log.date}</span>
+                                        <span className={styles.fwBold}>{log.date}</span><br />
                                         <span className={styles.timeText}>{log.time}</span>
                                     </td>
                                     <td style={{ color: '#334155', fontWeight: '500' }}>
@@ -265,7 +259,7 @@ export default function SystemAuditLogs() {
                 </table>
             </div>
 
-            {/* NEW: Pagination Controls */}
+            {/* Pagination Controls */}
             {!isLoading && filteredLogs.length > 0 && (
                 <div className={styles.paginationContainer}>
                     <span className={styles.paginationText}>

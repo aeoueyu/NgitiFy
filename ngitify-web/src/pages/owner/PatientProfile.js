@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/owner/PatientProfile.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
+import { formatDateLong } from '../../utils/dateUtils'; // NEW: Imported Date Utilities
 import { 
     FaUserMd, FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, 
     FaNotesMedical, FaSyringe, FaTooth, FaSearch, 
@@ -151,7 +152,8 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Date of Birth</span>
-                    <p className={styles.infoValue}>{new Date(MOCK_PATIENT.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    {/* TASK 1.2 UPDATE: Using centralized dateUtils */}
+                    <p className={styles.infoValue}>{formatDateLong(MOCK_PATIENT.dob)}</p>
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Occupation</span>

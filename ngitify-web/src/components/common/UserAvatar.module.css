@@ -1,0 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.avatarImage {
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: #fff;
+    /* Optional subtle border to make it pop universally */
+    border: 2px solid rgba(1, 83, 139, 0.1); 
+}
+
+.avatarFallback {
+    background-color: #01538b;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    border-radius: 50%;
+    font-family: 'Lexend Deca', sans-serif;
+    /* Optional subtle border to match the image style */
+    border: 2px solid rgba(1, 83, 139, 0.1); 
+}

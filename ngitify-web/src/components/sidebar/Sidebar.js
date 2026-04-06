@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { FaCog, FaSignOutAlt } from 'react-icons/fa';
+import { authFetch } from '../../utils/api'; // TASK 3.2: Import API utility
 
 import DentimeLogo from '../../assets/images/logo-dentime.svg';
 import DashboardIcon from '../../assets/icons/FinancialReports.svg'; 
@@ -21,9 +22,36 @@ export default function Sidebar() {
     const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+    // --- TASK 3.2: Badge State ---
+    const [lowStockCount, setLowStockCount] = useState(0);
+
     // --- DYNAMIC PATHS ---
     const dashboardPath = user?.role === 'dentist' ? '/dentist/dashboard' : '/owner/dashboard';
     const appointmentsPath = user?.role === 'dentist' ? '/dentist/appointments' : '/owner/appointments';
+
+    // Fetch low stock items for the badge
+    useEffect(() => {
+        if (!canReadInventory) return;
+
+        const fetchInventoryAlerts = async () => {
+            try {
+                const response = await authFetch('/inventory');
+                if (response.ok) {
+                    const invData = await response.json();
+                    const alerts = invData.filter(item => {
+                        const stock = Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0));
+                        const limit = Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0));
+                        return stock <= limit;
+                    });
+                    setLowStockCount(alerts.length);
+                }
+            } catch (error) {
+                console.error("Error fetching inventory for sidebar badge:", error);
+            }
+        };
+
+        fetchInventoryAlerts();
+    }, [canReadInventory]);
 
     const getNavClass = (path) => {
         if (path === '/owner/manage-users' && location.pathname.includes('/owner/manage-')) {
@@ -45,35 +73,45 @@ export default function Sidebar() {
 
                 <div className={styles['nav-menu']}>
                     <div className={getNavClass(dashboardPath)} onClick={() => handleMainNavigation(dashboardPath)}>
-                        <img src={DashboardIcon} alt="Dashboard" className={styles['nav-icon']} /> <span>Dashboard</span>
+                        <img src={DashboardIcon} alt="Dashboard" className={styles['nav-icon']} /> 
+                        <span className={styles['nav-text']}>Dashboard</span>
                     </div>
 
                     {/* DYNAMIC APPOINTMENTS ROUTE */}
                     <div className={getNavClass(appointmentsPath)} onClick={() => handleMainNavigation(appointmentsPath)}>
-                        <img src={ScheduleIcon} alt="Appointments" className={styles['nav-icon']} /> <span>Appointments</span>
+                        <img src={ScheduleIcon} alt="Appointments" className={styles['nav-icon']} /> 
+                        <span className={styles['nav-text']}>Appointments</span>
                     </div>
 
                     {isOwner && (
                         <div className={getNavClass('/owner/manage-users')} onClick={() => handleMainNavigation('/owner/manage-users')}>
-                            <img src={StaffIcon} alt="User Management" className={styles['nav-icon']} /> <span>User Management</span>
+                            <img src={StaffIcon} alt="User Management" className={styles['nav-icon']} /> 
+                            <span className={styles['nav-text']}>User Management</span>
                         </div>
                     )}
 
                     {!isOwner && canReadPatients && (
                         <div className={getNavClass('/owner/manage-users/patients')} onClick={() => handleMainNavigation('/owner/manage-users/patients')}>
-                            <img src={StaffIcon} alt="Patients" className={styles['nav-icon']} /> <span>Patients</span>
+                            <img src={StaffIcon} alt="Patients" className={styles['nav-icon']} /> 
+                            <span className={styles['nav-text']}>Patients</span>
                         </div>
                     )}
 
                     {canReadInventory && (
                         <div className={getNavClass('/owner/inventory')} onClick={() => handleMainNavigation('/owner/inventory')}>
-                            <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} /> <span>Inventory</span>
+                            <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} /> 
+                            <span className={styles['nav-text']}>Inventory</span>
+                            {/* TASK 3.2: Display badge if items are low */}
+                            {lowStockCount > 0 && (
+                                <span className={styles['notification-badge']}>{lowStockCount}</span>
+                            )}
                         </div>
                     )}
 
                     {isOwner && (
                         <div className={getNavClass('/owner/audit-logs')} onClick={() => handleMainNavigation('/owner/audit-logs')}>
-                            <img src={AuditIcon} alt="Audit" className={styles['nav-icon']} /> <span>Audit Logs</span>
+                            <img src={AuditIcon} alt="Audit" className={styles['nav-icon']} /> 
+                            <span className={styles['nav-text']}>Audit Logs</span>
                         </div>
                     )}
                 </div>
@@ -81,12 +119,12 @@ export default function Sidebar() {
                 <div className={styles['footer-section']}>
                     <div className={styles['settings-link']} onClick={() => handleMainNavigation('/owner/settings')}>
                         <FaCog className={styles['nav-icon']} /> 
-                        <span>Settings</span>
+                        <span className={styles['nav-text']}>Settings</span>
                     </div>
                     
                     <div className={styles['logout-btn']} onClick={() => setShowLogoutModal(true)}>
                         <FaSignOutAlt className={styles['nav-icon']} /> 
-                        <span>Logout</span>
+                        <span className={styles['nav-text']}>Logout</span>
                     </div>
                 </div>
             </aside>

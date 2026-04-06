@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from '../../styles/owner/InventoryTracker.module.css'; 
-import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle } from 'react-icons/fa';
+import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle, FaBoxes, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
+import { authFetch } from '../../utils/api';
 
 import AddInventoryItem from './AddInventoryItem'; 
 import EditInventoryItem from './EditInventoryItem'; 
+import ConfirmModal from '../../components/common/ConfirmModal'; // TASK 6.1: Import new modal
 
 const BASE_CATEGORIES = [
     "Personal Protective Equipment (PPE)", "Consumables", "Restorative Materials", 
@@ -26,16 +28,13 @@ export default function InventoryTracker() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
     const [selectedItemId, setSelectedItemId] = useState(null);    
 
+    // TASK 6.1: State to control the Global Confirm Modal
+    const [confirmConfig, setConfirmConfig] = useState(null);
+
     const fetchInventory = useCallback(async () => {
         try {
             setIsLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/inventory', {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const response = await authFetch('/inventory');
 
             if (response.ok) {
                 const data = await response.json();
@@ -66,28 +65,34 @@ export default function InventoryTracker() {
         }
     }, [fetchInventory, canReadInventory]);
 
-    // ==========================================
-    // ALL HOOKS MUST BE ABOVE EARLY RETURNS
-    // ==========================================
-    
-    // Dynamic Categories
     const dynamicCategories = useMemo(() => {
         const fetchedCategories = inventoryList.map(item => item.category).filter(Boolean);
         const uniqueCategories = [...new Set([...BASE_CATEGORIES, ...fetchedCategories])];
         return uniqueCategories.sort();
     }, [inventoryList]);
 
-    // Dynamic Units
     const dynamicUnits = useMemo(() => {
         const fetchedUnits = inventoryList.map(item => item.unit).filter(Boolean);
         const uniqueUnits = [...new Set([...BASE_UNITS, ...fetchedUnits])];
         return uniqueUnits.sort();
     }, [inventoryList]);
 
+    const inventoryStats = useMemo(() => {
+        let total = inventoryList.length;
+        let lowStock = 0;
+        let outOfStock = 0;
 
-    // ==========================================
-    // HARD STOP: PAGE PROTECTION
-    // ==========================================
+        inventoryList.forEach(item => {
+            if (item.currentStock <= 0) {
+                outOfStock++;
+            } else if (item.currentStock <= item.threshold) {
+                lowStock++;
+            }
+        });
+
+        return { total, lowStock, outOfStock };
+    }, [inventoryList]);
+
     if (!canReadInventory) {
         return (
             <div className={styles.container}>
@@ -104,18 +109,20 @@ export default function InventoryTracker() {
         return matchesSearch && matchesCategory;
     });
 
-    const handleDelete = async (id, itemName) => {
-        if (!window.confirm(`Are you sure you want to permanently delete ${itemName} from inventory?`)) return;
+    // TASK 6.1: Refactored to trigger the custom UI modal instead of window.confirm
+    const triggerDelete = (id, itemName) => {
+        setConfirmConfig({
+            title: 'Delete Inventory Item',
+            message: `Are you sure you want to permanently delete "${itemName}"? This action cannot be undone.`,
+            confirmText: 'Yes, Delete',
+            isDestructive: true,
+            onConfirm: () => executeDelete(id)
+        });
+    };
 
+    const executeDelete = async (id) => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/inventory/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const res = await authFetch(`/inventory/${id}`, { method: 'DELETE' });
 
             if (res.ok) {
                 setInventoryList(prev => prev.filter(item => item.id !== id));
@@ -126,6 +133,8 @@ export default function InventoryTracker() {
         } catch (error) {
             console.error("Error deleting item:", error);
             alert("Cannot connect to server.");
+        } finally {
+            setConfirmConfig(null); // Close the modal
         }
     };
 
@@ -141,16 +150,16 @@ export default function InventoryTracker() {
 
     const getStatusBadge = (current, threshold) => {
         if (current <= 0) {
-            return <span style={{ backgroundColor: '#fef2f2', color: '#dc3545', padding: '5px 12px', borderRadius: '20px', fontWeight: '600', fontSize: '12px', border: '1px solid #fecaca' }}>Out of Stock</span>;
+            return <span style={{ backgroundColor: '#fef2f2', color: '#dc3545', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fecaca', whiteSpace: 'nowrap' }}>OUT OF STOCK</span>;
         }
         if (current <= threshold) {
             return (
-                <span style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '5px 12px', borderRadius: '20px', fontWeight: '600', fontSize: '12px', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <FaExclamationCircle /> Low Stock
+                <span style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                    <FaExclamationCircle /> LOW STOCK
                 </span>
             );
         }
-        return <span style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '5px 12px', borderRadius: '20px', fontWeight: '600', fontSize: '12px', border: '1px solid #bbf7d0' }}>In Stock</span>;
+        return <span style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #bbf7d0', whiteSpace: 'nowrap' }}>IN STOCK</span>;
     };
 
     return (
@@ -159,6 +168,49 @@ export default function InventoryTracker() {
                 <h1 className={styles.title}>Inventory Tracker</h1>
                 <p className={styles.subtitle}>Monitor clinic supplies, check stock levels, and receive low-stock alerts.</p>
             </header>
+
+            <div className={styles.statsGrid}>
+                <div className={styles.statCard}>
+                    <div className={styles.statHeader}>
+                        <p className={styles.statTitle}>Total Items</p>
+                        <div className={`${styles.statIconWrapper} ${styles.bgBlue}`}>
+                            <FaBoxes className={styles.statIcon} />
+                        </div>
+                    </div>
+                    <h2 className={styles.statValue}>{inventoryStats.total}</h2>
+                    <p className={styles.statDesc}>Tracked in system</p>
+                </div>
+
+                <div className={styles.statCard}>
+                    <div className={styles.statHeader}>
+                        <p className={styles.statTitle}>Low Stock</p>
+                        <div className={`${styles.statIconWrapper} ${styles.bgYellow}`}>
+                            <FaExclamationTriangle className={styles.statIcon} />
+                        </div>
+                    </div>
+                    <h2 className={styles.statValue} style={{ color: inventoryStats.lowStock > 0 ? '#d97706' : '#01538b' }}>
+                        {inventoryStats.lowStock}
+                    </h2>
+                    <p className={`${styles.statDesc} ${inventoryStats.lowStock > 0 ? styles.warningText : ''}`}>
+                        {inventoryStats.lowStock > 0 ? 'Approaching depletion' : 'Stock levels optimal'}
+                    </p>
+                </div>
+
+                <div className={styles.statCard}>
+                    <div className={styles.statHeader}>
+                        <p className={styles.statTitle}>Out of Stock</p>
+                        <div className={`${styles.statIconWrapper} ${styles.bgRed}`}>
+                            <FaTimesCircle className={styles.statIcon} />
+                        </div>
+                    </div>
+                    <h2 className={styles.statValue} style={{ color: inventoryStats.outOfStock > 0 ? '#dc2626' : '#01538b' }}>
+                        {inventoryStats.outOfStock}
+                    </h2>
+                    <p className={`${styles.statDesc} ${inventoryStats.outOfStock > 0 ? styles.dangerText : ''}`}>
+                        {inventoryStats.outOfStock > 0 ? 'Requires immediate restock' : 'No empty stocks'}
+                    </p>
+                </div>
+            </div>
 
             <div className={styles.controlsRow}>
                 <div className={styles.searchFilterGroup}>
@@ -185,7 +237,6 @@ export default function InventoryTracker() {
                     </select>
                 </div>
                 
-                {/* PROTECTED: ADD BUTTON */}
                 {canEditInventory && (
                     <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
                         <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add New Item
@@ -197,48 +248,65 @@ export default function InventoryTracker() {
                 <table className={styles.userTable}>
                     <thead>
                         <tr>
-                            <th>Item Name</th>
-                            <th>Category</th>
-                            <th>Stock Level</th>
-                            <th>Threshold (Min)</th>
-                            <th>Status</th>
-                            <th style={{ textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '25%' }}>Item Name</th>
+                            <th style={{ width: '22%' }}>Category</th>
+                            <th style={{ width: '20%' }}>Stock Level</th>
+                            <th style={{ width: '13%' }}>Threshold</th>
+                            <th style={{ width: '10%' }}>Status</th>
+                            <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#01538b'}}>Loading inventory records...</td></tr>
+                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#01538b'}}>Loading inventory records...</td></tr>
                         ) : filteredInventory.length > 0 ? (
-                            filteredInventory.map((item) => (
-                                <tr key={item.id}>
-                                    <td className={styles.fwBold} style={{ color: '#01538b' }}>{item.name}</td>
-                                    <td>
-                                        <span style={{ backgroundColor: '#f1f5f9', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', color: '#475569', fontWeight: '500' }}>
-                                            {item.category}
-                                        </span>
-                                    </td>
-                                    <td style={{ fontWeight: '600', color: item.currentStock <= item.threshold ? '#dc3545' : '#333' }}>
-                                        {item.currentStock} {item.unit}
-                                    </td>
-                                    <td style={{ color: '#888', fontSize: '13px' }}>
-                                        {item.threshold} {item.unit}
-                                    </td>
-                                    <td>{getStatusBadge(item.currentStock, item.threshold)}</td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        {/* PROTECTED: EDIT & DELETE BUTTONS */}
-                                        {canEditInventory ? (
-                                            <>
-                                                <button className={styles.iconBtn} onClick={() => handleEditClick(item.id)} title="Edit Item"><FaEdit /></button>
-                                                <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => handleDelete(item.id, item.name)} title="Delete Item" style={{ color: '#dc3545' }}><FaTrash /></button>
-                                            </>
-                                        ) : (
-                                            <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Read Only</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))
+                            filteredInventory.map((item) => {
+                                const maxVisualCapacity = Math.max(item.currentStock, item.threshold * 2) || 1;
+                                const fillPercentage = Math.min(100, (item.currentStock / maxVisualCapacity) * 100);
+                                
+                                let fillClass = styles.fillGreen;
+                                if (item.currentStock <= 0) fillClass = styles.fillRed;
+                                else if (item.currentStock <= item.threshold) fillClass = styles.fillYellow;
+
+                                return (
+                                    <tr key={item.id}>
+                                        <td className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>{item.name}</td>
+                                        <td>
+                                            <span style={{ backgroundColor: '#f1f5f9', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', color: '#475569', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                {item.category}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span style={{ fontWeight: '700', color: item.currentStock <= item.threshold ? '#dc3545' : '#334155', fontSize: '15px' }}>
+                                                {item.currentStock} <span style={{ fontSize: '12px', fontWeight: '500', color: '#64748b' }}>{item.unit}</span>
+                                            </span>
+                                            <div className={styles.progressBarBg}>
+                                                <div 
+                                                    className={`${styles.progressBarFill} ${fillClass}`}
+                                                    style={{ width: `${fillPercentage}%` }}
+                                                ></div>
+                                            </div>
+                                        </td>
+                                        <td style={{ color: '#64748b', fontSize: '14px', fontWeight: '500' }}>
+                                            {item.threshold} <span style={{ fontSize: '12px' }}>{item.unit}</span>
+                                        </td>
+                                        <td>{getStatusBadge(item.currentStock, item.threshold)}</td>
+                                        <td className={styles.actionsCell} style={{ textAlign: 'center' }}>
+                                            {canEditInventory ? (
+                                                <>
+                                                    <button className={styles.iconBtn} onClick={() => handleEditClick(item.id)} title="Edit Item"><FaEdit /></button>
+                                                    {/* TASK 6.1: Modified onClick to trigger the new Confirm Modal */}
+                                                    <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => triggerDelete(item.id, item.name)} title="Delete Item" style={{ color: '#dc3545' }}><FaTrash /></button>
+                                                </>
+                                            ) : (
+                                                <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Read Only</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         ) : (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No items found in inventory.</td></tr>
+                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>No items found in inventory.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -262,6 +330,18 @@ export default function InventoryTracker() {
                     onSuccess={fetchInventory} 
                 />
             )}
+
+            {/* TASK 6.1: Global Confirm Modal Render */}
+            <ConfirmModal 
+                isOpen={!!confirmConfig}
+                title={confirmConfig?.title}
+                message={confirmConfig?.message}
+                confirmText={confirmConfig?.confirmText}
+                isDestructive={confirmConfig?.isDestructive}
+                onConfirm={confirmConfig?.onConfirm}
+                onCancel={() => setConfirmConfig(null)}
+            />
+
         </div>
     );
 }

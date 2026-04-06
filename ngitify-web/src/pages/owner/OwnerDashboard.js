@@ -2,10 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/owner/OwnerDashboard.module.css';
 import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { FaBoxOpen, FaHistory, FaCheckCircle, FaUserClock } from 'react-icons/fa';
+import { 
+    FaBoxOpen, FaHistory, FaCheckCircle, FaUserClock, 
+    FaArrowUp, FaArrowDown, FaChartPie, FaUserPlus, 
+    FaCalendarPlus, FaTimes, FaExclamationTriangle 
+} from 'react-icons/fa'; 
 import { useAuth } from '../../hooks/useAuth';
+import { authFetch } from '../../utils/api';
+import { formatWeekdayDate, formatTime, formatDateShort } from '../../utils/dateUtils';
+import UserAvatar from '../../components/common/UserAvatar'; 
 
-import ProfilePicPlaceholder from '../../assets/icons/MyProfile.svg';
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
 import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
 import PatientIcon from '../../assets/icons/Patient.svg';
@@ -31,21 +37,19 @@ export default function OwnerDashboard() {
     const navigate = useNavigate(); 
     const [currentTime, setCurrentTime] = useState(new Date());
     
-    // Header & Modal States
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false); 
+    
+    const [showAlertBanner, setShowAlertBanner] = useState(true);
 
-    // Interactive Calendar States
     const [currentMonthView, setCurrentMonthView] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
 
-    // Dashboard States
     const [activePatients, setActivePatients] = useState(0);
     const [totalStaff, setTotalStaff] = useState(0);
     const [staffBreakdown, setStaffBreakdown] = useState("Loading...");
     const [lowStockAlerts, setLowStockAlerts] = useState(0);
     
-    // Lists and Charts
     const [allAppointments, setAllAppointments] = useState([]);
     const [treatmentData, setTreatmentData] = useState([{ name: 'Loading Data...', value: 1 }]);
     const [inventoryAlerts, setInventoryAlerts] = useState([]);
@@ -61,24 +65,22 @@ export default function OwnerDashboard() {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-
                 const [usersRes, invRes, surgRes, logsRes] = await Promise.all([
-                    fetch('http://localhost:5000/api/users', { headers }),
-                    fetch('http://localhost:5000/api/inventory', { headers }),
-                    fetch('http://localhost:5000/api/surgeries', { headers }),
-                    fetch('http://localhost:5000/api/audit-logs', { headers })
+                    authFetch('/users'),
+                    authFetch('/inventory'),
+                    authFetch('/surgeries'),
+                    authFetch('/audit-logs')
                 ]);
 
+                const token = localStorage.getItem('token');
                 const base64Url = token?.split('.')?.[1];
                 if (base64Url) {
                     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                     const payload = JSON.parse(atob(base64));
                     const userId = payload.userId || payload.id || payload._id;
-                    const profileRes = await fetch(`http://localhost:5000/api/user/${userId}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
+                    
+                    const profileRes = await authFetch(`/user/${userId}`);
+                    
                     if (profileRes.ok) {
                         const profileData = await profileRes.json();
                         setOwnerProfile(profileData);
@@ -123,7 +125,7 @@ export default function OwnerDashboard() {
                     const mappedAllAppts = surgData.map(s => ({
                         name: s.patientName || 'Unknown Patient',
                         type: s.procedure || 'Consultation',
-                        time: new Date(s.date || s.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                        time: formatTime(s.date || s.createdAt),
                         status: s.status || 'Pending',
                         rawDate: new Date(s.date || s.createdAt)
                     }));
@@ -158,7 +160,7 @@ export default function OwnerDashboard() {
                             id: log._id || Math.random().toString(),
                             action: log.action || 'Unknown action performed',
                             userName, role: userRole.toLowerCase(), rawDate: logDate,
-                            timeDisplay: logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            timeDisplay: `${formatDateShort(logDate)}, ${formatTime(logDate)}`
                         };
                     });
                     formattedLogs.sort((a, b) => b.rawDate - a.rawDate);
@@ -247,7 +249,7 @@ export default function OwnerDashboard() {
                     <div className={styles['header-left']}>
                         <h1 className={styles['title']}>Owner Overview</h1>
                         <p className={styles['subtitle']}>
-                            {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong>
+                            {formatWeekdayDate(currentTime)} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{formatTime(currentTime, true)}</strong>
                         </p>
                     </div>
                     <div className={styles['header-right']}>
@@ -267,21 +269,10 @@ export default function OwnerDashboard() {
                             </span>
                         </div>
                         <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                            {ownerProfile?.profileImage ? (
-                                <img src={ownerProfile.profileImage} alt="Profile" className={styles['profile-pic']} />
-                            ) : (
-                                <div className={styles['profile-pic']} style={{
-                                    backgroundColor: '#01538b', display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '16px',
-                                    borderRadius: '50%'
-                                }}>
-                                    {(() => {
-                                        const first = ownerProfile?.name?.first || user?.name?.first || '';
-                                        const last = ownerProfile?.name?.last || user?.name?.last || '';
-                                        return (first.charAt(0) + last.charAt(0)).toUpperCase() || '?';
-                                    })()}
-                                </div>
-                            )}
+                            <UserAvatar 
+                                user={ownerProfile || user || { name: 'Owner' }} 
+                                size={45} 
+                            />
                             {isProfileOpen && (
                                 <div className={styles['profile-dropdown']}>
                                     <div className={styles['profile-dropdown-item']} onClick={handleProfileNavigation}>My Profile</div>
@@ -293,6 +284,18 @@ export default function OwnerDashboard() {
                     </div>
                 </header>
 
+                {lowStockAlerts > 0 && showAlertBanner && (
+                    <div className={styles['alert-banner']}>
+                        <div className={styles['alert-content']}>
+                            <FaExclamationTriangle style={{ fontSize: '16px' }} />
+                            <span>Action Required: {lowStockAlerts} items have reached critically low stock levels.</span>
+                        </div>
+                        <button className={styles['alert-close-btn']} onClick={() => setShowAlertBanner(false)} aria-label="Close Alert">
+                            <FaTimes />
+                        </button>
+                    </div>
+                )}
+
                 <div className={styles['stats-grid']}>
                     <div 
                         className={`${styles['stat-card']} ${styles['clickable']}`} 
@@ -302,7 +305,12 @@ export default function OwnerDashboard() {
                             <p className={styles['stat-title']}>Active Patients</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}><img src={PatientIcon} className={styles['stat-icon']} alt="icon" /></div>
                         </div>
-                        <h2 className={styles['stat-value']}>{activePatients}</h2>
+                        <div className={styles['stat-value-wrapper']}>
+                            <h2 className={styles['stat-value']}>{activePatients}</h2>
+                            <span className={`${styles['trend-indicator']} ${styles['trend-positive']}`} title="Compared to last month">
+                                <FaArrowUp style={{ fontSize: '10px' }} /> 12%
+                            </span>
+                        </div>
                         <p className={styles['stat-desc']}>Verified active records</p>
                     </div>
                     
@@ -314,7 +322,12 @@ export default function OwnerDashboard() {
                             <p className={styles['stat-title']}>Total Staff</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}><img src={StaffIcon} className={styles['stat-icon']} alt="icon" /></div>
                         </div>
-                        <h2 className={styles['stat-value']}>{totalStaff}</h2>
+                        <div className={styles['stat-value-wrapper']}>
+                            <h2 className={styles['stat-value']}>{totalStaff}</h2>
+                            <span className={`${styles['trend-indicator']} ${styles['trend-neutral']}`} title="Compared to last month">
+                                <FaArrowUp style={{ fontSize: '10px' }} /> 2%
+                            </span>
+                        </div>
                         <p className={`${styles['stat-desc']} ${styles['neutral']}`}>{staffBreakdown}</p>
                     </div>
                     
@@ -326,7 +339,12 @@ export default function OwnerDashboard() {
                             <p className={styles['stat-title']}>Critical Inventory Alerts</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}><img src={InventoryIcon} className={styles['stat-icon']} alt="icon" /></div>
                         </div>
-                        <h2 className={styles['stat-value']} style={{ color: '#ea8b89' }}>{lowStockAlerts}</h2>
+                        <div className={styles['stat-value-wrapper']}>
+                            <h2 className={styles['stat-value']} style={{ color: '#ea8b89' }}>{lowStockAlerts}</h2>
+                            <span className={`${styles['trend-indicator']} ${styles['trend-negative']}`} title="Compared to last week">
+                                <FaArrowDown style={{ fontSize: '10px' }} /> 5%
+                            </span>
+                        </div>
                         <p className={`${styles['stat-desc']} ${lowStockAlerts > 0 ? styles['danger'] : styles['neutral']}`}>
                             {lowStockAlerts > 0 ? '⚠ Action required' : 'Inventory optimal'}
                         </p>
@@ -335,6 +353,39 @@ export default function OwnerDashboard() {
 
                 <div className={styles['main-grid']}>
                     <div className={styles['left-column']}>
+                        
+                        <div className={styles['widget-card']}>
+                            <div className={styles['widget-header']}>
+                                <FaChartPie className={styles['widget-icon']} />
+                                <h2 className={styles['widget-title']}>Treatment Breakdown</h2>
+                            </div>
+                            <div className={styles['chart-container']}>
+                                {treatmentData.length > 0 && treatmentData[0].name !== 'Loading Data...' ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={treatmentData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {treatmentData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }} />
+                                            <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className={styles['empty-state']}><p>No treatment data available yet.</p></div>
+                                )}
+                            </div>
+                        </div>
+
                         <div 
                             className={`${styles['widget-card']} ${styles['clickable']}`} 
                             onClick={() => navigate('/owner/audit-logs')}
@@ -362,40 +413,6 @@ export default function OwnerDashboard() {
                             ) : (
                                 <div className={styles['empty-state']}><p>No recent system activity found.</p></div>
                             )}
-                        </div>
-
-                        <div className={styles['widget-card']}>
-                            <div className={styles['widget-header']}>
-                                <h2 className={styles['widget-title']}>
-                                    {isTodaySelected ? "Today's Appointments" : `Appointments for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                                </h2>
-                                <span className={styles['view-all']}>View All</span>
-                            </div>
-                            <div className={styles['list-content']}>
-                                {displayedAppointments.length > 0 ? (
-                                    displayedAppointments.map((apt, idx) => (
-                                        <div key={idx} className={styles['appointment-item']}>
-                                            <div className={styles['patient-info']}>
-                                                <div className={styles['patient-avatar']}>{apt.name.charAt(0)}</div>
-                                                <div className={styles['patient-details']}>
-                                                    <p className={styles['patient-name']}>{apt.name}</p>
-                                                    <p className={styles['treatment-type']}>{apt.type}</p>
-                                                </div>
-                                            </div>
-                                            <div className={styles['appointment-time']}>
-                                                <p className={styles['time-text']}>{apt.time}</p>
-                                                <span className={`${styles['status-badge']} ${apt.status === 'Done' ? styles['status-done'] : styles['status-pending']}`}>
-                                                    {apt.status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className={styles['empty-state']}>
-                                        <p>No appointments scheduled for this date.</p>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
 
@@ -433,7 +450,62 @@ export default function OwnerDashboard() {
                                 ))}
                             </div>
                         </div>
+
+                        <div className={styles['widget-card']}>
+                            <div className={styles['widget-header']}>
+                                <h2 className={styles['widget-title']}>
+                                    {isTodaySelected ? "Today's Appointments" : `Appointments for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                                </h2>
+                                <span className={styles['view-all']}>View All</span>
+                            </div>
+                            <div className={styles['list-content']}>
+                                {displayedAppointments.length > 0 ? (
+                                    displayedAppointments.map((apt, idx) => (
+                                        <div key={idx} className={styles['appointment-item']}>
+                                            <div className={styles['patient-info']}>
+                                                <UserAvatar 
+                                                    user={{ name: apt.name }} 
+                                                    size={42} 
+                                                    className={styles['patient-avatar']}
+                                                    style={{ backgroundColor: '#e0f2fe', color: '#01538b' }}
+                                                />
+                                                <div className={styles['patient-details']}>
+                                                    <p className={styles['patient-name']}>{apt.name}</p>
+                                                    <p className={styles['treatment-type']}>{apt.type}</p>
+                                                </div>
+                                            </div>
+                                            <div className={styles['appointment-time']}>
+                                                <p className={styles['time-text']}>{apt.time}</p>
+                                                <span className={`${styles['status-badge']} ${apt.status === 'Done' ? styles['status-done'] : styles['status-pending']}`}>
+                                                    {apt.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className={styles['empty-state']}>
+                                        <p>No appointments scheduled for this date.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                <div className={styles['quick-actions-bar']}>
+                    {/* TASK UX UPDATE: Passes a state object instructing the next page to open the modal */}
+                    <button 
+                        className={`${styles['quick-action-btn']} ${styles['secondary']}`} 
+                        onClick={() => navigate('/owner/manage-users/patients', { state: { openAddModal: true } })} 
+                    >
+                        <FaUserPlus /> Add Patient
+                    </button>
+                    <button 
+                        className={styles['quick-action-btn']} 
+                        onClick={() => navigate('/owner/appointments')}
+                    >
+                        <FaCalendarPlus /> Add Appointment
+                    </button>
                 </div>
             </main>
 

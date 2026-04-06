@@ -1,18 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/ManageSecretaries.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { authFetch } from '../../utils/api';
+import UserAvatar from '../../components/common/UserAvatar';
 
-import UserTabs from './UserTabs'; // NEW: Imported UserTabs
+import UserTabs from './UserTabs'; 
 import AddSecretary from './AddSecretary'; 
 import EditSecretary from './EditSecretary';
 import ViewSecretary from './ViewSecretary';
 
 export default function ManageSecretaries() {
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [verifiedFilter, setVerifiedFilter] = useState('All');
+
     const [secretariesList, setSecretariesList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     
-    // Modal States
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -21,17 +25,10 @@ export default function ManageSecretaries() {
     const fetchSecretaries = useCallback(async () => {
         try {
             setIsLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/users?role=secretary', {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const response = await authFetch('/users?role=secretary');
 
             if (response.ok) {
                 const data = await response.json();
-                
                 const mappedSecretaries = data
                     .filter(u => u.role === 'secretary')
                     .map(u => {
@@ -42,40 +39,37 @@ export default function ManageSecretaries() {
                             parsedName = `${u.firstName} ${u.lastName || ''}`.trim();
                         } else if (typeof u.name === 'string') {
                             parsedName = u.name;
-                        } else if (u.email) {
-                            parsedName = u.email;
                         }
-
                         return {
                             id: u._id,
                             name: parsedName,
-                            contact: u.contactNumber || u.phoneNumber || 'N/A',
+                            email: u.email || 'N/A',
                             status: u.status === 'active' ? 'Active' : 'Inactive',
                             isVerified: u.isVerified,
                             profileImage: u.profileImage
                         };
                     });
-                    
                 setSecretariesList(mappedSecretaries);
             }
-        } catch (error) {
-            console.error("Failed to fetch secretaries:", error);
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (error) { console.error("Failed to fetch secretaries:", error); } 
+        finally { setIsLoading(false); }
     }, []);
 
-    useEffect(() => {
-        fetchSecretaries();
-    }, [fetchSecretaries]);
+    useEffect(() => { fetchSecretaries(); }, [fetchSecretaries]);
 
-    const filteredSecretaries = secretariesList.filter(secretary => 
-        secretary.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredSecretaries = secretariesList.filter(secretary => {
+        const matchesSearch = secretary.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              secretary.email.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === 'All' || secretary.status === statusFilter;
+        const matchesVerified = verifiedFilter === 'All' || 
+                                (verifiedFilter === 'Verified' && secretary.isVerified) || 
+                                (verifiedFilter === 'Unverified' && !secretary.isVerified);
+
+        return matchesSearch && matchesStatus && matchesVerified;
+    });
 
     const handleToggleStatus = async (secretary) => {
         const newStatus = secretary.status === 'Active' ? 'inactive' : 'active';
-        
         if (newStatus === 'active' && !secretary.isVerified) {
             alert(`Cannot activate ${secretary.name}. Their email is not yet verified.`);
             return;
@@ -88,13 +82,8 @@ export default function ManageSecretaries() {
         if (!window.confirm(confirmMsg)) return;
 
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/user/toggle-status/${secretary.id}`, {
+            const res = await authFetch(`/user/toggle-status/${secretary.id}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify({ status: newStatus })
             });
 
@@ -106,33 +95,13 @@ export default function ManageSecretaries() {
                 const data = await res.json();
                 alert(data.message || "Failed to update status.");
             }
-        } catch (error) {
-            console.error("Error toggling status:", error);
-            alert("Cannot connect to server.");
-        }
+        } catch (error) { console.error("Error toggling status:", error); alert("Cannot connect to server."); }
     };
 
-    const handleEditClick = (id) => {
-        setIsViewModalOpen(false);
-        setSelectedSecretaryId(id);
-        setIsEditModalOpen(true);
-    };
-
-    const handleViewClick = (id) => {
-        setIsEditModalOpen(false);
-        setSelectedSecretaryId(id);
-        setIsViewModalOpen(true);
-    };
-
-    const handleCloseEditModal = () => {
-        setIsEditModalOpen(false);
-        setSelectedSecretaryId(null);
-    };
-
-    const handleCloseViewModal = () => {
-        setIsViewModalOpen(false);
-        setSelectedSecretaryId(null);
-    };
+    const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedSecretaryId(id); setIsEditModalOpen(true); };
+    const handleViewClick = (id) => { setIsEditModalOpen(false); setSelectedSecretaryId(id); setIsViewModalOpen(true); };
+    const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedSecretaryId(null); };
+    const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedSecretaryId(null); };
 
     return (
         <div className={styles.container}>
@@ -142,15 +111,33 @@ export default function ManageSecretaries() {
             </header>
 
             <div className={styles.controlsRow}>
-                <div className={styles.searchWrapper}>
-                    <FaSearch className={styles.searchIcon} />
-                    <input 
-                        type="text" 
-                        placeholder="Search secretaries by name..." 
-                        className={styles.searchInput} 
-                        value={searchQuery} 
-                        onChange={(e) => setSearchQuery(e.target.value)} 
-                    />
+                <div className={styles.searchFilterGroup}>
+                    <div className={styles.searchWrapper}>
+                        <FaSearch className={styles.searchIcon} />
+                        <input 
+                            type="text" 
+                            placeholder="Search secretaries by name or email..." 
+                            className={styles.searchInput} 
+                            value={searchQuery} 
+                            onChange={(e) => setSearchQuery(e.target.value)} 
+                        />
+                    </div>
+                    
+                    <select 
+                        className={styles.filterSelect}
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        <option value="All">All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+
+                    <div className={styles.pillGroup}>
+                        <button className={`${styles.filterPill} ${verifiedFilter === 'All' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('All')}>All</button>
+                        <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
+                        <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
+                    </div>
                 </div>
                 
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
@@ -158,16 +145,15 @@ export default function ManageSecretaries() {
                 </button>
             </div>
 
-            {/* NEW: Inserted UserTabs here */}
             <UserTabs activeTab="secretaries" />
 
             <div className={styles.tableContainer}>
                 <table className={styles.userTable}>
                     <thead>
                         <tr>
-                            <th style={{ width: '70px' }}></th>
+                            <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
                             <th>Secretary Name</th>
-                            <th>Contact Number</th>
+                            <th>Email Address</th>
                             <th style={{ width: '180px' }}>Account Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
@@ -178,32 +164,17 @@ export default function ManageSecretaries() {
                         ) : filteredSecretaries.length > 0 ? (
                             filteredSecretaries.map((secretary) => (
                                 <tr key={secretary.id} style={{ opacity: secretary.status === 'Inactive' ? 0.6 : 1 }}>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <UserAvatar user={{ name: secretary.name, profileImage: secretary.profileImage }} size={40} />
+                                    </td>
                                     <td>
-                                        {secretary.profileImage ? (
-                                            <img
-                                                src={secretary.profileImage}
-                                                alt={secretary.name}
-                                                style={{
-                                                    width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'
-                                                }}
-                                            />
-                                        ) : (
-                                            <div style={{ 
-                                                width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#01538b', 
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '14px' 
-                                            }}>
-                                                {(() => { const p = secretary.name.trim().split(/\s+/); return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); })()}
-                                            </div>
-                                        )}
+                                        <span className={styles.fwBold}>{secretary.name}</span>
+                                        {!secretary.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
-                                    <td className={styles.fwBold}>
-                                        {secretary.name}
-                                        {!secretary.isVerified && <span style={{fontSize: '11px', color: '#ff4d4d', display: 'block', fontWeight: 'normal'}}>Unverified Email</span>}
-                                    </td>
-                                    <td>{secretary.contact}</td>
+                                    <td>{secretary.email}</td>
                                     <td>
                                         <span className={`${styles.statusDot} ${secretary.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
-                                        {secretary.status}
+                                        <span style={{ fontWeight: '500', color: secretary.status === 'Active' ? '#15803d' : '#b91c1c' }}>{secretary.status}</span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
                                         <button className={styles.iconBtn} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
@@ -212,7 +183,7 @@ export default function ManageSecretaries() {
                                             className={`${styles.iconBtn}`} 
                                             onClick={() => handleToggleStatus(secretary)}
                                             title={secretary.status === 'Active' ? "Deactivate Account" : "Activate Account"}
-                                            style={{ color: secretary.status === 'Inactive' ? '#22c55e' : '#64748b', fontSize: '20px' }}
+                                            style={{ color: secretary.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                         >
                                             {secretary.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                         </button>
@@ -220,34 +191,21 @@ export default function ManageSecretaries() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found.</td></tr>
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found matching filters.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
-            {isAddModalOpen && (
-                <AddSecretary onClose={() => setIsAddModalOpen(false)} onSuccess={fetchSecretaries} />
-            )}
-
+            {isAddModalOpen && <AddSecretary onClose={() => setIsAddModalOpen(false)} onSuccess={fetchSecretaries} />}
             {isViewModalOpen && selectedSecretaryId && (
                 <ViewSecretary
                     secretaryId={selectedSecretaryId}
                     onClose={handleCloseViewModal}
-                    onEdit={() => {
-                        setIsViewModalOpen(false);
-                        setIsEditModalOpen(true);
-                    }}
+                    onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
                 />
             )}
-
-            {isEditModalOpen && selectedSecretaryId && (
-                <EditSecretary 
-                    secretaryId={selectedSecretaryId}
-                    onClose={handleCloseEditModal} 
-                    onSuccess={fetchSecretaries} 
-                />
-            )}
+            {isEditModalOpen && selectedSecretaryId && <EditSecretary secretaryId={selectedSecretaryId} onClose={handleCloseEditModal} onSuccess={fetchSecretaries} />}
         </div>
     );
 }
