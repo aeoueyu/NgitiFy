@@ -3,6 +3,11 @@ import { regions, provinces, cities } from '../../utils/addressData';
 import styles from '../../styles/owner/StaffModals.module.css';
 import BackIcon from '../../assets/icons/Back.svg'; 
 
+// TASK 2.1 & 2.2: Import Global Utilities
+import { authFetch } from '../../utils/api';
+import UserAvatar from '../../components/common/UserAvatar';
+import { formatDateShort } from '../../utils/dateUtils';
+
 export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
     const [secretary, setSecretary] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -10,10 +15,8 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
     useEffect(() => {
         const fetchSecretary = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:5000/api/user/${secretaryId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // TASK 2.1: Replace raw fetch and inline token with authFetch
+                const response = await authFetch(`/user/${secretaryId}`);
                 if (response.ok) {
                     const data = await response.json();
                     setSecretary(data);
@@ -27,11 +30,6 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
         if (secretaryId) fetchSecretary();
     }, [secretaryId]);
 
-    const getInitials = (first, last) => {
-        return `${first?.charAt(0) || ''}${last?.charAt(0) || ''}`.toUpperCase() || '?';
-    };
-
-    // ✅ REPLACE WITH
     const formatAddress = (addr) => {
         if (!addr || !addr.region) return "Not provided";
         const rName = regions.find(r => r.code === addr.region)?.name || addr.region;
@@ -59,12 +57,15 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
                         </div>
 
                         <div className={styles.profileHeader}>
-                            {secretary.profileImage ? (
-                                <img src={secretary.profileImage} alt="Profile" className={styles.profileImageLg} />
-                            ) : (
-                                <div className={styles.profileInitialsLg}>{getInitials(secretary.name?.first, secretary.name?.last)}</div>
-                            )}
-                            <div>
+                            {/* TASK 2.2: Adopt UserAvatar for clean, consistent UI */}
+                            <UserAvatar 
+                                user={{ 
+                                    name: `${secretary.name?.first || ''} ${secretary.name?.last || ''}`.trim() || 'Secretary', 
+                                    profileImage: secretary.profileImage 
+                                }} 
+                                size={70} 
+                            />
+                            <div style={{ marginLeft: '15px' }}>
                                 <h3 className={styles.profileName}>{secretary.name?.first} {secretary.name?.last}</h3>
                                 <p className={`${styles.profileRole} ${styles.secRole}`}>Front Desk Personnel</p>
                             </div>
@@ -81,7 +82,8 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
                             </div>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Birthdate</span>
-                                <p className={styles.infoValue}>{secretary.birthdate ? new Date(secretary.birthdate).toLocaleDateString() : 'Not provided'}</p>
+                                {/* TASK 2.2: Adopt dateUtils */}
+                                <p className={styles.infoValue}>{secretary.birthdate ? formatDateShort(new Date(secretary.birthdate)) : 'Not provided'}</p>
                             </div>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Gender</span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import styles from '../../styles/owner/ManagePatients.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions'; 
@@ -10,12 +11,18 @@ import UserTabs from './UserTabs';
 import AddPatient from './AddPatient'; 
 import EditPatient from './EditPatient';
 import PatientProfile from './PatientProfile'; 
+import ConfirmModal from '../../components/common/ConfirmModal'; 
+import { useToast } from '../../context/ToastContext'; // TASK 3.2: Imported Toast
 
 export default function ManagePatients() {
     const { user } = useAuth();
     const { canReadPatients, canEditPatients } = usePermissions(); 
     
-    // Search & Filter States
+    const location = useLocation();
+    const navigate = useNavigate();
+    
+    const { addToast } = useToast(); // TASK 3.2: Initialize Toast
+    
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [verifiedFilter, setVerifiedFilter] = useState('All');
@@ -28,7 +35,16 @@ export default function ManagePatients() {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false); 
     const [selectedPatientId, setSelectedPatientId] = useState(null);
 
+    const [confirmConfig, setConfirmConfig] = useState(null);
+
     const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
+
+    useEffect(() => {
+        if (location.state?.openAddModal && canEditPatients) {
+            setIsAddModalOpen(true);
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location, navigate, canEditPatients]);
 
     const fetchPatients = useCallback(async () => {
         try {
@@ -84,35 +100,49 @@ export default function ManagePatients() {
         return matchesSearch && matchesStatus && matchesVerified;
     });
 
-    const handleToggleStatus = async (patient) => {
+    // TASK 3.1 & 3.2: Replaced window.confirm and alert()
+    const handleToggleStatus = (patient) => {
         const newStatus = patient.status === 'Active' ? 'inactive' : 'active';
         
         if (newStatus === 'active' && !patient.isVerified) {
-            alert(`Cannot activate ${patient.name}. Their email is not yet verified.`);
+            addToast(`Cannot activate ${patient.name}. Their email is not yet verified.`, 'error');
             return;
         }
 
-        const confirmMsg = newStatus === 'active' 
-            ? `Are you sure you want to ACTIVATE patient account for: ${patient.name}?` 
-            : `Are you sure you want to DEACTIVATE patient account for: ${patient.name}?`;
-            
-        if (!window.confirm(confirmMsg)) return;
+        setConfirmConfig({
+            title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
+            message: newStatus === 'active' 
+                ? `Are you sure you want to ACTIVATE patient account for: ${patient.name}?` 
+                : `Are you sure you want to DEACTIVATE patient account for: ${patient.name}?`,
+            confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
+            isDestructive: newStatus !== 'active',
+            onConfirm: () => executeToggleStatus(patient.id, newStatus, patient.name),
+            onCancel: () => setConfirmConfig(null)
+        });
+    };
 
+    const executeToggleStatus = async (id, newStatus, name) => {
         try {
-            const res = await authFetch(`/user/toggle-status/${patient.id}`, {
+            const res = await authFetch(`/user/toggle-status/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: newStatus })
             });
 
             if (res.ok) {
                 setPatientsList(prevList => prevList.map(p => 
-                    p.id === patient.id ? { ...p, status: newStatus === 'active' ? 'Active' : 'Inactive' } : p
+                    p.id === id ? { ...p, status: newStatus === 'active' ? 'Active' : 'Inactive' } : p
                 ));
+                addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} ${name}'s account.`, 'success');
             } else {
                 const data = await res.json();
-                alert(data.message || "Failed to update status.");
+                addToast(data.message || "Failed to update status.", 'error');
             }
-        } catch (error) { console.error("Error toggling status:", error); alert("Cannot connect to server."); }
+        } catch (error) { 
+            console.error("Error toggling status:", error); 
+            addToast("Cannot connect to server.", 'error'); 
+        } finally {
+            setConfirmConfig(null);
+        }
     };
 
     const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedPatientId(id); setIsEditModalOpen(true); };
@@ -239,6 +269,16 @@ export default function ManagePatients() {
                 />
             )}
             {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}
+
+            <ConfirmModal 
+                isOpen={!!confirmConfig}
+                title={confirmConfig?.title}
+                message={confirmConfig?.message}
+                confirmText={confirmConfig?.confirmText}
+                isDestructive={confirmConfig?.isDestructive}
+                onConfirm={confirmConfig?.onConfirm}
+                onCancel={() => setConfirmConfig(null)}
+            />
         </div>
     );
 }

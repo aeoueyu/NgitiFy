@@ -8,8 +8,12 @@ import UserTabs from './UserTabs';
 import AddSecretary from './AddSecretary'; 
 import EditSecretary from './EditSecretary';
 import ViewSecretary from './ViewSecretary';
+import ConfirmModal from '../../components/common/ConfirmModal'; 
+import { useToast } from '../../context/ToastContext'; // TASK 3.2: Imported Toast
 
 export default function ManageSecretaries() {
+    const { addToast } = useToast(); // TASK 3.2: Initialize Toast
+
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [verifiedFilter, setVerifiedFilter] = useState('All');
@@ -21,6 +25,8 @@ export default function ManageSecretaries() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedSecretaryId, setSelectedSecretaryId] = useState(null);
+
+    const [confirmConfig, setConfirmConfig] = useState(null);
 
     const fetchSecretaries = useCallback(async () => {
         try {
@@ -68,34 +74,48 @@ export default function ManageSecretaries() {
         return matchesSearch && matchesStatus && matchesVerified;
     });
 
-    const handleToggleStatus = async (secretary) => {
+    // TASK 3.1 & 3.2: Replaced window.confirm and alert()
+    const handleToggleStatus = (secretary) => {
         const newStatus = secretary.status === 'Active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !secretary.isVerified) {
-            alert(`Cannot activate ${secretary.name}. Their email is not yet verified.`);
+            addToast(`Cannot activate ${secretary.name}. Their email is not yet verified.`, 'error');
             return;
         }
 
-        const confirmMsg = newStatus === 'active' 
-            ? `Are you sure you want to ACTIVATE ${secretary.name}?` 
-            : `Are you sure you want to DEACTIVATE ${secretary.name}?`;
-            
-        if (!window.confirm(confirmMsg)) return;
+        setConfirmConfig({
+            title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
+            message: newStatus === 'active' 
+                ? `Are you sure you want to ACTIVATE ${secretary.name}? They will regain access to the system.` 
+                : `Are you sure you want to DEACTIVATE ${secretary.name}? They will lose access to the system.`,
+            confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
+            isDestructive: newStatus !== 'active',
+            onConfirm: () => executeToggleStatus(secretary.id, newStatus, secretary.name),
+            onCancel: () => setConfirmConfig(null)
+        });
+    };
 
+    const executeToggleStatus = async (id, newStatus, name) => {
         try {
-            const res = await authFetch(`/user/toggle-status/${secretary.id}`, {
+            const res = await authFetch(`/user/toggle-status/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: newStatus })
             });
 
             if (res.ok) {
                 setSecretariesList(prevList => prevList.map(s => 
-                    s.id === secretary.id ? { ...s, status: newStatus === 'active' ? 'Active' : 'Inactive' } : s
+                    s.id === id ? { ...s, status: newStatus === 'active' ? 'Active' : 'Inactive' } : s
                 ));
+                addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} ${name}'s account.`, 'success');
             } else {
                 const data = await res.json();
-                alert(data.message || "Failed to update status.");
+                addToast(data.message || "Failed to update status.", 'error');
             }
-        } catch (error) { console.error("Error toggling status:", error); alert("Cannot connect to server."); }
+        } catch (error) { 
+            console.error("Error toggling status:", error); 
+            addToast("Cannot connect to server.", 'error'); 
+        } finally {
+            setConfirmConfig(null);
+        }
     };
 
     const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedSecretaryId(id); setIsEditModalOpen(true); };
@@ -206,6 +226,16 @@ export default function ManageSecretaries() {
                 />
             )}
             {isEditModalOpen && selectedSecretaryId && <EditSecretary secretaryId={selectedSecretaryId} onClose={handleCloseEditModal} onSuccess={fetchSecretaries} />}
+
+            <ConfirmModal 
+                isOpen={!!confirmConfig}
+                title={confirmConfig?.title}
+                message={confirmConfig?.message}
+                confirmText={confirmConfig?.confirmText}
+                isDestructive={confirmConfig?.isDestructive}
+                onConfirm={confirmConfig?.onConfirm}
+                onCancel={() => setConfirmConfig(null)}
+            />
         </div>
     );
 }

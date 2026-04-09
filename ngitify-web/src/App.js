@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext'; // TASK 3.2: Import ToastProvider
 import ProtectedRoute from './routes/ProtectedRoute';
 
 // Layouts
@@ -31,61 +32,65 @@ import InventoryTracker from './pages/owner/InventoryTracker';
 import MyProfile from './pages/owner/MyProfile';
 import Settings from './pages/owner/Settings';
 
+// Pages - Dentist
 import DentistDashboard from './pages/dentist/DentistDashboard';
 import DentistAppointments from './pages/dentist/DentistAppointments';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public & Authentication Routes */}
-          <Route path="/" element={<WebsiteHome />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPassPage />} />
-          <Route path="/verification-code" element={<VerificationCodePage />} />
-          <Route path="/new-password" element={<NewPasswordPage />} />
-          <Route path="/password-reset-success" element={<NewPasswordRedirectPage />} />
+      {/* TASK 3.2: Wrap the router in the ToastProvider */}
+      <ToastProvider>
+        <Router>
+          <Routes>
+            {/* Public & Authentication Routes */}
+            <Route path="/" element={<WebsiteHome />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPassPage />} />
+            <Route path="/verification-code" element={<VerificationCodePage />} />
+            <Route path="/new-password" element={<NewPasswordPage />} />
+            <Route path="/password-reset-success" element={<NewPasswordRedirectPage />} />
 
-          <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>
-            <Route element={<DashboardLayout />}>
-              <Route path="/dentist/dashboard" element={<DentistDashboard />} />
-              <Route path="/dentist/appointments" element={<DentistAppointments />} />
+            <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>
+              <Route element={<DashboardLayout />}>
+                <Route path="/dentist/dashboard" element={<DentistDashboard />} />
+                <Route path="/dentist/appointments" element={<DentistAppointments />} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Protected Routes - Owner Area */}
-          <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
-            <Route element={<DashboardLayout />}>
-              <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+            {/* Protected Routes - Owner Area */}
+            <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
+              <Route element={<DashboardLayout />}>
+                <Route path="/owner/dashboard" element={<OwnerDashboard />} />
 
-              <Route path="/owner/profile" element={<MyProfile />} />
-              <Route path="/owner/settings" element={<Settings />} />
-              
-              {/* Appointments Route */}
-              <Route path="/owner/appointments" element={<Appointments />} />
-              
-              {/* URL-based Routing for User Management Tabs */}
-              <Route path="/owner/manage-users" element={<Navigate to="/owner/manage-users/dentists" replace />} />
-              <Route path="/owner/manage-users/dentists" element={<ManageDentists />} /> 
-              <Route path="/owner/manage-users/secretaries" element={<ManageSecretaries />} />
-              <Route path="/owner/manage-users/patients" element={<ManagePatients />} />
-              
-              {/* Add/Edit specific routes kept for deep linking */}
-              <Route path="/owner/add-dentist" element={<AddDentist />} /> 
-              <Route path="/owner/edit-dentist" element={<EditDentist />} /> 
-              <Route path="/owner/add-secretary" element={<AddSecretary />} />
-              <Route path="/owner/add-patient" element={<AddPatient />} />
-              
-              <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
-              <Route path="/owner/inventory" element={<InventoryTracker />} />
+                <Route path="/owner/profile" element={<MyProfile />} />
+                <Route path="/owner/settings" element={<Settings />} />
+                
+                {/* Appointments Route */}
+                <Route path="/owner/appointments" element={<Appointments />} />
+                
+                {/* URL-based Routing for User Management Tabs */}
+                <Route path="/owner/manage-users" element={<Navigate to="/owner/manage-users/dentists" replace />} />
+                <Route path="/owner/manage-users/dentists" element={<ManageDentists />} /> 
+                <Route path="/owner/manage-users/secretaries" element={<ManageSecretaries />} />
+                <Route path="/owner/manage-users/patients" element={<ManagePatients />} />
+                
+                {/* Add/Edit specific routes kept for deep linking */}
+                <Route path="/owner/add-dentist" element={<AddDentist />} /> 
+                <Route path="/owner/edit-dentist" element={<EditDentist />} /> 
+                <Route path="/owner/add-secretary" element={<AddSecretary />} />
+                <Route path="/owner/add-patient" element={<AddPatient />} />
+                
+                <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
+                <Route path="/owner/inventory" element={<InventoryTracker />} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Fallback Redirect */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+            {/* Fallback Redirect */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </ToastProvider>
     </AuthProvider>
   );
 }

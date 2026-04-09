@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/owner/OwnerDashboard.module.css';
-import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { 
+    Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+    AreaChart, Area, XAxis, YAxis, CartesianGrid // TASK 4.1: Imported AreaChart components
+} from 'recharts';
 import { 
     FaBoxOpen, FaHistory, FaCheckCircle, FaUserClock, 
     FaArrowUp, FaArrowDown, FaChartPie, FaUserPlus, 
-    FaCalendarPlus, FaTimes, FaExclamationTriangle 
+    FaCalendarPlus, FaTimes, FaExclamationTriangle,
+    FaChartLine // TASK 4.1: Imported new chart icon
 } from 'react-icons/fa'; 
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
@@ -51,7 +55,11 @@ export default function OwnerDashboard() {
     const [lowStockAlerts, setLowStockAlerts] = useState(0);
     
     const [allAppointments, setAllAppointments] = useState([]);
+    
+    // TASK 4.1: Chart States
     const [treatmentData, setTreatmentData] = useState([{ name: 'Loading Data...', value: 1 }]);
+    const [patientVolumeData, setPatientVolumeData] = useState([]); 
+
     const [inventoryAlerts, setInventoryAlerts] = useState([]);
     const [recentLogs, setRecentLogs] = useState([]);
 
@@ -132,6 +140,7 @@ export default function OwnerDashboard() {
                     setAllAppointments(mappedAllAppts);
 
                     if (surgData.length > 0) {
+                        // Treatment Breakdown Calculation
                         const procedureCounts = {};
                         surgData.forEach(s => {
                             const proc = s.procedure || 'Consultation';
@@ -141,6 +150,30 @@ export default function OwnerDashboard() {
                             .map(([name, value]) => ({ name, value }))
                             .sort((a, b) => b.value - a.value).slice(0, 4);
                         if (topTreatments.length > 0) setTreatmentData(topTreatments);
+
+                        // TASK 4.1: Patient Volume Trend Calculation (Last 6 Months)
+                        const volumeDataMap = {};
+                        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                        const now = new Date();
+                        
+                        for (let i = 5; i >= 0; i--) {
+                            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                            volumeDataMap[`${monthNames[d.getMonth()]}`] = 0;
+                        }
+
+                        surgData.forEach(s => {
+                            const date = new Date(s.date || s.createdAt);
+                            const month = monthNames[date.getMonth()];
+                            if (volumeDataMap[month] !== undefined) {
+                                volumeDataMap[month]++;
+                            }
+                        });
+
+                        const volumeChartData = Object.keys(volumeDataMap).map(key => ({
+                            name: key,
+                            patients: volumeDataMap[key]
+                        }));
+                        setPatientVolumeData(volumeChartData);
                     }
                 }
 
@@ -297,53 +330,50 @@ export default function OwnerDashboard() {
                 )}
 
                 <div className={styles['stats-grid']}>
-                    <div 
-                        className={`${styles['stat-card']} ${styles['clickable']}`} 
-                        onClick={() => navigate('/owner/manage-users/patients')}
-                    >
+                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/owner/manage-users/patients')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Active Patients</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}><img src={PatientIcon} className={styles['stat-icon']} alt="icon" /></div>
                         </div>
                         <div className={styles['stat-value-wrapper']}>
                             <h2 className={styles['stat-value']}>{activePatients}</h2>
-                            <span className={`${styles['trend-indicator']} ${styles['trend-positive']}`} title="Compared to last month">
-                                <FaArrowUp style={{ fontSize: '10px' }} /> 12%
+                            <span className={`${styles['trend-indicator']} ${styles['trend-positive']}`} title="Stable growth">
+                                <FaArrowUp style={{ fontSize: '10px' }} /> Active
                             </span>
                         </div>
                         <p className={styles['stat-desc']}>Verified active records</p>
                     </div>
                     
-                    <div 
-                        className={`${styles['stat-card']} ${styles['clickable']}`} 
-                        onClick={() => navigate('/owner/manage-users/dentists')}
-                    >
+                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/owner/manage-users/dentists')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Total Staff</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}><img src={StaffIcon} className={styles['stat-icon']} alt="icon" /></div>
                         </div>
                         <div className={styles['stat-value-wrapper']}>
                             <h2 className={styles['stat-value']}>{totalStaff}</h2>
-                            <span className={`${styles['trend-indicator']} ${styles['trend-neutral']}`} title="Compared to last month">
-                                <FaArrowUp style={{ fontSize: '10px' }} /> 2%
+                            <span className={`${styles['trend-indicator']} ${styles['trend-neutral']}`} title="Maintained retention">
+                                <FaCheckCircle style={{ fontSize: '10px' }} /> Stable
                             </span>
                         </div>
                         <p className={`${styles['stat-desc']} ${styles['neutral']}`}>{staffBreakdown}</p>
                     </div>
                     
-                    <div 
-                        className={`${styles['stat-card']} ${styles['clickable']}`}
-                        onClick={() => navigate('/owner/inventory')}
-                    >
+                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/owner/inventory')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Critical Inventory Alerts</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}><img src={InventoryIcon} className={styles['stat-icon']} alt="icon" /></div>
                         </div>
                         <div className={styles['stat-value-wrapper']}>
                             <h2 className={styles['stat-value']} style={{ color: '#ea8b89' }}>{lowStockAlerts}</h2>
-                            <span className={`${styles['trend-indicator']} ${styles['trend-negative']}`} title="Compared to last week">
-                                <FaArrowDown style={{ fontSize: '10px' }} /> 5%
-                            </span>
+                            {lowStockAlerts > 0 ? (
+                                <span className={`${styles['trend-indicator']} ${styles['trend-negative']}`} title="Needs Restock">
+                                    <FaArrowDown style={{ fontSize: '10px' }} /> Low
+                                </span>
+                            ) : (
+                                <span className={`${styles['trend-indicator']} ${styles['trend-positive']}`} title="All good">
+                                    <FaCheckCircle style={{ fontSize: '10px' }} /> Safe
+                                </span>
+                            )}
                         </div>
                         <p className={`${styles['stat-desc']} ${lowStockAlerts > 0 ? styles['danger'] : styles['neutral']}`}>
                             {lowStockAlerts > 0 ? '⚠ Action required' : 'Inventory optimal'}
@@ -354,6 +384,38 @@ export default function OwnerDashboard() {
                 <div className={styles['main-grid']}>
                     <div className={styles['left-column']}>
                         
+                        {/* TASK 4.1: New Patient Volume Area Chart */}
+                        <div className={styles['widget-card']}>
+                            <div className={styles['widget-header']}>
+                                <FaChartLine className={styles['widget-icon']} />
+                                <h2 className={styles['widget-title']}>Patient Volume Trend (6 Mo)</h2>
+                            </div>
+                            <div className={styles['chart-container']}>
+                                {patientVolumeData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={patientVolumeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="colorPatients" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#2dccf6" stopOpacity={0.3}/>
+                                                    <stop offset="95%" stopColor="#2dccf6" stopOpacity={0}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} />
+                                            <Tooltip 
+                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.08)' }} 
+                                                itemStyle={{ color: '#01538b', fontWeight: 'bold' }}
+                                            />
+                                            <Area type="monotone" dataKey="patients" name="Appointments" stroke="#01538b" strokeWidth={3} fillOpacity={1} fill="url(#colorPatients)" />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className={styles['empty-state']}><p>Gathering volume data...</p></div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className={styles['widget-card']}>
                             <div className={styles['widget-header']}>
                                 <FaChartPie className={styles['widget-icon']} />
@@ -493,7 +555,6 @@ export default function OwnerDashboard() {
                 </div>
 
                 <div className={styles['quick-actions-bar']}>
-                    {/* TASK UX UPDATE: Passes a state object instructing the next page to open the modal */}
                     <button 
                         className={`${styles['quick-action-btn']} ${styles['secondary']}`} 
                         onClick={() => navigate('/owner/manage-users/patients', { state: { openAddModal: true } })} 
@@ -509,7 +570,6 @@ export default function OwnerDashboard() {
                 </div>
             </main>
 
-            {/* LOGOUT CONFIRMATION MODAL */}
             {showLogoutModal && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalCard}>

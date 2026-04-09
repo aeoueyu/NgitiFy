@@ -3,6 +3,11 @@ import { regions, provinces, cities } from '../../utils/addressData';
 import styles from '../../styles/owner/StaffModals.module.css';
 import BackIcon from '../../assets/icons/Back.svg'; 
 
+// TASK 2.1 & 2.2: Import Global Utilities
+import { authFetch } from '../../utils/api';
+import UserAvatar from '../../components/common/UserAvatar';
+import { formatDateShort } from '../../utils/dateUtils';
+
 export default function ViewDentist({ dentistId, onClose, onEdit }) {
     const [dentist, setDentist] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -10,10 +15,8 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
     useEffect(() => {
         const fetchDentist = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:5000/api/user/${dentistId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // TASK 2.1: Replace raw fetch and inline token with authFetch
+                const response = await authFetch(`/user/${dentistId}`);
                 if (response.ok) {
                     const data = await response.json();
                     setDentist(data);
@@ -27,11 +30,8 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
         if (dentistId) fetchDentist();
     }, [dentistId]);
 
-    const getInitials = (first, last) => {
-        return `${first?.charAt(0) || ''}${last?.charAt(0) || ''}`.toUpperCase() || '?';
-    };
+    // TASK 2.2: Removed getInitials as UserAvatar handles this automatically
 
-    // ✅ REPLACE WITH
     const formatAddress = (addr) => {
         if (!addr || !addr.region) return "Not provided";
         const rName = regions.find(r => r.code === addr.region)?.name || addr.region;
@@ -59,12 +59,15 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
                         </div>
 
                         <div className={styles.profileHeader}>
-                            {dentist.profileImage ? (
-                                <img src={dentist.profileImage} alt="Profile" className={styles.profileImageLg} />
-                            ) : (
-                                <div className={styles.profileInitialsLg}>{getInitials(dentist.name?.first, dentist.name?.last)}</div>
-                            )}
-                            <div>
+                            {/* TASK 2.2: Adopt UserAvatar for clean, consistent UI */}
+                            <UserAvatar 
+                                user={{ 
+                                    name: `${dentist.name?.first || ''} ${dentist.name?.last || ''}`.trim() || 'Dentist', 
+                                    profileImage: dentist.profileImage 
+                                }} 
+                                size={70} 
+                            />
+                            <div style={{ marginLeft: '15px' }}>
                                 <h3 className={styles.profileName}>Dr. {dentist.name?.first} {dentist.name?.last}</h3>
                                 <p className={styles.profileRole}>{dentist.specialization || 'General Dentist'}</p>
                             </div>
@@ -85,7 +88,8 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
                             </div>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Birthdate</span>
-                                <p className={styles.infoValue}>{dentist.birthdate ? new Date(dentist.birthdate).toLocaleDateString() : 'Not provided'}</p>
+                                {/* TASK 2.2: Adopt dateUtils */}
+                                <p className={styles.infoValue}>{dentist.birthdate ? formatDateShort(new Date(dentist.birthdate)) : 'Not provided'}</p>
                             </div>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Gender</span>

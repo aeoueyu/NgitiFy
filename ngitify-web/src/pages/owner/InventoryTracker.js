@@ -6,7 +6,8 @@ import { authFetch } from '../../utils/api';
 
 import AddInventoryItem from './AddInventoryItem'; 
 import EditInventoryItem from './EditInventoryItem'; 
-import ConfirmModal from '../../components/common/ConfirmModal'; // TASK 6.1: Import new modal
+import ConfirmModal from '../../components/common/ConfirmModal'; 
+import { useToast } from '../../context/ToastContext';
 
 const BASE_CATEGORIES = [
     "Personal Protective Equipment (PPE)", "Consumables", "Restorative Materials", 
@@ -17,6 +18,7 @@ const BASE_CATEGORIES = [
 const BASE_UNITS = ["pcs", "box", "set", "pack", "bottle", "tube"];
 
 export default function InventoryTracker() {
+    const { addToast } = useToast();
     const { canReadInventory, canEditInventory } = usePermissions();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -28,7 +30,6 @@ export default function InventoryTracker() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
     const [selectedItemId, setSelectedItemId] = useState(null);    
 
-    // TASK 6.1: State to control the Global Confirm Modal
     const [confirmConfig, setConfirmConfig] = useState(null);
 
     const fetchInventory = useCallback(async () => {
@@ -109,7 +110,6 @@ export default function InventoryTracker() {
         return matchesSearch && matchesCategory;
     });
 
-    // TASK 6.1: Refactored to trigger the custom UI modal instead of window.confirm
     const triggerDelete = (id, itemName) => {
         setConfirmConfig({
             title: 'Delete Inventory Item',
@@ -126,15 +126,16 @@ export default function InventoryTracker() {
 
             if (res.ok) {
                 setInventoryList(prev => prev.filter(item => item.id !== id));
+                addToast('Item deleted successfully.', 'success');
             } else {
                 const data = await res.json();
-                alert(data.message || "Failed to delete item.");
+                addToast(data.message || "Failed to delete item.", 'error'); 
             }
         } catch (error) {
             console.error("Error deleting item:", error);
-            alert("Cannot connect to server.");
+            addToast("Cannot connect to server.", 'error'); 
         } finally {
-            setConfirmConfig(null); // Close the modal
+            setConfirmConfig(null); 
         }
     };
 
@@ -295,7 +296,6 @@ export default function InventoryTracker() {
                                             {canEditInventory ? (
                                                 <>
                                                     <button className={styles.iconBtn} onClick={() => handleEditClick(item.id)} title="Edit Item"><FaEdit /></button>
-                                                    {/* TASK 6.1: Modified onClick to trigger the new Confirm Modal */}
                                                     <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => triggerDelete(item.id, item.name)} title="Delete Item" style={{ color: '#dc3545' }}><FaTrash /></button>
                                                 </>
                                             ) : (
@@ -331,7 +331,6 @@ export default function InventoryTracker() {
                 />
             )}
 
-            {/* TASK 6.1: Global Confirm Modal Render */}
             <ConfirmModal 
                 isOpen={!!confirmConfig}
                 title={confirmConfig?.title}
@@ -341,7 +340,6 @@ export default function InventoryTracker() {
                 onConfirm={confirmConfig?.onConfirm}
                 onCancel={() => setConfirmConfig(null)}
             />
-
         </div>
     );
 }
