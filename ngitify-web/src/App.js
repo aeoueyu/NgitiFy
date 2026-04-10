@@ -35,6 +35,7 @@ import Settings from './pages/owner/Settings';
 // Pages - Dentist
 import DentistDashboard from './pages/dentist/DentistDashboard';
 import DentistAppointments from './pages/dentist/DentistAppointments';
+import PatientEMR from './pages/dentist/PatientEMR';
 
 function App() {
   return (
@@ -55,6 +56,9 @@ function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/dentist/dashboard" element={<DentistDashboard />} />
                 <Route path="/dentist/appointments" element={<DentistAppointments />} />
+                {/* TASK 1.1 & 1.2: Registered Dentist Profile Route */}
+                <Route path="/dentist/profile" element={<MyProfile />} />
+                <Route path="/dentist/patients/:patientId/emr" element={<PatientEMR />} />
               </Route>
             </Route>
 

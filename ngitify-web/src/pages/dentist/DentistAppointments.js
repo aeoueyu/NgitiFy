@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/DentistAppointments.module.css';
 import { 
@@ -7,34 +7,40 @@ import {
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 
-// Import the existing EMR Patient Profile component
-import PatientProfile from '../owner/PatientProfile';
+import { useToast } from '../../context/ToastContext';
+import { formatDateShort } from '../../utils/dateUtils';
+import UserAvatar from '../../components/common/UserAvatar';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
-// --- MOCK CLINICAL DATA ---
+// Imported Modular Components
+import PatientEMR from './PatientEMR';
+import MaterialUsageLog from './MaterialUsageLog';
+
+// --- ROBUST MOCK DATA FOR UI TESTING ---
 const MOCK_SCHEDULE = [
     { id: 1, patientId: 'PT-2023-0842', time: '09:00 AM', duration: '60 Min', patientName: 'Eleanor Vance', procedure: 'Root Canal Therapy', status: 'In Clinic', rawDate: new Date() },
     { id: 2, patientId: 'PT-2024-1105', time: '10:30 AM', duration: '30 Min', patientName: 'Marcus Chen', procedure: 'Routine Prophylaxis', status: 'Confirmed', rawDate: new Date() },
-    { id: 3, patientId: 'PT-2023-0199', time: '11:15 AM', duration: '45 Min', patientName: 'Sophia Reyes', procedure: 'Composite Filling', status: 'Confirmed', rawDate: new Date() },
+    { id: 3, patientId: 'PT-2023-0199', time: '11:15 AM', duration: '45 Min', patientName: 'Sophia Reyes', procedure: 'Composite Filling', status: 'Pending', rawDate: new Date() },
     { id: 4, patientId: 'PT-2022-0441', time: '01:00 PM', duration: '60 Min', patientName: 'James Wilson', procedure: 'Tooth Extraction', status: 'Completed', rawDate: new Date(new Date().setDate(new Date().getDate() - 1)) },
     { id: 5, patientId: 'PT-2021-0911', time: '09:00 AM', duration: '60 Min', patientName: 'David Lee', procedure: 'Braces Adjustment', status: 'Confirmed', rawDate: new Date(new Date().setDate(new Date().getDate() + 1)) },
     { id: 6, patientId: 'PT-2023-0222', time: '11:00 AM', duration: '45 Min', patientName: 'Maria Santos', procedure: 'Crown Fitting', status: 'Confirmed', rawDate: new Date(new Date().setDate(new Date().getDate() + 1)) },
+    { id: 7, patientId: 'PT-2024-0012', time: '02:30 PM', duration: '90 Min', patientName: 'Lucas Torres', procedure: 'Wisdom Tooth Extraction', status: 'Completed', rawDate: new Date() },
 ];
 
-const MOCK_INVENTORY = [
-    { id: 'inv1', name: 'Lidocaine 2% Carpule', unit: 'pcs', stock: 150 },
-    { id: 'inv2', name: 'Composite Resin (A2)', unit: 'grams', stock: 45 },
-    { id: 'inv3', name: 'Disposable Latex Gloves', unit: 'pairs', stock: 300 },
-    { id: 'inv4', name: 'Sterile Gauze Pads', unit: 'packs', stock: 200 },
-    { id: 'inv5', name: 'Prophylaxis Paste', unit: 'cups', stock: 80 },
-    { id: 'inv6', name: 'Suture Silk 3-0', unit: 'pcs', stock: 25 },
+const PH_HOLIDAYS = [
+    { month: 0, day: 1, name: "New Year's Day" },
+    { month: 3, day: 9, name: "Araw ng Kagitingan" },
+    { month: 4, day: 1, name: "Labor Day" },
+    { month: 5, day: 12, name: "Independence Day" },
+    { month: 11, day: 25, name: "Christmas Day" },
+    { month: 11, day: 31, name: "New Year's Eve" }
 ];
 
 export default function DentistAppointments() {
     const { user, logout } = useAuth();
     const navigate = useNavigate(); 
+    const { addToast } = useToast();
     
-    const [dentistProfile, setDentistProfile] = useState(null);
-
     // Header & Global Modal States
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false); 
@@ -43,43 +49,25 @@ export default function DentistAppointments() {
     const [isEMRModalOpen, setIsEMRModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
 
+    // Material Logger Modal States
+    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+    const [selectedAptForMaterial, setSelectedAptForMaterial] = useState(null);
+
     // --- FILTER STATES ---
     const [searchQuery, setSearchQuery] = useState('');
     const [procedureFilter, setProcedureFilter] = useState('All');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
-    // Material Logger Modal States
-    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
-    const [selectedAptForMaterial, setSelectedAptForMaterial] = useState(null);
-    const [usedMaterials, setUsedMaterials] = useState([{ itemId: '', quantity: 1 }]);
+    // Calendar States
+    const [currentMonthView, setCurrentMonthView] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [listFilter, setListFilter] = useState('Date');
 
-    // Extract JWT & Fetch Profile
-    useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
-
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(atob(base64));
-                const userId = payload.userId || payload.id || payload._id;
-
-                const response = await fetch(`http://localhost:5000/api/user/${userId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const profileData = await response.json();
-                    setDentistProfile(profileData);
-                }
-            } catch (error) {
-                console.error("Error fetching dentist profile:", error);
-            }
-        };
-
-        fetchProfile();
+    // Extract unique procedures for the dropdown
+    const dynamicProcedures = useMemo(() => {
+        const procedures = MOCK_SCHEDULE.map(apt => apt.procedure).filter(Boolean);
+        return [...new Set(procedures)].sort();
     }, []);
 
     // --- FILTER LOGIC ---
@@ -91,25 +79,90 @@ export default function DentistAppointments() {
         const matchesProcedure = procedureFilter === 'All' || apt.procedure === procedureFilter;
         
         let matchesDate = true;
-        if (startDate) {
-            matchesDate = matchesDate && new Date(apt.rawDate) >= new Date(startDate);
-        }
-        if (endDate) {
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999); // Include the whole end day
-            matchesDate = matchesDate && new Date(apt.rawDate) <= end;
+        
+        // If the user has explicitly set the start/end date inputs, use those
+        if (startDate || endDate) {
+            if (startDate) {
+                matchesDate = matchesDate && new Date(apt.rawDate) >= new Date(startDate);
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999); 
+                matchesDate = matchesDate && new Date(apt.rawDate) <= end;
+            }
+        } else {
+            // Otherwise, filter by the currently selected calendar date
+            matchesDate = apt.rawDate.toDateString() === selectedDate.toDateString();
         }
 
         return matchesSearch && matchesProcedure && matchesDate;
     });
 
+    // --- CALENDAR LOGIC ---
+    const getCalendarDays = () => {
+        const year = currentMonthView.getFullYear();
+        const month = currentMonthView.getMonth();
+        const firstDay = new Date(year, month, 1).getDay(); 
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+        const days = [];
+
+        for (let i = firstDay - 1; i >= 0; i--) {
+            days.push({ num: daysInPrevMonth - i, faded: true, date: new Date(year, month - 1, daysInPrevMonth - i) });
+        }
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const currentDate = new Date(year, month, i);
+            const isSelected = currentDate.toDateString() === selectedDate.toDateString();
+            const isToday = currentDate.toDateString() === new Date().toDateString(); 
+            const hasEvent = MOCK_SCHEDULE.some(apt => apt.rawDate.toDateString() === currentDate.toDateString());
+            const holidayObj = PH_HOLIDAYS.find(h => h.month === month && h.day === i);
+
+            days.push({
+                num: i,
+                active: isSelected,
+                isToday: isToday, 
+                hasEvent: hasEvent,
+                isHoliday: !!holidayObj,
+                holidayName: holidayObj ? holidayObj.name : null,
+                date: currentDate,
+                faded: false
+            });
+        }
+
+        const totalCells = days.length > 35 ? 42 : 35;
+        const extra = totalCells - days.length;
+        for (let i = 1; i <= extra; i++) {
+            days.push({ num: i, faded: true, date: new Date(year, month + 1, i) });
+        }
+
+        return days;
+    };
+
+    const handlePrevMonth = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1));
+    const handleNextMonth = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1));
+    
+    const handleDateClick = (day) => {
+        setSelectedDate(day.date);
+        // Clear manual date filters so the calendar selection takes precedence
+        setStartDate('');
+        setEndDate('');
+        if (day.faded) setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
+    };
+
+    const calendarDays = getCalendarDays();
+    const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
     // --- RENDER HELPERS ---
     const getStatusClass = (status) => {
         switch (status) {
+            case 'Pending':
             case 'Confirmed': return styles['status-pending'];
             case 'In Clinic': return styles['status-in-clinic'];
+            case 'Done':
             case 'Completed': return styles['status-done'];
-            default: return '';
+            default: return styles['status-pending'];
         }
     };
 
@@ -120,7 +173,7 @@ export default function DentistAppointments() {
 
     const handleProfileNavigation = () => {
         setIsProfileOpen(false);
-        navigate('/owner/profile'); 
+        navigate('/dentist/profile'); 
     };
 
     const handleViewEMR = (patientId) => {
@@ -128,35 +181,12 @@ export default function DentistAppointments() {
         setIsEMRModalOpen(true);
     };
 
-    // --- MATERIAL LOGGER HANDLERS ---
     const handleOpenMaterialLog = (apt) => {
         setSelectedAptForMaterial(apt);
-        setUsedMaterials([{ itemId: '', quantity: 1 }]);
         setIsMaterialModalOpen(true);
     };
 
-    const handleAddMaterialRow = () => {
-        setUsedMaterials(prev => [...prev, { itemId: '', quantity: 1 }]);
-    };
-
-    const handleRemoveMaterialRow = (index) => {
-        setUsedMaterials(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const handleMaterialChange = (index, field, value) => {
-        setUsedMaterials(prev => {
-            const updated = [...prev];
-            updated[index][field] = value;
-            return updated;
-        });
-    };
-
-    const handleSaveMaterials = (e) => {
-        e.preventDefault();
-        alert(`Successfully logged ${usedMaterials.length} items for ${selectedAptForMaterial.patientName}. Inventory stock will be deducted.`);
-        setIsMaterialModalOpen(false);
-        setSelectedAptForMaterial(null);
-    };
+    const dentistName = user?.name?.first ? `${user.name.first} ${user.name.last}` : 'Dentist';
 
     return (
         <>
@@ -169,31 +199,18 @@ export default function DentistAppointments() {
                     </div>
                     <div className={styles['header-right']}>
                         <div className={styles['user-info']}>
-                            <span className={styles['user-name']}>Hello, Dr. {dentistProfile?.name?.first || user?.name?.first || 'Dentist'}!</span>
-                            <span className={styles['user-role']}>
-                                {dentistProfile?.role || user?.role === 'dentist' ? 'Dentist' : 'Staff'}
-                            </span>
+                            <span className={styles['user-name']}>Hello, Dr. {dentistName.split(' ')[0]}!</span>
+                            <span className={styles['user-role']}>Dentist</span>
                         </div>
                         <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                            {dentistProfile?.profileImage || user?.profileImage ? (
-                                <img src={dentistProfile?.profileImage || user?.profileImage} alt="Profile" className={styles['profile-pic']} />
-                            ) : (
-                                <div className={styles['profile-pic']} style={{
-                                    backgroundColor: '#01538b', display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '16px',
-                                    borderRadius: '50%'
-                                }}>
-                                    {(() => {
-                                        const first = dentistProfile?.name?.first || user?.name?.first || 'S';
-                                        const last = dentistProfile?.name?.last || user?.name?.last || 'D';
-                                        return (first.charAt(0) + last.charAt(0)).toUpperCase();
-                                    })()}
-                                </div>
-                            )}
+                            <UserAvatar 
+                                user={{ name: dentistName, profileImage: user?.profileImage }} 
+                                size={45} 
+                            />
                             {isProfileOpen && (
                                 <div className={styles['profile-dropdown']}>
                                     <div className={styles['profile-dropdown-item']} onClick={handleProfileNavigation}>My Profile</div>
-                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/owner/settings')}>Settings</div>
+                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/dentist/settings')}>Settings</div>
                                     <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={handleLogoutClick}>Logout</div>
                                 </div>
                             )}
@@ -201,7 +218,7 @@ export default function DentistAppointments() {
                     </div>
                 </header>
 
-                {/* --- NEW FILTER CONTROLS --- */}
+                {/* --- FILTER CONTROLS --- */}
                 <div className={styles.controlsRow}>
                     <div className={styles.searchFilterGroup}>
                         <div className={styles.searchWrapper}>
@@ -221,12 +238,9 @@ export default function DentistAppointments() {
                             onChange={(e) => setProcedureFilter(e.target.value)}
                         >
                             <option value="All">All Procedures</option>
-                            <option value="Root Canal Therapy">Root Canal Therapy</option>
-                            <option value="Routine Prophylaxis">Routine Prophylaxis</option>
-                            <option value="Composite Filling">Composite Filling</option>
-                            <option value="Tooth Extraction">Tooth Extraction</option>
-                            <option value="Braces Adjustment">Braces Adjustment</option>
-                            <option value="Crown Fitting">Crown Fitting</option>
+                            {dynamicProcedures.map((proc, i) => (
+                                <option key={`proc-${i}`} value={proc}>{proc}</option>
+                            ))}
                         </select>
 
                         <div className={styles.dateFilterWrapper}>
@@ -235,7 +249,9 @@ export default function DentistAppointments() {
                                 type="date" 
                                 className={styles.dateInput} 
                                 value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
+                                onChange={(e) => {
+                                    setStartDate(e.target.value);
+                                }}
                                 title="From Date"
                             />
                             <span className={styles.dateSeparator}>-</span>
@@ -250,139 +266,125 @@ export default function DentistAppointments() {
                     </div>
                 </div>
 
-                {/* FULL WIDTH SCHEDULE LIST */}
-                <div className={styles['listContainer']}>
-                    {displayedAppointments.length > 0 ? (
-                        displayedAppointments.map((apt) => (
-                            <div key={apt.id} className={styles['appointment-item']}>
-                                
-                                <div className={styles['time-block']}>
-                                    <p className={styles['time-text']}>{apt.rawDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                                    <p className={styles['stat-desc']}>
-                                        <FaClock style={{ fontSize: '10px' }}/> {apt.time} • {apt.duration}
-                                    </p>
-                                </div>
-                                
-                                <div className={styles['patient-block']}>
-                                    <p className={styles['patient-name']}>{apt.patientName}</p>
-                                    <p className={styles['treatment-type']}>{apt.procedure}</p>
-                                </div>
+                <div className={styles['main-grid']}>
+                    {/* LEFT COLUMN: LIST CONTAINER */}
+                    <div className={styles['left-column']}>
+                        <div className={styles['listContainer']} style={{ height: '100%' }}>
+                            {displayedAppointments.length > 0 ? (
+                                displayedAppointments.map((apt) => (
+                                    <div key={apt.id} className={styles['appointment-item']}>
+                                        
+                                        <div className={styles['time-block']}>
+                                            <p className={styles['time-text']}>{formatDateShort(apt.rawDate)}</p>
+                                            <p className={styles['stat-desc']}>
+                                                <FaClock style={{ fontSize: '10px' }}/> {apt.time} • {apt.duration}
+                                            </p>
+                                        </div>
+                                        
+                                        <div className={styles['patient-block']}>
+                                            <UserAvatar user={{ name: apt.patientName }} size={45} style={{ border: '2px solid #e0f2fe' }} />
+                                            <div className={styles['patient-details']}>
+                                                <p className={styles['patient-name']}>{apt.patientName}</p>
+                                                <p className={styles['treatment-type']}>{apt.procedure}</p>
+                                            </div>
+                                        </div>
 
-                                <div className={styles['action-block']}>
-                                    <span className={`${styles['status-badge']} ${getStatusClass(apt.status)}`}>
-                                        {apt.status}
-                                    </span>
-                                    
-                                    <button className={styles['emr-btn']} onClick={() => handleViewEMR(apt.patientId)}>
-                                        <FaFileMedical /> View EMR
-                                    </button>
+                                        <div className={styles['action-block']}>
+                                            <span className={`${styles['status-badge']} ${getStatusClass(apt.status)}`}>
+                                                {apt.status}
+                                            </span>
+                                            
+                                            <button className={styles['emr-btn']} onClick={() => handleViewEMR(apt.patientId)}>
+                                                <FaFileMedical /> View EMR
+                                            </button>
 
-                                    {/* CONDITIONAL RENDER: Log Materials Button */}
-                                    {apt.status === 'Completed' && (
-                                        <button className={styles['logMaterialsBtn']} onClick={() => handleOpenMaterialLog(apt)}>
-                                            <FaBoxOpen /> Log Materials
-                                        </button>
-                                    )}
+                                            {/* CONDITIONAL RENDER: Log Materials Button */}
+                                            {(apt.status === 'Completed' || apt.status === 'Done') && (
+                                                <button className={styles['logMaterialsBtn']} onClick={() => handleOpenMaterialLog(apt)}>
+                                                    <FaBoxOpen /> Log Materials
+                                                </button>
+                                            )}
+                                        </div>
+
+                                    </div>
+                                ))
+                            ) : (
+                                <div className={styles['empty-state']}>
+                                    <p>No appointments match your current filters.</p>
                                 </div>
-
-                            </div>
-                        ))
-                    ) : (
-                        <div className={styles['empty-state']}>
-                            <p>No appointments match your current filters.</p>
+                            )}
                         </div>
-                    )}
+                    </div>
+
+                    {/* RIGHT COLUMN: CALENDAR */}
+                    <div className={styles['right-column']}>
+                        <div className={styles['calendar-card']}>
+                            <div className={styles['calendar-header']}>
+                                <h3 className={styles['month-text']}>{dynamicMonthYear}</h3>
+                                <div className={styles['cal-nav']}>
+                                    <button className={styles['cal-nav-btn']} onClick={handlePrevMonth}>&lt;</button>
+                                    <button className={styles['cal-nav-btn']} onClick={handleNextMonth}>&gt;</button>
+                                </div>
+                            </div>
+                            
+                            <div className={styles['calendar-grid']}>
+                                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                                    <div key={day} className={styles['day-name']}>{day}</div>
+                                ))}
+                                
+                                {calendarDays.map((day, idx) => (
+                                    <div 
+                                        key={idx} 
+                                        title={day.holidayName || ''}
+                                        onClick={() => handleDateClick(day)}
+                                        className={`
+                                            ${styles['date-num']} 
+                                            ${day.faded ? styles['faded'] : ''} 
+                                            ${day.isToday && !day.faded ? styles['today'] : ''}
+                                            ${day.active && !startDate && !endDate ? styles['active'] : ''} 
+                                            ${day.isHoliday && !day.faded ? styles['holiday'] : ''}
+                                        `}
+                                    >
+                                        {day.num}
+                                        {day.hasEvent && <div className={`${styles['event-dot']} ${day.active && !startDate && !endDate ? styles['white'] : ''}`}></div>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </main>
 
             {/* EMR MODAL INJECTION */}
             {isEMRModalOpen && selectedPatientId && (
-                <PatientProfile
+                <PatientEMR
                     patientId={selectedPatientId}
                     onClose={() => setIsEMRModalOpen(false)}
-                    onEdit={() => alert("Edit Profile action placeholder")}
+                    onEdit={() => addToast("Edit Profile action coming soon", "info")}
                 />
             )}
 
-            {/* POST-TREATMENT MATERIAL LOGGER MODAL (THEME FIXED) */}
+            {/* POST-TREATMENT MATERIAL LOGGER MODAL */}
             {isMaterialModalOpen && selectedAptForMaterial && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.materialModalCard}>
-                        <div className={styles.materialHeaderInfo}>
-                            <h2 className={styles.modalTitle} style={{ color: '#01538b', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <FaBoxOpen /> Log Materials Used
-                            </h2>
-                            <p className={styles.materialPatientName}>{selectedAptForMaterial.patientName}</p>
-                            <p className={styles.materialProcedure}>{selectedAptForMaterial.procedure} • {selectedAptForMaterial.rawDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        </div>
-
-                        <form onSubmit={handleSaveMaterials}>
-                            <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '5px', marginBottom: '15px' }}>
-                                {usedMaterials.map((row, idx) => (
-                                    <div key={idx} className={styles.materialRow}>
-                                        <select 
-                                            className={styles.materialSelect}
-                                            required
-                                            value={row.itemId}
-                                            onChange={(e) => handleMaterialChange(idx, 'itemId', e.target.value)}
-                                        >
-                                            <option value="" disabled hidden>Select item from inventory...</option>
-                                            {MOCK_INVENTORY.map(item => (
-                                                <option key={item.id} value={item.id}>
-                                                    {item.name} ({item.stock} {item.unit} available)
-                                                </option>
-                                            ))}
-                                        </select>
-                                        
-                                        <input 
-                                            type="number" 
-                                            min="1" 
-                                            placeholder="Qty"
-                                            className={styles.qtyInput}
-                                            required
-                                            value={row.quantity}
-                                            onChange={(e) => handleMaterialChange(idx, 'quantity', e.target.value)}
-                                        />
-
-                                        <button 
-                                            type="button" 
-                                            className={styles.removeBtn}
-                                            onClick={() => handleRemoveMaterialRow(idx)}
-                                            disabled={usedMaterials.length === 1}
-                                            style={{ opacity: usedMaterials.length === 1 ? 0.5 : 1, cursor: usedMaterials.length === 1 ? 'not-allowed' : 'pointer' }}
-                                        >
-                                            <FaTrash />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <button type="button" className={styles.addMaterialRowBtn} onClick={handleAddMaterialRow}>
-                                <FaPlus style={{ marginRight: '6px' }}/> Add Another Item
-                            </button>
-
-                            <div className={styles.modalButtonGroup} style={{ justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
-                                <button type="button" className={styles.cancelBtn} onClick={() => setIsMaterialModalOpen(false)}>Cancel</button>
-                                <button type="submit" className={styles.saveMaterialBtn}>Save & Deduct Stock</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <MaterialUsageLog 
+                    appointment={selectedAptForMaterial}
+                    onClose={() => {
+                        setIsMaterialModalOpen(false);
+                        setSelectedAptForMaterial(null);
+                    }}
+                />
             )}
 
-            {/* LOGOUT CONFIRMATION MODAL */}
-            {showLogoutModal && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
-                        <h3 className={styles.modalTitle}>Confirm Logout</h3>
-                        <p className={styles.modalMessage}>Are you sure you want to end your session and logout of the system?</p>
-                        <div className={styles.modalButtonGroup}>
-                            <button className={styles.cancelBtn} onClick={() => setShowLogoutModal(false)}>Cancel</button>
-                            <button className={styles.confirmBtn} onClick={logout}>Yes, Logout</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* CRITICAL RULE: ConfirmModal implementation */}
+            <ConfirmModal 
+                isOpen={showLogoutModal}
+                title="Confirm Logout"
+                message="Are you sure you want to end your session and logout of the system?"
+                confirmText="Yes, Logout"
+                isDestructive={true}
+                onConfirm={logout}
+                onCancel={() => setShowLogoutModal(false)}
+            />
         </>
     );
 }

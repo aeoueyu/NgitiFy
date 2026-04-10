@@ -4,7 +4,7 @@ import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { FaCog, FaSignOutAlt } from 'react-icons/fa';
-import { authFetch } from '../../utils/api'; // TASK 3.2: Import API utility
+import { authFetch } from '../../utils/api'; 
 
 import DentimeLogo from '../../assets/images/logo-dentime.svg';
 import DashboardIcon from '../../assets/icons/FinancialReports.svg'; 
@@ -12,6 +12,7 @@ import ScheduleIcon from '../../assets/icons/MySchedule.svg';
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
 import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
 import AuditIcon from '../../assets/icons/SystemAuditLogs.svg';
+import ProfileIcon from '../../assets/icons/MyProfile.svg'; // TASK 1.2: Import Profile Icon
 
 export default function Sidebar() {
     const { logout, user } = useAuth();
@@ -22,12 +23,14 @@ export default function Sidebar() {
     const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-    // --- TASK 3.2: Badge State ---
     const [lowStockCount, setLowStockCount] = useState(0);
 
     // --- DYNAMIC PATHS ---
+    // Automatically adjust paths based on whether the logged in user is a Dentist or Owner
     const dashboardPath = user?.role === 'dentist' ? '/dentist/dashboard' : '/owner/dashboard';
     const appointmentsPath = user?.role === 'dentist' ? '/dentist/appointments' : '/owner/appointments';
+    const profilePath = user?.role === 'dentist' ? '/dentist/profile' : '/owner/profile';
+    const settingsPath = user?.role === 'dentist' ? '/dentist/settings' : '/owner/settings';
 
     // Fetch low stock items for the badge
     useEffect(() => {
@@ -58,6 +61,11 @@ export default function Sidebar() {
             return `${styles['nav-item']} ${styles.active}`;
         }
         return location.pathname === path ? `${styles['nav-item']} ${styles.active}` : styles['nav-item'];
+    };
+
+    // Helper for footer links (Settings, Profile)
+    const getFooterNavClass = (path) => {
+        return location.pathname === path ? `${styles['settings-link']} ${styles.active}` : styles['settings-link'];
     };
 
     const handleMainNavigation = (path) => {
@@ -101,7 +109,6 @@ export default function Sidebar() {
                         <div className={getNavClass('/owner/inventory')} onClick={() => handleMainNavigation('/owner/inventory')}>
                             <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} /> 
                             <span className={styles['nav-text']}>Inventory</span>
-                            {/* TASK 3.2: Display badge if items are low */}
                             {lowStockCount > 0 && (
                                 <span className={styles['notification-badge']}>{lowStockCount}</span>
                             )}
@@ -117,7 +124,13 @@ export default function Sidebar() {
                 </div>
 
                 <div className={styles['footer-section']}>
-                    <div className={styles['settings-link']} onClick={() => handleMainNavigation('/owner/settings')}>
+                    {/* TASK 1.2: Added specific My Profile routing to footer */}
+                    <div className={getFooterNavClass(profilePath)} onClick={() => handleMainNavigation(profilePath)}>
+                        <img src={ProfileIcon} alt="Profile" className={styles['nav-icon']} /> 
+                        <span className={styles['nav-text']}>My Profile</span>
+                    </div>
+
+                    <div className={getFooterNavClass(settingsPath)} onClick={() => handleMainNavigation(settingsPath)}>
                         <FaCog className={styles['nav-icon']} /> 
                         <span className={styles['nav-text']}>Settings</span>
                     </div>

@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.odontogramWrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    padding: 10px 0;
+    font-family: 'Lexend Deca', sans-serif;
+}
+
+.jawSection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 850px;
+    background: #f8fafc;
+    padding: 35px 20px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+.jawTitle {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 0;
+}
+
+.arch {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    width: 100%;
+    flex-wrap: nowrap;
+}
+
+.quadrant {
+    display: flex;
+    gap: 6px;
+}
+
+.divider {
+    width: 3px;
+    background-color: #cbd5e1;
+    margin: 0 10px;
+    border-radius: 50px;
+}
+
+/* --- INDIVIDUAL TOOTH STYLING --- */
+.toothContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.toothContainer:hover {
+    transform: translateY(-4px);
+    filter: drop-shadow(0 4px 8px rgba(1, 83, 139, 0.15));
+}
+
+.toothNum {
+    font-size: 12px;
+    font-weight: 800;
+    color: #94a3b8;
+}
+
+/* Base Graphic */
+.toothGraphic {
+    width: 36px;
+    height: 48px;
+    border-radius: 8px;
+    border: 2px solid;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: white;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 2px 4px rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.toothIcon { font-size: 20px; transition: color 0.3s ease; }
+
+/* Status Conditionals */
+.healthy .toothGraphic { border-color: #cbd5e1; color: #cbd5e1; }
+.filled .toothGraphic { border-color: #38bdf8; background-color: #e0f2fe; color: #0284c7; }
+.decayed .toothGraphic { border-color: #f87171; background-color: #fef2f2; color: #dc2626; }
+.crown .toothGraphic { border-color: #facc15; background-color: #fef9c3; color: #ca8a04; }
+.missing .toothGraphic { border-color: #94a3b8; background-color: #f1f5f9; color: #94a3b8; opacity: 0.4; }
+.missing .toothNum { opacity: 0.5; text-decoration: line-through; }
+
+/* --- LEGEND --- */
+.chartLegend {
+    display: flex; gap: 25px; justify-content: center; margin-top: 10px;
+    padding: 15px 30px; background-color: white; border-radius: 50px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.04); border: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+}
+
+.legendItem { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #64748b; }
+.legendColor { width: 16px; height: 16px; border-radius: 4px; border: 2px solid; }
+
+.legendColor.healthy { background-color: white; border-color: #cbd5e1; }
+.legendColor.filled { background-color: #e0f2fe; border-color: #38bdf8; }
+.legendColor.decayed { background-color: #fef2f2; border-color: #f87171; }
+.legendColor.crown { background-color: #fef9c3; border-color: #facc15; }
+.legendColor.missing { background-color: #f1f5f9; border-color: #94a3b8; }
+
+/* --- TOOTH ACTION MODAL --- */
+.modalOverlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(3px);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1005; animation: fadeIn 0.2s ease;
+}
+
+.miniModalCard {
+    background: white; padding: 35px 40px; border-radius: 20px; 
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2); max-width: 420px; 
+    width: 90%; text-align: center; animation: scaleUp 0.2s ease;
+}
+
+.modalTitle { color: #01538b; font-size: 22px; font-weight: 800; margin: 0 0 5px 0; }
+.modalSubtitle { color: #64748b; font-size: 14px; font-weight: 500; margin: 0 0 25px 0; }
+
+.statusOptionsGrid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px;
+}
+
+.statusBtn {
+    padding: 14px; border-radius: 12px; border: 2px solid #e2e8f0; 
+    background: white; cursor: pointer; font-weight: 700; color: #64748b; 
+    font-size: 14px; transition: all 0.2s; font-family: 'Lexend Deca', sans-serif;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.statusBtn:hover { border-color: #cbd5e1; background: #f8fafc; }
+
+.statusBtn.activeHealthy { border-color: #94a3b8; background: white; color: #334155; box-shadow: 0 0 0 3px rgba(203,213,225,0.3); }
+.statusBtn.activeFilled { border-color: #38bdf8; background: #e0f2fe; color: #0284c7; box-shadow: 0 0 0 3px rgba(56,189,248,0.3); }
+.statusBtn.activeDecayed { border-color: #f87171; background: #fef2f2; color: #dc2626; box-shadow: 0 0 0 3px rgba(248,113,113,0.3); }
+.statusBtn.activeCrown { border-color: #facc15; background: #fef9c3; color: #ca8a04; box-shadow: 0 0 0 3px rgba(250,204,21,0.3); }
+.statusBtn.activeMissing { border-color: #94a3b8; background: #f1f5f9; color: #475569; box-shadow: 0 0 0 3px rgba(148,163,184,0.3); }
+
+.modalButtonGroup { display: flex; gap: 15px; }
+.cancelBtn {
+    flex: 1; background-color: white; color: #64748b; border: 1px solid #e2e8f0;
+    padding: 12px; border-radius: 50px; font-weight: 700; font-size: 14px;
+    cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca';
+}
+.cancelBtn:hover { background-color: #f8fafc; color: #334155; }
+.submitBtn {
+    flex: 1; background-color: #01538b; color: white; border: none;
+    padding: 12px; border-radius: 50px; font-weight: 700; font-size: 14px;
+    cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(1,83,139,0.2); font-family: 'Lexend Deca';
+}
+.submitBtn:hover { background-color: #013f6b; transform: translateY(-2px); }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+@media (max-width: 1024px) {
+    .arch { gap: 8px; }
+    .toothGraphic { width: 28px; height: 38px; }
+    .toothIcon { font-size: 16px; }
+}
+
+@media (max-width: 768px) {
+    .arch { overflow-x: auto; padding-bottom: 10px; justify-content: flex-start; }
+    .jawSection { align-items: flex-start; }
+    .statusOptionsGrid { grid-template-columns: 1fr; }
+}

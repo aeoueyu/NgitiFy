@@ -5,13 +5,17 @@ import { useAuth } from '../../hooks/useAuth';
 import BackIcon from '../../assets/icons/Back.svg';
 import successIcon from '../../assets/alert/success.svg';
 
-// Strict Static Imports
+// Global Utilities
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import { authFetch } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
+import UserAvatar from '../../components/common/UserAvatar';
 
 export default function MyProfile() {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
+    const { addToast } = useToast(); // CRITICAL RULE: Toast implementation
 
     // View States
     const [isEditing, setIsEditing] = useState(false);
@@ -27,10 +31,14 @@ export default function MyProfile() {
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
     const [emailError, setEmailError] = useState('');
 
-    // Main Form State
+    // Main Form State - Unified for All Roles
     const [formData, setFormData] = useState({
         firstName: '', middleName: '', lastName: '', email: '', phone: '', profileImage: '',
         birthdate: '', gender: '',
+        
+        // Dentist Specific Fields
+        prcLicenseNumber: '', specialization: '', yearsOfPractice: '', bio: '',
+
         region: '', regionName: '',
         province: '', provinceName: '',
         city: '', cityName: '',
@@ -57,31 +65,15 @@ export default function MyProfile() {
                 setIsLoading(true);
                 setFetchError(null);
                 
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    setFetchError("No authentication token found.");
-                    setIsLoading(false); return;
-                }
-
-                const parts = token.split('.');
-                const base64Url = parts[1];
-                if (!base64Url) {
-                    setFetchError("Invalid token format. Please log out and log back in.");
-                    setIsLoading(false); return;
-                }
-
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(atob(base64));
-                const userId = payload.userId || payload.id || payload._id;
+                const userId = user?.userId || user?.id || user?._id;
                 
                 if (!userId) {
-                    setFetchError("User ID not found in token. Please log out and log back in.");
+                    setFetchError("User ID not found. Please log out and log back in.");
                     setIsLoading(false); return;
                 }
 
-                const response = await fetch(`http://localhost:5000/api/user/${userId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // CRITICAL RULE: authFetch implementation
+                const response = await authFetch(`/user/${userId}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -121,6 +113,13 @@ export default function MyProfile() {
                         profileImage: data?.profileImage || '',
                         birthdate: formattedDate,
                         gender: data?.gender || '',
+                        
+                        // Dentist Fields
+                        prcLicenseNumber: data?.prcLicenseNumber || '',
+                        specialization: data?.specialization || '',
+                        yearsOfPractice: data?.yearsOfPractice || '',
+                        bio: data?.bio || '',
+
                         region: rCode, regionName: dbRegion,
                         province: pCode, provinceName: dbProv,
                         city: cCode, cityName: dbCity,
@@ -143,9 +142,7 @@ export default function MyProfile() {
         };
 
         fetchProfile();
-    }, []);
-
-    const getInitials = (first, last) => `${first?.charAt(0) || ''}${last?.charAt(0) || ''}`.toUpperCase() || '?';
+    }, [user]);
 
     const hasChanges = initialData ? JSON.stringify(formData) !== JSON.stringify(initialData) : false;
 
@@ -224,6 +221,13 @@ export default function MyProfile() {
             newErrors.phone = "Invalid format (e.g. 9xxxxxxxxx)"; isValid = false; 
         }
 
+        // Dynamic Validation for Dentist Role
+        if (user?.role === 'dentist') {
+            if (!formData.prcLicenseNumber.trim()) { newErrors.prcLicenseNumber = "Required"; isValid = false; }
+            if (!formData.specialization) { newErrors.specialization = "Required"; isValid = false; }
+            if (!formData.yearsOfPractice) { newErrors.yearsOfPractice = "Required"; isValid = false; }
+        }
+
         if (!formData.region) { newErrors.region = "Required"; isValid = false; }
         if (!formData.province) { newErrors.province = "Required"; isValid = false; }
         if (!formData.city) { newErrors.city = "Required"; isValid = false; }
@@ -237,26 +241,18 @@ export default function MyProfile() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!validateForm()) return;
+        if (!validateForm()) {
+            addToast("Please fill out all required fields correctly.", "error");
+            return;
+        }
         setIsSaving(true);
 
         try {
-            const token = localStorage.getItem('token');
-            if (!token) { alert("Authentication token missing."); setIsSaving(false); return; }
+            const userId = user?.userId || user?.id || user?._id;
 
-            const parts = token.split('.');
-            const base64Url = parts[1];
-            if (!base64Url) { alert("Invalid token format."); setIsSaving(false); return; }
-
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const payload = JSON.parse(atob(base64));
-            const userId = payload.userId || payload.id || payload._id;
-
-            if (!userId) { alert("User ID missing from token."); setIsSaving(false); return; }
-
-            const response = await fetch(`http://localhost:5000/api/user/update-profile/${userId}`, {
+            // CRITICAL RULE: authFetch used for PUT request
+            const response = await authFetch(`/user/update-profile/${userId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     name: { 
                         first: formData.firstName.trim(), 
@@ -267,6 +263,15 @@ export default function MyProfile() {
                     profileImage: formData.profileImage,
                     birthdate: formData.birthdate,
                     gender: formData.gender,
+                    
+                    // Conditionally send dentist fields if role matches
+                    ...(user?.role === 'dentist' && {
+                        prcLicenseNumber: formData.prcLicenseNumber.trim(),
+                        specialization: formData.specialization,
+                        yearsOfPractice: Number(formData.yearsOfPractice),
+                        bio: formData.bio.trim()
+                    }),
+
                     currentAddress: {
                         region: formData.regionName,
                         province: formData.provinceName,
@@ -284,11 +289,11 @@ export default function MyProfile() {
                 setShowSuccessModal(true);
             } else {
                 const data = await response.json();
-                alert(data.message || "Failed to update profile");
+                addToast(data.message || "Failed to update profile", "error");
             }
         } catch (error) {
             console.error(error);
-            alert("Error: " + error.message);
+            addToast("Error: " + error.message, "error");
         } finally {
             setIsSaving(false);
         }
@@ -300,7 +305,6 @@ export default function MyProfile() {
         setIsEditing(false);
     };
 
-    // --- CHANGE EMAIL LOGIC ---
     const handleRequestEmailChange = async (e) => {
         e.preventDefault();
         setEmailError('');
@@ -310,10 +314,8 @@ export default function MyProfile() {
         setIsSubmittingEmail(true);
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/user/request-email-change`, {
+            const response = await authFetch(`/user/request-email-change`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     newEmail: emailFormData.newEmail,
                     currentPassword: emailFormData.currentPassword
@@ -335,10 +337,40 @@ export default function MyProfile() {
         }
     };
 
+    if (isLoading) {
+        return (
+            <div className={styles.container}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#01538b' }}>
+                    <h2>Loading Profile Data...</h2>
+                </div>
+            </div>
+        );
+    }
+
+    if (fetchError) {
+        return (
+            <div className={styles.container}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#dc3545', fontWeight: '600' }}>
+                    {fetchError}
+                </div>
+            </div>
+        );
+    }
+
+    // Role display mappings
+    const roleMap = {
+        'owner': 'Clinic Owner',
+        'dentist': 'Dentist',
+        'secretary': 'Front Desk Personnel'
+    };
+
+    const roleTitle = roleMap[user?.role] || 'Staff Account';
+    const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
     return (
         <div className={styles.container}>
             <div className={styles.headerWrapper}>
-                <button className={styles.backIconButton} onClick={() => navigate('/owner/dashboard')}>
+                <button className={styles.backIconButton} onClick={() => navigate(-1)}>
                     <img src={BackIcon} alt="Back" />
                 </button>
                 <div className={styles.header}>
@@ -348,227 +380,274 @@ export default function MyProfile() {
             </div>
 
             <div className={styles.card}>
-                {isLoading ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#01538b' }}>Loading profile...</div>
-                ) : fetchError ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#dc3545', fontWeight: '600' }}>
-                        {fetchError}
+                <form onSubmit={handleSubmit} noValidate>
+                    
+                    <div className={styles.profileSection}>
+                        <div className={styles.imageWrapper}>
+                            {/* CRITICAL RULE: UserAvatar integration */}
+                            <UserAvatar 
+                                user={{ name: fullName, profileImage: formData.profileImage }} 
+                                size={100} 
+                                style={{ border: '3px solid #2dccf6' }} 
+                            />
+                            
+                            {isEditing && (
+                                <div className={styles.imageOverlay} onClick={() => fileInputRef.current.click()}>
+                                    CHANGE
+                                </div>
+                            )}
+                            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageUpload} />
+                        </div>
+                        <div className={styles.profileText}>
+                            <h2>
+                                {user?.role === 'dentist' ? 'Dr. ' : ''}{formData.firstName || 'User'} {formData.middleName ? `${formData.middleName.charAt(0)}.` : ''} {formData.lastName || ''}
+                            </h2>
+                            <span className={styles.roleTag}>{roleTitle}</span>
+                        </div>
                     </div>
-                ) : (
-                    <form onSubmit={handleSubmit} noValidate>
-                        
-                        <div className={styles.profileSection}>
-                            <div className={styles.imageWrapper}>
-                                {formData.profileImage ? (
-                                    <img src={formData.profileImage} alt="Profile" className={styles.profileImage} />
-                                ) : (
-                                    <div className={styles.profileInitials}>
-                                        {getInitials(formData.firstName, formData.lastName)}
-                                    </div>
-                                )}
-                                
-                                {isEditing && (
-                                    <div className={styles.imageOverlay} onClick={() => fileInputRef.current.click()}>
-                                        CHANGE
-                                    </div>
-                                )}
-                                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageUpload} />
-                            </div>
-                            <div className={styles.profileText}>
-                                <h2>
-                                    {formData.firstName || 'Owner'} {formData.middleName ? `${formData.middleName.charAt(0)}.` : ''} {formData.lastName || 'Account'}
-                                </h2>
-                                <span className={styles.roleTag}>Clinic Owner</span>
+
+                    {/* --- PERSONAL INFORMATION --- */}
+                    <h3 className={styles.mainSectionTitle}>Personal Information</h3>
+                    
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>FIRST NAME <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <input 
+                                className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} 
+                                name="firstName" value={formData.firstName} onChange={handleChange} 
+                                disabled={!isEditing || isSaving}
+                            />
+                            {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>MIDDLE NAME</label>
+                            <input 
+                                className={styles.inputField} 
+                                name="middleName" value={formData.middleName} onChange={handleChange} 
+                                disabled={!isEditing || isSaving}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>LAST NAME <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <input 
+                                className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} 
+                                name="lastName" value={formData.lastName} onChange={handleChange} 
+                                disabled={!isEditing || isSaving}
+                            />
+                            {errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}
+                        </div>
+                    </div>
+
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>EMAIL ADDRESS</label>
+                            <div className={styles.emailRow}>
+                                <input className={styles.inputField} value={formData.email} disabled={true} />
+                                <button 
+                                    type="button" 
+                                    className={styles.changeEmailBtn} 
+                                    onClick={() => setShowEmailModal(true)}
+                                >
+                                    Change Email
+                                </button>
                             </div>
                         </div>
-
-                        {/* --- PERSONAL INFORMATION --- */}
-                        <h3 className={styles.mainSectionTitle}>Personal Information</h3>
-                        
-                        <div className={styles.row}>
-                            <div className={styles.formGroup}>
-                                <label>FIRST NAME <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                        <div className={styles.formGroup}>
+                            <label>CONTACT NUMBER <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                <span style={{ position: 'absolute', left: '20px', color: !isEditing ? '#94a3b8' : '#333', fontSize: '14px', fontWeight: '500' }}>+63</span>
                                 <input 
-                                    className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} 
-                                    name="firstName" value={formData.firstName} onChange={handleChange} 
-                                    disabled={!isEditing || isSaving}
-                                />
-                                {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>MIDDLE NAME</label>
-                                <input 
-                                    className={styles.inputField} 
-                                    name="middleName" value={formData.middleName} onChange={handleChange} 
-                                    disabled={!isEditing || isSaving}
+                                    className={`${styles.inputField} ${errors.phone ? styles.errorBorder : ''}`} 
+                                    style={{ paddingLeft: '55px' }}
+                                    name="phone" value={formData.phone} onChange={handleChange} 
+                                    maxLength={10} placeholder="9xxxxxxxxx" disabled={!isEditing || isSaving}
                                 />
                             </div>
-                            <div className={styles.formGroup}>
-                                <label>LAST NAME <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <input 
-                                    className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} 
-                                    name="lastName" value={formData.lastName} onChange={handleChange} 
-                                    disabled={!isEditing || isSaving}
-                                />
-                                {errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}
-                            </div>
+                            {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                         </div>
+                    </div>
 
-                        <div className={styles.row}>
-                            <div className={styles.formGroup}>
-                                <label>EMAIL ADDRESS</label>
-                                <div className={styles.emailRow}>
-                                    <input className={styles.inputField} value={formData.email} disabled={true} />
-                                    <button 
-                                        type="button" 
-                                        className={styles.changeEmailBtn} 
-                                        onClick={() => setShowEmailModal(true)}
-                                    >
-                                        Change Email
-                                    </button>
+                    {/* --- DEMOGRAPHICS --- */}
+                    <h3 className={styles.mainSectionTitle}>Demographics</h3>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>BIRTHDATE <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <input 
+                                type="date"
+                                max={getMaxDate()}
+                                className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} 
+                                name="birthdate" 
+                                value={formData.birthdate} 
+                                onChange={handleChange} 
+                                disabled={!isEditing || isSaving}
+                            />
+                            {errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>GENDER <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <select 
+                                className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} 
+                                name="gender" 
+                                value={formData.gender} 
+                                onChange={handleChange} 
+                                disabled={!isEditing || isSaving}
+                            >
+                                <option value="" disabled>Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                            {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
+                        </div>
+                    </div>
+
+                    {/* --- DENTIST SPECIFIC: PROFESSIONAL DETAILS --- */}
+                    {user?.role === 'dentist' && (
+                        <>
+                            <h3 className={styles.mainSectionTitle}>Professional Details</h3>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>PRC LICENSE NUMBER <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                    <input 
+                                        className={`${styles.inputField} ${errors.prcLicenseNumber ? styles.errorBorder : ''}`} 
+                                        name="prcLicenseNumber" value={formData.prcLicenseNumber} onChange={handleChange} disabled={!isEditing || isSaving} 
+                                        placeholder="e.g. 0123456"
+                                    />
+                                    {errors.prcLicenseNumber && <span className={styles.errorText}>{errors.prcLicenseNumber}</span>}
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>YEARS OF PRACTICE <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                    <input 
+                                        type="number" className={`${styles.inputField} ${errors.yearsOfPractice ? styles.errorBorder : ''}`} 
+                                        name="yearsOfPractice" value={formData.yearsOfPractice} onChange={handleChange} disabled={!isEditing || isSaving} 
+                                        min="0"
+                                    />
+                                    {errors.yearsOfPractice && <span className={styles.errorText}>{errors.yearsOfPractice}</span>}
                                 </div>
                             </div>
-                            <div className={styles.formGroup}>
-                                <label>CONTACT NUMBER <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                    <span style={{ position: 'absolute', left: '20px', color: !isEditing ? '#94a3b8' : '#333', fontSize: '14px', fontWeight: '500' }}>+63</span>
-                                    <input 
-                                        className={`${styles.inputField} ${errors.phone ? styles.errorBorder : ''}`} 
-                                        style={{ paddingLeft: '55px' }}
-                                        name="phone" value={formData.phone} onChange={handleChange} 
-                                        maxLength={10} placeholder="9xxxxxxxxx" disabled={!isEditing || isSaving}
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>SPECIALIZATION <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                                    <select 
+                                        className={`${styles.inputField} ${errors.specialization ? styles.errorBorder : ''}`} 
+                                        name="specialization" value={formData.specialization} onChange={handleChange} disabled={!isEditing || isSaving}
+                                    >
+                                        <option value="">Select Specialization</option>
+                                        <option value="General Dentistry">General Dentistry</option>
+                                        <option value="Orthodontics">Orthodontics</option>
+                                        <option value="Periodontics">Periodontics</option>
+                                        <option value="Endodontics">Endodontics</option>
+                                        <option value="Prosthodontics">Prosthodontics</option>
+                                        <option value="Oral and Maxillofacial Surgery">Oral and Maxillofacial Surgery</option>
+                                        <option value="Pediatric Dentistry">Pediatric Dentistry</option>
+                                    </select>
+                                    {errors.specialization && <span className={styles.errorText}>{errors.specialization}</span>}
+                                </div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>PROFESSIONAL BIO</label>
+                                    <textarea 
+                                        className={`${styles.inputField} ${styles.textareaField}`} 
+                                        name="bio" value={formData.bio} onChange={handleChange} disabled={!isEditing || isSaving} 
+                                        placeholder="Brief summary of your expertise and background..."
                                     />
                                 </div>
-                                {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                             </div>
-                        </div>
+                        </>
+                    )}
 
-                        {/* --- DEMOGRAPHICS --- */}
-                        <h3 className={styles.mainSectionTitle}>Demographics</h3>
-                        <div className={styles.row}>
-                            <div className={styles.formGroup}>
-                                <label>BIRTHDATE <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <input 
-                                    type="date"
-                                    max={getMaxDate()}
-                                    className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} 
-                                    name="birthdate" 
-                                    value={formData.birthdate} 
-                                    onChange={handleChange} 
-                                    disabled={!isEditing || isSaving}
-                                />
-                                {errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>GENDER <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <select 
-                                    className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} 
-                                    name="gender" 
-                                    value={formData.gender} 
-                                    onChange={handleChange} 
-                                    disabled={!isEditing || isSaving}
-                                >
-                                    <option value="" disabled>Select Gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
-                                    <option value="Prefer not to say">Prefer not to say</option>
-                                </select>
-                                {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
-                            </div>
+                    {/* --- COMPLETE ADDRESS --- */}
+                    <h3 className={styles.mainSectionTitle}>Complete Address</h3>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>REGION <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <select className={`${styles.inputField} ${errors.region ? styles.errorBorder : ''}`} value={formData.region} onChange={handleRegionChange} disabled={!isEditing || isSaving}>
+                                <option value="" disabled>Select Region</option>
+                                {regions.map(r => (
+                                    <option key={r.code} value={r.code}>{r.name}</option>
+                                ))}
+                            </select>
+                            {errors.region && <span className={styles.errorText}>{errors.region}</span>}
                         </div>
+                        <div className={styles.formGroup}>
+                            <label>PROVINCE <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <select className={`${styles.inputField} ${errors.province ? styles.errorBorder : ''}`} value={formData.province} onChange={handleProvinceChange} disabled={!isEditing || !formData.region || isSaving}>
+                                <option value="" disabled>Select Province</option>
+                                {availableProvinces.map(p => (
+                                    <option key={p.code} value={p.code}>{p.name}</option>
+                                ))}
+                            </select>
+                            {errors.province && <span className={styles.errorText}>{errors.province}</span>}
+                        </div>
+                    </div>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>CITY / MUNICIPALITY <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <select className={`${styles.inputField} ${errors.city ? styles.errorBorder : ''}`} value={formData.city} onChange={handleCityChange} disabled={!isEditing || !formData.province || isSaving}>
+                                <option value="" disabled>Select City</option>
+                                {availableCities.map(c => (
+                                    <option key={c.code} value={c.code}>{c.name}</option>
+                                ))}
+                            </select>
+                            {errors.city && <span className={styles.errorText}>{errors.city}</span>}
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>BARANGAY <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <select className={`${styles.inputField} ${errors.barangay ? styles.errorBorder : ''}`} value={formData.barangay} onChange={handleBarangayChange} disabled={!isEditing || !formData.city || isSaving}>
+                                <option value="" disabled>Select Barangay</option>
+                                {availableBarangays.map(b => (
+                                    <option key={b} value={b}>{b}</option>
+                                ))}
+                            </select>
+                            {errors.barangay && <span className={styles.errorText}>{errors.barangay}</span>}
+                        </div>
+                    </div>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup} style={{ flex: 1 }}>
+                            <label>HOUSE NO. <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <input 
+                                className={`${styles.inputField} ${errors.houseNumber ? styles.errorBorder : ''}`} 
+                                name="houseNumber" 
+                                value={formData.houseNumber} 
+                                onChange={handleChange} 
+                                placeholder="e.g. Blk 1 Lot 2"
+                                disabled={!isEditing || isSaving}
+                            />
+                            {errors.houseNumber && <span className={styles.errorText}>{errors.houseNumber}</span>}
+                        </div>
+                        <div className={styles.formGroup} style={{ flex: 2 }}>
+                            <label>STREET <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
+                            <input 
+                                className={`${styles.inputField} ${errors.street ? styles.errorBorder : ''}`} 
+                                name="street" 
+                                value={formData.street} 
+                                onChange={handleChange} 
+                                placeholder="e.g. Main St."
+                                disabled={!isEditing || isSaving}
+                            />
+                            {errors.street && <span className={styles.errorText}>{errors.street}</span>}
+                        </div>
+                    </div>
 
-                        {/* --- COMPLETE ADDRESS --- */}
-                        <h3 className={styles.mainSectionTitle}>Complete Address</h3>
-                        <div className={styles.row}>
-                            <div className={styles.formGroup}>
-                                <label>REGION <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <select className={`${styles.inputField} ${errors.region ? styles.errorBorder : ''}`} value={formData.region} onChange={handleRegionChange} disabled={!isEditing || isSaving}>
-                                    <option value="" disabled>Select Region</option>
-                                    {regions.map(r => (
-                                        <option key={r.code} value={r.code}>{r.name}</option>
-                                    ))}
-                                </select>
-                                {errors.region && <span className={styles.errorText}>{errors.region}</span>}
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>PROVINCE <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <select className={`${styles.inputField} ${errors.province ? styles.errorBorder : ''}`} value={formData.province} onChange={handleProvinceChange} disabled={!isEditing || !formData.region || isSaving}>
-                                    <option value="" disabled>Select Province</option>
-                                    {availableProvinces.map(p => (
-                                        <option key={p.code} value={p.code}>{p.name}</option>
-                                    ))}
-                                </select>
-                                {errors.province && <span className={styles.errorText}>{errors.province}</span>}
-                            </div>
-                        </div>
-                        <div className={styles.row}>
-                            <div className={styles.formGroup}>
-                                <label>CITY / MUNICIPALITY <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <select className={`${styles.inputField} ${errors.city ? styles.errorBorder : ''}`} value={formData.city} onChange={handleCityChange} disabled={!isEditing || !formData.province || isSaving}>
-                                    <option value="" disabled>Select City</option>
-                                    {availableCities.map(c => (
-                                        <option key={c.code} value={c.code}>{c.name}</option>
-                                    ))}
-                                </select>
-                                {errors.city && <span className={styles.errorText}>{errors.city}</span>}
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>BARANGAY <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <select className={`${styles.inputField} ${errors.barangay ? styles.errorBorder : ''}`} value={formData.barangay} onChange={handleBarangayChange} disabled={!isEditing || !formData.city || isSaving}>
-                                    <option value="" disabled>Select Barangay</option>
-                                    {availableBarangays.map(b => (
-                                        <option key={b} value={b}>{b}</option>
-                                    ))}
-                                </select>
-                                {errors.barangay && <span className={styles.errorText}>{errors.barangay}</span>}
-                            </div>
-                        </div>
-                        <div className={styles.row}>
-                            <div className={styles.formGroup} style={{ flex: 1 }}>
-                                <label>HOUSE NO. <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <input 
-                                    className={`${styles.inputField} ${errors.houseNumber ? styles.errorBorder : ''}`} 
-                                    name="houseNumber" 
-                                    value={formData.houseNumber} 
-                                    onChange={handleChange} 
-                                    placeholder="e.g. Blk 1 Lot 2"
-                                    disabled={!isEditing || isSaving}
-                                />
-                                {errors.houseNumber && <span className={styles.errorText}>{errors.houseNumber}</span>}
-                            </div>
-                            <div className={styles.formGroup} style={{ flex: 2 }}>
-                                <label>STREET <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
-                                <input 
-                                    className={`${styles.inputField} ${errors.street ? styles.errorBorder : ''}`} 
-                                    name="street" 
-                                    value={formData.street} 
-                                    onChange={handleChange} 
-                                    placeholder="e.g. Main St."
-                                    disabled={!isEditing || isSaving}
-                                />
-                                {errors.street && <span className={styles.errorText}>{errors.street}</span>}
-                            </div>
-                        </div>
-
-                        <div className={styles.buttonGroup}>
-                            {!isEditing ? (
-                                <button type="button" className={styles.editBtn} onClick={() => setIsEditing(true)}>
-                                    EDIT PROFILE
+                    <div className={styles.buttonGroup}>
+                        {!isEditing ? (
+                            <button type="button" className={styles.editBtn} onClick={() => setIsEditing(true)}>
+                                EDIT PROFILE
+                            </button>
+                        ) : (
+                            <>
+                                <button type="button" className={styles.cancelBtn} onClick={handleCancel} disabled={isSaving}>
+                                    CANCEL
                                 </button>
-                            ) : (
-                                <>
-                                    <button type="button" className={styles.cancelBtn} onClick={handleCancel} disabled={isSaving}>
-                                        CANCEL
-                                    </button>
-                                    <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>
-                                        {isSaving ? 'SAVING...' : 'SAVE CHANGES'}
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </form>
-                )}
+                                <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>
+                                    {isSaving ? 'SAVING...' : 'SAVE CHANGES'}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </form>
             </div>
 
             {/* Profile Update Success Modal */}

@@ -93,7 +93,8 @@
 .time-text { color: #01538b; font-size: 15px; font-weight: 800; margin: 0; }
 .stat-desc { color: #888; font-size: 12px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 6px; }
 
-.patient-block { flex: 1; padding: 0 25px; display: flex; flex-direction: column; gap: 4px; }
+.patient-block { flex: 1; padding: 0 25px; display: flex; align-items: center; gap: 15px; }
+.patient-details { display: flex; flex-direction: column; gap: 4px; }
 .patient-name { color: #334155; font-size: 16px; font-weight: 800; margin: 0; }
 .treatment-type { color: #64748b; font-size: 13px; font-weight: 600; margin: 0; }
 

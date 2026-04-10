@@ -1,0 +1,284 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+/* --- FULL PAGE LAYOUT --- */
+.mainOverlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1000; font-family: 'Lexend Deca', sans-serif;
+}
+
+.overlayBackground {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease;
+}
+
+.formCard {
+    background-color: #f4f7fa; border-radius: 20px;
+    width: 95%; max-width: 1000px; max-height: 90vh;
+    overflow-y: auto; position: relative; z-index: 1001;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    padding: 40px; box-sizing: border-box;
+    animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.formCard::-webkit-scrollbar { width: 8px; }
+.formCard::-webkit-scrollbar-track { background: transparent; }
+.formCard::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+.formCard::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+
+/* --- HEADER SECTION --- */
+.headerWrapper { display: flex; align-items: flex-start; margin-bottom: 25px; justify-content: space-between; }
+.headerLeft { display: flex; align-items: flex-start; }
+
+.backIconButton {
+    background: white; border: 1px solid #e2e8f0; cursor: pointer;
+    width: 40px; height: 40px; margin-right: 15px; margin-top: 2px;
+    border-radius: 50%; transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center;
+    color: #64748b; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+.backIconButton:hover { background-color: #dc2626; color: white; border-color: #dc2626; transform: scale(1.05); }
+
+.header { display: flex; flex-direction: column; gap: 5px; } 
+.title { color: #01538b; font-size: 26px; font-weight: 800; margin: 0; }
+.subtitle { color: #888; margin: 0; font-size: 14px; font-weight: 500; }
+
+/* --- PATIENT HEADER CARD --- */
+.profileHeaderCard {
+    background: white; border-radius: 16px; padding: 30px 35px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    border: 1px solid rgba(1, 83, 139, 0.05); margin-bottom: 25px; 
+    display: flex; align-items: center; gap: 30px; 
+}
+
+.patientMainInfo { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.nameRow { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+.patientName { color: #01538b; font-size: 24px; font-weight: 800; margin: 0; }
+
+.branchBadge {
+    background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;
+    padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.branchBadge.rizal { background-color: #fffbeb; color: #d97706; border-color: #fde68a; }
+
+.patientId {
+    background-color: #f8fafc; border: 1px dashed #cbd5e1;
+    padding: 6px 12px; border-radius: 6px; font-family: monospace;
+    font-size: 13px; color: #475569; font-weight: 700; margin-left: auto;
+}
+
+.metaRow {
+    display: flex; align-items: center; gap: 25px; 
+    color: #64748b; font-size: 14px; font-weight: 500; flex-wrap: wrap;
+}
+.metaItem { display: flex; align-items: center; gap: 8px; }
+.metaIcon { color: #94a3b8; font-size: 14px; }
+
+/* --- HORIZONTAL TAB NAVIGATION --- */
+.tabContainer {
+    display: flex; gap: 5px; margin-bottom: 25px; 
+    border-bottom: 2px solid #e2e8f0; overflow-x: auto; 
+}
+.tabContainer::-webkit-scrollbar { display: none; }
+
+.tabBtn {
+    background: transparent; border: none; padding: 14px 24px; 
+    font-family: 'Lexend Deca', sans-serif; font-size: 14px; font-weight: 600;
+    color: #64748b; cursor: pointer; transition: all 0.2s ease;
+    border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap;
+}
+.tabBtn:hover { color: #01538b; background-color: rgba(1, 83, 139, 0.03); border-radius: 8px 8px 0 0; }
+.tabBtn.active { color: #01538b; font-weight: 800; border-bottom: 3px solid #2dccf6; }
+
+/* --- CONTENT AREA SHELL --- */
+.contentCard {
+    background: white; border-radius: 16px; padding: 35px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    border: 1px solid rgba(1, 83, 139, 0.05);
+    min-height: 300px; animation: fadeIn 0.3s ease;
+}
+
+/* --- TAB 1: OVERVIEW (MEDICAL HISTORY) --- */
+.sectionHeaderRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.sectionTitle { color: #01538b; font-size: 20px; font-weight: 800; margin: 0; border-left: 4px solid #2dccf6; padding-left: 14px; }
+.editProfileBtn, .actionBtn {
+    background-color: #f0f7fb; color: #01538b; border: 1px solid #bae6fd;
+    padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca', sans-serif;
+    display: flex; align-items: center; gap: 8px;
+}
+.editProfileBtn:hover, .actionBtn:hover { background-color: #e0f2fe; border-color: #7dd3fc; }
+
+.infoGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin-bottom: 35px; }
+.infoBlock { display: flex; flex-direction: column; gap: 8px; }
+.infoLabel { color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; }
+.infoValue { color: #334155; font-size: 15px; font-weight: 600; margin: 0; line-height: 1.5; }
+
+.tagList { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { background-color: #f1f5f9; color: #475569; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; border: 1px solid #e2e8f0; }
+.tag.warning { background-color: #fef2f2; color: #ef4444; border-color: #fca5a5; }
+
+/* Edit Form Styles */
+.formGroup { display: flex; flex-direction: column; margin-bottom: 20px; }
+.formGroup label { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 8px; text-transform: uppercase; }
+.inputField, .textareaField {
+    padding: 12px 16px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-family: 'Lexend Deca', sans-serif; font-size: 14px; color: #334155; background-color: #f8fafc; outline: none; transition: all 0.2s;
+}
+.inputField:focus, .textareaField:focus { border-color: #2dccf6; background-color: white; box-shadow: 0 0 0 3px rgba(45, 204, 246, 0.1); }
+.textareaField { resize: vertical; min-height: 80px; }
+.formHelper { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.formActions { display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9; }
+
+/* --- TAB 2: TIMELINE (TREATMENT LOGS) --- */
+.controlsRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
+.searchFilterGroup { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; flex: 1; }
+.searchWrapper { position: relative; display: flex; align-items: center; min-width: 250px; flex: 1; }
+.searchIcon { position: absolute; left: 15px; color: #94a3b8; font-size: 14px; }
+.searchInput { width: 100%; height: 42px; padding: 0 15px 0 40px; border-radius: 8px; border: 1.5px solid #e2e8f0; font-family: 'Lexend Deca'; font-size: 13px; outline: none; transition: all 0.2s; }
+.searchInput:focus { border-color: #2dccf6; box-shadow: 0 0 0 3px rgba(45,204,246,0.1); }
+
+.filterSelect {
+    height: 42px; padding: 0 40px 0 15px; border-radius: 8px; border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca'; font-size: 13px; color: #334155; outline: none; cursor: pointer; appearance: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2301538b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat; background-position: right 15px top 50%; background-size: 10px auto;
+}
+.filterSelect:focus { border-color: #2dccf6; box-shadow: 0 0 0 3px rgba(45,204,246,0.1); }
+
+.dateFilterWrapper { display: flex; align-items: center; gap: 10px; border: 1.5px solid #e2e8f0; padding: 0 15px; border-radius: 8px; height: 42px; }
+.dateInput { border: none; outline: none; font-family: 'Lexend Deca'; font-size: 13px; color: #334155; background: transparent; cursor: pointer; }
+.dateSeparator { color: #94a3b8; font-weight: bold; }
+
+.timeline { display: flex; flex-direction: column; gap: 20px; position: relative; padding-left: 20px; margin-top: 10px; }
+.timeline::before { content: ''; position: absolute; left: 28px; top: 15px; bottom: 20px; width: 2px; background-color: #e2e8f0; z-index: 0; }
+.timelineItem { position: relative; margin-left: 35px; display: flex; flex-direction: column; }
+.timelineDot { position: absolute; left: -48px; top: 24px; width: 14px; height: 14px; background-color: #2dccf6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 2px #cbd5e1; z-index: 2; }
+
+.timelineCard { background-color: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; overflow: hidden; transition: all 0.2s; z-index: 1; }
+.timelineCard:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+
+.timelineHeader { padding: 20px 25px; display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; }
+.timelineMain { display: flex; flex-direction: column; gap: 6px; }
+.timelineDate { color: #01538b; font-size: 14px; font-weight: 800; margin: 0; }
+.timelineProcedure { color: #334155; font-size: 16px; font-weight: 800; margin: 0; }
+.timelineMeta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #64748b; font-weight: 600; margin-top: 4px; flex-wrap: wrap; }
+.metaTag { display: flex; align-items: center; gap: 6px; background-color: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+
+.expandBtn { background-color: white; color: #01538b; border: 1px solid #bae6fd; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.expandBtn:hover { background-color: #f0f9ff; border-color: #7dd3fc; }
+
+.timelineDetails { padding: 0 25px 25px 25px; background-color: white; border-top: 1px dashed #cbd5e1; padding-top: 20px; animation: fadeIn 0.3s ease; }
+.detailGrid { display: grid; grid-template-columns: 1fr 3fr; gap: 30px; }
+.detailBlock { display: flex; flex-direction: column; gap: 6px; }
+.detailLabel { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+.detailValue { font-size: 14px; color: #334155; font-weight: 500; line-height: 1.6; margin: 0; }
+
+.emptyState { text-align: center; color: #94a3b8; padding: 40px; font-size: 14px; font-weight: 500; border: 1px dashed #cbd5e1; border-radius: 12px; background-color: #f8fafc; }
+.placeholderText { text-align: center; color: #94a3b8; font-size: 15px; font-weight: 500; padding: 80px 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+
+/* --- MODAL BUTTONS --- */
+.modalCard { background: white; padding: 30px 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); max-width: 500px; width: 90%; animation: scaleUp 0.2s ease; }
+.modalTitle { color: #01538b; font-size: 20px; font-weight: 800; margin: 0 0 20px 0; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
+.modalButtonGroup { display: flex; justify-content: flex-end; gap: 15px; margin-top: 25px; }
+
+.cancelBtn { background-color: white; color: #64748b; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca'; }
+.cancelBtn:hover { background-color: #f8fafc; color: #334155; }
+.saveBtn { background-color: #01538b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2); font-family: 'Lexend Deca'; }
+.saveBtn:hover { background-color: #013f6b; transform: translateY(-2px); }
+
+/* --- TAB 4: RADIOGRAPHS (X-RAY) STYLES --- */
+.uploadBtn {
+    background-color: #f0f7fb; color: #01538b; border: 1px solid #bae6fd;
+    padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca', sans-serif;
+    display: flex; align-items: center; gap: 8px;
+}
+.uploadBtn:hover { background-color: #e0f2fe; border-color: #7dd3fc; }
+
+.radiographGrid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 25px; margin-top: 10px;
+}
+
+.radioCard {
+    background: white; border: 1.5px solid #e2e8f0; border-radius: 12px;
+    overflow: hidden; transition: all 0.3s ease; display: flex;
+    flex-direction: column; cursor: pointer;
+}
+.radioCard:hover { border-color: #cbd5e1; box-shadow: 0 8px 25px rgba(0,0,0,0.06); transform: translateY(-4px); }
+
+.radioThumbnailWrapper {
+    width: 100%; aspect-ratio: 4 / 3; overflow: hidden;
+    position: relative; background-color: #f1f5f9;
+}
+
+.radioThumbnail { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+.radioCard:hover .radioThumbnail { transform: scale(1.05); }
+
+.radioMeta {
+    padding: 15px 20px; display: flex; flex-direction: column; gap: 6px;
+    background-color: #f8fafc; border-top: 1px solid #e2e8f0;
+}
+
+.radioType { color: #01538b; font-size: 15px; font-weight: 800; margin: 0; }
+.radioDate { color: #64748b; font-size: 13px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 6px; }
+
+/* --- INLINE AI IMAGE VIEWER --- */
+.imageViewerContainer { display: flex; flex-direction: column; gap: 20px; }
+
+.imageViewerHeader { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; }
+
+.backToGalleryBtn {
+    background-color: white; color: #64748b; border: 1px solid #e2e8f0;
+    padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px;
+    cursor: pointer; transition: all 0.2s ease; font-family: 'Lexend Deca', sans-serif;
+    display: flex; align-items: center; gap: 8px;
+}
+.backToGalleryBtn:hover { background-color: #f8fafc; color: #01538b; border-color: #cbd5e1; }
+
+.imageViewerTitleBox { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+
+.largeRadiographWrapper {
+    width: 100%; height: 450px; background-color: #0f172a;
+    border-radius: 12px; display: flex; justify-content: center;
+    align-items: center; overflow: hidden; position: relative;
+}
+
+.largeRadiograph { max-width: 100%; max-height: 100%; object-fit: contain; transition: filter 0.5s ease, transform 0.5s ease; }
+
+/* The AI Enhance Effect */
+.enhancedImage { filter: contrast(140%) brightness(115%) drop-shadow(0px 0px 8px rgba(45, 204, 246, 0.2)) saturate(110%); }
+
+.loadingOverlay {
+    position: absolute; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    color: #2dccf6; font-weight: 700; font-size: 16px; gap: 15px; z-index: 10;
+}
+
+.spinningIcon { font-size: 32px; animation: spin 1.2s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.imageViewerControls { display: flex; justify-content: flex-end; padding-top: 10px; }
+
+.aiEnhanceBtn {
+    background: linear-gradient(135deg, #01538b 0%, #2dccf6 100%); color: white; border: none;
+    padding: 12px 25px; border-radius: 50px; font-weight: 800; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px; transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(45, 204, 246, 0.3); font-family: 'Lexend Deca', sans-serif;
+}
+.aiEnhanceBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(45, 204, 246, 0.4); }
+.aiEnhanceBtn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+@media (max-width: 768px) {
+    .profileHeaderCard { flex-direction: column; text-align: center; gap: 20px; padding: 25px; }
+    .nameRow { flex-direction: column; justify-content: center; gap: 10px; }
+    .patientId { margin-left: 0; }
+    .metaRow { justify-content: center; }
+    .detailGrid { grid-template-columns: 1fr; gap: 15px; }
+}

@@ -7,8 +7,14 @@ import {
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 
-// Import the EMR Patient Profile component
-import PatientProfile from '../owner/PatientProfile';
+// CRITICAL RULE IMPORTS
+import { authFetch } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
+import { formatWeekdayDate, formatTime, formatDateShort } from '../../utils/dateUtils';
+import UserAvatar from '../../components/common/UserAvatar';
+import ConfirmModal from '../../components/common/ConfirmModal';
+
+import PatientEMR from './PatientEMR';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -19,80 +25,96 @@ const PH_HOLIDAYS = [
     { month: 11, day: 31, name: "New Year's Eve" }
 ];
 
-// --- MOCK CLINICAL DATA ---
+// --- MOCK CLINICAL DATA FOR UI TESTING ---
 const MOCK_SCHEDULE = [
     { id: 1, patientId: 'PT-2023-0842', time: '09:00 AM', duration: '60 Min', patientName: 'Eleanor Vance', procedure: 'Root Canal Therapy', status: 'In Clinic', rawDate: new Date() },
     { id: 2, patientId: 'PT-2024-1105', time: '10:30 AM', duration: '30 Min', patientName: 'Marcus Chen', procedure: 'Routine Prophylaxis', status: 'Confirmed', rawDate: new Date() },
-    { id: 3, patientId: 'PT-2023-0199', time: '11:15 AM', duration: '45 Min', patientName: 'Sophia Reyes', procedure: 'Composite Filling', status: 'Confirmed', rawDate: new Date() },
-    { id: 4, patientId: 'PT-2022-0441', time: '01:00 PM', duration: '60 Min', patientName: 'James Wilson', procedure: 'Tooth Extraction', status: 'Completed', rawDate: new Date() },
+    { id: 3, patientId: 'PT-2023-0199', time: '11:15 AM', duration: '45 Min', patientName: 'Sophia Reyes', procedure: 'Composite Filling', status: 'Pending', rawDate: new Date() },
+    { id: 4, patientId: 'PT-2022-0441', time: '01:00 PM', duration: '60 Min', patientName: 'James Wilson', procedure: 'Tooth Extraction', status: 'Completed', rawDate: new Date(new Date().setDate(new Date().getDate() - 1)) },
     { id: 5, patientId: 'PT-2021-0911', time: '09:00 AM', duration: '60 Min', patientName: 'David Lee', procedure: 'Braces Adjustment', status: 'Confirmed', rawDate: new Date(new Date().setDate(new Date().getDate() + 1)) },
+    { id: 6, patientId: 'PT-2023-0222', time: '11:00 AM', duration: '45 Min', patientName: 'Maria Santos', procedure: 'Crown Fitting', status: 'Confirmed', rawDate: new Date(new Date().setDate(new Date().getDate() + 1)) },
+    { id: 7, patientId: 'PT-2024-0012', time: '02:30 PM', duration: '90 Min', patientName: 'Lucas Torres', procedure: 'Wisdom Tooth Extraction', status: 'Completed', rawDate: new Date() },
 ];
 
 export default function DentistDashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate(); 
+    const { addToast } = useToast();
     
-    // Live Clock State
     const [currentTime, setCurrentTime] = useState(new Date());
     
-    // Profile Data State
+    // Data States
     const [dentistProfile, setDentistProfile] = useState(null);
-
-    // Header & Global Modal States
+    const [allAppointments, setAllAppointments] = useState([]);
+    
+    // UI States
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false); 
-    
-    // EMR Modal States
     const [isEMRModalOpen, setIsEMRModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
 
-    // Interactive Calendar States
+    // List & Calendar Filter States
+    const [listFilter, setListFilter] = useState('Today'); // 'Date', 'Today', 'Week', 'All'
     const [currentMonthView, setCurrentMonthView] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
 
-    // Live Clock Effect
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // Extract JWT & Fetch Profile
+    // Fetch Profile & Inject Mock Appointments
     useEffect(() => {
-        const fetchProfile = async () => {
+        const fetchDashboardData = async () => {
             try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
-
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(atob(base64));
-                const userId = payload.userId || payload.id || payload._id;
-
-                const response = await fetch(`http://localhost:5000/api/user/${userId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const profileData = await response.json();
-                    setDentistProfile(profileData);
+                const userId = user?.userId || user?.id || user?._id;
+                if (userId) {
+                    const profileRes = await authFetch(`/user/${userId}`);
+                    if (profileRes.ok) {
+                        const profileData = await profileRes.json();
+                        setDentistProfile(profileData);
+                    }
                 }
+                
+                // INJECT MOCK DATA INSTEAD OF API CALL FOR TESTING
+                setAllAppointments(MOCK_SCHEDULE.sort((a, b) => a.rawDate - b.rawDate));
+
             } catch (error) {
-                console.error("Error fetching dentist profile:", error);
+                console.error("Dashboard Fetch Error:", error);
+                addToast("Could not connect to the server.", "error");
             }
         };
 
-        fetchProfile();
-    }, []);
+        fetchDashboardData();
+    }, [user, addToast]);
 
-    // Filter Schedule based on selected calendar date
-    const displayedAppointments = MOCK_SCHEDULE.filter(apt => 
-        apt.rawDate.toDateString() === selectedDate.toDateString()
-    );
+    // --- DYNAMIC FILTERING LOGIC ---
+    const displayedAppointments = allAppointments.filter(apt => {
+        const aptDate = apt.rawDate;
+        const today = new Date();
+        
+        if (listFilter === 'Today') {
+            return aptDate.toDateString() === today.toDateString();
+        }
+        if (listFilter === 'Week') {
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            return aptDate >= startOfWeek && aptDate <= endOfWeek;
+        }
+        if (listFilter === 'All') {
+            return true;
+        }
+        // Default to explicitly selected Date
+        return aptDate.toDateString() === selectedDate.toDateString();
+    });
 
-    // Calculate Stats (Based on currently selected date)
-    const totalPatients = displayedAppointments.length;
-    const pendingTreatments = displayedAppointments.filter(apt => apt.status === 'Confirmed' || apt.status === 'In Clinic').length;
-    const completedTreatments = displayedAppointments.filter(apt => apt.status === 'Completed').length;
+    // Calculate Stats (Always based on 'Today' to give accurate daily KPIs)
+    const todaysAppts = allAppointments.filter(apt => apt.rawDate.toDateString() === new Date().toDateString());
+    const totalPatients = todaysAppts.length;
+    const pendingTreatments = todaysAppts.filter(apt => apt.status === 'Confirmed' || apt.status === 'Pending' || apt.status === 'In Clinic').length;
+    const completedTreatments = todaysAppts.filter(apt => apt.status === 'Completed' || apt.status === 'Done').length;
 
     // --- CALENDAR LOGIC ---
     const getCalendarDays = () => {
@@ -112,7 +134,7 @@ export default function DentistDashboard() {
             const currentDate = new Date(year, month, i);
             const isSelected = currentDate.toDateString() === selectedDate.toDateString();
             const isToday = currentDate.toDateString() === new Date().toDateString(); 
-            const hasEvent = MOCK_SCHEDULE.some(apt => apt.rawDate.toDateString() === currentDate.toDateString());
+            const hasEvent = allAppointments.some(apt => apt.rawDate.toDateString() === currentDate.toDateString());
             const holidayObj = PH_HOLIDAYS.find(h => h.month === month && h.day === i);
 
             days.push({
@@ -141,6 +163,7 @@ export default function DentistDashboard() {
     
     const handleDateClick = (day) => {
         setSelectedDate(day.date);
+        setListFilter('Date'); // Switching back to date-specific view
         if (day.faded) setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
     };
 
@@ -148,77 +171,58 @@ export default function DentistDashboard() {
     const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
 
-    // --- RENDER HELPERS ---
     const getStatusClass = (status) => {
         switch (status) {
+            case 'Pending':
             case 'Confirmed': return styles['status-pending'];
             case 'In Clinic': return styles['status-in-clinic'];
+            case 'Done':
             case 'Completed': return styles['status-done'];
-            default: return '';
+            default: return styles['status-pending'];
         }
     };
 
-    const handleLogoutClick = () => {
-        setIsProfileOpen(false);
-        setShowLogoutModal(true);
-    };
-
-    const handleProfileNavigation = () => {
-        setIsProfileOpen(false);
-        navigate('/owner/profile'); 
-    };
-
-    const handleViewEMR = (patientId) => {
-        setSelectedPatientId(patientId);
-        setIsEMRModalOpen(true);
-    };
+    // Derived values for components
+    const dentistName = dentistProfile?.name?.first 
+        ? `${dentistProfile.name.first} ${dentistProfile.name.last}` 
+        : user?.name?.first 
+            ? `${user.name.first} ${user.name.last}` 
+            : 'Dentist';
+            
+    const profilePic = dentistProfile?.profileImage || user?.profileImage;
 
     return (
         <>
             <main className={styles['main-content']}>
-                {/* HEADER */}
                 <header className={styles['header']}>
                     <div className={styles['header-left']}>
                         <h1 className={styles['title']}>Clinical Dashboard</h1>
                         <p className={styles['subtitle']}>
-                            {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong>
+                            {formatWeekdayDate(currentTime)} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{formatTime(currentTime, true)}</strong>
                         </p>
                     </div>
                     <div className={styles['header-right']}>
                         <div className={styles['user-info']}>
-                            <span className={styles['user-name']}>Hello, Dr. {dentistProfile?.name?.first || user?.name?.first || 'Dentist'}!</span>
-                            <span className={styles['user-role']}>
-                                {dentistProfile?.role || user?.role === 'dentist' ? 'Dentist' : 'Staff'}
-                            </span>
+                            <span className={styles['user-name']}>Hello, Dr. {dentistName.split(' ')[0]}!</span>
+                            <span className={styles['user-role']}>Dentist</span>
                         </div>
                         <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                            {dentistProfile?.profileImage || user?.profileImage ? (
-                                <img src={dentistProfile?.profileImage || user?.profileImage} alt="Profile" className={styles['profile-pic']} />
-                            ) : (
-                                <div className={styles['profile-pic']} style={{
-                                    backgroundColor: '#01538b', display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '16px',
-                                    borderRadius: '50%'
-                                }}>
-                                    {(() => {
-                                        const first = dentistProfile?.name?.first || user?.name?.first || 'S';
-                                        const last = dentistProfile?.name?.last || user?.name?.last || 'D';
-                                        return (first.charAt(0) + last.charAt(0)).toUpperCase();
-                                    })()}
-                                </div>
-                            )}
+                            <UserAvatar 
+                                user={{ name: dentistName, profileImage: profilePic }} 
+                                size={45} 
+                            />
                             {isProfileOpen && (
                                 <div className={styles['profile-dropdown']}>
-                                    <div className={styles['profile-dropdown-item']} onClick={handleProfileNavigation}>My Profile</div>
-                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/owner/settings')}>Settings</div>
-                                    <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={handleLogoutClick}>Logout</div>
+                                    <div className={styles['profile-dropdown-item']} onClick={() => { setIsProfileOpen(false); navigate('/dentist/profile'); }}>My Profile</div>
+                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/dentist/settings')}>Settings</div>
+                                    <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={() => { setIsProfileOpen(false); setShowLogoutModal(true); }}>Logout</div>
                                 </div>
                             )}
                         </div>
                     </div>
                 </header>
 
-                {/* STATS GRID */}
+                {/* STATS GRID (Calculated for Today) */}
                 <div className={styles['stats-grid']}>
                     <div className={styles['stat-card']}>
                         <div className={styles['stat-header']}>
@@ -254,24 +258,32 @@ export default function DentistDashboard() {
                     </div>
                 </div>
 
-                {/* MAIN TWO-COLUMN GRID */}
                 <div className={styles['main-grid']}>
-                    
                     {/* LEFT COLUMN: SCHEDULE */}
                     <div className={styles['left-column']}>
                         <div className={styles['widget-card']}>
-                            <div className={styles['widget-header']}>
+                            
+                            <div className={styles['filterHeader']}>
                                 <h2 className={styles['widget-title']}>
                                     <FaRegCalendarCheck className={styles['widget-icon']} /> 
-                                    {isTodaySelected ? "Today's Clinical Schedule" : `Schedule for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                                    {listFilter === 'Date' 
+                                        ? (isTodaySelected ? "Today's Schedule" : `Schedule for ${formatDateShort(selectedDate)}`) 
+                                        : listFilter === 'Today' ? "Today's Clinical Schedule" 
+                                        : listFilter === 'Week' ? "This Week's Schedule" 
+                                        : "All Appointments"
+                                    }
                                 </h2>
+                                <div className={styles.pillGroup}>
+                                    <button className={`${styles.filterPill} ${listFilter === 'Today' ? styles.activePill : ''}`} onClick={() => setListFilter('Today')}>Today</button>
+                                    <button className={`${styles.filterPill} ${listFilter === 'Week' ? styles.activePill : ''}`} onClick={() => setListFilter('Week')}>Week</button>
+                                    <button className={`${styles.filterPill} ${listFilter === 'All' ? styles.activePill : ''}`} onClick={() => setListFilter('All')}>All</button>
+                                </div>
                             </div>
                             
                             <div className={styles['list-content']}>
                                 {displayedAppointments.length > 0 ? (
                                     displayedAppointments.map((apt) => (
                                         <div key={apt.id} className={styles['appointment-item']}>
-                                            
                                             <div className={styles['time-block']}>
                                                 <p className={styles['time-text']}>{apt.time}</p>
                                                 <p className={styles['stat-desc']} style={{margin: 0, display: 'flex', alignItems: 'center', gap: '4px'}}>
@@ -289,16 +301,15 @@ export default function DentistDashboard() {
                                                     {apt.status}
                                                 </span>
                                                 
-                                                <button className={styles['emr-btn']} onClick={() => handleViewEMR(apt.patientId)}>
+                                                <button className={styles['emr-btn']} onClick={() => { setSelectedPatientId(apt.patientId); setIsEMRModalOpen(true); }}>
                                                     <FaFileMedical /> View EMR
                                                 </button>
                                             </div>
-
                                         </div>
                                     ))
                                 ) : (
                                     <div className={styles['empty-state']}>
-                                        <p>Your schedule is clear for this date.</p>
+                                        <p>Your schedule is clear for this selection.</p>
                                     </div>
                                 )}
                             </div>
@@ -330,43 +341,39 @@ export default function DentistDashboard() {
                                             ${styles['date-num']} 
                                             ${day.faded ? styles['faded'] : ''} 
                                             ${day.isToday && !day.faded ? styles['today'] : ''}
-                                            ${day.active ? styles['active'] : ''}
+                                            ${day.active && listFilter === 'Date' ? styles['active'] : ''}
                                             ${day.isHoliday && !day.faded ? styles['holiday'] : ''}
                                         `}
                                     >
                                         {day.num}
-                                        {day.hasEvent && <div className={`${styles['event-dot']} ${day.active ? styles['white'] : ''}`}></div>}
+                                        {day.hasEvent && <div className={`${styles['event-dot']} ${day.active && listFilter === 'Date' ? styles['white'] : ''}`}></div>}
                                     </div>
                                 ))}
                             </div>
                         </div>
                     </div>
-
                 </div>
             </main>
 
             {/* EMR MODAL INJECTION */}
             {isEMRModalOpen && selectedPatientId && (
-                <PatientProfile
+                <PatientEMR
                     patientId={selectedPatientId}
                     onClose={() => setIsEMRModalOpen(false)}
-                    onEdit={() => alert("Edit Profile action placeholder")}
+                    onEdit={() => addToast("Edit Profile action coming soon", "info")}
                 />
             )}
 
-            {/* LOGOUT CONFIRMATION MODAL */}
-            {showLogoutModal && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
-                        <h3 className={styles.modalTitle}>Confirm Logout</h3>
-                        <p className={styles.modalMessage}>Are you sure you want to end your session and logout of the system?</p>
-                        <div className={styles.modalButtonGroup}>
-                            <button className={styles.cancelBtn} onClick={() => setShowLogoutModal(false)}>Cancel</button>
-                            <button className={styles.confirmBtn} onClick={logout}>Yes, Logout</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* CRITICAL RULE: ConfirmModal implementation */}
+            <ConfirmModal 
+                isOpen={showLogoutModal}
+                title="Confirm Logout"
+                message="Are you sure you want to end your session and logout of the system?"
+                confirmText="Yes, Logout"
+                isDestructive={true}
+                onConfirm={logout}
+                onCancel={() => setShowLogoutModal(false)}
+            />
         </>
     );
 }

@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.modalOverlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(3px);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1050; animation: fadeIn 0.2s ease;
+    font-family: 'Lexend Deca', sans-serif;
+}
+
+.materialModalCard {
+    background: white; padding: 35px 40px; border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+    max-width: 550px; width: 95%; animation: scaleUp 0.2s ease;
+    text-align: left;
+}
+
+.materialHeaderInfo {
+    margin-bottom: 25px; padding-bottom: 20px;
+    border-bottom: 1px dashed #cbd5e1;
+}
+
+.modalTitle { color: #01538b; font-size: 20px; font-weight: 800; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px; }
+.materialPatientName { color: #334155; font-size: 16px; font-weight: 800; margin: 0 0 4px 0; }
+.materialProcedure { color: #64748b; font-size: 14px; font-weight: 500; margin: 0; }
+
+.materialRow { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+
+.materialSelect {
+    flex: 2; height: 42px; padding: 0 15px; border-radius: 8px;
+    border: 1.5px solid #e2e8f0; font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px; color: #334155; outline: none; background-color: #f8fafc; cursor: pointer;
+}
+.materialSelect:focus { border-color: #2dccf6; background-color: white; box-shadow: 0 0 0 3px rgba(45,204,246,0.1); }
+
+.qtyInput {
+    flex: 1; max-width: 100px; height: 42px; padding: 0 15px; border-radius: 8px;
+    border: 1.5px solid #e2e8f0; font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px; color: #334155; outline: none; background-color: #f8fafc;
+}
+.qtyInput:focus { border-color: #2dccf6; background-color: white; box-shadow: 0 0 0 3px rgba(45,204,246,0.1); }
+
+.removeBtn {
+    background-color: #fef2f2; color: #ef4444; border: 1px solid #fca5a5;
+    width: 42px; height: 42px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s; font-size: 16px; flex-shrink: 0;
+}
+.removeBtn:hover:not(:disabled) { background-color: #ef4444; color: white; border-color: #ef4444; }
+.removeBtn:disabled { opacity: 0.5; cursor: not-allowed; border-color: #fecaca; color: #f87171; }
+
+.addMaterialRowBtn {
+    background: transparent; color: #2dccf6; border: 1.5px dashed #bae6fd;
+    width: 100%; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 13px;
+    cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca', sans-serif;
+    margin-bottom: 25px; display: flex; justify-content: center; align-items: center;
+}
+.addMaterialRowBtn:hover:not(:disabled) { background-color: #f0f7fb; border-color: #7dd3fc; color: #01538b; }
+.addMaterialRowBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.modalButtonGroup { display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+
+.cancelBtn {
+    background-color: white; color: #64748b; border: 1px solid #e2e8f0;
+    padding: 10px 25px; border-radius: 50px; font-weight: 600; font-size: 14px;
+    cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca', sans-serif;
+}
+.cancelBtn:hover:not(:disabled) { background-color: #f8fafc; color: #334155; }
+
+.saveMaterialBtn {
+    background-color: #01538b; color: white; border: none;
+    padding: 10px 25px; border-radius: 50px; font-weight: 700; font-size: 14px;
+    cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
+    font-family: 'Lexend Deca', sans-serif;
+}
+.saveMaterialBtn:hover:not(:disabled) { background-color: #013f6b; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(1, 83, 139, 0.3); }
+.saveMaterialBtn:disabled { background-color: #94a3b8; transform: none; box-shadow: none; cursor: not-allowed; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+@media (max-width: 768px) {
+    .materialRow { flex-wrap: wrap; }
+    .materialSelect { flex: 100%; min-width: 100%; }
+}
