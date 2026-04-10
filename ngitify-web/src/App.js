@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { ToastProvider } from './context/ToastContext'; // TASK 3.2: Import ToastProvider
+import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './routes/ProtectedRoute';
 
 // Layouts
@@ -35,12 +35,15 @@ import Settings from './pages/owner/Settings';
 // Pages - Dentist
 import DentistDashboard from './pages/dentist/DentistDashboard';
 import DentistAppointments from './pages/dentist/DentistAppointments';
-import PatientEMR from './pages/dentist/PatientEMR';
+import PatientEMR from './pages/dentist/PatientEMR'; 
+
+// Pages - Secretary (TASK 1.1: Added Imports)
+import SecretaryDashboard from './pages/secretary/SecretaryDashboard';
+import SecretaryAppointments from './pages/secretary/SecretaryAppointments';
 
 function App() {
   return (
     <AuthProvider>
-      {/* TASK 3.2: Wrap the router in the ToastProvider */}
       <ToastProvider>
         <Router>
           <Routes>
@@ -52,13 +55,25 @@ function App() {
             <Route path="/new-password" element={<NewPasswordPage />} />
             <Route path="/password-reset-success" element={<NewPasswordRedirectPage />} />
 
+            {/* Protected Routes - Dentist Area */}
             <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dentist/dashboard" element={<DentistDashboard />} />
                 <Route path="/dentist/appointments" element={<DentistAppointments />} />
-                {/* TASK 1.1 & 1.2: Registered Dentist Profile Route */}
-                <Route path="/dentist/profile" element={<MyProfile />} />
+                <Route path="/dentist/profile" element={<MyProfile />} /> 
                 <Route path="/dentist/patients/:patientId/emr" element={<PatientEMR />} />
+              </Route>
+            </Route>
+
+            {/* Protected Routes - Secretary Area (TASK 1.1: Added Block) */}
+            <Route element={<ProtectedRoute allowedRoles={['secretary']}/>}>
+              <Route element={<DashboardLayout />}>
+                <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
+                <Route path="/secretary/appointments" element={<SecretaryAppointments />} />
+                <Route path="/secretary/profile" element={<MyProfile />} />
+                <Route path="/secretary/settings" element={<Settings />} />
+                <Route path="/secretary/patients" element={<ManagePatients />} />
+                <Route path="/secretary/inventory" element={<InventoryTracker />} />
               </Route>
             </Route>
 

@@ -6,6 +6,10 @@
     background-color: #fff;
     /* Optional subtle border to make it pop universally */
     border: 2px solid rgba(1, 83, 139, 0.1); 
+    
+    /* THE FIX: Forces a perfect circle and prevents flexbox squishing */
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
 }
 
 .avatarFallback {
@@ -19,4 +23,8 @@
     font-family: 'Lexend Deca', sans-serif;
     /* Optional subtle border to match the image style */
     border: 2px solid rgba(1, 83, 139, 0.1); 
+    
+    /* THE FIX: Forces a perfect circle and prevents flexbox squishing */
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
 }

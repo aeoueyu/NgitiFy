@@ -6,13 +6,16 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { FaCog, FaSignOutAlt } from 'react-icons/fa';
 import { authFetch } from '../../utils/api'; 
 
+// CRITICAL RULE: Import ConfirmModal
+import ConfirmModal from '../common/ConfirmModal'; 
+
 import DentimeLogo from '../../assets/images/logo-dentime.svg';
 import DashboardIcon from '../../assets/icons/FinancialReports.svg'; 
 import ScheduleIcon from '../../assets/icons/MySchedule.svg'; 
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
 import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
 import AuditIcon from '../../assets/icons/SystemAuditLogs.svg';
-import ProfileIcon from '../../assets/icons/MyProfile.svg'; // TASK 1.2: Import Profile Icon
+import ProfileIcon from '../../assets/icons/MyProfile.svg';
 
 export default function Sidebar() {
     const { logout, user } = useAuth();
@@ -21,16 +24,27 @@ export default function Sidebar() {
     
     const { canReadPatients, canReadInventory } = usePermissions();
     const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
+    const isSecretary = user?.role === 'secretary';
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     const [lowStockCount, setLowStockCount] = useState(0);
 
-    // --- DYNAMIC PATHS ---
-    // Automatically adjust paths based on whether the logged in user is a Dentist or Owner
-    const dashboardPath = user?.role === 'dentist' ? '/dentist/dashboard' : '/owner/dashboard';
-    const appointmentsPath = user?.role === 'dentist' ? '/dentist/appointments' : '/owner/appointments';
-    const profilePath = user?.role === 'dentist' ? '/dentist/profile' : '/owner/profile';
-    const settingsPath = user?.role === 'dentist' ? '/dentist/settings' : '/owner/settings';
+    // --- DYNAMIC PATHS LOGIC ---
+    const getBasePath = () => {
+        if (user?.role === 'dentist') return '/dentist';
+        if (user?.role === 'secretary') return '/secretary';
+        return '/owner';
+    };
+    const basePath = getBasePath();
+
+    const dashboardPath = `${basePath}/dashboard`;
+    const appointmentsPath = `${basePath}/appointments`;
+    const profilePath = `${basePath}/profile`;
+    const settingsPath = `${basePath}/settings`;
+    const inventoryPath = `${basePath}/inventory`;
+    
+    // Dedicated patient path routing if the user is a secretary
+    const patientsPath = isSecretary ? '/secretary/patients' : '/owner/manage-users/patients';
 
     // Fetch low stock items for the badge
     useEffect(() => {
@@ -63,7 +77,6 @@ export default function Sidebar() {
         return location.pathname === path ? `${styles['nav-item']} ${styles.active}` : styles['nav-item'];
     };
 
-    // Helper for footer links (Settings, Profile)
     const getFooterNavClass = (path) => {
         return location.pathname === path ? `${styles['settings-link']} ${styles.active}` : styles['settings-link'];
     };
@@ -85,7 +98,6 @@ export default function Sidebar() {
                         <span className={styles['nav-text']}>Dashboard</span>
                     </div>
 
-                    {/* DYNAMIC APPOINTMENTS ROUTE */}
                     <div className={getNavClass(appointmentsPath)} onClick={() => handleMainNavigation(appointmentsPath)}>
                         <img src={ScheduleIcon} alt="Appointments" className={styles['nav-icon']} /> 
                         <span className={styles['nav-text']}>Appointments</span>
@@ -99,14 +111,14 @@ export default function Sidebar() {
                     )}
 
                     {!isOwner && canReadPatients && (
-                        <div className={getNavClass('/owner/manage-users/patients')} onClick={() => handleMainNavigation('/owner/manage-users/patients')}>
+                        <div className={getNavClass(patientsPath)} onClick={() => handleMainNavigation(patientsPath)}>
                             <img src={StaffIcon} alt="Patients" className={styles['nav-icon']} /> 
                             <span className={styles['nav-text']}>Patients</span>
                         </div>
                     )}
 
                     {canReadInventory && (
-                        <div className={getNavClass('/owner/inventory')} onClick={() => handleMainNavigation('/owner/inventory')}>
+                        <div className={getNavClass(inventoryPath)} onClick={() => handleMainNavigation(inventoryPath)}>
                             <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} /> 
                             <span className={styles['nav-text']}>Inventory</span>
                             {lowStockCount > 0 && (
@@ -124,7 +136,6 @@ export default function Sidebar() {
                 </div>
 
                 <div className={styles['footer-section']}>
-                    {/* TASK 1.2: Added specific My Profile routing to footer */}
                     <div className={getFooterNavClass(profilePath)} onClick={() => handleMainNavigation(profilePath)}>
                         <img src={ProfileIcon} alt="Profile" className={styles['nav-icon']} /> 
                         <span className={styles['nav-text']}>My Profile</span>
@@ -142,18 +153,16 @@ export default function Sidebar() {
                 </div>
             </aside>
 
-            {showLogoutModal && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
-                        <h3 className={styles.modalTitle}>Confirm Logout</h3>
-                        <p className={styles.modalMessage}>Are you sure you want to end your session and logout of the system?</p>
-                        <div className={styles.modalButtonGroup}>
-                            <button className={styles.cancelBtn} onClick={() => setShowLogoutModal(false)}>Cancel</button>
-                            <button className={styles.confirmBtn} onClick={logout}>Yes, Logout</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* CRITICAL RULE: ConfirmModal implementation */}
+            <ConfirmModal 
+                isOpen={showLogoutModal}
+                title="Confirm Logout"
+                message="Are you sure you want to end your session and logout of the system?"
+                confirmText="Yes, Logout"
+                isDestructive={true}
+                onConfirm={logout}
+                onCancel={() => setShowLogoutModal(false)}
+            />
         </>
     );
 }
