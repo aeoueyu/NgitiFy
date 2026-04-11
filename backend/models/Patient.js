@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Sub-schema for Address consistency
 const addressSchema = new mongoose.Schema({
     country: { type: String, default: 'Philippines' },
     region: { type: String },
@@ -11,46 +12,43 @@ const addressSchema = new mongoose.Schema({
 }, { _id: false });
 
 const patientSchema = new mongoose.Schema({
-    // Personal Information
+    // Task 25 Fix: Aligned Name Structure
     name: {
         first: { type: String, required: true },
         middle: { type: String, default: '' },
         last: { type: String, required: true }
     },
-    birthdate: { type: Date, required: true },
-    
-    // FIXED: Added 'Prefer not to say' to the enum
-    gender: { type: String, enum: ['Male', 'Female', 'Other', 'Prefer not to say'], required: true },
-    
-    contactNumber: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    currentAddress: addressSchema,
-    permanentAddress: addressSchema,
 
-    // Medical Information
+    email: { type: String, unique: true, sparse: true }, // sparse allows multiple nulls if email is missing
+    contactNumber: { type: String },
+    birthdate: { type: Date },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'] },
+    
+    // Physical Metrics
+    height: { type: String }, // e.g., "170 cm"
+    weight: { type: String }, // e.g., "70 kg"
+    bloodType: { type: String },
+
+    // Address
+    address: addressSchema,
+
+    // Clinical Data
     medicalHistory: {
         allergies: [{ type: String }],
-        conditions: [{ type: String }]
+        conditions: [{ type: String }], // e.g., Diabetes, Hypertension
+        medications: [{ type: String }]
     },
-    
-    // Dental Information
-    treatmentHistory: [{
-        date: { type: Date, default: Date.now },
-        tooth: String, // e.g., 'Upper Right 1'
-        procedure: String,
-        notes: String,
-        dentist: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-    }],
 
-    // Link to the main user account if they have one
-    userAccount: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, sparse: true },
-
-    // Guardian Information (For Minors)
-    guardian: {
+    // Occupation/Emergency Contact
+    occupation: { type: String },
+    emergencyContact: {
         name: { type: String },
         relationship: { type: String },
         contactNumber: { type: String }
-    }
+    },
+
+    // System Fields
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' }
 
 }, { timestamps: true });
 

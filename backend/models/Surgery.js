@@ -6,9 +6,8 @@ const surgerySchema = new mongoose.Schema({
     branch: { type: String, required: true }, // e.g., 'Main Clinic', 'Downtown Branch'
     date: { type: Date, required: true },
     procedure: { type: String, required: true }, // e.g., 'Wisdom Tooth Extraction'
-    notes: { type: String },
-    fee: { type: Number, required: true },
-    isPaid: { type: Boolean, default: false }
+    notes: { type: String }
+    // Removed 'fee' and 'isPaid' to strictly enforce non-financial constraints
 }, { timestamps: true });
 
 module.exports = mongoose.model('Surgery', surgerySchema);

@@ -24,14 +24,21 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: { 
         type: String, 
-        enum: ['owner', 'dentist', 'secretary', 'patient'], 
-        default: 'patient' 
+        // Task 17 Fix: Removed 'patient', added 'co-owner'
+        enum: ['owner', 'co-owner', 'dentist', 'secretary'], 
+        required: true 
+    },
+
+    // Task 13 Fix: Added permissions field
+    permissions: {
+        type: Object,
+        default: {}
     },
 
     // 3. PERSONAL DETAILS
     contactNumber: { type: String },
     birthdate: { type: Date },
-    gender: { type: String }, // <-- ADD THIS LINE
+    gender: { type: String }, 
     profileImage: { type: String }, // Base64 string
     
     // 4. DENTIST SPECIFIC

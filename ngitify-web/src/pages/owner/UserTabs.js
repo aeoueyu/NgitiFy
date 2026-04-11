@@ -30,7 +30,7 @@ export default function UserTabs({ activeTab }) {
                 className={`${styles.tabButton} ${currentTab === 'patients' ? styles.activeTab : ''}`}
                 onClick={() => navigate('/owner/manage-users/patients')}
             >
-                Patients
+                Patient Records
             </button>
         </div>
     );

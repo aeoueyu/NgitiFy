@@ -19,7 +19,9 @@ export default function LoginPage() {
         setIsLoading(true);
         
         try {
-            const response = await fetch('http://localhost:5000/api/login', {
+            // Task 12 Fix: Moved hardcoded localhost:5000 to .env
+            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+            const response = await fetch(`${apiUrl}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -43,14 +45,17 @@ export default function LoginPage() {
                 });
 
                 // Redirect based on role returned by backend
-                if (data.role === 'owner') {
+                if (data.role === 'owner' || data.role === 'co-owner') {
                     navigate('/owner/dashboard');
                 } else if (data.role === 'dentist') {
                     navigate('/dentist/dashboard');
                 } else if (data.role === 'secretary') {
                     navigate('/secretary/dashboard');
                 } else if (data.role === 'patient') {
-                    navigate('/patient/dashboard');
+                    // Task 6 Fix: Show error instead of routing to a broken page
+                    setErrorMessage("Patient access is only available on the mobile app.");
+                    // Clean up token since they shouldn't actually be logged in on web
+                    localStorage.removeItem('token');
                 } else {
                     setErrorMessage("Unrecognized user role.");
                 }

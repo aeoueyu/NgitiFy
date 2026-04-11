@@ -5,19 +5,21 @@ export class User {
     lastName = '', 
     email = '', 
     role = '', 
+    permissions = {}, // Task 15 Fix: Added permissions object
     contactNumber = '', 
     status = 'Active', 
-    profileImage = '', // <-- DAGDAG ITO
+    profileImage = '', 
     createdAt = new Date().toISOString() 
   } = {}) {
     this.id = id;
     this.firstName = firstName;
     this.lastName = lastName;
     this.email = email;
-    this.role = role; // 'owner', 'dentist', 'secretary', 'patient'
+    this.role = role; // 'owner', 'co-owner', 'dentist', 'secretary', 'patient'
+    this.permissions = permissions; // Task 15 Fix: Assign permissions
     this.contactNumber = contactNumber;
     this.status = status;
-    this.profileImage = profileImage; // <-- DAGDAG ITO
+    this.profileImage = profileImage; 
     this.createdAt = createdAt;
   }
 
@@ -26,6 +28,7 @@ export class User {
   }
 
   isAdmin() {
-    return this.role === 'owner';
+    // Proactive Fix: Ensure co-owners are also treated as admins in the UI
+    return this.role === 'owner' || this.role === 'co-owner';
   }
 }

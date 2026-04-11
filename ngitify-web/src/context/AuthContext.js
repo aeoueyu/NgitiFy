@@ -27,11 +27,15 @@ export const AuthProvider = ({ children }) => {
   // Update login to accept the userData object passed from LoginPage.js
   const login = async (userData) => {
     
-    // Hydrate the User model with the REAL data from your backend
+    // Task 13 & 14 Fix: Hydrate the User model with the FULL REAL data
     const loggedInUser = new User({
       id: userData.userId,
-      email: userData.userEmail,
+      email: userData.userEmail || userData.email,
       role: userData.role,
+      firstName: userData.name?.first || '',
+      lastName: userData.name?.last || '',
+      profileImage: userData.profileImage || '',
+      permissions: userData.permissions || {}
     });
     
     setCurrentUser(loggedInUser);

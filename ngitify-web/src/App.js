@@ -1,113 +1,124 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './routes/ProtectedRoute';
 
-// Layouts
+// Layouts (Loaded eagerly to prevent UI shifts)
 import DashboardLayout from './components/layout/DashboardLayout';
 
-// Auth & Public Pages
+// Auth & Public Pages (Loaded eagerly for immediate first paint)
 import WebsiteHome from './pages/website/WebsiteHome';
 import LoginPage from './pages/auth/LoginPage';
-import ForgotPassPage from './pages/auth/ForgotPassPage';
-import VerificationCodePage from './pages/auth/VerificationCodePage';
-import NewPasswordPage from './pages/auth/NewPasswordPage';
-import NewPasswordRedirectPage from './pages/auth/NewPasswordRedirectPage';
+
+// --- TASK 23: LAZY LOADED ROUTES ---
+const ForgotPassPage = lazy(() => import('./pages/auth/ForgotPassPage'));
+const VerificationCodePage = lazy(() => import('./pages/auth/VerificationCodePage'));
+const NewPasswordPage = lazy(() => import('./pages/auth/NewPasswordPage'));
+const NewPasswordRedirectPage = lazy(() => import('./pages/auth/NewPasswordRedirectPage'));
 
 // Pages - Owner
-import OwnerDashboard from './pages/owner/OwnerDashboard';
-import Appointments from './pages/owner/Appointments'; 
-import ManageDentists from './pages/owner/ManageDentists';
-import ManageSecretaries from './pages/owner/ManageSecretaries';
-import ManagePatients from './pages/owner/ManagePatients';
-import SystemAuditLogs from './pages/owner/SystemAuditLogs';
+const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
+const Appointments = lazy(() => import('./pages/owner/Appointments')); 
+const ManageDentists = lazy(() => import('./pages/owner/ManageDentists'));
+const ManageSecretaries = lazy(() => import('./pages/owner/ManageSecretaries'));
+const ManagePatients = lazy(() => import('./pages/owner/ManagePatients'));
+const SystemAuditLogs = lazy(() => import('./pages/owner/SystemAuditLogs'));
 
-import AddDentist from './pages/owner/AddDentist';
-import AddSecretary from './pages/owner/AddSecretary';
-import AddPatient from './pages/owner/AddPatient';
-import EditDentist from './pages/owner/EditDentist';
-import InventoryTracker from './pages/owner/InventoryTracker';
+const AddDentist = lazy(() => import('./pages/owner/AddDentist'));
+const AddSecretary = lazy(() => import('./pages/owner/AddSecretary'));
+const AddPatient = lazy(() => import('./pages/owner/AddPatient'));
+const EditDentist = lazy(() => import('./pages/owner/EditDentist'));
+const InventoryTracker = lazy(() => import('./pages/owner/InventoryTracker'));
 
-import MyProfile from './pages/owner/MyProfile';
-import Settings from './pages/owner/Settings';
+const MyProfile = lazy(() => import('./pages/owner/MyProfile'));
+const Settings = lazy(() => import('./pages/owner/Settings'));
 
 // Pages - Dentist
-import DentistDashboard from './pages/dentist/DentistDashboard';
-import DentistAppointments from './pages/dentist/DentistAppointments';
-import PatientEMR from './pages/dentist/PatientEMR'; 
+const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
+const DentistAppointments = lazy(() => import('./pages/dentist/DentistAppointments'));
+const PatientEMR = lazy(() => import('./pages/dentist/PatientEMR')); 
 
-// Pages - Secretary (TASK 1.1: Added Imports)
-import SecretaryDashboard from './pages/secretary/SecretaryDashboard';
-import SecretaryAppointments from './pages/secretary/SecretaryAppointments';
+// Pages - Secretary 
+const SecretaryDashboard = lazy(() => import('./pages/secretary/SecretaryDashboard'));
+const SecretaryAppointments = lazy(() => import('./pages/secretary/SecretaryAppointments'));
+
+// Simple Full-Screen Loader for Suspense Fallback
+const PageLoader = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#f4f7f6', color: '#01538b', fontFamily: 'sans-serif' }}>
+    <h2>Loading...</h2>
+  </div>
+);
 
 function App() {
   return (
     <AuthProvider>
       <ToastProvider>
         <Router>
-          <Routes>
-            {/* Public & Authentication Routes */}
-            <Route path="/" element={<WebsiteHome />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/forgot-password" element={<ForgotPassPage />} />
-            <Route path="/verification-code" element={<VerificationCodePage />} />
-            <Route path="/new-password" element={<NewPasswordPage />} />
-            <Route path="/password-reset-success" element={<NewPasswordRedirectPage />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public & Authentication Routes */}
+              <Route path="/" element={<WebsiteHome />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPassPage />} />
+              <Route path="/verification-code" element={<VerificationCodePage />} />
+              <Route path="/new-password" element={<NewPasswordPage />} />
+              <Route path="/password-reset-success" element={<NewPasswordRedirectPage />} />
 
-            {/* Protected Routes - Dentist Area */}
-            <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>
-              <Route element={<DashboardLayout />}>
-                <Route path="/dentist/dashboard" element={<DentistDashboard />} />
-                <Route path="/dentist/appointments" element={<DentistAppointments />} />
-                <Route path="/dentist/profile" element={<MyProfile />} /> 
-                <Route path="/dentist/patients/:patientId/emr" element={<PatientEMR />} />
+              {/* Protected Routes - Dentist Area */}
+              <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/dentist/dashboard" element={<DentistDashboard />} />
+                  <Route path="/dentist/appointments" element={<DentistAppointments />} />
+                  <Route path="/dentist/profile" element={<MyProfile />} /> 
+                  <Route path="/dentist/patients/:patientId/emr" element={<PatientEMR />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* Protected Routes - Secretary Area (TASK 1.1: Added Block) */}
-            <Route element={<ProtectedRoute allowedRoles={['secretary']}/>}>
-              <Route element={<DashboardLayout />}>
-                <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
-                <Route path="/secretary/appointments" element={<SecretaryAppointments />} />
-                <Route path="/secretary/profile" element={<MyProfile />} />
-                <Route path="/secretary/settings" element={<Settings />} />
-                <Route path="/secretary/patients" element={<ManagePatients />} />
-                <Route path="/secretary/inventory" element={<InventoryTracker />} />
+              {/* Protected Routes - Secretary Area */}
+              <Route element={<ProtectedRoute allowedRoles={['secretary']}/>}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
+                  <Route path="/secretary/appointments" element={<SecretaryAppointments />} />
+                  <Route path="/secretary/profile" element={<MyProfile />} />
+                  <Route path="/secretary/settings" element={<Settings />} />
+                  <Route path="/secretary/patients" element={<ManagePatients />} />
+                  <Route path="/secretary/inventory" element={<InventoryTracker />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* Protected Routes - Owner Area */}
-            <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
-              <Route element={<DashboardLayout />}>
-                <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+              {/* Protected Routes - Owner Area */}
+              <Route element={<ProtectedRoute allowedRoles={['owner', 'co-owner']} />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/owner/dashboard" element={<OwnerDashboard />} />
 
-                <Route path="/owner/profile" element={<MyProfile />} />
-                <Route path="/owner/settings" element={<Settings />} />
-                
-                {/* Appointments Route */}
-                <Route path="/owner/appointments" element={<Appointments />} />
-                
-                {/* URL-based Routing for User Management Tabs */}
-                <Route path="/owner/manage-users" element={<Navigate to="/owner/manage-users/dentists" replace />} />
-                <Route path="/owner/manage-users/dentists" element={<ManageDentists />} /> 
-                <Route path="/owner/manage-users/secretaries" element={<ManageSecretaries />} />
-                <Route path="/owner/manage-users/patients" element={<ManagePatients />} />
-                
-                {/* Add/Edit specific routes kept for deep linking */}
-                <Route path="/owner/add-dentist" element={<AddDentist />} /> 
-                <Route path="/owner/edit-dentist" element={<EditDentist />} /> 
-                <Route path="/owner/add-secretary" element={<AddSecretary />} />
-                <Route path="/owner/add-patient" element={<AddPatient />} />
-                
-                <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
-                <Route path="/owner/inventory" element={<InventoryTracker />} />
+                  <Route path="/owner/profile" element={<MyProfile />} />
+                  <Route path="/owner/settings" element={<Settings />} />
+                  
+                  {/* Appointments Route */}
+                  <Route path="/owner/appointments" element={<Appointments />} />
+                  
+                  {/* URL-based Routing for User Management Tabs */}
+                  <Route path="/owner/manage-users" element={<Navigate to="/owner/manage-users/dentists" replace />} />
+                  <Route path="/owner/manage-users/dentists" element={<ManageDentists />} /> 
+                  <Route path="/owner/manage-users/secretaries" element={<ManageSecretaries />} />
+                  <Route path="/owner/manage-users/patients" element={<ManagePatients />} />
+                  
+                  {/* Add/Edit specific routes kept for deep linking */}
+                  <Route path="/owner/add-dentist" element={<AddDentist />} /> 
+                  <Route path="/owner/edit-dentist" element={<EditDentist />} /> 
+                  <Route path="/owner/add-secretary" element={<AddSecretary />} />
+                  <Route path="/owner/add-patient" element={<AddPatient />} />
+                  
+                  <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
+                  <Route path="/owner/inventory" element={<InventoryTracker />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* Fallback Redirect */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* Fallback Redirect */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </Router>
       </ToastProvider>
     </AuthProvider>

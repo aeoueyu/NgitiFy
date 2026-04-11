@@ -30,11 +30,14 @@ export default function Sidebar() {
     const [lowStockCount, setLowStockCount] = useState(0);
 
     // --- DYNAMIC PATHS LOGIC ---
+    // Task 16 Fix: Route 'co-owner' to the '/owner' base path
     const getBasePath = () => {
         if (user?.role === 'dentist') return '/dentist';
         if (user?.role === 'secretary') return '/secretary';
-        return '/owner';
+        if (user?.role === 'owner' || user?.role === 'co-owner') return '/owner';
+        return '/login'; // Fallback just in case
     };
+    
     const basePath = getBasePath();
 
     const dashboardPath = `${basePath}/dashboard`;
