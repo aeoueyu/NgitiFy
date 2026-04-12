@@ -5,11 +5,11 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const crypto = require('crypto'); 
 
 // Import Middleware
-const verifyToken = require('./middleware/auth'); // Task 9: Authentication Middleware
+const verifyToken = require('./middleware/auth');
 
 // Import Model
 const User = require('./models/User'); 
@@ -31,28 +31,14 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// MongoDB Connection (LOCAL)
+// MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('✅ Connected to Local MongoDB'))
 .catch((err) => console.error('❌ Error connecting to MongoDB:', err));
 
 // EMAIL CONFIG
-// ✅ Nodemailer v8 compatible
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true for port 465
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-});
-
-// ✅ BUG FIX: Added verification call to catch auth failures immediately
-transporter.verify((error) => {
-    if (error) console.error('❌ Email transporter error:', error);
-    else console.log('✅ Email transporter ready');
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+console.log('✅ Resend email client initialized');
 
 // ================= PUBLIC ROUTES ================= //
 
@@ -79,7 +65,7 @@ app.post('/api/login', async (req, res) => {
         const token = jwt.sign(
             { id: user._id, role: user.role, email: user.email },
             process.env.JWT_SECRET,
-            { expiresIn: '24h' }  // ← changed from '1h' to '24h'
+            { expiresIn: '24h' }
         );
 
         await AuditLog.create({
@@ -102,7 +88,6 @@ app.post('/api/activate-account', async (req, res) => {
         const { token } = req.body;
         if (!token) return res.status(400).json({ message: "No token provided." });
 
-        // ✅ FIX: Check User collection first, then fall back to Patient collection
         let account = await User.findOne({ activationToken: token });
         let isPatient = false;
 
@@ -120,7 +105,7 @@ app.post('/api/activate-account', async (req, res) => {
 
         res.json({ 
             message: "Account activated successfully!",
-            role: isPatient ? 'patient' : account.role  // useful for frontend redirect
+            role: isPatient ? 'patient' : account.role
         });
     } catch (error) {
         res.status(500).json({ message: "Server error during activation." });
@@ -128,8 +113,8 @@ app.post('/api/activate-account', async (req, res) => {
 });
 
 const sendActivationEmail = async (email, role, tempPassword, activationLink) => {
-    const mailOptions = {
-        from: `"NgitiFy Admin" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+        from: 'NgitiFy Admin <onboarding@resend.dev>',
         to: email,
         subject: 'Welcome to NgitiFy! Activate Your Account',
         html: `
@@ -146,8 +131,7 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
                 <a href="${activationLink}" style="background-color: #005466; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Activate Account</a>
             </div>
         `
-    };
-    await transporter.sendMail(mailOptions);
+    });
 };
 
 app.post('/api/forgot-password', async (req, res) => {
@@ -162,8 +146,8 @@ app.post('/api/forgot-password', async (req, res) => {
             user.resetPasswordExpires = Date.now() + 3600000; 
             await user.save();
 
-            await transporter.sendMail({
-                from: `"NgitiFy Support" <${process.env.EMAIL_USER}>`,
+            await resend.emails.send({
+                from: 'NgitiFy Support <onboarding@resend.dev>',
                 to: user.email,
                 subject: 'Your Password Reset Code',
                 text: `Your password reset code is: ${code}`,
@@ -289,13 +273,14 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
             details: `Created new user: ${email}`
         });
 
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+
         try {
-            const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
             await sendActivationEmail(email, 'Dentist', tempPassword, activationLink);
-            console.log(`✅ Dentist Added: ${email}`);
+            console.log(`✅ Dentist Added & Email Sent: ${email}`);
             res.status(201).json({ message: 'Dentist added successfully. Email sent.' });
         } catch (emailError) {
-            console.error("Email failed:", emailError);
+            console.error("Email failed:", emailError.message);
             res.status(201).json({ message: 'Dentist added, but activation email failed to send.' });
         }
 
@@ -336,13 +321,14 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
             details: `Created new user: ${email}`
         });
 
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+
         try {
-            const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
             await sendActivationEmail(email, 'Secretary', tempPassword, activationLink);
-            console.log(`✅ Secretary Added: ${email}`);
+            console.log(`✅ Secretary Added & Email Sent: ${email}`);
             res.status(201).json({ message: 'Secretary added successfully. Email sent.' });
         } catch (emailError) {
-            console.error("Email failed:", emailError);
+            console.error("Email failed:", emailError.message);
             res.status(201).json({ message: 'Secretary added, but activation email failed to send.' });
         }
 
@@ -435,18 +421,19 @@ app.post('/api/add-co-owner', verifyToken, async (req, res) => {
         
         await newUser.save();
 
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+
         try {
-            const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
             await sendActivationEmail(email, 'Co-Owner', tempPassword, activationLink);
-        } catch (error) {
-            console.error("Error sending activation email:", error);
+            console.log(`✅ Co-Owner Added & Email Sent: ${email}`);
+        } catch (emailError) {
+            console.error("Email failed:", emailError.message);
         }
         
-        console.log(`✅ Co-Owner Added: ${email}`);
         res.status(201).json({ message: 'Co-Owner added successfully. Email sent.' });
 
     } catch (error) {
-        console.error("Error adding co-owner or sending email:", error);
+        console.error("Error adding co-owner:", error);
         res.status(500).json({ message: "User created, but failed to send activation email." });
     }
 });
@@ -537,8 +524,6 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Patient toggle-status (separate from User toggle since Patient is a different collection)
-// Patient toggle-status — now consistent with User toggle-status
 app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -855,7 +840,6 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
     }
 });
 
-// --- TASK 20: SURGERY API ROUTES ---
 app.get('/api/surgeries', verifyToken, async (req, res) => {
     try {
         const surgeries = await Surgery.find()
