@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 const corsOptions = {
-    origin: ['http://ngitify.com', 'https://ngitify.com', 'https://www.ngitify.com'],
+    origin: ['http://localhost:3000', 'http://ngitify.com', 'https://ngitify.com', 'https://www.ngitify.com'],
     credentials: true, 
 };
 app.use(cors(corsOptions));
