@@ -129,7 +129,7 @@ app.post('/api/activate-account', async (req, res) => {
 
 const sendActivationEmail = async (email, role, tempPassword, activationLink) => {
     const mailOptions = {
-        from: '"NgitiFy Admin" <garciaaeiounicole@gmail.com>',
+        from: `"NgitiFy Admin" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: 'Welcome to NgitiFy! Activate Your Account',
         html: `
@@ -163,7 +163,7 @@ app.post('/api/forgot-password', async (req, res) => {
             await user.save();
 
             await transporter.sendMail({
-                from: '"NgitiFy Support" <garciaaeiounicole@gmail.com>',
+                from: '"NgitiFy Support" <${process.env.EMAIL_USER}>',
                 to: user.email,
                 subject: 'Your Password Reset Code',
                 text: `Your password reset code is: ${code}`,
