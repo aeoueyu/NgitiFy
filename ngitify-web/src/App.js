@@ -10,6 +10,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 // Auth & Public Pages (Loaded eagerly for immediate first paint)
 import WebsiteHome from './pages/website/WebsiteHome';
 import LoginPage from './pages/auth/LoginPage';
+import ActivateAccountPage from './pages/auth/ActivateAccountPage';
 
 // --- TASK 23: LAZY LOADED ROUTES ---
 const ForgotPassPage = lazy(() => import('./pages/auth/ForgotPassPage'));
@@ -43,6 +44,9 @@ const PatientEMR = lazy(() => import('./pages/dentist/PatientEMR'));
 const SecretaryDashboard = lazy(() => import('./pages/secretary/SecretaryDashboard'));
 const SecretaryAppointments = lazy(() => import('./pages/secretary/SecretaryAppointments'));
 
+// Add import at the top with other lazy imports
+const ActivateAccountPage = lazy(() => import('./pages/auth/ActivateAccountPage'));
+
 // Simple Full-Screen Loader for Suspense Fallback
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#f4f7f6', color: '#01538b', fontFamily: 'sans-serif' }}>
@@ -64,6 +68,7 @@ function App() {
               <Route path="/verification-code" element={<VerificationCodePage />} />
               <Route path="/new-password" element={<NewPasswordPage />} />
               <Route path="/password-reset-success" element={<NewPasswordRedirectPage />} />
+              <Route path="/activate-account/:token" element={<ActivateAccountPage />} />
 
               {/* Protected Routes - Dentist Area */}
               <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>

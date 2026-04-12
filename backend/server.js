@@ -88,13 +88,7 @@ app.post('/api/activate-account', async (req, res) => {
         const { token } = req.body;
         if (!token) return res.status(400).json({ message: "No token provided." });
 
-        let account = await User.findOne({ activationToken: token });
-        let isPatient = false;
-
-        if (!account) {
-            account = await Patient.findOne({ activationToken: token });
-            isPatient = true;
-        }
+        const account = await User.findOne({ activationToken: token });
 
         if (!account) return res.status(400).json({ message: "Invalid or expired activation link." });
 
@@ -105,9 +99,10 @@ app.post('/api/activate-account', async (req, res) => {
 
         res.json({ 
             message: "Account activated successfully!",
-            role: isPatient ? 'patient' : account.role
+            role: account.role
         });
     } catch (error) {
+        console.error("Activation error:", error);
         res.status(500).json({ message: "Server error during activation." });
     }
 });
