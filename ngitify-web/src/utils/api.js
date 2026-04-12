@@ -2,7 +2,7 @@
 
 const BASE_URL = process.env.REACT_APP_API_URL 
     ? `${process.env.REACT_APP_API_URL}/api` 
-    : 'http://localhost:5000/api';
+    : 'https://ngitify.onrender.com';
 
 /**
  * A wrapper around the native fetch API that automatically includes
