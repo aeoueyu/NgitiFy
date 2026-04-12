@@ -341,22 +341,25 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
     try {
         const { email, ...otherData } = req.body;
 
-        const existing = await Patient.findOne({ email });
+        const existing = await User.findOne({ email });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
 
-        // ✅ FIX: Generate activation credentials (same pattern as add-dentist / add-secretary)
+        const tempPassword = crypto.randomBytes(4).toString('hex');
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
         const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-        const newPatient = new Patient({
+        const newUser = new User({
             ...otherData,
             email,
+            password: hashedPassword,
+            role: 'patient',
             isVerified: false,
             status: 'inactive',
             activationToken,
             temporaryPasswordExpires
         });
-        await newPatient.save();
+        await newUser.save();
 
         await AuditLog.create({
             action: "CREATE_PATIENT",
@@ -365,9 +368,8 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             details: `Created new patient: ${email}`
         });
 
-        // ✅ FIX: Send activation email to patient
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(email, 'Patient', null, activationLink); // no tempPassword for patients
+        await sendActivationEmail(email, 'Patient', tempPassword, activationLink);
 
         console.log(`✅ Patient Added & Activation Email Sent: ${email}`);
         res.status(201).json({ message: 'Patient added successfully. Activation email sent.' });
@@ -438,16 +440,16 @@ app.get('/api/users', verifyToken, async (req, res) => {
 
 app.get('/api/patients', verifyToken, async (req, res) => {
     try {
-        const patients = await Patient.find();
+        const patients = await User.find({ role: 'patient' }).select('-password');
         res.json(patients);
-    } catch (error) { 
-        res.status(500).json({ message: "Server error." }); 
+    } catch (error) {
+        res.status(500).json({ message: "Server error." });
     }
 });
 
 app.get('/api/patients/:id', verifyToken, async (req, res) => {
     try {
-        const patient = await Patient.findById(req.params.id);
+        const patient = await User.findById(req.params.id).select('-password');
         if (!patient) return res.status(404).json({ message: "Patient not found" });
         res.json(patient);
     } catch (error) {
@@ -457,7 +459,7 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
 
 app.put('/api/patients/:id', verifyToken, async (req, res) => {
     try {
-        const updatedPatient = await Patient.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const updatedPatient = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
         if (!updatedPatient) return res.status(404).json({ message: "Patient not found" });
 
         await AuditLog.create({
@@ -469,7 +471,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
 
         res.json(updatedPatient);
     } catch (error) {
-        res.status(500).json({ message: "Error updating patient." });
+        res.status(500).json({ message: "Server error." });
     }
 });
 
@@ -519,10 +521,9 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
         const { id } = req.params;
         const { status } = req.body;
 
-        const patient = await Patient.findById(id);
+        const patient = await User.findById(id);
         if (!patient) return res.status(404).json({ message: "Patient not found." });
 
-        // ✅ FIX: Same isVerified guard as user/toggle-status
         if (status === 'active' && !patient.isVerified) {
             return res.status(400).json({
                 message: "Cannot activate patient. Email is not yet verified."
