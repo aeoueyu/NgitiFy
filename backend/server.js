@@ -114,7 +114,7 @@ app.post('/api/activate-account', async (req, res) => {
 
 const sendActivationEmail = async (email, role, tempPassword, activationLink) => {
     await resend.emails.send({
-        from: 'NgitiFy Admin <onboarding@resend.dev>',
+        from: 'NgitiFy Admin <noreply@ngitify.com>',
         to: email,
         subject: 'Welcome to NgitiFy! Activate Your Account',
         html: `
@@ -147,7 +147,7 @@ app.post('/api/forgot-password', async (req, res) => {
             await user.save();
 
             await resend.emails.send({
-                from: 'NgitiFy Support <onboarding@resend.dev>',
+                from: 'NgitiFy Support <noreply@ngitify.com>',
                 to: user.email,
                 subject: 'Your Password Reset Code',
                 text: `Your password reset code is: ${code}`,
