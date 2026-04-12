@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import styles from '../../styles/owner/AddSecretary.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
-import BackIcon from '../../assets/icons/Back.svg'; 
+import BackIcon from '../../assets/icons/Back.svg';
+import { authFetch } from '../../utils/api'; 
 
 export default function AddSecretary({ onClose, onSuccess }) {
     const fileInputRef = useRef(null);
@@ -136,10 +137,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
         };
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/add-secretary', {
+            const response = await authFetch('/add-secretary', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(finalData),
             });
 

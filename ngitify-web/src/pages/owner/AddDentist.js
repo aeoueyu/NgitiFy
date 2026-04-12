@@ -3,6 +3,7 @@ import styles from '../../styles/owner/AddDentist.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
+import { authFetch } from '../../utils/api';
 
 export default function AddDentist({ onClose, onSuccess }) {
     const fileInputRef = useRef(null);
@@ -153,10 +154,8 @@ export default function AddDentist({ onClose, onSuccess }) {
         };
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/add-dentist', {
+            const response = await authFetch('/add-dentist', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(finalData),
             });
 

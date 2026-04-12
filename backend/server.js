@@ -487,6 +487,32 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
     }
 });
 
+// Patient toggle-status (separate from User toggle since Patient is a different collection)
+app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const patient = await Patient.findById(id);
+        if (!patient) return res.status(404).json({ message: "Patient not found." });
+
+        patient.status = status;
+        await patient.save();
+
+        await AuditLog.create({
+            action: "STATUS_CHANGE",
+            user: req.user?.email || req.user?.id || "ADMIN",
+            role: req.user?.role || "owner",
+            details: `Changed status of patient ${patient.email} to ${status}`
+        });
+
+        res.json({ message: `Patient marked as ${status}.`, patient });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error." });
+    }
+});
+
 app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
     try {
         const user = await User.findById(req.params.id);

@@ -113,7 +113,7 @@ export default function ManagePatients() {
 
     const executeToggleStatus = async (id, newStatus, name) => {
         try {
-            const res = await authFetch(`/user/toggle-status/${id}`, {
+            const res = await authFetch(`/patient/toggle-status/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: newStatus })
             });
