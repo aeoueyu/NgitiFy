@@ -76,7 +76,11 @@ app.post('/api/login', async (req, res) => {
             return res.status(403).json({ message: "Account not verified. Please check your email." });
         }
 
-        const token = jwt.sign({ id: user._id, role: user.role, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign(
+            { id: user._id, role: user.role, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }  // ← changed from '1h' to '24h'
+        );
 
         await AuditLog.create({
             action: "LOGIN",

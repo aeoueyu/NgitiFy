@@ -16,7 +16,10 @@ const verifyToken = (req, res, next) => {
         req.user = decoded; // Attach decoded payload { id, role } to the request
         next(); // Proceed to the next middleware or route handler
     } catch (err) {
-        res.status(403).json({ message: 'Invalid or expired token.' });
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ message: 'Token expired. Please log in again.' });
+        }
+        return res.status(403).json({ message: 'Invalid token.' });
     }
 };
 

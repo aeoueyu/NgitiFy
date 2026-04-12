@@ -34,14 +34,15 @@ export const authFetch = async (endpoint, options = {}) => {
 
     try {
         const response = await fetch(`${BASE_URL}${formattedEndpoint}`, config);
-        
-        // Global handling for 401 Unauthorized (e.g., token expired/invalid)
-        if (response.status === 401) {
-            console.warn("Unauthorized access - token may be expired.");
-            // Optional: Automatically clear token and redirect to login
-            // localStorage.removeItem('token');
-            // window.location.href = '/login'; 
+
+        if (response.status === 401 || response.status === 403) {
+            console.warn("Session expired or unauthorized. Redirecting to login.");
+            localStorage.removeItem('token');
+            localStorage.removeItem('ngitify_user');
+            window.location.href = '/login';
         }
+
+        return response;
 
         return response;
     } catch (error) {
