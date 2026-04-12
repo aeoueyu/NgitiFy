@@ -95,15 +95,26 @@ app.post('/api/activate-account', async (req, res) => {
         const { token } = req.body;
         if (!token) return res.status(400).json({ message: "No token provided." });
 
-        const user = await User.findOne({ activationToken: token });
-        if (!user) return res.status(400).json({ message: "Invalid or expired activation link." });
+        // ✅ FIX: Check User collection first, then fall back to Patient collection
+        let account = await User.findOne({ activationToken: token });
+        let isPatient = false;
 
-        user.isVerified = true;
-        user.status = 'active'; 
-        user.activationToken = undefined; 
-        await user.save();
+        if (!account) {
+            account = await Patient.findOne({ activationToken: token });
+            isPatient = true;
+        }
 
-        res.json({ message: "Account activated successfully!" });
+        if (!account) return res.status(400).json({ message: "Invalid or expired activation link." });
+
+        account.isVerified = true;
+        account.status = 'active';
+        account.activationToken = undefined;
+        await account.save();
+
+        res.json({ 
+            message: "Account activated successfully!",
+            role: isPatient ? 'patient' : account.role  // useful for frontend redirect
+        });
     } catch (error) {
         res.status(500).json({ message: "Server error during activation." });
     }
@@ -119,9 +130,11 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
                 <h2 style="color: #005466;">Welcome to NgitiFy!</h2>
                 <p>Hello,</p>
                 <p>Your <b>${role}</b> account has been successfully created.</p>
+                ${tempPassword ? `
                 <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <p><strong>Temporary Password:</strong> <span style="font-size: 18px; font-weight: bold; color: #000;">${tempPassword}</span></p>
                 </div>
+                ` : ''}
                 <p>Please click the button below to activate your account:</p>
                 <a href="${activationLink}" style="background-color: #005466; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Activate Account</a>
             </div>
@@ -331,21 +344,33 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
         const existing = await Patient.findOne({ email });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
 
+        // ✅ FIX: Generate activation credentials (same pattern as add-dentist / add-secretary)
+        const activationToken = crypto.randomBytes(32).toString('hex');
+        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
         const newPatient = new Patient({
             ...otherData,
-            email
+            email,
+            isVerified: false,
+            status: 'inactive',
+            activationToken,
+            temporaryPasswordExpires
         });
         await newPatient.save();
 
         await AuditLog.create({
             action: "CREATE_PATIENT",
-            user: req.user?.email || req.user?.id || "SYSTEM", 
+            user: req.user?.email || req.user?.id || "SYSTEM",
             role: req.user?.role || "SYSTEM",
             details: `Created new patient: ${email}`
         });
 
-        console.log(`✅ Patient Added: ${email}`);
-        res.status(201).json({ message: 'Patient added successfully.' });
+        // ✅ FIX: Send activation email to patient
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+        await sendActivationEmail(email, 'Patient', null, activationLink); // no tempPassword for patients
+
+        console.log(`✅ Patient Added & Activation Email Sent: ${email}`);
+        res.status(201).json({ message: 'Patient added successfully. Activation email sent.' });
 
     } catch (error) {
         console.error("Error adding patient:", error);
@@ -488,6 +513,7 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
 });
 
 // Patient toggle-status (separate from User toggle since Patient is a different collection)
+// Patient toggle-status — now consistent with User toggle-status
 app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -495,6 +521,13 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
 
         const patient = await Patient.findById(id);
         if (!patient) return res.status(404).json({ message: "Patient not found." });
+
+        // ✅ FIX: Same isVerified guard as user/toggle-status
+        if (status === 'active' && !patient.isVerified) {
+            return res.status(400).json({
+                message: "Cannot activate patient. Email is not yet verified."
+            });
+        }
 
         patient.status = status;
         await patient.save();
@@ -513,39 +546,36 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
     }
 });
 
-app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
+app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
-        if (!user) {
-            return res.status(404).json({ message: "User not found." });
+        const patient = await Patient.findById(req.params.id);
+        if (!patient) {
+            return res.status(404).json({ message: "Patient not found." });
         }
 
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-        user.password = hashedPassword;
-        user.activationToken = activationToken;
-        user.temporaryPasswordExpires = temporaryPasswordExpires;
-        user.isVerified = false;
-        user.status = 'inactive';
-        await user.save();
+        patient.activationToken = activationToken;
+        patient.temporaryPasswordExpires = temporaryPasswordExpires;
+        patient.isVerified = false;
+        patient.status = 'inactive';
+        await patient.save();
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(user.email, user.role, tempPassword, activationLink);
+        await sendActivationEmail(patient.email, 'Patient', null, activationLink);
 
         await AuditLog.create({
             action: "RESEND_ACTIVATION",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "owner",
-            details: `Resent activation email to ${user.email}`
+            details: `Resent activation email to patient ${patient.email}`
         });
 
         res.json({ message: "Activation email has been resent successfully." });
 
     } catch (error) {
-        console.error("Error resending activation email:", error);
+        console.error("Error resending patient activation email:", error);
         res.status(500).json({ message: "Server error while resending activation email." });
     }
 });
