@@ -12,7 +12,7 @@ import AddPatient from './AddPatient';
 import EditPatient from './EditPatient';
 import PatientProfile from './PatientProfile'; 
 import ConfirmModal from '../../components/common/ConfirmModal'; 
-import { useToast } from '../../context/ToastContext'; // TASK 3.2: Imported Toast
+import { useToast } from '../../context/ToastContext'; 
 
 export default function ManagePatients() {
     const { user } = useAuth();
@@ -21,11 +21,10 @@ export default function ManagePatients() {
     const location = useLocation();
     const navigate = useNavigate();
     
-    const { addToast } = useToast(); // TASK 3.2: Initialize Toast
+    const { addToast } = useToast(); 
     
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [verifiedFilter, setVerifiedFilter] = useState('All');
     
     const [patientsList, setPatientsList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -49,32 +48,31 @@ export default function ManagePatients() {
     const fetchPatients = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await authFetch('/users?role=patient');
+            // ✅ BUG FIX: Query the Patient collection, not Users
+            const response = await authFetch('/patients');
 
             if (response.ok) {
                 const data = await response.json();
                 
-                const mappedPatients = data
-                    .filter(u => u.role === 'patient')
-                    .map(p => {
-                        let parsedName = 'Unknown Patient';
-                        if (typeof p.name === 'object' && p.name !== null) {
-                            parsedName = `${p.name.first || ''} ${p.name.last || ''}`.trim();
-                        } else if (p.firstName) {
-                            parsedName = `${p.firstName} ${p.lastName || ''}`.trim();
-                        } else if (typeof p.name === 'string') {
-                            parsedName = p.name;
-                        }
+                // ✅ BUG FIX: Removed .filter role and isVerified field
+                const mappedPatients = data.map(p => {
+                    let parsedName = 'Unknown Patient';
+                    if (typeof p.name === 'object' && p.name !== null) {
+                        parsedName = `${p.name.first || ''} ${p.name.last || ''}`.trim();
+                    } else if (p.firstName) {
+                        parsedName = `${p.firstName} ${p.lastName || ''}`.trim();
+                    } else if (typeof p.name === 'string') {
+                        parsedName = p.name;
+                    }
 
-                        return {
-                            id: p._id,
-                            name: parsedName,
-                            email: p.email || 'N/A',
-                            status: p.status === 'active' ? 'Active' : 'Inactive',
-                            isVerified: p.isVerified,
-                            profileImage: p.profileImage
-                        };
-                    });
+                    return {
+                        id: p._id,
+                        name: parsedName || 'Unknown',
+                        email: p.email || 'N/A',
+                        status: p.status === 'active' ? 'Active' : 'Inactive',
+                        profileImage: p.profileImage
+                    };
+                });
                     
                 setPatientsList(mappedPatients);
             }
@@ -93,22 +91,14 @@ export default function ManagePatients() {
         const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               patient.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || patient.status === statusFilter;
-        const matchesVerified = verifiedFilter === 'All' || 
-                                (verifiedFilter === 'Verified' && patient.isVerified) || 
-                                (verifiedFilter === 'Unverified' && !patient.isVerified);
 
-        return matchesSearch && matchesStatus && matchesVerified;
+        return matchesSearch && matchesStatus;
     });
 
-    // TASK 3.1 & 3.2: Replaced window.confirm and alert()
     const handleToggleStatus = (patient) => {
         const newStatus = patient.status === 'Active' ? 'inactive' : 'active';
         
-        if (newStatus === 'active' && !patient.isVerified) {
-            addToast(`Cannot activate ${patient.name}. Their email is not yet verified.`, 'error');
-            return;
-        }
-
+        // ✅ BUG FIX: Removed isVerified check since patients don't verify emails
         setConfirmConfig({
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
             message: newStatus === 'active' 
@@ -189,12 +179,6 @@ export default function ManagePatients() {
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
                     </select>
-
-                    <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'All' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('All')}>All</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
-                    </div>
                 </div>
                 
                 {canEditPatients && (
@@ -228,7 +212,6 @@ export default function ManagePatients() {
                                     </td>
                                     <td>
                                         <span className={styles.fwBold}>{patient.name}</span>
-                                        {!patient.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
                                     <td>{patient.email}</td>
                                     <td>

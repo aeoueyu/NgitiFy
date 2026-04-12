@@ -5,7 +5,8 @@ const bcrypt = require('bcryptjs');
 const User = require('./models/User'); 
 
 // LOCAL Database Connection String
-const MONGO_URI = 'mongodb://127.0.0.1:27017/ngitify';
+require('dotenv').config();
+const MONGO_URI = process.env.MONGO_URI;
 
 const createAdmin = async () => {
     try {

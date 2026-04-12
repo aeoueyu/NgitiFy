@@ -45,6 +45,12 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// ✅ BUG FIX: Added verification call to catch auth failures immediately
+transporter.verify((error) => {
+    if (error) console.error('❌ Email transporter error:', error);
+    else console.log('✅ Email transporter ready');
+});
+
 // ================= PUBLIC ROUTES ================= //
 
 app.post('/api/login', async (req, res) => {
@@ -589,7 +595,7 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         if (profileImage !== undefined) user.profileImage = profileImage;
 
         if (currentAddress) {
-            user.currentAddress = {
+             user.currentAddress = {
                 ...user.currentAddress,
                 ...currentAddress
             };
