@@ -163,7 +163,7 @@ app.post('/api/forgot-password', async (req, res) => {
             await user.save();
 
             await transporter.sendMail({
-                from: '"NgitiFy Support" <${process.env.EMAIL_USER}>',
+                from: `"NgitiFy Support" <${process.env.EMAIL_USER}>`,
                 to: user.email,
                 subject: 'Your Password Reset Code',
                 text: `Your password reset code is: ${code}`,
@@ -383,13 +383,17 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             details: `Created new patient: ${email}`
         });
 
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+
+        console.log(`📧 Attempting to send activation email to: ${email}`);
+        console.log(`🔗 Activation link: ${activationLink}`);
+
         try {
-            const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
             await sendActivationEmail(email, 'Patient', tempPassword, activationLink);
-            console.log(`✅ Patient Added & Activation Email Sent: ${email}`);
+            console.log(`✅ Email sent successfully to: ${email}`);
             res.status(201).json({ message: 'Patient added successfully. Activation email sent.' });
         } catch (emailError) {
-            console.error("Email failed:", emailError);
+            console.error("Email failed:", emailError.message);
             res.status(201).json({ message: 'Patient added, but activation email failed to send.' });
         }
 
