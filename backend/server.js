@@ -285,15 +285,19 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
             details: `Created new user: ${email}`
         });
 
-        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(email, 'Dentist', tempPassword, activationLink);
-        
-        console.log(`✅ Dentist Added: ${email}`);
-        res.status(201).json({ message: 'Dentist added successfully. Email sent.' });
+        try {
+            const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+            await sendActivationEmail(email, 'Dentist', tempPassword, activationLink);
+            console.log(`✅ Dentist Added: ${email}`);
+            res.status(201).json({ message: 'Dentist added successfully. Email sent.' });
+        } catch (emailError) {
+            console.error("Email failed:", emailError);
+            res.status(201).json({ message: 'Dentist added, but activation email failed to send.' });
+        }
 
     } catch (error) {
-        console.error("Error adding dentist or sending email:", error);
-        res.status(500).json({ message: "User created, but failed to send activation email." });
+        console.error("Error adding dentist:", error);
+        res.status(500).json({ message: "Server error." });
     }
 });
 
@@ -328,15 +332,19 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
             details: `Created new user: ${email}`
         });
 
-        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(email, 'Secretary', tempPassword, activationLink);
-
-        console.log(`✅ Email sent to Secretary: ${email}`);
-        res.status(201).json({ message: 'Secretary added successfully. Email sent.' });
+        try {
+            const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+            await sendActivationEmail(email, 'Secretary', tempPassword, activationLink);
+            console.log(`✅ Secretary Added: ${email}`);
+            res.status(201).json({ message: 'Secretary added successfully. Email sent.' });
+        } catch (emailError) {
+            console.error("Email failed:", emailError);
+            res.status(201).json({ message: 'Secretary added, but activation email failed to send.' });
+        }
 
     } catch (error) {
-        console.error("Error adding secretary or sending email:", error);
-        res.status(500).json({ message: "User created, but failed to send activation email." });
+        console.error("Error adding secretary:", error);
+        res.status(500).json({ message: "Server error." });
     }
 });
 
@@ -371,11 +379,15 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             details: `Created new patient: ${email}`
         });
 
-        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(email, 'Patient', tempPassword, activationLink);
-
-        console.log(`✅ Patient Added & Activation Email Sent: ${email}`);
-        res.status(201).json({ message: 'Patient added successfully. Activation email sent.' });
+        try {
+            const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+            await sendActivationEmail(email, 'Patient', tempPassword, activationLink);
+            console.log(`✅ Patient Added & Activation Email Sent: ${email}`);
+            res.status(201).json({ message: 'Patient added successfully. Activation email sent.' });
+        } catch (emailError) {
+            console.error("Email failed:", emailError);
+            res.status(201).json({ message: 'Patient added, but activation email failed to send.' });
+        }
 
     } catch (error) {
         console.error("Error adding patient:", error);
