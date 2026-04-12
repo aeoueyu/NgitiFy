@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 const corsOptions = {
-    origin: ['http://localhost:3000', 'http://ngitify.com', 'https://ngitify.com', 'https://www.ngitify.com'],
+    origin: ['http://localhost:3000', 'http://ngitify.com', 'https://ngitify.com', 'https://www.ngitify.com, https://ngitify.netlify.app'],
     credentials: true, 
 };
 app.use(cors(corsOptions));
@@ -552,7 +552,8 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
 
 app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => {
     try {
-        const patient = await Patient.findById(req.params.id);
+        // ✅ CORRECT — use User model, consistent with where patients are stored
+        const patient = await User.findById(req.params.id);
         if (!patient) {
             return res.status(404).json({ message: "Patient not found." });
         }
