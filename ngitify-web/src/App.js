@@ -10,7 +10,6 @@ import DashboardLayout from './components/layout/DashboardLayout';
 // Auth & Public Pages (Loaded eagerly for immediate first paint)
 import WebsiteHome from './pages/website/WebsiteHome';
 import LoginPage from './pages/auth/LoginPage';
-import ActivateAccountPage from './pages/auth/ActivateAccountPage';
 
 // --- TASK 23: LAZY LOADED ROUTES ---
 const ForgotPassPage = lazy(() => import('./pages/auth/ForgotPassPage'));
