@@ -8,19 +8,14 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for BOTH the user object and the JWT token
     const storedUser = localStorage.getItem('ngitify_user');
     const token = localStorage.getItem('token');
 
-    // Only hydrate the session if both exist
     if (storedUser && token) {
-      setCurrentUser(new User(JSON.parse(storedUser)));
-    } else {
-      // Safety cleanup if they somehow get out of sync
-      localStorage.removeItem('ngitify_user');
-      localStorage.removeItem('token');
+        setCurrentUser(new User(JSON.parse(storedUser)));
     }
-    
+    // ✅ Remove the else block entirely — don't wipe tokens on a race condition
+
     setLoading(false);
   }, []);
 
