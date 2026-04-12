@@ -3,6 +3,7 @@ import styles from '../../styles/owner/AddPatient.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
+import { authFetch } from '../../utils/api'; // <-- ADDED: Using our custom fetch
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -17,8 +18,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
     const [formData, setFormData] = useState({
         firstName: '', middleName: '', lastName: '', birthdate: '',
-        gender: '',
-        email: '', phone: '', 
+        gender: '', email: '', phone: '', 
         guardianName: '', guardianRelationship: '', guardianContact: '',
         currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
     });
@@ -30,10 +30,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     useEffect(() => {
         const fetchPatientData = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:5000/api/user/${patientId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // FIXED: Using authFetch and pointing to /patients/:id instead of /user/:id
+                const response = await authFetch(`/patients/${patientId}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -71,7 +69,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                         middleName: mName,
                         lastName: lName,
                         birthdate: formattedDob,
-                        gender: data.gender || '',        // <-- ADDED
+                        gender: data.gender || '',        
                         email: data.email || '',
                         phone: phoneNum,
                         guardianName: data.guardian?.name || '',
@@ -222,8 +220,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email: formData.email, contactNumber: `+63${formData.phone}`, 
-            dob: formData.birthdate, birthdate: formData.birthdate,
-            gender: formData.gender, // <-- FIXED
+            birthdate: formData.birthdate,
+            gender: formData.gender,
             profileImage: profileImage,
             guardian: isMinor ? {
                 name: formData.guardianName,
@@ -235,10 +233,9 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         };
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/user/${patientId}`, {
+            // FIXED: Using authFetch and pointing to /patients/:id instead of /user/:id
+            const response = await authFetch(`/patients/${patientId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(finalData),
             });
 
@@ -313,18 +310,15 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             </div>
 
                             <h3 className={styles.mainSectionTitle}>Personal Information</h3>
-                            {/* Row 1: Name */}
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
                                 <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/></div>
                                 <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                             </div>
-                            {/* Row 2: Demographics */}
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
                                 <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
-                            {/* Row 4: Contact */}
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                                 <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
@@ -336,7 +330,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 </div>
                             </div>
 
-                            {/* CONDITIONAL GUARDIAN SECTION */}
                             {isMinor && (
                                 <>
                                     <hr className={styles.divider} style={{ marginTop: '10px' }} />
