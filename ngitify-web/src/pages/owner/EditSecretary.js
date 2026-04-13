@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import styles from '../../styles/owner/AddSecretary.module.css'; 
+import styles from '../../styles/owner/EditSecretary.module.css'; // FIX 1: was AddSecretary.module.css
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
+import { authFetch } from '../../utils/api'; // FIX 2: added authFetch import
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -20,7 +21,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
         gender: '', email: '', phone: '', 
         currentAddress: { ...initialAddressState }, 
         permanentAddress: { ...initialAddressState },
-        permissions: { patients: 'none', appointments: 'none', inventory: 'none' } // Added Permissions
+        permissions: { patients: 'none', appointments: 'none', inventory: 'none' }
     });
 
     const [initialData, setInitialData] = useState(null);
@@ -30,10 +31,8 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
     useEffect(() => {
         const fetchSecretaryData = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:5000/api/user/${secretaryId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // FIX 2: replaced raw fetch + localhost with authFetch
+                const response = await authFetch(`/user/${secretaryId}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -73,7 +72,6 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                         phone: phoneNum,
                         currentAddress: { ...initialAddressState, ...fetchedCurrent },
                         permanentAddress: { ...initialAddressState, ...fetchedPermanent },
-                        // Fetching existing permissions or defaulting to 'none'
                         permissions: {
                             patients: data.permissions?.patients || 'none',
                             appointments: data.permissions?.appointments || 'none',
@@ -174,7 +172,6 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
         }
     };
 
-    // Added Permissions Handler
     const handlePermissionChange = (module, value) => {
         setFormData(prev => ({
             ...prev,
@@ -184,7 +181,8 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
 
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'email'];
+        // FIX 3: added 'gender' to required fields
+        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
         required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
         if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
         else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
@@ -219,14 +217,13 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
             profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
-            permissions: formData.permissions // Added permissions to payload
+            permissions: formData.permissions
         };
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/user/${secretaryId}`, {
+            // FIX 2: replaced raw fetch + localhost with authFetch
+            const response = await authFetch(`/user/${secretaryId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(finalData),
             });
 
@@ -312,7 +309,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                                 <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
                                 <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
-                            {/* Row 4: Contact */}
+                            {/* Row 3: Contact */}
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isSaving}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                                 <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
@@ -329,7 +326,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                             <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isSaving} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
                             {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
 
-                            {/* NEW: SYSTEM PERMISSIONS SECTION */}
+                            {/* SYSTEM PERMISSIONS SECTION */}
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>System Permissions</h3>
                             <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>

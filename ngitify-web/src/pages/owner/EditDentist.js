@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import styles from '../../styles/owner/AddDentist.module.css'; 
+import styles from '../../styles/owner/EditDentist.module.css'; // FIX 1: was AddDentist.module.css
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
+import { authFetch } from '../../utils/api'; // FIX 2: added authFetch import
 
 const specializationOptions = [ "General Dentist", "Orthodontist", "Pediatric Dentist (Pedodontist)", "Periodontist", "Endodontist", "Oral & Maxillofacial Surgeon", "Prosthodontist", "Cosmetic Dentist" ];
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
@@ -19,7 +20,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
     const [formData, setFormData] = useState({
         firstName: '', middleName: '', lastName: '', birthdate: '', gender: '', licenseNumber: '', specialization: '',
         email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
-        permissions: { patients: 'none', appointments: 'none', inventory: 'none' } // Added Permissions
+        permissions: { patients: 'none', appointments: 'none', inventory: 'none' }
     });
 
     const [initialData, setInitialData] = useState(null);
@@ -29,10 +30,8 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
     useEffect(() => {
         const fetchDentistData = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:5000/api/user/${dentistId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // FIX 2: replaced raw fetch + localhost with authFetch
+                const response = await authFetch(`/user/${dentistId}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -74,7 +73,6 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                         phone: phoneNum,
                         currentAddress: { ...initialAddressState, ...fetchedCurrent },
                         permanentAddress: { ...initialAddressState, ...fetchedPermanent },
-                        // Fetching existing permissions or defaulting to 'none'
                         permissions: {
                             patients: data.permissions?.patients || 'none',
                             appointments: data.permissions?.appointments || 'none',
@@ -189,7 +187,6 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         }
     };
 
-    // Added Permissions Handler
     const handlePermissionChange = (module, value) => {
         setFormData(prev => ({
             ...prev,
@@ -199,7 +196,8 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
 
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'licenseNumber', 'specialization', 'email'];
+        // FIX 3: added 'gender' to required fields
+        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email'];
         required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
         if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
         else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
@@ -235,14 +233,13 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
             licenseNumber: formData.licenseNumber, specialization: formData.specialization, profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
-            permissions: formData.permissions // Added permissions to payload
+            permissions: formData.permissions
         };
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/user/${dentistId}`, {
+            // FIX 2: replaced raw fetch + localhost with authFetch
+            const response = await authFetch(`/user/${dentistId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(finalData),
             });
 
@@ -350,7 +347,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                             <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isSaving} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
                             {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
 
-                            {/* NEW: SYSTEM PERMISSIONS SECTION */}
+                            {/* SYSTEM PERMISSIONS SECTION */}
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>System Permissions</h3>
                             <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>
