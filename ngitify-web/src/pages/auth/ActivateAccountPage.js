@@ -7,16 +7,25 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 export default function ActivateAccountPage() {
   const { token } = useParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
+  const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  const [isPatient, setIsPatient] = useState(false);
 
   useEffect(() => {
     const activate = async () => {
       try {
         const res = await axios.post(`${API_URL}/api/activate-account`, { token });
+        const role = res.data.role;
+
+        if (role === 'patient') {
+          setIsPatient(true);
+          setMessage('Your account has been activated! Please log in using the NgitiFy mobile app.');
+        } else {
+          setMessage(res.data.message || 'Account activated successfully!');
+          setTimeout(() => navigate('/login'), 3000);
+        }
+
         setStatus('success');
-        setMessage(res.data.message || 'Account activated successfully!');
-        setTimeout(() => navigate('/login'), 3000);
       } catch (err) {
         setStatus('error');
         setMessage(err.response?.data?.message || 'Invalid or expired activation link.');
@@ -26,19 +35,28 @@ export default function ActivateAccountPage() {
   }, [token, navigate]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Arial, sans-serif', textAlign: 'center', padding: '0 20px' }}>
       {status === 'loading' && <p>Activating your account, please wait...</p>}
+
       {status === 'success' && (
         <>
-          <h2 style={{ color: '#005466' }}>✅ {message}</h2>
-          <p>Redirecting you to login...</p>
+          <h2 style={{ color: '#005466' }}>✅ Account Activated!</h2>
+          <p>{message}</p>
+          {isPatient ? (
+            <p style={{ color: '#888', fontSize: '14px', marginTop: '10px' }}>
+              You can now close this page and open the NgitiFy mobile app to log in.
+            </p>
+          ) : (
+            <p style={{ color: '#888', fontSize: '14px' }}>Redirecting you to the login page...</p>
+          )}
         </>
       )}
+
       {status === 'error' && (
         <>
           <h2 style={{ color: 'red' }}>❌ Activation Failed</h2>
           <p>{message}</p>
-          <a href="/login">Go to Login</a>
+          <a href="/login" style={{ color: '#005466', marginTop: '10px' }}>Go to Login</a>
         </>
       )}
     </div>
