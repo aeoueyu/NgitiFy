@@ -127,13 +127,12 @@ export default function AddSecretary({ onClose, onSuccess }) {
         setIsLoading(true);
 
         const finalData = {
-            role: 'secretary', firstName: formData.firstName, lastName: formData.lastName,
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email: formData.email, contactNumber: `+63${formData.phone}`, birthdate: formData.birthdate,
             profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
-            permissions: formData.permissions // Added permissions to payload
+            permissions: formData.permissions
         };
 
         try {

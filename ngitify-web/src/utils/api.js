@@ -2,7 +2,7 @@
 
 const BASE_URL = process.env.REACT_APP_API_URL 
     ? `${process.env.REACT_APP_API_URL}/api` 
-    : 'https://ngitify.onrender.com';
+    : 'https://ngitify.onrender.com/api';
 
 /**
  * A wrapper around the native fetch API that automatically includes
@@ -43,8 +43,7 @@ export const authFetch = async (endpoint, options = {}) => {
         }
 
         return response;
-
-        return response;
+        
     } catch (error) {
         console.error(`API Fetch Error [${formattedEndpoint}]:`, error);
         throw error;
