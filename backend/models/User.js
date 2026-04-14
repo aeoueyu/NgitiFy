@@ -10,6 +10,22 @@ const addressSchema = new mongoose.Schema({
     street: { type: String }
 }, { _id: false });
 
+// ✅ NEW: Embedded treatment log subdocument (used for patient EMR)
+const treatmentLogSchema = new mongoose.Schema({
+    date: { type: Date, required: true },
+    procedure: { type: String, required: true },
+    tooth: { type: String }, // e.g., "45", "18, 28", "All"
+    category: {
+        type: String,
+        enum: ['Restoration', 'Extraction', 'Prophylaxis', 'Orthodontics', 'Endodontics', 'Prosthodontics', 'Oral Surgery', 'Consultation', 'Other'],
+        default: 'Other'
+    },
+    notes: { type: String },
+    dentistId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    dentistName: { type: String }, // stored separately so it survives staff changes
+    branch: { type: String },
+}, { timestamps: true });
+
 const userSchema = new mongoose.Schema({
     // 1. NESTED NAME OBJECT
     name: {
@@ -23,7 +39,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: {
         type: String,
-        enum: ['owner', 'co-owner', 'dentist', 'secretary', 'patient'], // ✅ FIX: 'patient' added back
+        enum: ['owner', 'co-owner', 'dentist', 'secretary', 'patient'],
         required: true
     },
 
@@ -38,6 +54,13 @@ const userSchema = new mongoose.Schema({
     birthdate: { type: Date },
     gender: { type: String },
     profileImage: { type: String },
+
+    // ✅ NEW: Additional patient demographics required by FR#13 / Table 4
+    suffix: { type: String },       // e.g., Jr., Sr., III
+    civilStatus: { type: String },  // e.g., Single, Married, Widowed
+    religion: { type: String },
+    nationality: { type: String, default: 'Filipino' },
+    birthplace: { type: String },
 
     // 4. STAFF-SPECIFIC
     licenseNumber: { type: String },
@@ -62,7 +85,27 @@ const userSchema = new mongoose.Schema({
     medicalHistory: {
         allergies: [{ type: String }],
         conditions: [{ type: String }],
-        medications: [{ type: String }] // ✅ FIX: added for patients
+        medications: [{ type: String }],
+        // ✅ NEW: Free-text notes field for the dentist to fill in EMR
+        notes: { type: String }
+    },
+
+    // ✅ NEW: DENTAL HISTORY (for EMR — general notes, last exam, etc.)
+    dentalHistory: {
+        lastExamDate: { type: Date },
+        chiefComplaint: { type: String },
+        notes: { type: String }
+    },
+
+    // ✅ NEW: TREATMENT LOGS — embedded array for dentist post-treatment entries
+    treatmentLogs: [treatmentLogSchema],
+
+    // ✅ NEW: ODONTOGRAM — map of tooth number (as string) → status string
+    // e.g., { "18": "missing", "26": "crown", "45": "decayed" }
+    odontogram: {
+        type: Map,
+        of: String,
+        default: {}
     },
 
     // 8. SECURITY & VERIFICATION
@@ -89,7 +132,10 @@ const userSchema = new mongoose.Schema({
     }],
 
     // FIX: Default status is 'inactive' until email verified
-    status: { type: String, enum: ['active', 'inactive'], default: 'inactive' }
+    status: { type: String, enum: ['active', 'inactive'], default: 'inactive' },
+
+    // ✅ NEW: Archive flag — replaces hard-delete for dentists and secretaries (Owner FR#7, FR#11)
+    isArchived: { type: Boolean, default: false }
 
 }, { timestamps: true });
 
