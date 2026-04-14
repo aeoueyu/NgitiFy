@@ -1,25 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/owner/Appointments.module.css';
 import {
-    FaPlus, FaSearch, FaUserMd,
-    FaGlobe, FaPhoneAlt, FaWalking, FaTimes
+    FaPlus, FaSearch, FaRobot, FaUserMd,
+    FaGlobe, FaPhoneAlt, FaWalking
 } from 'react-icons/fa';
 
 // CRITICAL RULE IMPORTS
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { formatDateShort } from '../../utils/dateUtils';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import UserAvatar from '../../components/common/UserAvatar';
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const PROCEDURE_OPTIONS = [
     'Consultation', 'Teeth Cleaning (Prophylaxis)', 'Tooth Extraction',
     'Dental Filling (Composite)', 'Root Canal Treatment', 'Braces / Orthodontic Adjustment',
-    'Teeth Whitening', 'Crown / Bridge Fitting', 'Denture Fitting',
-    'Wisdom Tooth Extraction', 'Odontogram Assessment', 'X-Ray / Radiograph',
-    'Oral Surgery', 'Gum Treatment (Periodontics)', 'Other',
+    'Teeth Whitening', 'Crown / Bridge Fitting', 'Wisdom Tooth Extraction',
+    'Oral Surgery', 'X-Ray / Radiograph', 'Other',
 ];
+
+const SOURCE_OPTIONS = ['Walk-in', 'Phone Call', 'Smile Hub (Online)'];
 
 // ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
 const normalizeSurgery = (s) => ({
@@ -28,28 +27,26 @@ const normalizeSurgery = (s) => ({
     patientName: s.patient?.name
         ? `${s.patient.name.first} ${s.patient.name.last}`
         : 'Unknown Patient',
-    patientImage: s.patient?.profileImage || null,
     dentistId: s.dentist?._id || s.dentist,
-    dentistName: s.dentist?.name
+    dentist: s.dentist?.name
         ? `Dr. ${s.dentist.name.first} ${s.dentist.name.last}`
         : 'Unassigned',
     procedure: s.procedure || '—',
-    status: s.status || 'pending',
-    time: s.time || '',
-    duration: s.duration || '—',
+    status: s.status ? (s.status.charAt(0).toUpperCase() + s.status.slice(1)) : 'Pending',
+    time: s.time || '—',
     source: s.source || 'Walk-in',
     date: new Date(s.date),
     notes: s.notes || '',
 });
 
 export default function Appointments() {
+    const { addToast } = useToast();
+
     // ─── DATA STATE ──────────────────────────────────────────────────────────
     const [appointments, setAppointments] = useState([]);
     const [patients, setPatients] = useState([]);
     const [dentists, setDentists] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const { addToast } = useToast();
 
     // ─── CALENDAR & FILTER STATE ─────────────────────────────────────────────
     const [currentMonthView, setCurrentMonthView] = useState(new Date());
@@ -67,35 +64,27 @@ export default function Appointments() {
     const [formErrors, setFormErrors] = useState({});
 
     const [bookingForm, setBookingForm] = useState({
-        patientId: '',
-        dentistId: '',
-        date: '',
-        time: '',
-        procedure: '',
-        notes: '',
-        source: 'Walk-in',
+        patientId: '', dentistId: '', date: '', time: '',
+        procedure: '', source: 'Walk-in', notes: '',
     });
 
     // ─── FETCH ───────────────────────────────────────────────────────────────
     const fetchAppointments = useCallback(async (silent = false) => {
-        if (silent) setIsRefreshing(true);
-        else setIsLoading(true);
+        if (!silent) setIsLoading(true);
         try {
             const res = await authFetch('/surgeries');
-            if (!res.ok) throw new Error('Failed to fetch appointments.');
+            if (!res.ok) throw new Error();
             const data = await res.json();
             setAppointments(data.map(normalizeSurgery));
-        } catch (err) {
-            console.error('Appointment fetch error:', err);
+        } catch {
             addToast('Failed to load appointments.', 'error');
         } finally {
             setIsLoading(false);
-            setIsRefreshing(false);
         }
     }, [addToast]);
 
     useEffect(() => {
-        const fetchAllData = async () => {
+        const loadAll = async () => {
             setIsLoading(true);
             try {
                 const [aptsRes, patientsRes, dentistsRes] = await Promise.all([
@@ -103,35 +92,32 @@ export default function Appointments() {
                     authFetch('/patients'),
                     authFetch('/users?role=dentist'),
                 ]);
-                if (aptsRes.ok)      setAppointments((await aptsRes.json()).map(normalizeSurgery));
-                if (patientsRes.ok)  setPatients((await patientsRes.json()).filter(u => u.status === 'active'));
-                if (dentistsRes.ok)  setDentists((await dentistsRes.json()).filter(u => u.status === 'active' && !u.isArchived));
-            } catch (err) {
-                console.error('Initial fetch error:', err);
+                if (aptsRes.ok)     setAppointments((await aptsRes.json()).map(normalizeSurgery));
+                if (patientsRes.ok) setPatients((await patientsRes.json()).filter(u => u.status === 'active'));
+                if (dentistsRes.ok) setDentists((await dentistsRes.json()).filter(u => u.status === 'active' && !u.isArchived));
+            } catch {
                 addToast('Failed to connect to server.', 'error');
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchAllData();
+        loadAll();
     }, [addToast]);
 
-    // Reset pagination when date or search changes
     useEffect(() => { setCurrentPage(1); }, [selectedDate, searchQuery]);
 
-    // ─── FILTER LOGIC ─────────────────────────────────────────────────────────
+    // ─── FILTER & PAGINATION ─────────────────────────────────────────────────
     const filteredAppointments = appointments.filter(apt => {
-        const matchesDate = apt.date.toDateString() === selectedDate.toDateString();
-        const matchesSearch = apt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              apt.procedure.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesDate   = apt.date.toDateString() === selectedDate.toDateString();
+        const matchesSearch =
+            apt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            apt.procedure.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesDate && matchesSearch;
     });
 
     const totalPages = Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE);
-    const paginatedAppointments = filteredAppointments.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedAppointments = filteredAppointments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
     // ─── CALENDAR LOGIC ───────────────────────────────────────────────────────
     const getCalendarDays = () => {
@@ -148,18 +134,16 @@ export default function Appointments() {
         for (let i = 1; i <= daysInMonth; i++) {
             const currentDate = new Date(year, month, i);
             days.push({
-                num: i,
-                active: currentDate.toDateString() === selectedDate.toDateString(),
-                isToday: currentDate.toDateString() === new Date().toDateString(),
+                num: i, faded: false,
+                active:   currentDate.toDateString() === selectedDate.toDateString(),
+                isToday:  currentDate.toDateString() === new Date().toDateString(),
                 hasEvent: appointments.some(apt => apt.date.toDateString() === currentDate.toDateString()),
                 date: currentDate,
-                faded: false,
             });
         }
         const totalCells = days.length > 35 ? 42 : 35;
         for (let i = 1; i <= totalCells - days.length; i++)
             days.push({ num: i, faded: true, date: new Date(year, month + 1, i) });
-
         return days;
     };
 
@@ -170,109 +154,104 @@ export default function Appointments() {
         if (day.faded) setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
     };
 
-    const calendarDays = getCalendarDays();
+    const calendarDays     = getCalendarDays();
     const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
+    const isTodaySelected  = selectedDate.toDateString() === new Date().toDateString();
 
     // ─── RENDER HELPERS ───────────────────────────────────────────────────────
     const getStatusClass = (status) => {
         switch ((status || '').toLowerCase()) {
-            case 'confirmed':  return styles.statusConfirmed;
-            case 'pending':    return styles.statusPending;
-            case 'completed':  return styles.statusCompleted;
-            case 'cancelled':  return styles.statusCancelled;
-            default:           return '';
+            case 'confirmed': return styles.statusConfirmed;
+            case 'pending':   return styles.statusPending;
+            case 'completed': return styles.statusCompleted;
+            case 'cancelled': return styles.statusCancelled;
+            default: return '';
         }
     };
 
-    const getSourceIcon = (source) => {
-        if (!source) return null;
+    const getSourceIcon = (source = '') => {
         if (source.includes('Smile Hub')) return <FaGlobe />;
         if (source.includes('Phone'))     return <FaPhoneAlt />;
         if (source.includes('Walk-in'))   return <FaWalking />;
+        if (source.includes('AI'))        return <FaRobot />;
         return null;
     };
 
-    const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+    const getInitials = (name = '') => {
+        const parts = name.trim().split(/\s+/);
+        return (parts[0]?.[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+    };
 
-    const getPatientDisplayName = (p) =>
-        p.name?.first ? `${p.name.first} ${p.name.last}` : p.email || 'Unknown';
+    const getPatientName = (p) => p.name?.first ? `${p.name.first} ${p.name.last}` : p.email || 'Unknown';
 
     // ─── BOOKING HANDLERS ─────────────────────────────────────────────────────
     const handleFormChange = (e) => {
         const { name, value } = e.target;
         setBookingForm(prev => ({ ...prev, [name]: value }));
-        if (formErrors[name]) setFormErrors(prev => ({ ...prev, [name]: '' }));
         if (name === 'time' || name === 'date') setTimeError('');
+        if (formErrors[name]) setFormErrors(prev => ({ ...prev, [name]: '' }));
     };
 
-    const validateForm = () => {
-        const errs = {};
-        if (!bookingForm.patientId) errs.patientId = 'Please select a patient.';
-        if (!bookingForm.dentistId) errs.dentistId = 'Please select a dentist.';
-        if (!bookingForm.date)      errs.date = 'Please select a date.';
-        if (!bookingForm.time)      errs.time = 'Please select a time.';
-        if (!bookingForm.procedure) errs.procedure = 'Please select a procedure.';
-        if (bookingForm.date && bookingForm.time) {
-            const selected = new Date(`${bookingForm.date}T${bookingForm.time}`);
-            if (selected < new Date()) {
-                setTimeError('Cannot book an appointment for a time that has already passed.');
-                errs.time = 'Past time.';
-            }
-        }
-        setFormErrors(errs);
-        return Object.keys(errs).length === 0;
-    };
+    const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
     const handleSaveAppointment = async (e) => {
         e.preventDefault();
         setTimeError('');
-        if (!validateForm()) return;
+
+        if (bookingForm.date && bookingForm.time) {
+            const dt = new Date(`${bookingForm.date}T${bookingForm.time}`);
+            if (dt < new Date()) {
+                setTimeError('Cannot book an appointment for a time that has already passed today.');
+                return;
+            }
+        }
+
+        const errs = {};
+        if (!bookingForm.patientId) errs.patientId = 'Required';
+        if (!bookingForm.dentistId) errs.dentistId = 'Required';
+        if (!bookingForm.procedure) errs.procedure = 'Required';
+        if (!bookingForm.date)      errs.date      = 'Required';
+        if (!bookingForm.time)      errs.time      = 'Required';
+        setFormErrors(errs);
+        if (Object.keys(errs).length > 0) return;
+
         setIsSubmitting(true);
-
         try {
-            const payload = {
-                patient:   bookingForm.patientId,
-                dentist:   bookingForm.dentistId,
-                date:      bookingForm.date,
-                time:      bookingForm.time,
-                procedure: bookingForm.procedure,
-                notes:     bookingForm.notes,
-                source:    bookingForm.source,
-                status:    'confirmed',
-                branch:    'Marikina Branch',
-            };
-
             const res = await authFetch('/surgeries', {
                 method: 'POST',
-                body: JSON.stringify(payload),
+                body: JSON.stringify({
+                    patient:   bookingForm.patientId,
+                    dentist:   bookingForm.dentistId,
+                    date:      bookingForm.date,
+                    time:      bookingForm.time,
+                    procedure: bookingForm.procedure,
+                    source:    bookingForm.source,
+                    notes:     bookingForm.notes,
+                    status:    'confirmed',
+                    branch:    'Marikina Branch',
+                }),
             });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.message || 'Booking failed.');
-            }
-
+            if (!res.ok) throw new Error((await res.json()).message || 'Booking failed.');
             addToast('Appointment booked successfully!', 'success');
             setIsAddModalOpen(false);
-            setBookingForm({ patientId: '', dentistId: '', date: '', time: '', procedure: '', notes: '', source: 'Walk-in' });
-            setFormErrors({});
+            resetForm();
             await fetchAppointments(true);
         } catch (err) {
-            console.error('Booking error:', err);
             addToast(err.message || 'Failed to book appointment.', 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleCloseModal = () => {
-        setIsAddModalOpen(false);
-        setBookingForm({ patientId: '', dentistId: '', date: '', time: '', procedure: '', notes: '', source: 'Walk-in' });
+    const resetForm = () => {
+        setBookingForm({ patientId: '', dentistId: '', date: '', time: '', procedure: '', source: 'Walk-in', notes: '' });
         setFormErrors({});
         setTimeError('');
     };
 
-    // Cancel an appointment
+    const handleOpenModal  = () => { resetForm(); setIsAddModalOpen(true); };
+    const handleCloseModal = () => { setIsAddModalOpen(false); resetForm(); };
+
     const handleConfirmCancel = async () => {
         if (!cancelTarget) return;
         try {
@@ -280,12 +259,10 @@ export default function Appointments() {
                 method: 'PUT',
                 body: JSON.stringify({ status: 'cancelled' }),
             });
-            if (!res.ok) throw new Error('Cancellation failed.');
-            setAppointments(prev =>
-                prev.map(a => a.id === cancelTarget.id ? { ...a, status: 'cancelled' } : a)
-            );
-            addToast(`${cancelTarget.patientName}'s appointment has been cancelled.`, 'info');
-        } catch (err) {
+            if (!res.ok) throw new Error();
+            setAppointments(prev => prev.map(a => a.id === cancelTarget.id ? { ...a, status: 'Cancelled' } : a));
+            addToast(`${cancelTarget.patientName}'s appointment cancelled.`, 'info');
+        } catch {
             addToast('Failed to cancel appointment.', 'error');
         } finally {
             setCancelTarget(null);
@@ -299,105 +276,19 @@ export default function Appointments() {
             <div className={styles.headerWrapper}>
                 <div className={styles.header}>
                     <h1 className={styles.title}>Appointments</h1>
-                    <p className={styles.subtitle}>
-                        Manage patient schedules and daily clinic appointments.
-                        {isRefreshing && <span style={{ marginLeft: 8, color: '#94a3b8', fontSize: 12 }}>Refreshing…</span>}
-                    </p>
+                    <p className={styles.subtitle}>Manage patient schedules and daily clinic appointments.</p>
                 </div>
-                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                <button className={styles.addBtn} onClick={handleOpenModal}>
                     <FaPlus /> Add Appointment
                 </button>
             </div>
 
+            {/* ── ORIGINAL LAYOUT: calendar+AI on left | list on right ─────── */}
             <div className={styles.mainGrid}>
-                {/* LEFT: APPOINTMENT LIST */}
+
+                {/* LEFT COLUMN: Calendar + AI Panel */}
                 <div className={styles.leftColumn}>
-                    {/* SEARCH BAR */}
-                    <div className={styles.searchWrapper}>
-                        <FaSearch className={styles.searchIcon} />
-                        <input
-                            type="text"
-                            placeholder="Search patient or procedure..."
-                            className={styles.searchInput}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
 
-                    {/* DATE HEADER */}
-                    <div className={styles.listHeader}>
-                        <h3 className={styles.listTitle}>
-                            {isTodaySelected ? "Today's Appointments" : `Appointments — ${formatDateShort(selectedDate)}`}
-                        </h3>
-                        <span className={styles.listCount}>{filteredAppointments.length} total</span>
-                    </div>
-
-                    {/* APPOINTMENT LIST */}
-                    <div className={styles.listContainer}>
-                        {isLoading ? (
-                            <div className={styles.emptyState} style={{ color: '#01538b' }}>Loading appointments…</div>
-                        ) : paginatedAppointments.length > 0 ? (
-                            paginatedAppointments.map((apt) => (
-                                <div
-                                    key={apt.id}
-                                    className={styles.appointmentCard}
-                                    onClick={() => setSelectedAppointment(apt)}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <div className={styles.aptLeft}>
-                                        <UserAvatar user={{ name: apt.patientName, profileImage: apt.patientImage }} size={42} />
-                                        <div className={styles.aptInfo}>
-                                            <p className={styles.patientName}>{apt.patientName}</p>
-                                            <p className={styles.procedureName}>{apt.procedure}</p>
-                                            <p className={styles.dentistLabel}>
-                                                <FaUserMd style={{ fontSize: 11 }} /> {apt.dentistName}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className={styles.aptRight}>
-                                        <p className={styles.aptTime}>{apt.time || '—'}</p>
-                                        <div className={styles.sourceRow}>
-                                            {getSourceIcon(apt.source)}
-                                            <span className={styles.sourceText}>{apt.source}</span>
-                                        </div>
-                                        <span className={`${styles.statusBadge} ${getStatusClass(apt.status)}`}>
-                                            {capitalize(apt.status)}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className={styles.emptyState}>
-                                <p>No appointments scheduled for this day.</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* PAGINATION */}
-                    {totalPages > 1 && (
-                        <div className={styles.pagination}>
-                            <button
-                                className={styles.pageBtn}
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                            >
-                                &lt;
-                            </button>
-                            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
-                            <button
-                                className={styles.pageBtn}
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                            >
-                                &gt;
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* RIGHT: CALENDAR */}
-                <div className={styles.rightColumn}>
                     <div className={styles.calendarCard}>
                         <div className={styles.calendarHeader}>
                             <h3 className={styles.monthText}>{dynamicMonthYear}</h3>
@@ -408,8 +299,8 @@ export default function Appointments() {
                         </div>
 
                         <div className={styles.calendarGrid}>
-                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                                <div key={d} className={styles.dayName}>{d}</div>
+                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                                <div key={day} className={styles.dayName}>{day}</div>
                             ))}
                             {calendarDays.map((day, idx) => (
                                 <div
@@ -417,96 +308,205 @@ export default function Appointments() {
                                     onClick={() => handleDateClick(day)}
                                     className={`
                                         ${styles.dateNum}
-                                        ${day.faded  ? styles.faded  : ''}
-                                        ${day.isToday && !day.faded ? styles.today  : ''}
-                                        ${day.active  && !day.faded ? styles.active : ''}
+                                        ${day.faded   ? styles.faded  : ''}
+                                        ${day.isToday && !day.faded ? styles.today : ''}
+                                        ${day.active  ? styles.active : ''}
                                     `}
                                 >
                                     {day.num}
-                                    {day.hasEvent && <div className={`${styles.eventDot} ${day.active ? styles.white : ''}`} />}
+                                    {day.hasEvent && (
+                                        <div className={`${styles.eventDot} ${day.active ? styles.white : ''}`} />
+                                    )}
                                 </div>
                             ))}
+                        </div>
+                    </div>
+
+                    {/* AI Panel */}
+                    <div className={styles.aiPanel}>
+                        <div className={styles.aiHeader}>
+                            <div className={styles.aiIconWrapper}><FaRobot /></div>
+                            <h4 className={styles.aiTitle}>AI Predictive Insights</h4>
+                        </div>
+                        <p className={styles.aiMessage}>
+                            AI appointment insights will be available in a future update.
+                        </p>
+                        <button className={styles.aiActionBtn} disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                            Coming Soon
+                        </button>
+                    </div>
+                </div>
+
+                {/* RIGHT COLUMN: Appointment List */}
+                <div className={styles.listCard}>
+
+                    <div className={styles.listHeaderSticky}>
+                        <div className={styles.listHeaderTop}>
+                            <h3 className={styles.listTitle}>
+                                {isTodaySelected
+                                    ? "Today's Schedule"
+                                    : `Schedule for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                            </h3>
+                        </div>
+                        <div className={styles.searchWrapperFull}>
+                            <FaSearch className={styles.searchIcon} />
+                            <input
+                                type="text"
+                                placeholder="Search patient name or procedure..."
+                                className={styles.searchInput}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className={styles.appointmentList}>
+                        {isLoading ? (
+                            <div className={styles.emptyState} style={{ color: '#01538b' }}>
+                                Loading appointments…
+                            </div>
+                        ) : paginatedAppointments.length > 0 ? (
+                            paginatedAppointments.map((apt) => (
+                                <div
+                                    key={apt.id}
+                                    className={styles.appointmentItem}
+                                    onClick={() => setSelectedAppointment(apt)}
+                                >
+                                    <div className={styles.itemTopRow}>
+                                        <div className={styles.patientInfo}>
+                                            <div className={styles.patientAvatar}>{getInitials(apt.patientName)}</div>
+                                            <div className={styles.patientDetails}>
+                                                <p className={styles.patientName}>{apt.patientName}</p>
+                                                <p className={styles.treatmentType}>{apt.procedure}</p>
+                                            </div>
+                                        </div>
+                                        <div className={styles.appointmentTimeInfo}>
+                                            <p className={styles.timeText}>{apt.time}</p>
+                                            <span className={`${styles.statusBadge} ${getStatusClass(apt.status)}`}>
+                                                {apt.status}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className={styles.itemBottomRow}>
+                                        <span className={styles.metaBadge} title="Assigned Dentist">
+                                            <FaUserMd className={styles.metaIcon} /> {apt.dentist}
+                                        </span>
+                                        <span className={styles.metaBadge} title="Booking Source">
+                                            <span className={styles.metaIcon}>{getSourceIcon(apt.source)}</span>
+                                            {apt.source}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className={styles.emptyState}>
+                                <p>No appointments found for this day.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className={styles.paginationContainer}>
+                        <span>
+                            Showing {filteredAppointments.length === 0 ? 0 : startIndex + 1} to{' '}
+                            {Math.min(startIndex + ITEMS_PER_PAGE, filteredAppointments.length)} of{' '}
+                            {filteredAppointments.length} entries
+                        </span>
+                        <div className={styles.pageControls}>
+                            <button
+                                className={styles.pageBtn}
+                                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                                disabled={currentPage === 1 || filteredAppointments.length === 0}
+                            >
+                                Previous
+                            </button>
+                            <button
+                                className={styles.pageBtn}
+                                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                                disabled={currentPage === totalPages || filteredAppointments.length === 0}
+                            >
+                                Next
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* ─── ADD APPOINTMENT MODAL ─────────────────────────────────────── */}
+            {/* ─── ADD APPOINTMENT MODAL (compact) ──────────────────────────── */}
             {isAddModalOpen && (
-                <div className={styles.modalOverlay} onClick={!isSubmitting ? handleCloseModal : undefined}>
-                    <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <h3 className={styles.modalTitle}>Book New Appointment</h3>
-                            <button onClick={handleCloseModal} disabled={isSubmitting} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#64748b' }}>
-                                <FaTimes />
-                            </button>
-                        </div>
-
+                <div className={styles.modalOverlay}>
+                    {/* padding overridden inline to make modal compact */}
+                    <div className={styles.modalCard} style={{ padding: '28px 32px', maxWidth: '500px' }}>
+                        <h3 className={styles.modalTitle} style={{ fontSize: '20px', paddingBottom: '14px' }}>
+                            Add Appointment
+                        </h3>
                         <form onSubmit={handleSaveAppointment} noValidate>
-                            {/* Patient */}
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>PATIENT <span style={{ color: 'red' }}>*</span></label>
-                                <select name="patientId" className={styles.inputField} value={bookingForm.patientId} onChange={handleFormChange} disabled={isSubmitting}>
-                                    <option value="" hidden>Select Patient</option>
-                                    {patients.map(p => <option key={p._id} value={p._id}>{getPatientDisplayName(p)}</option>)}
-                                </select>
-                                {formErrors.patientId && <span className={styles.errorText}>{formErrors.patientId}</span>}
-                            </div>
 
-                            {/* Dentist */}
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>DENTIST <span style={{ color: 'red' }}>*</span></label>
-                                <select name="dentistId" className={styles.inputField} value={bookingForm.dentistId} onChange={handleFormChange} disabled={isSubmitting}>
-                                    <option value="" hidden>Select Dentist</option>
-                                    {dentists.map(d => <option key={d._id} value={d._id}>Dr. {d.name?.first} {d.name?.last}</option>)}
-                                </select>
-                                {formErrors.dentistId && <span className={styles.errorText}>{formErrors.dentistId}</span>}
+                            {/* Patient */}
+                            <div className={styles.row} style={{ marginTop: '14px', marginBottom: '0' }}>
+                                <div className={styles.formGroup}>
+                                    <label>PATIENT <span style={{ color: 'red' }}>*</span></label>
+                                    <select name="patientId" className={styles.inputField} value={bookingForm.patientId} onChange={handleFormChange} disabled={isSubmitting}>
+                                        <option value="" hidden>Select Patient</option>
+                                        {patients.map(p => <option key={p._id} value={p._id}>{getPatientName(p)}</option>)}
+                                    </select>
+                                    {formErrors.patientId && <span className={styles.errorText}>{formErrors.patientId}</span>}
+                                </div>
                             </div>
 
                             {/* Procedure */}
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>PROCEDURE <span style={{ color: 'red' }}>*</span></label>
-                                <select name="procedure" className={styles.inputField} value={bookingForm.procedure} onChange={handleFormChange} disabled={isSubmitting}>
-                                    <option value="" hidden>Select Procedure</option>
-                                    {PROCEDURE_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                                {formErrors.procedure && <span className={styles.errorText}>{formErrors.procedure}</span>}
+                            <div className={styles.row} style={{ marginBottom: '0' }}>
+                                <div className={styles.formGroup}>
+                                    <label>PROCEDURE <span style={{ color: 'red' }}>*</span></label>
+                                    <select name="procedure" className={styles.inputField} value={bookingForm.procedure} onChange={handleFormChange} disabled={isSubmitting}>
+                                        <option value="" hidden>Select Procedure</option>
+                                        {PROCEDURE_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                    {formErrors.procedure && <span className={styles.errorText}>{formErrors.procedure}</span>}
+                                </div>
                             </div>
 
-                            {/* Date & Time */}
-                            <div className={styles.formRow}>
+                            {/* Dentist + Source */}
+                            <div className={styles.row} style={{ marginBottom: '0' }}>
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>DATE <span style={{ color: 'red' }}>*</span></label>
-                                    <input type="date" name="date" className={styles.inputField} value={bookingForm.date} onChange={handleFormChange} min={new Date().toISOString().split('T')[0]} disabled={isSubmitting} />
+                                    <label>DENTIST <span style={{ color: 'red' }}>*</span></label>
+                                    <select name="dentistId" className={styles.inputField} value={bookingForm.dentistId} onChange={handleFormChange} disabled={isSubmitting}>
+                                        <option value="" hidden>Select Dentist</option>
+                                        {dentists.map(d => <option key={d._id} value={d._id}>Dr. {d.name?.first} {d.name?.last}</option>)}
+                                    </select>
+                                    {formErrors.dentistId && <span className={styles.errorText}>{formErrors.dentistId}</span>}
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>SOURCE</label>
+                                    <select name="source" className={styles.inputField} value={bookingForm.source} onChange={handleFormChange} disabled={isSubmitting}>
+                                        {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Date + Time */}
+                            <div className={styles.row} style={{ marginBottom: '0' }}>
+                                <div className={styles.formGroup}>
+                                    <label>DATE <span style={{ color: 'red' }}>*</span></label>
+                                    <input type="date" name="date" className={styles.inputField} value={bookingForm.date} onChange={handleFormChange} min={getTodayDateString()} disabled={isSubmitting} />
                                     {formErrors.date && <span className={styles.errorText}>{formErrors.date}</span>}
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>TIME <span style={{ color: 'red' }}>*</span></label>
-                                    <input type="time" name="time" className={styles.inputField} value={bookingForm.time} onChange={handleFormChange} disabled={isSubmitting} />
-                                    {(timeError || formErrors.time) && <span className={styles.errorText}>{timeError || formErrors.time}</span>}
+                                    <label>TIME <span style={{ color: 'red' }}>*</span></label>
+                                    <input type="time" name="time" className={`${styles.inputField} ${timeError ? styles.errorBorder : ''}`} value={bookingForm.time} onChange={handleFormChange} disabled={isSubmitting} />
                                 </div>
                             </div>
 
-                            {/* Source */}
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>BOOKING SOURCE</label>
-                                <select name="source" className={styles.inputField} value={bookingForm.source} onChange={handleFormChange} disabled={isSubmitting}>
-                                    <option value="Walk-in">Walk-in</option>
-                                    <option value="Phone Call">Phone Call</option>
-                                    <option value="Smile Hub (Online)">Smile Hub (Online)</option>
-                                </select>
-                            </div>
+                            {timeError && (
+                                <div style={{ textAlign: 'right', marginTop: '-14px', marginBottom: '8px' }}>
+                                    <span className={styles.errorText} style={{ display: 'inline-block' }}>{timeError}</span>
+                                </div>
+                            )}
 
-                            {/* Notes */}
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>NOTES (optional)</label>
-                                <textarea name="notes" className={styles.inputField} rows={3} value={bookingForm.notes} onChange={handleFormChange} placeholder="Special instructions or concerns..." disabled={isSubmitting} style={{ resize: 'vertical' }} />
-                            </div>
-
-                            <div className={styles.modalButtonGroup}>
-                                <button type="button" className={styles.cancelModalBtn} onClick={handleCloseModal} disabled={isSubmitting}>Cancel</button>
+                            <div className={styles.modalButtonGroup} style={{ marginTop: '20px', paddingTop: '16px' }}>
+                                <button type="button" className={styles.cancelBtn} onClick={handleCloseModal} disabled={isSubmitting}>Cancel</button>
                                 <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
-                                    {isSubmitting ? 'Booking…' : 'Confirm Booking'}
+                                    {isSubmitting ? 'Saving…' : 'Save Appointment'}
                                 </button>
                             </div>
                         </form>
@@ -514,19 +514,20 @@ export default function Appointments() {
                 </div>
             )}
 
-            {/* ─── VIEW APPOINTMENT DETAIL MODAL ────────────────────────────── */}
+            {/* ─── VIEW MODAL ────────────────────────────────────────────────── */}
             {selectedAppointment && (
                 <div className={styles.modalOverlay} onClick={() => setSelectedAppointment(null)}>
-                    <div className={styles.modalCard} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-                        <h3 className={styles.modalTitle}>Appointment Details</h3>
-
-                        <div style={{ marginTop: '30px', textAlign: 'left' }}>
+                    <div className={styles.modalCard} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', padding: '28px 32px' }}>
+                        <h3 className={styles.modalTitle} style={{ fontSize: '20px', paddingBottom: '14px' }}>
+                            Appointment Details
+                        </h3>
+                        <div style={{ marginTop: '16px', textAlign: 'left' }}>
                             {[
-                                ['Patient Name',    selectedAppointment.patientName],
-                                ['Assigned Dentist', selectedAppointment.dentistName],
+                                ['Patient Name',     selectedAppointment.patientName],
+                                ['Assigned Dentist', selectedAppointment.dentist],
                                 ['Procedure',        selectedAppointment.procedure],
                                 ['Date',             selectedAppointment.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })],
-                                ['Time',             selectedAppointment.time || '—'],
+                                ['Time',             selectedAppointment.time],
                                 ['Booking Source',   selectedAppointment.source],
                             ].map(([label, value]) => (
                                 <div key={label} className={styles.viewDetailRow}>
@@ -537,30 +538,21 @@ export default function Appointments() {
                             <div className={styles.viewDetailRow} style={{ borderBottom: 'none' }}>
                                 <span className={styles.viewLabel}>Status</span>
                                 <span className={`${styles.statusBadge} ${getStatusClass(selectedAppointment.status)}`}>
-                                    {capitalize(selectedAppointment.status)}
+                                    {selectedAppointment.status}
                                 </span>
                             </div>
-                            {selectedAppointment.notes && (
-                                <div className={styles.viewDetailRow} style={{ borderBottom: 'none', flexDirection: 'column', gap: 4 }}>
-                                    <span className={styles.viewLabel}>Notes</span>
-                                    <p className={styles.viewValue} style={{ color: '#475569' }}>{selectedAppointment.notes}</p>
-                                </div>
-                            )}
                         </div>
-
-                        <div className={styles.modalButtonGroup} style={{ marginTop: '20px' }}>
-                            {selectedAppointment.status !== 'cancelled' && selectedAppointment.status !== 'completed' && (
+                        <div className={styles.modalButtonGroup} style={{ marginTop: '16px', paddingTop: '16px' }}>
+                            {selectedAppointment.status !== 'Cancelled' && selectedAppointment.status !== 'Completed' && (
                                 <button
                                     type="button"
-                                    className={styles.cancelModalBtn}
+                                    className={styles.cancelBtn}
                                     onClick={() => { setSelectedAppointment(null); setCancelTarget(selectedAppointment); }}
                                 >
                                     Cancel Appointment
                                 </button>
                             )}
-                            <button type="button" className={styles.submitBtn} style={{ width: '100%' }} onClick={() => setSelectedAppointment(null)}>
-                                Close
-                            </button>
+                            <button type="button" className={styles.submitBtn} onClick={() => setSelectedAppointment(null)}>Close</button>
                         </div>
                     </div>
                 </div>
