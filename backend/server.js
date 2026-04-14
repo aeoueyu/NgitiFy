@@ -836,19 +836,6 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
     }
 });
 
-app.get('/api/surgeries', verifyToken, async (req, res) => {
-    try {
-        const surgeries = await Surgery.find()
-            .populate('patient')
-            .populate('dentist', 'name email role')
-            .sort({ date: -1 });
-        res.json(surgeries);
-    } catch (error) {
-        console.error("Error fetching surgeries:", error);
-        res.status(500).json({ message: "Server error fetching surgeries." });
-    }
-});
-
 app.post('/api/surgeries', verifyToken, async (req, res) => {
     try {
         const newSurgery = new Surgery(req.body);
