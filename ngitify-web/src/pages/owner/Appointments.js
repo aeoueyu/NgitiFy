@@ -20,48 +20,76 @@ const PROCEDURE_OPTIONS = [
 
 const SOURCE_OPTIONS = ['Walk-in', 'Phone Call', 'Smile Hub (Online)'];
 
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+/** Returns true if d is a real, non-NaN Date object */
+const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
+
 // ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
-const normalizeSurgery = (s) => ({
-    id: s._id,
-    patientId: s.patient?._id || s.patient,
-    patientName: s.patient?.name
-        ? `${s.patient.name.first} ${s.patient.name.last}`
-        : 'Unknown Patient',
-    dentistId: s.dentist?._id || s.dentist,
-    dentist: s.dentist?.name
-        ? `Dr. ${s.dentist.name.first} ${s.dentist.name.last}`
-        : 'Unassigned',
-    procedure: s.procedure || '—',
-    status: s.status ? (s.status.charAt(0).toUpperCase() + s.status.slice(1)) : 'Pending',
-    time: s.time || '—',
-    source: s.source || 'Walk-in',
-    date: new Date(s.date),
-    notes: s.notes || '',
-});
+// FIX: Hardened against null/undefined patient, dentist, or date fields.
+const normalizeSurgery = (s) => {
+    // Build a valid Date or null – never an Invalid Date object
+    const rawDate = s.date ? new Date(s.date) : null;
+    const date = isValidDate(rawDate) ? rawDate : null;
+
+    // Build patient name safely
+    let patientName = 'Unknown Patient';
+    if (s.patient?.name) {
+        const first = s.patient.name.first || '';
+        const last  = s.patient.name.last  || '';
+        const full  = `${first} ${last}`.trim();
+        if (full) patientName = full;
+    }
+
+    // Build dentist name safely
+    let dentist = 'Unassigned';
+    if (s.dentist?.name) {
+        const first = s.dentist.name.first || '';
+        const last  = s.dentist.name.last  || '';
+        const full  = `${first} ${last}`.trim();
+        if (full) dentist = `Dr. ${full}`;
+    }
+
+    return {
+        id:         s._id,
+        patientId:  s.patient?._id || s.patient,
+        patientName,
+        dentistId:  s.dentist?._id || s.dentist,
+        dentist,
+        procedure:  s.procedure || '—',
+        status:     s.status
+                        ? s.status.charAt(0).toUpperCase() + s.status.slice(1)
+                        : 'Pending',
+        time:   s.time   || '—',
+        source: s.source || 'Walk-in',
+        date,               // null | valid Date
+        notes:  s.notes  || '',
+    };
+};
 
 export default function Appointments() {
     const { addToast } = useToast();
 
     // ─── DATA STATE ──────────────────────────────────────────────────────────
     const [appointments, setAppointments] = useState([]);
-    const [patients, setPatients] = useState([]);
-    const [dentists, setDentists] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [patients, setPatients]         = useState([]);
+    const [dentists, setDentists]         = useState([]);
+    const [isLoading, setIsLoading]       = useState(true);
 
     // ─── CALENDAR & FILTER STATE ─────────────────────────────────────────────
     const [currentMonthView, setCurrentMonthView] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [searchQuery, setSearchQuery] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [selectedDate, setSelectedDate]         = useState(new Date());
+    const [searchQuery, setSearchQuery]           = useState('');
+    const [currentPage, setCurrentPage]           = useState(1);
     const ITEMS_PER_PAGE = 5;
 
     // ─── MODAL STATE ─────────────────────────────────────────────────────────
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen]         = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState(null);
-    const [cancelTarget, setCancelTarget] = useState(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [timeError, setTimeError] = useState('');
-    const [formErrors, setFormErrors] = useState({});
+    const [cancelTarget, setCancelTarget]             = useState(null);
+    const [isSubmitting, setIsSubmitting]             = useState(false);
+    const [timeError, setTimeError]                   = useState('');
+    const [formErrors, setFormErrors]                 = useState({});
 
     const [bookingForm, setBookingForm] = useState({
         patientId: '', dentistId: '', date: '', time: '',
@@ -107,7 +135,9 @@ export default function Appointments() {
     useEffect(() => { setCurrentPage(1); }, [selectedDate, searchQuery]);
 
     // ─── FILTER & PAGINATION ─────────────────────────────────────────────────
+    // FIX: Skip any appointments with null/invalid dates entirely.
     const filteredAppointments = appointments.filter(apt => {
+        if (!apt.date || !isValidDate(apt.date)) return false;
         const matchesDate   = apt.date.toDateString() === selectedDate.toDateString();
         const matchesSearch =
             apt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -115,18 +145,18 @@ export default function Appointments() {
         return matchesDate && matchesSearch;
     });
 
-    const totalPages = Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const totalPages           = Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE);
+    const startIndex           = (currentPage - 1) * ITEMS_PER_PAGE;
     const paginatedAppointments = filteredAppointments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
     // ─── CALENDAR LOGIC ───────────────────────────────────────────────────────
     const getCalendarDays = () => {
-        const year = currentMonthView.getFullYear();
-        const month = currentMonthView.getMonth();
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const year           = currentMonthView.getFullYear();
+        const month          = currentMonthView.getMonth();
+        const firstDay       = new Date(year, month, 1).getDay();
+        const daysInMonth    = new Date(year, month + 1, 0).getDate();
         const daysInPrevMonth = new Date(year, month, 0).getDate();
-        const days = [];
+        const days           = [];
 
         for (let i = firstDay - 1; i >= 0; i--)
             days.push({ num: daysInPrevMonth - i, faded: true, date: new Date(year, month - 1, daysInPrevMonth - i) });
@@ -134,22 +164,29 @@ export default function Appointments() {
         for (let i = 1; i <= daysInMonth; i++) {
             const currentDate = new Date(year, month, i);
             days.push({
-                num: i, faded: false,
+                num:  i,
+                faded: false,
                 active:   currentDate.toDateString() === selectedDate.toDateString(),
                 isToday:  currentDate.toDateString() === new Date().toDateString(),
-                hasEvent: appointments.some(apt => apt.date.toDateString() === currentDate.toDateString()),
+                // FIX: Only compare appointments with valid dates
+                hasEvent: appointments.some(apt =>
+                    apt.date && isValidDate(apt.date) &&
+                    apt.date.toDateString() === currentDate.toDateString()
+                ),
                 date: currentDate,
             });
         }
+
         const totalCells = days.length > 35 ? 42 : 35;
         for (let i = 1; i <= totalCells - days.length; i++)
             days.push({ num: i, faded: true, date: new Date(year, month + 1, i) });
+
         return days;
     };
 
-    const handlePrevMonth = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1));
-    const handleNextMonth = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1));
-    const handleDateClick = (day) => {
+    const handlePrevMonth  = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1));
+    const handleNextMonth  = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1));
+    const handleDateClick  = (day) => {
         setSelectedDate(day.date);
         if (day.faded) setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
     };
@@ -177,9 +214,14 @@ export default function Appointments() {
         return null;
     };
 
+    // FIX: Fully hardened against empty, null, or single-character names.
     const getInitials = (name = '') => {
-        const parts = name.trim().split(/\s+/);
-        return (parts[0]?.[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+        if (!name || typeof name !== 'string') return '?';
+        const parts = name.trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return '?';
+        const first = parts[0][0] || '';
+        const last  = parts.length > 1 ? (parts[parts.length - 1][0] || '') : '';
+        return (first + last).toUpperCase() || '?';
     };
 
     const getPatientName = (p) => p.name?.first ? `${p.name.first} ${p.name.last}` : p.email || 'Unknown';
@@ -267,6 +309,13 @@ export default function Appointments() {
         } finally {
             setCancelTarget(null);
         }
+    };
+
+    // ─── SAFE DATE FORMATTER ─────────────────────────────────────────────────
+    // FIX: Wraps toLocaleDateString so it never throws on an invalid date.
+    const formatDate = (date) => {
+        if (!date || !isValidDate(date)) return 'Unknown Date';
+        return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     };
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -435,7 +484,6 @@ export default function Appointments() {
             {/* ─── ADD APPOINTMENT MODAL (compact) ──────────────────────────── */}
             {isAddModalOpen && (
                 <div className={styles.modalOverlay}>
-                    {/* padding overridden inline to make modal compact */}
                     <div className={styles.modalCard} style={{ padding: '28px 32px', maxWidth: '500px' }}>
                         <h3 className={styles.modalTitle} style={{ fontSize: '20px', paddingBottom: '14px' }}>
                             Add Appointment
@@ -526,7 +574,8 @@ export default function Appointments() {
                                 ['Patient Name',     selectedAppointment.patientName],
                                 ['Assigned Dentist', selectedAppointment.dentist],
                                 ['Procedure',        selectedAppointment.procedure],
-                                ['Date',             selectedAppointment.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })],
+                                // FIX: Use safe formatDate() instead of calling toLocaleDateString() directly.
+                                ['Date',             formatDate(selectedAppointment.date)],
                                 ['Time',             selectedAppointment.time],
                                 ['Booking Source',   selectedAppointment.source],
                             ].map(([label, value]) => (
