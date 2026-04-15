@@ -73,7 +73,7 @@ export default function PatientDashboard({ navigation }) {
                         </View>
                     </TouchableOpacity>
 
-                    {/* Book an Appointment — FR#4 */}
+                    {/* Book an Appointment */}
                     <Text style={styles.sectionTitle}>Appointments</Text>
                     <TouchableOpacity
                         style={[styles.actionCard, styles.bookingCard]}
@@ -102,17 +102,22 @@ export default function PatientDashboard({ navigation }) {
 
                         <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('MedicalRecords')}>
                             <MedicalRecordsIcon width={35} height={35} style={styles.iconMargin} />
-                            <Text style={styles.cardTitle}>Medical Records</Text>
+                            <Text style={styles.cardTitle}>My EMR</Text>
                         </TouchableOpacity>
                     </View>
 
-                    <View style={{ height: 80 }} />
+                    <View style={{ height: 100 }} />
                 </ScrollView>
             </Animated.View>
 
             <LogoutModal visible={isLogoutVisible} onCancel={() => setIsLogoutVisible(false)} onConfirm={logout} />
 
-            <TouchableOpacity style={styles.fabChat} onPress={() => navigation.navigate('Chatbot')} activeOpacity={0.8}>
+            {/* FAB → AI Patient Care Companion (hub for Chatbot + all AI features) */}
+            <TouchableOpacity
+                style={styles.fabChat}
+                onPress={() => navigation.navigate('AiPatientCareCompanion')}
+                activeOpacity={0.8}
+            >
                 <ChatBotIcon width={30} height={30} style={{ color: 'white' }} />
             </TouchableOpacity>
         </View>
@@ -144,7 +149,6 @@ const styles = StyleSheet.create({
     dentistText: { fontSize: 12, color: '#888' },
     viewPreOpText: { fontSize: 11, color: '#01538b', fontWeight: 'bold', marginTop: 8 },
 
-    // Booking card (highlighted)
     bookingCard: { width: '100%', flexDirection: 'row', alignItems: 'center', backgroundColor: '#01538b', elevation: 4, marginBottom: 20 },
     bookingArrow: { color: 'white', fontSize: 22, fontWeight: 'bold' },
 
@@ -153,5 +157,11 @@ const styles = StyleSheet.create({
     iconMargin: { marginBottom: 10 },
     cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#444', textAlign: 'center' },
 
-    fabChat: { position: 'absolute', bottom: 30, right: 25, backgroundColor: '#01538b', width: 65, height: 65, borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 5 }
+    fabChat: {
+        position: 'absolute', bottom: 30, right: 25,
+        backgroundColor: '#01538b', width: 65, height: 65,
+        borderRadius: 35, justifyContent: 'center', alignItems: 'center',
+        elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3, shadowRadius: 5
+    }
 });

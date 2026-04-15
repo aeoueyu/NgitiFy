@@ -1,12 +1,24 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Image, Dimensions } from 'react-native';
+// src/screens/patient/PatientXRayView.js
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    View, Text, TouchableOpacity, StyleSheet,
+    Animated, Image, Dimensions, ActivityIndicator
+} from 'react-native';
 import BackIcon from '../../assets/icons/Back.svg';
 
 const { width } = Dimensions.get('window');
-const imageHeight = width * 0.5; 
 
-export default function PatientXRayView({ navigation }) {
+export default function PatientXRayView({ navigation, route }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
+    const [imageLoading, setImageLoading] = useState(true);
+    const [imageError, setImageError] = useState(false);
+
+    // Radiograph object passed from MedicalRecordsScreen (Radiographs tab)
+    const radiograph = route?.params?.radiograph || null;
+
+    const dateStr = radiograph?.date
+        ? new Date(radiograph.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+        : '';
 
     useEffect(() => {
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
@@ -14,69 +26,81 @@ export default function PatientXRayView({ navigation }) {
 
     return (
         <View style={styles.container}>
+            {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}>
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
+                >
                     <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
                     <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>My X-Ray Records</Text>
-                <View style={{width: 60}} />
+                <Text style={styles.headerTitle}>X-Ray Viewer</Text>
+                <View style={{ width: 60 }} />
             </View>
 
-            <Animated.ScrollView 
+            <Animated.ScrollView
                 contentContainerStyle={styles.content}
                 style={{ opacity: fadeAnim }}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.sectionTitle}>Panoramic X-Ray (AI Analyzed)</Text>
-                <Text style={styles.dateText}>Taken on: Feb 20, 2026</Text>
+                {/* X-Ray Label & Date */}
+                <Text style={styles.xrayLabel}>{radiograph?.label || 'Radiograph'}</Text>
+                {dateStr ? <Text style={styles.xrayDate}>📅 Taken on: {dateStr}</Text> : null}
 
+                {/* Image Viewer Card */}
                 <View style={styles.viewerCard}>
-                    <View style={[styles.imageContainer, { height: imageHeight }]}>
-                        <Image 
-                            source={require('../../assets/ai-xray/PanoramicXRay.png')} 
-                            style={styles.xrayImage} 
-                            resizeMode="contain"
-                        />
-                        
-                        <View style={styles.overlayContainer}>
-                            <View style={[styles.detectionBox, {
-                                top: '10%',
-                                left: '55%',
-                                width: '20%', 
-                                height: '25%', 
-                                borderColor: 'orange'
-                            }]} />
-                            
-                            <View style={[styles.detectionBox, {
-                                bottom: '23%',
-                                right: '17%',
-                                width: '15%', 
-                                height: '20%', 
-                                borderColor: 'red'
-                            }]} />
-                            <View style={[styles.detectionBox, {
-                                bottom: '26%',
-                                left: '17%',
-                                width: '15%', 
-                                height: '20%', 
-                                borderColor: 'red'
-                            }]} />
+                    {radiograph?.url ? (
+                        <View style={styles.imageWrapper}>
+                            {imageLoading && !imageError && (
+                                <View style={styles.imageLoader}>
+                                    <ActivityIndicator size="large" color="#01538b" />
+                                    <Text style={styles.imageLoaderText}>Loading image…</Text>
+                                </View>
+                            )}
+                            {!imageError ? (
+                                <Image
+                                    source={{ uri: radiograph.url }}
+                                    style={[styles.xrayImage, imageLoading && { opacity: 0 }]}
+                                    resizeMode="contain"
+                                    onLoad={() => setImageLoading(false)}
+                                    onError={() => { setImageLoading(false); setImageError(true); }}
+                                />
+                            ) : (
+                                <View style={styles.imageError}>
+                                    <Text style={styles.imageErrorIcon}>⚠️</Text>
+                                    <Text style={styles.imageErrorText}>Unable to load image.</Text>
+                                    <Text style={styles.imageErrorSub}>Please contact the clinic for a copy.</Text>
+                                </View>
+                            )}
                         </View>
-                    </View>
-                    <Text style={styles.placeholderText}>AI Detection Active</Text>
+                    ) : (
+                        // No URL yet — placeholder
+                        <View style={styles.placeholderContainer}>
+                            <Text style={styles.placeholderIcon}>🩻</Text>
+                            <Text style={styles.placeholderTitle}>Image Not Yet Available</Text>
+                            <Text style={styles.placeholderSub}>
+                                Your dentist has not yet uploaded the digital image for this radiograph. 
+                                Please ask the clinic for a copy during your next visit.
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
-                <View style={styles.resultsBox}>
-                    <Text style={styles.resultsTitle}>AI Diagnostics & Findings:</Text>
-                    <Text style={styles.finding}>🔴 Impacted Wisdom Tooth (Lower Left)</Text>
-                    <Text style={styles.finding}>🔴 Impacted Wisdom Tooth (Lower Right)</Text>
-                    <Text style={styles.finding}>🟠 Periapical Cyst (Upper Right)</Text>
-                    
-                    <View style={styles.doctorNoteBox}>
-                        <Text style={styles.doctorNoteTitle}>Note from Dr. Smile Brillante:</Text>
-                        <Text style={styles.doctorNote}>"We will monitor the cyst for now. However, the wisdom tooth requires extraction before we can proceed with your braces."</Text>
+                {/* Dentist Notes (if any) */}
+                {radiograph?.notes ? (
+                    <View style={styles.notesCard}>
+                        <Text style={styles.notesTitle}>📝 Notes from Your Dentist</Text>
+                        <Text style={styles.notesText}>{radiograph.notes}</Text>
                     </View>
+                ) : null}
+
+                {/* Disclaimer */}
+                <View style={styles.disclaimer}>
+                    <Text style={styles.disclaimerText}>
+                        This radiograph is part of your Electronic Medical Record (EMR) and is for your personal reference only. 
+                        Please consult your dentist for a professional interpretation.
+                    </Text>
                 </View>
             </Animated.ScrollView>
         </View>
@@ -85,26 +109,47 @@ export default function PatientXRayView({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f3f7f9' },
-    header: { backgroundColor: 'white', padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 3, zIndex: 10 },
+
+    header: {
+        backgroundColor: 'white', padding: 20, paddingTop: 50,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        elevation: 3, zIndex: 10
+    },
     backBtn: { padding: 5, width: 60 },
     backText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
-    content: { padding: 20 },
-    sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#01538b' },
-    dateText: { fontSize: 12, color: '#888', marginBottom: 20 },
-    
-    viewerCard: { backgroundColor: 'white', padding: 15, borderRadius: 15, elevation: 2, marginBottom: 20 },
-    imageContainer: { width: '100%', borderRadius: 10, overflow: 'hidden', position: 'relative', backgroundColor: '#000' },
-    xrayImage: { width: '100%', height: '100%' },
-    overlayContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-    detectionBox: { position: 'absolute', borderWidth: 3, borderRadius: 5, backgroundColor: 'rgba(255, 255, 255, 0.1)' },
-    placeholderText: { color: '#888', textAlign: 'center', marginTop: 10, fontStyle: 'italic' },
-    
-    resultsBox: { backgroundColor: '#fff3e0', padding: 20, borderRadius: 10, borderWidth: 1, borderColor: '#ffb74d' },
-    resultsTitle: { fontSize: 16, fontWeight: 'bold', color: '#e65100', marginBottom: 10 },
-    finding: { fontSize: 14, color: '#333', marginBottom: 5 },
-    
-    doctorNoteBox: { marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#ffcc80' },
-    doctorNoteTitle: { fontSize: 12, fontWeight: 'bold', color: '#e65100', marginBottom: 5 },
-    doctorNote: { fontSize: 13, color: '#555', fontStyle: 'italic', lineHeight: 20 }
+
+    content: { padding: 20, paddingBottom: 40 },
+
+    xrayLabel: { fontSize: 20, fontWeight: 'bold', color: '#01538b', marginBottom: 4 },
+    xrayDate: { fontSize: 13, color: '#888', marginBottom: 18 },
+
+    viewerCard: {
+        backgroundColor: '#1a1a2e', borderRadius: 18, overflow: 'hidden',
+        marginBottom: 18, elevation: 4, minHeight: 240
+    },
+    imageWrapper: { width: '100%', minHeight: width * 0.55, justifyContent: 'center' },
+    xrayImage: { width: '100%', height: width * 0.55 },
+    imageLoader: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+    imageLoaderText: { color: '#aaa', marginTop: 10, fontSize: 13 },
+
+    imageError: { padding: 40, alignItems: 'center' },
+    imageErrorIcon: { fontSize: 36, marginBottom: 10 },
+    imageErrorText: { color: '#ef5350', fontWeight: 'bold', fontSize: 15, marginBottom: 5 },
+    imageErrorSub: { color: '#888', fontSize: 13, textAlign: 'center' },
+
+    placeholderContainer: { padding: 40, alignItems: 'center' },
+    placeholderIcon: { fontSize: 50, marginBottom: 14 },
+    placeholderTitle: { color: 'white', fontWeight: 'bold', fontSize: 16, marginBottom: 10, textAlign: 'center' },
+    placeholderSub: { color: '#aaa', fontSize: 13, textAlign: 'center', lineHeight: 19 },
+
+    notesCard: {
+        backgroundColor: 'white', padding: 18, borderRadius: 15,
+        marginBottom: 15, elevation: 2, borderLeftWidth: 4, borderLeftColor: '#01538b'
+    },
+    notesTitle: { fontWeight: 'bold', color: '#01538b', fontSize: 14, marginBottom: 8 },
+    notesText: { fontSize: 14, color: '#555', lineHeight: 21 },
+
+    disclaimer: { backgroundColor: '#e3f2fd', padding: 14, borderRadius: 12 },
+    disclaimerText: { fontSize: 12, color: '#1565c0', lineHeight: 18, textAlign: 'center' },
 });

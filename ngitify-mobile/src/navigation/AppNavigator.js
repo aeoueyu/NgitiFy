@@ -13,10 +13,10 @@ import PatientDashboard from '../screens/patient/PatientDashboard';
 import MyProfileScreen from '../screens/patient/MyProfileScreen';
 import MedicalRecordsScreen from '../screens/patient/MedicalRecordsScreen';
 import ChatbotScreen from '../screens/patient/ChatbotScreen';
-import PatientPredictiveView from '../screens/patient/PatientPredictiveView';
+import AiPatientCareCompanionScreen from '../screens/patient/AIPatientCareCompanionScreen';
 import PatientXRayView from '../screens/patient/PatientXRayView';
 import PreOpInstructionsScreen from '../screens/patient/PreOpInstructionsScreen';
-import AppointmentBookingScreen from '../screens/patient/AppointmentBookingScreen'; // FR#4
+import AppointmentBookingScreen from '../screens/patient/AppointmentBookingScreen';
 
 // --- SHARED SCREENS ---
 import SurgerySchedulesScreen from '../screens/shared/SurgerySchedulesScreen';
@@ -48,7 +48,9 @@ function PatientNavigator() {
             <PatientStack.Screen name="MyProfile" component={MyProfileScreen} />
             <PatientStack.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
             <PatientStack.Screen name="Chatbot" component={ChatbotScreen} />
-            <PatientStack.Screen name="PatientPredictiveView" component={PatientPredictiveView} />
+            {/* FR#5 — AI Patient Care Companion (replaces PatientPredictiveView) */}
+            <PatientStack.Screen name="AiPatientCareCompanion" component={AiPatientCareCompanionScreen} />
+            {/* X-Ray View — accessed from EMR Radiograph tab */}
             <PatientStack.Screen name="PatientXRayView" component={PatientXRayView} />
             <PatientStack.Screen name="PreOpInstructions" component={PreOpInstructionsScreen} />
             <PatientStack.Screen name="AppointmentBooking" component={AppointmentBookingScreen} />
@@ -66,10 +68,10 @@ export default function AppNavigator() {
     return (
         <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
-                {userToken === null ? (
-                    <Stack.Screen name="AuthMain" component={AuthNavigator} />
+                {userToken ? (
+                    <Stack.Screen name="PatientApp" component={PatientNavigator} />
                 ) : (
-                    <Stack.Screen name="PatientMain" component={PatientNavigator} />
+                    <Stack.Screen name="Auth" component={AuthNavigator} />
                 )}
             </Stack.Navigator>
         </NavigationContainer>

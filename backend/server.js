@@ -552,7 +552,6 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
 
 app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => {
     try {
-        // ✅ CORRECT — use User model, consistent with where patients are stored
         const patient = await User.findById(req.params.id);
         if (!patient) {
             return res.status(404).json({ message: "Patient not found." });
@@ -908,15 +907,11 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
 
 // ============================================================
 // PHASE 1 — NEW ROUTES FOR server.js
-// INSTRUCTIONS: Paste all of this BEFORE the final app.listen()
-// line at the bottom of your server.js file.
 // ============================================================
 
 
 // -------------------------------------------------------
 // SURGERIES: FILTER BY QUERY PARAMS
-// REPLACE your existing GET /api/surgeries route with this.
-// Adds support for ?patientId= ?dentistId= ?status= ?date=
 // -------------------------------------------------------
 
 app.get('/api/surgeries', verifyToken, async (req, res) => {
@@ -928,7 +923,6 @@ app.get('/api/surgeries', verifyToken, async (req, res) => {
         if (dentistId) query.dentist = dentistId;
         if (status) query.status = status;
 
-        // Filter by a specific calendar date (matches any time within that day)
         if (date) {
             const start = new Date(date);
             start.setHours(0, 0, 0, 0);
@@ -952,8 +946,6 @@ app.get('/api/surgeries', verifyToken, async (req, res) => {
 
 // -------------------------------------------------------
 // SURGERIES: UPDATE STATUS ONLY
-// Used by secretary (confirm/cancel/reschedule) and
-// dentist (mark complete).
 // -------------------------------------------------------
 
 app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
@@ -968,8 +960,6 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
         const updateFields = { status };
         if (remarks !== undefined) updateFields.remarks = remarks;
         if (preOpInstructions !== undefined) updateFields.preOpInstructions = preOpInstructions;
-
-        // Allow rescheduling a date/time in the same call
         if (date) updateFields.date = new Date(date);
         if (time) updateFields.time = time;
 
@@ -998,7 +988,6 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
 
 // -------------------------------------------------------
 // APPOINTMENT BOOKING REQUEST (from patient mobile app)
-// Creates a 'pending' surgery entry visible to the secretary.
 // -------------------------------------------------------
 
 app.post('/api/appointments/request', verifyToken, async (req, res) => {
@@ -1009,7 +998,6 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Date and procedure are required.' });
         }
 
-        // The patient making the request — from their JWT token
         const patientUser = await User.findById(req.user.id).select('name email role');
         if (!patientUser || patientUser.role !== 'patient') {
             return res.status(403).json({ message: 'Only patients can submit appointment requests.' });
@@ -1017,7 +1005,7 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
 
         const newSurgery = new Surgery({
             patient: req.user.id,
-            dentist: req.body.dentistId || null, // optional — secretary can assign later
+            dentist: req.body.dentistId || null,
             branch: branch || 'Marikina Branch',
             date: new Date(date),
             time: time || '',
@@ -1028,9 +1016,7 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             requestedBy: req.user.id
         });
 
-        // dentist is required on the schema — if not provided, use a placeholder check
         if (!req.body.dentistId) {
-            // Temporarily allow null by removing required; we'll assign during confirmation
             newSurgery.dentist = undefined;
         }
 
@@ -1064,7 +1050,6 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
         const patient = await User.findById(req.params.id).select('treatmentLogs name');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
-        // Sort logs newest first
         const sorted = (patient.treatmentLogs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
         );
@@ -1092,7 +1077,6 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Date and procedure are required.' });
         }
 
-        // Fetch dentist name from the token's user id
         const dentist = await User.findById(req.user.id).select('name');
         const dentistName = dentist
             ? `Dr. ${dentist.name.first} ${dentist.name.last}`
@@ -1119,7 +1103,6 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             details: `Added treatment log for patient ID ${req.params.id}: ${procedure}`
         });
 
-        // Return the newly added log (last item in the array)
         const addedLog = patient.treatmentLogs[patient.treatmentLogs.length - 1];
         res.status(201).json(addedLog);
 
@@ -1164,7 +1147,6 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
         const patient = await User.findById(req.params.id).select('odontogram name');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
-        // Convert Map to a plain object for JSON serialization
         const odontogramObj = patient.odontogram
             ? Object.fromEntries(patient.odontogram)
             : {};
@@ -1179,7 +1161,6 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 
 // -------------------------------------------------------
 // ODONTOGRAM: SAVE / UPDATE the tooth chart for a patient
-// Body: { "18": "missing", "26": "crown", "45": "decayed" }
 // -------------------------------------------------------
 
 app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
@@ -1187,7 +1168,6 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
-        // Merge incoming changes into the existing map (don't overwrite untouched teeth)
         const updates = req.body;
         if (!updates || typeof updates !== 'object') {
             return res.status(400).json({ message: 'Odontogram data must be a key-value object.' });
@@ -1219,8 +1199,106 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 
 
 // -------------------------------------------------------
+// RADIOGRAPHS: GET all radiograph entries for a patient
+// -------------------------------------------------------
+
+app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
+    try {
+        const patient = await User.findById(req.params.id).select('radiographs name');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const sorted = (patient.radiographs || []).sort(
+            (a, b) => new Date(b.date) - new Date(a.date)
+        );
+
+        res.json(sorted);
+    } catch (error) {
+        console.error('Error fetching radiographs:', error);
+        res.status(500).json({ message: 'Server error fetching radiographs.' });
+    }
+});
+
+
+// -------------------------------------------------------
+// RADIOGRAPHS: ADD a new radiograph entry
+// Body: { label, date, url, notes }
+// -------------------------------------------------------
+
+app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
+    try {
+        const { label, date, url, notes } = req.body;
+
+        if (!label || !date) {
+            return res.status(400).json({ message: 'Label and date are required.' });
+        }
+
+        const patient = await User.findById(req.params.id);
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (!patient.radiographs) patient.radiographs = [];
+
+        const newEntry = {
+            label,
+            date: new Date(date),
+            url: url || null,
+            notes: notes || '',
+            uploadedBy: req.user?.id || null,
+        };
+
+        patient.radiographs.push(newEntry);
+        await patient.save();
+
+        await AuditLog.create({
+            action: 'ADD_RADIOGRAPH',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Added radiograph "${label}" for patient ID ${req.params.id}`
+        });
+
+        const added = patient.radiographs[patient.radiographs.length - 1];
+        res.status(201).json(added);
+
+    } catch (error) {
+        console.error('Error adding radiograph:', error);
+        res.status(500).json({ message: 'Server error adding radiograph.' });
+    }
+});
+
+
+// -------------------------------------------------------
+// RADIOGRAPHS: DELETE a radiograph entry
+// -------------------------------------------------------
+
+app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, res) => {
+    try {
+        const patient = await User.findById(req.params.id);
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const index = (patient.radiographs || []).findIndex(
+            r => r._id.toString() === req.params.entryId
+        );
+        if (index === -1) return res.status(404).json({ message: 'Radiograph entry not found.' });
+
+        patient.radiographs.splice(index, 1);
+        await patient.save();
+
+        await AuditLog.create({
+            action: 'DELETE_RADIOGRAPH',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Deleted radiograph entry ID ${req.params.entryId} for patient ID ${req.params.id}`
+        });
+
+        res.json({ message: 'Radiograph entry deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting radiograph:', error);
+        res.status(500).json({ message: 'Server error deleting radiograph.' });
+    }
+});
+
+
+// -------------------------------------------------------
 // INVENTORY DEDUCTION: Reduce stock after treatment
-// Body: { itemsUsed: [{ inventoryId, quantityUsed }] }
 // -------------------------------------------------------
 
 app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
@@ -1293,13 +1371,12 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
 
 
 // -------------------------------------------------------
-// ARCHIVE USER: Move a dentist or secretary to archive
-// Replaces toggle-status for Owner FR#7 and FR#11
+// ARCHIVE USER
 // -------------------------------------------------------
 
 app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
     try {
-        const { isArchived } = req.body; // true to archive, false to restore
+        const { isArchived } = req.body;
 
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: 'User not found.' });
@@ -1310,7 +1387,6 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
         }
 
         user.isArchived = Boolean(isArchived);
-        // Archived users are also set to inactive so they cannot log in
         if (user.isArchived) user.status = 'inactive';
 
         await user.save();
@@ -1334,9 +1410,7 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
 
 
 // -------------------------------------------------------
-// DASHBOARD STATS: Real counts for owner/secretary widgets
-// Returns: total patients, today's appointments, pending
-// appointments, active dentists, low-stock items
+// DASHBOARD STATS
 // -------------------------------------------------------
 
 app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
