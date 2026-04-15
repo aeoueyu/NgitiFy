@@ -1,44 +1,44 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import styles from '../../styles/owner/ManageDentists.module.css'; 
+import styles from '../../styles/admin/ManageSecretaries.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 
 import UserTabs from './UserTabs'; 
-import AddDentist from './AddDentist'; 
-import EditDentist from './EditDentist';
-import ViewDentist from './ViewDentist';
+import AddSecretary from './AddSecretary'; 
+import EditSecretary from './EditSecretary';
+import ViewSecretary from './ViewSecretary';
 import ConfirmModal from '../../components/common/ConfirmModal'; 
 import { useToast } from '../../context/ToastContext'; // TASK 3.2: Imported Toast
 
-export default function ManageDentists() {
+export default function ManageSecretaries() {
     const { addToast } = useToast(); // TASK 3.2: Initialize Toast
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [verifiedFilter, setVerifiedFilter] = useState('All');
 
-    const [dentistsList, setDentistsList] = useState([]);
+    const [secretariesList, setSecretariesList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-    const [selectedDentistId, setSelectedDentistId] = useState(null);
+    const [selectedSecretaryId, setSelectedSecretaryId] = useState(null);
 
     const [confirmConfig, setConfirmConfig] = useState(null);
 
-    const fetchDentists = useCallback(async () => {
+    const fetchSecretaries = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await authFetch('/users?role=dentist');
+            const response = await authFetch('/users?role=secretary');
 
             if (response.ok) {
                 const data = await response.json();
-                const mappedDentists = data
-                    .filter(u => u.role === 'dentist')
+                const mappedSecretaries = data
+                    .filter(u => u.role === 'secretary')
                     .map(u => {
-                        let parsedName = 'Unknown Dentist';
+                        let parsedName = 'Unknown Secretary';
                         if (typeof u.name === 'object' && u.name !== null) {
                             parsedName = `${u.name.first || ''} ${u.name.last || ''}`.trim();
                         } else if (u.firstName) {
@@ -55,41 +55,41 @@ export default function ManageDentists() {
                             profileImage: u.profileImage
                         };
                     });
-                setDentistsList(mappedDentists);
+                setSecretariesList(mappedSecretaries);
             }
-        } catch (error) { console.error("Failed to fetch dentists:", error); } 
+        } catch (error) { console.error("Failed to fetch secretaries:", error); } 
         finally { setIsLoading(false); }
     }, []);
 
-    useEffect(() => { fetchDentists(); }, [fetchDentists]);
+    useEffect(() => { fetchSecretaries(); }, [fetchSecretaries]);
 
-    const filteredDentists = dentistsList.filter(dentist => {
-        const matchesSearch = dentist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              dentist.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || dentist.status === statusFilter;
+    const filteredSecretaries = secretariesList.filter(secretary => {
+        const matchesSearch = secretary.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              secretary.email.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === 'All' || secretary.status === statusFilter;
         const matchesVerified = verifiedFilter === 'All' || 
-                                (verifiedFilter === 'Verified' && dentist.isVerified) || 
-                                (verifiedFilter === 'Unverified' && !dentist.isVerified);
+                                (verifiedFilter === 'Verified' && secretary.isVerified) || 
+                                (verifiedFilter === 'Unverified' && !secretary.isVerified);
 
         return matchesSearch && matchesStatus && matchesVerified;
     });
 
     // TASK 3.1 & 3.2: Replaced window.confirm and alert()
-    const handleToggleStatus = (dentist) => {
-        const newStatus = dentist.status === 'Active' ? 'inactive' : 'active';
-        if (newStatus === 'active' && !dentist.isVerified) {
-            addToast(`Cannot activate Dr. ${dentist.name}. Their email is not yet verified.`, 'error');
+    const handleToggleStatus = (secretary) => {
+        const newStatus = secretary.status === 'Active' ? 'inactive' : 'active';
+        if (newStatus === 'active' && !secretary.isVerified) {
+            addToast(`Cannot activate ${secretary.name}. Their email is not yet verified.`, 'error');
             return;
         }
 
         setConfirmConfig({
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
             message: newStatus === 'active' 
-                ? `Are you sure you want to ACTIVATE Dr. ${dentist.name}? They will regain access to the system.` 
-                : `Are you sure you want to DEACTIVATE Dr. ${dentist.name}? They will lose access to the system.`,
+                ? `Are you sure you want to ACTIVATE ${secretary.name}? They will regain access to the system.` 
+                : `Are you sure you want to DEACTIVATE ${secretary.name}? They will lose access to the system.`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
-            onConfirm: () => executeToggleStatus(dentist.id, newStatus, dentist.name),
+            onConfirm: () => executeToggleStatus(secretary.id, newStatus, secretary.name),
             onCancel: () => setConfirmConfig(null)
         });
     };
@@ -102,10 +102,10 @@ export default function ManageDentists() {
             });
 
             if (res.ok) {
-                setDentistsList(prevList => prevList.map(d => 
-                    d.id === id ? { ...d, status: newStatus === 'active' ? 'Active' : 'Inactive' } : d
+                setSecretariesList(prevList => prevList.map(s => 
+                    s.id === id ? { ...s, status: newStatus === 'active' ? 'Active' : 'Inactive' } : s
                 ));
-                addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} Dr. ${name}'s account.`, 'success');
+                addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} ${name}'s account.`, 'success');
             } else {
                 const data = await res.json();
                 addToast(data.message || "Failed to update status.", 'error');
@@ -118,16 +118,16 @@ export default function ManageDentists() {
         }
     };
 
-    const handleEditClick = (dentistId) => { setIsViewModalOpen(false); setSelectedDentistId(dentistId); setIsEditModalOpen(true); };
-    const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedDentistId(null); };
-    const handleViewClick = (dentistId) => { setIsEditModalOpen(false); setSelectedDentistId(dentistId); setIsViewModalOpen(true); };
-    const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedDentistId(null); };
+    const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedSecretaryId(id); setIsEditModalOpen(true); };
+    const handleViewClick = (id) => { setIsEditModalOpen(false); setSelectedSecretaryId(id); setIsViewModalOpen(true); };
+    const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedSecretaryId(null); };
+    const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedSecretaryId(null); };
 
     return (
         <div className={styles.container}>
             <header className={styles.header}>
-                <h1 className={styles.title}>Manage Dentists</h1>
-                <p className={styles.subtitle}>View, filter, and manage clinic dental professionals.</p>
+                <h1 className={styles.title}>Manage Secretaries</h1>
+                <p className={styles.subtitle}>View, filter, and manage clinic front desk personnel.</p>
             </header>
 
             <div className={styles.controlsRow}>
@@ -136,7 +136,7 @@ export default function ManageDentists() {
                         <FaSearch className={styles.searchIcon} />
                         <input 
                             type="text" 
-                            placeholder="Search dentists by name or email..." 
+                            placeholder="Search secretaries by name or email..." 
                             className={styles.searchInput} 
                             value={searchQuery} 
                             onChange={(e) => setSearchQuery(e.target.value)} 
@@ -161,18 +161,18 @@ export default function ManageDentists() {
                 </div>
                 
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} /> Add New Dentist
+                    <FaUserPlus className={styles.btnIcon} /> Add New Secretary
                 </button>
             </div>
 
-            <UserTabs activeTab="dentists" />
+            <UserTabs activeTab="secretaries" />
 
             <div className={styles.tableContainer}>
                 <table className={styles.userTable}>
                     <thead>
                         <tr>
                             <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
-                            <th>Dentist Name</th>
+                            <th>Secretary Name</th>
                             <th>Email Address</th>
                             <th style={{ width: '180px' }}>Account Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
@@ -181,53 +181,51 @@ export default function ManageDentists() {
                     <tbody>
                         {isLoading ? (
                             <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
-                        ) : filteredDentists.length > 0 ? (
-                            filteredDentists.map((dentist) => (
-                                <tr key={dentist.id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
+                        ) : filteredSecretaries.length > 0 ? (
+                            filteredSecretaries.map((secretary) => (
+                                <tr key={secretary.id} style={{ opacity: secretary.status === 'Inactive' ? 0.6 : 1 }}>
                                     <td style={{ textAlign: 'center' }}>
-                                        <UserAvatar user={{ name: dentist.name, profileImage: dentist.profileImage }} size={40} />
+                                        <UserAvatar user={{ name: secretary.name, profileImage: secretary.profileImage }} size={40} />
                                     </td>
                                     <td>
-                                        <span className={styles.fwBold}>Dr. {dentist.name}</span>
-                                        {!dentist.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
+                                        <span className={styles.fwBold}>{secretary.name}</span>
+                                        {!secretary.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
-                                    <td>{dentist.email}</td>
+                                    <td>{secretary.email}</td>
                                     <td>
-                                        <span className={`${styles.statusDot} ${dentist.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
-                                        <span style={{ fontWeight: '500', color: dentist.status === 'Active' ? '#15803d' : '#b91c1c' }}>{dentist.status}</span>
+                                        <span className={`${styles.statusDot} ${secretary.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
+                                        <span style={{ fontWeight: '500', color: secretary.status === 'Active' ? '#15803d' : '#b91c1c' }}>{secretary.status}</span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <button className={styles.iconBtn} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
-                                        <button className={styles.iconBtn} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
+                                        <button className={styles.iconBtn} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
+                                        <button className={styles.iconBtn} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
                                         <button 
                                             className={`${styles.iconBtn}`} 
-                                            onClick={() => handleToggleStatus(dentist)}
-                                            title={dentist.status === 'Active' ? "Deactivate Account" : "Activate Account"}
-                                            style={{ color: dentist.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
+                                            onClick={() => handleToggleStatus(secretary)}
+                                            title={secretary.status === 'Active' ? "Deactivate Account" : "Activate Account"}
+                                            style={{ color: secretary.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                         >
-                                            {dentist.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                            {secretary.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                         </button>
                                     </td>
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No dentists found matching filters.</td></tr>
+                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found matching filters.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
-            {isAddModalOpen && <AddDentist onClose={() => setIsAddModalOpen(false)} onSuccess={fetchDentists} />}
-            
-            {isViewModalOpen && selectedDentistId && (
-                <ViewDentist
-                    dentistId={selectedDentistId}
+            {isAddModalOpen && <AddSecretary onClose={() => setIsAddModalOpen(false)} onSuccess={fetchSecretaries} />}
+            {isViewModalOpen && selectedSecretaryId && (
+                <ViewSecretary
+                    secretaryId={selectedSecretaryId}
                     onClose={handleCloseViewModal}
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
                 />
             )}
-            
-            {isEditModalOpen && selectedDentistId && <EditDentist dentistId={selectedDentistId} onClose={handleCloseEditModal} onSuccess={fetchDentists} />}
+            {isEditModalOpen && selectedSecretaryId && <EditSecretary secretaryId={selectedSecretaryId} onClose={handleCloseEditModal} onSuccess={fetchSecretaries} />}
 
             <ConfirmModal 
                 isOpen={!!confirmConfig}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/secretary/SecretaryAppointments.module.css';
-import modalStyles from '../../styles/owner/StaffModals.module.css'; // matches original import
+import modalStyles from '../../styles/admin/StaffModals.module.css'; // matches original import
 
 // CRITICAL RULE IMPORTS
 import { authFetch } from '../../utils/api';

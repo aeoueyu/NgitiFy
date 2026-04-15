@@ -23,7 +23,7 @@ export const usePermissions = () => {
         if (!activeUser || !activeUser.role) return false;
 
         // 2. Owners and Co-owners bypass all checks (Full System Access)
-        if (activeUser.role === 'owner' || activeUser.role === 'co-owner') {
+        if (activeUser.role === 'administrator' || activeUser.role === 'co-administrator') {
             return true; 
         }
 

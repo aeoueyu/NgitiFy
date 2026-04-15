@@ -45,8 +45,8 @@ export default function LoginPage() {
                 });
 
                 // Redirect based on role returned by backend
-                if (data.role === 'owner' || data.role === 'co-owner') {
-                    navigate('/owner/dashboard');
+                if (data.role === 'administrator' || data.role === 'co-administrator') {
+                    navigate('/admin/dashboard');
                 } else if (data.role === 'dentist') {
                     navigate('/dentist/dashboard');
                 } else if (data.role === 'secretary') {

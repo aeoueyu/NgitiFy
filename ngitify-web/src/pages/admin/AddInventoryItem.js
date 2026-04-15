@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styles from '../../styles/owner/StaffModals.module.css'; 
+import styles from '../../styles/admin/StaffModals.module.css'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
 

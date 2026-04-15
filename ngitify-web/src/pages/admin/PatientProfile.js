@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from '../../styles/owner/PatientProfile.module.css';
+import styles from '../../styles/admin/PatientProfile.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
 import { formatDateLong } from '../../utils/dateUtils'; // NEW: Imported Date Utilities
 import { 

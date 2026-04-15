@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import styles from '../../styles/owner/SystemAuditLogs.module.css'; 
+import styles from '../../styles/admin/AuditTrail.module.css'; 
 import { FaSearch, FaHistory, FaDownload, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { authFetch } from '../../utils/api'; 
 import { formatDateShort, formatTime } from '../../utils/dateUtils'; // NEW: Imported Date Utilities

@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
-import styles from '../../styles/owner/AddPatient.module.css';
+import styles from '../../styles/admin/AddDentist.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
-import { authFetch } from '../../utils/api'; // <-- ADDED: Using our custom fetch
+import { authFetch } from '../../utils/api';
 
-export default function AddPatient({ onClose, onSuccess }) {
+export default function AddDentist({ onClose, onSuccess }) {
     const fileInputRef = useRef(null);
     const [isSameAddress, setIsSameAddress] = useState(false);
     const [profileImage, setProfileImage] = useState(null);
@@ -13,13 +13,13 @@ export default function AddPatient({ onClose, onSuccess }) {
     const [errors, setErrors] = useState({}); 
     const [isLoading, setIsLoading] = useState(false);
 
+    const specializationOptions = [ "General Dentist", "Orthodontist", "Pediatric Dentist (Pedodontist)", "Periodontist", "Endodontist", "Oral & Maxillofacial Surgeon", "Prosthodontist", "Cosmetic Dentist" ];
     const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
     
     const [formData, setFormData] = useState({
-        firstName: '', middleName: '', lastName: '', birthdate: '', gender: '',
-        email: '', phone: '', 
-        guardianName: '', guardianRelationship: '', guardianContact: '',
-        currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
+        firstName: '', middleName: '', lastName: '', birthdate: '', licenseNumber: '', specialization: '',
+        email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
+        permissions: { patients: 'none', appointments: 'none', inventory: 'none' } // Added Permissions
     });
 
     const validateEmail = (email) => {
@@ -31,19 +31,25 @@ export default function AddPatient({ onClose, onSuccess }) {
 
     const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
     const getAge = (d) => { const today=new Date(); const birth=new Date(d); let age=today.getFullYear()-birth.getFullYear(); const m=today.getMonth()-birth.getMonth(); if(m<0||(m===0&&today.getDate()<birth.getDate()))age--; return age; };
-    const getMaxDate = () => { return new Date().toISOString().split('T')[0]; }; 
-
-    const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
+    const getMaxDate = () => { const t=new Date(); t.setFullYear(t.getFullYear()-21); return t.toISOString().split('T')[0]; };
 
     const handleBlur = (e) => {
         const { name, value } = e.target;
         let newError = "";
-        if (name === 'email') {
-            if (!value) newError = "Required";
-            else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
-        } else if (name === 'phone' || name === 'guardianContact') {
-            if (!value) newError = "Required";
-            else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
+        switch (name) {
+            case 'email':
+                if (!value) newError = "Required";
+                else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
+                break;
+            case 'phone':
+                if (!value) newError = "Required";
+                else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
+                break;
+            case 'licenseNumber':
+                if (!value) newError = "Required";
+                else if (value.length !== 7) newError = "Must be 7 digits";
+                break;
+            default: break;
         }
         setErrors(prev => ({ ...prev, [name]: newError }));
     };
@@ -54,7 +60,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n={...prev}; delete n[name]; return n; });
-        if (['firstName', 'middleName', 'lastName', 'guardianName'].includes(name)) {
+        if (['firstName', 'middleName', 'lastName'].includes(name)) {
             if (value===''||/^[a-zA-Z\s.-]+$/.test(value)) setFormData({...formData, [name]: toTitleCase(value)});
             return;
         }
@@ -68,11 +74,10 @@ export default function AddPatient({ onClose, onSuccess }) {
         setFormData({ ...formData, phone: value });
     };
 
-    const handleGuardianContactChange = (e) => {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        if (value.length > 10) return;
-        if (errors.guardianContact) setErrors(prev => { const n={...prev}; delete n.guardianContact; return n; });
-        setFormData({ ...formData, guardianContact: value });
+    const handleLicenseChange = (e) => {
+        const val = e.target.value.replace(/[^0-9]/g, '');
+        if (errors.licenseNumber) setErrors(prev => { const n={...prev}; delete n.licenseNumber; return n; });
+        setFormData({...formData, licenseNumber: val});
     };
 
     const handleAddressChange = (type, field, value) => {
@@ -98,20 +103,23 @@ export default function AddPatient({ onClose, onSuccess }) {
         }
     };
 
+    // Added Permissions Handler
+    const handlePermissionChange = (module, value) => {
+        setFormData(prev => ({
+            ...prev,
+            permissions: { ...prev.permissions, [module]: value }
+        }));
+    };
+
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
-        
-        if (isMinor) {
-            required.push('guardianName', 'guardianRelationship');
-            if(!formData.guardianContact) { newErrors.guardianContact="Required"; isValid=false; }
-            else if(formData.guardianContact.length!==10 || formData.guardianContact[0]!=='9') { newErrors.guardianContact="Invalid format"; isValid=false; }
-        }
-
+        const required = ['firstName', 'lastName', 'birthdate', 'licenseNumber', 'specialization', 'email'];
         required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
         if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
         else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
         if(formData.email && !validateEmail(formData.email)) { newErrors.email = "Invalid domain"; isValid=false; }
+        if(formData.birthdate && getAge(formData.birthdate)<21) { newErrors.birthdate="Min age 21"; isValid=false; }
+        if(formData.licenseNumber && formData.licenseNumber.length !== 7) { newErrors.licenseNumber="Must be 7 digits"; isValid=false; }
 
         const validateAddr = (addr, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
@@ -134,25 +142,18 @@ export default function AddPatient({ onClose, onSuccess }) {
         if (!validateForm()) return;
         setIsLoading(true);
 
-        // CLEANED UP: Only sending the nested name object as required by the backend
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
-            email: formData.email, contactNumber: `+63${formData.phone}`, 
-            birthdate: formData.birthdate,
-            gender: formData.gender,
-            profileImage: profileImage,
-            guardian: isMinor ? {
-                name: formData.guardianName,
-                relationship: formData.guardianRelationship,
-                contactNumber: `+63${formData.guardianContact}`
-            } : null,
+            email: formData.email, contactNumber: `+63${formData.phone}`, birthdate: formData.birthdate,
+            licenseNumber: formData.licenseNumber, specialization: formData.specialization, profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
+            permissions: formData.permissions,
+            medicalHistory: { allergies: [], conditions: [] }
         };
 
         try {
-            // FIXED: Using authFetch instead of raw fetch
-            const response = await authFetch('/add-patient', {
+            const response = await authFetch('/add-dentist', {
                 method: 'POST',
                 body: JSON.stringify(finalData),
             });
@@ -164,7 +165,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     setErrors(prev => ({ ...prev, [data.field]: data.message }));
                     const el = document.getElementsByName(data.field)[0];
                     if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-                } else alert(data.message || "Failed to add patient");
+                } else alert(data.message || "Failed to add dentist");
             }
         } catch (error) { console.error(error); alert("Cannot connect to server."); } 
         finally { setIsLoading(false); }
@@ -208,8 +209,8 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <img src={BackIcon} alt="Back" />
                     </button>
                     <div className={styles.header}>
-                        <h2>Add New <span className={styles.highlight}>Patient</span></h2>
-                        <p>Enter the patient's personal records below.</p>
+                        <h2>Add New <span className={styles.highlight}>Dentist</span></h2>
+                        <p>Enter the dentist's personal and professional details below.</p>
                     </div>
                 </div>
 
@@ -227,9 +228,11 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/></div>
                         <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                     </div>
+                    
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                        <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
+                        <div className={styles.formGroup}><label>LICENSE NO. <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.licenseNumber ? styles.errorBorder : ''}`} name="licenseNumber" value={formData.licenseNumber} onChange={handleLicenseChange} onBlur={handleBlur} maxLength={7} disabled={isLoading}/>{errors.licenseNumber && <span className={styles.errorText}>{errors.licenseNumber}</span>}</div>
+                        <div className={styles.formGroup}><label>SPECIALIZATION <span style={{color:'red'}}>*</span></label><select name="specialization" className={`${styles.inputField} ${errors.specialization?styles.errorBorder:''}`} value={formData.specialization} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Specialization</option>{specializationOptions.map(o=><option key={o} value={o}>{o}</option>)}</select>{errors.specialization && <span className={styles.errorText}>{errors.specialization}</span>}</div>
                     </div>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
@@ -242,44 +245,51 @@ export default function AddPatient({ onClose, onSuccess }) {
                         </div>
                     </div>
 
-                    {isMinor && (
-                        <>
-                            <hr className={styles.divider} style={{ marginTop: '10px' }} />
-                            <h3 className={styles.mainSectionTitle}>Guardian Information</h3>
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>GUARDIAN NAME <span style={{color:'red'}}>*</span></label>
-                                    <input className={`${styles.inputField} ${errors.guardianName?styles.errorBorder:''}`} name="guardianName" value={formData.guardianName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} placeholder="Full Name"/>
-                                    {errors.guardianName && <span className={styles.errorText}>{errors.guardianName}</span>}
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>RELATIONSHIP <span style={{color:'red'}}>*</span></label>
-                                    <input className={`${styles.inputField} ${errors.guardianRelationship?styles.errorBorder:''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} maxLength={30} disabled={isLoading} placeholder="e.g. Mother, Father"/>
-                                    {errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}
-                                </div>
-                            </div>
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>GUARDIAN PHONE <span style={{color:'red'}}>*</span></label>
-                                    <div className={`${styles.phoneInputGroup} ${errors.guardianContact ? styles.errorBorder : ''}`}>
-                                        <span className={styles.phonePrefix}>+63</span>
-                                        <input className={styles.phoneField} name="guardianContact" value={formData.guardianContact} onChange={handleGuardianContactChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading}/>
-                                    </div>
-                                    {errors.guardianContact && <span className={styles.errorText}>{errors.guardianContact}</span>}
-                                </div>
-                                <div className={styles.formGroup}></div>
-                            </div>
-                        </>
-                    )}
-
                     <hr className={styles.divider} />
                     {renderAddressFields('currentAddress', 'Current Address')}
                     <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
                     {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
 
+                    {/* SYSTEM PERMISSIONS SECTION */}
+                    <hr className={styles.divider} />
+                    <h3 className={styles.mainSectionTitle}>System Permissions</h3>
+                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>
+
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>PATIENTS <span style={{color:'red'}}>*</span></label>
+                            <select className={styles.inputField} value={formData.permissions.patients} onChange={(e) => handlePermissionChange('patients', e.target.value)} disabled={isLoading}>
+                                <option value="none">No Access</option>
+                                <option value="read">Read-Only</option>
+                                <option value="edit">Editor</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>APPOINTMENTS <span style={{color:'red'}}>*</span></label>
+                            <select className={styles.inputField} value={formData.permissions.appointments} onChange={(e) => handlePermissionChange('appointments', e.target.value)} disabled={isLoading}>
+                                <option value="none">No Access</option>
+                                <option value="read">Read-Only</option>
+                                <option value="edit">Editor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>INVENTORY <span style={{color:'red'}}>*</span></label>
+                            <select className={styles.inputField} value={formData.permissions.inventory} onChange={(e) => handlePermissionChange('inventory', e.target.value)} disabled={isLoading}>
+                                <option value="none">No Access</option>
+                                <option value="read">Read-Only</option>
+                                <option value="edit">Editor</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            {/* Empty flex placeholder to maintain layout grid */}
+                        </div>
+                    </div>
+
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
-                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'ADDING PATIENT...' : 'ADD PATIENT'}</button>
+                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'ADDING DENTIST...' : 'ADD DENTIST'}</button>
                     </div>
                 </form>
             </div>
@@ -289,7 +299,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
                         <h3 className={styles.modalTitle}>Success!</h3>
-                        <p className={styles.modalMessage}>New patient has been successfully added to the system.</p>
+                        <p className={styles.modalMessage}>New dentist has been successfully added. An activation email has been sent.</p>
                         <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
                     </div>
                 </div>

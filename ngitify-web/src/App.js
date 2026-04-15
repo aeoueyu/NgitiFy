@@ -17,22 +17,22 @@ const VerificationCodePage = lazy(() => import('./pages/auth/VerificationCodePag
 const NewPasswordPage = lazy(() => import('./pages/auth/NewPasswordPage'));
 const NewPasswordRedirectPage = lazy(() => import('./pages/auth/NewPasswordRedirectPage'));
 
-// Pages - Owner
-const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
-const Appointments = lazy(() => import('./pages/owner/Appointments')); 
-const ManageDentists = lazy(() => import('./pages/owner/ManageDentists'));
-const ManageSecretaries = lazy(() => import('./pages/owner/ManageSecretaries'));
-const ManagePatients = lazy(() => import('./pages/owner/ManagePatients'));
-const SystemAuditLogs = lazy(() => import('./pages/owner/SystemAuditLogs'));
+// Pages - Admin (Formerly Owner)
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminAppointments = lazy(() => import('./pages/admin/AdminAppointments')); 
+const ManageDentists = lazy(() => import('./pages/admin/ManageDentists'));
+const ManageSecretaries = lazy(() => import('./pages/admin/ManageSecretaries'));
+const ManagePatients = lazy(() => import('./pages/admin/ManagePatients'));
+const AuditTrail = lazy(() => import('./pages/admin/AuditTrail')); // Renamed
 
-const AddDentist = lazy(() => import('./pages/owner/AddDentist'));
-const AddSecretary = lazy(() => import('./pages/owner/AddSecretary'));
-const AddPatient = lazy(() => import('./pages/owner/AddPatient'));
-const EditDentist = lazy(() => import('./pages/owner/EditDentist'));
-const InventoryTracker = lazy(() => import('./pages/owner/InventoryTracker'));
+const AddDentist = lazy(() => import('./pages/admin/AddDentist'));
+const AddSecretary = lazy(() => import('./pages/admin/AddSecretary'));
+const AddPatient = lazy(() => import('./pages/admin/AddPatient'));
+const EditDentist = lazy(() => import('./pages/admin/EditDentist'));
+const InventoryTracker = lazy(() => import('./pages/admin/InventoryTracker'));
 
-const MyProfile = lazy(() => import('./pages/owner/MyProfile'));
-const Settings = lazy(() => import('./pages/owner/Settings'));
+const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
@@ -74,7 +74,7 @@ function App() {
                 <Route element={<DashboardLayout />}>
                   <Route path="/dentist/dashboard" element={<DentistDashboard />} />
                   <Route path="/dentist/appointments" element={<DentistAppointments />} />
-                  <Route path="/dentist/profile" element={<MyProfile />} /> 
+                  <Route path="/dentist/profile" element={<AdminProfile />} /> 
                   <Route path="/dentist/patients/:patientId/emr" element={<PatientEMR />} />
                 </Route>
               </Route>
@@ -84,38 +84,48 @@ function App() {
                 <Route element={<DashboardLayout />}>
                   <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
                   <Route path="/secretary/appointments" element={<SecretaryAppointments />} />
-                  <Route path="/secretary/profile" element={<MyProfile />} />
-                  <Route path="/secretary/settings" element={<Settings />} />
+                  <Route path="/secretary/profile" element={<AdminProfile />} />
+                  <Route path="/secretary/settings" element={<AdminSettings />} />
                   <Route path="/secretary/patients" element={<ManagePatients />} />
                   <Route path="/secretary/inventory" element={<InventoryTracker />} />
                 </Route>
               </Route>
 
-              {/* Protected Routes - Owner Area */}
-              <Route element={<ProtectedRoute allowedRoles={['owner', 'co-owner']} />}>
+              {/* Protected Routes - Administrator Area */}
+              <Route element={<ProtectedRoute allowedRoles={['administrator', 'co-administrator', 'branch-manager']} />}>
                 <Route element={<DashboardLayout />}>
-                  <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+                  <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
-                  <Route path="/owner/profile" element={<MyProfile />} />
-                  <Route path="/owner/settings" element={<Settings />} />
+                  <Route path="/admin/profile" element={<AdminProfile />} />
+                  <Route path="/admin/settings" element={<AdminSettings />} />
                   
                   {/* Appointments Route */}
-                  <Route path="/owner/appointments" element={<Appointments />} />
+                  <Route path="/admin/appointments" element={<AdminAppointments />} />
                   
                   {/* URL-based Routing for User Management Tabs */}
-                  <Route path="/owner/manage-users" element={<Navigate to="/owner/manage-users/dentists" replace />} />
-                  <Route path="/owner/manage-users/dentists" element={<ManageDentists />} /> 
-                  <Route path="/owner/manage-users/secretaries" element={<ManageSecretaries />} />
-                  <Route path="/owner/manage-users/patients" element={<ManagePatients />} />
+                  <Route path="/admin/manage-users" element={<Navigate to="/admin/manage-users/dentists" replace />} />
+                  <Route path="/admin/manage-users/dentists" element={<ManageDentists />} /> 
+                  <Route path="/admin/manage-users/secretaries" element={<ManageSecretaries />} />
+                  <Route path="/admin/manage-users/patients" element={<ManagePatients />} />
                   
                   {/* Add/Edit specific routes kept for deep linking */}
-                  <Route path="/owner/add-dentist" element={<AddDentist />} /> 
-                  <Route path="/owner/edit-dentist" element={<EditDentist />} /> 
-                  <Route path="/owner/add-secretary" element={<AddSecretary />} />
-                  <Route path="/owner/add-patient" element={<AddPatient />} />
+                  <Route path="/admin/add-dentist" element={<AddDentist />} /> 
+                  <Route path="/admin/edit-dentist" element={<EditDentist />} /> 
+                  <Route path="/admin/add-secretary" element={<AddSecretary />} />
+                  <Route path="/admin/add-patient" element={<AddPatient />} />
                   
-                  <Route path="/owner/audit-logs" element={<SystemAuditLogs />} />
-                  <Route path="/owner/inventory" element={<InventoryTracker />} />
+                  <Route path="/admin/audit-trail" element={<AuditTrail />} />
+                  <Route path="/admin/inventory" element={<InventoryTracker />} />
+
+                  {/* NEW ADMIN ROUTES (Placeholders for upcoming phases) */}
+                  {/* <Route path="/admin/queue" element={<QueueManagement />} /> */}
+                  {/* <Route path="/admin/notifications" element={<Notifications />} /> */}
+                  {/* <Route path="/admin/branches" element={<BranchManagement />} /> */}
+                  {/* <Route path="/admin/roles" element={<RolesPermissions />} /> */}
+                  {/* <Route path="/admin/backup" element={<DatabaseBackup />} /> */}
+                  {/* <Route path="/admin/chat-support" element={<ChatSupport />} /> */}
+                  {/* <Route path="/admin/integrity" element={<IntegrityTools />} /> */}
+                  {/* <Route path="/admin/system-config" element={<SystemConfig />} /> */}
                 </Route>
               </Route>
 

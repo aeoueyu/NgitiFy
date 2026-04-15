@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import styles from '../../styles/owner/EditDentist.module.css'; // FIX 1: was AddDentist.module.css
+import styles from '../../styles/admin/AddPatient.module.css'; 
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
-import { authFetch } from '../../utils/api'; // FIX 2: added authFetch import
+import { authFetch } from '../../utils/api'; // <-- ADDED: Using our custom fetch
 
-const specializationOptions = [ "General Dentist", "Orthodontist", "Pediatric Dentist (Pedodontist)", "Periodontist", "Endodontist", "Oral & Maxillofacial Surgeon", "Prosthodontist", "Cosmetic Dentist" ];
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
-export default function EditDentist({ dentistId, onClose, onSuccess }) {
+export default function EditPatient({ patientId, onClose, onSuccess }) {
     const fileInputRef = useRef(null);
     const [isSameAddress, setIsSameAddress] = useState(false);
     const [profileImage, setProfileImage] = useState(null);
@@ -16,22 +15,23 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
     const [errors, setErrors] = useState({}); 
     const [isLoading, setIsLoading] = useState(true); 
     const [isSaving, setIsSaving] = useState(false);
-    
+
     const [formData, setFormData] = useState({
-        firstName: '', middleName: '', lastName: '', birthdate: '', gender: '', licenseNumber: '', specialization: '',
-        email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
-        permissions: { patients: 'none', appointments: 'none', inventory: 'none' }
+        firstName: '', middleName: '', lastName: '', birthdate: '',
+        gender: '', email: '', phone: '', 
+        guardianName: '', guardianRelationship: '', guardianContact: '',
+        currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
     });
 
     const [initialData, setInitialData] = useState(null);
     const [initialProfileImage, setInitialProfileImage] = useState(null);
 
-    // --- FETCH EXISTING DENTIST DATA ---
+    // --- FETCH EXISTING DATA ---
     useEffect(() => {
-        const fetchDentistData = async () => {
+        const fetchPatientData = async () => {
             try {
-                // FIX 2: replaced raw fetch + localhost with authFetch
-                const response = await authFetch(`/user/${dentistId}`);
+                // FIXED: Using authFetch and pointing to /patients/:id instead of /user/:id
+                const response = await authFetch(`/patients/${patientId}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -43,9 +43,12 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                     let phoneNum = data.contactNumber || data.phoneNumber || '';
                     if (phoneNum.startsWith('+63')) phoneNum = phoneNum.substring(3);
 
+                    let guardianPhone = data.guardian?.contactNumber || '';
+                    if (guardianPhone.startsWith('+63')) guardianPhone = guardianPhone.substring(3);
+
                     let formattedDob = '';
-                    if (data.birthdate || data.dob) {
-                        formattedDob = new Date(data.birthdate || data.dob).toISOString().split('T')[0];
+                    if (data.birthdate || data.dob || data.dateOfBirth) {
+                        formattedDob = new Date(data.birthdate || data.dob || data.dateOfBirth).toISOString().split('T')[0];
                     }
 
                     const fetchedCurrent = data?.currentAddress || { ...initialAddressState };
@@ -67,17 +70,13 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                         lastName: lName,
                         birthdate: formattedDob,
                         gender: data.gender || '',        
-                        licenseNumber: data.licenseNumber || '',
-                        specialization: data.specialization || '',
                         email: data.email || '',
                         phone: phoneNum,
+                        guardianName: data.guardian?.name || '',
+                        guardianRelationship: data.guardian?.relationship || '',
+                        guardianContact: guardianPhone,
                         currentAddress: { ...initialAddressState, ...fetchedCurrent },
-                        permanentAddress: { ...initialAddressState, ...fetchedPermanent },
-                        permissions: {
-                            patients: data.permissions?.patients || 'none',
-                            appointments: data.permissions?.appointments || 'none',
-                            inventory: data.permissions?.inventory || 'none'
-                        }
+                        permanentAddress: { ...initialAddressState, ...fetchedPermanent }
                     };
 
                     setFormData(fetchedFormData);
@@ -88,11 +87,11 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                         setInitialProfileImage(data.profileImage);
                     }
                 } else {
-                    alert("Failed to load dentist data.");
+                    alert("Failed to load patient data.");
                     onClose();
                 }
             } catch (error) {
-                console.error("Error fetching dentist:", error);
+                console.error("Error fetching patient:", error);
                 alert("Cannot connect to server.");
                 onClose();
             } finally {
@@ -100,8 +99,8 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
             }
         };
 
-        if (dentistId) fetchDentistData();
-    }, [dentistId, onClose]);
+        if (patientId) fetchPatientData();
+    }, [patientId, onClose]);
 
     const hasChanges = initialData ? (JSON.stringify(formData) !== JSON.stringify(initialData)) || (profileImage !== initialProfileImage) : false;
 
@@ -115,25 +114,19 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
 
     const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
     const getAge = (d) => { const today=new Date(); const birth=new Date(d); let age=today.getFullYear()-birth.getFullYear(); const m=today.getMonth()-birth.getMonth(); if(m<0||(m===0&&today.getDate()<birth.getDate()))age--; return age; };
-    const getMaxDate = () => { const t=new Date(); t.setFullYear(t.getFullYear()-21); return t.toISOString().split('T')[0]; };
+    const getMaxDate = () => { return new Date().toISOString().split('T')[0]; }; 
+
+    const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
 
     const handleBlur = (e) => {
         const { name, value } = e.target;
         let newError = "";
-        switch (name) {
-            case 'email':
-                if (!value) newError = "Required";
-                else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
-                break;
-            case 'phone':
-                if (!value) newError = "Required";
-                else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
-                break;
-            case 'licenseNumber':
-                if (!value) newError = "Required";
-                else if (value.length !== 7) newError = "Must be 7 digits";
-                break;
-            default: break;
+        if (name === 'email') {
+            if (!value) newError = "Required";
+            else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
+        } else if (name === 'phone' || name === 'guardianContact') {
+            if (!value) newError = "Required";
+            else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
         }
         setErrors(prev => ({ ...prev, [name]: newError }));
     };
@@ -144,7 +137,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n={...prev}; delete n[name]; return n; });
-        if (['firstName', 'middleName', 'lastName'].includes(name)) {
+        if (['firstName', 'middleName', 'lastName', 'guardianName'].includes(name)) {
             if (value===''||/^[a-zA-Z\s.-]+$/.test(value)) setFormData({...formData, [name]: toTitleCase(value)});
             return;
         }
@@ -158,10 +151,11 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         setFormData({ ...formData, phone: value });
     };
 
-    const handleLicenseChange = (e) => {
-        const val = e.target.value.replace(/[^0-9]/g, '');
-        if (errors.licenseNumber) setErrors(prev => { const n={...prev}; delete n.licenseNumber; return n; });
-        setFormData({...formData, licenseNumber: val});
+    const handleGuardianContactChange = (e) => {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        if (value.length > 10) return;
+        if (errors.guardianContact) setErrors(prev => { const n={...prev}; delete n.guardianContact; return n; });
+        setFormData({ ...formData, guardianContact: value });
     };
 
     const handleAddressChange = (type, field, value) => {
@@ -187,23 +181,20 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         }
     };
 
-    const handlePermissionChange = (module, value) => {
-        setFormData(prev => ({
-            ...prev,
-            permissions: { ...prev.permissions, [module]: value }
-        }));
-    };
-
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
-        // FIX 3: added 'gender' to required fields
-        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email'];
+        const required = ['firstName', 'lastName', 'birthdate', 'email'];
+        
+        if (isMinor) {
+            required.push('guardianName', 'guardianRelationship');
+            if(!formData.guardianContact) { newErrors.guardianContact="Required"; isValid=false; }
+            else if(formData.guardianContact.length!==10 || formData.guardianContact[0]!=='9') { newErrors.guardianContact="Invalid format"; isValid=false; }
+        }
+
         required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
         if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
         else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
         if(formData.email && !validateEmail(formData.email)) { newErrors.email = "Invalid domain"; isValid=false; }
-        if(formData.birthdate && getAge(formData.birthdate)<21) { newErrors.birthdate="Min age 21"; isValid=false; }
-        if(formData.licenseNumber && formData.licenseNumber.length !== 7) { newErrors.licenseNumber="Must be 7 digits"; isValid=false; }
 
         const validateAddr = (addr, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
@@ -228,17 +219,22 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
 
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
-            email: formData.email, contactNumber: `+63${formData.phone}`, birthdate: formData.birthdate,
-            gender: formData.gender, 
-            licenseNumber: formData.licenseNumber, specialization: formData.specialization, profileImage: profileImage,
+            email: formData.email, contactNumber: `+63${formData.phone}`, 
+            birthdate: formData.birthdate,
+            gender: formData.gender,
+            profileImage: profileImage,
+            guardian: isMinor ? {
+                name: formData.guardianName,
+                relationship: formData.guardianRelationship,
+                contactNumber: `+63${formData.guardianContact}`
+            } : null,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
-            permissions: formData.permissions
         };
 
         try {
-            // FIX 2: replaced raw fetch + localhost with authFetch
-            const response = await authFetch(`/user/${dentistId}`, {
+            // FIXED: Using authFetch and pointing to /patients/:id instead of /user/:id
+            const response = await authFetch(`/patients/${patientId}`, {
                 method: 'PUT',
                 body: JSON.stringify(finalData),
             });
@@ -250,7 +246,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                     setErrors(prev => ({ ...prev, [data.field]: data.message }));
                     const el = document.getElementsByName(data.field)[0];
                     if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-                } else alert(data.message || "Failed to update dentist");
+                } else alert(data.message || "Failed to update patient");
             }
         } catch (error) { console.error(error); alert("Cannot connect to server."); } 
         finally { setIsSaving(false); }
@@ -291,7 +287,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
             <div className={styles.formCard}>
                 {isLoading ? (
                     <div style={{ textAlign: 'center', padding: '50px', color: '#01538b', fontWeight: 'bold' }}>
-                        Loading Dentist Data...
+                        Loading Patient Data...
                     </div>
                 ) : (
                     <>
@@ -300,8 +296,8 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                                 <img src={BackIcon} alt="Back" />
                             </button>
                             <div className={styles.header}>
-                                <h2>Edit <span className={styles.highlight}>Dentist</span> Profile</h2>
-                                <p>Update the dentist's personal and professional details below.</p>
+                                <h2>Edit <span className={styles.highlight}>Patient</span> Profile</h2>
+                                <p>Update the patient's records below.</p>
                             </div>
                         </div>
 
@@ -314,79 +310,64 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                             </div>
 
                             <h3 className={styles.mainSectionTitle}>Personal Information</h3>
-                            {/* Row 1: Name */}
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isSaving}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
-                                <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isSaving}/></div>
-                                <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isSaving}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
+                                <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
+                                <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/></div>
+                                <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                             </div>
-                            {/* Row 2: Demographics */}
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                                <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
+                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                                <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
-                            {/* Row 3: Professional */}
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>LICENSE NO. <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.licenseNumber ? styles.errorBorder : ''}`} name="licenseNumber" value={formData.licenseNumber} onChange={handleLicenseChange} onBlur={handleBlur} maxLength={7} disabled={isSaving}/>{errors.licenseNumber && <span className={styles.errorText}>{errors.licenseNumber}</span>}</div>
-                                <div className={styles.formGroup}><label>SPECIALIZATION <span style={{color:'red'}}>*</span></label><select name="specialization" className={`${styles.inputField} ${errors.specialization?styles.errorBorder:''}`} value={formData.specialization} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Specialization</option>{specializationOptions.map(o=><option key={o} value={o}>{o}</option>)}</select>{errors.specialization && <span className={styles.errorText}>{errors.specialization}</span>}</div>
-                            </div>
-                            {/* Row 4: Contact */}
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isSaving}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
+                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                                 <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
                                     <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
                                         <span className={styles.phonePrefix}>+63</span>
-                                        <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving}/>
+                                        <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading}/>
                                     </div>
                                     {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                                 </div>
                             </div>
+
+                            {isMinor && (
+                                <>
+                                    <hr className={styles.divider} style={{ marginTop: '10px' }} />
+                                    <h3 className={styles.mainSectionTitle}>Guardian Information</h3>
+                                    <div className={styles.row}>
+                                        <div className={styles.formGroup}>
+                                            <label>GUARDIAN NAME <span style={{color:'red'}}>*</span></label>
+                                            <input className={`${styles.inputField} ${errors.guardianName?styles.errorBorder:''}`} name="guardianName" value={formData.guardianName} onChange={handlePersonalChange} maxLength={70} disabled={isSaving} placeholder="Full Name"/>
+                                            {errors.guardianName && <span className={styles.errorText}>{errors.guardianName}</span>}
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>RELATIONSHIP <span style={{color:'red'}}>*</span></label>
+                                            <input className={`${styles.inputField} ${errors.guardianRelationship?styles.errorBorder:''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} maxLength={30} disabled={isSaving} placeholder="e.g. Mother, Father"/>
+                                            {errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}
+                                        </div>
+                                    </div>
+                                    <div className={styles.row}>
+                                        <div className={styles.formGroup}>
+                                            <label>GUARDIAN PHONE <span style={{color:'red'}}>*</span></label>
+                                            <div className={`${styles.phoneInputGroup} ${errors.guardianContact ? styles.errorBorder : ''}`}>
+                                                <span className={styles.phonePrefix}>+63</span>
+                                                <input className={styles.phoneField} name="guardianContact" value={formData.guardianContact} onChange={handleGuardianContactChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving}/>
+                                            </div>
+                                            {errors.guardianContact && <span className={styles.errorText}>{errors.guardianContact}</span>}
+                                        </div>
+                                        <div className={styles.formGroup}></div>
+                                    </div>
+                                </>
+                            )}
 
                             <hr className={styles.divider} />
                             {renderAddressFields('currentAddress', 'Current Address')}
                             <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isSaving} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
                             {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
 
-                            {/* SYSTEM PERMISSIONS SECTION */}
-                            <hr className={styles.divider} />
-                            <h3 className={styles.mainSectionTitle}>System Permissions</h3>
-                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>
-
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>PATIENTS <span style={{color:'red'}}>*</span></label>
-                                    <select className={styles.inputField} value={formData.permissions.patients} onChange={(e) => handlePermissionChange('patients', e.target.value)} disabled={isSaving}>
-                                        <option value="none">No Access</option>
-                                        <option value="read">Read-Only</option>
-                                        <option value="edit">Editor</option>
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>APPOINTMENTS <span style={{color:'red'}}>*</span></label>
-                                    <select className={styles.inputField} value={formData.permissions.appointments} onChange={(e) => handlePermissionChange('appointments', e.target.value)} disabled={isSaving}>
-                                        <option value="none">No Access</option>
-                                        <option value="read">Read-Only</option>
-                                        <option value="edit">Editor</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>INVENTORY <span style={{color:'red'}}>*</span></label>
-                                    <select className={styles.inputField} value={formData.permissions.inventory} onChange={(e) => handlePermissionChange('inventory', e.target.value)} disabled={isSaving}>
-                                        <option value="none">No Access</option>
-                                        <option value="read">Read-Only</option>
-                                        <option value="edit">Editor</option>
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup}>
-                                    {/* Empty flex placeholder to maintain layout grid */}
-                                </div>
-                            </div>
-
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
-                                <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>{isSaving ? 'SAVING CHANGES...' : 'UPDATE DENTIST'}</button>
+                                <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>{isSaving ? 'SAVING CHANGES...' : 'UPDATE PATIENT'}</button>
                             </div>
                         </form>
                     </>
@@ -398,7 +379,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
                         <h3 className={styles.modalTitle}>Success!</h3>
-                        <p className={styles.modalMessage}>The dentist's profile has been successfully updated.</p>
+                        <p className={styles.modalMessage}>The patient's profile has been successfully updated.</p>
                         <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
                     </div>
                 </div>

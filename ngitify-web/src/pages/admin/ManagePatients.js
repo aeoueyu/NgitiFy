@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import styles from '../../styles/owner/ManagePatients.module.css'; 
+import styles from '../../styles/admin/ManagePatients.module.css'; 
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions'; 
 import { useAuth } from '../../hooks/useAuth';

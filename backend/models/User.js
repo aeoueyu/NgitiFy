@@ -39,9 +39,18 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: {
         type: String,
-        enum: ['owner', 'co-owner', 'dentist', 'secretary', 'patient'],
-        required: true
-    },
+        required: true,
+        enum: [
+          'administrator',     // New
+          'co-administrator',  // New
+          'branch-manager',    // New
+          'owner',             // Keep temporarily for migration
+          'co-owner',          // Keep temporarily for migration
+          'dentist', 
+          'secretary', 
+          'patient'
+        ]
+      },
 
     // Task 13 Fix: Added permissions field
     permissions: {

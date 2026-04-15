@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import styles from '../../styles/owner/Settings.module.css';
+import styles from '../../styles/admin/Settings.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
 
 export default function Settings() {

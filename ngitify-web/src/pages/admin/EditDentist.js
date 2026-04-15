@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import styles from '../../styles/owner/EditSecretary.module.css'; // FIX 1: was AddSecretary.module.css
+import styles from '../../styles/admin/EditDentist.module.css'; // FIX 1: was AddDentist.module.css
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
 import { authFetch } from '../../utils/api'; // FIX 2: added authFetch import
 
+const specializationOptions = [ "General Dentist", "Orthodontist", "Pediatric Dentist (Pedodontist)", "Periodontist", "Endodontist", "Oral & Maxillofacial Surgeon", "Prosthodontist", "Cosmetic Dentist" ];
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
-export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
+export default function EditDentist({ dentistId, onClose, onSuccess }) {
     const fileInputRef = useRef(null);
     const [isSameAddress, setIsSameAddress] = useState(false);
     const [profileImage, setProfileImage] = useState(null);
@@ -15,24 +16,22 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
     const [errors, setErrors] = useState({}); 
     const [isLoading, setIsLoading] = useState(true); 
     const [isSaving, setIsSaving] = useState(false);
-
+    
     const [formData, setFormData] = useState({
-        firstName: '', middleName: '', lastName: '', birthdate: '',
-        gender: '', email: '', phone: '', 
-        currentAddress: { ...initialAddressState }, 
-        permanentAddress: { ...initialAddressState },
+        firstName: '', middleName: '', lastName: '', birthdate: '', gender: '', licenseNumber: '', specialization: '',
+        email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
         permissions: { patients: 'none', appointments: 'none', inventory: 'none' }
     });
 
     const [initialData, setInitialData] = useState(null);
     const [initialProfileImage, setInitialProfileImage] = useState(null);
 
-    // --- FETCH EXISTING DATA ---
+    // --- FETCH EXISTING DENTIST DATA ---
     useEffect(() => {
-        const fetchSecretaryData = async () => {
+        const fetchDentistData = async () => {
             try {
                 // FIX 2: replaced raw fetch + localhost with authFetch
-                const response = await authFetch(`/user/${secretaryId}`);
+                const response = await authFetch(`/user/${dentistId}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -68,6 +67,8 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                         lastName: lName,
                         birthdate: formattedDob,
                         gender: data.gender || '',        
+                        licenseNumber: data.licenseNumber || '',
+                        specialization: data.specialization || '',
                         email: data.email || '',
                         phone: phoneNum,
                         currentAddress: { ...initialAddressState, ...fetchedCurrent },
@@ -87,11 +88,11 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                         setInitialProfileImage(data.profileImage);
                     }
                 } else {
-                    alert("Failed to load secretary data.");
+                    alert("Failed to load dentist data.");
                     onClose();
                 }
             } catch (error) {
-                console.error("Error fetching secretary:", error);
+                console.error("Error fetching dentist:", error);
                 alert("Cannot connect to server.");
                 onClose();
             } finally {
@@ -99,8 +100,8 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
             }
         };
 
-        if (secretaryId) fetchSecretaryData();
-    }, [secretaryId, onClose]);
+        if (dentistId) fetchDentistData();
+    }, [dentistId, onClose]);
 
     const hasChanges = initialData ? (JSON.stringify(formData) !== JSON.stringify(initialData)) || (profileImage !== initialProfileImage) : false;
 
@@ -114,17 +115,25 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
 
     const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
     const getAge = (d) => { const today=new Date(); const birth=new Date(d); let age=today.getFullYear()-birth.getFullYear(); const m=today.getMonth()-birth.getMonth(); if(m<0||(m===0&&today.getDate()<birth.getDate()))age--; return age; };
-    const getMaxDate = () => { const t=new Date(); t.setFullYear(t.getFullYear()-18); return t.toISOString().split('T')[0]; };
+    const getMaxDate = () => { const t=new Date(); t.setFullYear(t.getFullYear()-21); return t.toISOString().split('T')[0]; };
 
     const handleBlur = (e) => {
         const { name, value } = e.target;
         let newError = "";
-        if (name === 'email') {
-            if (!value) newError = "Required";
-            else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
-        } else if (name === 'phone') {
-            if (!value) newError = "Required";
-            else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
+        switch (name) {
+            case 'email':
+                if (!value) newError = "Required";
+                else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
+                break;
+            case 'phone':
+                if (!value) newError = "Required";
+                else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
+                break;
+            case 'licenseNumber':
+                if (!value) newError = "Required";
+                else if (value.length !== 7) newError = "Must be 7 digits";
+                break;
+            default: break;
         }
         setErrors(prev => ({ ...prev, [name]: newError }));
     };
@@ -147,6 +156,12 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
         if (value.length > 10) return;
         if (errors.phone) setErrors(prev => { const n={...prev}; delete n.phone; return n; });
         setFormData({ ...formData, phone: value });
+    };
+
+    const handleLicenseChange = (e) => {
+        const val = e.target.value.replace(/[^0-9]/g, '');
+        if (errors.licenseNumber) setErrors(prev => { const n={...prev}; delete n.licenseNumber; return n; });
+        setFormData({...formData, licenseNumber: val});
     };
 
     const handleAddressChange = (type, field, value) => {
@@ -182,12 +197,13 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
         // FIX 3: added 'gender' to required fields
-        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
+        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email'];
         required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
         if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
         else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
         if(formData.email && !validateEmail(formData.email)) { newErrors.email = "Invalid domain"; isValid=false; }
-        if(formData.birthdate && getAge(formData.birthdate)<18) { newErrors.birthdate="Min age 18"; isValid=false; }
+        if(formData.birthdate && getAge(formData.birthdate)<21) { newErrors.birthdate="Min age 21"; isValid=false; }
+        if(formData.licenseNumber && formData.licenseNumber.length !== 7) { newErrors.licenseNumber="Must be 7 digits"; isValid=false; }
 
         const validateAddr = (addr, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
@@ -214,7 +230,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email: formData.email, contactNumber: `+63${formData.phone}`, birthdate: formData.birthdate,
             gender: formData.gender, 
-            profileImage: profileImage,
+            licenseNumber: formData.licenseNumber, specialization: formData.specialization, profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
             permissions: formData.permissions
@@ -222,7 +238,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
 
         try {
             // FIX 2: replaced raw fetch + localhost with authFetch
-            const response = await authFetch(`/user/${secretaryId}`, {
+            const response = await authFetch(`/user/${dentistId}`, {
                 method: 'PUT',
                 body: JSON.stringify(finalData),
             });
@@ -234,7 +250,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                     setErrors(prev => ({ ...prev, [data.field]: data.message }));
                     const el = document.getElementsByName(data.field)[0];
                     if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-                } else alert(data.message || "Failed to update secretary");
+                } else alert(data.message || "Failed to update dentist");
             }
         } catch (error) { console.error(error); alert("Cannot connect to server."); } 
         finally { setIsSaving(false); }
@@ -275,7 +291,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
             <div className={styles.formCard}>
                 {isLoading ? (
                     <div style={{ textAlign: 'center', padding: '50px', color: '#01538b', fontWeight: 'bold' }}>
-                        Loading Secretary Data...
+                        Loading Dentist Data...
                     </div>
                 ) : (
                     <>
@@ -284,8 +300,8 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                                 <img src={BackIcon} alt="Back" />
                             </button>
                             <div className={styles.header}>
-                                <h2>Edit <span className={styles.highlight}>Secretary</span> Profile</h2>
-                                <p>Update the front desk staff's personal details below.</p>
+                                <h2>Edit <span className={styles.highlight}>Dentist</span> Profile</h2>
+                                <p>Update the dentist's personal and professional details below.</p>
                             </div>
                         </div>
 
@@ -309,7 +325,12 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                                 <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
                                 <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
-                            {/* Row 3: Contact */}
+                            {/* Row 3: Professional */}
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>LICENSE NO. <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.licenseNumber ? styles.errorBorder : ''}`} name="licenseNumber" value={formData.licenseNumber} onChange={handleLicenseChange} onBlur={handleBlur} maxLength={7} disabled={isSaving}/>{errors.licenseNumber && <span className={styles.errorText}>{errors.licenseNumber}</span>}</div>
+                                <div className={styles.formGroup}><label>SPECIALIZATION <span style={{color:'red'}}>*</span></label><select name="specialization" className={`${styles.inputField} ${errors.specialization?styles.errorBorder:''}`} value={formData.specialization} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Specialization</option>{specializationOptions.map(o=><option key={o} value={o}>{o}</option>)}</select>{errors.specialization && <span className={styles.errorText}>{errors.specialization}</span>}</div>
+                            </div>
+                            {/* Row 4: Contact */}
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isSaving}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                                 <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
@@ -365,7 +386,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
 
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
-                                <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>{isSaving ? 'SAVING CHANGES...' : 'UPDATE SECRETARY'}</button>
+                                <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>{isSaving ? 'SAVING CHANGES...' : 'UPDATE DENTIST'}</button>
                             </div>
                         </form>
                     </>
@@ -377,7 +398,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
                         <h3 className={styles.modalTitle}>Success!</h3>
-                        <p className={styles.modalMessage}>The secretary's profile has been successfully updated.</p>
+                        <p className={styles.modalMessage}>The dentist's profile has been successfully updated.</p>
                         <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
                     </div>
                 </div>

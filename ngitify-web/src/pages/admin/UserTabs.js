@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import styles from '../../styles/owner/UserTabs.module.css';
+import styles from '../../styles/admin/UserTabs.module.css';
 
 export default function UserTabs({ activeTab }) {
     const navigate = useNavigate();

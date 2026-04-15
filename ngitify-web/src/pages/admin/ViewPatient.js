@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import styles from '../../styles/owner/StaffModals.module.css'; // Utilizing unified UI
+import styles from '../../styles/admin/StaffModals.module.css'; // Utilizing unified UI
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
 

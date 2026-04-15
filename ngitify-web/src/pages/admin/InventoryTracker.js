@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import styles from '../../styles/owner/InventoryTracker.module.css'; 
+import styles from '../../styles/admin/InventoryTracker.module.css'; 
 import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle, FaBoxes, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { authFetch } from '../../utils/api';

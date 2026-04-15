@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from '../../styles/owner/OwnerDashboard.module.css';
+import styles from '../../styles/admin/AdminDashboard.module.css';
 import { 
     Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
     AreaChart, Area, XAxis, YAxis, CartesianGrid // TASK 4.1: Imported AreaChart components

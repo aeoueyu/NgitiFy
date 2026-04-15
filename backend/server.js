@@ -264,7 +264,7 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
         await AuditLog.create({
             action: "CREATE_USER",
             user: req.user?.email || req.user?.id || "ADMIN", 
-            role: req.user?.role || "owner",
+            role: req.user?.role || "administrator",
             details: `Created new user: ${email}`
         });
 
@@ -312,7 +312,7 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
         await AuditLog.create({
             action: "CREATE_USER",
             user: req.user?.email || req.user?.id || "ADMIN",
-            role: req.user?.role || "owner",
+            role: req.user?.role || "administrator",
             details: `Created new user: ${email}`
         });
 
@@ -329,6 +329,62 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
 
     } catch (error) {
         console.error("Error adding secretary:", error);
+        res.status(500).json({ message: "Server error." });
+    }
+});
+
+// -------------------------------------------------------
+// ADD BRANCH MANAGER (Admin Only)
+// -------------------------------------------------------
+app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
+    try {
+        // Security: Ensure only administrators can add branch managers
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: "Access denied. Admin only." });
+        }
+
+        const { email, ...otherData } = req.body;
+
+        const existing = await User.findOne({ email });
+        if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
+
+        const tempPassword = crypto.randomBytes(4).toString('hex');
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const activationToken = crypto.randomBytes(32).toString('hex');
+        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+
+        const newUser = new User({
+            ...otherData,
+            email, 
+            password: hashedPassword,
+            role: 'branch-manager', // Explicitly setting the role
+            isVerified: false, 
+            status: 'inactive',
+            activationToken,
+            temporaryPasswordExpires
+        });
+        await newUser.save();
+
+        await AuditLog.create({
+            action: "CREATE_USER",
+            user: req.user?.email || req.user?.id || "ADMIN",
+            role: req.user?.role || "administrator",
+            details: `Created new branch manager: ${email}`
+        });
+
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+
+        try {
+            await sendActivationEmail(email, 'Branch Manager', tempPassword, activationLink);
+            console.log(`✅ Branch Manager Added & Email Sent: ${email}`);
+            res.status(201).json({ message: 'Branch Manager added successfully. Email sent.' });
+        } catch (emailError) {
+            console.error("Email failed:", emailError.message);
+            res.status(201).json({ message: 'Branch Manager added, but activation email failed to send.' });
+        }
+
+    } catch (error) {
+        console.error("Error adding branch manager:", error);
         res.status(500).json({ message: "Server error." });
     }
 });
@@ -384,7 +440,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
     }
 });
 
-app.post('/api/add-co-owner', verifyToken, async (req, res) => {
+app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
     try {
         const { email, licenseNumber, branch, ...otherData } = req.body;
         
@@ -407,7 +463,7 @@ app.post('/api/add-co-owner', verifyToken, async (req, res) => {
             licenseNumber,
             branch,
             password: hashedPassword,
-            role: 'co-owner',
+            role: 'co-administrator',
             isVerified: false,
             status: 'inactive',
             activationToken,
@@ -419,28 +475,56 @@ app.post('/api/add-co-owner', verifyToken, async (req, res) => {
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Co-Owner', tempPassword, activationLink);
-            console.log(`✅ Co-Owner Added & Email Sent: ${email}`);
+            await sendActivationEmail(email, 'Co-Administrator', tempPassword, activationLink);
+            console.log(`✅ Co-Administrator Added & Email Sent: ${email}`);
         } catch (emailError) {
             console.error("Email failed:", emailError.message);
         }
         
-        res.status(201).json({ message: 'Co-Owner added successfully. Email sent.' });
+        res.status(201).json({ message: 'Co-Administrator added successfully. Email sent.' });
 
     } catch (error) {
-        console.error("Error adding co-owner:", error);
+        console.error("Error adding co-administrator:", error);
         res.status(500).json({ message: "User created, but failed to send activation email." });
     }
 });
 
+// -------------------------------------------------------
+// GET ALL USERS (With Role-Based Security)
+// -------------------------------------------------------
 app.get('/api/users', verifyToken, async (req, res) => {
     try {
         const { role } = req.query;
+
+        // SECURITY CHECK: Restrict what secretaries can query
+        if (req.user.role === 'secretary') {
+            // Secretaries can only fetch patients and dentists. 
+            // If they try to fetch administrators, secretaries, or branch managers, block them.
+            if (!role || (role !== 'patient' && role !== 'dentist')) {
+                return res.status(403).json({ 
+                    message: "Access denied. You do not have permission to view these staff accounts." 
+                });
+            }
+        }
+
+        // SECURITY CHECK: Dentists shouldn't snoop on administrators either
+        if (req.user.role === 'dentist') {
+            if (!role || (role !== 'patient' && role !== 'dentist' && role !== 'secretary')) {
+                return res.status(403).json({ 
+                    message: "Access denied. You do not have permission to view management accounts." 
+                });
+            }
+        }
+
         let query = {};
         if (role) query.role = role;
+        
         const users = await User.find(query).select('-password');
         res.json(users);
-    } catch (error) { res.status(500).json({ message: "Server error." }); }
+    } catch (error) { 
+        console.error("Error fetching users:", error);
+        res.status(500).json({ message: "Server error." }); 
+    }
 });
 
 app.get('/api/patients', verifyToken, async (req, res) => {
@@ -508,7 +592,7 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
         await AuditLog.create({
             action: "STATUS_CHANGE",
             user: req.user?.email || req.user?.id || "ADMIN",
-            role: req.user?.role || "owner",
+            role: req.user?.role || "administrator",
             details: `Changed status of user ${user.email} to ${status}`
         });
 
@@ -539,7 +623,7 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
         await AuditLog.create({
             action: "STATUS_CHANGE",
             user: req.user?.email || req.user?.id || "ADMIN",
-            role: req.user?.role || "owner",
+            role: req.user?.role || "administrator",
             details: `Changed status of patient ${patient.email} to ${status}`
         });
 
@@ -572,7 +656,7 @@ app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => 
         await AuditLog.create({
             action: "RESEND_ACTIVATION",
             user: req.user?.email || req.user?.id || "ADMIN",
-            role: req.user?.role || "owner",
+            role: req.user?.role || "administrator",
             details: `Resent activation email to patient ${patient.email}`
         });
 
@@ -618,7 +702,7 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
         await AuditLog.create({
             action: "UPDATE_USER",
             user: req.user?.email || req.user?.id || "ADMIN",
-            role: req.user?.role || "owner",
+            role: req.user?.role || "administrator",
             details: `Updated user information for: ${updatedUser.email}`
         });
 
@@ -1381,7 +1465,7 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: 'User not found.' });
 
-        const archivableRoles = ['dentist', 'secretary', 'co-owner'];
+        const archivableRoles = ['dentist', 'secretary', 'co-administrator'];
         if (!archivableRoles.includes(user.role)) {
             return res.status(403).json({ message: 'Only dentists and secretaries can be archived.' });
         }

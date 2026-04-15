@@ -23,18 +23,18 @@ export default function Sidebar() {
     const location = useLocation();
     
     const { canReadPatients, canReadInventory } = usePermissions();
-    const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
+    const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager';
     const isSecretary = user?.role === 'secretary';
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     const [lowStockCount, setLowStockCount] = useState(0);
 
     // --- DYNAMIC PATHS LOGIC ---
-    // Task 16 Fix: Route 'co-owner' to the '/owner' base path
+    // Task 16 Fix: Route 'co-administrator' to the '/administrator' base path
     const getBasePath = () => {
         if (user?.role === 'dentist') return '/dentist';
         if (user?.role === 'secretary') return '/secretary';
-        if (user?.role === 'owner' || user?.role === 'co-owner') return '/owner';
+        if (user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager') return '/admin';
         return '/login'; // Fallback just in case
     };
     
@@ -47,7 +47,7 @@ export default function Sidebar() {
     const inventoryPath = `${basePath}/inventory`;
     
     // Dedicated patient path routing if the user is a secretary
-    const patientsPath = isSecretary ? '/secretary/patients' : '/owner/manage-users/patients';
+    const patientsPath = isSecretary ? '/secretary/patients' : '/admin/manage-users/patients';
 
     // Fetch low stock items for the badge
     useEffect(() => {
@@ -74,7 +74,7 @@ export default function Sidebar() {
     }, [canReadInventory]);
 
     const getNavClass = (path) => {
-        if (path === '/owner/manage-users' && location.pathname.includes('/owner/manage-')) {
+        if (path === '/admin/manage-users' && location.pathname.includes('/admin/manage-')) {
             return `${styles['nav-item']} ${styles.active}`;
         }
         return location.pathname === path ? `${styles['nav-item']} ${styles.active}` : styles['nav-item'];
@@ -106,14 +106,14 @@ export default function Sidebar() {
                         <span className={styles['nav-text']}>Appointments</span>
                     </div>
 
-                    {isOwner && (
-                        <div className={getNavClass('/owner/manage-users')} onClick={() => handleMainNavigation('/owner/manage-users')}>
+                    {isAdmin && (
+                        <div className={getNavClass('/admin/manage-users')} onClick={() => handleMainNavigation('/admin/manage-users')}>
                             <img src={StaffIcon} alt="User Management" className={styles['nav-icon']} /> 
                             <span className={styles['nav-text']}>User Management</span>
                         </div>
                     )}
 
-                    {!isOwner && canReadPatients && (
+                    {!isAdmin && canReadPatients && (
                         <div className={getNavClass(patientsPath)} onClick={() => handleMainNavigation(patientsPath)}>
                             <img src={StaffIcon} alt="Patients" className={styles['nav-icon']} /> 
                             <span className={styles['nav-text']}>Patients</span>
@@ -130,8 +130,8 @@ export default function Sidebar() {
                         </div>
                     )}
 
-                    {isOwner && (
-                        <div className={getNavClass('/owner/audit-logs')} onClick={() => handleMainNavigation('/owner/audit-logs')}>
+                    {isAdmin && (
+                        <div className={getNavClass('/admin/audit-logs')} onClick={() => handleMainNavigation('/admin/audit-logs')}>
                             <img src={AuditIcon} alt="Audit" className={styles['nav-icon']} /> 
                             <span className={styles['nav-text']}>Audit Logs</span>
                         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import styles from '../../styles/owner/AddSecretary.module.css';
+import styles from '../../styles/admin/AddSecretary.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg';

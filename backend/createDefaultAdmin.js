@@ -16,7 +16,7 @@ const createAdmin = async () => {
 
         const email = 'admin@gmail.com';
         const rawPassword = 'AdminUser_123';
-        const role = 'owner'; // Important: Lowercase
+        const role = 'administrator'; // Important: Lowercase
         const defaultContact = '+639123456789'; // Standardized backend format
 
         // 1. Hash ang password
