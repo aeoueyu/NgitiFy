@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import styles from '../../styles/admin/Appointments.module.css';
+import styles from '../../styles/admin/AdminAppointments.module.css';
 import {
     FaPlus, FaSearch, FaRobot, FaUserMd,
     FaGlobe, FaPhoneAlt, FaWalking

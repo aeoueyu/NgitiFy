@@ -37,7 +37,7 @@ export default function ManagePatients() {
 
     const [confirmConfig, setConfirmConfig] = useState(null);
 
-    const isOwner = user?.role === 'owner' || user?.role === 'co-owner';
+    const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator';
 
     useEffect(() => {
         if (location.state?.openAddModal && canEditPatients) {
@@ -202,9 +202,9 @@ export default function ManagePatients() {
                 )}
             </div>
 
-            {isOwner && <UserTabs activeTab="patients" />}
+            {isAdmin && <UserTabs activeTab="patients" />}
 
-            <div className={styles.tableContainer} style={{ marginTop: !isOwner ? '20px' : '0' }}>
+            <div className={styles.tableContainer} style={{ marginTop: !isAdmin ? '20px' : '0' }}>
                 <table className={styles.userTable}>
                     <thead>
                         <tr>

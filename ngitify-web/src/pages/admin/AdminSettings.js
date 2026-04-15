@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import styles from '../../styles/admin/Settings.module.css';
+import styles from '../../styles/admin/AdminSettings.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
 
 export default function Settings() {
@@ -464,7 +464,7 @@ export default function Settings() {
     return (
         <div className={styles.container}>
             <div className={styles.headerWrapper}>
-                <button className={styles.backIconButton} onClick={() => navigate('/owner/dashboard')}>
+                <button className={styles.backIconButton} onClick={() => navigate('/admin/dashboard')}>
                     <img src={BackIcon} alt="Back" />
                 </button>
                 <div className={styles.header}>

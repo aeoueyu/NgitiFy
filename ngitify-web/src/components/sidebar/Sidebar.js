@@ -131,9 +131,9 @@ export default function Sidebar() {
                     )}
 
                     {isAdmin && (
-                        <div className={getNavClass('/admin/audit-logs')} onClick={() => handleMainNavigation('/admin/audit-logs')}>
+                        <div className={getNavClass('/admin/audit-trail')} onClick={() => handleMainNavigation('/admin/audit-trail')}>
                             <img src={AuditIcon} alt="Audit" className={styles['nav-icon']} /> 
-                            <span className={styles['nav-text']}>Audit Logs</span>
+                            <span className={styles['nav-text']}>Audit Trail</span>
                         </div>
                     )}
                 </div>

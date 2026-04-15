@@ -36,7 +36,7 @@ const PH_HOLIDAYS = [
     { month: 11, day: 31, name: "New Year's Eve" }
 ];
 
-export default function OwnerDashboard() {
+export default function AdminDashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate(); 
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -63,7 +63,7 @@ export default function OwnerDashboard() {
     const [inventoryAlerts, setInventoryAlerts] = useState([]);
     const [recentLogs, setRecentLogs] = useState([]);
 
-    const [ownerProfile, setOwnerProfile] = useState(null);
+    const [adminProfile, setAdminProfile] = useState(null);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -77,7 +77,7 @@ export default function OwnerDashboard() {
                     authFetch('/users'),
                     authFetch('/inventory'),
                     authFetch('/surgeries'),
-                    authFetch('/audit-logs')
+                    authFetch('/audit-trail')
                 ]);
 
                 const token = localStorage.getItem('token');
@@ -91,7 +91,7 @@ export default function OwnerDashboard() {
                     
                     if (profileRes.ok) {
                         const profileData = await profileRes.json();
-                        setOwnerProfile(profileData);
+                        setAdminProfile(profileData);
                     }
                 }
 
@@ -99,7 +99,7 @@ export default function OwnerDashboard() {
                     const usersData = await usersRes.json();
                     const activeUsers = usersData.filter(u => u.status === 'active' && u.isVerified === true);
 
-                    const activeStaff = activeUsers.filter(u => ['dentist', 'secretary', 'owner', 'co-owner'].includes(u.role));
+                    const activeStaff = activeUsers.filter(u => ['dentist', 'secretary', 'administrator', 'co-administrator'].includes(u.role));
                     const dentists = activeStaff.filter(u => u.role === 'dentist').length;
                     const secretaries = activeStaff.filter(u => u.role === 'secretary').length;
                     
@@ -266,7 +266,7 @@ export default function OwnerDashboard() {
 
     const handleProfileNavigation = () => {
         setIsProfileOpen(false);
-        navigate('/owner/profile');
+        navigate('/admin/profile');
     };
 
     const calendarDays = getCalendarDays();
@@ -280,19 +280,19 @@ export default function OwnerDashboard() {
             <main className={styles['main-content']}>
                 <header className={styles['header']}>
                     <div className={styles['header-left']}>
-                        <h1 className={styles['title']}>Owner Overview</h1>
+                        <h1 className={styles['title']}>Administrator Overview</h1>
                         <p className={styles['subtitle']}>
                             {formatWeekdayDate(currentTime)} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{formatTime(currentTime, true)}</strong>
                         </p>
                     </div>
                     <div className={styles['header-right']}>
                         <div className={styles['user-info']}>
-                            <span className={styles['user-name']}>Hello, {ownerProfile?.name?.first || user?.name?.first || 'Admin'}!</span>
+                            <span className={styles['user-name']}>Hello, {adminProfile?.name?.first || user?.name?.first || 'Admin'}!</span>
                             <span className={styles['user-role']}>
                                 {(() => {
-                                    const role = ownerProfile?.role || user?.role || '';
+                                    const role = adminProfile?.role || user?.role || '';
                                     const roleMap = {
-                                        'owner': 'Clinic Owner',
+                                        'admin': 'Clinic Admin',
                                         'dentist': 'Dentist',
                                         'secretary': 'Front Desk Personnel',
                                         'patient': 'Patient'
@@ -303,13 +303,13 @@ export default function OwnerDashboard() {
                         </div>
                         <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
                             <UserAvatar 
-                                user={ownerProfile || user || { name: 'Owner' }} 
+                                user={adminProfile || user || { name: 'Admin' }} 
                                 size={45} 
                             />
                             {isProfileOpen && (
                                 <div className={styles['profile-dropdown']}>
                                     <div className={styles['profile-dropdown-item']} onClick={handleProfileNavigation}>My Profile</div>
-                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/owner/settings')}>Settings</div>
+                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/admin/settings')}>Settings</div>
                                     <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={handleLogoutClick}>Logout</div>
                                 </div>
                             )}
@@ -330,7 +330,7 @@ export default function OwnerDashboard() {
                 )}
 
                 <div className={styles['stats-grid']}>
-                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/owner/manage-users/patients')}>
+                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/admin/manage-users/patients')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Active Patients</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}><img src={PatientIcon} className={styles['stat-icon']} alt="icon" /></div>
@@ -344,7 +344,7 @@ export default function OwnerDashboard() {
                         <p className={styles['stat-desc']}>Verified active records</p>
                     </div>
                     
-                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/owner/manage-users/dentists')}>
+                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/admin/manage-users/dentists')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Total Staff</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}><img src={StaffIcon} className={styles['stat-icon']} alt="icon" /></div>
@@ -358,7 +358,7 @@ export default function OwnerDashboard() {
                         <p className={`${styles['stat-desc']} ${styles['neutral']}`}>{staffBreakdown}</p>
                     </div>
                     
-                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/owner/inventory')}>
+                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/admin/inventory')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Critical Inventory Alerts</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}><img src={InventoryIcon} className={styles['stat-icon']} alt="icon" /></div>
@@ -450,7 +450,7 @@ export default function OwnerDashboard() {
 
                         <div 
                             className={`${styles['widget-card']} ${styles['clickable']}`} 
-                            onClick={() => navigate('/owner/audit-logs')}
+                            onClick={() => navigate('/admin/audit-trail')}
                         >
                             <div className={styles['widget-header']}>
                                 <FaHistory className={styles['widget-icon']} />
@@ -557,13 +557,13 @@ export default function OwnerDashboard() {
                 <div className={styles['quick-actions-bar']}>
                     <button 
                         className={`${styles['quick-action-btn']} ${styles['secondary']}`} 
-                        onClick={() => navigate('/owner/manage-users/patients', { state: { openAddModal: true } })} 
+                        onClick={() => navigate('/admin/manage-users/patients', { state: { openAddModal: true } })} 
                     >
                         <FaUserPlus /> Add Patient
                     </button>
                     <button 
                         className={styles['quick-action-btn']} 
-                        onClick={() => navigate('/owner/appointments')}
+                        onClick={() => navigate('/admin/appointments')}
                     >
                         <FaCalendarPlus /> Add Appointment
                     </button>

@@ -151,7 +151,7 @@ export default function SystemAuditLogs() {
 
     const getRoleBadgeClass = (role) => {
         switch(role) {
-            case 'owner': return styles.roleOwner;
+            case 'administratos': return styles.roleAdmin;
             case 'dentist': return styles.roleDentist;
             case 'secretary': return styles.roleSecretary;
             default: return styles.roleSystem;
@@ -184,7 +184,7 @@ export default function SystemAuditLogs() {
                         onChange={(e) => setRoleFilter(e.target.value)}
                     >
                         <option value="All">All Roles</option>
-                        <option value="owner">Owner</option>
+                        <option value="administrator">Administrator</option>
                         <option value="dentist">Dentists</option>
                         <option value="secretary">Secretaries</option>
                         <option value="system">System</option>

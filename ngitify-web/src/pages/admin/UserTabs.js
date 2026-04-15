@@ -16,19 +16,19 @@ export default function UserTabs({ activeTab }) {
         <div className={styles.tabContainer}>
             <button 
                 className={`${styles.tabButton} ${currentTab === 'dentists' ? styles.activeTab : ''}`}
-                onClick={() => navigate('/owner/manage-users/dentists')}
+                onClick={() => navigate('/admin/manage-users/dentists')}
             >
                 Dentists
             </button>
             <button 
                 className={`${styles.tabButton} ${currentTab === 'secretaries' ? styles.activeTab : ''}`}
-                onClick={() => navigate('/owner/manage-users/secretaries')}
+                onClick={() => navigate('/admin/manage-users/secretaries')}
             >
                 Secretaries
             </button>
             <button 
                 className={`${styles.tabButton} ${currentTab === 'patients' ? styles.activeTab : ''}`}
-                onClick={() => navigate('/owner/manage-users/patients')}
+                onClick={() => navigate('/admin/manage-users/patients')}
             >
                 Patient Records
             </button>

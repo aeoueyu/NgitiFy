@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from '../../styles/admin/MyProfile.module.css';
+import styles from '../../styles/admin/AdminProfile.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import BackIcon from '../../assets/icons/Back.svg';
 import successIcon from '../../assets/alert/success.svg';
@@ -359,7 +359,7 @@ export default function MyProfile() {
 
     // Role display mappings
     const roleMap = {
-        'owner': 'Clinic Owner',
+        'administrator': 'Clinic Administrator',
         'dentist': 'Dentist',
         'secretary': 'Front Desk Personnel'
     };
