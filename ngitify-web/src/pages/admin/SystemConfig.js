@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/SystemConfig.module.css';
 
 const DEFAULT_SLOTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
 
 const SystemConfig = () => {
-    const { authFetch } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [activeSection, setActiveSection] = useState('clinic');

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { FaCog, FaSignOutAlt } from 'react-icons/fa';
+import { FaCog, FaSignOutAlt, FaTools } from 'react-icons/fa';
 import { authFetch } from '../../utils/api'; 
 
 // CRITICAL RULE: Import ConfirmModal
@@ -139,10 +139,12 @@ export default function Sidebar() {
                 </div>
 
                 <div className={styles['footer-section']}>
-                    <div className={getFooterNavClass(profilePath)} onClick={() => handleMainNavigation(profilePath)}>
-                        <img src={ProfileIcon} alt="Profile" className={styles['nav-icon']} /> 
-                        <span className={styles['nav-text']}>My Profile</span>
-                    </div>
+                    {isAdmin && (
+                        <div className={getFooterNavClass('/admin/system-config')} onClick={() => handleMainNavigation('/admin/system-config')}>
+                            <FaTools className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>System Config</span>
+                        </div>
+                    )}
 
                     <div className={getFooterNavClass(settingsPath)} onClick={() => handleMainNavigation(settingsPath)}>
                         <FaCog className={styles['nav-icon']} /> 

@@ -143,7 +143,16 @@ export default function ManagePatients() {
     };
 
     const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedPatientId(id); setIsEditModalOpen(true); };
-    const handleViewClick = (id) => { setIsEditModalOpen(false); setSelectedPatientId(id); setIsViewModalOpen(true); };
+    const handleViewClick = (id) => {
+        if (user?.role === 'administrator' || user?.role === 'co-administrator') {
+            navigate(`/admin/patients/${id}/emr`);
+        } else {
+            // Secretary fallback — keep modal behavior
+            setIsEditModalOpen(false);
+            setSelectedPatientId(id);
+            setIsViewModalOpen(true);
+        }
+    };
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedPatientId(null); };
     const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedPatientId(null); };
 

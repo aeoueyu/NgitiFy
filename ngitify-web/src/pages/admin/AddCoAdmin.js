@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AddDentist.module.css';
 
 const AddCoAdmin = () => {
-    const { authFetch } = useAuth();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);

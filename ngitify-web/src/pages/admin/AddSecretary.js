@@ -12,6 +12,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({}); 
     const [isLoading, setIsLoading] = useState(false);
+    const [branchOptions, setBranchOptions] = useState([]);
 
     const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
     
@@ -121,6 +122,18 @@ export default function AddSecretary({ onClose, onSuccess }) {
         return isValid;
     };
 
+    const handleBranchToggle = (branchName) => {
+        setFormData(prev => {
+            const already = prev.assignedBranches.includes(branchName);
+            return {
+                ...prev,
+                assignedBranches: already
+                    ? prev.assignedBranches.filter(b => b !== branchName)
+                    : [...prev.assignedBranches, branchName]
+            };
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
@@ -181,6 +194,19 @@ export default function AddSecretary({ onClose, onSuccess }) {
             </div>
         );
     };
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const res = await authFetch('/branches');
+                if (res.ok) {
+                    const data = await res.json();
+                    setBranchOptions(data.map(b => b.name));
+                }
+            } catch (e) { console.error('Failed to load branches:', e); }
+        };
+        fetchBranches();
+    }, []);
 
     return (
         <div className={styles.mainOverlay}>
@@ -265,7 +291,39 @@ export default function AddSecretary({ onClose, onSuccess }) {
                             {/* Empty flex placeholder to maintain layout grid */}
                         </div>
                     </div>
-
+                    {/* ✅ PHASE 2: Branch Assignment */}
+                    {branchOptions.length > 0 && (
+                        <>
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
+                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-15px' }}>
+                                Select the branches this dentist is assigned to.
+                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                                {branchOptions.map(branch => (
+                                    <label
+                                        key={branch}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            cursor: 'pointer', padding: '6px 12px',
+                                            border: `1px solid ${formData.assignedBranches.includes(branch) ? '#01538b' : '#e2e8f0'}`,
+                                            borderRadius: '6px',
+                                            backgroundColor: formData.assignedBranches.includes(branch) ? '#e8f4fd' : '#fff',
+                                            fontSize: '14px'
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.assignedBranches.includes(branch)}
+                                            onChange={() => handleBranchToggle(branch)}
+                                            disabled={isLoading}
+                                        />
+                                        {branch}
+                                    </label>
+                                ))}
+                            </div>
+                        </>
+                    )}
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
                         <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'ADDING SECRETARY...' : 'ADD SECRETARY'}</button>

@@ -1,72 +1,72 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/PatientEMR.module.css';
 
 const TABS = ['Treatment Notes', 'Odontogram', 'Patient History', 'Radiograph Images'];
 
 const PatientEMR = () => {
     const { patientId } = useParams();
-    const { authFetch } = useAuth();
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState('Treatment Notes');
     const [patient, setPatient] = useState(null);
     const [treatmentNotes, setTreatmentNotes] = useState([]);
-    const [patientHistory, setPatientHistory] = useState(null);
     const [radiographs, setRadiographs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [uploadNote, setUploadNote] = useState('');
+
+    // Radiograph upload state
+    const [uploadLabel, setUploadLabel] = useState('');
+    const [uploadDate, setUploadDate] = useState(new Date().toISOString().split('T')[0]);
+    const [uploadNotes, setUploadNotes] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState('');
 
-    // Fetch patient info
+    // ✅ FIX 1: Correct endpoint /treatment-logs (was /treatments — that doesn't exist)
+    const fetchTreatmentNotes = useCallback(async () => {
+        try {
+            const res = await authFetch(`/patients/${patientId}/treatment-logs`);
+            if (res.ok) setTreatmentNotes(await res.json());
+        } catch (e) { console.error('Error fetching treatment notes:', e); }
+    }, [patientId]);
+
+    // ✅ FIX 2: No separate /history endpoint. Patient data already contains all history fields.
     const fetchPatient = useCallback(async () => {
         try {
             const res = await authFetch(`/patients/${patientId}`);
             if (res.ok) setPatient(await res.json());
         } catch (e) { console.error('Error fetching patient:', e); }
-    }, [authFetch, patientId]);
+    }, [patientId]);
 
-    // Fetch treatment notes (surgeries/appointments for this patient)
-    const fetchTreatmentNotes = useCallback(async () => {
-        try {
-            const res = await authFetch(`/patients/${patientId}/treatments`);
-            if (res.ok) setTreatmentNotes(await res.json());
-        } catch (e) { console.error('Error fetching treatment notes:', e); }
-    }, [authFetch, patientId]);
-
-    // Fetch patient history
-    const fetchPatientHistory = useCallback(async () => {
-        try {
-            const res = await authFetch(`/patients/${patientId}/history`);
-            if (res.ok) setPatientHistory(await res.json());
-        } catch (e) { console.error('Error fetching history:', e); }
-    }, [authFetch, patientId]);
-
-    // Fetch radiographs
     const fetchRadiographs = useCallback(async () => {
         try {
             const res = await authFetch(`/patients/${patientId}/radiographs`);
             if (res.ok) setRadiographs(await res.json());
         } catch (e) { console.error('Error fetching radiographs:', e); }
-    }, [authFetch, patientId]);
+    }, [patientId]);
 
     useEffect(() => {
         const loadAll = async () => {
             setIsLoading(true);
             setError('');
-            await Promise.all([fetchPatient(), fetchTreatmentNotes(), fetchPatientHistory(), fetchRadiographs()]);
+            await Promise.all([fetchPatient(), fetchTreatmentNotes(), fetchRadiographs()]);
             setIsLoading(false);
         };
         loadAll();
-    }, [fetchPatient, fetchTreatmentNotes, fetchPatientHistory, fetchRadiographs]);
+    }, [fetchPatient, fetchTreatmentNotes, fetchRadiographs]);
 
-    // Radiograph upload handler
+    // ✅ FIX 3: Server requires { label, date } — previously only sent { imageUrl, notes }
     const handleRadiographUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        if (!uploadLabel.trim()) {
+            setError('Please enter a label before uploading.');
+            e.target.value = '';
+            return;
+        }
+
         setIsUploading(true);
         setUploadSuccess('');
         setError('');
@@ -77,11 +77,18 @@ const PatientEMR = () => {
                 const res = await authFetch(`/patients/${patientId}/radiographs`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: reader.result, notes: uploadNote })
+                    body: JSON.stringify({
+                        label: uploadLabel,
+                        date: uploadDate,
+                        url: reader.result,    // ✅ FIX 4: server field is `url`, not `imageUrl`
+                        notes: uploadNotes
+                    })
                 });
                 if (res.ok) {
                     setUploadSuccess('Radiograph uploaded successfully.');
-                    setUploadNote('');
+                    setUploadLabel('');
+                    setUploadNotes('');
+                    setUploadDate(new Date().toISOString().split('T')[0]);
                     fetchRadiographs();
                 } else {
                     const d = await res.json();
@@ -97,11 +104,10 @@ const PatientEMR = () => {
         reader.readAsDataURL(file);
     };
 
-    // Delete radiograph
-    const handleDeleteRadiograph = async (imageId) => {
+    const handleDeleteRadiograph = async (entryId) => {
         if (!window.confirm('Delete this radiograph image?')) return;
         try {
-            const res = await authFetch(`/patients/${patientId}/radiographs/${imageId}`, { method: 'DELETE' });
+            const res = await authFetch(`/patients/${patientId}/radiographs/${entryId}`, { method: 'DELETE' });
             if (res.ok) fetchRadiographs();
             else setError('Failed to delete radiograph.');
         } catch (e) {
@@ -109,7 +115,9 @@ const PatientEMR = () => {
         }
     };
 
-    const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+    const formatDate = (d) => d
+        ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+        : '—';
 
     if (isLoading) {
         return (
@@ -136,9 +144,9 @@ const PatientEMR = () => {
                         <div className={styles.patientMeta}>
                             <span>{patient?.email}</span>
                             <span className={styles.metaDot}>·</span>
-                            <span>{patient?.phone || 'No phone'}</span>
+                            <span>{patient?.contactNumber || 'No phone'}</span>
                             <span className={styles.metaDot}>·</span>
-                            <span>DOB: {formatDate(patient?.dateOfBirth)}</span>
+                            <span>DOB: {formatDate(patient?.birthdate)}</span>
                         </div>
                     </div>
                 </div>
@@ -152,14 +160,13 @@ const PatientEMR = () => {
                     <button
                         key={tab}
                         className={`${styles.tabBtn} ${activeTab === tab ? styles.tabActive : ''}`}
-                        onClick={() => setActiveTab(tab)}
+                        onClick={() => { setActiveTab(tab); setError(''); setUploadSuccess(''); }}
                     >
                         {tab}
                     </button>
                 ))}
             </div>
 
-            {/* Tab Content */}
             <div className={styles.tabContent}>
 
                 {/* ── TREATMENT NOTES ── */}
@@ -172,20 +179,19 @@ const PatientEMR = () => {
                             <div className={styles.notesList}>
                                 {treatmentNotes.map((note, i) => (
                                     <div key={note._id || i} className={styles.noteCard}>
-                                        <div className={styles.noteDate}>{formatDate(note.date || note.createdAt)}</div>
+                                        <div className={styles.noteDate}>{formatDate(note.date)}</div>
                                         <div className={styles.noteProcedure}>
-                                            <strong>{note.procedure || note.title || 'Treatment'}</strong>
+                                            <strong>{note.procedure || 'Treatment'}</strong>
+                                            {note.tooth && <span style={{ color: '#64748b', fontSize: '13px', marginLeft: '8px' }}>Tooth {note.tooth}</span>}
                                         </div>
-                                        {note.dentist && (
-                                            <div className={styles.noteDentist}>
-                                                Dr. {note.dentist?.name?.first} {note.dentist?.name?.last}
-                                            </div>
+                                        {note.dentistName && (
+                                            <div className={styles.noteDentist}>{note.dentistName}</div>
                                         )}
                                         {note.branch && <div className={styles.noteBranch}>Branch: {note.branch}</div>}
                                         {note.notes && <p className={styles.noteText}>{note.notes}</p>}
                                         <div className={styles.noteStatus}>
-                                            <span className={styles[`status_${(note.status || 'pending').replace(/\s/g, '_')}`]}>
-                                                {note.status || 'Pending'}
+                                            <span className={styles[`status_${(note.category || 'Other').replace(/\s/g, '_')}`]}>
+                                                {note.category || 'Other'}
                                             </span>
                                         </div>
                                     </div>
@@ -218,50 +224,45 @@ const PatientEMR = () => {
                                 <div className={styles.quadrantLabel}>Lower Left</div>
                             </div>
                             <p className={styles.odontogramNote}>
-                                Tooth chart display — detailed odontogram managed by the dentist's EMR.
+                                Read-only view — detailed odontogram is managed by the dentist's EMR.
                             </p>
                         </div>
                     </div>
                 )}
 
                 {/* ── PATIENT HISTORY ── */}
+                {/* ✅ FIX 2: Uses `patient` state from GET /patients/:id — no separate /history endpoint */}
                 {activeTab === 'Patient History' && (
                     <div className={styles.section}>
                         <h3 className={styles.sectionTitle}>Patient History</h3>
                         <div className={styles.historyGrid}>
                             <div className={styles.historyCard}>
                                 <h4>Medical History</h4>
-                                <p>{patientHistory?.medicalHistory || patient?.medicalHistory || 'No medical history recorded.'}</p>
+                                <p>{patient?.medicalHistory?.conditions?.join(', ') || 'No medical conditions recorded.'}</p>
                             </div>
                             <div className={styles.historyCard}>
                                 <h4>Allergies</h4>
-                                {(patientHistory?.allergies || patient?.allergies || []).length > 0 ? (
+                                {(patient?.medicalHistory?.allergies || []).length > 0 ? (
                                     <ul>
-                                        {(patientHistory?.allergies || patient?.allergies).map((a, i) => (
-                                            <li key={i}>{a}</li>
-                                        ))}
+                                        {patient.medicalHistory.allergies.map((a, i) => <li key={i}>{a}</li>)}
                                     </ul>
-                                ) : (
-                                    <p>No known allergies.</p>
-                                )}
-                            </div>
-                            <div className={styles.historyCard}>
-                                <h4>Emergency Contact</h4>
-                                {patient?.emergencyContact?.name ? (
-                                    <>
-                                        <p><strong>{patient.emergencyContact.name}</strong></p>
-                                        <p>{patient.emergencyContact.relationship}</p>
-                                        <p>{patient.emergencyContact.phone}</p>
-                                    </>
-                                ) : (
-                                    <p>No emergency contact on file.</p>
-                                )}
+                                ) : <p>No known allergies.</p>}
                             </div>
                             <div className={styles.historyCard}>
                                 <h4>Personal Info</h4>
                                 <p><strong>Gender:</strong> {patient?.gender || '—'}</p>
-                                <p><strong>Address:</strong> {patient?.address || '—'}</p>
-                                <p><strong>Date of Birth:</strong> {formatDate(patient?.dateOfBirth)}</p>
+                                <p><strong>Date of Birth:</strong> {formatDate(patient?.birthdate)}</p>
+                                <p><strong>Contact:</strong> {patient?.contactNumber || '—'}</p>
+                            </div>
+                            <div className={styles.historyCard}>
+                                <h4>Address</h4>
+                                {patient?.currentAddress ? (
+                                    <>
+                                        <p>{patient.currentAddress.houseNumber} {patient.currentAddress.street}</p>
+                                        <p>{patient.currentAddress.barangay}, {patient.currentAddress.city}</p>
+                                        <p>{patient.currentAddress.province}, {patient.currentAddress.region}</p>
+                                    </>
+                                ) : <p>No address on file.</p>}
                             </div>
                         </div>
                     </div>
@@ -272,17 +273,36 @@ const PatientEMR = () => {
                     <div className={styles.section}>
                         <div className={styles.radiographHeader}>
                             <h3 className={styles.sectionTitle}>Radiograph Images</h3>
+                            {/* ✅ FIX 3 & 4: Upload form now includes required label + date fields */}
                             <div className={styles.uploadArea}>
                                 <input
                                     type="text"
-                                    placeholder="Image note (optional)"
-                                    value={uploadNote}
-                                    onChange={e => setUploadNote(e.target.value)}
+                                    placeholder="Label (e.g. Periapical X-ray) *"
+                                    value={uploadLabel}
+                                    onChange={e => setUploadLabel(e.target.value)}
                                     className={styles.uploadNoteInput}
                                     disabled={isUploading}
+                                    style={{ width: '220px' }}
+                                />
+                                <input
+                                    type="date"
+                                    value={uploadDate}
+                                    onChange={e => setUploadDate(e.target.value)}
+                                    className={styles.uploadNoteInput}
+                                    disabled={isUploading}
+                                    style={{ width: '150px' }}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Notes (optional)"
+                                    value={uploadNotes}
+                                    onChange={e => setUploadNotes(e.target.value)}
+                                    className={styles.uploadNoteInput}
+                                    disabled={isUploading}
+                                    style={{ width: '180px' }}
                                 />
                                 <label className={styles.uploadBtn}>
-                                    {isUploading ? 'Uploading...' : '+ Upload Radiograph'}
+                                    {isUploading ? 'Uploading...' : '+ Upload'}
                                     <input
                                         type="file"
                                         accept="image/*"
@@ -300,7 +320,7 @@ const PatientEMR = () => {
                             <div className={styles.emptyRadiograph}>
                                 <p>No radiograph images uploaded yet.</p>
                                 <p style={{ fontSize: '13px', color: '#94a3b8' }}>
-                                    Upload X-rays or other dental images above.
+                                    Enter a label and date above, then upload an X-ray or dental image.
                                 </p>
                             </div>
                         ) : (
@@ -308,15 +328,18 @@ const PatientEMR = () => {
                                 {radiographs.map((r, i) => (
                                     <div key={r._id || i} className={styles.radiographCard}>
                                         <div className={styles.radiographImageWrapper}>
+                                            {/* ✅ FIX 4: server stores as `url`, not `imageUrl` */}
                                             <img
-                                                src={r.imageUrl}
-                                                alt={r.notes || `Radiograph ${i + 1}`}
+                                                src={r.url}
+                                                alt={r.label || `Radiograph ${i + 1}`}
                                                 className={styles.radiographImage}
                                             />
                                         </div>
                                         <div className={styles.radiographMeta}>
-                                            <p className={styles.radiographNote}>{r.notes || 'No note'}</p>
-                                            <p className={styles.radiographDate}>{formatDate(r.uploadedAt || r.createdAt)}</p>
+                                            <p className={styles.radiographNote}><strong>{r.label}</strong></p>
+                                            {r.notes && <p className={styles.radiographNote} style={{ fontSize: '12px' }}>{r.notes}</p>}
+                                            {/* ✅ FIX: server stores as `date`, not `uploadedAt` */}
+                                            <p className={styles.radiographDate}>{formatDate(r.date)}</p>
                                             <button
                                                 className={styles.deleteRadiographBtn}
                                                 onClick={() => handleDeleteRadiograph(r._id)}

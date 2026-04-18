@@ -937,14 +937,8 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
             details: `Created new surgery record for patient ID: ${newSurgery.patient}`
         });
 
-        // NEW: Create a notification for administrators
-        await Notification.create({
-            type: 'NEW_APPOINTMENT',
-            title: 'New Appointment Request',
-            message: `${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}.`,
-            recipientRole: 'administrator',
-            relatedId: newSurgery._id
-        });
+        // ✅ REMOVED the broken Notification.create() block — it used undefined variables.
+        // Notifications are correctly handled in POST /api/appointments/request instead.
 
         res.status(201).json(newSurgery);
     } catch (error) {
@@ -1717,6 +1711,39 @@ app.put('/api/system-config', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error updating system config:', error);
         res.status(500).json({ message: 'Server error updating system config.' });
+    }
+});
+
+// -------------------------------------------------------
+// DELETE USER (Admin only — for branch-managers, co-administrators)
+// -------------------------------------------------------
+app.delete('/api/users/:id', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        }
+
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        // Protect administrator accounts from deletion
+        if (user.role === 'administrator') {
+            return res.status(403).json({ message: 'Cannot delete an administrator account.' });
+        }
+
+        await User.findByIdAndDelete(req.params.id);
+
+        await AuditLog.create({
+            action: 'DELETE_USER',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Deleted user: ${user.email} (role: ${user.role})`
+        });
+
+        res.json({ message: 'User deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ message: 'Server error deleting user.' });
     }
 });
 
