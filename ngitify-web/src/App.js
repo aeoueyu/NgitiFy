@@ -33,6 +33,7 @@ const InventoryTracker = lazy(() => import('./pages/admin/InventoryTracker'));
 
 const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AppointmentNotifications = lazy(() => import('./pages/admin/AppointmentNotifications'));
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
@@ -116,6 +117,8 @@ function App() {
                   
                   <Route path="/admin/audit-trail" element={<AuditTrail />} />
                   <Route path="/admin/inventory" element={<InventoryTracker />} />
+
+                  <Route path="/admin/appointment-notifications" element={<AppointmentNotifications />} />
 
                   {/* NEW ADMIN ROUTES (Placeholders for upcoming phases) */}
                   {/* <Route path="/admin/queue" element={<QueueManagement />} /> */}

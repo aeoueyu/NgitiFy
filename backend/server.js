@@ -17,6 +17,7 @@ const AuditLog = require('./models/AuditLog');
 const Patient = require('./models/Patient');
 const Surgery = require('./models/Surgery');
 const Inventory = require('./models/Inventory');
+const Notification = require('./models/Notification');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -919,6 +920,9 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
     }
 });
 
+// -------------------------------------------------------
+// CREATE SURGERY / APPOINTMENT
+// -------------------------------------------------------
 app.post('/api/surgeries', verifyToken, async (req, res) => {
     try {
         const newSurgery = new Surgery(req.body);
@@ -931,10 +935,19 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
             details: `Created new surgery record for patient ID: ${newSurgery.patient}`
         });
 
+        // NEW: Create a notification for administrators
+        await Notification.create({
+            type: 'NEW_APPOINTMENT',
+            title: 'New Appointment Booked',
+            message: `A new appointment has been scheduled for ${new Date(newSurgery.date).toLocaleDateString()}.`,
+            recipientRole: 'administrator', // This means all admins will see it
+            relatedId: newSurgery._id
+        });
+
         res.status(201).json(newSurgery);
     } catch (error) {
         console.error("Error creating surgery:", error);
-        res.status(500).json({ message: "Error creating surgery." });
+        res.status(500).json({ message: "Server error creating surgery." });
     }
 });
 
@@ -1528,6 +1541,60 @@ app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);
         res.status(500).json({ message: 'Server error fetching stats.' });
+    }
+});
+
+// -------------------------------------------------------
+// NOTIFICATION ROUTES
+// -------------------------------------------------------
+
+// Get notifications for the logged-in user's role
+app.get('/api/notifications', verifyToken, async (req, res) => {
+    try {
+        // Find notifications meant specifically for this user's ID, OR their role
+        const notifications = await Notification.find({
+            $or: [
+                { recipientRole: req.user.role },
+                { recipientId: req.user.id }
+            ]
+        }).sort({ createdAt: -1 }).limit(50); // Get latest 50
+
+        res.json(notifications);
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ message: "Server error." });
+    }
+});
+
+// Mark a single notification as read
+app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
+    try {
+        const notification = await Notification.findByIdAndUpdate(
+            req.params.id, 
+            { isRead: true }, 
+            { new: true }
+        );
+        res.json(notification);
+    } catch (error) {
+        console.error('Error marking notification read:', error);
+        res.status(500).json({ message: "Server error." });
+    }
+});
+
+// Mark all notifications as read for the user
+app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
+    try {
+        await Notification.updateMany(
+            { 
+                $or: [{ recipientRole: req.user.role }, { recipientId: req.user.id }],
+                isRead: false
+            },
+            { $set: { isRead: true } }
+        );
+        res.json({ message: "All notifications marked as read." });
+    } catch (error) {
+        console.error('Error marking all notifications read:', error);
+        res.status(500).json({ message: "Server error." });
     }
 });
 

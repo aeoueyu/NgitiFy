@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom'; // ✅ Add this line
 import styles from '../../styles/admin/AdminAppointments.module.css';
 import {
     FaPlus, FaSearch, FaRobot, FaUserMd,
@@ -68,6 +69,7 @@ const normalizeSurgery = (s) => {
 };
 
 export default function Appointments() {
+    const navigate = useNavigate();
     const { addToast } = useToast();
 
     // ─── DATA STATE ──────────────────────────────────────────────────────────
@@ -95,6 +97,41 @@ export default function Appointments() {
         patientId: '', dentistId: '', date: '', time: '',
         procedure: '', source: 'Walk-in', notes: '',
     });
+
+    const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
+
+    // ✅ Fetch logic to check if there are unread appointments
+    useEffect(() => {
+        const checkAlerts = async () => {
+            try {
+                const response = await authFetch('/notifications');
+                if (response.ok) {
+                    const data = await response.json();
+                    const unreadAppointments = data.filter(n => !n.isRead && n.type === 'NEW_APPOINTMENT');
+                    setHasUnreadAlerts(unreadAppointments.length > 0);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        checkAlerts();
+    }, []);
+
+    useEffect(() => {
+        const checkAlerts = async () => {
+            try {
+                const response = await authFetch('/notifications');
+                if (response.ok) {
+                    const data = await response.json();
+                    const unreadAppointments = data.filter(n => !n.isRead && n.type === 'NEW_APPOINTMENT');
+                    setHasUnreadAlerts(unreadAppointments.length > 0);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        checkAlerts();
+    }, []);
 
     // ─── FETCH ───────────────────────────────────────────────────────────────
     const fetchAppointments = useCallback(async (silent = false) => {
@@ -321,6 +358,28 @@ export default function Appointments() {
     // ─── RENDER ───────────────────────────────────────────────────────────────
     return (
         <div className={styles.container}>
+            {hasUnreadAlerts && (
+                <div style={{
+                    backgroundColor: '#fff3cd', 
+                    color: '#856404', 
+                    padding: '10px 15px', 
+                    borderRadius: '5px',
+                    marginBottom: '20px',
+                    borderLeft: '4px solid #ffeeba',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <span><strong>Notice:</strong> You have unread appointment notifications.</span>
+                    <button 
+                        onClick={() => navigate('/admin/appointment-notifications')}
+                        style={{ background: 'none', border: 'none', color: '#856404', textDecoration: 'underline', cursor: 'pointer' }}
+                    >
+                        View Alerts
+                    </button>
+                </div>
+            )}
+            
             {/* PAGE HEADER */}
             <div className={styles.headerWrapper}>
                 <div className={styles.header}>
