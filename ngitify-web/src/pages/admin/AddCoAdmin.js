@@ -29,7 +29,7 @@ const AddCoAdmin = () => {
             } catch (e) { console.error('Failed to load branches:', e); }
         };
         fetchBranches();
-    }, [authFetch]);
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -57,7 +57,7 @@ const AddCoAdmin = () => {
         const finalData = {
             name: { first: formData.firstName, last: formData.lastName },
             email: formData.email,
-            phone: formData.phone,
+            contactNumber: formData.phone,
             assignedBranches: formData.assignedBranches
         };
 

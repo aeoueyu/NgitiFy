@@ -37,6 +37,8 @@ const ManageBranchManagers = lazy(() => import('./pages/admin/ManageBranchManage
 const AddBranchManager = lazy(() => import('./pages/admin/AddBranchManager'));
 const ManageCoAdmins = lazy(() => import('./pages/admin/ManageCoAdmins'));
 const AddCoAdmin = lazy(() => import('./pages/admin/AddCoAdmin'));
+const EditBranchManager = lazy(() => import('./pages/admin/EditBranchManager'));
+const EditCoAdmin = lazy(() => import('./pages/admin/EditCoAdmin'));
 const AdminPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
 const SystemConfig = lazy(() => import('./pages/admin/SystemConfig'));
 

@@ -35,8 +35,8 @@ export const authFetch = async (endpoint, options = {}) => {
     try {
         const response = await fetch(`${BASE_URL}${formattedEndpoint}`, config);
 
-        if (response.status === 401 || response.status === 403) {
-            console.warn("Session expired or unauthorized. Redirecting to login.");
+        if (response.status === 401) {
+            console.warn("Session expired. Redirecting to login.");
             localStorage.removeItem('token');
             localStorage.removeItem('ngitify_user');
             window.location.href = '/login';

@@ -47,7 +47,7 @@ const SystemConfig = () => {
             }
         };
         fetchConfig();
-    }, [authFetch]);
+    }, []); // FIX: Removed authFetch from dependency array
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;

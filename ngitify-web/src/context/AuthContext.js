@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { User } from '../models/User';
+import { authFetch } from '../utils/api';
 
 export const AuthContext = createContext();
 
@@ -39,11 +40,16 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('ngitify_user', JSON.stringify(loggedInUser));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authFetch('/logout', {
+        method: 'POST',
+        body: JSON.stringify({ email: currentUser?.email, role: currentUser?.role })
+      });
+    } catch (e) { /* silent fail — still log out locally even if server is unreachable */ }
     setCurrentUser(null);
-    // Remove BOTH the user object and the JWT token on logout
     localStorage.removeItem('ngitify_user');
-    localStorage.removeItem('token'); 
+    localStorage.removeItem('token');
   };
 
   const value = {

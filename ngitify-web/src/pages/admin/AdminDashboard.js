@@ -73,11 +73,11 @@ export default function AdminDashboard() {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const [usersRes, invRes, surgRes, logsRes] = await Promise.all([
-                    authFetch('/users'),
+                const [statsRes, invRes, surgRes, logsRes] = await Promise.all([
+                    authFetch('/dashboard/stats'),
                     authFetch('/inventory'),
                     authFetch('/surgeries'),
-                    authFetch('/audit-trail')
+                    authFetch('/audit-logs')
                 ]);
 
                 const token = localStorage.getItem('token');
@@ -95,17 +95,12 @@ export default function AdminDashboard() {
                     }
                 }
 
-                if (usersRes.ok) {
-                    const usersData = await usersRes.json();
-                    const activeUsers = usersData.filter(u => u.status === 'active' && u.isVerified === true);
-
-                    const activeStaff = activeUsers.filter(u => ['dentist', 'secretary', 'administrator', 'co-administrator'].includes(u.role));
-                    const dentists = activeStaff.filter(u => u.role === 'dentist').length;
-                    const secretaries = activeStaff.filter(u => u.role === 'secretary').length;
-                    
-                    setTotalStaff(activeStaff.length);
-                    setStaffBreakdown(`${dentists} Dentists, ${secretaries} Secretaries`);
-                    setActivePatients(activeUsers.filter(u => u.role === 'patient').length);
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json();
+                    setActivePatients(statsData.totalPatients);
+                    setTotalStaff(statsData.activeDentists);
+                    setStaffBreakdown(`${statsData.activeDentists} Dentists`);
+                    setLowStockAlerts(statsData.lowStockItems);
                 }
 
                 if (invRes.ok) {

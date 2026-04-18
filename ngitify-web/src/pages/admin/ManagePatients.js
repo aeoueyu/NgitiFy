@@ -37,7 +37,7 @@ export default function ManagePatients() {
 
     const [confirmConfig, setConfirmConfig] = useState(null);
 
-    const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator';
+    const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager';
 
     useEffect(() => {
         if (location.state?.openAddModal && canEditPatients) {
@@ -144,7 +144,7 @@ export default function ManagePatients() {
 
     const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedPatientId(id); setIsEditModalOpen(true); };
     const handleViewClick = (id) => {
-        if (user?.role === 'administrator' || user?.role === 'co-administrator') {
+        if (user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager') {
             navigate(`/admin/patients/${id}/emr`);
         } else {
             // Secretary fallback — keep modal behavior

@@ -1,14 +1,17 @@
-// src/components/layout/DashboardLayout.js
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { FaBell } from 'react-icons/fa';
 import Sidebar from '../sidebar/Sidebar'; 
 import styles from './DashboardLayout.module.css'; 
-import { authFetch } from '../../utils/api'; // ✅ Correctly imported authFetch
+import { authFetch } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function DashboardLayout() {
     const [unreadCount, setUnreadCount] = useState(0);
-    const navigate = useNavigate(); // ✅ Needed for clicking the bell
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const isAdminRole = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager';
 
     // Fetch unread notifications
     useEffect(() => {
@@ -38,6 +41,7 @@ export default function DashboardLayout() {
                 
                 {/* ✅ NOTIFICATION BELL HEADER */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '15px 30px', backgroundColor: '#fff', borderBottom: '1px solid #eee' }}>
+                    {isAdminRole && (
                     <div 
                         style={{ position: 'relative', cursor: 'pointer' }} 
                         onClick={() => navigate('/admin/appointment-notifications')}
@@ -58,8 +62,9 @@ export default function DashboardLayout() {
                                 {unreadCount}
                             </span>
                         )}
+                        </div>
+                        )}
                     </div>
-                </div>
 
                 <Outlet />
             </div>

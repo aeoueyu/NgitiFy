@@ -151,7 +151,9 @@ export default function SystemAuditLogs() {
 
     const getRoleBadgeClass = (role) => {
         switch(role) {
-            case 'administratos': return styles.roleAdmin;
+            case 'administrator': return styles.roleAdmin;
+            case 'co-administrator': return styles.roleAdmin;
+            case 'branch-manager': return styles.roleAdmin;
             case 'dentist': return styles.roleDentist;
             case 'secretary': return styles.roleSecretary;
             default: return styles.roleSystem;

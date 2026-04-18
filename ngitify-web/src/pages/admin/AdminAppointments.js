@@ -100,23 +100,6 @@ export default function Appointments() {
 
     const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
 
-    // ✅ Fetch logic to check if there are unread appointments
-    useEffect(() => {
-        const checkAlerts = async () => {
-            try {
-                const response = await authFetch('/notifications');
-                if (response.ok) {
-                    const data = await response.json();
-                    const unreadAppointments = data.filter(n => !n.isRead && n.type === 'NEW_APPOINTMENT');
-                    setHasUnreadAlerts(unreadAppointments.length > 0);
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        checkAlerts();
-    }, []);
-
     useEffect(() => {
         const checkAlerts = async () => {
             try {
@@ -379,7 +362,7 @@ export default function Appointments() {
                     </button>
                 </div>
             )}
-            
+
             {/* PAGE HEADER */}
             <div className={styles.headerWrapper}>
                 <div className={styles.header}>

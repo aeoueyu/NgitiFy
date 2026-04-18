@@ -20,11 +20,13 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
     const [formData, setFormData] = useState({
         firstName: '', middleName: '', lastName: '', birthdate: '', gender: '', licenseNumber: '', specialization: '',
         email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
-        permissions: { patients: 'none', appointments: 'none', inventory: 'none' }
+        permissions: { patients: 'none', appointments: 'none', inventory: 'none' },
+        assignedBranches: []
     });
 
     const [initialData, setInitialData] = useState(null);
     const [initialProfileImage, setInitialProfileImage] = useState(null);
+    const [branchOptions, setBranchOptions] = useState([]);
 
     // --- FETCH EXISTING DENTIST DATA ---
     useEffect(() => {
@@ -77,7 +79,8 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                             patients: data.permissions?.patients || 'none',
                             appointments: data.permissions?.appointments || 'none',
                             inventory: data.permissions?.inventory || 'none'
-                        }
+                        },
+                        assignedBranches: data.assignedBranches || []
                     };
 
                     setFormData(fetchedFormData);
@@ -102,6 +105,19 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
 
         if (dentistId) fetchDentistData();
     }, [dentistId, onClose]);
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const res = await authFetch('/branches');
+                if (res.ok) {
+                    const data = await res.json();
+                    setBranchOptions(data.map(b => b.name));
+                }
+            } catch (e) { console.error('Failed to load branches:', e); }
+        };
+        fetchBranches();
+    }, []);
 
     const hasChanges = initialData ? (JSON.stringify(formData) !== JSON.stringify(initialData)) || (profileImage !== initialProfileImage) : false;
 
@@ -194,6 +210,18 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         }));
     };
 
+    const handleBranchToggle = (branchName) => {
+        setFormData(prev => {
+            const already = prev.assignedBranches.includes(branchName);
+            return {
+                ...prev,
+                assignedBranches: already
+                    ? prev.assignedBranches.filter(b => b !== branchName)
+                    : [...prev.assignedBranches, branchName]
+            };
+        });
+    };
+
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
         // FIX 3: added 'gender' to required fields
@@ -233,7 +261,8 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
             licenseNumber: formData.licenseNumber, specialization: formData.specialization, profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
-            permissions: formData.permissions
+            permissions: formData.permissions,
+            assignedBranches: formData.assignedBranches
         };
 
         try {
@@ -383,6 +412,36 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                                     {/* Empty flex placeholder to maintain layout grid */}
                                 </div>
                             </div>
+
+                            {branchOptions.length > 0 && (
+                                <>
+                                    <hr className={styles.divider} />
+                                    <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
+                                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-15px' }}>
+                                        Select the branches this dentist is assigned to.
+                                    </p>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                                        {branchOptions.map(branch => (
+                                            <label key={branch} style={{
+                                                display: 'flex', alignItems: 'center', gap: '6px',
+                                                cursor: 'pointer', padding: '6px 12px',
+                                                border: `1px solid ${formData.assignedBranches.includes(branch) ? '#01538b' : '#e2e8f0'}`,
+                                                borderRadius: '6px',
+                                                backgroundColor: formData.assignedBranches.includes(branch) ? '#e8f4fd' : '#fff',
+                                                fontSize: '14px'
+                                            }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.assignedBranches.includes(branch)}
+                                                    onChange={() => handleBranchToggle(branch)}
+                                                    disabled={isSaving}
+                                                />
+                                                {branch}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
 
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>

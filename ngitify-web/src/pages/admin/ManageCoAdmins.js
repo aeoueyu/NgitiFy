@@ -1,8 +1,9 @@
-// ngitify-web/src/pages/admin/ManageCoAdmins.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaEdit } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
+import EditCoAdmin from './EditCoAdmin';
 
 const ManageCoAdmins = () => {
     const navigate = useNavigate();
@@ -10,6 +11,8 @@ const ManageCoAdmins = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [error, setError] = useState('');
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedCoAdminId, setSelectedCoAdminId] = useState(null);
 
     const fetchCoAdmins = useCallback(async () => {
         setIsLoading(true);
@@ -119,6 +122,13 @@ const ManageCoAdmins = () => {
                                     <td style={{ textAlign: 'center' }}>
                                         <button
                                             className={styles.iconBtn}
+                                            onClick={() => { setSelectedCoAdminId(u._id); setIsEditModalOpen(true); }}
+                                            title="Edit Co-Administrator"
+                                        >
+                                            <FaEdit />
+                                        </button>
+                                        <button
+                                            className={styles.iconBtn}
                                             onClick={() => handleDelete(u._id, `${u.name?.first} ${u.name?.last}`)}
                                             title="Remove Co-Administrator"
                                             style={{ color: '#dc2626' }}
@@ -132,6 +142,13 @@ const ManageCoAdmins = () => {
                     </tbody>
                 </table>
             </div>
+            {isEditModalOpen && selectedCoAdminId && (
+            <EditCoAdmin
+                coAdminId={selectedCoAdminId}
+                onClose={() => { setIsEditModalOpen(false); setSelectedCoAdminId(null); }}
+                onSuccess={fetchCoAdmins}
+            />
+            )}
         </div>
     );
 };

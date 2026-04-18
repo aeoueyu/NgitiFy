@@ -1,8 +1,9 @@
-// ngitify-web/src/pages/admin/ManageBranchManagers.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaEdit } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
+import EditBranchManager from './EditBranchManager';
 
 const ManageBranchManagers = () => {
     const navigate = useNavigate();
@@ -10,6 +11,8 @@ const ManageBranchManagers = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [error, setError] = useState('');
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedManagerId, setSelectedManagerId] = useState(null);
 
     const fetchManagers = useCallback(async () => {
         setIsLoading(true);
@@ -119,6 +122,13 @@ const ManageBranchManagers = () => {
                                     <td style={{ textAlign: 'center' }}>
                                         <button
                                             className={styles.iconBtn}
+                                            onClick={() => { setSelectedManagerId(m._id); setIsEditModalOpen(true); }}
+                                            title="Edit Branch Manager"
+                                        >
+                                            <FaEdit />
+                                        </button>
+                                        <button
+                                            className={styles.iconBtn}
                                             onClick={() => handleDelete(m._id, `${m.name?.first} ${m.name?.last}`)}
                                             title="Remove Branch Manager"
                                             style={{ color: '#dc2626' }}
@@ -132,6 +142,13 @@ const ManageBranchManagers = () => {
                     </tbody>
                 </table>
             </div>
+            {isEditModalOpen && selectedManagerId && (
+            <EditBranchManager
+                managerId={selectedManagerId}
+                onClose={() => { setIsEditModalOpen(false); setSelectedManagerId(null); }}
+                onSuccess={fetchManagers}
+            />
+            )}
         </div>
     );
 };

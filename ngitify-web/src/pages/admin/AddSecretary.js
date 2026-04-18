@@ -19,7 +19,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
     const [formData, setFormData] = useState({
         firstName: '', middleName: '', lastName: '', birthdate: '',
         email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
-        permissions: { patients: 'none', appointments: 'none', inventory: 'none' } // Added Permissions
+        permissions: { patients: 'none', appointments: 'none', inventory: 'none' },
+        assignedBranches: []
     });
 
     const validateEmail = (email) => {
@@ -145,7 +146,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
             profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
-            permissions: formData.permissions
+            permissions: formData.permissions,
+            assignedBranches: formData.assignedBranches
         };
 
         try {

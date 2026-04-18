@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const surgerySchema = new mongoose.Schema({
     // ✅ FIX: Changed ref from 'Patient' to 'User' — patients are stored in the User collection
     patient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    dentist: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    dentist: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
     branch: { type: String, required: true }, // e.g., 'Marikina Branch', 'Rizal Branch'
     date: { type: Date, required: true },

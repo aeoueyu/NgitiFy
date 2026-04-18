@@ -475,6 +475,13 @@ app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
         
         await newUser.save();
 
+        await AuditLog.create({
+            action: "CREATE_USER",
+            user: req.user?.email || req.user?.id || "ADMIN",
+            role: req.user?.role || "administrator",
+            details: `Created new co-administrator: ${email}`
+        });
+
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
@@ -1109,10 +1116,6 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             requestedBy: req.user.id
         });
 
-        if (!req.body.dentistId) {
-            newSurgery.dentist = undefined;
-        }
-
         await newSurgery.save();
 
         await AuditLog.create({
@@ -1646,6 +1649,7 @@ app.put('/api/branches/:id', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied. Admin only.' });
         }
         const { name, address, contactNumber, isActive } = req.body;
+        if (!name) return res.status(400).json({ message: 'Branch name is required.' });
         const updatedBranch = await Branch.findByIdAndUpdate(
             req.params.id,
             { name, address, contactNumber, isActive },
