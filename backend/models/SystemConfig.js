@@ -1,18 +1,34 @@
-// backend/models/SystemConfig.js
 const mongoose = require('mongoose');
 
-const SystemConfigSchema = new mongoose.Schema({
-    clinicName:    { type: String, default: 'NgitiFy Dental Clinic' },
-    clinicEmail:   { type: String, default: '' },
-    clinicPhone:   { type: String, default: '' },
+const systemConfigSchema = new mongoose.Schema({
+    clinicName: { type: String, default: 'NgitiFy Dental Clinic' },
+    clinicLogo: { type: String, default: '' },
+    clinicContact: { type: String, default: '' },
     clinicAddress: { type: String, default: '' },
-    clinicLogo:    { type: String, default: '' }, // base64 or URL
+    clinicEmail: { type: String, default: '' },
     maxAppointmentsPerDay: { type: Number, default: 20 },
-    appointmentSlotMinutes: { type: Number, default: 30 },
-    allowWalkIns:  { type: Boolean, default: true },
-    enableInventoryAlerts: { type: Boolean, default: true },
-    enableNotifications:   { type: Boolean, default: true },
-    updatedBy: { type: String, default: 'system' }
+    allowedTimeSlots: {
+        type: [String],
+        default: ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00']
+    },
+    emailTemplates: {
+        activation: {
+            type: String,
+            default: 'Welcome to NgitiFy! Please activate your account by clicking the link below.'
+        },
+        appointmentReminder: {
+            type: String,
+            default: 'This is a reminder for your upcoming appointment at NgitiFy Dental Clinic.'
+        }
+    },
+    featureToggles: {
+        queueManagement:   { type: Boolean, default: true },
+        radiographUploads: { type: Boolean, default: true },
+        chatSupport:       { type: Boolean, default: false },
+        sessionTimeout:    { type: Boolean, default: true }
+    },
+    sessionTimeoutMinutes: { type: Number, default: 30 },
+    updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
-module.exports = mongoose.model('SystemConfig', SystemConfigSchema);
+module.exports = mongoose.model('SystemConfig', systemConfigSchema);

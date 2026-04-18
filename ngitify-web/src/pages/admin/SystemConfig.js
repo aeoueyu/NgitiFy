@@ -1,287 +1,288 @@
-// ngitify-web/src/pages/admin/SystemConfig.js
 import React, { useState, useEffect } from 'react';
-import { authFetch } from '../../utils/api';
-import { useToast } from '../../context/ToastContext';
-import { FaCog, FaClinicMedical, FaCalendarAlt, FaBell, FaSave } from 'react-icons/fa';
+import { useAuth } from '../../context/AuthContext';
 import styles from '../../styles/admin/SystemConfig.module.css';
 
-export default function SystemConfig() {
-    const { addToast } = useToast();
+const DEFAULT_SLOTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+
+const SystemConfig = () => {
+    const { authFetch } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [activeSection, setActiveSection] = useState('clinic');
+    const [successMsg, setSuccessMsg] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
 
     const [config, setConfig] = useState({
         clinicName: '',
-        clinicEmail: '',
-        clinicPhone: '',
+        clinicContact: '',
         clinicAddress: '',
-        clinicLogo: '',
+        clinicEmail: '',
         maxAppointmentsPerDay: 20,
-        appointmentSlotMinutes: 30,
-        allowWalkIns: true,
-        enableInventoryAlerts: true,
-        enableNotifications: true
+        allowedTimeSlots: [],
+        emailTemplates: {
+            activation: '',
+            appointmentReminder: ''
+        },
+        featureToggles: {
+            queueManagement: true,
+            radiographUploads: true,
+            chatSupport: false,
+            sessionTimeout: true
+        },
+        sessionTimeoutMinutes: 30
     });
 
     useEffect(() => {
         const fetchConfig = async () => {
+            setIsLoading(true);
             try {
                 const res = await authFetch('/system-config');
                 if (res.ok) {
                     const data = await res.json();
-                    setConfig({
-                        clinicName: data.clinicName || '',
-                        clinicEmail: data.clinicEmail || '',
-                        clinicPhone: data.clinicPhone || '',
-                        clinicAddress: data.clinicAddress || '',
-                        clinicLogo: data.clinicLogo || '',
-                        maxAppointmentsPerDay: data.maxAppointmentsPerDay || 20,
-                        appointmentSlotMinutes: data.appointmentSlotMinutes || 30,
-                        allowWalkIns: data.allowWalkIns !== false,
-                        enableInventoryAlerts: data.enableInventoryAlerts !== false,
-                        enableNotifications: data.enableNotifications !== false
-                    });
+                    setConfig(prev => ({ ...prev, ...data }));
                 }
             } catch (e) {
-                console.error('Failed to load system config:', e);
+                setErrorMsg('Failed to load system configuration.');
             } finally {
                 setIsLoading(false);
             }
         };
         fetchConfig();
-    }, []);
+    }, [authFetch]);
 
-    const handleChange = (field, value) => {
-        setConfig(prev => ({ ...prev, [field]: value }));
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setConfig(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
-    const handleLogoChange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onloadend = () => handleChange('clinicLogo', reader.result);
-        reader.readAsDataURL(file);
+    const handleTemplateChange = (e) => {
+        const { name, value } = e.target;
+        setConfig(prev => ({
+            ...prev,
+            emailTemplates: { ...prev.emailTemplates, [name]: value }
+        }));
+    };
+
+    const handleToggleChange = (key) => {
+        setConfig(prev => ({
+            ...prev,
+            featureToggles: { ...prev.featureToggles, [key]: !prev.featureToggles[key] }
+        }));
+    };
+
+    const handleSlotToggle = (slot) => {
+        setConfig(prev => {
+            const has = prev.allowedTimeSlots.includes(slot);
+            return {
+                ...prev,
+                allowedTimeSlots: has
+                    ? prev.allowedTimeSlots.filter(s => s !== slot)
+                    : [...prev.allowedTimeSlots, slot].sort()
+            };
+        });
     };
 
     const handleSave = async () => {
         setIsSaving(true);
+        setSuccessMsg('');
+        setErrorMsg('');
         try {
             const res = await authFetch('/system-config', {
                 method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(config)
             });
             if (res.ok) {
-                addToast('System configuration saved successfully.', 'success');
+                setSuccessMsg('System configuration saved successfully.');
+                setTimeout(() => setSuccessMsg(''), 4000);
             } else {
-                addToast('Failed to save configuration.', 'error');
+                const d = await res.json();
+                setErrorMsg(d.message || 'Failed to save configuration.');
             }
         } catch (e) {
-            addToast('Cannot connect to server.', 'error');
+            setErrorMsg('Network error. Please try again.');
         } finally {
             setIsSaving(false);
         }
     };
 
-    const sections = [
-        { key: 'clinic', label: 'Clinic Information', icon: <FaClinicMedical /> },
-        { key: 'appointments', label: 'Appointment Settings', icon: <FaCalendarAlt /> },
-        { key: 'features', label: 'Feature Toggles', icon: <FaBell /> }
-    ];
-
     if (isLoading) {
-        return (
-            <div className={styles.container}>
-                <p style={{color: '#64748b', textAlign: 'center', padding: '60px'}}>Loading configuration...</p>
-            </div>
-        );
+        return <div className={styles.loadingContainer}><p>Loading system configuration...</p></div>;
     }
+
+    const SECTIONS = [
+        { key: 'clinic', label: 'Clinic Info' },
+        { key: 'appointments', label: 'Appointment Settings' },
+        { key: 'emails', label: 'Email Templates' },
+        { key: 'features', label: 'Feature Toggles' }
+    ];
 
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <div>
-                    <h1 className={styles.title}><FaCog /> System Configuration</h1>
-                    <p className={styles.subtitle}>Manage global system settings for the entire NgitiFy platform.</p>
-                </div>
-                <button className={styles.saveBtn} onClick={handleSave} disabled={isSaving}>
-                    <FaSave /> {isSaving ? 'Saving...' : 'Save Changes'}
-                </button>
-            </header>
+            <div className={styles.pageHeader}>
+                <h1 className={styles.pageTitle}>System Configuration</h1>
+                <p className={styles.pageSubtitle}>Manage global settings for NgitiFy Dental Management System.</p>
+            </div>
+
+            {successMsg && <div className={styles.successAlert}>{successMsg}</div>}
+            {errorMsg && <div className={styles.errorAlert}>{errorMsg}</div>}
 
             <div className={styles.layout}>
-                {/* Sidebar navigation */}
-                <div className={styles.sideNav}>
-                    {sections.map(s => (
+                {/* Sidebar nav */}
+                <nav className={styles.sectionNav}>
+                    {SECTIONS.map(s => (
                         <button
                             key={s.key}
-                            className={`${styles.sideNavBtn} ${activeSection === s.key ? styles.sideNavActive : ''}`}
+                            className={`${styles.navBtn} ${activeSection === s.key ? styles.navBtnActive : ''}`}
                             onClick={() => setActiveSection(s.key)}
                         >
-                            {s.icon} {s.label}
+                            {s.label}
                         </button>
                     ))}
-                </div>
+                </nav>
 
-                {/* Config panels */}
-                <div className={styles.panel}>
+                {/* Content */}
+                <div className={styles.content}>
 
-                    {/* ── Clinic Information ── */}
+                    {/* ── CLINIC INFO ── */}
                     {activeSection === 'clinic' && (
                         <div className={styles.section}>
                             <h2 className={styles.sectionTitle}>Clinic Information</h2>
-                            <p className={styles.sectionDesc}>This information appears on emails and printouts sent to patients.</p>
+                            <p className={styles.sectionDesc}>Basic information about your dental clinic.</p>
 
-                            <div className={styles.formGrid}>
-                                <div className={styles.formGroup}>
-                                    <label>Clinic Name</label>
-                                    <input
-                                        className={styles.inputField}
-                                        value={config.clinicName}
-                                        onChange={e => handleChange('clinicName', e.target.value)}
-                                        placeholder="e.g. NgitiFy Dental Clinic"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Clinic Email</label>
-                                    <input
-                                        type="email"
-                                        className={styles.inputField}
-                                        value={config.clinicEmail}
-                                        onChange={e => handleChange('clinicEmail', e.target.value)}
-                                        placeholder="e.g. contact@ngitify.com"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Contact Number</label>
-                                    <input
-                                        className={styles.inputField}
-                                        value={config.clinicPhone}
-                                        onChange={e => handleChange('clinicPhone', e.target.value)}
-                                        placeholder="e.g. +63 917 123 4567"
-                                    />
-                                </div>
-                                <div className={styles.formGroup} style={{gridColumn: '1 / -1'}}>
-                                    <label>Clinic Address</label>
-                                    <textarea
-                                        className={styles.textareaField}
-                                        value={config.clinicAddress}
-                                        onChange={e => handleChange('clinicAddress', e.target.value)}
-                                        placeholder="Full clinic address"
-                                        rows={3}
-                                    />
-                                </div>
-                                <div className={styles.formGroup} style={{gridColumn: '1 / -1'}}>
-                                    <label>Clinic Logo</label>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
-                                        {config.clinicLogo && (
-                                            <img src={config.clinicLogo} alt="Clinic Logo" style={{height: '60px', borderRadius: '8px', border: '1px solid #e2e8f0'}} />
-                                        )}
-                                        <label className={styles.uploadLabel}>
-                                            Upload Logo
-                                            <input type="file" accept="image/*" onChange={handleLogoChange} style={{display: 'none'}} />
-                                        </label>
-                                    </div>
-                                </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Clinic Name</label>
+                                <input type="text" name="clinicName" value={config.clinicName}
+                                    onChange={handleChange} className={styles.input} />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Contact Number</label>
+                                <input type="text" name="clinicContact" value={config.clinicContact}
+                                    onChange={handleChange} className={styles.input} />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Email Address</label>
+                                <input type="email" name="clinicEmail" value={config.clinicEmail}
+                                    onChange={handleChange} className={styles.input} />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Address</label>
+                                <textarea name="clinicAddress" value={config.clinicAddress}
+                                    onChange={handleChange} className={styles.textarea} rows={3} />
                             </div>
                         </div>
                     )}
 
-                    {/* ── Appointment Settings ── */}
+                    {/* ── APPOINTMENT SETTINGS ── */}
                     {activeSection === 'appointments' && (
                         <div className={styles.section}>
                             <h2 className={styles.sectionTitle}>Appointment Settings</h2>
-                            <p className={styles.sectionDesc}>Configure how appointments are scheduled across all branches.</p>
+                            <p className={styles.sectionDesc}>Control scheduling limits and available time slots.</p>
 
-                            <div className={styles.formGrid}>
-                                <div className={styles.formGroup}>
-                                    <label>Max Appointments Per Day</label>
-                                    <input
-                                        type="number"
-                                        className={styles.inputField}
-                                        value={config.maxAppointmentsPerDay}
-                                        min={1}
-                                        max={100}
-                                        onChange={e => handleChange('maxAppointmentsPerDay', Number(e.target.value))}
-                                    />
-                                    <span className={styles.fieldHint}>Limit per branch per day</span>
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Appointment Slot Duration (minutes)</label>
-                                    <select
-                                        className={styles.inputField}
-                                        value={config.appointmentSlotMinutes}
-                                        onChange={e => handleChange('appointmentSlotMinutes', Number(e.target.value))}
-                                    >
-                                        <option value={15}>15 minutes</option>
-                                        <option value={30}>30 minutes</option>
-                                        <option value={45}>45 minutes</option>
-                                        <option value={60}>60 minutes</option>
-                                        <option value={90}>90 minutes</option>
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup} style={{gridColumn: '1 / -1'}}>
-                                    <div className={styles.toggleRow}>
-                                        <div>
-                                            <p className={styles.toggleLabel}>Allow Walk-in Patients</p>
-                                            <p className={styles.toggleDesc}>Enable the queue system for walk-in patients at branches.</p>
-                                        </div>
-                                        <label className={styles.toggle}>
-                                            <input
-                                                type="checkbox"
-                                                checked={config.allowWalkIns}
-                                                onChange={e => handleChange('allowWalkIns', e.target.checked)}
-                                            />
-                                            <span className={styles.toggleSlider}></span>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Max Appointments Per Day</label>
+                                <input type="number" name="maxAppointmentsPerDay"
+                                    value={config.maxAppointmentsPerDay}
+                                    onChange={handleChange} className={styles.inputSmall}
+                                    min={1} max={100} />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Allowed Time Slots</label>
+                                <p className={styles.helpText}>Check the time slots patients can book appointments.</p>
+                                <div className={styles.slotGrid}>
+                                    {DEFAULT_SLOTS.map(slot => (
+                                        <label key={slot} className={`${styles.slotChip} ${config.allowedTimeSlots.includes(slot) ? styles.slotChipActive : ''}`}>
+                                            <input type="checkbox"
+                                                checked={config.allowedTimeSlots.includes(slot)}
+                                                onChange={() => handleSlotToggle(slot)}
+                                                style={{ marginRight: '6px' }} />
+                                            {slot}
                                         </label>
-                                    </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* ── Feature Toggles ── */}
+                    {/* ── EMAIL TEMPLATES ── */}
+                    {activeSection === 'emails' && (
+                        <div className={styles.section}>
+                            <h2 className={styles.sectionTitle}>Email Templates</h2>
+                            <p className={styles.sectionDesc}>Customize the emails sent to users and patients.</p>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Account Activation Email</label>
+                                <p className={styles.helpText}>Sent when a new staff account is created.</p>
+                                <textarea name="activation"
+                                    value={config.emailTemplates?.activation || ''}
+                                    onChange={handleTemplateChange}
+                                    className={styles.textarea} rows={5} />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Appointment Reminder Email</label>
+                                <p className={styles.helpText}>Sent to patients before their scheduled appointment.</p>
+                                <textarea name="appointmentReminder"
+                                    value={config.emailTemplates?.appointmentReminder || ''}
+                                    onChange={handleTemplateChange}
+                                    className={styles.textarea} rows={5} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── FEATURE TOGGLES ── */}
                     {activeSection === 'features' && (
                         <div className={styles.section}>
                             <h2 className={styles.sectionTitle}>Feature Toggles</h2>
-                            <p className={styles.sectionDesc}>Enable or disable system modules globally.</p>
+                            <p className={styles.sectionDesc}>Enable or disable system modules.</p>
 
-                            <div className={styles.toggleList}>
-                                <div className={styles.toggleRow}>
-                                    <div>
-                                        <p className={styles.toggleLabel}>Inventory Low-Stock Alerts</p>
-                                        <p className={styles.toggleDesc}>Show badge alerts in the sidebar when inventory items are below reorder level.</p>
+                            {[
+                                { key: 'queueManagement',   label: 'Queue Management',   desc: 'Walk-in patient queue module.' },
+                                { key: 'radiographUploads', label: 'Radiograph Uploads', desc: 'Allow radiograph image uploads in patient EMR.' },
+                                { key: 'chatSupport',       label: 'Chat Support',        desc: 'Enable the chat/ticket support system.' },
+                                { key: 'sessionTimeout',    label: 'Session Timeout',     desc: 'Auto logout after inactivity.' }
+                            ].map(f => (
+                                <div key={f.key} className={styles.toggleRow}>
+                                    <div className={styles.toggleInfo}>
+                                        <span className={styles.toggleLabel}>{f.label}</span>
+                                        <span className={styles.toggleDesc}>{f.desc}</span>
                                     </div>
-                                    <label className={styles.toggle}>
-                                        <input
-                                            type="checkbox"
-                                            checked={config.enableInventoryAlerts}
-                                            onChange={e => handleChange('enableInventoryAlerts', e.target.checked)}
-                                        />
-                                        <span className={styles.toggleSlider}></span>
-                                    </label>
+                                    <button
+                                        className={`${styles.toggleSwitch} ${config.featureToggles?.[f.key] ? styles.toggleOn : styles.toggleOff}`}
+                                        onClick={() => handleToggleChange(f.key)}
+                                    >
+                                        {config.featureToggles?.[f.key] ? 'ON' : 'OFF'}
+                                    </button>
                                 </div>
+                            ))}
 
-                                <div className={styles.toggleRow}>
-                                    <div>
-                                        <p className={styles.toggleLabel}>Notification Bell</p>
-                                        <p className={styles.toggleDesc}>Show the notification bell in the header for new appointment alerts and system events.</p>
-                                    </div>
-                                    <label className={styles.toggle}>
-                                        <input
-                                            type="checkbox"
-                                            checked={config.enableNotifications}
-                                            onChange={e => handleChange('enableNotifications', e.target.checked)}
-                                        />
-                                        <span className={styles.toggleSlider}></span>
-                                    </label>
+                            {config.featureToggles?.sessionTimeout && (
+                                <div className={styles.formGroup} style={{ marginTop: '20px' }}>
+                                    <label className={styles.label}>Session Timeout Duration (minutes)</label>
+                                    <input type="number" name="sessionTimeoutMinutes"
+                                        value={config.sessionTimeoutMinutes}
+                                        onChange={handleChange}
+                                        className={styles.inputSmall} min={5} max={120} />
                                 </div>
-                            </div>
+                            )}
                         </div>
                     )}
 
+                    {/* Save Button */}
+                    <div className={styles.saveRow}>
+                        <button
+                            className={styles.saveBtn}
+                            onClick={handleSave}
+                            disabled={isSaving}
+                        >
+                            {isSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     );
-}
+};
+
+export default SystemConfig;

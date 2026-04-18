@@ -50,15 +50,16 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         enum: [
-          'administrator',
-          'co-administrator',
-          'branch-manager',
-          'owner',         // Keep temporarily for migration
-          'co-owner',      // Keep temporarily for migration
-          'dentist',
-          'secretary',
-          'patient'
-        ]
+            'administrator',
+            'co-administrator',
+            'branch-manager',
+            'dentist',
+            'secretary',
+            'patient',
+            'owner',       // keep during migration
+            'co-owner'     // keep during migration
+        ],
+        default: 'patient'
     },
 
     permissions: {
@@ -67,7 +68,7 @@ const userSchema = new mongoose.Schema({
     },
 
     // ✅ PHASE 2: Branch assignment for staff members
-    assignedBranches: [{ type: String }],
+    assignedBranches: [{ type: String }], 
 
     // 3. PERSONAL DETAILS
     contactNumber: { type: String },

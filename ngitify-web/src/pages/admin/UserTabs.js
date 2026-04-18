@@ -1,59 +1,50 @@
-// ngitify-web/src/pages/admin/UserTabs.js
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import ManageDentists from './ManageDentists';
+import ManageSecretaries from './ManageSecretaries';
+import ManagePatients from './ManagePatients';
+import ManageBranchManagers from './ManageBranchManagers';
+import ManageCoAdmins from './ManageCoAdmins';
 import styles from '../../styles/admin/UserTabs.module.css';
 
-export default function UserTabs({ activeTab }) {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { user } = useAuth();
+const TABS = [
+    { key: 'dentists',       label: 'Dentists' },
+    { key: 'secretaries',    label: 'Secretaries' },
+    { key: 'patients',       label: 'Patients' },
+    { key: 'branchManagers', label: 'Branch Managers' },
+    { key: 'coAdmins',       label: 'Co-Admins' }
+];
 
-    const isAdministrator = user?.role === 'administrator';
-
-    const currentTab = location.pathname.includes('/secretaries') ? 'secretaries'
-                     : location.pathname.includes('/patients') ? 'patients'
-                     : location.pathname.includes('/branch-managers') ? 'branch-managers'
-                     : location.pathname.includes('/co-admins') ? 'co-admins'
-                     : activeTab || 'dentists';
+const UserTabs = () => {
+    const [activeTab, setActiveTab] = useState('dentists');
 
     return (
-        <div className={styles.tabContainer}>
-            <button
-                className={`${styles.tabButton} ${currentTab === 'dentists' ? styles.activeTab : ''}`}
-                onClick={() => navigate('/admin/manage-users/dentists')}
-            >
-                Dentists
-            </button>
-            <button
-                className={`${styles.tabButton} ${currentTab === 'secretaries' ? styles.activeTab : ''}`}
-                onClick={() => navigate('/admin/manage-users/secretaries')}
-            >
-                Secretaries
-            </button>
-            <button
-                className={`${styles.tabButton} ${currentTab === 'patients' ? styles.activeTab : ''}`}
-                onClick={() => navigate('/admin/manage-users/patients')}
-            >
-                Patient Records
-            </button>
-            {/* ✅ PHASE 2: New tabs — only shown to full administrator */}
-            {isAdministrator && (
-                <>
+        <div className={styles.container}>
+            <div className={styles.pageHeader}>
+                <h1 className={styles.pageTitle}>User Management</h1>
+            </div>
+
+            <div className={styles.tabBar}>
+                {TABS.map(tab => (
                     <button
-                        className={`${styles.tabButton} ${currentTab === 'branch-managers' ? styles.activeTab : ''}`}
-                        onClick={() => navigate('/admin/manage-users/branch-managers')}
+                        key={tab.key}
+                        className={`${styles.tabBtn} ${activeTab === tab.key ? styles.tabActive : ''}`}
+                        onClick={() => setActiveTab(tab.key)}
                     >
-                        Branch Managers
+                        {tab.label}
                     </button>
-                    <button
-                        className={`${styles.tabButton} ${currentTab === 'co-admins' ? styles.activeTab : ''}`}
-                        onClick={() => navigate('/admin/manage-users/co-admins')}
-                    >
-                        Co-Admins
-                    </button>
-                </>
-            )}
+                ))}
+            </div>
+
+            <div className={styles.tabContent}>
+                {activeTab === 'dentists'       && <ManageDentists />}
+                {activeTab === 'secretaries'    && <ManageSecretaries />}
+                {activeTab === 'patients'       && <ManagePatients />}
+                {activeTab === 'branchManagers' && <ManageBranchManagers />}
+                {activeTab === 'coAdmins'       && <ManageCoAdmins />}
+            </div>
         </div>
     );
-}
+};
+
+export default UserTabs;

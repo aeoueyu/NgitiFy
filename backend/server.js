@@ -940,9 +940,9 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
         // NEW: Create a notification for administrators
         await Notification.create({
             type: 'NEW_APPOINTMENT',
-            title: 'New Appointment Booked',
-            message: `A new appointment has been scheduled for ${new Date(newSurgery.date).toLocaleDateString()}.`,
-            recipientRole: 'administrator', // This means all admins will see it
+            title: 'New Appointment Request',
+            message: `${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}.`,
+            recipientRole: 'administrator',
             relatedId: newSurgery._id
         });
 
