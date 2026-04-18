@@ -76,6 +76,7 @@ export default function Appointments() {
     const [appointments, setAppointments] = useState([]);
     const [patients, setPatients]         = useState([]);
     const [dentists, setDentists]         = useState([]);
+    const [branches, setBranches]         = useState([]);
     const [isLoading, setIsLoading]       = useState(true);
 
     // ─── CALENDAR & FILTER STATE ─────────────────────────────────────────────
@@ -95,7 +96,7 @@ export default function Appointments() {
 
     const [bookingForm, setBookingForm] = useState({
         patientId: '', dentistId: '', date: '', time: '',
-        procedure: '', source: 'Walk-in', notes: '',
+        procedure: '', source: 'Walk-in', notes: '', branchId: '',
     });
 
     const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
@@ -135,14 +136,16 @@ export default function Appointments() {
         const loadAll = async () => {
             setIsLoading(true);
             try {
-                const [aptsRes, patientsRes, dentistsRes] = await Promise.all([
+                const [aptsRes, patientsRes, dentistsRes, branchesRes] = await Promise.all([
                     authFetch('/surgeries'),
                     authFetch('/patients'),
                     authFetch('/users?role=dentist'),
+                    authFetch('/branches'),
                 ]);
                 if (aptsRes.ok)     setAppointments((await aptsRes.json()).map(normalizeSurgery));
                 if (patientsRes.ok) setPatients((await patientsRes.json()).filter(u => u.status === 'active'));
                 if (dentistsRes.ok) setDentists((await dentistsRes.json()).filter(u => u.status === 'active' && !u.isArchived));
+                if (branchesRes.ok) setBranches(await branchesRes.json());
             } catch {
                 addToast('Failed to connect to server.', 'error');
             } finally {
@@ -274,6 +277,7 @@ export default function Appointments() {
         if (!bookingForm.procedure) errs.procedure = 'Required';
         if (!bookingForm.date)      errs.date      = 'Required';
         if (!bookingForm.time)      errs.time      = 'Required';
+        if (!bookingForm.branchId)  errs.branchId  = 'Required';
         setFormErrors(errs);
         if (Object.keys(errs).length > 0) return;
 
@@ -290,7 +294,7 @@ export default function Appointments() {
                     source:    bookingForm.source,
                     notes:     bookingForm.notes,
                     status:    'confirmed',
-                    branch:    'Marikina Branch',
+                    branch:    bookingForm.branchId,
                 }),
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Booking failed.');
@@ -306,7 +310,7 @@ export default function Appointments() {
     };
 
     const resetForm = () => {
-        setBookingForm({ patientId: '', dentistId: '', date: '', time: '', procedure: '', source: 'Walk-in', notes: '' });
+        setBookingForm({ patientId: '', dentistId: '', date: '', time: '', procedure: '', source: 'Walk-in', notes: '', branchId: '' });
         setFormErrors({});
         setTimeError('');
     };
@@ -571,6 +575,17 @@ export default function Appointments() {
                                     <select name="source" className={styles.inputField} value={bookingForm.source} onChange={handleFormChange} disabled={isSubmitting}>
                                         {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
+                                </div>
+                            </div>
+                            {/* Branch */}
+                            <div className={styles.row} style={{ marginBottom: '0' }}>
+                                <div className={styles.formGroup}>
+                                    <label>BRANCH <span style={{ color: 'red' }}>*</span></label>
+                                    <select name="branchId" className={styles.inputField} value={bookingForm.branchId} onChange={handleFormChange} disabled={isSubmitting}>
+                                        <option value="" hidden>Select Branch</option>
+                                        {branches.map(b => <option key={b._id} value={b.name}>{b.name}</option>)}
+                                    </select>
+                                    {formErrors.branchId && <span className={styles.errorText}>{formErrors.branchId}</span>}
                                 </div>
                             </div>
 

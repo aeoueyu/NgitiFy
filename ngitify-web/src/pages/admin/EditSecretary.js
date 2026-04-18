@@ -422,36 +422,6 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                                 </>
                             )}
 
-                            {branchOptions.length > 0 && (
-                                <>
-                                    <hr className={styles.divider} />
-                                    <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-15px' }}>
-                                        Select the branches this secretary is assigned to.
-                                    </p>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
-                                        {branchOptions.map(branch => (
-                                            <label key={branch} style={{
-                                                display: 'flex', alignItems: 'center', gap: '6px',
-                                                cursor: 'pointer', padding: '6px 12px',
-                                                border: `1px solid ${formData.assignedBranches.includes(branch) ? '#01538b' : '#e2e8f0'}`,
-                                                borderRadius: '6px',
-                                                backgroundColor: formData.assignedBranches.includes(branch) ? '#e8f4fd' : '#fff',
-                                                fontSize: '14px'
-                                            }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.assignedBranches.includes(branch)}
-                                                    onChange={() => handleBranchToggle(branch)}
-                                                    disabled={isSaving}
-                                                />
-                                                {branch}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
                                 <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>{isSaving ? 'SAVING CHANGES...' : 'UPDATE SECRETARY'}</button>

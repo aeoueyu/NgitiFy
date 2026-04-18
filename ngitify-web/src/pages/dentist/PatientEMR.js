@@ -82,12 +82,25 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     
     // Add Log Modal
     const [isAddLogOpen, setIsAddLogOpen] = useState(false);
-    const [newLogForm, setNewLogForm] = useState({ date: '', procedure: '', category: 'General', tooth: '', notes: '' });
+    const [newLogForm, setNewLogForm] = useState({ date: '', procedure: '', category: 'General', tooth: '', notes: '', branchId: '' });
 
     // Task 3.3: AI Radiograph States
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
+
+    const [branches, setBranches] = useState([]);
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const { authFetch } = await import('../../utils/api');
+                const res = await authFetch('/branches');
+                if (res.ok) setBranches(await res.json());
+            } catch (e) { console.error('Error fetching branches:', e); }
+        };
+        fetchBranches();
+    }, []);
 
     useEffect(() => {
         setTimeout(() => {
@@ -244,7 +257,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         const newLog = {
             id: Math.random().toString(),
             rawDate: new Date(newLogForm.date),
-            branch: patient.primaryBranch,
+            branch: newLogForm.branchId,
             doctor: 'Dr. Logged In', 
             tooth: newLogForm.tooth || 'N/A',
             procedure: newLogForm.procedure,
@@ -254,7 +267,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         
         setLogs(prev => [newLog, ...prev].sort((a,b) => b.rawDate - a.rawDate));
         setIsAddLogOpen(false);
-        setNewLogForm({ date: '', procedure: '', category: 'General', tooth: '', notes: '' });
+        setNewLogForm({ date: '', procedure: '', category: 'General', tooth: '', notes: '', branchId: '' });
         addToast("Treatment log added successfully.", "success");
     };
 
@@ -397,6 +410,21 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                             <div className={styles.formGroup}>
                                 <label>Clinical Notes <span style={{color:'red'}}>*</span></label>
                                 <textarea required className={styles.textareaField} value={newLogForm.notes} onChange={(e) => setNewLogForm({...newLogForm, notes: e.target.value})} placeholder="Describe the procedure, patient condition, etc." />
+                            </div>
+                            {/* Branch */}
+                            <div className={styles.formGroup}>
+                                <label>Branch <span style={{color:'red'}}>*</span></label>
+                                <select
+                                    required
+                                    className={styles.inputField}
+                                    value={newLogForm.branchId}
+                                    onChange={(e) => setNewLogForm({...newLogForm, branchId: e.target.value})}
+                                >
+                                    <option value="" disabled hidden>Select Branch</option>
+                                    {branches.map(b => (
+                                        <option key={b._id} value={b.name}>{b.name}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className={styles.modalButtonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={() => setIsAddLogOpen(false)}>Cancel</button>

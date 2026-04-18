@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/DentistAppointments.module.css';
 import {
     FaClock, FaFileMedical, FaSearch, FaCalendarAlt,
-    FaBoxOpen, FaCheckCircle
+    FaBoxOpen, FaCheckCircle, FaPlus, FaTimes
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -26,6 +26,13 @@ const PH_HOLIDAYS = [
     { month: 5,  day: 12, name: "Independence Day" },
     { month: 11, day: 25, name: "Christmas Day" },
     { month: 11, day: 31, name: "New Year's Eve" },
+];
+
+const PROCEDURE_OPTIONS = [
+    'Consultation', 'Teeth Cleaning (Prophylaxis)', 'Tooth Extraction',
+    'Dental Filling (Composite)', 'Root Canal Treatment', 'Braces / Orthodontic Adjustment',
+    'Teeth Whitening', 'Crown / Bridge Fitting', 'Wisdom Tooth Extraction',
+    'Oral Surgery', 'X-Ray / Radiograph', 'Other',
 ];
 
 // ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
@@ -66,7 +73,7 @@ export default function DentistAppointments() {
     const [selectedAptForMaterial, setSelectedAptForMaterial] = useState(null);
 
     // ─── COMPLETE CONFIRM MODAL ──────────────────────────────────────────────
-    const [completeTarget, setCompleteTarget] = useState(null); // apt
+    const [completeTarget, setCompleteTarget] = useState(null);
 
     // ─── FILTER STATES ───────────────────────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState('');
@@ -78,9 +85,24 @@ export default function DentistAppointments() {
     const [currentMonthView, setCurrentMonthView] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
 
+    // ─── BOOKING MODAL STATE ─────────────────────────────────────────────────
+    const [patients, setPatients]               = useState([]);
+    const [dentists, setDentists]               = useState([]);
+    const [branches, setBranches]               = useState([]);
+    const [isBookingModalOpen, setIsBookingModalOpen]     = useState(false);
+    const [isSubmittingBooking, setIsSubmittingBooking]   = useState(false);
+    const [bookingForm, setBookingForm] = useState({
+        patientId: '',
+        dentistId: '',
+        date: '',
+        time: '',
+        procedure: '',
+        branchId: '',   // BUG 20 FIX: was hardcoded 'Marikina Branch'
+    });
+
     // ─── FETCH APPOINTMENTS ──────────────────────────────────────────────────
-    const fetchAppointments = useCallback(async () => {
-        setIsLoading(true);
+    const fetchAppointments = useCallback(async (silent = false) => {
+        if (!silent) setIsLoading(true);
         try {
             const dentistId = user?.userId || user?.id || user?._id;
             const endpoint = dentistId
@@ -101,6 +123,25 @@ export default function DentistAppointments() {
     useEffect(() => {
         fetchAppointments();
     }, [fetchAppointments]);
+
+    // ─── FETCH PATIENTS, DENTISTS, BRANCHES FOR BOOKING MODAL ───────────────
+    useEffect(() => {
+        const loadBookingData = async () => {
+            try {
+                const [patientsRes, dentistsRes, branchesRes] = await Promise.all([
+                    authFetch('/patients'),
+                    authFetch('/users?role=dentist'),
+                    authFetch('/branches'),
+                ]);
+                if (patientsRes.ok)  setPatients((await patientsRes.json()).filter(u => u.status === 'active'));
+                if (dentistsRes.ok)  setDentists((await dentistsRes.json()).filter(u => u.status === 'active' && !u.isArchived));
+                if (branchesRes.ok)  setBranches(await branchesRes.json());
+            } catch (err) {
+                console.error('Failed to load booking data:', err);
+            }
+        };
+        loadBookingData();
+    }, []);
 
     // ─── DYNAMIC PROCEDURE LIST ───────────────────────────────────────────────
     const dynamicProcedures = useMemo(() => {
@@ -181,7 +222,7 @@ export default function DentistAppointments() {
     // ─── RENDER HELPERS ───────────────────────────────────────────────────────
     const getStatusClass = (status) => {
         switch ((status || '').toLowerCase()) {
-            case 'confirmed':  return styles['status-pending'];   // confirmed shows yellow like "pending" in original
+            case 'confirmed':  return styles['status-pending'];
             case 'pending':    return styles['status-pending'];
             case 'in clinic':  return styles['status-in-clinic'];
             case 'completed':
@@ -192,13 +233,14 @@ export default function DentistAppointments() {
 
     const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
+    const getPatientName = (p) => p.name?.first ? `${p.name.first} ${p.name.last}` : p.email || 'Unknown';
+
     // ─── ACTION HANDLERS ──────────────────────────────────────────────────────
     const handleLogoutClick = () => { setIsProfileOpen(false); setShowLogoutModal(true); };
     const handleProfileNavigation = () => { setIsProfileOpen(false); navigate('/dentist/profile'); };
     const handleViewEMR = (patientId) => { setSelectedPatientId(patientId); setIsEMRModalOpen(true); };
     const handleOpenMaterialLog = (apt) => { setSelectedAptForMaterial(apt); setIsMaterialModalOpen(true); };
 
-    // Mark appointment as completed via backend, then update local state
     const handleConfirmComplete = async () => {
         if (!completeTarget) return;
         try {
@@ -219,6 +261,45 @@ export default function DentistAppointments() {
         }
     };
 
+    // ─── BOOKING HANDLERS ─────────────────────────────────────────────────────
+    const handleBookingChange = (e) => {
+        const { name, value } = e.target;
+        setBookingForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const resetBookingForm = () => {
+        setBookingForm({ patientId: '', dentistId: '', date: '', time: '', procedure: '', branchId: '' });
+    };
+
+    const handleBookAppointment = async (e) => {
+        e.preventDefault();
+        setIsSubmittingBooking(true);
+        try {
+            const res = await authFetch('/surgeries', {
+                method: 'POST',
+                body: JSON.stringify({
+                    patient:   bookingForm.patientId,
+                    dentist:   bookingForm.dentistId,
+                    date:      bookingForm.date,
+                    time:      bookingForm.time,
+                    procedure: bookingForm.procedure,
+                    status:    'confirmed',
+                    source:    'Walk-in',
+                    branch:    bookingForm.branchId,  // BUG 20 FIX: no longer hardcoded
+                }),
+            });
+            if (!res.ok) throw new Error((await res.json()).message || 'Booking failed.');
+            addToast('Appointment successfully booked!', 'success');
+            setIsBookingModalOpen(false);
+            resetBookingForm();
+            await fetchAppointments(true);
+        } catch (err) {
+            addToast(err.message || 'Failed to book appointment. Please try again.', 'error');
+        } finally {
+            setIsSubmittingBooking(false);
+        }
+    };
+
     const dentistDisplayName = user?.name?.first ? `${user.name.first} ${user.name.last}` : 'Dentist';
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -232,6 +313,13 @@ export default function DentistAppointments() {
                         <p className={styles['subtitle']}>Manage your patient schedule, access EMRs, and log materials.</p>
                     </div>
                     <div className={styles['header-right']}>
+                        {/* BUG 20 FIX: Book Appointment button */}
+                        <button
+                            className={styles['bookBtn']}
+                            onClick={() => { resetBookingForm(); setIsBookingModalOpen(true); }}
+                        >
+                            <FaPlus /> Book Appointment
+                        </button>
                         <div className={styles['user-info']}>
                             <span className={styles['user-name']}>Hello, Dr. {dentistDisplayName.split(' ')[0]}!</span>
                             <span className={styles['user-role']}>Dentist</span>
@@ -321,7 +409,6 @@ export default function DentistAppointments() {
                                                 <FaFileMedical /> View EMR
                                             </button>
 
-                                            {/* Mark Complete button — visible for confirmed/pending */}
                                             {(apt.status === 'confirmed' || apt.status === 'pending') && (
                                                 <button
                                                     className={styles['logMaterialsBtn']}
@@ -332,7 +419,6 @@ export default function DentistAppointments() {
                                                 </button>
                                             )}
 
-                                            {/* Log Materials — visible once completed */}
                                             {(apt.status === 'completed' || apt.status === 'done') && (
                                                 <button className={styles['logMaterialsBtn']} onClick={() => handleOpenMaterialLog(apt)}>
                                                     <FaBoxOpen /> Log Materials
@@ -388,6 +474,155 @@ export default function DentistAppointments() {
                     </div>
                 </div>
             </main>
+
+            {/* ─── BOOK APPOINTMENT MODAL ───────────────────────────────────── */}
+            {isBookingModalOpen && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent} style={{ maxWidth: '520px' }}>
+                        <div className={styles.modalHeader}>
+                            <h2 className={styles.modalTitle}>Book New Appointment</h2>
+                            <button
+                                className={styles.closeButton}
+                                onClick={() => { setIsBookingModalOpen(false); resetBookingForm(); }}
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleBookAppointment} className={styles.modalBody}>
+
+                            {/* Patient */}
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>
+                                    Select Patient <span style={{ color: 'red' }}>*</span>
+                                </label>
+                                <select
+                                    name="patientId"
+                                    className={styles.formInput}
+                                    required
+                                    value={bookingForm.patientId}
+                                    onChange={handleBookingChange}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    <option value="" disabled hidden>-- Choose a Patient --</option>
+                                    {patients.map(p => (
+                                        <option key={p._id} value={p._id}>{getPatientName(p)}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Dentist */}
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>
+                                    Assigned Dentist <span style={{ color: 'red' }}>*</span>
+                                </label>
+                                <select
+                                    name="dentistId"
+                                    className={styles.formInput}
+                                    required
+                                    value={bookingForm.dentistId}
+                                    onChange={handleBookingChange}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    <option value="" disabled hidden>-- Choose a Dentist --</option>
+                                    {dentists.map(d => (
+                                        <option key={d._id} value={d._id}>
+                                            Dr. {d.name?.first} {d.name?.last}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Branch — BUG 20 FIX */}
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>
+                                    Branch <span style={{ color: 'red' }}>*</span>
+                                </label>
+                                <select
+                                    name="branchId"
+                                    className={styles.formInput}
+                                    required
+                                    value={bookingForm.branchId}
+                                    onChange={handleBookingChange}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    <option value="" disabled hidden>-- Select Branch --</option>
+                                    {branches.map(b => (
+                                        <option key={b._id} value={b.name}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Date + Time */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Date <span style={{ color: 'red' }}>*</span></label>
+                                    <input
+                                        type="date"
+                                        name="date"
+                                        className={styles.formInput}
+                                        required
+                                        value={bookingForm.date}
+                                        onChange={handleBookingChange}
+                                        min={new Date().toISOString().split('T')[0]}
+                                        disabled={isSubmittingBooking}
+                                    />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Time <span style={{ color: 'red' }}>*</span></label>
+                                    <input
+                                        type="time"
+                                        name="time"
+                                        className={styles.formInput}
+                                        required
+                                        value={bookingForm.time}
+                                        onChange={handleBookingChange}
+                                        disabled={isSubmittingBooking}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Procedure */}
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>
+                                    Procedure <span style={{ color: 'red' }}>*</span>
+                                </label>
+                                <select
+                                    name="procedure"
+                                    className={styles.formInput}
+                                    required
+                                    value={bookingForm.procedure}
+                                    onChange={handleBookingChange}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    <option value="" disabled hidden>-- Select Procedure --</option>
+                                    {PROCEDURE_OPTIONS.map(p => (
+                                        <option key={p} value={p}>{p}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className={styles.formActions}>
+                                <button
+                                    type="button"
+                                    className={styles.cancelBtn}
+                                    onClick={() => { setIsBookingModalOpen(false); resetBookingForm(); }}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className={styles.submitBtn}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    {isSubmittingBooking ? 'Booking…' : 'Confirm Booking'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* EMR MODAL */}
             {isEMRModalOpen && selectedPatientId && (
