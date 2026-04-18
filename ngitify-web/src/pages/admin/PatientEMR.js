@@ -1,361 +1,685 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// ngitify-web/src/pages/dentist/PatientEMR.js
+
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { authFetch } from '../../utils/api';
-import styles from '../../styles/admin/PatientEMR.module.css';
+import styles from '../../styles/dentist/PatientEMR.module.css';
 
-const TABS = ['Treatment Notes', 'Odontogram', 'Patient History', 'Radiograph Images'];
+import { useToast } from '../../context/ToastContext';
+import { formatDateLong, formatDateShort } from '../../utils/dateUtils';
+import UserAvatar from '../../components/common/UserAvatar';
 
-const PatientEMR = () => {
-    const { patientId } = useParams();
+import { 
+    FaUserMd, FaPhoneAlt, FaEnvelope, FaArrowLeft, FaCog,
+    FaSyringe, FaNotesMedical, FaSearch, FaPlus, FaHospitalUser,
+    FaTooth, FaChevronDown, FaChevronUp, FaTimes,
+    FaUpload, FaMagic, FaRobot, FaCalendarAlt
+} from 'react-icons/fa';
+import Odontogram from './Odontogram';
+
+const INITIAL_MEDICAL_HISTORY = {
+    lastExam: '',
+    bloodType: '',
+    allergies: '',
+    conditions: '',
+    medications: '',
+    notes: ''
+};
+
+export default function PatientEMR({ patientId: propPatientId, onClose }) {
+    const urlParams = useParams();
+    const activePatientId = propPatientId || urlParams.patientId;
+    
     const navigate = useNavigate();
-
-    const [activeTab, setActiveTab] = useState('Treatment Notes');
+    const { addToast } = useToast();
+    
+    // Core States
+    const [activeTab, setActiveTab] = useState('overview');
     const [patient, setPatient] = useState(null);
-    const [treatmentNotes, setTreatmentNotes] = useState([]);
-    const [radiographs, setRadiographs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState('');
 
-    // Radiograph upload state
-    const [uploadLabel, setUploadLabel] = useState('');
-    const [uploadDate, setUploadDate] = useState(new Date().toISOString().split('T')[0]);
-    const [uploadNotes, setUploadNotes] = useState('');
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadSuccess, setUploadSuccess] = useState('');
+    // Tab 1: Medical History States
+    const [medicalHistory, setMedicalHistory] = useState(INITIAL_MEDICAL_HISTORY);
+    const [isEditingMedical, setIsEditingMedical] = useState(false);
+    const [medicalForm, setMedicalForm] = useState(INITIAL_MEDICAL_HISTORY);
+    const [isSavingMedical, setIsSavingMedical] = useState(false);
 
-    // ✅ FIX 1: Correct endpoint /treatment-logs (was /treatments — that doesn't exist)
-    const fetchTreatmentNotes = useCallback(async () => {
-        try {
-            const res = await authFetch(`/patients/${patientId}/treatment-logs`);
-            if (res.ok) setTreatmentNotes(await res.json());
-        } catch (e) { console.error('Error fetching treatment notes:', e); }
-    }, [patientId]);
+    // Tab 2: Treatment Logs States
+    const [logs, setLogs] = useState([]);
+    const [logsSearchQuery, setLogsSearchQuery] = useState('');
+    const [logsDateFrom, setLogsDateFrom] = useState('');
+    const [logsDateTo, setLogsDateTo] = useState('');
+    const [logsCategory, setLogsCategory] = useState('All');
+    const [expandedLogs, setExpandedLogs] = useState({});
+    
+    // Add Log Modal
+    const [isAddLogOpen, setIsAddLogOpen] = useState(false);
+    const [isSubmittingLog, setIsSubmittingLog] = useState(false);
+    const [newLogForm, setNewLogForm] = useState({ date: '', procedure: '', category: 'General', tooth: '', notes: '', branchId: '' });
 
-    // ✅ FIX 2: No separate /history endpoint. Patient data already contains all history fields.
-    const fetchPatient = useCallback(async () => {
-        try {
-            const res = await authFetch(`/patients/${patientId}`);
-            if (res.ok) setPatient(await res.json());
-        } catch (e) { console.error('Error fetching patient:', e); }
-    }, [patientId]);
+    // Tab 4: Radiograph States
+    const [radiographs, setRadiographs] = useState([]);
+    const [selectedRadiograph, setSelectedRadiograph] = useState(null);
+    const [isEnhancing, setIsEnhancing] = useState(false);
+    const [isEnhanced, setIsEnhanced] = useState(false);
 
-    const fetchRadiographs = useCallback(async () => {
-        try {
-            const res = await authFetch(`/patients/${patientId}/radiographs`);
-            if (res.ok) setRadiographs(await res.json());
-        } catch (e) { console.error('Error fetching radiographs:', e); }
-    }, [patientId]);
+    const [branches, setBranches] = useState([]);
 
+    // Fetch branches for the Add Log dropdown
     useEffect(() => {
-        const loadAll = async () => {
-            setIsLoading(true);
-            setError('');
-            await Promise.all([fetchPatient(), fetchTreatmentNotes(), fetchRadiographs()]);
-            setIsLoading(false);
-        };
-        loadAll();
-    }, [fetchPatient, fetchTreatmentNotes, fetchRadiographs]);
-
-    // ✅ FIX 3: Server requires { label, date } — previously only sent { imageUrl, notes }
-    const handleRadiographUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (!uploadLabel.trim()) {
-            setError('Please enter a label before uploading.');
-            e.target.value = '';
-            return;
-        }
-
-        setIsUploading(true);
-        setUploadSuccess('');
-        setError('');
-
-        const reader = new FileReader();
-        reader.onload = async () => {
+        const fetchBranches = async () => {
             try {
-                const res = await authFetch(`/patients/${patientId}/radiographs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        label: uploadLabel,
-                        date: uploadDate,
-                        url: reader.result,    // ✅ FIX 4: server field is `url`, not `imageUrl`
-                        notes: uploadNotes
-                    })
-                });
-                if (res.ok) {
-                    setUploadSuccess('Radiograph uploaded successfully.');
-                    setUploadLabel('');
-                    setUploadNotes('');
-                    setUploadDate(new Date().toISOString().split('T')[0]);
-                    fetchRadiographs();
+                const { authFetch } = await import('../../utils/api');
+                const res = await authFetch('/branches');
+                if (res.ok) setBranches(await res.json());
+            } catch (e) { console.error('Error fetching branches:', e); }
+        };
+        fetchBranches();
+    }, []);
+
+    // ✅ FIX Bug 23: Fetch real patient, treatment logs, and radiographs from API
+    useEffect(() => {
+        if (!activePatientId) return;
+
+        const fetchPatientData = async () => {
+            setIsLoading(true);
+            try {
+                const { authFetch } = await import('../../utils/api');
+
+                // Fetch patient profile
+                const patientRes = await authFetch(`/patients/${activePatientId}`);
+                if (patientRes.ok) {
+                    const patientData = await patientRes.json();
+                    setPatient(patientData);
+                    // Populate medical history from patient record if available
+                    if (patientData.medicalHistory) {
+                        setMedicalHistory(patientData.medicalHistory);
+                        setMedicalForm(patientData.medicalHistory);
+                    }
                 } else {
-                    const d = await res.json();
-                    setError(d.message || 'Upload failed.');
+                    addToast('Failed to load patient record.', 'error');
                 }
-            } catch (err) {
-                setError('Network error during upload.');
+
+                // Fetch treatment logs
+                const logsRes = await authFetch(`/patients/${activePatientId}/treatment-logs`);
+                if (logsRes.ok) {
+                    const logsData = await logsRes.json();
+                    // Normalize: ensure rawDate is a Date object for filtering/sorting
+                    const normalized = logsData.map(log => ({
+                        ...log,
+                        id: log._id || log.id,
+                        rawDate: new Date(log.date || log.rawDate),
+                    }));
+                    setLogs(normalized.sort((a, b) => b.rawDate - a.rawDate));
+                }
+
+                // Fetch radiographs
+                const radRes = await authFetch(`/patients/${activePatientId}/radiographs`);
+                if (radRes.ok) {
+                    const radData = await radRes.json();
+                    const normalizedRads = radData.map(r => ({
+                        ...r,
+                        id: r._id || r.id,
+                        rawDate: new Date(r.date || r.uploadedAt || r.createdAt),
+                        type: r.label || r.type || 'Radiograph',
+                        url: r.url || r.imageUrl,
+                    }));
+                    setRadiographs(normalizedRads);
+                }
+
+            } catch (e) {
+                console.error('Error fetching patient data:', e);
+                addToast('Could not connect to the server.', 'error');
             } finally {
-                setIsUploading(false);
-                e.target.value = '';
+                setIsLoading(false);
             }
         };
-        reader.readAsDataURL(file);
+
+        fetchPatientData();
+    }, [activePatientId, addToast]);
+
+    const handleBack = () => {
+        if (onClose) onClose(); 
+        else navigate(-1); 
     };
 
-    const handleDeleteRadiograph = async (entryId) => {
-        if (!window.confirm('Delete this radiograph image?')) return;
+    // --- TAB 1 LOGIC (MEDICAL HISTORY) ---
+    const handleMedicalFormChange = (e) => {
+        const { name, value } = e.target;
+        setMedicalForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSaveMedical = (e) => {
+        e.preventDefault();
+        setIsSavingMedical(true);
+        setTimeout(() => {
+            setMedicalHistory(medicalForm);
+            setIsEditingMedical(false);
+            setIsSavingMedical(false);
+            addToast("Medical history updated successfully.", "success");
+        }, 600);
+    };
+
+    const handleCancelMedical = () => {
+        setMedicalForm(medicalHistory);
+        setIsEditingMedical(false);
+    };
+
+    const renderTags = (csvString, isWarning = false) => {
+        if (!csvString || csvString.trim() === '') return <p className={styles.infoValue}>None reported.</p>;
+        const items = csvString.split(',').map(i => i.trim()).filter(i => i !== '');
+        return (
+            <div className={styles.tagList}>
+                {items.map((item, idx) => (
+                    <span key={idx} className={`${styles.tag} ${isWarning ? styles.warning : ''}`}>{item}</span>
+                ))}
+            </div>
+        );
+    };
+
+    const renderList = (csvString) => {
+        if (!csvString || csvString.trim() === '') return <p className={styles.infoValue}>None reported.</p>;
+        const items = csvString.split(',').map(i => i.trim()).filter(i => i !== '');
+        return (
+            <ul style={{ margin: '5px 0 0 15px', color: '#334155', fontWeight: '600', fontSize: '14px' }}>
+                {items.map((item, idx) => <li key={idx} style={{marginBottom: '5px'}}>{item}</li>)}
+            </ul>
+        );
+    };
+
+    const renderOverview = () => (
+        <div className={styles.contentCard}>
+            <div className={styles.sectionHeaderRow}>
+                <h3 className={styles.sectionTitle}>Medical History & Alerts</h3>
+                {!isEditingMedical && (
+                    <button className={styles.actionBtn} onClick={() => setIsEditingMedical(true)}>
+                        Edit Medical History
+                    </button>
+                )}
+            </div>
+
+            {isEditingMedical ? (
+                <form onSubmit={handleSaveMedical}>
+                    <div className={styles.infoGrid} style={{ marginBottom: '20px' }}>
+                        <div className={styles.formGroup}>
+                            <label>Allergies (Comma separated)</label>
+                            <input type="text" name="allergies" value={medicalForm.allergies} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="e.g., Penicillin, Latex" />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Pre-existing Conditions</label>
+                            <input type="text" name="conditions" value={medicalForm.conditions} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="e.g., Asthma, Diabetes" />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Current Medications</label>
+                            <input type="text" name="medications" value={medicalForm.medications} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="e.g., Albuterol" />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Blood Type</label>
+                            <select name="bloodType" value={medicalForm.bloodType} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="A+">A+</option><option value="A-">A-</option>
+                                <option value="B+">B+</option><option value="B-">B-</option>
+                                <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                                <option value="O+">O+</option><option value="O-">O-</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Last Medical/Dental Exam</label>
+                            <input type="date" name="lastExam" value={medicalForm.lastExam} onChange={handleMedicalFormChange} className={styles.inputField} />
+                        </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label>Clinical Notes & Remarks</label>
+                        <textarea name="notes" value={medicalForm.notes} onChange={handleMedicalFormChange} className={styles.textareaField} placeholder="Add any special instructions or warnings here..." />
+                    </div>
+                    
+                    <div className={styles.formActions}>
+                        <button type="button" className={styles.cancelBtn} onClick={handleCancelMedical} disabled={isSavingMedical}>Cancel</button>
+                        <button type="submit" className={styles.saveBtn} disabled={isSavingMedical}>
+                            {isSavingMedical ? 'Saving...' : 'Save Updates'}
+                        </button>
+                    </div>
+                </form>
+            ) : (
+                <>
+                    <div className={styles.infoGrid}>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel} style={{ color: '#ef4444' }}><FaSyringe style={{marginRight: '6px'}}/> Allergies (Red Flags)</span>
+                            {renderTags(medicalHistory.allergies, true)}
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}><FaNotesMedical style={{marginRight: '6px'}}/> Pre-existing Conditions</span>
+                            {renderTags(medicalHistory.conditions)}
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Current Medications</span>
+                            {renderList(medicalHistory.medications)}
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Blood Type</span>
+                            <p className={styles.infoValue}>{medicalHistory.bloodType || 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Last Exam</span>
+                            <p className={styles.infoValue}>{medicalHistory.lastExam ? formatDateLong(medicalHistory.lastExam) : 'Not specified'}</p>
+                        </div>
+                    </div>
+                    {medicalHistory.notes && (
+                        <div className={styles.infoBlock} style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '25px' }}>
+                            <span className={styles.infoLabel}>Clinical Notes & Remarks</span>
+                            <p className={styles.infoValue} style={{ color: '#475569', fontStyle: 'italic' }}>"{medicalHistory.notes}"</p>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+
+    // --- TAB 2 LOGIC (TREATMENT LOGS) ---
+    const toggleLogExpand = (id, e) => {
+        if (e) e.stopPropagation();
+        setExpandedLogs(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    // ✅ FIX Bug 23: POST to real API instead of only updating local state
+    const handleAddLogSubmit = async (e) => {
+        e.preventDefault();
+        setIsSubmittingLog(true);
         try {
-            const res = await authFetch(`/patients/${patientId}/radiographs/${entryId}`, { method: 'DELETE' });
-            if (res.ok) fetchRadiographs();
-            else setError('Failed to delete radiograph.');
-        } catch (e) {
-            setError('Network error during delete.');
+            const { authFetch } = await import('../../utils/api');
+            const res = await authFetch(`/patients/${activePatientId}/treatment-logs`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    date: newLogForm.date,
+                    procedure: newLogForm.procedure,
+                    category: newLogForm.category,
+                    tooth: newLogForm.tooth || 'N/A',
+                    notes: newLogForm.notes,
+                    branch: newLogForm.branchId,
+                }),
+            });
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to save log.');
+
+            const saved = await res.json();
+            const newLog = {
+                ...saved,
+                id: saved._id || saved.id,
+                rawDate: new Date(saved.date || newLogForm.date),
+            };
+            setLogs(prev => [newLog, ...prev].sort((a, b) => b.rawDate - a.rawDate));
+            setIsAddLogOpen(false);
+            setNewLogForm({ date: '', procedure: '', category: 'General', tooth: '', notes: '', branchId: '' });
+            addToast("Treatment log added successfully.", "success");
+        } catch (err) {
+            console.error('Add log error:', err);
+            addToast(err.message || 'Failed to save treatment log.', 'error');
+        } finally {
+            setIsSubmittingLog(false);
         }
     };
 
-    const formatDate = (d) => d
-        ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
-        : '—';
+    const filteredLogs = logs.filter(log => {
+        const searchLower = logsSearchQuery.toLowerCase();
+        const matchesSearch = (log.procedure || '').toLowerCase().includes(searchLower) || (log.notes || '').toLowerCase().includes(searchLower);
+        const matchesCategory = logsCategory === 'All' || log.category === logsCategory;
+        
+        let matchesDate = true;
+        if (logsDateFrom) matchesDate = matchesDate && log.rawDate >= new Date(logsDateFrom);
+        if (logsDateTo) {
+            const end = new Date(logsDateTo);
+            end.setHours(23, 59, 59, 999);
+            matchesDate = matchesDate && log.rawDate <= end;
+        }
+        return matchesSearch && matchesCategory && matchesDate;
+    });
 
-    if (isLoading) {
-        return (
-            <div className={styles.loadingContainer}>
-                <div className={styles.loadingSpinner}></div>
-                <p>Loading patient EMR...</p>
+    const renderTreatmentLogs = () => (
+        <div className={styles.contentCard}>
+            <div className={styles.sectionHeaderRow} style={{ marginBottom: '20px' }}>
+                <h3 className={styles.sectionTitle}>Treatment & Activity Timeline</h3>
+                <button className={styles.actionBtn} onClick={() => setIsAddLogOpen(true)}>
+                    <FaPlus /> Add Log
+                </button>
             </div>
-        );
-    }
 
-    return (
-        <div className={styles.emrContainer}>
-            {/* Header */}
-            <div className={styles.emrHeader}>
-                <button className={styles.backBtn} onClick={() => navigate(-1)}>← Back to Patients</button>
-                <div className={styles.patientInfo}>
-                    <div className={styles.patientAvatar}>
-                        {patient?.name?.first?.[0]}{patient?.name?.last?.[0]}
+            <div className={styles.controlsRow}>
+                <div className={styles.searchFilterGroup}>
+                    <div className={styles.searchWrapper}>
+                        <FaSearch className={styles.searchIcon} />
+                        <input 
+                            type="text" placeholder="Search procedures or notes..." 
+                            className={styles.searchInput} value={logsSearchQuery} 
+                            onChange={(e) => setLogsSearchQuery(e.target.value)} 
+                        />
                     </div>
-                    <div>
-                        <h1 className={styles.patientName}>
-                            {patient?.name?.first} {patient?.name?.last}
-                        </h1>
-                        <div className={styles.patientMeta}>
-                            <span>{patient?.email}</span>
-                            <span className={styles.metaDot}>·</span>
-                            <span>{patient?.contactNumber || 'No phone'}</span>
-                            <span className={styles.metaDot}>·</span>
-                            <span>DOB: {formatDate(patient?.birthdate)}</span>
-                        </div>
+                    
+                    <select className={styles.filterSelect} value={logsCategory} onChange={(e) => setLogsCategory(e.target.value)}>
+                        <option value="All">All Categories</option>
+                        <option value="Prophylaxis">Prophylaxis</option>
+                        <option value="Restoration">Restoration</option>
+                        <option value="Extraction">Extraction</option>
+                        <option value="Orthodontics">Orthodontics</option>
+                        <option value="General">General</option>
+                    </select>
+
+                    <div className={styles.dateFilterWrapper}>
+                        <input type="date" className={styles.dateInput} value={logsDateFrom} onChange={(e) => setLogsDateFrom(e.target.value)} title="From Date" />
+                        <span className={styles.dateSeparator}>-</span>
+                        <input type="date" className={styles.dateInput} value={logsDateTo} onChange={(e) => setLogsDateTo(e.target.value)} title="To Date" />
                     </div>
                 </div>
             </div>
 
-            {error && <div className={styles.errorBanner}>{error}</div>}
+            <div className={styles.timeline}>
+                {filteredLogs.length > 0 ? (
+                    filteredLogs.map(log => {
+                        const isExpanded = !!expandedLogs[log.id];
+                        return (
+                            <div key={log.id} className={styles.timelineItem}>
+                                <div className={styles.timelineDot}></div>
+                                <div className={styles.timelineCard}>
+                                    <div className={styles.timelineHeader} onClick={(e) => toggleLogExpand(log.id, e)}>
+                                        <div className={styles.timelineMain}>
+                                            <h4 className={styles.timelineDate}>{formatDateLong(log.rawDate.toISOString())}</h4>
+                                            <p className={styles.timelineProcedure}>{log.procedure}</p>
+                                            
+                                            <div className={styles.timelineMeta}>
+                                                <span className={styles.metaTag} title="Attending Dentist">
+                                                    <FaUserMd className={styles.metaIcon}/> {log.doctor || log.dentist || 'N/A'}
+                                                </span>
+                                                <span className={styles.metaTag} title="Branch">
+                                                    <FaHospitalUser className={styles.metaIcon}/> {log.branch} Branch
+                                                </span>
+                                            </div>
+                                        </div>
 
-            {/* Tabs */}
-            <div className={styles.tabBar}>
-                {TABS.map(tab => (
-                    <button
-                        key={tab}
-                        className={`${styles.tabBtn} ${activeTab === tab ? styles.tabActive : ''}`}
-                        onClick={() => { setActiveTab(tab); setError(''); setUploadSuccess(''); }}
-                    >
-                        {tab}
-                    </button>
-                ))}
+                                        <button className={styles.expandBtn}>
+                                            {isExpanded ? 'Hide Details' : 'View Details'}
+                                            {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                                        </button>
+                                    </div>
+
+                                    {isExpanded && (
+                                        <div className={styles.timelineDetails}>
+                                            <div className={styles.detailGrid}>
+                                                <div className={styles.detailBlock}>
+                                                    <span className={styles.detailLabel}>Treated Tooth #</span>
+                                                    <p className={styles.detailValue}>
+                                                        <FaTooth style={{ color: '#01538b', marginRight: '6px' }}/> {log.tooth}
+                                                    </p>
+                                                </div>
+                                                <div className={styles.detailBlock}>
+                                                    <span className={styles.detailLabel}>Clinical Notes & Remarks</span>
+                                                    <p className={styles.detailValue}>{log.notes}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })
+                ) : (
+                    <div className={styles.emptyState}>No treatment logs match the current filters.</div>
+                )}
             </div>
 
-            <div className={styles.tabContent}>
-
-                {/* ── TREATMENT NOTES ── */}
-                {activeTab === 'Treatment Notes' && (
-                    <div className={styles.section}>
-                        <h3 className={styles.sectionTitle}>Treatment Notes</h3>
-                        {treatmentNotes.length === 0 ? (
-                            <p className={styles.emptyText}>No treatment notes recorded yet.</p>
-                        ) : (
-                            <div className={styles.notesList}>
-                                {treatmentNotes.map((note, i) => (
-                                    <div key={note._id || i} className={styles.noteCard}>
-                                        <div className={styles.noteDate}>{formatDate(note.date)}</div>
-                                        <div className={styles.noteProcedure}>
-                                            <strong>{note.procedure || 'Treatment'}</strong>
-                                            {note.tooth && <span style={{ color: '#64748b', fontSize: '13px', marginLeft: '8px' }}>Tooth {note.tooth}</span>}
-                                        </div>
-                                        {note.dentistName && (
-                                            <div className={styles.noteDentist}>{note.dentistName}</div>
-                                        )}
-                                        {note.branch && <div className={styles.noteBranch}>Branch: {note.branch}</div>}
-                                        {note.notes && <p className={styles.noteText}>{note.notes}</p>}
-                                        <div className={styles.noteStatus}>
-                                            <span className={styles[`status_${(note.category || 'Other').replace(/\s/g, '_')}`]}>
-                                                {note.category || 'Other'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
+            {/* ADD LOG MODAL */}
+            {isAddLogOpen && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard} style={{ maxWidth: '500px' }}>
+                        <h3 className={styles.modalTitle} style={{ textAlign: 'left', border: 'none', padding: 0, marginBottom: '20px' }}>Add Treatment Log</h3>
+                        <form onSubmit={handleAddLogSubmit} style={{ textAlign: 'left' }}>
+                            <div className={styles.formGroup}>
+                                <label>Date of Procedure <span style={{color:'red'}}>*</span></label>
+                                <input type="date" required className={styles.inputField} value={newLogForm.date} onChange={(e) => setNewLogForm({...newLogForm, date: e.target.value})} />
                             </div>
-                        )}
+                            <div className={styles.formGrid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                <div className={styles.formGroup}>
+                                    <label>Procedure Name <span style={{color:'red'}}>*</span></label>
+                                    <input type="text" required className={styles.inputField} value={newLogForm.procedure} onChange={(e) => setNewLogForm({...newLogForm, procedure: e.target.value})} placeholder="e.g. Extraction" />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>Category <span style={{color:'red'}}>*</span></label>
+                                    <select required className={styles.inputField} value={newLogForm.category} onChange={(e) => setNewLogForm({...newLogForm, category: e.target.value})}>
+                                        <option value="General">General</option>
+                                        <option value="Prophylaxis">Prophylaxis</option>
+                                        <option value="Restoration">Restoration</option>
+                                        <option value="Extraction">Extraction</option>
+                                        <option value="Orthodontics">Orthodontics</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Tooth Number(s)</label>
+                                <input type="text" className={styles.inputField} value={newLogForm.tooth} onChange={(e) => setNewLogForm({...newLogForm, tooth: e.target.value})} placeholder="e.g. 45, 46 or All" />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Clinical Notes <span style={{color:'red'}}>*</span></label>
+                                <textarea required className={styles.textareaField} value={newLogForm.notes} onChange={(e) => setNewLogForm({...newLogForm, notes: e.target.value})} placeholder="Describe the procedure, patient condition, etc." />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Branch <span style={{color:'red'}}>*</span></label>
+                                <select
+                                    required
+                                    className={styles.inputField}
+                                    value={newLogForm.branchId}
+                                    onChange={(e) => setNewLogForm({...newLogForm, branchId: e.target.value})}
+                                >
+                                    <option value="" disabled hidden>Select Branch</option>
+                                    {branches.map(b => (
+                                        <option key={b._id} value={b.name}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={styles.modalButtonGroup}>
+                                <button type="button" className={styles.cancelBtn} onClick={() => setIsAddLogOpen(false)} disabled={isSubmittingLog}>Cancel</button>
+                                <button type="submit" className={styles.saveBtn} disabled={isSubmittingLog}>
+                                    {isSubmittingLog ? 'Saving...' : 'Save Log'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                )}
+                </div>
+            )}
+        </div>
+    );
 
-                {/* ── ODONTOGRAM ── */}
-                {activeTab === 'Odontogram' && (
-                    <div className={styles.section}>
-                        <h3 className={styles.sectionTitle}>Odontogram</h3>
-                        <div className={styles.odontogramPlaceholder}>
-                            <div className={styles.odontogramGrid}>
-                                <div className={styles.quadrantLabel}>Upper Right</div>
-                                <div className={styles.quadrantLabel}>Upper Left</div>
-                                {[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28].map(tooth => (
-                                    <div key={tooth} className={styles.toothBox} title={`Tooth ${tooth}`}>
-                                        <span className={styles.toothNum}>{tooth}</span>
-                                    </div>
-                                ))}
-                                <div className={styles.quadrantDivider}></div>
-                                {[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38].map(tooth => (
-                                    <div key={tooth} className={styles.toothBox} title={`Tooth ${tooth}`}>
-                                        <span className={styles.toothNum}>{tooth}</span>
-                                    </div>
-                                ))}
-                                <div className={styles.quadrantLabel}>Lower Right</div>
-                                <div className={styles.quadrantLabel}>Lower Left</div>
-                            </div>
-                            <p className={styles.odontogramNote}>
-                                Read-only view — detailed odontogram is managed by the dentist's EMR.
-                            </p>
-                        </div>
-                    </div>
-                )}
+    // --- TAB 4 LOGIC (RADIOGRAPHS) ---
+    const openRadiograph = (img) => {
+        setSelectedRadiograph(img);
+        setIsEnhancing(false);
+        setIsEnhanced(false);
+    };
 
-                {/* ── PATIENT HISTORY ── */}
-                {/* ✅ FIX 2: Uses `patient` state from GET /patients/:id — no separate /history endpoint */}
-                {activeTab === 'Patient History' && (
-                    <div className={styles.section}>
-                        <h3 className={styles.sectionTitle}>Patient History</h3>
-                        <div className={styles.historyGrid}>
-                            <div className={styles.historyCard}>
-                                <h4>Medical History</h4>
-                                <p>{patient?.medicalHistory?.conditions?.join(', ') || 'No medical conditions recorded.'}</p>
-                            </div>
-                            <div className={styles.historyCard}>
-                                <h4>Allergies</h4>
-                                {(patient?.medicalHistory?.allergies || []).length > 0 ? (
-                                    <ul>
-                                        {patient.medicalHistory.allergies.map((a, i) => <li key={i}>{a}</li>)}
-                                    </ul>
-                                ) : <p>No known allergies.</p>}
-                            </div>
-                            <div className={styles.historyCard}>
-                                <h4>Personal Info</h4>
-                                <p><strong>Gender:</strong> {patient?.gender || '—'}</p>
-                                <p><strong>Date of Birth:</strong> {formatDate(patient?.birthdate)}</p>
-                                <p><strong>Contact:</strong> {patient?.contactNumber || '—'}</p>
-                            </div>
-                            <div className={styles.historyCard}>
-                                <h4>Address</h4>
-                                {patient?.currentAddress ? (
-                                    <>
-                                        <p>{patient.currentAddress.houseNumber} {patient.currentAddress.street}</p>
-                                        <p>{patient.currentAddress.barangay}, {patient.currentAddress.city}</p>
-                                        <p>{patient.currentAddress.province}, {patient.currentAddress.region}</p>
-                                    </>
-                                ) : <p>No address on file.</p>}
-                            </div>
-                        </div>
-                    </div>
-                )}
+    const closeImageModal = () => {
+        setSelectedRadiograph(null);
+        setIsEnhancing(false);
+        setIsEnhanced(false);
+    };
 
-                {/* ── RADIOGRAPH IMAGES ── */}
-                {activeTab === 'Radiograph Images' && (
-                    <div className={styles.section}>
-                        <div className={styles.radiographHeader}>
-                            <h3 className={styles.sectionTitle}>Radiograph Images</h3>
-                            {/* ✅ FIX 3 & 4: Upload form now includes required label + date fields */}
-                            <div className={styles.uploadArea}>
-                                <input
-                                    type="text"
-                                    placeholder="Label (e.g. Periapical X-ray) *"
-                                    value={uploadLabel}
-                                    onChange={e => setUploadLabel(e.target.value)}
-                                    className={styles.uploadNoteInput}
-                                    disabled={isUploading}
-                                    style={{ width: '220px' }}
-                                />
-                                <input
-                                    type="date"
-                                    value={uploadDate}
-                                    onChange={e => setUploadDate(e.target.value)}
-                                    className={styles.uploadNoteInput}
-                                    disabled={isUploading}
-                                    style={{ width: '150px' }}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Notes (optional)"
-                                    value={uploadNotes}
-                                    onChange={e => setUploadNotes(e.target.value)}
-                                    className={styles.uploadNoteInput}
-                                    disabled={isUploading}
-                                    style={{ width: '180px' }}
-                                />
-                                <label className={styles.uploadBtn}>
-                                    {isUploading ? 'Uploading...' : '+ Upload'}
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        style={{ display: 'none' }}
-                                        onChange={handleRadiographUpload}
-                                        disabled={isUploading}
-                                    />
-                                </label>
+    const handleAIEnhance = () => {
+        if (isEnhanced) {
+            setIsEnhanced(false);
+            return;
+        }
+        setIsEnhancing(true);
+        setTimeout(() => {
+            setIsEnhancing(false);
+            setIsEnhanced(true);
+            addToast("AI Enhancement applied successfully.", "success");
+        }, 1500);
+    };
+
+    // ✅ FIX Bug 23: Use `radiographs` state instead of MOCK_RADIOGRAPHS
+    const renderRadiographs = () => {
+        if (selectedRadiograph) {
+            return (
+                <div className={styles.contentCard}>
+                    <div className={styles.imageViewerContainer}>
+                        <div className={styles.imageViewerHeader}>
+                            <button className={styles.backToGalleryBtn} onClick={closeImageModal}>
+                                <FaArrowLeft /> Back to Gallery
+                            </button>
+                            <div className={styles.imageViewerTitleBox}>
+                                <h3 className={styles.sectionTitle} style={{ margin: 0, borderLeft: 'none', paddingLeft: 0 }}>
+                                    {selectedRadiograph.type}
+                                </h3>
+                                <p className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {formatDateShort(selectedRadiograph.rawDate)}</p>
                             </div>
                         </div>
 
-                        {uploadSuccess && <div className={styles.successBanner}>{uploadSuccess}</div>}
+                        <div className={styles.largeRadiographWrapper}>
+                            <img 
+                                src={selectedRadiograph.url} 
+                                alt={selectedRadiograph.type} 
+                                className={`${styles.largeRadiograph} ${isEnhanced ? styles.enhancedImage : ''}`}
+                            />
+                            {isEnhancing && (
+                                <div className={styles.loadingOverlay}>
+                                    <FaRobot className={styles.spinningIcon} />
+                                    <span>AI is clarifying image...</span>
+                                </div>
+                            )}
+                        </div>
 
-                        {radiographs.length === 0 ? (
-                            <div className={styles.emptyRadiograph}>
-                                <p>No radiograph images uploaded yet.</p>
-                                <p style={{ fontSize: '13px', color: '#94a3b8' }}>
-                                    Enter a label and date above, then upload an X-ray or dental image.
-                                </p>
+                        <div className={styles.imageViewerControls}>
+                            <button 
+                                className={styles.aiEnhanceBtn} 
+                                onClick={handleAIEnhance}
+                                disabled={isEnhancing}
+                            >
+                                {isEnhancing ? (
+                                    <>Processing...</>
+                                ) : isEnhanced ? (
+                                    <><FaMagic /> Revert to Original</>
+                                ) : (
+                                    <><FaMagic /> AI Enhance Clarity</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className={styles.contentCard}>
+                <div className={styles.sectionHeaderRow}>
+                    <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Dental Radiographs (X-Rays)</h3>
+                    <button className={styles.uploadBtn} onClick={() => addToast('Upload functionality coming soon!', 'info')}>
+                        <FaUpload /> Upload Radiograph
+                    </button>
+                </div>
+
+                {radiographs.length > 0 ? (
+                    <div className={styles.radiographGrid}>
+                        {radiographs.map(img => (
+                            <div key={img.id} className={styles.radioCard} onClick={() => openRadiograph(img)}>
+                                <div className={styles.radioThumbnailWrapper}>
+                                    <img src={img.url} alt={img.type} className={styles.radioThumbnail} />
+                                </div>
+                                <div className={styles.radioMeta}>
+                                    <h4 className={styles.radioType}>{img.type}</h4>
+                                    <span className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {formatDateShort(img.rawDate)}</span>
+                                </div>
                             </div>
-                        ) : (
-                            <div className={styles.radiographGallery}>
-                                {radiographs.map((r, i) => (
-                                    <div key={r._id || i} className={styles.radiographCard}>
-                                        <div className={styles.radiographImageWrapper}>
-                                            {/* ✅ FIX 4: server stores as `url`, not `imageUrl` */}
-                                            <img
-                                                src={r.url}
-                                                alt={r.label || `Radiograph ${i + 1}`}
-                                                className={styles.radiographImage}
-                                            />
-                                        </div>
-                                        <div className={styles.radiographMeta}>
-                                            <p className={styles.radiographNote}><strong>{r.label}</strong></p>
-                                            {r.notes && <p className={styles.radiographNote} style={{ fontSize: '12px' }}>{r.notes}</p>}
-                                            {/* ✅ FIX: server stores as `date`, not `uploadedAt` */}
-                                            <p className={styles.radiographDate}>{formatDate(r.date)}</p>
-                                            <button
-                                                className={styles.deleteRadiographBtn}
-                                                onClick={() => handleDeleteRadiograph(r._id)}
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        ))}
+                    </div>
+                ) : (
+                    <div className={styles.emptyState}>
+                        No radiographs or imaging records found for this patient.
                     </div>
                 )}
+            </div>
+        );
+    };
+
+    const renderOdontogram = () => (
+        <div className={styles.contentCard}>
+            <div className={styles.sectionHeaderRow}>
+                <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Interactive Dental Chart</h3>
+            </div>
+            <Odontogram patientId={activePatientId} /> 
+        </div>
+    );
+
+    if (isLoading) {
+        return (
+            <main className={styles['main-content']}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#01538b', fontWeight: 'bold' }}>Loading Electronic Medical Record...</div>
+            </main>
+        );
+    }
+
+    if (!patient) {
+        return (
+            <main className={styles['main-content']}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#ef4444', fontWeight: 'bold' }}>Patient record not found.</div>
+            </main>
+        );
+    }
+
+    const modalWrapperStyle = onClose ? {
+        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+    } : {};
+
+    const innerContent = (
+        <div className={onClose ? styles.formCard : ''} style={onClose ? { backgroundColor: '#f4f7fa' } : {}}>
+            <div className={styles.headerWrapper}>
+                <div className={styles.headerLeft}>
+                    <button className={styles.backIconButton} onClick={handleBack} title="Back">
+                        {onClose ? <FaTimes /> : <FaArrowLeft />}
+                    </button>
+                    <div className={styles.header}>
+                        <h1 className={styles.title}>Electronic Medical Record</h1>
+                        <p className={styles.subtitle}>Comprehensive clinical profile and treatment history</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.profileHeaderCard}>
+                <UserAvatar user={{ name: patient.name, profileImage: patient.profileImage }} size={90} style={{ border: '3px solid #e0f2fe', boxShadow: '0 4px 10px rgba(1,83,139,0.1)' }} />
+                <div className={styles.patientMainInfo}>
+                    <div className={styles.nameRow}>
+                        <h2 className={styles.patientName}>
+                            {patient.name?.first ? `${patient.name.first} ${patient.name.last}` : patient.name}
+                        </h2>
+                        <span className={`${styles.branchBadge} ${patient.primaryBranch === 'Rizal' ? styles.rizal : ''}`}>{patient.primaryBranch} Branch</span>
+                        <span className={styles.patientId}>ID: {patient._id || patient.id}</span>
+                    </div>
+                    <div className={styles.metaRow}>
+                        <span className={styles.metaItem}><FaUserMd className={styles.metaIcon} /> {patient.gender}, {patient.age} y/o (DOB: {formatDateShort(patient.dob)})</span>
+                        <span className={styles.metaItem}><FaPhoneAlt className={styles.metaIcon} /> {patient.phone}</span>
+                        <span className={styles.metaItem}><FaEnvelope className={styles.metaIcon} /> {patient.email}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.tabContainer}>
+                <button className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.active : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
+                <button className={`${styles.tabBtn} ${activeTab === 'medical' ? styles.active : ''}`} onClick={() => setActiveTab('medical')}>Treatment Logs</button>
+                <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Dental Chart</button>
+                <button className={`${styles.tabBtn} ${activeTab === 'radiographs' ? styles.active : ''}`} onClick={() => setActiveTab('radiographs')}>Radiographs</button>
+            </div>
+
+            <div className={styles.tabContentArea}>
+                {activeTab === 'overview' && renderOverview()}
+                {activeTab === 'medical' && renderTreatmentLogs()}
+                {activeTab === 'odontogram' && renderOdontogram()}
+                {activeTab === 'radiographs' && renderRadiographs()}
             </div>
         </div>
     );
-};
 
-export default PatientEMR;
+    if (onClose) {
+        return (
+            <div style={modalWrapperStyle}>
+                <div className={styles.overlayBackground} onClick={onClose}></div>
+                {innerContent}
+            </div>
+        );
+    }
+
+    return <main className={styles['main-content']}>{innerContent}</main>;
+}

@@ -1,3 +1,5 @@
+// ngitify-web/src/pages/dentist/MaterialUsageLog.js
+
 import React, { useState, useEffect } from 'react';
 import styles from '../../styles/dentist/MaterialUsageLog.module.css';
 import { FaBoxOpen, FaTrash, FaPlus } from 'react-icons/fa';
@@ -7,30 +9,24 @@ import { formatDateShort } from '../../utils/dateUtils';
 
 export default function MaterialUsageLog({ appointment, onClose, onSuccess }) {
     const { addToast } = useToast();
-    
+
     // States
     const [inventoryList, setInventoryList] = useState([]);
     const [usedMaterials, setUsedMaterials] = useState([{ itemId: '', quantity: 1 }]);
     const [isSubmittingLog, setIsSubmittingLog] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetch real inventory data on mount
+    // ✅ FIX Bug 25: Fetch real inventory from API instead of using MOCK_INVENTORY
     useEffect(() => {
         const fetchInventory = async () => {
             try {
-                // Future Implementation: const res = await authFetch('/inventory');
-                // Temporarily bypassing actual fetch for UI testing continuity
-                const MOCK_INVENTORY = [
-                    { id: 'inv1', name: 'Lidocaine 2% Carpule', unit: 'pcs', stock: 150 },
-                    { id: 'inv2', name: 'Composite Resin (A2)', unit: 'grams', stock: 45 },
-                    { id: 'inv3', name: 'Disposable Latex Gloves', unit: 'pairs', stock: 300 },
-                    { id: 'inv4', name: 'Sterile Gauze Pads', unit: 'packs', stock: 200 },
-                    { id: 'inv5', name: 'Prophylaxis Paste', unit: 'cups', stock: 80 },
-                ];
-                setInventoryList(MOCK_INVENTORY);
+                const res = await authFetch('/inventory');
+                if (!res.ok) throw new Error('Failed to load inventory.');
+                const data = await res.json();
+                setInventoryList(data);
             } catch (error) {
-                console.error("Error fetching inventory:", error);
-                addToast("Failed to load inventory data.", "error");
+                console.error('Error fetching inventory:', error);
+                addToast('Failed to load inventory data.', 'error');
             } finally {
                 setIsLoading(false);
             }
@@ -49,40 +45,41 @@ export default function MaterialUsageLog({ appointment, onClose, onSuccess }) {
         });
     };
 
+    // ✅ FIX Bug 25: PATCH real /inventory/deduct endpoint instead of simulating with setTimeout
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        // Validation
+
         const isValid = usedMaterials.every(m => m.itemId && m.quantity > 0);
         if (!isValid) {
-            addToast("Please select an item and valid quantity for all rows.", "error");
+            addToast('Please select an item and valid quantity for all rows.', 'error');
             return;
         }
 
         setIsSubmittingLog(true);
-
         try {
             const payload = {
                 appointmentId: appointment.id || appointment._id,
                 patientId: appointment.patientId,
                 itemsUsed: usedMaterials.map(m => ({
                     inventoryId: m.itemId,
-                    quantityUsed: Number(m.quantity)
-                }))
+                    quantityUsed: Number(m.quantity),
+                })),
             };
 
-            // Future implementation: await authFetch('/inventory/deduct', { method: 'POST', body: JSON.stringify(payload) });
-            
-            // Simulating API latency
-            setTimeout(() => {
-                addToast(`Materials successfully logged and deducted from inventory.`, "success");
-                if (onSuccess) onSuccess(); // Ping parent component to refresh data if needed
-                onClose(); // Close Modal
-            }, 800);
+            const res = await authFetch('/inventory/deduct', {
+                method: 'PATCH',
+                body: JSON.stringify(payload),
+            });
 
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to log materials.');
+
+            addToast('Materials successfully logged and deducted from inventory.', 'success');
+            if (onSuccess) onSuccess();
+            onClose();
         } catch (error) {
-            console.error("Material Log Error:", error);
-            addToast("Cannot connect to server.", "error");
+            console.error('Material Log Error:', error);
+            addToast(error.message || 'Cannot connect to server.', 'error');
+        } finally {
             setIsSubmittingLog(false);
         }
     };
@@ -109,7 +106,7 @@ export default function MaterialUsageLog({ appointment, onClose, onSuccess }) {
                         <div style={{ maxHeight: '280px', overflowY: 'auto', paddingRight: '5px', marginBottom: '15px' }}>
                             {usedMaterials.map((row, idx) => (
                                 <div key={idx} className={styles.materialRow}>
-                                    <select 
+                                    <select
                                         className={styles.materialSelect}
                                         required
                                         value={row.itemId}
@@ -118,15 +115,15 @@ export default function MaterialUsageLog({ appointment, onClose, onSuccess }) {
                                     >
                                         <option value="" disabled hidden>Select item from inventory...</option>
                                         {inventoryList.map(item => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name} ({item.stock} {item.unit} available)
+                                            <option key={item._id || item.id} value={item._id || item.id}>
+                                                {item.name} ({item.stock ?? item.quantity} {item.unit} available)
                                             </option>
                                         ))}
                                     </select>
-                                    
-                                    <input 
-                                        type="number" 
-                                        min="1" 
+
+                                    <input
+                                        type="number"
+                                        min="1"
                                         placeholder="Qty"
                                         className={styles.qtyInput}
                                         required
@@ -135,8 +132,8 @@ export default function MaterialUsageLog({ appointment, onClose, onSuccess }) {
                                         disabled={isSubmittingLog}
                                     />
 
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         className={styles.removeBtn}
                                         onClick={() => handleRemoveRow(idx)}
                                         disabled={usedMaterials.length === 1 || isSubmittingLog}

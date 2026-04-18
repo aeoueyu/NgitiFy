@@ -24,24 +24,34 @@ const PROCEDURE_OPTIONS = [
 ];
 
 // ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
+// ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
+// ✅ FIX Bug 27: Map 'in-clinic' (DB value) → 'In Clinic' (display label)
+const STATUS_DISPLAY_MAP = {
+    'pending':   'Pending',
+    'confirmed': 'Confirmed',
+    'in-clinic': 'In Clinic',
+    'completed': 'Completed',
+    'cancelled': 'Cancelled',
+};
+
 const normalizeSurgery = (s) => ({
-    id: s._id,
-    patientId: s.patient?._id || s.patient,
-    patientName: s.patient?.name
+    id:           s._id,
+    patientId:    s.patient?._id || s.patient,
+    patientName:  s.patient?.name
         ? `${s.patient.name.first} ${s.patient.name.last}`
         : 'Unknown Patient',
     patientImage: s.patient?.profileImage || null,
-    dentistId: s.dentist?._id || s.dentist,
-    dentistName: s.dentist?.name
+    dentistId:    s.dentist?._id || s.dentist,
+    dentistName:  s.dentist?.name
         ? `Dr. ${s.dentist.name.first} ${s.dentist.name.last}`
         : 'Unassigned',
-    procedure: s.procedure || '—',
-    status: s.status ? (s.status.charAt(0).toUpperCase() + s.status.slice(1)) : 'Pending',
-    time: s.time || '',
-    duration: s.duration || '—',
-    source: s.source || 'Walk-in',
-    rawDate: new Date(s.date),
-    notes: s.notes || '',
+    procedure:    s.procedure || '—',
+    status:       STATUS_DISPLAY_MAP[s.status] || 'Pending',
+    time:         s.time     || '',
+    duration:     s.duration || '—',
+    source:       s.source   || 'Walk-in',
+    rawDate:      new Date(s.date),
+    notes:        s.notes    || '',
 });
 
 export default function SecretaryAppointments() {
@@ -153,16 +163,28 @@ export default function SecretaryAppointments() {
     };
 
     // Confirmed status change → hit backend
+    // ✅ FIX Bug 27: Map display label back to the DB enum value before sending to API
+    const STATUS_API_MAP = {
+        'Pending':   'pending',
+        'Confirmed': 'confirmed',
+        'In Clinic': 'in-clinic',
+        'Completed': 'completed',
+        'Cancelled': 'cancelled',
+    };
+
+// Confirmed status change → hit backend
     const confirmStatusChange = async () => {
         if (!statusChangeTarget) return;
         const { apt, newStatus } = statusChangeTarget;
         try {
             const res = await authFetch(`/surgeries/${apt.id}/status`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: newStatus.toLowerCase() }),
+                body: JSON.stringify({ status: STATUS_API_MAP[newStatus] || newStatus.toLowerCase() }),
             });
             if (!res.ok) throw new Error();
-            setAllAppointments(prev => prev.map(a => a.id === apt.id ? { ...a, status: newStatus } : a));
+            setAllAppointments(prev =>
+                prev.map(a => a.id === apt.id ? { ...a, status: newStatus } : a)
+            );
             addToast(`${apt.patientName}'s appointment updated to ${newStatus}.`, 'success');
         } catch {
             addToast('Failed to update appointment status.', 'error');
