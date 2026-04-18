@@ -15,7 +15,7 @@ export class User {
     this.firstName = firstName;
     this.lastName = lastName;
     this.email = email;
-    this.role = role; // 'owner', 'co-owner', 'dentist', 'secretary', 'patient'
+    this.role = role;
     this.permissions = permissions; // Task 15 Fix: Assign permissions
     this.contactNumber = contactNumber;
     this.status = status;
@@ -27,8 +27,7 @@ export class User {
     return `${this.firstName} ${this.lastName}`.trim();
   }
 
-  isAdmin() {
-    // Proactive Fix: Ensure co-owners are also treated as admins in the UI
-    return this.role === 'owner' || this.role === 'co-owner';
+  get isAdmin() {
+    return this.role === 'administrator' || this.role === 'co-administrator' || this.role === 'branch-manager';
   }
 }
