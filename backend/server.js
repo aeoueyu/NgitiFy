@@ -14,7 +14,7 @@ const verifyToken = require('./middleware/auth');
 // Import Model
 const User = require('./models/User'); 
 const AuditLog = require('./models/AuditLog'); 
-const Patient = require('./models/Patient');
+// Patient model removed — patients use the User model (role: 'patient')
 const Surgery = require('./models/Surgery');
 const Inventory = require('./models/Inventory');
 const Notification = require('./models/Notification');
@@ -540,15 +540,34 @@ app.get('/api/users', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
-        const patients = await User.find({ role: 'patient' }).select('-password');
-        res.json(patients);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const skip = (page - 1) * limit;
+
+        const patients = await User.find({ role: 'patient' })
+            .select('-password')
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 });
+
+        const total = await User.countDocuments({ role: 'patient' });
+
+        res.json({ patients, total, page, pages: Math.ceil(total / limit) });
     } catch (error) {
         res.status(500).json({ message: "Server error." });
     }
 });
 
 app.get('/api/patients/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const patient = await User.findById(req.params.id).select('-password');
         if (!patient) return res.status(404).json({ message: "Patient not found" });
@@ -560,11 +579,33 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
 
 app.put('/api/patients/:id', verifyToken, async (req, res) => {
     try {
-        const { password, email, ...updateData } = req.body;
+        const { email } = req.body;
         const patientId = req.params.id;
 
         const currentPatient = await User.findById(patientId);
         if (!currentPatient) return res.status(404).json({ message: "Patient not found" });
+
+        const {
+            name,
+            contactNumber,
+            birthdate,
+            gender,
+            currentAddress,
+            permanentAddress,
+            medicalHistory,
+            guardian
+        } = req.body;
+
+        const updateData = {
+            name,
+            contactNumber,
+            birthdate,
+            gender,
+            currentAddress,
+            permanentAddress,
+            medicalHistory,
+            guardian
+        };
 
         if (email && email !== currentPatient.email) {
             const emailExists = await User.findOne({ email, _id: { $ne: patientId } });
@@ -696,6 +737,40 @@ app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => 
     }
 });
 
+app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
+    try {
+        const staffUser = await User.findById(req.params.id);
+        if (!staffUser) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const activationToken = crypto.randomBytes(32).toString('hex');
+        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        staffUser.activationToken = activationToken;
+        staffUser.temporaryPasswordExpires = temporaryPasswordExpires;
+        staffUser.isVerified = false;
+        staffUser.status = 'inactive';
+        await staffUser.save();
+
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+        await sendActivationEmail(staffUser.email, staffUser.role, null, activationLink);
+
+        await AuditLog.create({
+            action: 'RESEND_ACTIVATION',
+            user: req.user?.email || req.user?.id || 'ADMIN',
+            role: req.user?.role || 'administrator',
+            details: `Resent activation email to ${staffUser.role} ${staffUser.email}`
+        });
+
+        res.json({ message: 'Activation email has been resent successfully.' });
+
+    } catch (error) {
+        console.error('Error resending staff activation email:', error);
+        res.status(500).json({ message: 'Server error while resending activation email.' });
+    }
+});
+
 app.put('/api/user/:id', verifyToken, async (req, res) => {
     try {
         const { password, email, ...updateData } = req.body;
@@ -722,6 +797,13 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
             await sendActivationEmail(email, currentUser.role, tempPassword, activationLink);
 
+            await AuditLog.create({
+                action: 'EMAIL_CHANGE',
+                user: req.user?.email,
+                role: req.user?.role,
+                details: `Changed email for user ID ${userId} to ${email}`
+            });
+
             return res.json({ message: "User updated. Re-activation email sent.", user: updatedUser });
         }
 
@@ -739,6 +821,9 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
 });
 
 app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
+    if (req.params.id !== req.user.id && req.user.role !== 'administrator') {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const userId = req.params.id;
         const { 
@@ -907,8 +992,8 @@ app.post('/api/change-password', verifyToken, async (req, res) => {
 
 app.post('/api/verify-password', verifyToken, async (req, res) => {
     try {
-        const { userId, password } = req.body;
-        const user = await User.findById(userId);
+        const { password } = req.body;
+        const user = await User.findById(req.user.id);
         if (!user) return res.status(404).json({ message: "User not found." });
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -960,12 +1045,25 @@ app.get('/api/inventory', verifyToken, async (req, res) => {
 });
 
 app.post('/api/inventory', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const newItem = new Inventory(req.body);
         await newItem.save();
+        await AuditLog.create({
+            action: 'ADD_INVENTORY',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Added inventory item: ${newItem.itemName}`
+        });
         res.status(201).json(newItem);
     } catch (error) {
         console.error("Error adding inventory item:", error);
+        if (error.code === 11000) {
+            return res.status(409).json({ message: 'An item with this name already exists.' });
+        }
         res.status(500).json({ message: "Server error adding item" });
     }
 });
@@ -987,6 +1085,10 @@ app.get('/api/inventory/:id', verifyToken, async (req, res) => {
 });
 
 app.put('/api/inventory/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const updatedItem = await Inventory.findByIdAndUpdate(
             req.params.id, 
@@ -994,6 +1096,12 @@ app.put('/api/inventory/:id', verifyToken, async (req, res) => {
             { returnDocument: 'after', runValidators: true } 
         );
         if (!updatedItem) return res.status(404).json({ message: "Item not found" });
+        await AuditLog.create({
+            action: 'UPDATE_INVENTORY',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Updated inventory item: ${updatedItem.itemName}`
+        });
         res.status(200).json(updatedItem);
     } catch (error) {
         console.error("Error updating inventory item:", error);
@@ -1002,9 +1110,19 @@ app.put('/api/inventory/:id', verifyToken, async (req, res) => {
 });
 
 app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const deletedItem = await Inventory.findByIdAndDelete(req.params.id);
         if (!deletedItem) return res.status(404).json({ message: "Item not found" });
+        await AuditLog.create({
+            action: 'DELETE_INVENTORY',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Deleted inventory item: ${deletedItem.itemName}`
+        });
         res.status(200).json({ message: "Item deleted successfully" });
     } catch (error) {
         console.error("Error deleting inventory item:", error);
@@ -1016,6 +1134,10 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
 // CREATE SURGERY / APPOINTMENT
 // -------------------------------------------------------
 app.post('/api/surgeries', verifyToken, async (req, res) => {
+    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    if (!staffRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const newSurgery = new Surgery(req.body);
         await newSurgery.save();
@@ -1070,6 +1192,10 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
 });
 
 app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
+    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    if (!staffRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const deletedSurgery = await Surgery.findByIdAndDelete(req.params.id);
         if (!deletedSurgery) return res.status(404).json({ message: "Surgery not found" });
@@ -1099,11 +1225,18 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
 
 app.get('/api/surgeries', verifyToken, async (req, res) => {
     try {
-        const { patientId, dentistId, status, date } = req.query;
+        const { patientId, status, date } = req.query;
         const query = {};
 
+        if (req.user.role === 'dentist') {
+            // Dentists are always scoped to their own appointments only
+            query.dentist = req.user.id;
+        } else {
+            // Staff roles can filter by dentistId via query param
+            if (req.query.dentistId) query.dentist = req.query.dentistId;
+        }
+
         if (patientId) query.patient = patientId;
-        if (dentistId) query.dentist = dentistId;
         if (status) query.status = status;
 
         if (date) {
@@ -1612,13 +1745,15 @@ app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
             activeDentists,
             todayAppointments,
             pendingAppointments,
-            lowStockItems
+            lowStockItems,
+            newRegistrations
         ] = await Promise.all([
             User.countDocuments({ role: 'patient', status: 'active' }),
             User.countDocuments({ role: 'dentist', status: 'active', isArchived: { $ne: true } }),
             Surgery.countDocuments({ date: { $gte: todayStart, $lte: todayEnd } }),
             Surgery.countDocuments({ status: 'pending' }),
-            Inventory.countDocuments({ $expr: { $lte: ['$quantity', '$reorderLevel'] } })
+            Inventory.countDocuments({ $expr: { $lte: ['$quantity', '$reorderLevel'] } }),
+            User.countDocuments({ role: 'patient', createdAt: { $gte: todayStart, $lte: todayEnd } })
         ]);
 
         res.json({
@@ -1626,7 +1761,8 @@ app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
             activeDentists,
             todayAppointments,
             pendingAppointments,
-            lowStockItems
+            lowStockItems,
+            newRegistrations
         });
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);

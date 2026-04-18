@@ -1,8 +1,6 @@
-// src/utils/api.js
+export const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-const BASE_URL = process.env.REACT_APP_API_URL 
-    ? `${process.env.REACT_APP_API_URL}/api` 
-    : 'https://ngitify.onrender.com/api';
+const API_BASE = `${BASE_URL}/api`;
 
 /**
  * A wrapper around the native fetch API that automatically includes
@@ -33,7 +31,7 @@ export const authFetch = async (endpoint, options = {}) => {
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
     try {
-        const response = await fetch(`${BASE_URL}${formattedEndpoint}`, config);
+        const response = await fetch(`${API_BASE}${formattedEndpoint}`, config);
 
         if (response.status === 401) {
             console.warn("Session expired. Redirecting to login.");

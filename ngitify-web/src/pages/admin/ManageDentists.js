@@ -1,7 +1,7 @@
 // ngitify-web/src/pages/admin/ManageDentists.js
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/admin/ManageDentists.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 
@@ -119,6 +119,20 @@ export default function ManageDentists() {
         }
     };
 
+    const handleResendActivation = async (dentist) => {
+        try {
+            const res = await authFetch(`/user/resend-activation/${dentist.id}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                addToast(`Activation email resent to ${dentist.email}.`, 'success');
+            } else {
+                addToast(data.message || 'Failed to resend activation email.', 'error');
+            }
+        } catch {
+            addToast('Cannot connect to server.', 'error');
+        }
+    };
+
     const handleEditClick = (dentistId) => { setIsViewModalOpen(false); setSelectedDentistId(dentistId); setIsEditModalOpen(true); };
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedDentistId(null); };
     const handleViewClick = (dentistId) => { setIsEditModalOpen(false); setSelectedDentistId(dentistId); setIsViewModalOpen(true); };
@@ -209,6 +223,16 @@ export default function ManageDentists() {
                                     <td style={{ textAlign: 'center' }}>
                                         <button className={styles.iconBtn} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
                                         <button className={styles.iconBtn} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
+                                        {!dentist.isVerified && (
+                                            <button
+                                                className={styles.iconBtn}
+                                                onClick={() => handleResendActivation(dentist)}
+                                                title="Resend Activation Email"
+                                                style={{ color: '#f59e0b' }}
+                                            >
+                                                <FaEnvelope />
+                                            </button>
+                                        )}
                                         <button
                                             className={styles.iconBtn}
                                             onClick={() => handleToggleStatus(dentist)}

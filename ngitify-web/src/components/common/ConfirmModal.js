@@ -15,7 +15,7 @@ export default function ConfirmModal({
 
     return (
         <div className={styles.modalOverlay}>
-            <div className={styles.modalCard}>
+            <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
                 <h3 className={styles.modalTitle}>{title}</h3>
                 <p className={styles.modalMessage}>{message}</p>
                 <div className={styles.modalButtonGroup}>

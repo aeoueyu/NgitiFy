@@ -45,7 +45,10 @@ export default function WebsiteHome() {
                             At <strong>Dentime Dental Clinic</strong>, we believe in providing professional, 
                             quality, and affordable care for every patient.
                         </p>
-                        <button className={styles['visit-btn']}>
+                        <button
+                            className={styles['visit-btn']}
+                            onClick={() => document.getElementById('locations')?.scrollIntoView({ behavior: 'smooth' })}
+                        >
                             VISIT NOW
                         </button>
                     </div>

@@ -43,6 +43,7 @@ export default function SecretaryDashboard() {
     // Data States
     const [secretaryProfile, setSecretaryProfile] = useState(null);
     const [allAppointments, setAllAppointments] = useState([]);
+    const [newRegistrations, setNewRegistrations] = useState(0);
     
     // UI States
     const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -62,13 +63,19 @@ export default function SecretaryDashboard() {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const userId = user?.userId || user?.id || user?._id;
+                const userId = user?.id || user?._id;
                 if (userId) {
                     const profileRes = await authFetch(`/user/${userId}`);
                     if (profileRes.ok) {
                         const profileData = await profileRes.json();
                         setSecretaryProfile(profileData);
                     }
+                }
+
+                const statsRes = await authFetch('/dashboard/stats');
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json();
+                    setNewRegistrations(statsData.newRegistrations ?? 0);
                 }
 
                 const surgRes = await authFetch('/surgeries');
@@ -113,8 +120,6 @@ export default function SecretaryDashboard() {
     const patientsWaiting = todaysAppts.filter(apt => 
         apt.rawStatus === 'confirmed' || apt.rawStatus === 'pending' || apt.rawStatus === 'in-clinic'
     ).length;
-    // TODO: Replace with a real "patients registered today" API call when endpoint is available
-    const newRegistrations = 0;
 
     // --- CALENDAR LOGIC ---
     const getCalendarDays = () => {

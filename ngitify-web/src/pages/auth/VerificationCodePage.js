@@ -2,9 +2,10 @@ import React, { useRef, useState, useEffect } from 'react';
 import styles from '../../styles/auth/VerificationCodePage.module.css';
 import logo from '../../assets/images/logo-dentime.svg';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { BASE_URL } from '../../utils/api';
 
 export default function VerificationCodePage() {
-    const [code, setCode] = useState(new Array(6).fill('')); 
+    const [code, setCode] = useState(new Array(6).fill(''));
     const inputRefs = useRef([]);
     const navigate = useNavigate();
     const location = useLocation();
@@ -61,7 +62,7 @@ export default function VerificationCodePage() {
         setSuccessMessage('');
         
         try {
-            const response = await fetch('http://localhost:5000/api/forgot-password', {
+            const response = await fetch(`${BASE_URL}/api/forgot-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: userEmail }),
@@ -98,7 +99,7 @@ export default function VerificationCodePage() {
         try {
             // Reverted back to sending a String with the exact 'otp' key 
             // to perfectly match the backend: const { email, otp } = req.body;
-            const response = await fetch('http://localhost:5000/api/verify-otp', {
+            const response = await fetch(`${BASE_URL}/api/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styles from '../../styles/auth/ForgotPassPage.module.css';
 import logo from '../../assets/images/logo-dentime.svg';
 import { useNavigate } from 'react-router-dom';
+import { BASE_URL } from '../../utils/api';
 
 export default function ForgotPassPage() {
     const [email, setEmail] = useState('');
@@ -29,7 +30,7 @@ export default function ForgotPassPage() {
         try {
             // This API call now *always* returns a success-like response to the frontend.
             // The backend decides whether to actually send an email to prevent user enumeration.
-            await fetch('http://localhost:5000/api/forgot-password', {
+            await fetch(`${BASE_URL}/api/forgot-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),

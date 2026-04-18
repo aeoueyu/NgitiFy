@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import styles from '../../styles/auth/NewPasswordPage.module.css';
 import logo from '../../assets/images/logo-dentime.svg';
 import { useNavigate, useLocation } from "react-router-dom";
+import { BASE_URL } from '../../utils/api';
 
 export default function NewPasswordPage() {
     const navigate = useNavigate();
@@ -58,7 +59,7 @@ export default function NewPasswordPage() {
         setErrorMessage('');
 
         try {
-            const response = await fetch('http://localhost:5000/api/reset-password', {
+            const response = await fetch(`${BASE_URL}/api/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 

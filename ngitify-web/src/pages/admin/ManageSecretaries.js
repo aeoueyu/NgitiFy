@@ -1,7 +1,7 @@
 // ngitify-web/src/pages/admin/ManageSecretaries.js
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/admin/ManageSecretaries.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 
@@ -119,6 +119,20 @@ export default function ManageSecretaries() {
         }
     };
 
+    const handleResendActivation = async (secretary) => {
+        try {
+            const res = await authFetch(`/user/resend-activation/${secretary.id}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                addToast(`Activation email resent to ${secretary.email}.`, 'success');
+            } else {
+                addToast(data.message || 'Failed to resend activation email.', 'error');
+            }
+        } catch {
+            addToast('Cannot connect to server.', 'error');
+        }
+    };
+
     const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedSecretaryId(id); setIsEditModalOpen(true); };
     const handleViewClick = (id) => { setIsEditModalOpen(false); setSelectedSecretaryId(id); setIsViewModalOpen(true); };
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedSecretaryId(null); };
@@ -209,6 +223,16 @@ export default function ManageSecretaries() {
                                     <td style={{ textAlign: 'center' }}>
                                         <button className={styles.iconBtn} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
                                         <button className={styles.iconBtn} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
+                                        {!secretary.isVerified && (
+                                            <button
+                                                className={styles.iconBtn}
+                                                onClick={() => handleResendActivation(secretary)}
+                                                title="Resend Activation Email"
+                                                style={{ color: '#f59e0b' }}
+                                            >
+                                                <FaEnvelope />
+                                            </button>
+                                        )}
                                         <button
                                             className={styles.iconBtn}
                                             onClick={() => handleToggleStatus(secretary)}

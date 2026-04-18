@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaEdit } from 'react-icons/fa';
+import { FaEdit, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import EditBranchManager from './EditBranchManager';
+import { useToast } from '../../context/ToastContext';
 
 const ManageBranchManagers = () => {
     const navigate = useNavigate();
+    const { addToast } = useToast();
     const [managers, setManagers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -33,6 +35,20 @@ const ManageBranchManagers = () => {
     }, []);
 
     useEffect(() => { fetchManagers(); }, [fetchManagers]);
+
+    const handleResendActivation = async (m) => {
+        try {
+            const res = await authFetch(`/user/resend-activation/${m._id}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                addToast(`Activation email resent to ${m.email}.`, 'success');
+            } else {
+                addToast(data.message || 'Failed to resend activation email.', 'error');
+            }
+        } catch {
+            addToast('Cannot connect to server.', 'error');
+        }
+    };
 
     const handleDelete = async (id, name) => {
         if (!window.confirm(`Remove ${name} as Branch Manager?`)) return;
@@ -127,6 +143,16 @@ const ManageBranchManagers = () => {
                                         >
                                             <FaEdit />
                                         </button>
+                                        {!m.isVerified && (
+                                            <button
+                                                className={styles.iconBtn}
+                                                onClick={() => handleResendActivation(m)}
+                                                title="Resend Activation Email"
+                                                style={{ color: '#f59e0b' }}
+                                            >
+                                                <FaEnvelope />
+                                            </button>
+                                        )}
                                         <button
                                             className={styles.iconBtn}
                                             onClick={() => handleDelete(m._id, `${m.name?.first} ${m.name?.last}`)}

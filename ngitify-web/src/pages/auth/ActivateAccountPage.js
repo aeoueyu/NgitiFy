@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { BASE_URL } from '../../utils/api';
 
 export default function ActivateAccountPage() {
   const { token } = useParams();
@@ -13,7 +12,7 @@ export default function ActivateAccountPage() {
   useEffect(() => {
     const activate = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/activate-account`, {
+        const res = await fetch(`${BASE_URL}/api/activate-account`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token }),
