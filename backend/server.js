@@ -775,6 +775,68 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
     }
 });
 
+// -------------------------------------------------------
+// REQUEST EMAIL CHANGE (from profile page)
+// Verifies current password, then triggers re-activation
+// -------------------------------------------------------
+app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
+    try {
+        const { newEmail, currentPassword } = req.body;
+
+        if (!newEmail || !currentPassword) {
+            return res.status(400).json({ message: 'New email and current password are required.' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        // Verify current password before allowing email change
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Current password is incorrect.' });
+        }
+
+        // Check new email is not already taken
+        if (newEmail === user.email) {
+            return res.status(400).json({ message: 'New email must be different from your current email.' });
+        }
+        const emailExists = await User.findOne({ email: newEmail });
+        if (emailExists) {
+            return res.status(409).json({ message: 'This email address is already in use.' });
+        }
+
+        // Generate new activation token and temp password
+        const tempPassword = crypto.randomBytes(4).toString('hex');
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const activationToken = crypto.randomBytes(32).toString('hex');
+
+        user.email = newEmail;
+        user.password = hashedPassword;
+        user.activationToken = activationToken;
+        user.isVerified = false;
+        user.status = 'inactive';
+        await user.save();
+
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+        await sendActivationEmail(newEmail, user.role, tempPassword, activationLink);
+
+        await AuditLog.create({
+            action: 'EMAIL_CHANGE_REQUESTED',
+            user: newEmail,
+            role: user.role,
+            details: `User requested email change. Activation link sent to ${newEmail}.`
+        });
+
+        res.json({ message: 'Verification email sent. Please check your new inbox to reactivate your account.' });
+
+    } catch (error) {
+        console.error('Error requesting email change:', error);
+        res.status(500).json({ message: 'Server error processing email change request.' });
+    }
+});
+
 app.post('/api/verify-current-password', verifyToken, async (req, res) => {
     try {
         const { userId, currentPassword } = req.body;

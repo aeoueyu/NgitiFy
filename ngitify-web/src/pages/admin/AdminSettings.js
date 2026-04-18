@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AdminSettings.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
 
@@ -105,12 +106,8 @@ export default function Settings() {
             const payload = JSON.parse(atob(base64));
             const userId = payload.userId || payload.id || payload._id;
 
-            const response = await fetch('http://localhost:5000/api/verify-current-password', {
+            const response = await authFetch('/verify-current-password', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify({
                     userId: userId,
                     currentPassword: passwordData.currentPassword
@@ -161,12 +158,8 @@ export default function Settings() {
             const payload = JSON.parse(atob(base64));
             const userId = payload.userId || payload.id || payload._id;
 
-            const response = await fetch('http://localhost:5000/api/change-password', {
+            const response = await authFetch('/change-password', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify({
                     userId: userId,
                     currentPassword: passwordData.currentPassword,
