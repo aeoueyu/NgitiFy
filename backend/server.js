@@ -502,38 +502,40 @@ app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 // GET ALL USERS (With Role-Based Security)
 // -------------------------------------------------------
+// Explicit allowlists — any new roles added to the system are blocked by default
+const SECRETARY_ALLOWED_ROLES = ['patient', 'dentist'];
+const DENTIST_ALLOWED_ROLES   = ['patient', 'dentist', 'secretary'];
+
 app.get('/api/users', verifyToken, async (req, res) => {
     try {
         const { role } = req.query;
 
         // SECURITY CHECK: Restrict what secretaries can query
         if (req.user.role === 'secretary') {
-            // Secretaries can only fetch patients and dentists. 
-            // If they try to fetch administrators, secretaries, or branch managers, block them.
-            if (!role || (role !== 'patient' && role !== 'dentist')) {
-                return res.status(403).json({ 
-                    message: "Access denied. You do not have permission to view these staff accounts." 
+            if (!role || !SECRETARY_ALLOWED_ROLES.includes(role)) {
+                return res.status(403).json({
+                    message: "Access denied. You do not have permission to view these staff accounts."
                 });
             }
         }
 
-        // SECURITY CHECK: Dentists shouldn't snoop on administrators either
+        // SECURITY CHECK: Restrict what dentists can query
         if (req.user.role === 'dentist') {
-            if (!role || (role !== 'patient' && role !== 'dentist' && role !== 'secretary')) {
-                return res.status(403).json({ 
-                    message: "Access denied. You do not have permission to view management accounts." 
+            if (!role || !DENTIST_ALLOWED_ROLES.includes(role)) {
+                return res.status(403).json({
+                    message: "Access denied. You do not have permission to view management accounts."
                 });
             }
         }
 
         let query = {};
         if (role) query.role = role;
-        
+
         const users = await User.find(query).select('-password');
         res.json(users);
-    } catch (error) { 
+    } catch (error) {
         console.error("Error fetching users:", error);
-        res.status(500).json({ message: "Server error." }); 
+        res.status(500).json({ message: "Server error." });
     }
 });
 
@@ -558,8 +560,23 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
 
 app.put('/api/patients/:id', verifyToken, async (req, res) => {
     try {
-        const updatedPatient = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
-        if (!updatedPatient) return res.status(404).json({ message: "Patient not found" });
+        const { password, email, ...updateData } = req.body;
+        const patientId = req.params.id;
+
+        const currentPatient = await User.findById(patientId);
+        if (!currentPatient) return res.status(404).json({ message: "Patient not found" });
+
+        if (email && email !== currentPatient.email) {
+            const emailExists = await User.findOne({ email, _id: { $ne: patientId } });
+            if (emailExists) return res.status(409).json({ message: "This email address is already in use by another account." });
+            updateData.email = email;
+        }
+
+        const updatedPatient = await User.findByIdAndUpdate(
+            patientId,
+            updateData,
+            { new: true, runValidators: true }
+        ).select('-password');
 
         await AuditLog.create({
             action: "UPDATE_PATIENT",
@@ -570,6 +587,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
 
         res.json(updatedPatient);
     } catch (error) {
+        console.error('Error updating patient:', error);
         res.status(500).json({ message: "Server error." });
     }
 });
@@ -905,6 +923,9 @@ app.post('/api/verify-password', verifyToken, async (req, res) => {
 });
 
 app.get('/api/audit-logs', verifyToken, async (req, res) => {
+    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const logs = await AuditLog.find().sort({ timestamp: -1 });
         res.json(logs);
@@ -1114,7 +1135,7 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
     try {
         const { status, remarks, preOpInstructions, date, time } = req.body;
 
-        const allowedStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+        const allowedStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         if (!allowedStatuses.includes(status)) {
             return res.status(400).json({ message: 'Invalid status value.' });
         }

@@ -1,3 +1,5 @@
+// ngitify-web/src/pages/secretary/SecretaryDashboard.js
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/secretary/SecretaryDashboard.module.css';
@@ -23,15 +25,13 @@ const PH_HOLIDAYS = [
     { month: 11, day: 31, name: "New Year's Eve" }
 ];
 
-// --- MOCK CLINIC DATA FOR FRONT DESK UI TESTING ---
-const MOCK_SCHEDULE = [
-    { id: 1, patientId: 'PT-2023-0842', time: '09:00 AM', duration: '60 Min', patientName: 'Eleanor Vance', procedure: 'Root Canal Therapy', dentistName: 'Dr. Sarah Smith', status: 'In Clinic', rawDate: new Date() },
-    { id: 2, patientId: 'PT-2024-1105', time: '10:30 AM', duration: '30 Min', patientName: 'Marcus Chen', procedure: 'Routine Prophylaxis', dentistName: 'Dr. Michael Cruz', status: 'Confirmed', rawDate: new Date() },
-    { id: 3, patientId: 'PT-2023-0199', time: '11:15 AM', duration: '45 Min', patientName: 'Sophia Reyes', procedure: 'Composite Filling', dentistName: 'Dr. Sarah Smith', status: 'Pending', rawDate: new Date() },
-    { id: 4, patientId: 'PT-2022-0441', time: '01:00 PM', duration: '60 Min', patientName: 'James Wilson', procedure: 'Tooth Extraction', dentistName: 'Dr. Emily Chen', status: 'Completed', rawDate: new Date(new Date().setDate(new Date().getDate() - 1)) },
-    { id: 5, patientId: 'PT-2021-0911', time: '09:00 AM', duration: '60 Min', patientName: 'David Lee', procedure: 'Braces Adjustment', dentistName: 'Dr. Michael Cruz', status: 'Confirmed', rawDate: new Date(new Date().setDate(new Date().getDate() + 1)) },
-    { id: 6, patientId: 'PT-2024-0012', time: '02:30 PM', duration: '90 Min', patientName: 'Lucas Torres', procedure: 'Wisdom Tooth Extraction', dentistName: 'Dr. Emily Chen', status: 'Confirmed', rawDate: new Date() },
-];
+const STATUS_DISPLAY = {
+    'pending':   'Pending',
+    'confirmed': 'Confirmed',
+    'in-clinic': 'In Clinic',
+    'completed': 'Completed',
+    'cancelled': 'Cancelled',
+};
 
 export default function SecretaryDashboard() {
     const { user, logout } = useAuth();
@@ -48,6 +48,7 @@ export default function SecretaryDashboard() {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false); 
     const [checkInTarget, setCheckInTarget] = useState(null);
+    const [isCheckingIn, setIsCheckingIn] = useState(false);
 
     // Calendar States
     const [currentMonthView, setCurrentMonthView] = useState(new Date());
@@ -58,7 +59,6 @@ export default function SecretaryDashboard() {
         return () => clearInterval(timer);
     }, []);
 
-    // Fetch Profile & Inject Mock Appointments
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
@@ -70,9 +70,28 @@ export default function SecretaryDashboard() {
                         setSecretaryProfile(profileData);
                     }
                 }
-                
-                // INJECT MOCK DATA INSTEAD OF API CALL FOR TESTING
-                setAllAppointments(MOCK_SCHEDULE.sort((a, b) => a.rawDate - b.rawDate));
+
+                const surgRes = await authFetch('/surgeries');
+                if (surgRes.ok) {
+                    const surgData = await surgRes.json();
+                    const mapped = surgData.map(s => ({
+                        id: s._id,
+                        patientId: s.patient?._id || '',
+                        patientName: s.patient?.name
+                            ? `${s.patient.name.first || ''} ${s.patient.name.last || ''}`.trim()
+                            : 'Unknown Patient',
+                        dentistName: s.dentist?.name
+                            ? `Dr. ${s.dentist.name.first || ''} ${s.dentist.name.last || ''}`.trim()
+                            : 'Unassigned',
+                        procedure: s.procedure || 'Consultation',
+                        time: s.time || formatTime(new Date(s.date)),
+                        duration: s.duration || '—',
+                        status: STATUS_DISPLAY[s.status] || s.status,
+                        rawStatus: s.status,
+                        rawDate: new Date(s.date),
+                    }));
+                    setAllAppointments(mapped.sort((a, b) => a.rawDate - b.rawDate));
+                }
 
             } catch (error) {
                 console.error("Dashboard Fetch Error:", error);
@@ -88,12 +107,14 @@ export default function SecretaryDashboard() {
         apt.rawDate.toDateString() === selectedDate.toDateString()
     );
 
-    // Calculate Stats (Always based on 'Today' to give accurate daily KPIs)
+    // Calculate Stats based on today's real data
     const todaysAppts = allAppointments.filter(apt => apt.rawDate.toDateString() === new Date().toDateString());
     const totalAppointments = todaysAppts.length;
-    // Patients waiting includes those Confirmed to arrive, Pending, or currently In Clinic
-    const patientsWaiting = todaysAppts.filter(apt => apt.status === 'Confirmed' || apt.status === 'Pending' || apt.status === 'In Clinic').length;
-    const newRegistrations = 3; // Mock KPI for Front Desk
+    const patientsWaiting = todaysAppts.filter(apt => 
+        apt.rawStatus === 'confirmed' || apt.rawStatus === 'pending' || apt.rawStatus === 'in-clinic'
+    ).length;
+    // TODO: Replace with a real "patients registered today" API call when endpoint is available
+    const newRegistrations = 0;
 
     // --- CALENDAR LOGIC ---
     const getCalendarDays = () => {
@@ -160,7 +181,6 @@ export default function SecretaryDashboard() {
         }
     };
 
-    // Derived values for components
     const secName = secretaryProfile?.name?.first 
         ? `${secretaryProfile.name.first} ${secretaryProfile.name.last}` 
         : user?.name?.first 
@@ -170,18 +190,32 @@ export default function SecretaryDashboard() {
     const profilePic = secretaryProfile?.profileImage || user?.profileImage;
 
     // --- CHECK IN LOGIC ---
-    const handleConfirmCheckIn = () => {
+    const handleConfirmCheckIn = async () => {
         if (!checkInTarget) return;
+        setIsCheckingIn(true);
+        try {
+            const res = await authFetch(`/surgeries/${checkInTarget.id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'in-clinic' }),
+            });
 
-        // Future Implementation: await authFetch(`/appointments/${checkInTarget.id}/status`, { method: 'PUT', body: JSON.stringify({ status: 'In Clinic' })})
-        
-        // Update Local State for UI Testing
-        setAllAppointments(prev => prev.map(apt => 
-            apt.id === checkInTarget.id ? { ...apt, status: 'In Clinic' } : apt
-        ));
-
-        addToast(`${checkInTarget.patientName} has been successfully checked into the clinic.`, 'success');
-        setCheckInTarget(null);
+            if (res.ok) {
+                setAllAppointments(prev => prev.map(apt => 
+                    apt.id === checkInTarget.id 
+                        ? { ...apt, status: 'In Clinic', rawStatus: 'in-clinic' } 
+                        : apt
+                ));
+                addToast(`${checkInTarget.patientName} has been successfully checked into the clinic.`, 'success');
+            } else {
+                const data = await res.json();
+                addToast(data.message || 'Failed to check in patient.', 'error');
+            }
+        } catch (error) {
+            addToast('Could not connect to server.', 'error');
+        } finally {
+            setIsCheckingIn(false);
+            setCheckInTarget(null);
+        }
     };
 
     return (
@@ -287,8 +321,7 @@ export default function SecretaryDashboard() {
                                                     {apt.status}
                                                 </span>
                                                 
-                                                {/* CHECK-IN WORKFLOW FOR FRONT DESK */}
-                                                {(apt.status === 'Confirmed' || apt.status === 'Pending') && (
+                                                {(apt.rawStatus === 'confirmed' || apt.rawStatus === 'pending') && (
                                                     <button 
                                                         className={styles['checkin-btn']} 
                                                         onClick={() => setCheckInTarget(apt)}
@@ -353,7 +386,7 @@ export default function SecretaryDashboard() {
                 isOpen={!!checkInTarget}
                 title="Check In Patient"
                 message={`Are you sure you want to mark ${checkInTarget?.patientName} as arrived and currently in the clinic?`}
-                confirmText="Yes, Check In"
+                confirmText={isCheckingIn ? "Checking In..." : "Yes, Check In"}
                 isDestructive={false}
                 onConfirm={handleConfirmCheckIn}
                 onCancel={() => setCheckInTarget(null)}

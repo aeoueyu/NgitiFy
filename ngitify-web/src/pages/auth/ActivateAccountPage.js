@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -14,21 +13,29 @@ export default function ActivateAccountPage() {
   useEffect(() => {
     const activate = async () => {
       try {
-        const res = await axios.post(`${API_URL}/api/activate-account`, { token });
-        const role = res.data.role;
+        const res = await fetch(`${API_URL}/api/activate-account`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+
+        if (!res.ok) throw new Error((await res.json()).message);
+
+        const data = await res.json();
+        const role = data.role;
 
         if (role === 'patient') {
           setIsPatient(true);
           setMessage('Your account has been activated! Please log in using the NgitiFy mobile app.');
         } else {
-          setMessage(res.data.message || 'Account activated successfully!');
+          setMessage(data.message || 'Account activated successfully!');
           setTimeout(() => navigate('/login'), 3000);
         }
 
         setStatus('success');
       } catch (err) {
         setStatus('error');
-        setMessage(err.response?.data?.message || 'Invalid or expired activation link.');
+        setMessage(err.message || 'Invalid or expired activation link.');
       }
     };
     if (token) activate();

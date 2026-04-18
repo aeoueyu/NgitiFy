@@ -80,15 +80,9 @@ export default function AdminDashboard() {
                     authFetch('/audit-logs')
                 ]);
 
-                const token = localStorage.getItem('token');
-                const base64Url = token?.split('.')?.[1];
-                if (base64Url) {
-                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    const payload = JSON.parse(atob(base64));
-                    const userId = payload.userId || payload.id || payload._id;
-                    
+                const userId = user?.userId || user?.id || user?._id;
+                if (userId) {
                     const profileRes = await authFetch(`/user/${userId}`);
-                    
                     if (profileRes.ok) {
                         const profileData = await profileRes.json();
                         setAdminProfile(profileData);

@@ -104,7 +104,7 @@ export default function DentistAppointments() {
     const fetchAppointments = useCallback(async (silent = false) => {
         if (!silent) setIsLoading(true);
         try {
-            const dentistId = user?.userId || user?.id || user?._id;
+            const dentistId = user?.id || user?._id;
             const endpoint = dentistId
                 ? `/surgeries?dentistId=${dentistId}`
                 : '/surgeries';

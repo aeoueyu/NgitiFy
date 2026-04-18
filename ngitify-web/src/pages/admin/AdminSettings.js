@@ -6,7 +6,7 @@ import styles from '../../styles/admin/AdminSettings.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
 
 export default function Settings() {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState('clinic');
@@ -98,13 +98,8 @@ export default function Settings() {
         setPassErrors({});
 
         try {
-            const token = localStorage.getItem('token');
-            if (!token) { setApiError("Authentication token missing."); setIsVerifying(false); return; }
-
-            const parts = token.split('.');
-            const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-            const payload = JSON.parse(atob(base64));
-            const userId = payload.userId || payload.id || payload._id;
+            const userId = user?.userId || user?.id || user?._id;
+            if (!userId) { setApiError("Authentication token missing."); setIsVerifying(false); return; }
 
             const response = await authFetch('/verify-current-password', {
                 method: 'POST',
@@ -153,10 +148,7 @@ export default function Settings() {
         setApiError('');
 
         try {
-            const token = localStorage.getItem('token');
-            const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-            const payload = JSON.parse(atob(base64));
-            const userId = payload.userId || payload.id || payload._id;
+            const userId = user?.userId || user?.id || user?._id;
 
             const response = await authFetch('/change-password', {
                 method: 'POST',

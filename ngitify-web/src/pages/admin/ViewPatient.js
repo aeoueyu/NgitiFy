@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/StaffModals.module.css'; // Utilizing unified UI
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
@@ -10,10 +11,7 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
     useEffect(() => {
         const fetchPatient = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:5000/api/user/${patientId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await authFetch(`/user/${patientId}`);
                 if (response.ok) {
                     const data = await response.json();
                     setPatient(data);

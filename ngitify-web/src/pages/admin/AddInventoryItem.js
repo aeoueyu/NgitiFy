@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/StaffModals.module.css'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
@@ -52,15 +53,13 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
         const finalUnit = formData.unit === 'Other' ? customUnit.trim() : formData.unit;
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/inventory', {
+            const response = await authFetch('/inventory', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
-                    itemName: formData.name.trim(), 
+                    itemName: formData.name.trim(),
                     category: finalCategory,
-                    quantity: Number(formData.currentStock), 
-                    reorderLevel: Number(formData.threshold), 
+                    quantity: Number(formData.currentStock),
+                    reorderLevel: Number(formData.threshold),
                     unit: finalUnit
                 }),
             });

@@ -1,92 +1,113 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// ngitify-web/src/pages/admin/PatientProfile.js
+
+import React, { useState, useEffect } from 'react';
 import styles from '../../styles/admin/PatientProfile.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
-import { formatDateLong } from '../../utils/dateUtils'; // NEW: Imported Date Utilities
+import { formatDateLong } from '../../utils/dateUtils';
 import { 
     FaUserMd, FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, 
     FaNotesMedical, FaSyringe, FaTooth, FaSearch, 
     FaChevronDown, FaChevronUp, FaHospitalUser,
     FaCalendarAlt, FaUpload, FaMagic, FaRobot, FaArrowLeft
 } from 'react-icons/fa';
-
-// --- MOCK PATIENT DATA ---
-const MOCK_PATIENT = {
-    id: 'PT-2023-0842',
-    name: 'Eleanor Vance',
-    age: 34,
-    gender: 'Female',
-    dob: '1989-10-15',
-    primaryBranch: 'Marikina',
-    email: 'eleanor.vance@example.com',
-    phone: '+63 917 555 0123',
-    address: '142 Birch St., Marikina Heights, Marikina City',
-    occupation: 'Architect',
-    emergencyContact: {
-        name: 'Luke Crain',
-        relation: 'Husband',
-        phone: '+63 918 444 9876'
-    }
-};
-
-const MOCK_MEDICAL_HISTORY = {
-    lastExam: 'October 12, 2023',
-    bloodType: 'O+',
-    allergies: ['Penicillin', 'Latex'],
-    conditions: ['Asthma', 'Mild Hypertension'],
-    medications: ['Albuterol Inhaler (PRN)'],
-    notes: 'Patient experiences slight anxiety during extractions. Proceed with gentle care.'
-};
+import { authFetch } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 
 // FDI Tooth Numbering (Adults)
 const UPPER_RIGHT = [18,17,16,15,14,13,12,11];
-const UPPER_LEFT = [21,22,23,24,25,26,27,28];
+const UPPER_LEFT  = [21,22,23,24,25,26,27,28];
 const LOWER_RIGHT = [48,47,46,45,44,43,42,41];
-const LOWER_LEFT = [31,32,33,34,35,36,37,38];
+const LOWER_LEFT  = [31,32,33,34,35,36,37,38];
 
-// --- INITIAL INTERACTIVE ODONTOGRAM DATA ---
-const INITIAL_MOCK_CHART_DATA = {
-    18: 'missing', 28: 'missing', 38: 'missing', 48: 'missing',
-    16: 'filled', 26: 'crown', 
-    45: 'decayed', 36: 'filled'
+const calculateAge = (birthdate) => {
+    if (!birthdate) return '—';
+    const today = new Date();
+    const birth = new Date(birthdate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
 };
 
-const MOCK_TREATMENT_LOGS = [
-    { id: 1, dateStr: '2024-01-15', displayDate: 'Jan 15, 2024', branch: 'Marikina', doctor: 'Dr. Sarah Smith', tooth: '45', procedure: 'Composite Filling', category: 'Restoration', notes: 'Removed decay and placed composite filling on occlusal surface. Good patient cooperation. No complications observed.' },
-    { id: 2, dateStr: '2023-10-12', displayDate: 'Oct 12, 2023', branch: 'Marikina', doctor: 'Dr. Michael Cruz', tooth: 'All', procedure: 'Prophylaxis & Exam', category: 'Prophylaxis', notes: 'Routine cleaning. Plaque buildup on lower anteriors. Recommended better flossing routine and scheduled 6-month recall.' },
-    { id: 3, dateStr: '2022-03-05', displayDate: 'Mar 05, 2022', branch: 'Rizal', doctor: 'Dr. Emily Chen', tooth: '26', procedure: 'Porcelain Crown', category: 'Restoration', notes: 'Cemented permanent porcelain crown using glass ionomer cement. Margins sealed perfectly. Bite adjusted and polished.' },
-    { id: 4, dateStr: '2021-12-10', displayDate: 'Dec 10, 2021', branch: 'Marikina', doctor: 'Dr. Sarah Smith', tooth: '18, 28, 38, 48', procedure: 'Wisdom Tooth Extraction', category: 'Extraction', notes: 'Surgical extraction of all 4 third molars under local anesthesia. Hemostasis achieved. Prescribed Amoxicillin and Mefenamic Acid.' },
-];
-
-const MOCK_RADIOGRAPHS = [
-    { id: 1, date: 'Oct 12, 2023', type: 'Panoramic X-Ray', url: 'https://placehold.co/800x400/e2e8f0/475569?text=Panoramic+X-Ray' },
-    { id: 2, date: 'Dec 10, 2021', type: 'Periapical - Tooth 48', url: 'https://placehold.co/400x500/e2e8f0/475569?text=Periapical+48' },
-    { id: 3, date: 'Dec 10, 2021', type: 'Periapical - Tooth 38', url: 'https://placehold.co/400x500/e2e8f0/475569?text=Periapical+38' },
-    { id: 4, date: 'May 02, 2020', type: 'Bitewing - Right', url: 'https://placehold.co/500x400/e2e8f0/475569?text=Bitewing+Right' },
-];
+const formatAddress = (addr) => {
+    if (!addr) return '—';
+    return [addr.houseNumber, addr.street, addr.barangay, addr.city, addr.province]
+        .filter(Boolean).join(', ');
+};
 
 export default function PatientProfile({ patientId, onClose, onEdit }) {
-    const navigate = useNavigate();
+    const { addToast } = useToast();
     const [activeTab, setActiveTab] = useState('overview');
 
-    // --- INTERACTIVE ODONTOGRAM STATES ---
-    const [chartData, setChartData] = useState(INITIAL_MOCK_CHART_DATA);
+    // --- DATA STATES ---
+    const [patient, setPatient] = useState(null);
+    const [treatmentLogs, setTreatmentLogs] = useState([]);
+    const [radiographs, setRadiographs] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // --- ODONTOGRAM STATE ---
+    const [chartData, setChartData] = useState({});
     const [selectedTooth, setSelectedTooth] = useState(null);
     const [tempToothStatus, setTempToothStatus] = useState('');
+    const [isSavingTooth, setIsSavingTooth] = useState(false);
 
-    // Treatment Logs States
+    // --- TREATMENT LOG FILTER STATES ---
     const [logsSearchQuery, setLogsSearchQuery] = useState('');
     const [logsDateFrom, setLogsDateFrom] = useState('');
     const [logsDateTo, setLogsDateTo] = useState('');
     const [logsCategory, setLogsCategory] = useState('All');
     const [expandedLogs, setExpandedLogs] = useState({});
 
-    // AI Radiograph Enhancer States
+    // --- RADIOGRAPH VIEWER STATES ---
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
 
+    // --- FETCH ALL PATIENT DATA ON MOUNT ---
+    useEffect(() => {
+        if (!patientId) return;
+        const fetchAll = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const [patientRes, logsRes, odontogramRes, radiographsRes] = await Promise.all([
+                    authFetch(`/patients/${patientId}`),
+                    authFetch(`/patients/${patientId}/treatment-logs`),
+                    authFetch(`/patients/${patientId}/odontogram`),
+                    authFetch(`/patients/${patientId}/radiographs`),
+                ]);
+
+                if (!patientRes.ok) throw new Error('Failed to load patient data.');
+                const patientData = await patientRes.json();
+                setPatient(patientData);
+
+                if (logsRes.ok) {
+                    const logsData = await logsRes.json();
+                    setTreatmentLogs(logsData);
+                }
+
+                if (odontogramRes.ok) {
+                    const odontogramData = await odontogramRes.json();
+                    setChartData(odontogramData || {});
+                }
+
+                if (radiographsRes.ok) {
+                    const radiographsData = await radiographsRes.json();
+                    setRadiographs(radiographsData);
+                }
+
+            } catch (err) {
+                setError(err.message || 'Could not load patient profile.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchAll();
+    }, [patientId]);
+
     const getInitials = (name) => {
+        if (!name) return '?';
         const parts = name.trim().split(/\s+/);
         return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
     };
@@ -99,11 +120,24 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         setTempToothStatus(getToothStatus(num));
     };
 
-    const handleSaveToothStatus = () => {
-        if (selectedTooth) {
-            setChartData(prev => ({ ...prev, [selectedTooth]: tempToothStatus }));
-        }
+    const handleSaveToothStatus = async () => {
+        if (!selectedTooth) return;
+        const updatedChart = { ...chartData, [selectedTooth]: tempToothStatus };
+        setChartData(updatedChart);
         setSelectedTooth(null);
+
+        setIsSavingTooth(true);
+        try {
+            const res = await authFetch(`/patients/${patientId}/odontogram`, {
+                method: 'PUT',
+                body: JSON.stringify({ [selectedTooth]: tempToothStatus }),
+            });
+            if (!res.ok) addToast('Tooth status updated locally but failed to save to server.', 'error');
+        } catch {
+            addToast('Could not connect to server to save tooth status.', 'error');
+        } finally {
+            setIsSavingTooth(false);
+        }
     };
 
     const toggleLogExpand = (id, e) => {
@@ -111,7 +145,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         setExpandedLogs(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    // AI Enhancer Logic
     const openRadiograph = (img) => {
         setSelectedRadiograph(img);
         setIsEnhancing(false);
@@ -119,15 +152,9 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
     };
 
     const handleAIEnhance = () => {
-        if (isEnhanced) {
-            setIsEnhanced(false);
-            return;
-        }
+        if (isEnhanced) { setIsEnhanced(false); return; }
         setIsEnhancing(true);
-        setTimeout(() => {
-            setIsEnhancing(false);
-            setIsEnhanced(true);
-        }, 1500);
+        setTimeout(() => { setIsEnhancing(false); setIsEnhanced(true); }, 1500);
     };
 
     const closeImageModal = () => {
@@ -135,6 +162,38 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         setIsEnhancing(false);
         setIsEnhanced(false);
     };
+
+    // --- DERIVED DISPLAY VALUES ---
+    const fullName = patient
+        ? `${patient.name?.first || ''} ${patient.name?.middle ? patient.name.middle + ' ' : ''}${patient.name?.last || ''}`.trim()
+        : '';
+    const age = calculateAge(patient?.birthdate);
+    const address = formatAddress(patient?.currentAddress);
+    const primaryBranch = patient?.assignedBranches?.[0] || 'Main';
+
+    // --- LOADING / ERROR STATES ---
+    if (isLoading) {
+        return (
+            <div className={styles.mainOverlay}>
+                <div className={styles.overlayBackground} onClick={onClose}></div>
+                <div className={styles.formCard} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+                    <p style={{ color: '#01538b', fontWeight: 600 }}>Loading patient profile...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !patient) {
+        return (
+            <div className={styles.mainOverlay}>
+                <div className={styles.overlayBackground} onClick={onClose}></div>
+                <div className={styles.formCard} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '16px' }}>
+                    <p style={{ color: '#ef4444', fontWeight: 600 }}>{error || 'Patient not found.'}</p>
+                    <button className={styles.cancelBtn} onClick={onClose}>Close</button>
+                </div>
+            </div>
+        );
+    }
 
     // --- RENDER HELPERS FOR TABS ---
 
@@ -148,20 +207,19 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
             <div className={styles.infoGrid}>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Full Address</span>
-                    <p className={styles.infoValue}><FaMapMarkerAlt style={{color: '#94a3b8', marginRight: '6px'}}/> {MOCK_PATIENT.address}</p>
+                    <p className={styles.infoValue}><FaMapMarkerAlt style={{color: '#94a3b8', marginRight: '6px'}}/>{address}</p>
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Date of Birth</span>
-                    {/* TASK 1.2 UPDATE: Using centralized dateUtils */}
-                    <p className={styles.infoValue}>{formatDateLong(MOCK_PATIENT.dob)}</p>
+                    <p className={styles.infoValue}>{patient.birthdate ? formatDateLong(patient.birthdate) : '—'}</p>
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Occupation</span>
-                    <p className={styles.infoValue}>{MOCK_PATIENT.occupation}</p>
+                    <p className={styles.infoValue}>{patient.occupation || '—'}</p>
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Blood Type</span>
-                    <p className={styles.infoValue}>{MOCK_MEDICAL_HISTORY.bloodType}</p>
+                    <p className={styles.infoValue}>{patient.bloodType || '—'}</p>
                 </div>
             </div>
 
@@ -169,15 +227,15 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
             <div className={styles.infoGrid} style={{ marginBottom: 0, backgroundColor: '#f8fafc', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Contact Name</span>
-                    <p className={styles.infoValue}>{MOCK_PATIENT.emergencyContact.name}</p>
+                    <p className={styles.infoValue}>{patient.emergencyContact?.name || '—'}</p>
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Relationship</span>
-                    <p className={styles.infoValue}>{MOCK_PATIENT.emergencyContact.relation}</p>
+                    <p className={styles.infoValue}>{patient.emergencyContact?.relationship || '—'}</p>
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Phone Number</span>
-                    <p className={styles.infoValue}>{MOCK_PATIENT.emergencyContact.phone}</p>
+                    <p className={styles.infoValue}>{patient.emergencyContact?.contactNumber || '—'}</p>
                 </div>
             </div>
         </div>
@@ -190,18 +248,18 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
             <div className={styles.infoGrid}>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel} style={{ color: '#ef4444' }}><FaSyringe style={{marginRight: '6px'}}/> Allergies (Red Flags)</span>
-                    {MOCK_MEDICAL_HISTORY.allergies.length > 0 ? (
+                    {patient.medicalHistory?.allergies?.length > 0 ? (
                         <div className={styles.tagList}>
-                            {MOCK_MEDICAL_HISTORY.allergies.map(a => <span key={a} className={`${styles.tag} ${styles.warning}`}>{a}</span>)}
+                            {patient.medicalHistory.allergies.map(a => <span key={a} className={`${styles.tag} ${styles.warning}`}>{a}</span>)}
                         </div>
                     ) : <p className={styles.infoValue}>No known allergies.</p>}
                 </div>
 
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}><FaNotesMedical style={{marginRight: '6px'}}/> Pre-existing Conditions</span>
-                    {MOCK_MEDICAL_HISTORY.conditions.length > 0 ? (
+                    {patient.medicalHistory?.conditions?.length > 0 ? (
                         <div className={styles.tagList}>
-                            {MOCK_MEDICAL_HISTORY.conditions.map(c => <span key={c} className={styles.tag}>{c}</span>)}
+                            {patient.medicalHistory.conditions.map(c => <span key={c} className={styles.tag}>{c}</span>)}
                         </div>
                     ) : <p className={styles.infoValue}>None reported.</p>}
                 </div>
@@ -210,23 +268,25 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
             <div className={styles.infoGrid}>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Current Medications</span>
-                    {MOCK_MEDICAL_HISTORY.medications.length > 0 ? (
+                    {patient.medicalHistory?.medications?.length > 0 ? (
                         <ul style={{ margin: '5px 0 0 15px', color: '#334155', fontWeight: '600', fontSize: '15px' }}>
-                            {MOCK_MEDICAL_HISTORY.medications.map(m => <li key={m} style={{marginBottom: '5px'}}>{m}</li>)}
+                            {patient.medicalHistory.medications.map(m => <li key={m} style={{marginBottom: '5px'}}>{m}</li>)}
                         </ul>
                     ) : <p className={styles.infoValue}>None reported.</p>}
                 </div>
                 
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Last Physical / Dental Exam</span>
-                    <p className={styles.infoValue}>{MOCK_MEDICAL_HISTORY.lastExam}</p>
+                    <p className={styles.infoValue}>
+                        {patient.dentalHistory?.lastExamDate ? formatDateLong(patient.dentalHistory.lastExamDate) : '—'}
+                    </p>
                 </div>
             </div>
 
             <div className={styles.infoBlock} style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '30px' }}>
                 <span className={styles.infoLabel}>Clinical Notes & Remarks</span>
                 <p className={styles.infoValue} style={{ fontWeight: '500', color: '#475569', fontStyle: 'italic' }}>
-                    "{MOCK_MEDICAL_HISTORY.notes}"
+                    {patient.medicalHistory?.notes ? `"${patient.medicalHistory.notes}"` : 'No clinical notes on record.'}
                 </p>
             </div>
         </div>
@@ -242,7 +302,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         title={`Tooth ${num} - ${getToothStatus(num).toUpperCase()}`}
                     >
                         <span className={styles.toothNum}>{num}</span>
-                        {/* Interactive Click Handler added to ToothBox */}
                         <div className={styles.toothBox} onClick={() => openToothModal(num)}></div>
                     </div>
                 ))}
@@ -285,18 +344,15 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
     };
 
     const renderTreatmentLogs = () => {
-        const filteredLogs = MOCK_TREATMENT_LOGS.filter(log => {
+        const filteredLogs = treatmentLogs.filter(log => {
             const searchLower = logsSearchQuery.toLowerCase();
-            const matchesSearch = log.procedure.toLowerCase().includes(searchLower) || log.notes.toLowerCase().includes(searchLower);
+            const matchesSearch = log.procedure?.toLowerCase().includes(searchLower) || log.notes?.toLowerCase().includes(searchLower);
             const matchesCategory = logsCategory === 'All' || log.category === logsCategory;
             
             let matchesDate = true;
-            if (logsDateFrom) {
-                matchesDate = matchesDate && new Date(log.dateStr) >= new Date(logsDateFrom);
-            }
-            if (logsDateTo) {
-                matchesDate = matchesDate && new Date(log.dateStr) <= new Date(logsDateTo);
-            }
+            const logDateStr = log.date ? new Date(log.date).toISOString().split('T')[0] : '';
+            if (logsDateFrom) matchesDate = matchesDate && logDateStr >= logsDateFrom;
+            if (logsDateTo)   matchesDate = matchesDate && logDateStr <= logsDateTo;
 
             return matchesSearch && matchesCategory && matchesDate;
         });
@@ -331,21 +387,9 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         </select>
 
                         <div className={styles.dateFilterWrapper}>
-                            <input 
-                                type="date" 
-                                className={styles.dateInput} 
-                                value={logsDateFrom}
-                                onChange={(e) => setLogsDateFrom(e.target.value)}
-                                title="From Date"
-                            />
+                            <input type="date" className={styles.dateInput} value={logsDateFrom} onChange={(e) => setLogsDateFrom(e.target.value)} title="From Date" />
                             <span className={styles.dateSeparator}>-</span>
-                            <input 
-                                type="date" 
-                                className={styles.dateInput} 
-                                value={logsDateTo}
-                                onChange={(e) => setLogsDateTo(e.target.value)}
-                                title="To Date"
-                            />
+                            <input type="date" className={styles.dateInput} value={logsDateTo} onChange={(e) => setLogsDateTo(e.target.value)} title="To Date" />
                         </div>
                     </div>
                 </div>
@@ -353,24 +397,26 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 <div className={styles.timeline}>
                     {filteredLogs.length > 0 ? (
                         filteredLogs.map(log => {
-                            const isExpanded = !!expandedLogs[log.id];
+                            const logId = log._id || log.id;
+                            const isExpanded = !!expandedLogs[logId];
+                            const displayDate = log.date ? formatDateLong(log.date) : '—';
 
                             return (
-                                <div key={log.id} className={styles.timelineItem}>
+                                <div key={logId} className={styles.timelineItem}>
                                     <div className={styles.timelineDot}></div>
                                     
                                     <div className={styles.timelineCard}>
-                                        <div className={styles.timelineHeader} onClick={(e) => toggleLogExpand(log.id, e)}>
+                                        <div className={styles.timelineHeader} onClick={(e) => toggleLogExpand(logId, e)}>
                                             <div className={styles.timelineMain}>
-                                                <h4 className={styles.timelineDate}>{log.displayDate}</h4>
+                                                <h4 className={styles.timelineDate}>{displayDate}</h4>
                                                 <p className={styles.timelineProcedure}>{log.procedure}</p>
                                                 
                                                 <div className={styles.timelineMeta}>
                                                     <span className={styles.metaTag} title="Attending Dentist">
-                                                        <FaUserMd className={styles.metaIcon} style={{color: '#94a3b8'}}/> {log.doctor}
+                                                        <FaUserMd className={styles.metaIcon} style={{color: '#94a3b8'}}/> {log.dentistName || '—'}
                                                     </span>
                                                     <span className={styles.metaTag} title="Branch">
-                                                        <FaHospitalUser className={styles.metaIcon} style={{color: '#94a3b8'}}/> {log.branch} Branch
+                                                        <FaHospitalUser className={styles.metaIcon} style={{color: '#94a3b8'}}/> {log.branch || '—'}
                                                     </span>
                                                 </div>
                                             </div>
@@ -388,12 +434,12 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                                                         <span className={styles.detailLabel}>Treated Tooth #</span>
                                                         <p className={styles.detailValue}>
                                                             <FaTooth style={{ color: '#01538b', marginRight: '6px' }}/> 
-                                                            {log.tooth}
+                                                            {log.tooth || '—'}
                                                         </p>
                                                     </div>
                                                     <div className={styles.detailBlock}>
                                                         <span className={styles.detailLabel}>Clinical Notes & Remarks</span>
-                                                        <p className={styles.detailValue}>{log.notes}</p>
+                                                        <p className={styles.detailValue}>{log.notes || 'No notes recorded.'}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -404,7 +450,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         })
                     ) : (
                         <div className={styles.emptyState}>
-                            No treatment logs match the current filters.
+                            {treatmentLogs.length === 0 ? 'No treatment records found for this patient.' : 'No treatment logs match the current filters.'}
                         </div>
                     )}
                 </div>
@@ -423,16 +469,16 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                             </button>
                             <div className={styles.imageViewerTitleBox}>
                                 <h3 className={styles.sectionTitle} style={{ margin: 0, borderLeft: 'none', paddingLeft: 0 }}>
-                                    {selectedRadiograph.type}
+                                    {selectedRadiograph.label || selectedRadiograph.type}
                                 </h3>
-                                <p className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {selectedRadiograph.date}</p>
+                                <p className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {selectedRadiograph.date ? formatDateLong(selectedRadiograph.date) : '—'}</p>
                             </div>
                         </div>
 
                         <div className={styles.largeRadiographWrapper}>
                             <img 
                                 src={selectedRadiograph.url} 
-                                alt={selectedRadiograph.type} 
+                                alt={selectedRadiograph.label || selectedRadiograph.type} 
                                 className={`${styles.largeRadiograph} ${isEnhanced ? styles.enhancedImage : ''}`}
                             />
                             {isEnhancing && (
@@ -472,16 +518,16 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                     </button>
                 </div>
 
-                {MOCK_RADIOGRAPHS.length > 0 ? (
+                {radiographs.length > 0 ? (
                     <div className={styles.radiographGrid}>
-                        {MOCK_RADIOGRAPHS.map(img => (
-                            <div key={img.id} className={styles.radioCard} onClick={() => openRadiograph(img)}>
+                        {radiographs.map(img => (
+                            <div key={img._id} className={styles.radioCard} onClick={() => openRadiograph(img)}>
                                 <div className={styles.radioThumbnailWrapper}>
-                                    <img src={img.url} alt={img.type} className={styles.radioThumbnail} />
+                                    <img src={img.url} alt={img.label} className={styles.radioThumbnail} />
                                 </div>
                                 <div className={styles.radioMeta}>
-                                    <h4 className={styles.radioType}>{img.type}</h4>
-                                    <span className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {img.date}</span>
+                                    <h4 className={styles.radioType}>{img.label}</h4>
+                                    <span className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {img.date ? formatDateLong(img.date) : '—'}</span>
                                 </div>
                             </div>
                         ))}
@@ -511,20 +557,20 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 </div>
 
                 <div className={styles.profileHeaderCard}>
-                    <div className={styles.avatar}>{getInitials(MOCK_PATIENT.name)}</div>
+                    <div className={styles.avatar}>{getInitials(fullName)}</div>
                     <div className={styles.patientMainInfo}>
                         <div className={styles.nameRow}>
-                            <h2 className={styles.patientName}>{MOCK_PATIENT.name}</h2>
-                            <span className={`${styles.branchBadge} ${MOCK_PATIENT.primaryBranch === 'Rizal' ? styles.rizal : ''}`}>
-                                {MOCK_PATIENT.primaryBranch} Branch
+                            <h2 className={styles.patientName}>{fullName}</h2>
+                            <span className={`${styles.branchBadge} ${primaryBranch === 'Rizal' ? styles.rizal : ''}`}>
+                                {primaryBranch} Branch
                             </span>
-                            <span className={styles.patientId}>ID: {MOCK_PATIENT.id}</span>
+                            <span className={styles.patientId}>ID: {patient._id}</span>
                         </div>
                         
                         <div className={styles.metaRow}>
-                            <span className={styles.metaItem}><FaUserMd className={styles.metaIcon} /> {MOCK_PATIENT.gender}, {MOCK_PATIENT.age} y/o</span>
-                            <span className={styles.metaItem}><FaPhoneAlt className={styles.metaIcon} /> {MOCK_PATIENT.phone}</span>
-                            <span className={styles.metaItem}><FaEnvelope className={styles.metaIcon} /> {MOCK_PATIENT.email}</span>
+                            <span className={styles.metaItem}><FaUserMd className={styles.metaIcon} /> {patient.gender || '—'}, {age} y/o</span>
+                            <span className={styles.metaItem}><FaPhoneAlt className={styles.metaIcon} /> {patient.contactNumber || '—'}</span>
+                            <span className={styles.metaItem}><FaEnvelope className={styles.metaIcon} /> {patient.email}</span>
                         </div>
                     </div>
                 </div>
@@ -538,15 +584,15 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 </div>
 
                 <div className={styles.tabContentArea}>
-                    {activeTab === 'overview' && renderOverview()}
-                    {activeTab === 'medical' && renderMedicalHistory()}
-                    {activeTab === 'odontogram' && renderOdontogram()}
-                    {activeTab === 'logs' && renderTreatmentLogs()}
+                    {activeTab === 'overview'    && renderOverview()}
+                    {activeTab === 'medical'     && renderMedicalHistory()}
+                    {activeTab === 'odontogram'  && renderOdontogram()}
+                    {activeTab === 'logs'        && renderTreatmentLogs()}
                     {activeTab === 'radiographs' && renderRadiographs()}
                 </div>
             </div>
 
-            {/* --- INTERACTIVE TOOTH ACTION MODAL --- */}
+            {/* INTERACTIVE TOOTH ACTION MODAL */}
             {selectedTooth && (
                 <div className={styles.mainOverlay} style={{ zIndex: 1005 }}>
                     <div className={styles.overlayBackground} onClick={() => setSelectedTooth(null)}></div>
@@ -555,42 +601,18 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         <p className={styles.subtitle} style={{marginBottom: '20px'}}>Select the current status for this tooth.</p>
 
                         <div className={styles.statusOptionsGrid}>
-                            <button 
-                                className={`${styles.statusBtn} ${tempToothStatus === 'healthy' ? styles.activeHealthy : ''}`} 
-                                onClick={() => setTempToothStatus('healthy')}
-                            >
-                                Healthy
-                            </button>
-                            <button 
-                                className={`${styles.statusBtn} ${tempToothStatus === 'filled' ? styles.activeFilled : ''}`} 
-                                onClick={() => setTempToothStatus('filled')}
-                            >
-                                Filled
-                            </button>
-                            <button 
-                                className={`${styles.statusBtn} ${tempToothStatus === 'decayed' ? styles.activeDecayed : ''}`} 
-                                onClick={() => setTempToothStatus('decayed')}
-                            >
-                                Decayed
-                            </button>
-                            <button 
-                                className={`${styles.statusBtn} ${tempToothStatus === 'crown' ? styles.activeCrown : ''}`} 
-                                onClick={() => setTempToothStatus('crown')}
-                            >
-                                Crown
-                            </button>
-                            <button 
-                                className={`${styles.statusBtn} ${tempToothStatus === 'missing' ? styles.activeMissing : ''}`} 
-                                style={{ gridColumn: 'span 2' }} 
-                                onClick={() => setTempToothStatus('missing')}
-                            >
-                                Missing / Extracted
-                            </button>
+                            <button className={`${styles.statusBtn} ${tempToothStatus === 'healthy'  ? styles.activeHealthy  : ''}`} onClick={() => setTempToothStatus('healthy')}>Healthy</button>
+                            <button className={`${styles.statusBtn} ${tempToothStatus === 'filled'   ? styles.activeFilled   : ''}`} onClick={() => setTempToothStatus('filled')}>Filled</button>
+                            <button className={`${styles.statusBtn} ${tempToothStatus === 'decayed'  ? styles.activeDecayed  : ''}`} onClick={() => setTempToothStatus('decayed')}>Decayed</button>
+                            <button className={`${styles.statusBtn} ${tempToothStatus === 'crown'    ? styles.activeCrown    : ''}`} onClick={() => setTempToothStatus('crown')}>Crown</button>
+                            <button className={`${styles.statusBtn} ${tempToothStatus === 'missing'  ? styles.activeMissing  : ''}`} style={{ gridColumn: 'span 2' }} onClick={() => setTempToothStatus('missing')}>Missing / Extracted</button>
                         </div>
 
                         <div className={styles.modalButtonGroup}>
-                            <button className={styles.cancelBtn} style={{flex: 1}} onClick={() => setSelectedTooth(null)}>Cancel</button>
-                            <button className={styles.submitBtn} style={{flex: 1}} onClick={handleSaveToothStatus}>Save Update</button>
+                            <button className={styles.cancelBtn} style={{flex: 1}} onClick={() => setSelectedTooth(null)} disabled={isSavingTooth}>Cancel</button>
+                            <button className={styles.submitBtn} style={{flex: 1}} onClick={handleSaveToothStatus} disabled={isSavingTooth}>
+                                {isSavingTooth ? 'Saving...' : 'Save Update'}
+                            </button>
                         </div>
                     </div>
                 </div>
