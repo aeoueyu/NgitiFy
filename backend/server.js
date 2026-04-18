@@ -18,6 +18,8 @@ const Patient = require('./models/Patient');
 const Surgery = require('./models/Surgery');
 const Inventory = require('./models/Inventory');
 const Notification = require('./models/Notification');
+const Branch = require('./models/Branch');
+const SystemConfig = require('./models/SystemConfig');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -1126,6 +1128,14 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             details: `Patient ${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}`
         });
 
+        await Notification.create({
+            type: 'NEW_APPOINTMENT',
+            title: 'New Appointment Request',
+            message: `${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}.`,
+            recipientRole: 'administrator',
+            relatedId: newSurgery._id
+        });
+
         res.status(201).json({
             message: 'Appointment request submitted successfully. You will be notified once confirmed.',
             surgery: newSurgery
@@ -1595,6 +1605,118 @@ app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error marking all notifications read:', error);
         res.status(500).json({ message: "Server error." });
+    }
+});
+
+app.get('/api/branches', verifyToken, async (req, res) => {
+    try {
+        const branches = await Branch.find({ isActive: true }).sort({ name: 1 });
+        res.json(branches);
+    } catch (error) {
+        console.error('Error fetching branches:', error);
+        res.status(500).json({ message: 'Server error fetching branches.' });
+    }
+});
+ 
+app.post('/api/branches', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        }
+        const { name, address, contactNumber } = req.body;
+        if (!name) return res.status(400).json({ message: 'Branch name is required.' });
+ 
+        const existing = await Branch.findOne({ name: name.trim() });
+        if (existing) return res.status(409).json({ message: 'A branch with this name already exists.' });
+ 
+        const newBranch = new Branch({ name: name.trim(), address, contactNumber });
+        await newBranch.save();
+ 
+        await AuditLog.create({
+            action: 'BRANCH_ADDED',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `New branch created: ${name}`
+        });
+ 
+        res.status(201).json(newBranch);
+    } catch (error) {
+        console.error('Error creating branch:', error);
+        res.status(500).json({ message: 'Server error creating branch.' });
+    }
+});
+ 
+app.put('/api/branches/:id', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        }
+        const { name, address, contactNumber, isActive } = req.body;
+        const updatedBranch = await Branch.findByIdAndUpdate(
+            req.params.id,
+            { name, address, contactNumber, isActive },
+            { new: true }
+        );
+        if (!updatedBranch) return res.status(404).json({ message: 'Branch not found.' });
+ 
+        await AuditLog.create({
+            action: 'BRANCH_UPDATED',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Branch updated: ${updatedBranch.name}`
+        });
+ 
+        res.json(updatedBranch);
+    } catch (error) {
+        console.error('Error updating branch:', error);
+        res.status(500).json({ message: 'Server error updating branch.' });
+    }
+});
+ 
+ 
+// -------------------------------------------------------
+// SYSTEM CONFIG ROUTES
+// -------------------------------------------------------
+ 
+app.get('/api/system-config', verifyToken, async (req, res) => {
+    try {
+        // Get the single config doc (or create a default one on first access)
+        let config = await SystemConfig.findOne();
+        if (!config) {
+            config = await SystemConfig.create({});
+        }
+        res.json(config);
+    } catch (error) {
+        console.error('Error fetching system config:', error);
+        res.status(500).json({ message: 'Server error fetching system config.' });
+    }
+});
+ 
+app.put('/api/system-config', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        }
+ 
+        let config = await SystemConfig.findOne();
+        if (!config) {
+            config = new SystemConfig(req.body);
+        } else {
+            Object.assign(config, req.body, { updatedBy: req.user?.email });
+        }
+        await config.save();
+ 
+        await AuditLog.create({
+            action: 'CONFIG_CHANGED',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: 'System configuration updated.'
+        });
+ 
+        res.json(config);
+    } catch (error) {
+        console.error('Error updating system config:', error);
+        res.status(500).json({ message: 'Server error updating system config.' });
     }
 });
 

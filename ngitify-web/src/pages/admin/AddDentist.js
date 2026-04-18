@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styles from '../../styles/admin/AddDentist.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
@@ -8,6 +8,7 @@ import { authFetch } from '../../utils/api';
 export default function AddDentist({ onClose, onSuccess }) {
     const fileInputRef = useRef(null);
     const [isSameAddress, setIsSameAddress] = useState(false);
+    const [branchOptions, setBranchOptions] = useState([]);
     const [profileImage, setProfileImage] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({}); 
@@ -198,6 +199,31 @@ export default function AddDentist({ onClose, onSuccess }) {
             </div>
         );
     };
+
+    const handleBranchToggle = (branchName) => {
+        setFormData(prev => {
+            const already = prev.assignedBranches.includes(branchName);
+            return {
+                ...prev,
+                assignedBranches: already
+                    ? prev.assignedBranches.filter(b => b !== branchName)
+                    : [...prev.assignedBranches, branchName]
+            };
+        });
+    };
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const res = await authFetch('/branches');
+                if (res.ok) {
+                    const data = await res.json();
+                    setBranchOptions(data.map(b => b.name));
+                }
+            } catch (e) { console.error('Failed to load branches:', e); }
+        };
+        fetchBranches();
+    }, []);
 
     return (
         <div className={styles.mainOverlay}>

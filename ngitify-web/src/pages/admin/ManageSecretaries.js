@@ -1,18 +1,19 @@
+// ngitify-web/src/pages/admin/ManageSecretaries.js
 import React, { useState, useEffect, useCallback } from 'react';
-import styles from '../../styles/admin/ManageSecretaries.module.css'; 
+import styles from '../../styles/admin/ManageSecretaries.module.css';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 
-import UserTabs from './UserTabs'; 
-import AddSecretary from './AddSecretary'; 
+import UserTabs from './UserTabs';
+import AddSecretary from './AddSecretary';
 import EditSecretary from './EditSecretary';
 import ViewSecretary from './ViewSecretary';
-import ConfirmModal from '../../components/common/ConfirmModal'; 
-import { useToast } from '../../context/ToastContext'; // TASK 3.2: Imported Toast
+import ConfirmModal from '../../components/common/ConfirmModal';
+import { useToast } from '../../context/ToastContext';
 
 export default function ManageSecretaries() {
-    const { addToast } = useToast(); // TASK 3.2: Initialize Toast
+    const { addToast } = useToast();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -20,7 +21,7 @@ export default function ManageSecretaries() {
 
     const [secretariesList, setSecretariesList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -32,7 +33,6 @@ export default function ManageSecretaries() {
         try {
             setIsLoading(true);
             const response = await authFetch('/users?role=secretary');
-
             if (response.ok) {
                 const data = await response.json();
                 const mappedSecretaries = data
@@ -52,13 +52,18 @@ export default function ManageSecretaries() {
                             email: u.email || 'N/A',
                             status: u.status === 'active' ? 'Active' : 'Inactive',
                             isVerified: u.isVerified,
-                            profileImage: u.profileImage
+                            profileImage: u.profileImage,
+                            // ✅ PHASE 2: Branch assignment
+                            assignedBranches: u.assignedBranches || []
                         };
                     });
                 setSecretariesList(mappedSecretaries);
             }
-        } catch (error) { console.error("Failed to fetch secretaries:", error); } 
-        finally { setIsLoading(false); }
+        } catch (error) {
+            console.error('Failed to fetch secretaries:', error);
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
     useEffect(() => { fetchSecretaries(); }, [fetchSecretaries]);
@@ -67,25 +72,22 @@ export default function ManageSecretaries() {
         const matchesSearch = secretary.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               secretary.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || secretary.status === statusFilter;
-        const matchesVerified = verifiedFilter === 'All' || 
-                                (verifiedFilter === 'Verified' && secretary.isVerified) || 
+        const matchesVerified = verifiedFilter === 'All' ||
+                                (verifiedFilter === 'Verified' && secretary.isVerified) ||
                                 (verifiedFilter === 'Unverified' && !secretary.isVerified);
-
         return matchesSearch && matchesStatus && matchesVerified;
     });
 
-    // TASK 3.1 & 3.2: Replaced window.confirm and alert()
     const handleToggleStatus = (secretary) => {
         const newStatus = secretary.status === 'Active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !secretary.isVerified) {
             addToast(`Cannot activate ${secretary.name}. Their email is not yet verified.`, 'error');
             return;
         }
-
         setConfirmConfig({
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
-            message: newStatus === 'active' 
-                ? `Are you sure you want to ACTIVATE ${secretary.name}? They will regain access to the system.` 
+            message: newStatus === 'active'
+                ? `Are you sure you want to ACTIVATE ${secretary.name}? They will regain access to the system.`
                 : `Are you sure you want to DEACTIVATE ${secretary.name}? They will lose access to the system.`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
@@ -100,19 +102,18 @@ export default function ManageSecretaries() {
                 method: 'PUT',
                 body: JSON.stringify({ status: newStatus })
             });
-
             if (res.ok) {
-                setSecretariesList(prevList => prevList.map(s => 
+                setSecretariesList(prev => prev.map(s =>
                     s.id === id ? { ...s, status: newStatus === 'active' ? 'Active' : 'Inactive' } : s
                 ));
                 addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} ${name}'s account.`, 'success');
             } else {
                 const data = await res.json();
-                addToast(data.message || "Failed to update status.", 'error');
+                addToast(data.message || 'Failed to update status.', 'error');
             }
-        } catch (error) { 
-            console.error("Error toggling status:", error); 
-            addToast("Cannot connect to server.", 'error'); 
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            addToast('Cannot connect to server.', 'error');
         } finally {
             setConfirmConfig(null);
         }
@@ -134,16 +135,16 @@ export default function ManageSecretaries() {
                 <div className={styles.searchFilterGroup}>
                     <div className={styles.searchWrapper}>
                         <FaSearch className={styles.searchIcon} />
-                        <input 
-                            type="text" 
-                            placeholder="Search secretaries by name or email..." 
-                            className={styles.searchInput} 
-                            value={searchQuery} 
-                            onChange={(e) => setSearchQuery(e.target.value)} 
+                        <input
+                            type="text"
+                            placeholder="Search secretaries by name or email..."
+                            className={styles.searchInput}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    
-                    <select 
+
+                    <select
                         className={styles.filterSelect}
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
@@ -159,7 +160,7 @@ export default function ManageSecretaries() {
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
                     </div>
                 </div>
-                
+
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
                     <FaUserPlus className={styles.btnIcon} /> Add New Secretary
                 </button>
@@ -174,13 +175,15 @@ export default function ManageSecretaries() {
                             <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
                             <th>Secretary Name</th>
                             <th>Email Address</th>
+                            {/* ✅ PHASE 2: Branch column */}
+                            <th>Assigned Branch</th>
                             <th style={{ width: '180px' }}>Account Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredSecretaries.length > 0 ? (
                             filteredSecretaries.map((secretary) => (
                                 <tr key={secretary.id} style={{ opacity: secretary.status === 'Inactive' ? 0.6 : 1 }}>
@@ -192,6 +195,13 @@ export default function ManageSecretaries() {
                                         {!secretary.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
                                     <td>{secretary.email}</td>
+                                    {/* ✅ PHASE 2: Show assigned branches */}
+                                    <td>
+                                        {secretary.assignedBranches.length > 0
+                                            ? secretary.assignedBranches.join(', ')
+                                            : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>
+                                        }
+                                    </td>
                                     <td>
                                         <span className={`${styles.statusDot} ${secretary.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
                                         <span style={{ fontWeight: '500', color: secretary.status === 'Active' ? '#15803d' : '#b91c1c' }}>{secretary.status}</span>
@@ -199,10 +209,10 @@ export default function ManageSecretaries() {
                                     <td style={{ textAlign: 'center' }}>
                                         <button className={styles.iconBtn} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
                                         <button className={styles.iconBtn} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
-                                        <button 
-                                            className={`${styles.iconBtn}`} 
+                                        <button
+                                            className={styles.iconBtn}
                                             onClick={() => handleToggleStatus(secretary)}
-                                            title={secretary.status === 'Active' ? "Deactivate Account" : "Activate Account"}
+                                            title={secretary.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
                                             style={{ color: secretary.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                         >
                                             {secretary.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
@@ -211,7 +221,7 @@ export default function ManageSecretaries() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found matching filters.</td></tr>
+                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found matching filters.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -227,7 +237,7 @@ export default function ManageSecretaries() {
             )}
             {isEditModalOpen && selectedSecretaryId && <EditSecretary secretaryId={selectedSecretaryId} onClose={handleCloseEditModal} onSuccess={fetchSecretaries} />}
 
-            <ConfirmModal 
+            <ConfirmModal
                 isOpen={!!confirmConfig}
                 title={confirmConfig?.title}
                 message={confirmConfig?.message}

@@ -1,3 +1,4 @@
+// backend/models/User.js
 const mongoose = require('mongoose');
 
 const addressSchema = new mongoose.Schema({
@@ -10,11 +11,10 @@ const addressSchema = new mongoose.Schema({
     street: { type: String }
 }, { _id: false });
 
-// ✅ NEW: Embedded treatment log subdocument (used for patient EMR)
 const treatmentLogSchema = new mongoose.Schema({
     date: { type: Date, required: true },
     procedure: { type: String, required: true },
-    tooth: { type: String }, // e.g., "45", "18, 28", "All"
+    tooth: { type: String },
     category: {
         type: String,
         enum: ['Restoration', 'Extraction', 'Prophylaxis', 'Orthodontics', 'Endodontics', 'Prosthodontics', 'Oral Surgery', 'Consultation', 'Other'],
@@ -22,8 +22,17 @@ const treatmentLogSchema = new mongoose.Schema({
     },
     notes: { type: String },
     dentistId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    dentistName: { type: String }, // stored separately so it survives staff changes
+    dentistName: { type: String },
     branch: { type: String },
+}, { timestamps: true });
+
+// ✅ PHASE 2: Radiograph subdocument schema
+const radiographSchema = new mongoose.Schema({
+    label: { type: String, required: true },
+    date: { type: Date, required: true },
+    url: { type: String },       // base64 image data or external URL
+    notes: { type: String },
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
 const userSchema = new mongoose.Schema({
@@ -41,22 +50,24 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         enum: [
-          'administrator',     // New
-          'co-administrator',  // New
-          'branch-manager',    // New
-          'owner',             // Keep temporarily for migration
-          'co-owner',          // Keep temporarily for migration
-          'dentist', 
-          'secretary', 
+          'administrator',
+          'co-administrator',
+          'branch-manager',
+          'owner',         // Keep temporarily for migration
+          'co-owner',      // Keep temporarily for migration
+          'dentist',
+          'secretary',
           'patient'
         ]
-      },
+    },
 
-    // Task 13 Fix: Added permissions field
     permissions: {
         type: Object,
         default: {}
     },
+
+    // ✅ PHASE 2: Branch assignment for staff members
+    assignedBranches: [{ type: String }],
 
     // 3. PERSONAL DETAILS
     contactNumber: { type: String },
@@ -64,9 +75,8 @@ const userSchema = new mongoose.Schema({
     gender: { type: String },
     profileImage: { type: String },
 
-    // ✅ NEW: Additional patient demographics required by FR#13 / Table 4
-    suffix: { type: String },       // e.g., Jr., Sr., III
-    civilStatus: { type: String },  // e.g., Single, Married, Widowed
+    suffix: { type: String },
+    civilStatus: { type: String },
     religion: { type: String },
     nationality: { type: String, default: 'Filipino' },
     birthplace: { type: String },
@@ -95,29 +105,28 @@ const userSchema = new mongoose.Schema({
         allergies: [{ type: String }],
         conditions: [{ type: String }],
         medications: [{ type: String }],
-        // ✅ NEW: Free-text notes field for the dentist to fill in EMR
         notes: { type: String }
     },
 
-    // ✅ NEW: DENTAL HISTORY (for EMR — general notes, last exam, etc.)
     dentalHistory: {
         lastExamDate: { type: Date },
         chiefComplaint: { type: String },
         notes: { type: String }
     },
 
-    // ✅ NEW: TREATMENT LOGS — embedded array for dentist post-treatment entries
+    // 8. EMR DATA
     treatmentLogs: [treatmentLogSchema],
 
-    // ✅ NEW: ODONTOGRAM — map of tooth number (as string) → status string
-    // e.g., { "18": "missing", "26": "crown", "45": "decayed" }
     odontogram: {
         type: Map,
         of: String,
         default: {}
     },
 
-    // 8. SECURITY & VERIFICATION
+    // ✅ PHASE 2: Radiograph images embedded in patient document
+    radiographs: [radiographSchema],
+
+    // 9. SECURITY & VERIFICATION
     isVerified: { type: Boolean, default: false },
     activationToken: { type: String },
     isPasswordChanged: { type: Boolean, default: false },
@@ -125,14 +134,14 @@ const userSchema = new mongoose.Schema({
     resetPasswordOtp: { type: String },
     resetPasswordExpires: { type: Date },
 
-    // 9. GUARDIAN (Optional for minors)
+    // 10. GUARDIAN
     guardian: {
         name: { type: String },
         relationship: { type: String },
         contactNumber: { type: String }
     },
 
-    // 10. LEAVE REQUESTS (for staff)
+    // 11. LEAVE REQUESTS
     leaveRequests: [{
         startDate: { type: Date },
         endDate: { type: Date },
@@ -140,10 +149,7 @@ const userSchema = new mongoose.Schema({
         status: { type: String, enum: ['pending', 'approved', 'denied'], default: 'pending' }
     }],
 
-    // FIX: Default status is 'inactive' until email verified
     status: { type: String, enum: ['active', 'inactive'], default: 'inactive' },
-
-    // ✅ NEW: Archive flag — replaces hard-delete for dentists and secretaries (Owner FR#7, FR#11)
     isArchived: { type: Boolean, default: false }
 
 }, { timestamps: true });

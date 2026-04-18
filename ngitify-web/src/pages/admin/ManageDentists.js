@@ -1,18 +1,19 @@
+// ngitify-web/src/pages/admin/ManageDentists.js
 import React, { useState, useEffect, useCallback } from 'react';
-import styles from '../../styles/admin/ManageDentists.module.css'; 
+import styles from '../../styles/admin/ManageDentists.module.css';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 
-import UserTabs from './UserTabs'; 
-import AddDentist from './AddDentist'; 
+import UserTabs from './UserTabs';
+import AddDentist from './AddDentist';
 import EditDentist from './EditDentist';
 import ViewDentist from './ViewDentist';
-import ConfirmModal from '../../components/common/ConfirmModal'; 
-import { useToast } from '../../context/ToastContext'; // TASK 3.2: Imported Toast
+import ConfirmModal from '../../components/common/ConfirmModal';
+import { useToast } from '../../context/ToastContext';
 
 export default function ManageDentists() {
-    const { addToast } = useToast(); // TASK 3.2: Initialize Toast
+    const { addToast } = useToast();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -20,7 +21,7 @@ export default function ManageDentists() {
 
     const [dentistsList, setDentistsList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -32,7 +33,6 @@ export default function ManageDentists() {
         try {
             setIsLoading(true);
             const response = await authFetch('/users?role=dentist');
-
             if (response.ok) {
                 const data = await response.json();
                 const mappedDentists = data
@@ -52,13 +52,18 @@ export default function ManageDentists() {
                             email: u.email || 'N/A',
                             status: u.status === 'active' ? 'Active' : 'Inactive',
                             isVerified: u.isVerified,
-                            profileImage: u.profileImage
+                            profileImage: u.profileImage,
+                            // ✅ PHASE 2: Branch assignment
+                            assignedBranches: u.assignedBranches || []
                         };
                     });
                 setDentistsList(mappedDentists);
             }
-        } catch (error) { console.error("Failed to fetch dentists:", error); } 
-        finally { setIsLoading(false); }
+        } catch (error) {
+            console.error('Failed to fetch dentists:', error);
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
     useEffect(() => { fetchDentists(); }, [fetchDentists]);
@@ -67,25 +72,22 @@ export default function ManageDentists() {
         const matchesSearch = dentist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               dentist.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || dentist.status === statusFilter;
-        const matchesVerified = verifiedFilter === 'All' || 
-                                (verifiedFilter === 'Verified' && dentist.isVerified) || 
+        const matchesVerified = verifiedFilter === 'All' ||
+                                (verifiedFilter === 'Verified' && dentist.isVerified) ||
                                 (verifiedFilter === 'Unverified' && !dentist.isVerified);
-
         return matchesSearch && matchesStatus && matchesVerified;
     });
 
-    // TASK 3.1 & 3.2: Replaced window.confirm and alert()
     const handleToggleStatus = (dentist) => {
         const newStatus = dentist.status === 'Active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !dentist.isVerified) {
             addToast(`Cannot activate Dr. ${dentist.name}. Their email is not yet verified.`, 'error');
             return;
         }
-
         setConfirmConfig({
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
-            message: newStatus === 'active' 
-                ? `Are you sure you want to ACTIVATE Dr. ${dentist.name}? They will regain access to the system.` 
+            message: newStatus === 'active'
+                ? `Are you sure you want to ACTIVATE Dr. ${dentist.name}? They will regain access to the system.`
                 : `Are you sure you want to DEACTIVATE Dr. ${dentist.name}? They will lose access to the system.`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
@@ -100,19 +102,18 @@ export default function ManageDentists() {
                 method: 'PUT',
                 body: JSON.stringify({ status: newStatus })
             });
-
             if (res.ok) {
-                setDentistsList(prevList => prevList.map(d => 
+                setDentistsList(prev => prev.map(d =>
                     d.id === id ? { ...d, status: newStatus === 'active' ? 'Active' : 'Inactive' } : d
                 ));
                 addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} Dr. ${name}'s account.`, 'success');
             } else {
                 const data = await res.json();
-                addToast(data.message || "Failed to update status.", 'error');
+                addToast(data.message || 'Failed to update status.', 'error');
             }
-        } catch (error) { 
-            console.error("Error toggling status:", error); 
-            addToast("Cannot connect to server.", 'error'); 
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            addToast('Cannot connect to server.', 'error');
         } finally {
             setConfirmConfig(null);
         }
@@ -134,16 +135,16 @@ export default function ManageDentists() {
                 <div className={styles.searchFilterGroup}>
                     <div className={styles.searchWrapper}>
                         <FaSearch className={styles.searchIcon} />
-                        <input 
-                            type="text" 
-                            placeholder="Search dentists by name or email..." 
-                            className={styles.searchInput} 
-                            value={searchQuery} 
-                            onChange={(e) => setSearchQuery(e.target.value)} 
+                        <input
+                            type="text"
+                            placeholder="Search dentists by name or email..."
+                            className={styles.searchInput}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    
-                    <select 
+
+                    <select
                         className={styles.filterSelect}
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
@@ -159,7 +160,7 @@ export default function ManageDentists() {
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
                     </div>
                 </div>
-                
+
                 <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
                     <FaUserPlus className={styles.btnIcon} /> Add New Dentist
                 </button>
@@ -174,13 +175,15 @@ export default function ManageDentists() {
                             <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
                             <th>Dentist Name</th>
                             <th>Email Address</th>
+                            {/* ✅ PHASE 2: Branch column */}
+                            <th>Assigned Branch</th>
                             <th style={{ width: '180px' }}>Account Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredDentists.length > 0 ? (
                             filteredDentists.map((dentist) => (
                                 <tr key={dentist.id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
@@ -192,6 +195,13 @@ export default function ManageDentists() {
                                         {!dentist.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
                                     <td>{dentist.email}</td>
+                                    {/* ✅ PHASE 2: Show assigned branches */}
+                                    <td>
+                                        {dentist.assignedBranches.length > 0
+                                            ? dentist.assignedBranches.join(', ')
+                                            : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>
+                                        }
+                                    </td>
                                     <td>
                                         <span className={`${styles.statusDot} ${dentist.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
                                         <span style={{ fontWeight: '500', color: dentist.status === 'Active' ? '#15803d' : '#b91c1c' }}>{dentist.status}</span>
@@ -199,10 +209,10 @@ export default function ManageDentists() {
                                     <td style={{ textAlign: 'center' }}>
                                         <button className={styles.iconBtn} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
                                         <button className={styles.iconBtn} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
-                                        <button 
-                                            className={`${styles.iconBtn}`} 
+                                        <button
+                                            className={styles.iconBtn}
                                             onClick={() => handleToggleStatus(dentist)}
-                                            title={dentist.status === 'Active' ? "Deactivate Account" : "Activate Account"}
+                                            title={dentist.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
                                             style={{ color: dentist.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                         >
                                             {dentist.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
@@ -211,14 +221,14 @@ export default function ManageDentists() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No dentists found matching filters.</td></tr>
+                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No dentists found matching filters.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
             {isAddModalOpen && <AddDentist onClose={() => setIsAddModalOpen(false)} onSuccess={fetchDentists} />}
-            
+
             {isViewModalOpen && selectedDentistId && (
                 <ViewDentist
                     dentistId={selectedDentistId}
@@ -226,10 +236,10 @@ export default function ManageDentists() {
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
                 />
             )}
-            
+
             {isEditModalOpen && selectedDentistId && <EditDentist dentistId={selectedDentistId} onClose={handleCloseEditModal} onSuccess={fetchDentists} />}
 
-            <ConfirmModal 
+            <ConfirmModal
                 isOpen={!!confirmConfig}
                 title={confirmConfig?.title}
                 message={confirmConfig?.message}

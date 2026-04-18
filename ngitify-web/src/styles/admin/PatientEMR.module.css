@@ -1,0 +1,520 @@
+/* ngitify-web/src/styles/admin/PatientEMR.module.css */
+
+.emrContainer {
+    padding: 0;
+    background: #f4f7fa;
+    min-height: 100vh;
+    font-family: 'Lexend Deca', sans-serif;
+}
+
+/* ── Header ── */
+.emrHeader {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 32px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.backBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #475569;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.backBtn:hover { background: #f1f5f9; }
+
+.patientHeaderInfo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+}
+
+.patientName {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.patientMeta {
+    font-size: 13px;
+    color: #64748b;
+    margin: 4px 0 0;
+}
+
+/* ── Tab Bar ── */
+.tabBar {
+    display: flex;
+    gap: 0;
+    background: #fff;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 0 32px;
+    overflow-x: auto;
+}
+
+.tabBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #64748b;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+
+.tabBtn:hover { color: #01538b; }
+
+.activeTabBtn {
+    color: #01538b;
+    border-bottom-color: #01538b;
+    font-weight: 600;
+}
+
+/* ── Tab Content ── */
+.tabContent {
+    padding: 28px 32px;
+}
+
+.contentCard {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 28px;
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.cardHeader h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+}
+
+/* ── Action Buttons ── */
+.actionBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #01538b;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.actionBtn:hover { background: #013f6a; }
+
+.uploadBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+}
+.uploadBtn:hover { background: #e2e8f0; }
+
+.saveBtn {
+    background: #01538b;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.saveBtn:hover { background: #013f6a; }
+.saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.cancelBtn {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-size: 14px;
+    cursor: pointer;
+}
+.cancelBtn:hover { background: #e2e8f0; }
+
+/* ── Info Grid ── */
+.infoGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.infoBox {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.infoLabel {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.infoValue {
+    font-size: 14px;
+    color: #334155;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* ── Alert Banner ── */
+.alertBanner {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 14px;
+    color: #7f1d1d;
+}
+
+/* ── Tags ── */
+.tagList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.tag {
+    background: #e8f4fd;
+    color: #01538b;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.warning {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+/* ── Notes ── */
+.notesBox {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 16px;
+}
+
+.notesText {
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.6;
+    margin: 6px 0 0;
+}
+
+/* ── Form Fields ── */
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.formGroup label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.inputField {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    color: #0f172a;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.inputField:focus { border-color: #01538b; }
+
+.textareaField {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    color: #0f172a;
+    background: #fff;
+    outline: none;
+    resize: vertical;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.textareaField:focus { border-color: #01538b; }
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* ── Add Log Form ── */
+.addLogForm {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+/* ── Treatment Log Cards ── */
+.logCard {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.logHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    cursor: pointer;
+    background: #fff;
+    transition: background 0.15s;
+}
+.logHeader:hover { background: #f8fafc; }
+
+.logProcedure {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.logMeta {
+    display: block;
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 3px;
+}
+
+.logDate {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.logBody {
+    padding: 14px 18px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.logBody p {
+    font-size: 14px;
+    color: #334155;
+    margin: 0 0 8px;
+}
+
+.iconBtnSm {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+.iconBtnSm:hover { background: #fef2f2; }
+
+/* ── Radiograph Cards ── */
+.radCard {
+    position: relative;
+    width: 180px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+    background: #fff;
+}
+.radCard:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+.radThumb {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+}
+
+.radPlaceholder {
+    width: 100%;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #94a3b8;
+    font-size: 28px;
+}
+
+.radInfo {
+    padding: 10px 12px;
+}
+
+.radLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.radDate {
+    font-size: 12px;
+    color: #64748b;
+    margin: 3px 0 0;
+}
+
+.deleteRadBtn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(239,68,68,0.9);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 7px;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.radCard:hover .deleteRadBtn { opacity: 1; }
+
+/* ── Lightbox ── */
+.lightboxOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.lightboxContent {
+    position: relative;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.lightboxClose {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #475569;
+    z-index: 1;
+}
+
+.lightboxImage {
+    max-width: 80vw;
+    max-height: 70vh;
+    object-fit: contain;
+    display: block;
+}
+
+.lightboxMeta {
+    padding: 14px 20px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.lightboxMeta p {
+    margin: 4px 0;
+    font-size: 14px;
+    color: #334155;
+}
+
+/* ── Loading / Error ── */
+.loadingWrapper, .errorWrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
+    color: #64748b;
+    font-size: 16px;
+    gap: 12px;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+    font-size: 28px;
+    color: #01538b;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .emrHeader { padding: 16px; flex-direction: column; align-items: flex-start; }
+    .tabContent { padding: 16px; }
+    .infoGrid { grid-template-columns: 1fr; }
+    .radCard { width: 140px; }
+}
