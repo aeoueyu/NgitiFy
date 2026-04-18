@@ -35,15 +35,29 @@ export default function LoginPage() {
             if (response.ok) {
                 // === FIX: EXPLICITLY SAVE THE CLEAN TOKEN STRING HERE ===
                 localStorage.setItem('token', data.token);
-
-                // Pass the user data to update the global AuthContext state.
+            
+                // ✅ FIX Bug 28: Fetch full profile so AuthContext gets real name + avatar
+                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+                let profileData = {};
+                try {
+                    const profileRes = await fetch(`${apiUrl}/api/user/${data.userId}`, {
+                        headers: { 'Authorization': `Bearer ${data.token}` }
+                    });
+                    if (profileRes.ok) profileData = await profileRes.json();
+                } catch (e) {
+                    console.warn('Profile pre-fetch failed, name will be blank until refresh:', e);
+                }
+            
+                // Pass full user data to AuthContext so UserAvatar shows initials immediately
                 await login({
-                    token: data.token,
-                    role: data.role,
-                    userId: data.userId,
-                    userEmail: email
+                    token:        data.token,
+                    role:         data.role,
+                    userId:       data.userId,
+                    userEmail:    email,
+                    name:         profileData.name,
+                    profileImage: profileData.profileImage,
                 });
-
+            
                 // Redirect based on role returned by backend
                 if (data.role === 'administrator' || data.role === 'co-administrator' || data.role === 'branch-manager') {
                     navigate('/admin/dashboard');
@@ -52,9 +66,7 @@ export default function LoginPage() {
                 } else if (data.role === 'secretary') {
                     navigate('/secretary/dashboard');
                 } else if (data.role === 'patient') {
-                    // Task 6 Fix: Show error instead of routing to a broken page
                     setErrorMessage("Patient access is only available on the mobile app.");
-                    // Clean up token since they shouldn't actually be logged in on web
                     localStorage.removeItem('token');
                 } else {
                     setErrorMessage("Unrecognized user role.");
