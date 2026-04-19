@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { FaCog, FaSignOutAlt, FaTools } from 'react-icons/fa';
+import { FaCog, FaSignOutAlt, FaTools, FaListUl } from 'react-icons/fa';
 import { authFetch } from '../../utils/api'; 
 
 // CRITICAL RULE: Import ConfirmModal
@@ -130,6 +130,13 @@ export default function Sidebar() {
                         </div>
                     )}
 
+                    {isAdmin && (
+                        <div className={getNavClass('/admin/queue')} onClick={() => handleMainNavigation('/admin/queue')}>
+                            <FaListUl className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Queue</span>
+                        </div>
+                    )}
+                
                     {isAdmin && (
                         <div className={getNavClass('/admin/audit-trail')} onClick={() => handleMainNavigation('/admin/audit-trail')}>
                             <img src={AuditIcon} alt="Audit" className={styles['nav-icon']} /> 

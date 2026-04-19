@@ -24,7 +24,6 @@ const PROCEDURE_OPTIONS = [
 ];
 
 // ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
-// ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
 // ✅ FIX Bug 27: Map 'in-clinic' (DB value) → 'In Clinic' (display label)
 const STATUS_DISPLAY_MAP = {
     'pending':   'Pending',
@@ -172,7 +171,6 @@ export default function SecretaryAppointments() {
         'Cancelled': 'cancelled',
     };
 
-// Confirmed status change → hit backend
     const confirmStatusChange = async () => {
         if (!statusChangeTarget) return;
         const { apt, newStatus } = statusChangeTarget;

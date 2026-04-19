@@ -2031,4 +2031,131 @@ REQUIRED_ENV_VARS.forEach(key => {
     }
 });
 
+app.post('/api/queue', verifyToken, async (req, res) => {
+    try {
+        const allowed = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+        if (!allowed.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+ 
+        const { patientName, branch, assignedDentist, procedureType, contactNumber, patientId } = req.body;
+        if (!patientName || !branch) {
+            return res.status(400).json({ message: 'Patient name and branch are required.' });
+        }
+ 
+        // Auto-increment ticket number: max today's ticket + 1 per branch
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+ 
+        const last = await Queue.findOne({
+            branch,
+            createdAt: { $gte: startOfDay }
+        }).sort({ ticketNumber: -1 });
+ 
+        const ticketNumber = last ? last.ticketNumber + 1 : 1;
+ 
+        const entry = await Queue.create({
+            patientName: patientName.trim(),
+            branch: branch.trim(),
+            ticketNumber,
+            assignedDentist: assignedDentist || '',
+            procedureType: procedureType || '',
+            contactNumber: contactNumber || '',
+            patientId: patientId || null
+        });
+ 
+        await AuditLog.create({
+            action: 'QUEUE_CREATE',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Walk-in ticket #${ticketNumber} created for ${patientName} at ${branch}.`
+        });
+ 
+        res.status(201).json(entry);
+    } catch (error) {
+        console.error('Error creating queue entry:', error);
+        res.status(500).json({ message: 'Server error creating queue entry.' });
+    }
+});
+ 
+// GET /api/queue — get all active queue entries, optionally filtered by branch
+app.get('/api/queue', verifyToken, async (req, res) => {
+    try {
+        const allowed = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+        if (!allowed.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+ 
+        const filter = {};
+ 
+        // Branch filter (optional query param)
+        if (req.query.branch) {
+            filter.branch = req.query.branch;
+        }
+ 
+        // Only return today's queue entries
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        filter.createdAt = { $gte: startOfDay };
+ 
+        const entries = await Queue.find(filter).sort({ ticketNumber: 1 });
+        res.json(entries);
+    } catch (error) {
+        console.error('Error fetching queue:', error);
+        res.status(500).json({ message: 'Server error fetching queue.' });
+    }
+});
+ 
+// PATCH /api/queue/:id/status — update queue entry status (call, done, skip)
+app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
+    try {
+        const allowed = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+        if (!allowed.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+ 
+        const { status } = req.body;
+        if (!['waiting', 'serving', 'done', 'skipped'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status value.' });
+        }
+ 
+        const update = { status };
+        if (status === 'serving') update.calledAt = new Date();
+        if (status === 'done' || status === 'skipped') update.completedAt = new Date();
+ 
+        const entry = await Queue.findByIdAndUpdate(req.params.id, update, { new: true });
+        if (!entry) return res.status(404).json({ message: 'Queue entry not found.' });
+ 
+        await AuditLog.create({
+            action: 'QUEUE_UPDATE',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Queue ticket #${entry.ticketNumber} status changed to ${status}.`
+        });
+ 
+        res.json(entry);
+    } catch (error) {
+        console.error('Error updating queue status:', error);
+        res.status(500).json({ message: 'Server error updating queue.' });
+    }
+});
+ 
+// DELETE /api/queue/:id — remove a queue entry
+app.delete('/api/queue/:id', verifyToken, async (req, res) => {
+    try {
+        const allowed = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+        if (!allowed.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+ 
+        const entry = await Queue.findByIdAndDelete(req.params.id);
+        if (!entry) return res.status(404).json({ message: 'Queue entry not found.' });
+ 
+        res.json({ message: 'Queue entry removed successfully.' });
+    } catch (error) {
+        console.error('Error deleting queue entry:', error);
+        res.status(500).json({ message: 'Server error deleting queue entry.' });
+    }
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

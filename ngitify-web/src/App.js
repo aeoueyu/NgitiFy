@@ -40,6 +40,7 @@ const EditBranchManager = lazy(() => import('./pages/admin/EditBranchManager'));
 const EditCoAdmin = lazy(() => import('./pages/admin/EditCoAdmin'));
 const AdminPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
 const SystemConfig = lazy(() => import('./pages/admin/SystemConfig'));
+const QueueManagement = lazy(() => import('./pages/admin/QueueManagement'));
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
@@ -129,7 +130,7 @@ function App() {
                   <Route path="/admin/system-config" element={<SystemConfig />} />
 
                   {/* Stubs for Phase 3+ (uncomment as you build them) */}
-                  {/* <Route path="/admin/queue" element={<QueueManagement />} /> */}
+                  <Route path="/admin/queue" element={<QueueManagement />} />
                   {/* <Route path="/admin/notifications" element={<Notifications />} /> */}
                   {/* <Route path="/admin/branches" element={<BranchManagement />} /> */}
                   {/* <Route path="/admin/roles" element={<RolesPermissions />} /> */}
