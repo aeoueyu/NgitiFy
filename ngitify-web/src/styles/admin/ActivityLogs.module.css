@@ -1,0 +1,429 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.container {
+    padding: 30px;
+    background-color: #f4f7fa;
+    min-height: 100vh;
+    font-family: 'Lexend Deca', sans-serif;
+    flex: 1;
+}
+
+/* ── Page Header ── */
+.pageHeader {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 28px;
+}
+
+.headerIcon {
+    font-size: 28px;
+    color: #01538b;
+}
+
+.pageTitle {
+    color: #01538b;
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0 0 4px 0;
+}
+
+.pageSubtitle {
+    color: #888;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* ── Filters Card ── */
+.filtersCard {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.filtersRow {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.searchWrapper {
+    position: relative;
+    flex: 2;
+    min-width: 220px;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.searchInput:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 3px rgba(1, 83, 139, 0.1);
+}
+
+.select {
+    padding: 10px 16px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    color: #334155;
+    background: white;
+    cursor: pointer;
+    outline: none;
+    min-width: 140px;
+}
+
+.select:focus {
+    border-color: #01538b;
+}
+
+.dateGroup {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dateInput {
+    padding: 10px 12px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    color: #334155;
+    outline: none;
+}
+
+.dateInput:focus {
+    border-color: #01538b;
+}
+
+.dateSep {
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.clearBtn {
+    padding: 10px 18px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.clearBtn:hover {
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+/* ── Category Tabs ── */
+.categoryTabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filterTabIcon {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.categoryTab {
+    padding: 6px 16px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.categoryTab:hover {
+    border-color: #01538b;
+    color: #01538b;
+}
+
+.activeTab {
+    background: #01538b;
+    border-color: #01538b;
+    color: white;
+}
+
+/* ── Result Count ── */
+.resultCount {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0 0 16px 0;
+}
+
+/* ── Loading / Empty ── */
+.loadingState,
+.emptyState {
+    text-align: center;
+    padding: 60px 20px;
+    color: #64748b;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #01538b;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 14px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.emptyIcon {
+    font-size: 36px;
+    color: #cbd5e1;
+    margin-bottom: 12px;
+}
+
+/* ── Date Divider ── */
+.dateDivider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 12px 0;
+    padding-left: 52px;
+}
+
+.dateDivider span {
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: #f4f7fa;
+    padding: 2px 10px;
+    border-radius: 50px;
+    border: 1px solid #e2e8f0;
+}
+
+/* ── Timeline ── */
+.timeline {
+    display: flex;
+    flex-direction: column;
+}
+
+.timelineItem {
+    display: flex;
+    gap: 16px;
+    position: relative;
+}
+
+/* Left column: dot + connector line */
+.timelineDotCol {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 36px;
+}
+
+.timelineDot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+.timelineLine {
+    width: 2px;
+    flex: 1;
+    min-height: 20px;
+    background: #e2e8f0;
+    margin: 4px 0;
+}
+
+/* Right column: content card */
+.timelineContent {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f5f9;
+    transition: box-shadow 0.2s;
+}
+
+.timelineContent:hover {
+    box-shadow: 0 4px 12px rgba(1, 83, 139, 0.08);
+}
+
+.timelineHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.timelineMeta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.timelineUser {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.roleChip {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 50px;
+    background: #e2e8f0;
+    color: #475569;
+    text-transform: capitalize;
+}
+
+.roleChip[data-role="administrator"],
+.roleChip[data-role="co-administrator"] {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.roleChip[data-role="dentist"] {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.roleChip[data-role="secretary"] {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.roleChip[data-role="branch-manager"] {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.timelineTime {
+    font-size: 12px;
+    color: #94a3b8;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
+.timelineBody {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.actionChip {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 50px;
+    border: 1.5px solid;
+    background: white;
+    letter-spacing: 0.04em;
+    width: fit-content;
+}
+
+.timelineDetails {
+    font-size: 13px;
+    color: #475569;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.categoryLabel {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.7;
+    margin-top: 6px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* ── Pagination ── */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 30px;
+    padding-bottom: 20px;
+}
+
+.pageBtn {
+    padding: 10px 20px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #01538b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pageBtn:hover:not(:disabled) {
+    background: #01538b;
+    color: white;
+    border-color: #01538b;
+}
+
+.pageBtn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.pageInfo {
+    font-size: 13px;
+    color: #64748b;
+}

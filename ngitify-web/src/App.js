@@ -48,6 +48,7 @@ const BranchAnalytics  = lazy(() => import('./pages/admin/BranchAnalytics'));
 const ChatSupport = lazy(() => import('./pages/admin/ChatSupport'));
 const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const IntegrityTools = lazy(() => import('./pages/admin/IntegrityTools'));
+const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
@@ -145,6 +146,7 @@ function App() {
                   <Route path="/admin/backup" element={<DatabaseBackup />} />
                   <Route path="/admin/chat-support" element={<ChatSupport />} />
                   <Route path="/admin/integrity" element={<IntegrityTools />} />
+                  <Route path="/admin/activity-logs" element={<ActivityLogs />} />
                 </Route>
               </Route>
 

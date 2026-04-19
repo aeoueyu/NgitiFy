@@ -1054,7 +1054,35 @@ app.get('/api/audit-logs', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const logs = await AuditLog.find().sort({ timestamp: -1 });
+        const { action, role, from, to, limit = 1000 } = req.query;
+
+        const filter = {};
+
+        // Partial, case-insensitive match on the action field
+        if (action && action.trim()) {
+            filter.action = { $regex: action.trim(), $options: 'i' };
+        }
+
+        // Exact match on role
+        if (role && role.trim() && role !== 'All') {
+            filter.role = role.trim().toLowerCase();
+        }
+
+        // Date range on timestamp
+        if (from || to) {
+            filter.timestamp = {};
+            if (from) filter.timestamp.$gte = new Date(from);
+            if (to) {
+                const toDate = new Date(to);
+                toDate.setHours(23, 59, 59, 999);
+                filter.timestamp.$lte = toDate;
+            }
+        }
+
+        const logs = await AuditLog.find(filter)
+            .sort({ timestamp: -1 })
+            .limit(Number(limit));
+
         res.json(logs);
     } catch (error) {
         res.status(500).json({ message: "Error fetching logs." });

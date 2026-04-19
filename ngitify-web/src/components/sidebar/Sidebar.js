@@ -199,6 +199,13 @@ export default function Sidebar() {
                             <span className={styles['nav-text']}>Audit Trail</span>
                         </div>
                     )}
+
+                    {isAdmin && (
+                        <div className={getNavClass('/admin/activity-logs')} onClick={() => handleMainNavigation('/admin/activity-logs')}>
+                            <FaListUl className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Activity Logs</span>
+                        </div>
+                    )}
                 </div>
 
                 <div className={styles['footer-section']}>
