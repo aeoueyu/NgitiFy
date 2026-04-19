@@ -139,6 +139,8 @@
     margin-top: 20px;
 }
 
+.tableCard { border-radius: 16px; }
+
 .userTable { width: 100%; border-collapse: collapse; text-align: left; font-family: 'Lexend Deca', sans-serif; }
 .userTable thead { background-color: #f8fafc; }
 .userTable th { padding: 15px 20px; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; border-bottom: 2px solid #e2e8f0; }

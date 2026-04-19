@@ -33,6 +33,8 @@
     font-weight: 500;
 }
 
+.queueCard { border-radius: 16px; }
+
 .headerActions {
     display: flex;
     align-items: center;

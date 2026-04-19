@@ -18,6 +18,14 @@
     backdrop-filter: blur(3px);
 }
 
+.pageTitle {
+    font-size: 26px;
+    font-weight: 800;
+    color: #01538b;
+    font-family: 'Lexend Deca', sans-serif;
+    margin: 0 0 4px;
+}
+
 .formCard {
     position: relative;
     z-index: 1001;
@@ -25,7 +33,7 @@
     max-width: 750px; 
     background: white;
     padding: 30px 40px;
-    border-radius: 20px;
+    border-radius: 16px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.15);
     max-height: 80vh;
     overflow-y: auto;

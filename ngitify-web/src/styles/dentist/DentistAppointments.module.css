@@ -103,6 +103,7 @@
 
 .status-badge { display: inline-block; padding: 5px 12px; border-radius: 50px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
 .status-pending { background: #fff3e0; color: #f57c00; }
+.status-confirmed { background-color: #dcfce7; color: #16a34a; font-weight: 600; }
 .status-in-clinic { background-color: #e0f2fe; color: #0284c7; }
 .status-done { background: #e8f5e9; color: #2e7d32; }
 

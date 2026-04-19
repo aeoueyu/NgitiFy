@@ -120,13 +120,18 @@ export default function AdminDashboard() {
                 if (surgRes.ok) {
                     const surgData = await surgRes.json();
                     
-                    const mappedAllAppts = surgData.map(s => ({
-                        name: s.patientName || 'Unknown Patient',
-                        type: s.procedure || 'Consultation',
-                        time: formatTime(s.date || s.createdAt),
-                        status: s.status || 'Pending',
-                        rawDate: new Date(s.date || s.createdAt)
-                    }));
+                    const mappedAllAppts = surgData.map(s => {
+                        const first = s.patient?.name?.first || '';
+                        const last  = s.patient?.name?.last  || '';
+                        const fullName = (first + ' ' + last).trim() || s.patient?.email || 'Unknown Patient';
+                        return {
+                            name: fullName,
+                            type: s.procedure || 'Consultation',
+                            time: formatTime(s.date || s.createdAt),
+                            status: s.status || 'Pending',
+                            rawDate: new Date(s.date || s.createdAt)
+                        };
+                    });
                     setAllAppointments(mappedAllAppts);
 
                     if (surgData.length > 0) {
@@ -141,26 +146,26 @@ export default function AdminDashboard() {
                             .sort((a, b) => b.value - a.value).slice(0, 4);
                         if (topTreatments.length > 0) setTreatmentData(topTreatments);
 
-                        // TASK 4.1: Patient Volume Trend Calculation (Last 6 Months)
                         const volumeDataMap = {};
                         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                         const now = new Date();
-                        
+
                         for (let i = 5; i >= 0; i--) {
                             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                            volumeDataMap[`${monthNames[d.getMonth()]}`] = 0;
+                            const key = `${d.getFullYear()}-${monthNames[d.getMonth()]}`;
+                            volumeDataMap[key] = 0;
                         }
 
                         surgData.forEach(s => {
                             const date = new Date(s.date || s.createdAt);
-                            const month = monthNames[date.getMonth()];
-                            if (volumeDataMap[month] !== undefined) {
-                                volumeDataMap[month]++;
+                            const key = `${date.getFullYear()}-${monthNames[date.getMonth()]}`;
+                            if (volumeDataMap[key] !== undefined) {
+                                volumeDataMap[key]++;
                             }
                         });
 
                         const volumeChartData = Object.keys(volumeDataMap).map(key => ({
-                            name: key,
+                            name: key.split('-')[1],   // display just "Jan", "Feb", etc. on the chart
                             patients: volumeDataMap[key]
                         }));
                         setPatientVolumeData(volumeChartData);

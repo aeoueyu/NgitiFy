@@ -4,6 +4,9 @@
     padding: 30px;
     max-width: 1100px;
     margin: 0 auto;
+    font-family: 'Lexend Deca', sans-serif;
+    background-color: #f4f7fa;
+    min-height: 100vh;
 }
 
 .pageHeader {
@@ -20,10 +23,11 @@
 .headerIcon { font-size: 30px; color: #01538b; }
 
 .pageTitle {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 800;
-    color: #1a2a3a;
-    margin: 0;
+    color: #01538b;
+    font-family: 'Lexend Deca', sans-serif;
+    margin: 0 0 4px;
 }
 
 .pageSubtitle { font-size: 14px; color: #7f8c8d; margin: 4px 0 0; }

@@ -23,11 +23,11 @@ async function checkOrphanedSurgeries() {
     const orphaned = [];
 
     for (const surgery of surgeries) {
-        const patientExists = surgery.patientId
-            ? await User.exists({ _id: surgery.patientId })
-            : true; // no patientId field — skip
-        const dentistExists = surgery.dentistId
-            ? await User.exists({ _id: surgery.dentistId })
+        const patientExists = surgery.patient
+            ? await User.exists({ _id: surgery.patient })
+            : true; // no patient field — skip
+        const dentistExists = surgery.dentist
+            ? await User.exists({ _id: surgery.dentist })
             : true;
 
         if (!patientExists || !dentistExists) {
@@ -148,11 +148,11 @@ router.post('/integrity/fix/:checkName', verifyToken, isAdmin, async (req, res) 
             const orphanedIds = [];
 
             for (const surgery of surgeries) {
-                const patientExists = surgery.patientId
-                    ? await User.exists({ _id: surgery.patientId })
+                const patientExists = surgery.patient
+                    ? await User.exists({ _id: surgery.patient })
                     : true;
-                const dentistExists = surgery.dentistId
-                    ? await User.exists({ _id: surgery.dentistId })
+                const dentistExists = surgery.dentist
+                    ? await User.exists({ _id: surgery.dentist })
                     : true;
                 if (!patientExists || !dentistExists) orphanedIds.push(surgery._id);
             }
@@ -176,16 +176,19 @@ router.post('/integrity/fix/:checkName', verifyToken, isAdmin, async (req, res) 
             fixResult = { fixed: result.modifiedCount, action: 'Set status to inactive' };
 
         } else if (checkName === 'expired_temp_passwords') {
-            // Already deactivated by login logic — just confirm status is inactive
+            // Clear stale credential fields so these accounts no longer appear in future checks
             const result = await User.updateMany(
                 {
                     status: 'inactive',
                     isPasswordChanged: false,
                     temporaryPasswordExpires: { $lt: new Date() }
                 },
-                { $set: { status: 'inactive' } }
+                {
+                    $unset: { temporaryPasswordExpires: '', activationToken: '' },
+                    $set: { isPasswordChanged: true }
+                }
             );
-            fixResult = { fixed: result.modifiedCount, action: 'Confirmed status as inactive' };
+            fixResult = { fixed: result.modifiedCount, action: 'Cleared expired credential fields' };
 
         } else if (checkName === 'duplicate_emails') {
             return res.status(400).json({

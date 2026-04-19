@@ -18,18 +18,18 @@ const ProtectedRoute = ({ allowedRoles }) => {
     
     switch (user.role) {
       case 'administrator':
-        case 'co-administrator':
-        case 'branch-manager':
-            fallbackPath = '/admin/dashboard';
-            break;
-        case 'dentist':
-            fallbackPath = '/dentist/dashboard';
-            break;
-        case 'secretary':
-            fallbackPath = '/secretary/dashboard';
-            break;
-        default:
-            fallbackPath = '/login';
+      case 'co-administrator':
+      case 'branch-manager':
+          fallbackPath = '/admin/dashboard';
+          break;
+      case 'dentist':
+          fallbackPath = '/dentist/dashboard';
+          break;
+      case 'secretary':
+          fallbackPath = '/secretary/dashboard';
+          break;
+      default:
+          fallbackPath = '/login';
     }
 
     return <Navigate to={fallbackPath} replace />;

@@ -89,6 +89,10 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             return res.status(403).json({ message: "Account not verified. Please check your email." });
         }
 
+        if (user.status === 'inactive') {
+            return res.status(403).json({ message: "Your account is inactive. Please contact an administrator." });
+        }
+
         const token = jwt.sign(
             { id: user._id, role: user.role, email: user.email },
             process.env.JWT_SECRET,
@@ -844,7 +848,7 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             return res.json({ message: "User updated. Re-activation email sent.", user: updatedUser });
         }
 
-        const updatedUser = await User.findByIdAndUpdate(userId, { ...updateData, email }, { new: true });
+        const updatedUser = await User.findByIdAndUpdate(userId, { ...updateData }, { new: true });
 
         await AuditLog.create({
             action: "UPDATE_USER",
@@ -887,7 +891,7 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         if (birthdate !== undefined) user.birthdate = birthdate;
         if (gender !== undefined) user.gender = gender;
         if (profileImage !== undefined) {
-            if (profileImage && profileImage.length > 2 * 1024 * 1024) {
+            if (profileImage && profileImage.length > 1.5 * 1024 * 1024) {
                 return res.status(413).json({ message: 'Profile image must be under 1.5MB.' });
             }
             user.profileImage = profileImage;
@@ -985,7 +989,11 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
 app.post('/api/verify-current-password', verifyToken, async (req, res) => {
     try {
         const { userId, currentPassword } = req.body;
-        
+
+        if (userId !== req.user.id && req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found." });
@@ -1107,11 +1115,15 @@ app.post('/api/logout', verifyToken, async (req, res) => {
 });
 
 app.get('/api/inventory', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const items = await Inventory.find().sort({ createdAt: -1 });
         res.status(200).json(items);
     } catch (error) {
-        console.error("Error fetching inventory:", error);
+        console.error("Error fetching inventory:");
         res.status(500).json({ message: "Server error fetching inventory" });
     }
 });
@@ -1880,21 +1892,6 @@ app.get('/api/notifications', verifyToken, async (req, res) => {
     }
 });
 
-// Mark a single notification as read
-app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
-    try {
-        const notification = await Notification.findByIdAndUpdate(
-            req.params.id, 
-            { isRead: true }, 
-            { new: true }
-        );
-        res.json(notification);
-    } catch (error) {
-        console.error('Error marking notification read:', error);
-        res.status(500).json({ message: "Server error." });
-    }
-});
-
 // Mark all notifications as read for the user
 app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
     try {
@@ -1908,6 +1905,21 @@ app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
         res.json({ message: "All notifications marked as read." });
     } catch (error) {
         console.error('Error marking all notifications read:', error);
+        res.status(500).json({ message: "Server error." });
+    }
+});
+
+// Mark a single notification as read
+app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
+    try {
+        const notification = await Notification.findByIdAndUpdate(
+            req.params.id, 
+            { isRead: true }, 
+            { new: true }
+        );
+        res.json(notification);
+    } catch (error) {
+        console.error('Error marking notification read:', error);
         res.status(500).json({ message: "Server error." });
     }
 });

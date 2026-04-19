@@ -3,12 +3,19 @@
     padding: 24px;
     max-width: 1200px;
     margin: 0 auto;
+    font-family: 'Lexend Deca', sans-serif;
+    background-color: #f4f7fa;
+    min-height: 100vh;
 }
 
 /* Header */
 .emrHeader {
     margin-bottom: 28px;
 }
+
+.title { font-size: 26px; font-weight: 800; color: #01538b; font-family: 'Lexend Deca', sans-serif; margin: 0 0 4px; }
+.subtitle { font-size: 13px; color: #888; font-family: 'Lexend Deca', sans-serif; margin: 0; }
+
 .backBtn {
     background: none;
     border: none;

@@ -2,6 +2,9 @@
     padding: 30px;
     max-width: 1100px;
     margin: 0 auto;
+    font-family: 'Lexend Deca', sans-serif;
+    background-color: #f4f7fa;
+    min-height: 100vh;
 }
 
 .loading {
@@ -32,10 +35,11 @@
 }
 
 .pageTitle {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 800;
-    color: #1a2a3a;
-    margin: 0;
+    color: #01538b;
+    font-family: 'Lexend Deca', sans-serif;
+    margin: 0 0 4px;
 }
 
 .pageSubtitle {
@@ -51,8 +55,8 @@
     background: #01538b;
     color: white;
     border: none;
-    border-radius: 10px;
-    padding: 11px 20px;
+    border-radius: 50px;
+    padding: 12px 30px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
@@ -278,7 +282,7 @@
 .input {
     padding: 10px 14px;
     border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
+    border-radius: 50px;
     font-size: 14px;
     color: #1a2a3a;
     outline: none;
@@ -310,11 +314,11 @@
 
 .submitBtn {
     flex: 1;
-    padding: 12px;
+    padding: 12px 30px;
     background: #01538b;
     color: white;
     border: none;
-    border-radius: 10px;
+    border-radius: 50px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;

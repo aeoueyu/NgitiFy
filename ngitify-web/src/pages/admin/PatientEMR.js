@@ -1,4 +1,4 @@
-// ngitify-web/src/pages/dentist/PatientEMR.js
+// ngitify-web/src/pages/admin/PatientEMR.js
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -148,15 +148,41 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         setMedicalForm(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSaveMedical = (e) => {
+    const handleSaveMedical = async (e) => {
         e.preventDefault();
         setIsSavingMedical(true);
-        setTimeout(() => {
+        try {
+            const { authFetch } = await import('../../utils/api');
+            const res = await authFetch(`/patients/${activePatientId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    medicalHistory: {
+                        bloodType:   medicalForm.bloodType,
+                        allergies:   medicalForm.allergies
+                            ? medicalForm.allergies.split(',').map(s => s.trim()).filter(Boolean)
+                            : [],
+                        conditions:  medicalForm.conditions
+                            ? medicalForm.conditions.split(',').map(s => s.trim()).filter(Boolean)
+                            : [],
+                        medications: medicalForm.medications
+                            ? medicalForm.medications.split(',').map(s => s.trim()).filter(Boolean)
+                            : [],
+                        notes: medicalForm.notes,
+                    },
+                    dentalHistory: {
+                        lastExamDate: medicalForm.lastExam || undefined,
+                    },
+                }),
+            });
+            if (!res.ok) throw new Error((await res.json()).message);
             setMedicalHistory(medicalForm);
             setIsEditingMedical(false);
+            addToast('Medical history updated successfully.', 'success');
+        } catch (err) {
+            addToast(err.message || 'Failed to update medical history.', 'error');
+        } finally {
             setIsSavingMedical(false);
-            addToast("Medical history updated successfully.", "success");
-        }, 600);
+        }
     };
 
     const handleCancelMedical = () => {
@@ -566,8 +592,8 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             <div className={styles.contentCard}>
                 <div className={styles.sectionHeaderRow}>
                     <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Dental Radiographs (X-Rays)</h3>
-                    <button className={styles.uploadBtn} onClick={() => addToast('Upload functionality coming soon!', 'info')}>
-                        <FaUpload /> Upload Radiograph
+                    <button className={styles.uploadBtn} disabled title="This feature is coming soon">
+                        <FaUpload /> Upload Radiograph <span style={{ fontSize: '11px', fontWeight: '500', opacity: 0.7 }}>(Coming Soon)</span>
                     </button>
                 </div>
 
@@ -619,6 +645,11 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         );
     }
 
+    const patientAge = patient?.birthdate
+        ? Math.floor((new Date() - new Date(patient.birthdate)) / 31557600000)
+        : null;
+    const patientPhone = patient?.contactNumber || 'N/A';
+
     const modalWrapperStyle = onClose ? {
         position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
         display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
@@ -645,12 +676,18 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                         <h2 className={styles.patientName}>
                             {patient.name?.first ? `${patient.name.first} ${patient.name.last}` : patient.name}
                         </h2>
-                        <span className={`${styles.branchBadge} ${patient.primaryBranch === 'Rizal' ? styles.rizal : ''}`}>{patient.primaryBranch} Branch</span>
+                        {patient.assignedBranches?.[0] && (
+                            <span className={styles.branchBadge}>{patient.assignedBranches[0]} Branch</span>
+                        )}
                         <span className={styles.patientId}>ID: {patient._id || patient.id}</span>
                     </div>
                     <div className={styles.metaRow}>
-                        <span className={styles.metaItem}><FaUserMd className={styles.metaIcon} /> {patient.gender}, {patient.age} y/o (DOB: {formatDateShort(patient.dob)})</span>
-                        <span className={styles.metaItem}><FaPhoneAlt className={styles.metaIcon} /> {patient.phone}</span>
+                        <span className={styles.metaItem}>
+                            <FaUserMd className={styles.metaIcon} />
+                            {patient.gender}{patientAge ? `, ${patientAge} y/o` : ''}
+                            {patient.birthdate ? ` (DOB: ${formatDateShort(patient.birthdate)})` : ''}
+                        </span>
+                        <span className={styles.metaItem}><FaPhoneAlt className={styles.metaIcon} /> {patientPhone}</span>
                         <span className={styles.metaItem}><FaEnvelope className={styles.metaIcon} /> {patient.email}</span>
                     </div>
                 </div>

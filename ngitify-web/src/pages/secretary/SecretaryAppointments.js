@@ -146,7 +146,8 @@ export default function SecretaryAppointments() {
         switch (status) {
             case 'Pending':   return styles.statusPending;
             case 'Confirmed': return styles.statusConfirmed;
-            case 'In Clinic': return styles.statusInClinic;
+            case 'In Clinic':
+            case 'in-clinic': return styles['status-in-clinic'];
             case 'Completed': return styles.statusCompleted;
             case 'Cancelled': return styles.statusCancelled;
             default:          return styles.statusPending;

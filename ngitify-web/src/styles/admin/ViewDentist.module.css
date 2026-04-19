@@ -105,7 +105,7 @@
     border-radius: 50px;
     font-weight: 700;
     font-size: 14px;
-    font-family: inherit;
+    font-family: 'Lexend Deca', sans-serif;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     box-shadow: 0 4px 14px rgba(1, 83, 139, 0.35);
@@ -128,7 +128,7 @@
     border-radius: 50px;
     font-weight: 700;
     font-size: 14px;
-    font-family: inherit;
+    font-family: 'Lexend Deca', sans-serif;
     cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease;
 }

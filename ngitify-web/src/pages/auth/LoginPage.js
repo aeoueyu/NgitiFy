@@ -37,7 +37,6 @@ export default function LoginPage() {
                 localStorage.setItem('token', data.token);
             
                 // ✅ FIX Bug 28: Fetch full profile so AuthContext gets real name + avatar
-                const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
                 let profileData = {};
                 try {
                     const profileRes = await fetch(`${apiUrl}/api/user/${data.userId}`, {

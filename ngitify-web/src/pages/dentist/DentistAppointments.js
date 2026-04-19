@@ -222,9 +222,9 @@ export default function DentistAppointments() {
     // ─── RENDER HELPERS ───────────────────────────────────────────────────────
     const getStatusClass = (status) => {
         switch ((status || '').toLowerCase()) {
-            case 'confirmed':  return styles['status-pending'];
+            case 'confirmed':  return styles['status-confirmed'];
             case 'pending':    return styles['status-pending'];
-            case 'in clinic':  return styles['status-in-clinic'];
+            case 'in-clinic':  return styles['status-in-clinic'];
             case 'completed':
             case 'done':       return styles['status-done'];
             default:           return styles['status-pending'];

@@ -9,15 +9,23 @@ require('dotenv').config();
 const MONGO_URI = process.env.MONGO_URI;
 
 const createAdmin = async () => {
+    const email          = process.env.ADMIN_EMAIL;
+    const rawPassword    = process.env.ADMIN_INIT_PASSWORD;
+    const defaultContact = process.env.ADMIN_CONTACT || '+639000000000';
+
+    if (!email || !rawPassword) {
+        console.error('❌ Missing required env vars: ADMIN_EMAIL and ADMIN_INIT_PASSWORD');
+        console.error('   Set them before running this script:');
+        console.error('   ADMIN_EMAIL=you@example.com ADMIN_INIT_PASSWORD=YourPassword node createDefaultAdmin.js');
+        process.exit(1);
+    }
+
     try {
         // Connect sa Local Database
         await mongoose.connect(MONGO_URI);
         console.log('✅ Connected to Local MongoDB');
 
-        const email = 'admin@gmail.com';
-        const rawPassword = 'AdminUser_123';
         const role = 'administrator'; // Important: Lowercase
-        const defaultContact = '+639123456789'; // Standardized backend format
 
         // 1. Hash ang password
         const hashedPassword = await bcrypt.hash(rawPassword, 10);

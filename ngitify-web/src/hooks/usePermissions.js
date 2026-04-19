@@ -22,8 +22,8 @@ export const usePermissions = () => {
         // 1. Block access immediately if no user is found
         if (!activeUser || !activeUser.role) return false;
 
-        // 2. Owners, Co-owners, and Branch Managers bypass all checks (Full System Access)
-        if (activeUser.role === 'administrator' || activeUser.role === 'co-administrator' || activeUser.role === 'branch-manager') {
+        // 2. Only administrators bypass all permission checks (Full System Access)
+        if (activeUser.role === 'administrator') {
             return true; 
         }
 

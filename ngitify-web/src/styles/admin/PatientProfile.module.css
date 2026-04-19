@@ -60,7 +60,7 @@
 .backIconButton img { width: 24px; height: 24px; filter: invert(16%) sepia(91%) saturate(3015%) hue-rotate(193deg) brightness(91%) contrast(97%); }
 
 .header { display: flex; flex-direction: column; gap: 5px; } 
-.title { color: #01538b; font-size: 28px; font-weight: 800; margin: 0; }
+.title { color: #01538b; font-size: 26px; font-weight: 800; margin: 0; }
 .subtitle { color: #888; margin: 0; font-size: 14px; font-weight: 500; }
 
 /* --- PATIENT HEADER CARD --- */

@@ -2,7 +2,7 @@
 
 /* --- NATURAL SCROLL LAYOUT --- */
 .main-content {
-    flex: 1; padding: 20px 30px; min-height: 100vh; box-sizing: border-box;
+    flex: 1; padding: 30px; min-height: 100vh; box-sizing: border-box;
     overflow-y: auto; display: flex; flex-direction: column;
     background-color: #f4f7fa; font-family: 'Lexend Deca', sans-serif;
     position: relative;
