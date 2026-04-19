@@ -11,14 +11,6 @@ export default function Settings() {
 
     const [activeTab, setActiveTab] = useState('clinic');
 
-    // --- State: Clinic Information (Placeholders) ---
-    const [clinicData, setClinicData] = useState({
-        clinicName: 'Lardizabal Dental Clinic',
-        address: 'Quezon City, Metro Manila',
-        operatingHours: 'Mon-Sat: 9:00 AM - 5:00 PM'
-    });
-    const [clinicSuccess, setClinicSuccess] = useState('');
-
     // --- State: Security ---
     const [isCurrentPasswordVerified, setIsCurrentPasswordVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
@@ -41,8 +33,6 @@ export default function Settings() {
         special: false
     });
     const [allCriteriaMet, setAllCriteriaMet] = useState(false);
-
-    const [twoFactorAuth, setTwoFactorAuth] = useState(false);
 
     // --- State: Preferences & Notifications ---
     const [theme, setTheme] = useState('system');
@@ -182,74 +172,32 @@ export default function Settings() {
         navigate('/login', { state: { message: 'Password changed successfully. Please log in again.' } });
     };
 
-    // ==========================================
-    // PLACEHOLDER SUBMITS & TOGGLES
-    // ==========================================
-    const handleSaveClinic = (e) => {
-        e.preventDefault();
-        setClinicSuccess('Clinic information saved successfully.');
-        setTimeout(() => setClinicSuccess(''), 3000);
+    const handleSavePreferences = () => {
+        console.warn('Preferences settings are not yet persisted to the backend.');
+        alert('Preferences settings cannot be saved yet — this feature is not fully implemented.');
     };
-
-    const handleSavePreferences = (e) => {
-        e.preventDefault();
-        setPrefSuccess('Display preferences saved successfully.');
-        setTimeout(() => setPrefSuccess(''), 3000);
-    };
-
-    const handleSaveNotifications = (e) => {
-        e.preventDefault();
-        setNotifSuccess('Notification settings updated.');
-        setTimeout(() => setNotifSuccess(''), 3000);
+    
+    const handleSaveNotifications = () => {
+        console.warn('Notification settings are not yet persisted to the backend.');
+        alert('Notification settings cannot be saved yet — this feature is not fully implemented.');
     };
 
     // ==========================================
     // RENDER HELPERS
     // ==========================================
     const renderClinicSection = () => (
-        <form onSubmit={handleSaveClinic}>
+        <div>
             <h3 className={styles.mainSectionTitle}>Clinic Information</h3>
-            <p className={styles.sectionDescription}>Manage the public details of your clinic displayed to patients.</p>
-            
-            {clinicSuccess && <div className={styles.successMessage}>{clinicSuccess}</div>}
-
-            <div className={styles.row}>
-                <div className={styles.formGroup}>
-                    <label>CLINIC NAME</label>
-                    <input 
-                        className={styles.inputField} 
-                        value={clinicData.clinicName} 
-                        onChange={(e) => setClinicData({...clinicData, clinicName: e.target.value})}
-                    />
-                </div>
-            </div>
-            <div className={styles.row}>
-                <div className={styles.formGroup}>
-                    <label>COMPLETE ADDRESS</label>
-                    <input 
-                        className={styles.inputField} 
-                        value={clinicData.address} 
-                        onChange={(e) => setClinicData({...clinicData, address: e.target.value})}
-                    />
-                </div>
-            </div>
-            <div className={styles.row}>
-                <div className={styles.formGroup}>
-                    <label>OPERATING HOURS</label>
-                    <input 
-                        className={styles.inputField} 
-                        value={clinicData.operatingHours} 
-                        onChange={(e) => setClinicData({...clinicData, operatingHours: e.target.value})}
-                    />
-                </div>
-            </div>
-            
-            <div className={styles.buttonGroup}>
-                <button type="submit" className={styles.submitBtn}>
-                    SAVE CLINIC INFO
-                </button>
-            </div>
-        </form>
+            <p className={styles.sectionDescription}>
+                Clinic information is managed in System Configuration.
+            </p>
+            <button
+                className={styles.submitBtn}
+                onClick={() => navigate('/admin/system-config')}
+            >
+                GO TO SYSTEM CONFIGURATION
+            </button>
+        </div>
     );
 
     const renderSecuritySection = () => (
@@ -354,16 +302,12 @@ export default function Settings() {
 
             <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '30px 0' }} />
 
-            {/* Two-Factor Authentication Placeholder */}
+            {/* Two-Factor Authentication — Not Yet Implemented */}
             <div className={styles.toggleRow}>
                 <div className={styles.toggleLabel}>
                     <span className={styles.toggleTitle}>Two-Factor Authentication (2FA)</span>
-                    <span className={styles.toggleDesc}>Require an extra security code when logging in from an unrecognized device.</span>
+                    <span className={styles.toggleDesc}>Two-factor authentication is not yet available. This feature is coming in a future update.</span>
                 </div>
-                <label className={styles.switch}>
-                    <input type="checkbox" checked={twoFactorAuth} onChange={() => setTwoFactorAuth(!twoFactorAuth)} />
-                    <span className={styles.slider}></span>
-                </label>
             </div>
         </div>
     );

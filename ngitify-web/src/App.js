@@ -26,7 +26,6 @@ const AuditTrail = lazy(() => import('./pages/admin/AuditTrail'));
 const AddDentist = lazy(() => import('./pages/admin/AddDentist'));
 const AddSecretary = lazy(() => import('./pages/admin/AddSecretary'));
 const AddPatient = lazy(() => import('./pages/admin/AddPatient'));
-const EditDentist = lazy(() => import('./pages/admin/EditDentist'));
 const InventoryTracker = lazy(() => import('./pages/admin/InventoryTracker'));
 const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
@@ -45,7 +44,7 @@ const SystemConfig = lazy(() => import('./pages/admin/SystemConfig'));
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
 const DentistAppointments = lazy(() => import('./pages/dentist/DentistAppointments'));
-const PatientEMR = lazy(() => import('./pages/dentist/PatientEMR'));
+const DentistPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
 
 // Pages - Secretary
 const SecretaryDashboard = lazy(() => import('./pages/secretary/SecretaryDashboard'));
@@ -79,7 +78,9 @@ function App() {
                   <Route path="/dentist/dashboard" element={<DentistDashboard />} />
                   <Route path="/dentist/appointments" element={<DentistAppointments />} />
                   <Route path="/dentist/profile" element={<AdminProfile />} />
-                  <Route path="/dentist/patients/:patientId/emr" element={<PatientEMR />} />
+                  <Route path="/dentist/settings" element={<AdminSettings />} />
+                  <Route path="/dentist/inventory" element={<InventoryTracker />} />
+                  <Route path="/dentist/patients/:patientId/emr" element={<DentistPatientEMR />} />
                 </Route>
               </Route>
 
@@ -116,7 +117,6 @@ function App() {
 
                   {/* Add/Edit staff */}
                   <Route path="/admin/add-dentist" element={<AddDentist />} />
-                  <Route path="/admin/edit-dentist" element={<EditDentist />} />
                   <Route path="/admin/add-secretary" element={<AddSecretary />} />
                   <Route path="/admin/add-patient" element={<AddPatient />} />
                   <Route path="/admin/add-branch-manager" element={<AddBranchManager />} />

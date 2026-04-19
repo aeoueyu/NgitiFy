@@ -4,7 +4,7 @@ import { FaSearch, FaHistory, FaDownload, FaChevronLeft, FaChevronRight } from '
 import { authFetch } from '../../utils/api'; 
 import { formatDateShort, formatTime } from '../../utils/dateUtils'; // NEW: Imported Date Utilities
 
-export default function SystemAuditLogs() {
+export default function AuditTrail() {
     // Original States
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('All');
@@ -187,6 +187,8 @@ export default function SystemAuditLogs() {
                     >
                         <option value="All">All Roles</option>
                         <option value="administrator">Administrator</option>
+                        <option value="co-administrator">Co-Administrator</option>
+                        <option value="branch-manager">Branch Manager</option>
                         <option value="dentist">Dentists</option>
                         <option value="secretary">Secretaries</option>
                         <option value="system">System</option>

@@ -6,7 +6,25 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
-const crypto = require('crypto'); 
+const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const otpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { message: 'Too many attempts. Please try again in 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // Import Middleware
 const verifyToken = require('./middleware/auth');
@@ -29,6 +47,7 @@ const corsOptions = {
     origin: ['http://localhost:3000', 'http://ngitify.com', 'https://ngitify.com', 'https://www.ngitify.com', 'https://ngitify.netlify.app'],
     credentials: true, 
 };
+app.use(helmet());
 app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '50mb' })); 
@@ -45,7 +64,7 @@ console.log('✅ Resend email client initialized');
 
 // ================= PUBLIC ROUTES ================= //
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
         
@@ -132,7 +151,7 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
     });
 };
 
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', otpLimiter, async (req, res) => {
     const { email } = req.body;
 
     try {
@@ -159,7 +178,7 @@ app.post('/api/forgot-password', async (req, res) => {
     }
 });
 
-app.post('/api/verify-otp', async (req, res) => {
+app.post('/api/verify-otp', otpLimiter, async (req, res) => {
     try {
         const { email, otp } = req.body;
         const user = await User.findOne({ 
@@ -176,7 +195,7 @@ app.post('/api/verify-otp', async (req, res) => {
     }
 });
 
-app.post('/api/reset-password', async (req, res) => {
+app.post('/api/reset-password', otpLimiter, async (req, res) => {
     try {
         const { email, newPassword } = req.body;
         
@@ -235,6 +254,9 @@ app.post('/api/check-email', async (req, res) => {
 
 app.post('/api/add-dentist', verifyToken, async (req, res) => {
     try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: "Access denied. Admin only." });
+        }
         const { email, licenseNumber, ...otherData } = req.body;
         
         const existingEmail = await User.findOne({ email });
@@ -276,10 +298,10 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
         try {
             await sendActivationEmail(email, 'Dentist', tempPassword, activationLink);
             console.log(`✅ Dentist Added & Email Sent: ${email}`);
-            res.status(201).json({ message: 'Dentist added successfully. Email sent.' });
+            res.status(201).json({ message: 'Dentist added successfully. Activation email sent.' });
         } catch (emailError) {
-            console.error("Email failed:", emailError.message);
-            res.status(201).json({ message: 'Dentist added, but activation email failed to send.' });
+            console.error("⚠️ Activation email failed for dentist:", emailError.message);
+            res.status(207).json({ message: 'Dentist added, but activation email failed to send. Please resend manually.' });
         }
 
     } catch (error) {
@@ -290,6 +312,9 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
 
 app.post('/api/add-secretary', verifyToken, async (req, res) => {
     try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: "Access denied. Admin only." });
+        }
         const { email, ...otherData } = req.body;
 
         const existing = await User.findOne({ email });
@@ -324,10 +349,10 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
         try {
             await sendActivationEmail(email, 'Secretary', tempPassword, activationLink);
             console.log(`✅ Secretary Added & Email Sent: ${email}`);
-            res.status(201).json({ message: 'Secretary added successfully. Email sent.' });
+            res.status(201).json({ message: 'Secretary added successfully. Activation email sent.' });
         } catch (emailError) {
-            console.error("Email failed:", emailError.message);
-            res.status(201).json({ message: 'Secretary added, but activation email failed to send.' });
+            console.error("⚠️ Activation email failed for secretary:", emailError.message);
+            res.status(207).json({ message: 'Secretary added, but activation email failed to send. Please resend manually.' });
         }
 
     } catch (error) {
@@ -380,10 +405,10 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
         try {
             await sendActivationEmail(email, 'Branch Manager', tempPassword, activationLink);
             console.log(`✅ Branch Manager Added & Email Sent: ${email}`);
-            res.status(201).json({ message: 'Branch Manager added successfully. Email sent.' });
+            res.status(201).json({ message: 'Branch Manager added successfully. Activation email sent.' });
         } catch (emailError) {
-            console.error("Email failed:", emailError.message);
-            res.status(201).json({ message: 'Branch Manager added, but activation email failed to send.' });
+            console.error("⚠️ Activation email failed for branch manager:", emailError.message);
+            res.status(207).json({ message: 'Branch Manager added, but activation email failed to send. Please resend manually.' });
         }
 
     } catch (error) {
@@ -394,6 +419,9 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
 
 app.post('/api/add-patient', verifyToken, async (req, res) => {
     try {
+        if (!['administrator', 'co-administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
+            return res.status(403).json({ message: "Access denied." });
+        }
         const { email, ...otherData } = req.body;
 
         const existing = await User.findOne({ email });
@@ -433,8 +461,8 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             console.log(`✅ Email sent successfully to: ${email}`);
             res.status(201).json({ message: 'Patient added successfully. Activation email sent.' });
         } catch (emailError) {
-            console.error("Email failed:", emailError.message);
-            res.status(201).json({ message: 'Patient added, but activation email failed to send.' });
+            console.error("⚠️ Activation email failed for patient:", emailError.message);
+            res.status(207).json({ message: 'Patient added, but activation email failed to send. Please resend manually.' });
         }
 
     } catch (error) {
@@ -445,6 +473,9 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
 
 app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
     try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: "Access denied. Admin only." });
+        }
         const { email, licenseNumber, branch, ...otherData } = req.body;
         
         const existingEmail = await User.findOne({ email });
@@ -488,14 +519,15 @@ app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
             await sendActivationEmail(email, 'Co-Administrator', tempPassword, activationLink);
             console.log(`✅ Co-Administrator Added & Email Sent: ${email}`);
         } catch (emailError) {
-            console.error("Email failed:", emailError.message);
+            console.error("⚠️ Activation email failed for co-administrator:", emailError.message);
+            return res.status(207).json({ message: 'Co-Administrator added, but activation email failed to send. Please resend manually.' });
         }
-        
-        res.status(201).json({ message: 'Co-Administrator added successfully. Email sent.' });
+
+        res.status(201).json({ message: 'Co-Administrator added successfully. Activation email sent.' });
 
     } catch (error) {
         console.error("Error adding co-administrator:", error);
-        res.status(500).json({ message: "User created, but failed to send activation email." });
+        res.status(500).json({ message: "Server error while creating co-administrator account." });
     }
 });
 
@@ -773,7 +805,7 @@ app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
 
 app.put('/api/user/:id', verifyToken, async (req, res) => {
     try {
-        const { password, email, ...updateData } = req.body;
+        const { password, email, role, isVerified, activationToken, isPasswordChanged, status, ...updateData } = req.body;
         const userId = req.params.id;
         const currentUser = await User.findById(userId);
         if (!currentUser) return res.status(404).json({ message: "User not found" });
@@ -849,7 +881,12 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         if (contactNumber !== undefined) user.contactNumber = contactNumber;
         if (birthdate !== undefined) user.birthdate = birthdate;
         if (gender !== undefined) user.gender = gender;
-        if (profileImage !== undefined) user.profileImage = profileImage;
+        if (profileImage !== undefined) {
+            if (profileImage && profileImage.length > 2 * 1024 * 1024) {
+                return res.status(413).json({ message: 'Profile image must be under 1.5MB.' });
+            }
+            user.profileImage = profileImage;
+        }
 
         if (currentAddress) {
              user.currentAddress = {
@@ -1271,6 +1308,14 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
         const allowedStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         if (!allowedStatuses.includes(status)) {
             return res.status(400).json({ message: 'Invalid status value.' });
+        }
+
+        const TERMINAL_STATUSES = ['completed', 'cancelled'];
+        const currentSurgery = await Surgery.findById(req.params.id);
+        if (!currentSurgery) return res.status(404).json({ message: 'Surgery not found.' });
+
+        if (TERMINAL_STATUSES.includes(currentSurgery.status) && req.user.role !== 'administrator') {
+            return res.status(400).json({ message: 'Cannot change status of a completed or cancelled appointment.' });
         }
 
         const updateFields = { status };
@@ -1711,7 +1756,7 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
 
         const archivableRoles = ['dentist', 'secretary', 'co-administrator'];
         if (!archivableRoles.includes(user.role)) {
-            return res.status(403).json({ message: 'Only dentists and secretaries can be archived.' });
+            return res.status(403).json({ message: 'Only dentists, secretaries, and co-administrators can be archived.' });
         }
 
         user.isArchived = Boolean(isArchived);
@@ -1975,6 +2020,14 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error deleting user:', error);
         res.status(500).json({ message: 'Server error deleting user.' });
+    }
+});
+
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL'];
+REQUIRED_ENV_VARS.forEach(key => {
+    if (!process.env[key]) {
+        console.error(`❌ Missing required environment variable: ${key}`);
+        process.exit(1);
     }
 });
 
