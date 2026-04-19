@@ -1314,6 +1314,10 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Date and procedure are required.' });
         }
 
+        if (!branch) {
+            return res.status(400).json({ message: 'Branch is required. Please select a clinic branch.' });
+        }
+
         const patientUser = await User.findById(req.user.id).select('name email role');
         if (!patientUser || patientUser.role !== 'patient') {
             return res.status(403).json({ message: 'Only patients can submit appointment requests.' });
@@ -1322,7 +1326,7 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
         const newSurgery = new Surgery({
             patient: req.user.id,
             dentist: req.body.dentistId || null,
-            branch: branch || 'Marikina Branch',
+            branch: branch,
             date: new Date(date),
             time: time || '',
             procedure,
@@ -1397,6 +1401,10 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Date and procedure are required.' });
         }
 
+        if (!branch) {
+            return res.status(400).json({ message: 'Branch is required.' });
+        }
+
         const dentist = await User.findById(req.user.id).select('name');
         const dentistName = dentist
             ? `Dr. ${dentist.name.first} ${dentist.name.last}`
@@ -1410,7 +1418,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             notes: notes || '',
             dentistId: req.user.id,
             dentistName,
-            branch: branch || 'Marikina Branch'
+            branch: branch
         };
 
         patient.treatmentLogs.push(newLog);

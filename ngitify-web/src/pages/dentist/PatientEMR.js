@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/PatientEMR.module.css';
 
-// CRITICAL RULE IMPORTS
+import { authFetch } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { formatDateLong, formatDateShort } from '../../utils/dateUtils';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -11,90 +12,65 @@ import {
     FaUserMd, FaPhoneAlt, FaEnvelope, FaArrowLeft, FaCog,
     FaSyringe, FaNotesMedical, FaSearch, FaPlus, FaHospitalUser,
     FaTooth, FaChevronDown, FaChevronUp, FaTimes,
-    FaUpload, FaMagic, FaRobot, FaCalendarAlt // Task 3.3 New Icons
+    FaUpload, FaMagic, FaRobot, FaCalendarAlt
 } from 'react-icons/fa';
 import Odontogram from './Odontogram';
 
-// --- MOCK DATA ---
-const MOCK_PATIENT = {
-    id: 'PT-2023-0842',
-    name: 'Eleanor Vance',
-    age: 34,
-    gender: 'Female',
-    dob: '1989-10-15',
-    primaryBranch: 'Marikina',
-    email: 'eleanor.vance@example.com',
-    phone: '+63 917 555 0123',
-    profileImage: null, 
-    address: '142 Birch St., Marikina Heights, Marikina City',
-    occupation: 'Architect',
-    emergencyContact: { name: 'Luke Crain', relation: 'Husband', phone: '+63 918 444 9876' }
+// Default empty medical history shape (matches DB schema)
+const EMPTY_MEDICAL_HISTORY = {
+    lastExam: '',
+    bloodType: '',
+    allergies: '',
+    conditions: '',
+    medications: '',
+    notes: ''
 };
-
-const INITIAL_MEDICAL_HISTORY = {
-    lastExam: '2023-10-12',
-    bloodType: 'O+',
-    allergies: 'Penicillin, Latex', 
-    conditions: 'Asthma, Mild Hypertension',
-    medications: 'Albuterol Inhaler (PRN)',
-    notes: 'Patient experiences slight anxiety during extractions. Proceed with gentle care.'
-};
-
-const INITIAL_LOGS = [
-    { id: 1, rawDate: new Date('2024-01-15'), branch: 'Marikina', doctor: 'Dr. Sarah Smith', tooth: '45', procedure: 'Composite Filling', category: 'Restoration', notes: 'Removed decay and placed composite filling on occlusal surface. Good patient cooperation. No complications observed.' },
-    { id: 2, rawDate: new Date('2023-10-12'), branch: 'Marikina', doctor: 'Dr. Michael Cruz', tooth: 'All', procedure: 'Prophylaxis & Exam', category: 'Prophylaxis', notes: 'Routine cleaning. Plaque buildup on lower anteriors. Recommended better flossing routine and scheduled 6-month recall.' },
-    { id: 3, rawDate: new Date('2022-03-05'), branch: 'Rizal', doctor: 'Dr. Emily Chen', tooth: '26', procedure: 'Porcelain Crown', category: 'Restoration', notes: 'Cemented permanent porcelain crown using glass ionomer cement. Margins sealed perfectly. Bite adjusted and polished.' },
-    { id: 4, rawDate: new Date('2021-12-10'), branch: 'Marikina', doctor: 'Dr. Sarah Smith', tooth: '18, 28, 38, 48', procedure: 'Wisdom Tooth Extraction', category: 'Extraction', notes: 'Surgical extraction of all 4 third molars under local anesthesia. Hemostasis achieved. Prescribed Amoxicillin and Mefenamic Acid.' },
-];
-
-const MOCK_RADIOGRAPHS = [
-    { id: 1, rawDate: new Date('2023-10-12'), type: 'Panoramic X-Ray', url: 'https://placehold.co/800x400/e2e8f0/475569?text=Panoramic+X-Ray' },
-    { id: 2, rawDate: new Date('2021-12-10'), type: 'Periapical - Tooth 48', url: 'https://placehold.co/400x500/e2e8f0/475569?text=Periapical+48' },
-    { id: 3, rawDate: new Date('2021-12-10'), type: 'Periapical - Tooth 38', url: 'https://placehold.co/400x500/e2e8f0/475569?text=Periapical+38' },
-    { id: 4, rawDate: new Date('2020-05-02'), type: 'Bitewing - Right', url: 'https://placehold.co/500x400/e2e8f0/475569?text=Bitewing+Right' },
-];
 
 export default function PatientEMR({ patientId: propPatientId, onClose }) {
     const urlParams = useParams();
     const activePatientId = propPatientId || urlParams.patientId;
-    
+
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { addToast } = useToast();
-    
+
     // Core States
     const [activeTab, setActiveTab] = useState('overview');
     const [patient, setPatient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
     // Tab 1: Medical History States
-    const [medicalHistory, setMedicalHistory] = useState(INITIAL_MEDICAL_HISTORY);
+    const [medicalHistory, setMedicalHistory] = useState(EMPTY_MEDICAL_HISTORY);
     const [isEditingMedical, setIsEditingMedical] = useState(false);
-    const [medicalForm, setMedicalForm] = useState(INITIAL_MEDICAL_HISTORY);
+    const [medicalForm, setMedicalForm] = useState(EMPTY_MEDICAL_HISTORY);
     const [isSavingMedical, setIsSavingMedical] = useState(false);
 
     // Tab 2: Treatment Logs States
-    const [logs, setLogs] = useState(INITIAL_LOGS);
+    const [logs, setLogs] = useState([]);
     const [logsSearchQuery, setLogsSearchQuery] = useState('');
     const [logsDateFrom, setLogsDateFrom] = useState('');
     const [logsDateTo, setLogsDateTo] = useState('');
     const [logsCategory, setLogsCategory] = useState('All');
     const [expandedLogs, setExpandedLogs] = useState({});
-    
+    const [isSubmittingLog, setIsSubmittingLog] = useState(false);
+
     // Add Log Modal
     const [isAddLogOpen, setIsAddLogOpen] = useState(false);
     const [newLogForm, setNewLogForm] = useState({ date: '', procedure: '', category: 'General', tooth: '', notes: '', branchId: '' });
 
-    // Task 3.3: AI Radiograph States
+    // Tab 4: Radiograph States
+    const [radiographs, setRadiographs] = useState([]);
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
 
+    // Branch list for dropdowns
     const [branches, setBranches] = useState([]);
 
+    // ─── Fetch branches for dropdown ────────────────────────────────────────────
     useEffect(() => {
         const fetchBranches = async () => {
             try {
-                const { authFetch } = await import('../../utils/api');
                 const res = await authFetch('/branches');
                 if (res.ok) setBranches(await res.json());
             } catch (e) { console.error('Error fetching branches:', e); }
@@ -102,33 +78,137 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         fetchBranches();
     }, []);
 
+    // ─── Fetch patient, treatment logs, radiographs from real API ───────────────
     useEffect(() => {
-        setTimeout(() => {
-            setPatient(MOCK_PATIENT);
-            setIsLoading(false);
-        }, 500); 
-    }, [activePatientId]);
+        if (!activePatientId) return;
+
+        const fetchPatientData = async () => {
+            setIsLoading(true);
+            try {
+                // 1. Patient profile
+                const patientRes = await authFetch(`/patients/${activePatientId}`);
+                if (patientRes.ok) {
+                    const patientData = await patientRes.json();
+                    setPatient(patientData);
+
+                    // Populate medical history from patient record if available
+                    if (patientData.medicalHistory) {
+                        // DB stores allergies/conditions/medications as arrays;
+                        // the UI form expects comma-separated strings — normalise here.
+                        const mh = patientData.medicalHistory;
+                        const normalised = {
+                            lastExam: patientData.dentalHistory?.lastExamDate
+                                ? new Date(patientData.dentalHistory.lastExamDate).toISOString().split('T')[0]
+                                : '',
+                            bloodType: mh.bloodType || '',
+                            allergies: Array.isArray(mh.allergies)
+                                ? mh.allergies.join(', ')
+                                : (mh.allergies || ''),
+                            conditions: Array.isArray(mh.conditions)
+                                ? mh.conditions.join(', ')
+                                : (mh.conditions || ''),
+                            medications: Array.isArray(mh.medications)
+                                ? mh.medications.join(', ')
+                                : (mh.medications || ''),
+                            notes: mh.notes || ''
+                        };
+                        setMedicalHistory(normalised);
+                        setMedicalForm(normalised);
+                    }
+                } else {
+                    addToast('Failed to load patient record.', 'error');
+                }
+
+                // 2. Treatment logs
+                const logsRes = await authFetch(`/patients/${activePatientId}/treatment-logs`);
+                if (logsRes.ok) {
+                    const logsData = await logsRes.json();
+                    const normalized = logsData.map(log => ({
+                        ...log,
+                        id: log._id || log.id,
+                        rawDate: new Date(log.date || log.rawDate),
+                        doctor: log.dentistName || 'Unknown Dentist',
+                        branch: log.branch || '',
+                    }));
+                    setLogs(normalized.sort((a, b) => b.rawDate - a.rawDate));
+                }
+
+                // 3. Radiographs
+                const radRes = await authFetch(`/patients/${activePatientId}/radiographs`);
+                if (radRes.ok) {
+                    const radData = await radRes.json();
+                    const normalizedRads = radData.map(r => ({
+                        ...r,
+                        id: r._id || r.id,
+                        rawDate: new Date(r.date || r.uploadedAt || r.createdAt),
+                        type: r.label || r.type || 'Radiograph',
+                        url: r.url || r.imageUrl,
+                    }));
+                    setRadiographs(normalizedRads);
+                }
+
+            } catch (e) {
+                console.error('Error fetching patient EMR data:', e);
+                addToast('Could not connect to the server.', 'error');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchPatientData();
+    }, [activePatientId, addToast]);
 
     const handleBack = () => {
-        if (onClose) onClose(); 
-        else navigate(-1); 
+        if (onClose) onClose();
+        else navigate(-1);
     };
 
-    // --- TAB 1 LOGIC (MEDICAL HISTORY) ---
+    // ─── TAB 1: MEDICAL HISTORY ──────────────────────────────────────────────────
     const handleMedicalFormChange = (e) => {
         const { name, value } = e.target;
         setMedicalForm(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSaveMedical = (e) => {
+    const handleSaveMedical = async (e) => {
         e.preventDefault();
         setIsSavingMedical(true);
-        setTimeout(() => {
+        try {
+            // Convert comma-separated strings back to arrays for the DB
+            const payload = {
+                medicalHistory: {
+                    bloodType: medicalForm.bloodType,
+                    allergies: medicalForm.allergies
+                        ? medicalForm.allergies.split(',').map(s => s.trim()).filter(Boolean)
+                        : [],
+                    conditions: medicalForm.conditions
+                        ? medicalForm.conditions.split(',').map(s => s.trim()).filter(Boolean)
+                        : [],
+                    medications: medicalForm.medications
+                        ? medicalForm.medications.split(',').map(s => s.trim()).filter(Boolean)
+                        : [],
+                    notes: medicalForm.notes,
+                },
+                dentalHistory: {
+                    lastExamDate: medicalForm.lastExam || undefined,
+                }
+            };
+
+            const res = await authFetch(`/patients/${activePatientId}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to save.');
+
             setMedicalHistory(medicalForm);
             setIsEditingMedical(false);
+            addToast('Medical history updated successfully.', 'success');
+        } catch (err) {
+            console.error('Save medical history error:', err);
+            addToast(err.message || 'Failed to update medical history.', 'error');
+        } finally {
             setIsSavingMedical(false);
-            addToast("Medical history updated successfully.", "success");
-        }, 600);
+        }
     };
 
     const handleCancelMedical = () => {
@@ -203,7 +283,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                         <label>Clinical Notes & Remarks</label>
                         <textarea name="notes" value={medicalForm.notes} onChange={handleMedicalFormChange} className={styles.textareaField} placeholder="Add any special instructions or warnings here..." />
                     </div>
-                    
                     <div className={styles.formActions}>
                         <button type="button" className={styles.cancelBtn} onClick={handleCancelMedical} disabled={isSavingMedical}>Cancel</button>
                         <button type="submit" className={styles.saveBtn} disabled={isSavingMedical}>
@@ -246,36 +325,57 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         </div>
     );
 
-    // --- TAB 2 LOGIC (TREATMENT LOGS) ---
+    // ─── TAB 2: TREATMENT LOGS ───────────────────────────────────────────────────
     const toggleLogExpand = (id, e) => {
         if (e) e.stopPropagation();
         setExpandedLogs(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    const handleAddLogSubmit = (e) => {
+    // ✅ FIX Bug 23: POST to real API instead of only updating local state
+    const handleAddLogSubmit = async (e) => {
         e.preventDefault();
-        const newLog = {
-            id: Math.random().toString(),
-            rawDate: new Date(newLogForm.date),
-            branch: newLogForm.branchId,
-            doctor: 'Dr. Logged In', 
-            tooth: newLogForm.tooth || 'N/A',
-            procedure: newLogForm.procedure,
-            category: newLogForm.category,
-            notes: newLogForm.notes
-        };
-        
-        setLogs(prev => [newLog, ...prev].sort((a,b) => b.rawDate - a.rawDate));
-        setIsAddLogOpen(false);
-        setNewLogForm({ date: '', procedure: '', category: 'General', tooth: '', notes: '', branchId: '' });
-        addToast("Treatment log added successfully.", "success");
+        setIsSubmittingLog(true);
+        try {
+            const res = await authFetch(`/patients/${activePatientId}/treatment-logs`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    date: newLogForm.date,
+                    procedure: newLogForm.procedure,
+                    category: newLogForm.category,
+                    tooth: newLogForm.tooth || 'N/A',
+                    notes: newLogForm.notes,
+                    branch: newLogForm.branchId,
+                }),
+            });
+
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to save log.');
+
+            const saved = await res.json();
+            const newLog = {
+                ...saved,
+                id: saved._id || saved.id,
+                rawDate: new Date(saved.date || newLogForm.date),
+                doctor: saved.dentistName || `Dr. ${user?.name?.first || ''} ${user?.name?.last || ''}`.trim() || 'Unknown Dentist',
+                branch: saved.branch || newLogForm.branchId,
+            };
+
+            setLogs(prev => [newLog, ...prev].sort((a, b) => b.rawDate - a.rawDate));
+            setIsAddLogOpen(false);
+            setNewLogForm({ date: '', procedure: '', category: 'General', tooth: '', notes: '', branchId: '' });
+            addToast('Treatment log added successfully.', 'success');
+        } catch (err) {
+            console.error('Add log error:', err);
+            addToast(err.message || 'Failed to save treatment log.', 'error');
+        } finally {
+            setIsSubmittingLog(false);
+        }
     };
 
     const filteredLogs = logs.filter(log => {
         const searchLower = logsSearchQuery.toLowerCase();
-        const matchesSearch = log.procedure.toLowerCase().includes(searchLower) || log.notes.toLowerCase().includes(searchLower);
+        const matchesSearch = (log.procedure || '').toLowerCase().includes(searchLower) || (log.notes || '').toLowerCase().includes(searchLower);
         const matchesCategory = logsCategory === 'All' || log.category === logsCategory;
-        
+
         let matchesDate = true;
         if (logsDateFrom) matchesDate = matchesDate && log.rawDate >= new Date(logsDateFrom);
         if (logsDateTo) {
@@ -299,13 +399,13 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                 <div className={styles.searchFilterGroup}>
                     <div className={styles.searchWrapper}>
                         <FaSearch className={styles.searchIcon} />
-                        <input 
-                            type="text" placeholder="Search procedures or notes..." 
-                            className={styles.searchInput} value={logsSearchQuery} 
-                            onChange={(e) => setLogsSearchQuery(e.target.value)} 
+                        <input
+                            type="text" placeholder="Search procedures or notes..."
+                            className={styles.searchInput} value={logsSearchQuery}
+                            onChange={(e) => setLogsSearchQuery(e.target.value)}
                         />
                     </div>
-                    
+
                     <select className={styles.filterSelect} value={logsCategory} onChange={(e) => setLogsCategory(e.target.value)}>
                         <option value="All">All Categories</option>
                         <option value="Prophylaxis">Prophylaxis</option>
@@ -335,7 +435,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                                         <div className={styles.timelineMain}>
                                             <h4 className={styles.timelineDate}>{formatDateLong(log.rawDate.toISOString())}</h4>
                                             <p className={styles.timelineProcedure}>{log.procedure}</p>
-                                            
                                             <div className={styles.timelineMeta}>
                                                 <span className={styles.metaTag} title="Attending Dentist">
                                                     <FaUserMd className={styles.metaIcon}/> {log.doctor}
@@ -345,7 +444,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                                                 </span>
                                             </div>
                                         </div>
-
                                         <button className={styles.expandBtn}>
                                             {isExpanded ? 'Hide Details' : 'View Details'}
                                             {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
@@ -358,7 +456,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                                                 <div className={styles.detailBlock}>
                                                     <span className={styles.detailLabel}>Treated Tooth #</span>
                                                     <p className={styles.detailValue}>
-                                                        <FaTooth style={{ color: '#01538b', marginRight: '6px' }}/> {log.tooth}
+                                                        <FaTooth style={{ color: '#01538b', marginRight: '6px' }}/> {log.tooth || 'N/A'}
                                                     </p>
                                                 </div>
                                                 <div className={styles.detailBlock}>
@@ -411,7 +509,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                                 <label>Clinical Notes <span style={{color:'red'}}>*</span></label>
                                 <textarea required className={styles.textareaField} value={newLogForm.notes} onChange={(e) => setNewLogForm({...newLogForm, notes: e.target.value})} placeholder="Describe the procedure, patient condition, etc." />
                             </div>
-                            {/* Branch */}
                             <div className={styles.formGroup}>
                                 <label>Branch <span style={{color:'red'}}>*</span></label>
                                 <select
@@ -427,8 +524,10 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                                 </select>
                             </div>
                             <div className={styles.modalButtonGroup}>
-                                <button type="button" className={styles.cancelBtn} onClick={() => setIsAddLogOpen(false)}>Cancel</button>
-                                <button type="submit" className={styles.saveBtn}>Save Log</button>
+                                <button type="button" className={styles.cancelBtn} onClick={() => setIsAddLogOpen(false)} disabled={isSubmittingLog}>Cancel</button>
+                                <button type="submit" className={styles.saveBtn} disabled={isSubmittingLog}>
+                                    {isSubmittingLog ? 'Saving...' : 'Save Log'}
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -437,7 +536,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         </div>
     );
 
-    // --- TAB 4 LOGIC (RADIOGRAPHS & AI ENHANCE) ---
+    // ─── TAB 4: RADIOGRAPHS ──────────────────────────────────────────────────────
     const openRadiograph = (img) => {
         setSelectedRadiograph(img);
         setIsEnhancing(false);
@@ -451,18 +550,16 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     };
 
     const handleAIEnhance = () => {
-        if (isEnhanced) {
-            setIsEnhanced(false);
-            return;
-        }
+        if (isEnhanced) { setIsEnhanced(false); return; }
         setIsEnhancing(true);
         setTimeout(() => {
             setIsEnhancing(false);
             setIsEnhanced(true);
-            addToast("AI Enhancement applied successfully.", "success");
-        }, 1500); // 1.5 second simulated processing time
+            addToast('AI Enhancement applied successfully.', 'success');
+        }, 1500);
     };
 
+    // ✅ FIX Bug 23: Use `radiographs` state from API instead of MOCK_RADIOGRAPHS
     const renderRadiographs = () => {
         if (selectedRadiograph) {
             return (
@@ -479,11 +576,10 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                                 <p className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {formatDateShort(selectedRadiograph.rawDate)}</p>
                             </div>
                         </div>
-
                         <div className={styles.largeRadiographWrapper}>
-                            <img 
-                                src={selectedRadiograph.url} 
-                                alt={selectedRadiograph.type} 
+                            <img
+                                src={selectedRadiograph.url}
+                                alt={selectedRadiograph.type}
                                 className={`${styles.largeRadiograph} ${isEnhanced ? styles.enhancedImage : ''}`}
                             />
                             {isEnhancing && (
@@ -493,20 +589,9 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                                 </div>
                             )}
                         </div>
-
                         <div className={styles.imageViewerControls}>
-                            <button 
-                                className={styles.aiEnhanceBtn} 
-                                onClick={handleAIEnhance}
-                                disabled={isEnhancing}
-                            >
-                                {isEnhancing ? (
-                                    <>Processing...</>
-                                ) : isEnhanced ? (
-                                    <><FaMagic /> Revert to Original</>
-                                ) : (
-                                    <><FaMagic /> AI Enhance Clarity</>
-                                )}
+                            <button className={styles.aiEnhanceBtn} onClick={handleAIEnhance} disabled={isEnhancing}>
+                                {isEnhancing ? <>Processing...</> : isEnhanced ? <><FaMagic /> Revert to Original</> : <><FaMagic /> AI Enhance Clarity</>}
                             </button>
                         </div>
                     </div>
@@ -523,9 +608,9 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                     </button>
                 </div>
 
-                {MOCK_RADIOGRAPHS.length > 0 ? (
+                {radiographs.length > 0 ? (
                     <div className={styles.radiographGrid}>
-                        {MOCK_RADIOGRAPHS.map(img => (
+                        {radiographs.map(img => (
                             <div key={img.id} className={styles.radioCard} onClick={() => openRadiograph(img)}>
                                 <div className={styles.radioThumbnailWrapper}>
                                     <img src={img.url} alt={img.type} className={styles.radioThumbnail} />
@@ -546,17 +631,18 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         );
     };
 
-    // --- TEMPORARY SHELL FOR TASK 4.1 ---
+    // ─── ODONTOGRAM TAB ──────────────────────────────────────────────────────────
     const renderOdontogram = () => (
         <div className={styles.contentCard}>
             <div className={styles.sectionHeaderRow}>
                 <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Interactive Dental Chart</h3>
             </div>
-            {/* Pass the patientId so the chart fetches the right teeth */}
-            <Odontogram patientId={patient?.id} /> 
+            {/* ✅ FIX Bug 36: Pass real patient._id so Odontogram fetches correct data */}
+            <Odontogram patientId={patient?._id || patient?.id} />
         </div>
     );
 
+    // ─── LOADING / NOT FOUND STATES ──────────────────────────────────────────────
     if (isLoading) {
         return (
             <main className={styles['main-content']}>
@@ -573,6 +659,30 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         );
     }
 
+    // ─── HELPER: compute age from birthdate ──────────────────────────────────────
+    const getAge = (birthdate) => {
+        if (!birthdate) return null;
+        const today = new Date();
+        const birth = new Date(birthdate);
+        let age = today.getFullYear() - birth.getFullYear();
+        const m = today.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+        return age;
+    };
+
+    // ─── NORMALISE patient display fields from real DB schema ───────────────────
+    const patientName = patient.name?.first
+        ? `${patient.name.first}${patient.name.middle ? ' ' + patient.name.middle : ''} ${patient.name.last}`
+        : (patient.name || 'Unknown Patient');
+    const patientAge  = patient.age ?? getAge(patient.birthdate);
+    const patientDOB  = patient.birthdate
+        ? new Date(patient.birthdate).toISOString().split('T')[0]
+        : 'N/A';
+    const patientPhone  = patient.contactNumber || patient.phone || 'N/A';
+    const patientBranch = patient.assignedBranches?.[0] || 'N/A';
+    const patientId     = patient._id || patient.id;
+
+    // ─── RENDER ──────────────────────────────────────────────────────────────────
     const modalWrapperStyle = onClose ? {
         position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
         display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
@@ -596,13 +706,13 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                 <UserAvatar user={{ name: patient.name, profileImage: patient.profileImage }} size={90} style={{ border: '3px solid #e0f2fe', boxShadow: '0 4px 10px rgba(1,83,139,0.1)' }} />
                 <div className={styles.patientMainInfo}>
                     <div className={styles.nameRow}>
-                        <h2 className={styles.patientName}>{patient.name}</h2>
-                        <span className={`${styles.branchBadge} ${patient.primaryBranch === 'Rizal' ? styles.rizal : ''}`}>{patient.primaryBranch} Branch</span>
-                        <span className={styles.patientId}>ID: {patient.id}</span>
+                        <h2 className={styles.patientName}>{patientName}</h2>
+                        <span className={`${styles.branchBadge} ${patientBranch === 'Rizal' ? styles.rizal : ''}`}>{patientBranch} Branch</span>
+                        <span className={styles.patientId}>ID: {patientId}</span>
                     </div>
                     <div className={styles.metaRow}>
-                        <span className={styles.metaItem}><FaUserMd className={styles.metaIcon} /> {patient.gender}, {patient.age} y/o (DOB: {formatDateShort(patient.dob)})</span>
-                        <span className={styles.metaItem}><FaPhoneAlt className={styles.metaIcon} /> {patient.phone}</span>
+                        <span className={styles.metaItem}><FaUserMd className={styles.metaIcon} /> {patient.gender || 'N/A'}{patientAge !== null ? `, ${patientAge} y/o` : ''} (DOB: {formatDateShort(patientDOB)})</span>
+                        <span className={styles.metaItem}><FaPhoneAlt className={styles.metaIcon} /> {patientPhone}</span>
                         <span className={styles.metaItem}><FaEnvelope className={styles.metaIcon} /> {patient.email}</span>
                     </div>
                 </div>
