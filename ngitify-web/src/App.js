@@ -45,6 +45,9 @@ const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const RolesPermissions = lazy(() => import('./pages/admin/RolesPermissions'));
 const BranchManagement = lazy(() => import('./pages/admin/BranchManagement'));
 const BranchAnalytics  = lazy(() => import('./pages/admin/BranchAnalytics'));
+const ChatSupport = lazy(() => import('./pages/admin/ChatSupport'));
+const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
+const IntegrityTools = lazy(() => import('./pages/admin/IntegrityTools'));
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
@@ -139,9 +142,9 @@ function App() {
                   <Route path="/admin/branches" element={<BranchManagement />} />
                   <Route path="/admin/branches/analytics" element={<BranchAnalytics />} />
                   <Route path="/admin/roles" element={<RolesPermissions />} />
-                  {/* <Route path="/admin/backup" element={<DatabaseBackup />} /> */}
-                  {/* <Route path="/admin/chat-support" element={<ChatSupport />} /> */}
-                  {/* <Route path="/admin/integrity" element={<IntegrityTools />} /> */}
+                  <Route path="/admin/backup" element={<DatabaseBackup />} />
+                  <Route path="/admin/chat-support" element={<ChatSupport />} />
+                  <Route path="/admin/integrity" element={<IntegrityTools />} />
                 </Route>
               </Route>
 

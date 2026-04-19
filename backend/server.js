@@ -9,7 +9,6 @@ const { Resend } = require('resend');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const RolePermission = require('./models/RolePermission');
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -39,6 +38,9 @@ const Inventory = require('./models/Inventory');
 const Notification = require('./models/Notification');
 const Branch = require('./models/Branch');
 const SystemConfig = require('./models/SystemConfig');
+const RolePermission = require('./models/RolePermission');
+const backupRoutes = require('./routes/backup');
+const integrityRoutes = require('./routes/integrity');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,6 +52,8 @@ const corsOptions = {
 };
 app.use(helmet());
 app.use(cors(corsOptions));
+app.use('/api', backupRoutes);
+app.use('/api', integrityRoutes);
 
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -2323,6 +2327,183 @@ app.get('/api/analytics/branches', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error fetching branch analytics:', error);
         res.status(500).json({ message: 'Server error fetching analytics.' });
+    }
+});
+
+// ================= SUPPORT TICKETS ================= //
+
+// POST /api/support-tickets — Patient or any authenticated user creates a ticket
+app.post('/api/support-tickets', verifyToken, async (req, res) => {
+    try {
+        const { subject, message } = req.body;
+        if (!subject || !message) {
+            return res.status(400).json({ message: 'Subject and message are required.' });
+        }
+
+        const sender = await User.findById(req.user.id).select('name email role');
+        if (!sender) return res.status(404).json({ message: 'User not found.' });
+
+        const fullName = `${sender.name?.first || ''} ${sender.name?.last || ''}`.trim() || sender.email;
+
+        const ticket = await SupportTicket.create({
+            patientId: req.user.id,
+            patientName: fullName,
+            patientEmail: sender.email,
+            subject,
+            messages: [{
+                sender: req.user.id,
+                senderName: fullName,
+                senderRole: sender.role,
+                content: message
+            }]
+        });
+
+        // Notify administrators
+        await Notification.create({
+            type: 'CHAT_TICKET_RAISED',
+            title: 'New Support Ticket',
+            message: `${fullName} submitted a ticket: "${subject}"`,
+            recipientRole: 'administrator',
+            relatedId: ticket._id
+        });
+
+        await AuditLog.create({
+            action: 'TICKET_CREATED',
+            user: sender.email,
+            role: sender.role,
+            details: `Support ticket created: "${subject}" (ID: ${ticket._id})`
+        });
+
+        res.status(201).json(ticket);
+    } catch (error) {
+        console.error('Error creating support ticket:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// GET /api/support-tickets — Admin views all tickets with optional filters
+app.get('/api/support-tickets', verifyToken, async (req, res) => {
+    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+    try {
+        const { status, priority, page = 1, limit = 20 } = req.query;
+        const filter = {};
+        if (status)   filter.status   = status;
+        if (priority) filter.priority = priority;
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        const [tickets, total] = await Promise.all([
+            SupportTicket.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(parseInt(limit))
+                .select('-messages'), // Exclude message thread from list view for performance
+            SupportTicket.countDocuments(filter)
+        ]);
+
+        res.json({ tickets, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+    } catch (error) {
+        console.error('Error fetching tickets:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// GET /api/support-tickets/:id — Full ticket with message thread
+app.get('/api/support-tickets/:id', verifyToken, async (req, res) => {
+    try {
+        const ticket = await SupportTicket.findById(req.params.id);
+        if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+
+        // Patients can only view their own tickets
+        const isAdmin = ['administrator', 'co-administrator'].includes(req.user.role);
+        const isOwner = ticket.patientId?.toString() === req.user.id;
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        res.json(ticket);
+    } catch (error) {
+        console.error('Error fetching ticket:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// POST /api/support-tickets/:id/messages — Admin or patient adds a reply
+app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content?.trim()) {
+            return res.status(400).json({ message: 'Message content is required.' });
+        }
+
+        const ticket = await SupportTicket.findById(req.params.id);
+        if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+
+        if (ticket.status === 'closed') {
+            return res.status(400).json({ message: 'Cannot reply to a closed ticket.' });
+        }
+
+        const sender = await User.findById(req.user.id).select('name email role');
+        const fullName = `${sender.name?.first || ''} ${sender.name?.last || ''}`.trim() || sender.email;
+
+        ticket.messages.push({
+            sender: req.user.id,
+            senderName: fullName,
+            senderRole: sender.role,
+            content: content.trim()
+        });
+
+        // Auto-set to in-progress when admin first replies
+        if (['administrator', 'co-administrator'].includes(req.user.role) && ticket.status === 'open') {
+            ticket.status = 'in-progress';
+            if (!ticket.assignedTo) {
+                ticket.assignedTo = req.user.id;
+                ticket.assignedToName = fullName;
+            }
+        }
+
+        await ticket.save();
+        res.json(ticket);
+    } catch (error) {
+        console.error('Error adding message:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// PATCH /api/support-tickets/:id/status — Admin updates ticket status/priority/assignee
+app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
+    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+    try {
+        const { status, priority, assignedTo, assignedToName } = req.body;
+
+        const ticket = await SupportTicket.findById(req.params.id);
+        if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+
+        if (status)         ticket.status         = status;
+        if (priority)       ticket.priority       = priority;
+        if (assignedTo)     ticket.assignedTo     = assignedTo;
+        if (assignedToName) ticket.assignedToName = assignedToName;
+
+        if (status === 'resolved') ticket.resolvedAt = new Date();
+        if (status === 'closed')   ticket.closedAt   = new Date();
+
+        await ticket.save();
+
+        await AuditLog.create({
+            action: 'TICKET_RESOLVED',
+            user: req.user.email,
+            role: req.user.role,
+            details: `Ticket ${ticket._id} updated — status: ${status || ticket.status}`
+        });
+
+        res.json(ticket);
+    } catch (error) {
+        console.error('Error updating ticket status:', error);
+        res.status(500).json({ message: 'Server error.' });
     }
 });
 

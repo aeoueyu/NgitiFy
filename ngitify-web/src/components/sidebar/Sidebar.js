@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { FaCog, FaSignOutAlt, FaTools, FaListUl, FaBell, FaShieldAlt, FaChartBar, FaCodeBranch } from 'react-icons/fa';
+import { FaCog, FaSignOutAlt, FaTools, FaListUl, FaBell, FaShieldAlt, FaChartBar, FaCodeBranch, FaHeadset, FaDatabase } from 'react-icons/fa';
 import { authFetch } from '../../utils/api'; 
 
 // CRITICAL RULE: Import ConfirmModal
@@ -166,6 +166,13 @@ export default function Sidebar() {
                     )}
 
                     {isAdmin && (
+                        <div className={getNavClass('/admin/chat-support')} onClick={() => handleMainNavigation('/admin/chat-support')}>
+                            <FaHeadset className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Chat Support</span>
+                        </div>
+                    )}
+
+                    {isAdmin && (
                         <div className={getNavClass('/admin/roles')} onClick={() => handleMainNavigation('/admin/roles')}>
                             <FaShieldAlt className={styles['nav-icon']} />
                             <span className={styles['nav-text']}>Roles & Permissions</span>
@@ -199,6 +206,20 @@ export default function Sidebar() {
                         <div className={getFooterNavClass('/admin/system-config')} onClick={() => handleMainNavigation('/admin/system-config')}>
                             <FaTools className={styles['nav-icon']} />
                             <span className={styles['nav-text']}>System Config</span>
+                        </div>
+                    )}
+
+                    {isAdmin && (
+                        <div className={getFooterNavClass('/admin/backup')} onClick={() => handleMainNavigation('/admin/backup')}>
+                            <FaDatabase className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Database Backup</span>
+                        </div>
+                    )}
+
+                    {isAdmin && (
+                        <div className={getFooterNavClass('/admin/integrity')} onClick={() => handleMainNavigation('/admin/integrity')}>
+                            <FaTools className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Integrity Tools</span>
                         </div>
                     )}
 
