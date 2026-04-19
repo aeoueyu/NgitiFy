@@ -1,73 +1,65 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { FaBell } from 'react-icons/fa';
-import Sidebar from '../sidebar/Sidebar'; 
-import styles from './DashboardLayout.module.css'; 
-import { authFetch } from '../../utils/api';
+import Sidebar from '../sidebar/Sidebar';
+import SessionWarningModal from '../common/SessionWarningModal';
+import styles from './DashboardLayout.module.css';
 import { useAuth } from '../../hooks/useAuth';
+import { useSessionTimeout } from '../../hooks/useSessionTimeout';
+import { authFetch } from '../../utils/api';
 
 export default function DashboardLayout() {
-    const [unreadCount, setUnreadCount] = useState(0);
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const [showWarning, setShowWarning] = useState(false);
 
-    const isAdminRole = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager';
+    const handleTimeout = useCallback(async () => {
+        setShowWarning(false);
+        // Log the session timeout reason before logging out
+        try {
+            await authFetch('/logout', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: user?.email,
+                    role: user?.role,
+                    reason: 'session_timeout'
+                })
+            });
+        } catch (e) { /* silent */ }
+        logout();
+        navigate('/login');
+    }, [logout, navigate, user]);
 
-    // Fetch unread notifications
-    useEffect(() => {
-        const fetchUnread = async () => {
-            try {
-                const response = await authFetch('/notifications');
-                if (response.ok) {
-                    const data = await response.json();
-                    const unread = data.filter(n => !n.isRead).length;
-                    setUnreadCount(unread);
-                }
-            } catch (err) {
-                console.error("Failed to fetch notifications bell count", err);
-            }
-        };
-
-        fetchUnread(); // Run on mount
-        const interval = setInterval(fetchUnread, 60000); // Poll every 60 seconds
-
-        return () => clearInterval(interval); // Cleanup on unmount
+    const handleWarn = useCallback(() => {
+        setShowWarning(true);
     }, []);
+
+    const handleResetWarn = useCallback(() => {
+        setShowWarning(false);
+    }, []);
+
+    const handleStayLoggedIn = useCallback(() => {
+        setShowWarning(false);
+        // Dispatching any event resets the timer inside useSessionTimeout
+        window.dispatchEvent(new MouseEvent('mousemove'));
+    }, []);
+
+    useSessionTimeout({
+        onTimeout: handleTimeout,
+        onWarn: handleWarn,
+        onResetWarn: handleResetWarn,
+    });
 
     return (
         <div className={styles.dashboardContainer}>
             <Sidebar />
             <div className={styles.mainContent}>
-                
-                {/* ✅ NOTIFICATION BELL HEADER */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '15px 30px', backgroundColor: '#fff', borderBottom: '1px solid #eee' }}>
-                    {isAdminRole && (
-                    <div 
-                        style={{ position: 'relative', cursor: 'pointer' }} 
-                        onClick={() => navigate('/admin/appointment-notifications')}
-                    >
-                        <FaBell size={24} color="#7f8c8d" />
-                        {unreadCount > 0 && (
-                            <span style={{
-                                position: 'absolute',
-                                top: '-5px',
-                                right: '-5px',
-                                backgroundColor: '#e74c3c',
-                                color: 'white',
-                                borderRadius: '50%',
-                                padding: '2px 6px',
-                                fontSize: '12px',
-                                fontWeight: 'bold'
-                            }}>
-                                {unreadCount}
-                            </span>
-                        )}
-                        </div>
-                        )}
-                    </div>
-
                 <Outlet />
             </div>
+
+            <SessionWarningModal
+                isOpen={showWarning}
+                onStayLoggedIn={handleStayLoggedIn}
+            />
         </div>
     );
 }

@@ -14,7 +14,7 @@ import {
     FaTooth, FaChevronDown, FaChevronUp, FaTimes,
     FaUpload, FaMagic, FaRobot, FaCalendarAlt
 } from 'react-icons/fa';
-import Odontogram from './Odontogram';
+import Odontogram from '../dentist/Odontogram';
 
 const INITIAL_MEDICAL_HISTORY = {
     lastExam: '',

@@ -9,6 +9,7 @@ const { Resend } = require('resend');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const RolePermission = require('./models/RolePermission');
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -1058,12 +1059,14 @@ app.get('/api/audit-logs', verifyToken, async (req, res) => {
 
 app.post('/api/logout', verifyToken, async (req, res) => {
     try {
-        const { email, role } = req.body;
+        const { email, role, reason = 'user_initiated' } = req.body;
         await AuditLog.create({
             action: "LOGOUT",
             user: email,
             role: role,
-            details: `User logged out successfully.`
+            details: reason === 'session_timeout'
+                ? `User was automatically logged out due to 30-minute inactivity.`
+                : `User logged out successfully.`
         });
         res.status(200).json({ message: "Logout successful" });
     } catch (error) {
@@ -1879,7 +1882,8 @@ app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
 
 app.get('/api/branches', verifyToken, async (req, res) => {
     try {
-        const branches = await Branch.find({ isActive: true }).sort({ name: 1 });
+        const filter = req.query.all === 'true' ? {} : { isActive: true };
+        const branches = await Branch.find(filter).sort({ name: 1 });
         res.json(branches);
     } catch (error) {
         console.error('Error fetching branches:', error);
@@ -2155,6 +2159,170 @@ app.delete('/api/queue/:id', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error deleting queue entry:', error);
         res.status(500).json({ message: 'Server error deleting queue entry.' });
+    }
+});
+
+// -------------------------------------------------------
+// ROLE PERMISSIONS — GET all role configs
+// -------------------------------------------------------
+app.get('/api/role-permissions', verifyToken, async (req, res) => {
+    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+    try {
+        const CONFIGURABLE_ROLES = ['co-administrator', 'branch-manager', 'dentist', 'secretary'];
+
+        // Ensure a doc exists for every configurable role
+        await Promise.all(
+            CONFIGURABLE_ROLES.map(role =>
+                RolePermission.findOneAndUpdate(
+                    { role },
+                    { $setOnInsert: { role } },
+                    { upsert: true, new: true }
+                )
+            )
+        );
+
+        const configs = await RolePermission.find({ role: { $in: CONFIGURABLE_ROLES } });
+        res.json(configs);
+    } catch (error) {
+        console.error('Error fetching role permissions:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// -------------------------------------------------------
+// ROLE PERMISSIONS — UPDATE permissions for a role
+// -------------------------------------------------------
+app.put('/api/role-permissions/:role', verifyToken, async (req, res) => {
+    if (req.user.role !== 'administrator') {
+        return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+    try {
+        const { role } = req.params;
+        const { permissions } = req.body;
+
+        const CONFIGURABLE_ROLES = ['co-administrator', 'branch-manager', 'dentist', 'secretary'];
+        if (!CONFIGURABLE_ROLES.includes(role)) {
+            return res.status(400).json({ message: 'Cannot configure permissions for this role.' });
+        }
+
+        const updated = await RolePermission.findOneAndUpdate(
+            { role },
+            { permissions, updatedBy: req.user.email },
+            { new: true, upsert: true }
+        );
+
+        await AuditLog.create({
+            action: 'ROLE_CHANGED',
+            user: req.user.email,
+            role: req.user.role,
+            details: `Permissions updated for role: ${role}`
+        });
+
+        res.json(updated);
+    } catch (error) {
+        console.error('Error updating role permissions:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// -------------------------------------------------------
+// GRANT ADMIN ACCESS — Override a specific user's permissions
+// -------------------------------------------------------
+app.post('/api/users/:id/grant-admin', verifyToken, async (req, res) => {
+    if (req.user.role !== 'administrator') {
+        return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+    try {
+        const { isAdminAccess } = req.body;
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        user.isAdminAccess = Boolean(isAdminAccess);
+        await user.save();
+
+        await AuditLog.create({
+            action: 'ROLE_CHANGED',
+            user: req.user.email,
+            role: req.user.role,
+            details: `Admin access ${isAdminAccess ? 'granted to' : 'revoked from'} user: ${user.email}`
+        });
+
+        res.json({ message: `Admin access ${isAdminAccess ? 'granted' : 'revoked'} successfully.`, user });
+    } catch (error) {
+        console.error('Error granting admin access:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// -------------------------------------------------------
+// ANALYTICS — Per-branch aggregation
+// -------------------------------------------------------
+app.get('/api/analytics/branches', verifyToken, async (req, res) => {
+    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+    try {
+        const { from, to } = req.query;
+
+        const dateFilter = {};
+        if (from) dateFilter.$gte = new Date(from);
+        if (to)   dateFilter.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
+
+        const matchStage = Object.keys(dateFilter).length ? { date: dateFilter } : {};
+
+        // Per-branch appointment counts
+        const branchCounts = await Surgery.aggregate([
+            { $match: matchStage },
+            { $group: { _id: '$branch', total: { $sum: 1 } } },
+            { $sort: { total: -1 } }
+        ]);
+
+        // Month-over-month per branch (last 6 months)
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+        sixMonthsAgo.setDate(1);
+        sixMonthsAgo.setHours(0, 0, 0, 0);
+
+        const monthly = await Surgery.aggregate([
+            { $match: { date: { $gte: sixMonthsAgo } } },
+            {
+                $group: {
+                    _id: {
+                        branch: '$branch',
+                        year:  { $year:  '$date' },
+                        month: { $month: '$date' }
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { '_id.year': 1, '_id.month': 1 } }
+        ]);
+
+        // Procedure distribution
+        const procedures = await Surgery.aggregate([
+            { $match: matchStage },
+            { $group: { _id: '$procedure', value: { $sum: 1 } } },
+            { $sort: { value: -1 } },
+            { $limit: 6 }
+        ]);
+
+        // Status breakdown per branch
+        const statusBreakdown = await Surgery.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: { branch: '$branch', status: '$status' },
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        res.json({ branchCounts, monthly, procedures, statusBreakdown });
+    } catch (error) {
+        console.error('Error fetching branch analytics:', error);
+        res.status(500).json({ message: 'Server error fetching analytics.' });
     }
 });
 

@@ -40,13 +40,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('ngitify_user', JSON.stringify(loggedInUser));
   };
 
-  const logout = async () => {
+  const logout = async (reason = 'user_initiated') => {
     try {
       await authFetch('/logout', {
         method: 'POST',
-        body: JSON.stringify({ email: currentUser?.email, role: currentUser?.role })
+        body: JSON.stringify({ email: currentUser?.email, role: currentUser?.role, reason })
       });
-    } catch (e) { /* silent fail — still log out locally even if server is unreachable */ }
+    } catch (e) { /* silent fail */ }
     setCurrentUser(null);
     localStorage.removeItem('ngitify_user');
     localStorage.removeItem('token');

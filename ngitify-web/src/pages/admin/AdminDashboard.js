@@ -9,8 +9,8 @@ import {
     FaBoxOpen, FaHistory, FaCheckCircle, FaUserClock, 
     FaArrowUp, FaArrowDown, FaChartPie, FaUserPlus, 
     FaCalendarPlus, FaTimes, FaExclamationTriangle,
-    FaChartLine // TASK 4.1: Imported new chart icon
-} from 'react-icons/fa'; 
+    FaChartLine, FaBell
+} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { formatWeekdayDate, formatTime, formatDateShort } from '../../utils/dateUtils';
@@ -64,6 +64,7 @@ export default function AdminDashboard() {
     const [recentLogs, setRecentLogs] = useState([]);
 
     const [adminProfile, setAdminProfile] = useState(null);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -195,6 +196,21 @@ export default function AdminDashboard() {
         fetchDashboardData();
     }, []);
 
+    useEffect(() => {
+        const fetchUnread = async () => {
+            try {
+                const res = await authFetch('/notifications');
+                if (res.ok) {
+                    const data = await res.json();
+                    setUnreadCount(data.filter(n => !n.isRead).length);
+                }
+            } catch (e) { /* silent */ }
+        };
+        fetchUnread();
+        const interval = setInterval(fetchUnread, 60000);
+        return () => clearInterval(interval);
+    }, []);
+
     const displayedAppointments = allAppointments.filter(apt => 
         apt.rawDate.toDateString() === selectedDate.toDateString()
     );
@@ -275,6 +291,20 @@ export default function AdminDashboard() {
                         </p>
                     </div>
                     <div className={styles['header-right']}>
+                        {/* 🔔 Notification Bell */}
+                        <button
+                            className={styles['bell-btn']}
+                            onClick={() => navigate('/admin/notifications')}
+                            aria-label="Notifications"
+                        >
+                            <FaBell className={styles['bell-icon']} />
+                            {unreadCount > 0 && (
+                                <span className={styles['bell-badge']}>
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+
                         <div className={styles['user-info']}>
                             <span className={styles['user-name']}>Hello, {adminProfile?.name?.first || user?.name?.first || 'Admin'}!</span>
                             <span className={styles['user-role']}>
@@ -290,6 +320,7 @@ export default function AdminDashboard() {
                                 })()}
                             </span>
                         </div>
+
                         <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
                             <UserAvatar 
                                 user={adminProfile || user || { name: 'Admin' }} 

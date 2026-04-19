@@ -1,0 +1,98 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.modal {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+.iconWrapper {
+    margin-bottom: 16px;
+}
+
+.clockIcon {
+    font-size: 48px;
+}
+
+.title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1a2a3a;
+    margin: 0 0 10px;
+    font-family: 'Lexend Deca', sans-serif;
+}
+
+.message {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0 0 24px;
+    line-height: 1.6;
+}
+
+.countdown {
+    font-size: 48px;
+    font-weight: 800;
+    color: #01538b;
+    font-family: 'Lexend Deca', sans-serif;
+    margin-bottom: 16px;
+    transition: color 0.3s;
+    letter-spacing: 2px;
+}
+
+.countdown.urgent {
+    color: #e74c3c;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
+}
+
+.hint {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 0 0 28px;
+}
+
+.stayBtn {
+    background: #01538b;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 32px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    font-family: 'Lexend Deca', sans-serif;
+    transition: background 0.2s;
+}
+
+.stayBtn:hover {
+    background: #013f6a;
+}

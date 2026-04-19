@@ -151,7 +151,8 @@ const userSchema = new mongoose.Schema({
     }],
 
     status: { type: String, enum: ['active', 'inactive'], default: 'inactive' },
-    isArchived: { type: Boolean, default: false }
+    isArchived: { type: Boolean, default: false },
+    isAdminAccess: { type: Boolean, default: false }
 
 }, { timestamps: true });
 

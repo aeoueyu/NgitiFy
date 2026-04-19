@@ -1,0 +1,219 @@
+.container {
+    padding: 30px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.pageHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.headerLeft {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.headerIcon {
+    font-size: 32px;
+    color: #01538b;
+}
+
+.pageTitle {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a2a3a;
+    margin: 0;
+}
+
+.pageSubtitle {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin: 4px 0 0;
+}
+
+.markAllBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #01538b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.markAllBtn:hover {
+    background: #013f6a;
+}
+
+/* Filter Bar */
+.filterBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+}
+
+.filterIcon {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin-right: 4px;
+}
+
+.filterBtn {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.filterBtn:hover {
+    border-color: #01538b;
+    color: #01538b;
+}
+
+.activeFilter {
+    background: #01538b;
+    color: white;
+    border-color: #01538b;
+}
+
+.activeFilter:hover {
+    background: #013f6a;
+    color: white;
+}
+
+/* Notification List */
+.notificationList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.notifCard {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+}
+
+.notifCard:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.notifCard.unread {
+    border-left: 4px solid #01538b;
+    background: #f0f7ff;
+}
+
+.typeBadge {
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.notifContent {
+    flex: 1;
+    min-width: 0;
+}
+
+.notifHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.notifTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a2a3a;
+    margin: 0;
+}
+
+.unreadDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e74c3c;
+    flex-shrink: 0;
+}
+
+.notifMessage {
+    font-size: 14px;
+    color: #495057;
+    margin: 0 0 6px;
+    line-height: 1.5;
+}
+
+.notifTime {
+    font-size: 12px;
+    color: #adb5bd;
+}
+
+.readBtn {
+    background: transparent;
+    border: 1px solid #01538b;
+    color: #01538b;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.readBtn:hover {
+    background: #01538b;
+    color: white;
+}
+
+/* States */
+.loadingState,
+.emptyState {
+    text-align: center;
+    padding: 60px 20px;
+    color: #7f8c8d;
+    font-size: 15px;
+}
+
+.emptyIcon {
+    font-size: 48px;
+    color: #dee2e6;
+    margin-bottom: 12px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}

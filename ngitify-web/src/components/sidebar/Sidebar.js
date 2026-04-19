@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { FaCog, FaSignOutAlt, FaTools, FaListUl } from 'react-icons/fa';
+import { FaCog, FaSignOutAlt, FaTools, FaListUl, FaBell, FaShieldAlt, FaChartBar, FaCodeBranch } from 'react-icons/fa';
 import { authFetch } from '../../utils/api'; 
 
 // CRITICAL RULE: Import ConfirmModal
@@ -28,6 +28,24 @@ export default function Sidebar() {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     const [lowStockCount, setLowStockCount] = useState(0);
+
+    const [notifUnreadCount, setNotifUnreadCount] = useState(0);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+        const fetchNotifCount = async () => {
+            try {
+                const res = await authFetch('/notifications');
+                if (res.ok) {
+                    const data = await res.json();
+                    setNotifUnreadCount(data.filter(n => !n.isRead).length);
+                }
+            } catch (e) { /* silent */ }
+        };
+        fetchNotifCount();
+        const interval = setInterval(fetchNotifCount, 60000);
+        return () => clearInterval(interval);
+    }, [isAdmin]);
 
     // --- DYNAMIC PATHS LOGIC ---
     // Task 16 Fix: Route 'co-administrator' to the '/administrator' base path
@@ -131,9 +149,40 @@ export default function Sidebar() {
                     )}
 
                     {isAdmin && (
+                        <div className={getNavClass('/admin/notifications')} onClick={() => handleMainNavigation('/admin/notifications')}>
+                            <FaBell className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Notifications</span>
+                            {notifUnreadCount > 0 && (
+                                <span className={styles['notification-badge']}>{notifUnreadCount}</span>
+                            )}
+                        </div>
+                    )}
+
+                    {isAdmin && (
                         <div className={getNavClass('/admin/queue')} onClick={() => handleMainNavigation('/admin/queue')}>
                             <FaListUl className={styles['nav-icon']} />
                             <span className={styles['nav-text']}>Queue</span>
+                        </div>
+                    )}
+
+                    {isAdmin && (
+                        <div className={getNavClass('/admin/roles')} onClick={() => handleMainNavigation('/admin/roles')}>
+                            <FaShieldAlt className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Roles & Permissions</span>
+                        </div>
+                    )}
+
+                    {isAdmin && (
+                        <div className={getNavClass('/admin/branches')} onClick={() => handleMainNavigation('/admin/branches')}>
+                            <FaCodeBranch className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Branches</span>
+                        </div>
+                    )}
+
+                    {isAdmin && (
+                        <div className={getNavClass('/admin/branches/analytics')} onClick={() => handleMainNavigation('/admin/branches/analytics')}>
+                            <FaChartBar className={styles['nav-icon']} />
+                            <span className={styles['nav-text']}>Branch Analytics</span>
                         </div>
                     )}
                 

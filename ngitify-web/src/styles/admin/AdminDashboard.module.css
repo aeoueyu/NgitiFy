@@ -25,6 +25,43 @@
 .profile-dropdown-item.logout { color: #dc3545; border-top: 1px solid #f1f5f9; }
 .profile-dropdown-item.logout:hover { background: #fef2f2; color: #ef4444; }
 
+/* Notification Bell */
+.bell-btn {
+    position: relative;
+    background: rgba(1, 83, 139, 0.06);
+    border: none;
+    cursor: pointer;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    color: #01538b;
+}
+.bell-btn:hover {
+    background: rgba(1, 83, 139, 0.14);
+}
+.bell-icon {
+    font-size: 18px;
+}
+.bell-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #e74c3c;
+    color: white;
+    border-radius: 10px;
+    padding: 1px 4px;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1.4;
+    min-width: 14px;
+    text-align: center;
+    border: 2px solid #fff;
+}
+
 /* --- ALERT BANNER --- */
 .alert-banner {
     background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
