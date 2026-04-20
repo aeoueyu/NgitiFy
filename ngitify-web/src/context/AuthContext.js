@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }) => {
       profileImage: userData.profileImage || '',
       permissions: userData.permissions || {},
       assignedBranch: userData.assignedBranch || null,
+      isDentist: userData.isDentist || false,   // ✅ PHASE 3
     });
     
     setCurrentUser(loggedInUser);

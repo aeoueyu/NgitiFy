@@ -70,6 +70,11 @@ const BranchManagerPatientEMR = lazy(() => import('./pages/branch-manager/Branch
 const BranchManagerActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
 const BranchManagerNotifications = lazy(() => import('./pages/admin/Notifications'));
 
+// ✅ PHASE 3: Owner pages
+const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
+const ManageOwners = lazy(() => import('./pages/admin/ManageOwners'));
+
+
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#f4f7f6', color: '#01538b', fontFamily: 'sans-serif' }}>
     <h2>Loading...</h2>
@@ -122,6 +127,26 @@ function App() {
                 </Route>
               </Route>
 
+              {/* ✅ PHASE 3: Protected Routes - Owner Area */}
+              <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/owner/dashboard"                    element={<OwnerDashboard />} />
+                  <Route path="/owner/appointments"                 element={<AdminAppointments />} />
+                  <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-users/dentists" replace />} />
+                  <Route path="/owner/manage-users/dentists"        element={<ManageDentists />} />
+                  <Route path="/owner/manage-users/secretaries"     element={<ManageSecretaries />} />
+                  <Route path="/owner/manage-users/patients"        element={<ManagePatients />} />
+                  <Route path="/owner/patients/:patientId/emr"      element={<AdminPatientEMR />} />
+                  <Route path="/owner/branches"                     element={<BranchManagement />} />
+                  <Route path="/owner/branches/analytics"           element={<BranchAnalytics />} />
+                  <Route path="/owner/inventory"                    element={<InventoryTracker />} />
+                  <Route path="/owner/notifications"                element={<Notifications />} />
+                  <Route path="/owner/activity-logs"                element={<ActivityLogs />} />
+                  <Route path="/owner/profile"                      element={<AdminProfile />} />
+                  <Route path="/owner/settings"                     element={<AdminSettings />} />
+                </Route>
+              </Route>
+
               {/* Protected Routes - Secretary Area */}
               <Route element={<ProtectedRoute allowedRoles={['secretary']}/>}>
                 <Route element={<DashboardLayout />}>
@@ -152,6 +177,7 @@ function App() {
                   <Route path="/admin/manage-users/patients" element={<ManagePatients />} />
                   <Route path="/admin/manage-users/branch-managers" element={<ManageBranchManagers />} />
                   <Route path="/admin/manage-users/co-admins" element={<ManageCoAdmins />} />
+                  <Route path="/admin/manage-users/owners" element={<ManageOwners />} />   {/* ✅ PHASE 3 */}
 
                   {/* Add/Edit staff */}
                   <Route path="/admin/add-dentist" element={<AddDentist />} />

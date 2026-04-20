@@ -9,6 +9,7 @@ const TABS = [
     { key: 'patients',       label: 'Patients',         path: '/admin/manage-users/patients' },
     { key: 'branchManagers', label: 'Branch Managers',  path: '/admin/manage-users/branch-managers' },
     { key: 'coAdmins',       label: 'Co-Admins',        path: '/admin/manage-users/co-admins' },
+    { key: 'owners',         label: 'Owners',           path: '/admin/manage-users/owners' },  // ✅ PHASE 3
 ];
 
 // TAB BAR ONLY — navigates to routes. Child pages are rendered by App.js routes.

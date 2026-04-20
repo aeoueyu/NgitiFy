@@ -23,16 +23,18 @@ export default function Sidebar() {
 
     const { canReadPatients, canReadInventory } = usePermissions();
 
-    const isAdmin        = user?.role === 'administrator' || user?.role === 'co-administrator';
+    const isAdmin         = user?.role === 'administrator' || user?.role === 'co-administrator';
     const isBranchManager = user?.role === 'branch-manager';
-    const isSecretary    = user?.role === 'secretary';
+    const isSecretary     = user?.role === 'secretary';
+    const isOwner         = user?.role === 'owner';         // ✅ PHASE 3
+    const isDentistOwner  = isOwner && user?.isDentist;     // ✅ PHASE 3
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [lowStockCount, setLowStockCount] = useState(0);
     const [notifUnreadCount, setNotifUnreadCount] = useState(0);
 
     useEffect(() => {
-        if (!isAdmin && !isBranchManager) return;
+        if (!isAdmin && !isBranchManager && !isOwner) return;
         const fetchNotifCount = async () => {
             try {
                 const res = await authFetch('/notifications');
@@ -51,6 +53,7 @@ export default function Sidebar() {
         if (user?.role === 'dentist')        return '/dentist';
         if (user?.role === 'secretary')      return '/secretary';
         if (user?.role === 'branch-manager') return '/branch-manager';
+        if (user?.role === 'owner')          return '/owner';   // ✅ PHASE 3
         if (user?.role === 'administrator' || user?.role === 'co-administrator') return '/admin';
         return '/login';
     };
@@ -158,6 +161,44 @@ export default function Sidebar() {
                             </div>
 
                             <div className={getNavClass('/branch-manager/activity-logs')} onClick={() => navigate('/branch-manager/activity-logs')}>
+                                <FaListUl className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Activity Logs</span>
+                            </div>
+                        </>
+                    )}
+
+                    {/* ── OWNER ── */}
+                    {isOwner && (
+                        <>
+                            <div className={getNavClass('/owner/manage-users')} onClick={() => navigate('/owner/manage-users')}>
+                                <img src={StaffIcon} alt="User Management" className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>User Management</span>
+                            </div>
+
+                            <div className={getNavClass('/owner/notifications')} onClick={() => navigate('/owner/notifications')}>
+                                <FaBell className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Notifications</span>
+                                {notifUnreadCount > 0 && (
+                                    <span className={styles['notification-badge']}>{notifUnreadCount}</span>
+                                )}
+                            </div>
+
+                            <div className={getNavClass('/owner/branches')} onClick={() => navigate('/owner/branches')}>
+                                <FaCodeBranch className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Branches</span>
+                            </div>
+
+                            <div className={getNavClass('/owner/branches/analytics')} onClick={() => navigate('/owner/branches/analytics')}>
+                                <FaChartBar className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Branch Analytics</span>
+                            </div>
+
+                            <div className={getNavClass('/owner/inventory')} onClick={() => navigate('/owner/inventory')}>
+                                <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Inventory</span>
+                            </div>
+
+                            <div className={getNavClass('/owner/activity-logs')} onClick={() => navigate('/owner/activity-logs')}>
                                 <FaListUl className={styles['nav-icon']} />
                                 <span className={styles['nav-text']}>Activity Logs</span>
                             </div>

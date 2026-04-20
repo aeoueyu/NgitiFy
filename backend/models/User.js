@@ -152,7 +152,10 @@ const userSchema = new mongoose.Schema({
 
     status: { type: String, enum: ['active', 'inactive'], default: 'inactive' },
     isArchived: { type: Boolean, default: false },
-    isAdminAccess: { type: Boolean, default: false }
+    isAdminAccess: { type: Boolean, default: false },
+
+    // ✅ PHASE 3: Owner-as-Dentist flag
+    isDentist: { type: Boolean, default: false }
 
 }, { timestamps: true });
 

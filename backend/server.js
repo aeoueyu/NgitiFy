@@ -97,8 +97,11 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             ? (user.assignedBranches?.[0] || null)
             : null;
 
+        // ✅ PHASE 3: Include isDentist flag for owner-role users
+        const isDentist = user.role === 'owner' ? (user.isDentist || false) : undefined;
+
         const token = jwt.sign(
-            { id: user._id, role: user.role, email: user.email, assignedBranch },
+            { id: user._id, role: user.role, email: user.email, assignedBranch, isDentist },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -110,7 +113,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             details: `User logged in successfully.`
         });
 
-        res.json({ token, role: user.role, userId: user._id, assignedBranch });
+        res.json({ token, role: user.role, userId: user._id, assignedBranch, isDentist });
 
     } catch (error) {
         console.error(error);
@@ -545,6 +548,61 @@ app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
 });
 
 // -------------------------------------------------------
+// ✅ PHASE 3: ADD OWNER
+// -------------------------------------------------------
+app.post('/api/add-owner', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        }
+
+        const { email, isDentist, ...otherData } = req.body;
+
+        const existing = await User.findOne({ email });
+        if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
+
+        const tempPassword = crypto.randomBytes(4).toString('hex');
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const activationToken = crypto.randomBytes(32).toString('hex');
+        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        const newUser = new User({
+            ...otherData,
+            email,
+            password: hashedPassword,
+            role: 'owner',
+            isDentist: isDentist === true,
+            isVerified: false,
+            status: 'inactive',
+            activationToken,
+            temporaryPasswordExpires
+        });
+        await newUser.save();
+
+        await AuditLog.create({
+            action: 'CREATE_USER',
+            user: req.user?.email || 'ADMIN',
+            role: req.user?.role || 'administrator',
+            details: `Created new owner account: ${email}${isDentist ? ' (with Dentist access)' : ''}`
+        });
+
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+
+        try {
+            await sendActivationEmail(email, 'Owner', tempPassword, activationLink);
+            res.status(201).json({ message: 'Owner added successfully. Activation email sent.' });
+        } catch (emailError) {
+            console.error('⚠️ Activation email failed for owner:', emailError.message);
+            res.status(207).json({ message: 'Owner added, but activation email failed. Please resend manually.' });
+        }
+
+    } catch (error) {
+        console.error('Error adding owner:', error);
+        res.status(500).json({ message: 'Server error while creating owner account.' });
+    }
+});
+
+// -------------------------------------------------------
 // GET ALL USERS (With Role-Based Security)
 // -------------------------------------------------------
 // Explicit allowlists — any new roles added to the system are blocked by default
@@ -593,7 +651,7 @@ app.get('/api/users', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -627,7 +685,7 @@ app.get('/api/patients', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients/:id', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -2309,9 +2367,24 @@ app.get('/api/role-permissions', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 // ROLE PERMISSIONS — UPDATE permissions for a role
 // -------------------------------------------------------
+// AFTER (co-admin can edit non-admin role permissions)
 app.put('/api/role-permissions/:role', verifyToken, async (req, res) => {
-    if (req.user.role !== 'administrator') {
-        return res.status(403).json({ message: 'Access denied. Admin only.' });
+    const isAdmin = req.user.role === 'administrator';
+    const isCoAdmin = req.user.role === 'co-administrator';
+
+    if (!isAdmin && !isCoAdmin) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    // Co-admin cannot modify administrator-level permission entries
+    if (isCoAdmin && req.params.role === 'administrator') {
+        await AuditLog.create({
+            action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
+            user: req.user.email,
+            role: 'co-administrator',
+            details: 'Attempted to modify administrator role permissions.'
+        });
+        return res.status(403).json({ message: 'Access denied. Cannot modify administrator permissions.' });
     }
     try {
         const { role } = req.params;
@@ -2383,7 +2456,8 @@ app.post('/api/users/:id/grant-admin', verifyToken, async (req, res) => {
 // ANALYTICS — Per-branch aggregation
 // -------------------------------------------------------
 app.get('/api/analytics/branches', verifyToken, async (req, res) => {
-    const analyticsAllowed = ['administrator', 'co-administrator', 'branch-manager'];
+    // ✅ PHASE 3: Owner has full cross-branch analytics access
+    const analyticsAllowed = ['administrator', 'co-administrator', 'branch-manager', 'owner'];
     if (!analyticsAllowed.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }

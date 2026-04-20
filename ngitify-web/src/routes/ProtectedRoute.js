@@ -24,6 +24,9 @@ const ProtectedRoute = ({ allowedRoles }) => {
       case 'branch-manager':
           fallbackPath = '/branch-manager/dashboard';
           break;
+      case 'owner':                                   // ✅ PHASE 3
+          fallbackPath = '/owner/dashboard';
+          break;
       case 'dentist':
           fallbackPath = '/dentist/dashboard';
           break;

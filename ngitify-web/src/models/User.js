@@ -10,7 +10,8 @@ export class User {
     status = 'Active', 
     profileImage = '', 
     createdAt = new Date().toISOString(),
-    assignedBranch = null
+    assignedBranch = null,
+    isDentist = false   // ✅ PHASE 3: Owner-as-Dentist flag
   } = {}) {
     this.id = id;
     this.firstName = firstName;
@@ -23,6 +24,7 @@ export class User {
     this.profileImage = profileImage;
     this.createdAt = createdAt;
     this.assignedBranch = assignedBranch;
+    this.isDentist = isDentist;
   }
 
   get fullName() {
@@ -35,5 +37,10 @@ export class User {
 
   get isBranchManager() {
     return this.role === 'branch-manager';
+  }
+
+  // ✅ PHASE 3
+  get isOwner() {
+    return this.role === 'owner';
   }
 }
