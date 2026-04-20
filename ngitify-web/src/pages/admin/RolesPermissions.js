@@ -1,5 +1,6 @@
+// ngitify-web/src/pages/admin/RolesPermissions.js
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaShieldAlt, FaSave, FaSearch, FaUserShield } from 'react-icons/fa';
+import { FaShieldAlt, FaSave, FaSearch, FaUserShield, FaLock } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -32,21 +33,17 @@ export default function RolesPermissions() {
     const { addToast } = useToast();
     const { user } = useAuth();
     const isCoAdmin = user?.role === 'co-administrator';
-    // Co-admins cannot see or edit administrator-level entries
-    const ROLES = ALL_ROLES; // uses full role list (administrator row not in list already)
+    const ROLES = ALL_ROLES;
 
-    // Matrix state: { 'co-administrator': { appointments: 'full_access', ... }, ... }
     const [matrix, setMatrix]       = useState({});
     const [original, setOriginal]   = useState({});
     const [loading, setLoading]     = useState(true);
-    const [saving, setSaving]       = useState(null); // which role is saving
+    const [saving, setSaving]       = useState(null);
 
-    // Grant admin access section
     const [users, setUsers]             = useState([]);
     const [userSearch, setUserSearch]   = useState('');
     const [grantLoading, setGrantLoading] = useState(null);
 
-    // ── Fetch role permissions ────────────────────────────────
     const fetchPermissions = useCallback(async () => {
         try {
             const res = await authFetch('/role-permissions');
@@ -64,7 +61,6 @@ export default function RolesPermissions() {
         }
     }, [addToast]);
 
-    // ── Fetch staff users for grant-admin section ─────────────
     const fetchUsers = useCallback(async () => {
         try {
             const res = await authFetch('/users?role=dentist,secretary,branch-manager,co-administrator');
@@ -80,15 +76,15 @@ export default function RolesPermissions() {
         fetchUsers();
     }, [fetchPermissions, fetchUsers]);
 
-    // ── Matrix cell change ────────────────────────────────────
     const handleChange = (role, module, value) => {
+        // ✅ PHASE 1: Co-admins are view-only — block edits at the handler level too
+        if (isCoAdmin) return;
         setMatrix(prev => ({
             ...prev,
             [role]: { ...prev[role], [module]: value }
         }));
     };
 
-    // ── Save one role's permissions ───────────────────────────
     const handleSave = async (role) => {
         setSaving(role);
         try {
@@ -118,7 +114,6 @@ export default function RolesPermissions() {
         return JSON.stringify(matrix[role]) !== JSON.stringify(original[role]);
     };
 
-    // ── Grant admin access ────────────────────────────────────
     const handleGrantAdmin = async (userId, currentValue) => {
         setGrantLoading(userId);
         try {
@@ -170,6 +165,29 @@ export default function RolesPermissions() {
                 </div>
             </div>
 
+            {/* ✅ PHASE 1: Read-only banner for co-admin */}
+            {isCoAdmin && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '10px',
+                    padding: '12px 18px',
+                    marginBottom: '20px',
+                    color: '#1e40af',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                }}>
+                    <FaLock style={{ flexShrink: 0 }} />
+                    <span>
+                        You have <strong>view-only access</strong> to the permissions matrix.
+                        Only the Administrator can modify role permissions.
+                    </span>
+                </div>
+            )}
+
             {/* ── Permissions Matrix ── */}
             <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Role Permission Matrix</h2>
@@ -187,7 +205,8 @@ export default function RolesPermissions() {
                                     <th key={role.key} className={styles.roleHeader}>
                                         <div className={styles.roleHeaderContent}>
                                             <span>{role.label}</span>
-                                            {isDirty(role.key) && (
+                                            {/* ✅ PHASE 1: Hide Save button entirely for co-admin */}
+                                            {!isCoAdmin && isDirty(role.key) && (
                                                 <button
                                                     className={styles.saveBtn}
                                                     onClick={() => handleSave(role.key)}
@@ -210,11 +229,18 @@ export default function RolesPermissions() {
                                         const currentVal = matrix[role.key]?.[mod.key] || 'no_access';
                                         return (
                                             <td key={role.key} className={styles.accessCell}>
+                                                {/* ✅ PHASE 1: Disable selects for co-admin (view-only) */}
                                                 <select
                                                     className={styles.accessSelect}
                                                     value={currentVal}
                                                     onChange={e => handleChange(role.key, mod.key, e.target.value)}
-                                                    style={{ borderColor: getAccessColor(currentVal) }}
+                                                    style={{
+                                                        borderColor: getAccessColor(currentVal),
+                                                        opacity: isCoAdmin ? 0.75 : 1,
+                                                        cursor: isCoAdmin ? 'not-allowed' : 'pointer',
+                                                        pointerEvents: isCoAdmin ? 'none' : 'auto',
+                                                    }}
+                                                    disabled={isCoAdmin}
                                                 >
                                                     {ACCESS_OPTIONS.map(opt => (
                                                         <option key={opt.value} value={opt.value}>
@@ -241,7 +267,7 @@ export default function RolesPermissions() {
                 </div>
             </div>
 
-            {/* ── Grant Admin Access ── */}
+            {/* ── Grant Admin Access — hidden for co-admin ── */}
             {!isCoAdmin && (
                 <div className={styles.card}>
                     <div className={styles.grantHeader}>
