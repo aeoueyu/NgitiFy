@@ -54,6 +54,9 @@ const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
 const DentistAppointments = lazy(() => import('./pages/dentist/DentistAppointments'));
 const DentistPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
+const DentistNotifications = lazy(() => import('./pages/dentist/Notifications'));
+const DentistActivityLogs  = lazy(() => import('./pages/dentist/ActivityLogs'));
+const DentistMaterialUsage = lazy(() => import('./pages/dentist/MaterialUsageLog'));
 
 // Pages - Secretary
 const SecretaryDashboard = lazy(() => import('./pages/secretary/SecretaryDashboard'));
@@ -106,6 +109,9 @@ function App() {
                   <Route path="/dentist/settings" element={<AdminSettings />} />
                   <Route path="/dentist/inventory" element={<InventoryTracker />} />
                   <Route path="/dentist/patients/:patientId/emr" element={<DentistPatientEMR />} />
+                  <Route path="/dentist/material-usage"   element={<DentistMaterialUsage />} />
+                  <Route path="/dentist/notifications"    element={<DentistNotifications />} />
+                  <Route path="/dentist/activity-logs"    element={<DentistActivityLogs />} />
                 </Route>
               </Route>
 

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { FaCog, FaSignOutAlt, FaTools, FaListUl, FaBell, FaShieldAlt, FaChartBar, FaCodeBranch, FaHeadset, FaDatabase } from 'react-icons/fa';
+import { FaCog, FaSignOutAlt, FaTools, FaListUl, FaBell, FaShieldAlt, FaChartBar, FaCodeBranch, FaHeadset, FaDatabase, FaTooth } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 
 import ConfirmModal from '../common/ConfirmModal';
@@ -28,6 +28,7 @@ export default function Sidebar() {
     const isSecretary     = user?.role === 'secretary';
     const isOwner         = user?.role === 'owner';         // ✅ PHASE 3
     const isDentistOwner  = isOwner && user?.isDentist;     // ✅ PHASE 3
+    const isDentistUser   = user?.role === 'dentist';
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [lowStockCount, setLowStockCount] = useState(0);
@@ -229,6 +230,26 @@ export default function Sidebar() {
                             <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} />
                             <span className={styles['nav-text']}>Inventory</span>
                         </div>
+                    )}
+
+                    {/* ── DENTIST-SPECIFIC items ── */}
+                    {isDentistUser && (
+                        <>
+                            <div className={getNavClass('/dentist/material-usage')} onClick={() => navigate('/dentist/material-usage')}>
+                                <FaTooth className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Material Usage</span>
+                            </div>
+
+                            <div className={getNavClass('/dentist/notifications')} onClick={() => navigate('/dentist/notifications')}>
+                                <FaBell className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Notifications</span>
+                            </div>
+
+                            <div className={getNavClass('/dentist/activity-logs')} onClick={() => navigate('/dentist/activity-logs')}>
+                                <FaListUl className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Activity Logs</span>
+                            </div>
+                        </>
                     )}
 
                     {/* ── ADMIN-ONLY items ── */}
