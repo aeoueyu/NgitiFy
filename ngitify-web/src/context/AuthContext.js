@@ -15,15 +15,11 @@ export const AuthProvider = ({ children }) => {
     if (storedUser && token) {
         setCurrentUser(new User(JSON.parse(storedUser)));
     }
-    // ✅ Remove the else block entirely — don't wipe tokens on a race condition
 
     setLoading(false);
   }, []);
 
-  // Update login to accept the userData object passed from LoginPage.js
   const login = async (userData) => {
-    
-    // Task 13 & 14 Fix: Hydrate the User model with the FULL REAL data
     const loggedInUser = new User({
       id: userData.userId,
       email: userData.userEmail || userData.email,
@@ -31,12 +27,11 @@ export const AuthProvider = ({ children }) => {
       firstName: userData.name?.first || '',
       lastName: userData.name?.last || '',
       profileImage: userData.profileImage || '',
-      permissions: userData.permissions || {}
+      permissions: userData.permissions || {},
+      assignedBranch: userData.assignedBranch || null,
     });
     
     setCurrentUser(loggedInUser);
-    
-    // Store the user object for UI purposes (Token is already saved in LoginPage.js)
     localStorage.setItem('ngitify_user', JSON.stringify(loggedInUser));
   };
 
@@ -53,8 +48,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
-    user: currentUser, // Exposed as 'user' so MyProfile.js (const { user } = useAuth()) works perfectly!
-    currentUser,       // Kept for backwards compatibility if your other files use it
+    user: currentUser,
+    currentUser,
     login,
     logout,
     isAuthenticated: !!currentUser,

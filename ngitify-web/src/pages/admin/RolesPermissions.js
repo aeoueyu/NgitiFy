@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaShieldAlt, FaSave, FaSearch, FaUserShield } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import styles from '../../styles/admin/RolesPermissions.module.css';
 
 const MODULES = [
@@ -14,7 +15,7 @@ const MODULES = [
     { key: 'systemConfig',   label: 'System Config' },
 ];
 
-const ROLES = [
+const ALL_ROLES = [
     { key: 'co-administrator', label: 'Co-Admin' },
     { key: 'branch-manager',   label: 'Branch Manager' },
     { key: 'dentist',          label: 'Dentist' },
@@ -29,6 +30,10 @@ const ACCESS_OPTIONS = [
 
 export default function RolesPermissions() {
     const { addToast } = useToast();
+    const { user } = useAuth();
+    const isCoAdmin = user?.role === 'co-administrator';
+    // Co-admins cannot see or edit administrator-level entries
+    const ROLES = ALL_ROLES; // uses full role list (administrator row not in list already)
 
     // Matrix state: { 'co-administrator': { appointments: 'full_access', ... }, ... }
     const [matrix, setMatrix]       = useState({});
@@ -237,63 +242,65 @@ export default function RolesPermissions() {
             </div>
 
             {/* ── Grant Admin Access ── */}
-            <div className={styles.card}>
-                <div className={styles.grantHeader}>
-                    <FaUserShield className={styles.grantIcon} />
-                    <div>
-                        <h2 className={styles.sectionTitle} style={{ margin: 0 }}>Grant Admin Access</h2>
-                        <p className={styles.sectionNote} style={{ margin: '4px 0 0' }}>
-                            Toggle full admin access for individual staff members, overriding their role's default permissions.
-                        </p>
+            {!isCoAdmin && (
+                <div className={styles.card}>
+                    <div className={styles.grantHeader}>
+                        <FaUserShield className={styles.grantIcon} />
+                        <div>
+                            <h2 className={styles.sectionTitle} style={{ margin: 0 }}>Grant Admin Access</h2>
+                            <p className={styles.sectionNote} style={{ margin: '4px 0 0' }}>
+                                Toggle full admin access for individual staff members, overriding their role's default permissions.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Search */}
+                    <div className={styles.searchBar}>
+                        <FaSearch className={styles.searchIcon} />
+                        <input
+                            type="text"
+                            placeholder="Search by name or email..."
+                            value={userSearch}
+                            onChange={e => setUserSearch(e.target.value)}
+                            className={styles.searchInput}
+                        />
+                    </div>
+
+                    <div className={styles.userList}>
+                        {filteredUsers.length === 0 ? (
+                            <p className={styles.emptyState}>No staff members found.</p>
+                        ) : (
+                            filteredUsers.map(u => (
+                                <div key={u._id} className={styles.userRow}>
+                                    <div className={styles.userAvatar}>
+                                        {(u.name?.first?.[0] || '?').toUpperCase()}
+                                    </div>
+                                    <div className={styles.userDetails}>
+                                        <span className={styles.userName}>
+                                            {u.name?.first} {u.name?.last}
+                                        </span>
+                                        <span className={styles.userEmail}>{u.email}</span>
+                                    </div>
+                                    <span className={styles.roleTag}>{u.role}</span>
+                                    <label className={styles.toggleWrapper}>
+                                        <input
+                                            type="checkbox"
+                                            className={styles.toggleInput}
+                                            checked={!!u.isAdminAccess}
+                                            onChange={() => handleGrantAdmin(u._id, !!u.isAdminAccess)}
+                                            disabled={grantLoading === u._id}
+                                        />
+                                        <span className={styles.toggleSlider} />
+                                    </label>
+                                    <span className={`${styles.accessLabel} ${u.isAdminAccess ? styles.accessOn : styles.accessOff}`}>
+                                        {u.isAdminAccess ? 'Admin Access' : 'Default'}
+                                    </span>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
-
-                {/* Search */}
-                <div className={styles.searchBar}>
-                    <FaSearch className={styles.searchIcon} />
-                    <input
-                        type="text"
-                        placeholder="Search by name or email..."
-                        value={userSearch}
-                        onChange={e => setUserSearch(e.target.value)}
-                        className={styles.searchInput}
-                    />
-                </div>
-
-                <div className={styles.userList}>
-                    {filteredUsers.length === 0 ? (
-                        <p className={styles.emptyState}>No staff members found.</p>
-                    ) : (
-                        filteredUsers.map(u => (
-                            <div key={u._id} className={styles.userRow}>
-                                <div className={styles.userAvatar}>
-                                    {(u.name?.first?.[0] || '?').toUpperCase()}
-                                </div>
-                                <div className={styles.userDetails}>
-                                    <span className={styles.userName}>
-                                        {u.name?.first} {u.name?.last}
-                                    </span>
-                                    <span className={styles.userEmail}>{u.email}</span>
-                                </div>
-                                <span className={styles.roleTag}>{u.role}</span>
-                                <label className={styles.toggleWrapper}>
-                                    <input
-                                        type="checkbox"
-                                        className={styles.toggleInput}
-                                        checked={!!u.isAdminAccess}
-                                        onChange={() => handleGrantAdmin(u._id, !!u.isAdminAccess)}
-                                        disabled={grantLoading === u._id}
-                                    />
-                                    <span className={styles.toggleSlider} />
-                                </label>
-                                <span className={`${styles.accessLabel} ${u.isAdminAccess ? styles.accessOn : styles.accessOff}`}>
-                                    {u.isAdminAccess ? 'Admin Access' : 'Default'}
-                                </span>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
+            )}
         </div>
     );
 }

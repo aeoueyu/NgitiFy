@@ -19,49 +19,47 @@ export const usePermissions = () => {
      * @returns {boolean} - True if access is granted, False if denied
      */
     const checkPermission = (module, requiredLevel) => {
-        // 1. Block access immediately if no user is found
         if (!activeUser || !activeUser.role) return false;
-
-        // 2. Only administrators bypass all permission checks (Full System Access)
-        if (activeUser.role === 'administrator') {
-            return true; 
-        }
-
-        // 3. Extract the staff member's specific permission for this module
-        // Safely fall back to 'none' if the permissions object is missing or undefined
+        if (activeUser.role === 'administrator') return true;
         const userPermission = activeUser.permissions?.[module] || 'none';
-
-        // 4. Evaluate against the required level
-        if (requiredLevel === 'edit') {
-            return userPermission === 'edit';
-        }
-
-        if (requiredLevel === 'read') {
-            // 'edit' level implicitly grants 'read' level access
-            return userPermission === 'read' || userPermission === 'edit';
-        }
-
+        if (requiredLevel === 'edit') return userPermission === 'edit';
+        if (requiredLevel === 'read') return userPermission === 'read' || userPermission === 'edit';
         return false;
     };
 
+    /**
+     * Returns false if the current user is a co-administrator and the target role is 'administrator'.
+     * Used to gate Edit/Delete actions on user rows.
+     * @param {string} targetRole - The role of the user being acted upon
+     * @returns {boolean}
+     */
+    const canModifyRole = (targetRole) => {
+        if (!activeUser) return false;
+        if (activeUser.role === 'co-administrator' && targetRole === 'administrator') return false;
+        return true;
+    };
+
     return {
-        // Raw dynamic function if you need to do custom checks on the fly
         checkPermission,
+        canModifyRole,
 
         // ==========================================
         // CONVENIENCE BOOLEANS FOR CLEAN UI RENDERING
         // ==========================================
-        
+
         // Patients Module
         canReadPatients: checkPermission('patients', 'read'),
         canEditPatients: checkPermission('patients', 'edit'),
-        
+
         // Appointments Module
         canReadAppointments: checkPermission('appointments', 'read'),
         canEditAppointments: checkPermission('appointments', 'edit'),
-        
+
         // Inventory Module
         canReadInventory: checkPermission('inventory', 'read'),
-        canEditInventory: checkPermission('inventory', 'edit')
+        canEditInventory: checkPermission('inventory', 'edit'),
+
+        // Co-admin specific
+        isCoAdmin: activeUser?.role === 'co-administrator',
     };
 };

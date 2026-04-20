@@ -93,8 +93,12 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             return res.status(403).json({ message: "Your account is inactive. Please contact an administrator." });
         }
 
+        const assignedBranch = user.role === 'branch-manager'
+            ? (user.assignedBranches?.[0] || null)
+            : null;
+
         const token = jwt.sign(
-            { id: user._id, role: user.role, email: user.email },
+            { id: user._id, role: user.role, email: user.email, assignedBranch },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -106,7 +110,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             details: `User logged in successfully.`
         });
 
-        res.json({ token, role: user.role, userId: user._id });
+        res.json({ token, role: user.role, userId: user._id, assignedBranch });
 
     } catch (error) {
         console.error(error);
@@ -572,6 +576,14 @@ app.get('/api/users', verifyToken, async (req, res) => {
         let query = {};
         if (role) query.role = role;
 
+        // Branch managers can only see users in their own branch
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            query.assignedBranches = { $in: [req.user.assignedBranch] };
+        }
+
         const users = await User.find(query).select('-password');
         res.json(users);
     } catch (error) {
@@ -590,13 +602,23 @@ app.get('/api/patients', verifyToken, async (req, res) => {
         const limit = parseInt(req.query.limit) || 50;
         const skip = (page - 1) * limit;
 
-        const patients = await User.find({ role: 'patient' })
+        const baseFilter = { role: 'patient' };
+
+        // Branch managers only see patients in their branch
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            baseFilter.assignedBranches = { $in: [req.user.assignedBranch] };
+        }
+
+        const patients = await User.find(baseFilter)
             .select('-password')
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
 
-        const total = await User.countDocuments({ role: 'patient' });
+        const total = await User.countDocuments(baseFilter);
 
         res.json({ patients, total, page, pages: Math.ceil(total / limit) });
     } catch (error) {
@@ -818,6 +840,30 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
         const userId = req.params.id;
         const currentUser = await User.findById(userId);
         if (!currentUser) return res.status(404).json({ message: "User not found" });
+
+        // Co-admin escalation guard
+        if (req.user.role === 'co-administrator') {
+            // Cannot modify an administrator account
+            if (currentUser.role === 'administrator') {
+                await AuditLog.create({
+                    action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
+                    user: req.user.email,
+                    role: 'co-administrator',
+                    details: 'Attempted to modify administrator account.'
+                });
+                return res.status(403).json({ message: 'Access denied. Cannot modify the administrator account.' });
+            }
+        }
+        // Nobody below administrator can escalate a role to administrator
+        if (role === 'administrator' && req.user.role !== 'administrator') {
+            await AuditLog.create({
+                action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
+                user: req.user.email,
+                role: req.user.role,
+                details: 'Attempted to escalate role to administrator.'
+            });
+            return res.status(403).json({ message: 'Access denied. Cannot escalate role to administrator.' });
+        }
 
         if (email && email !== currentUser.email) {
             const emailExists = await User.findOne({ email });
@@ -1315,8 +1361,15 @@ app.get('/api/surgeries', verifyToken, async (req, res) => {
         if (req.user.role === 'dentist') {
             // Dentists are always scoped to their own appointments only
             query.dentist = req.user.id;
+        } else if (req.user.role === 'branch-manager') {
+            // Branch managers are scoped to their assigned branch
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            query.branch = req.user.assignedBranch;
+            if (req.query.dentistId) query.dentist = req.query.dentistId;
         } else {
-            // Staff roles can filter by dentistId via query param
+            // Admin/co-admin roles can filter by dentistId via query param
             if (req.query.dentistId) query.dentist = req.query.dentistId;
         }
 
@@ -2043,15 +2096,24 @@ app.put('/api/system-config', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 app.delete('/api/users/:id', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        const ALLOWED_ROLES = ['administrator', 'co-administrator'];
+        if (!ALLOWED_ROLES.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
         }
 
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: 'User not found.' });
 
-        // Protect administrator accounts from deletion
+        // Co-admin cannot delete administrator accounts — log the attempt
         if (user.role === 'administrator') {
+            if (req.user.role === 'co-administrator') {
+                await AuditLog.create({
+                    action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
+                    user: req.user.email,
+                    role: 'co-administrator',
+                    details: 'Attempted to delete administrator account.'
+                });
+            }
             return res.status(403).json({ message: 'Cannot delete an administrator account.' });
         }
 
@@ -2136,8 +2198,17 @@ app.get('/api/queue', verifyToken, async (req, res) => {
  
         const filter = {};
  
-        // Branch filter (optional query param)
-        if (req.query.branch) {
+        // Branch managers are locked to their own branch only
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            // Reject if they try to query a different branch
+            if (req.query.branch && req.query.branch !== req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Access denied. You can only view your assigned branch queue.' });
+            }
+            filter.branch = req.user.assignedBranch;
+        } else if (req.query.branch) {
             filter.branch = req.query.branch;
         }
  
@@ -2276,6 +2347,14 @@ app.put('/api/role-permissions/:role', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 app.post('/api/users/:id/grant-admin', verifyToken, async (req, res) => {
     if (req.user.role !== 'administrator') {
+        if (req.user.role === 'co-administrator') {
+            await AuditLog.create({
+                action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
+                user: req.user.email,
+                role: 'co-administrator',
+                details: 'Attempted to use Grant Admin Access feature.'
+            });
+        }
         return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     try {
@@ -2304,17 +2383,26 @@ app.post('/api/users/:id/grant-admin', verifyToken, async (req, res) => {
 // ANALYTICS — Per-branch aggregation
 // -------------------------------------------------------
 app.get('/api/analytics/branches', verifyToken, async (req, res) => {
-    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+    const analyticsAllowed = ['administrator', 'co-administrator', 'branch-manager'];
+    if (!analyticsAllowed.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
         const { from, to } = req.query;
 
+        // Branch managers can only see their own branch analytics
+        const branchFilter = req.user.role === 'branch-manager'
+            ? { branch: req.user.assignedBranch }
+            : {};
+
         const dateFilter = {};
         if (from) dateFilter.$gte = new Date(from);
         if (to)   dateFilter.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
 
-        const matchStage = Object.keys(dateFilter).length ? { date: dateFilter } : {};
+        const matchStage = {
+            ...( Object.keys(dateFilter).length ? { date: dateFilter } : {} ),
+            ...branchFilter
+        };
 
         // Per-branch appointment counts
         const branchCounts = await Surgery.aggregate([

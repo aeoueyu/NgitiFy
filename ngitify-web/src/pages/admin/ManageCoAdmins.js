@@ -5,16 +5,20 @@ import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import EditCoAdmin from './EditCoAdmin';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const ManageCoAdmins = () => {
     const navigate = useNavigate();
     const { addToast } = useToast();
+    const { user: currentUser } = useAuth();
     const [coAdmins, setCoAdmins] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [error, setError] = useState('');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedCoAdminId, setSelectedCoAdminId] = useState(null);
+
+    const isCoAdmin = currentUser?.role === 'co-administrator';
 
     const fetchCoAdmins = useCallback(async () => {
         setIsLoading(true);
@@ -86,9 +90,12 @@ const ManageCoAdmins = () => {
                         />
                     </div>
                 </div>
-                <button className={styles.addBtn} onClick={() => navigate('/admin/add-co-admin')}>
-                    + Add Co-Administrator
-                </button>
+                {/* Co-admins can view but cannot add new co-admins */}
+                {!isCoAdmin && (
+                    <button className={styles.addBtn} onClick={() => navigate('/admin/add-co-admin')}>
+                        + Add Co-Administrator
+                    </button>
+                )}
             </div>
 
             {error && <div style={{ color: '#dc2626', padding: '10px', marginBottom: '10px' }}>{error}</div>}
@@ -153,14 +160,17 @@ const ManageCoAdmins = () => {
                                                 <FaEnvelope />
                                             </button>
                                         )}
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => handleDelete(u._id, `${u.name?.first} ${u.name?.last}`)}
-                                            title="Remove Co-Administrator"
-                                            style={{ color: '#dc2626' }}
-                                        >
-                                            🗑
-                                        </button>
+                                        {/* Co-admins cannot delete other co-admin accounts */}
+                                        {!isCoAdmin && (
+                                            <button
+                                                className={styles.iconBtn}
+                                                onClick={() => handleDelete(u._id, `${u.name?.first} ${u.name?.last}`)}
+                                                title="Remove Co-Administrator"
+                                                style={{ color: '#dc2626' }}
+                                            >
+                                                🗑
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))

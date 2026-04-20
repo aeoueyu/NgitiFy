@@ -59,6 +59,17 @@ const DentistPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
 const SecretaryDashboard = lazy(() => import('./pages/secretary/SecretaryDashboard'));
 const SecretaryAppointments = lazy(() => import('./pages/secretary/SecretaryAppointments'));
 
+// Pages - Branch Manager
+const BranchManagerDashboard = lazy(() => import('./pages/branch-manager/BranchManagerDashboard'));
+const BranchManagerAppointments = lazy(() => import('./pages/branch-manager/BranchManagerAppointments'));
+const BranchManagerManageUsers = lazy(() => import('./pages/branch-manager/BranchManagerManageUsers'));
+const BranchManagerQueue = lazy(() => import('./pages/branch-manager/BranchManagerQueue'));
+const BranchManagerChatSupport = lazy(() => import('./pages/branch-manager/BranchManagerChatSupport'));
+const BranchManagerAnalytics = lazy(() => import('./pages/branch-manager/BranchManagerAnalytics'));
+const BranchManagerPatientEMR = lazy(() => import('./pages/branch-manager/BranchManagerPatientEMR'));
+const BranchManagerActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
+const BranchManagerNotifications = lazy(() => import('./pages/admin/Notifications'));
+
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#f4f7f6', color: '#01538b', fontFamily: 'sans-serif' }}>
     <h2>Loading...</h2>
@@ -90,6 +101,24 @@ function App() {
                   <Route path="/dentist/settings" element={<AdminSettings />} />
                   <Route path="/dentist/inventory" element={<InventoryTracker />} />
                   <Route path="/dentist/patients/:patientId/emr" element={<DentistPatientEMR />} />
+                </Route>
+              </Route>
+
+              {/* Protected Routes - Branch Manager Area */}
+              <Route element={<ProtectedRoute allowedRoles={['branch-manager']} />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/branch-manager/dashboard"   element={<BranchManagerDashboard />} />
+                  <Route path="/branch-manager/appointments" element={<BranchManagerAppointments />} />
+                  <Route path="/branch-manager/manage-users" element={<BranchManagerManageUsers />} />
+                  <Route path="/branch-manager/queue"        element={<BranchManagerQueue />} />
+                  <Route path="/branch-manager/chat-support" element={<BranchManagerChatSupport />} />
+                  <Route path="/branch-manager/analytics"    element={<BranchManagerAnalytics />} />
+                  <Route path="/branch-manager/activity-logs" element={<BranchManagerActivityLogs />} />
+                  <Route path="/branch-manager/notifications" element={<BranchManagerNotifications />} />
+                  <Route path="/branch-manager/inventory"    element={<InventoryTracker />} />
+                  <Route path="/branch-manager/profile"      element={<AdminProfile />} />
+                  <Route path="/branch-manager/settings"     element={<AdminSettings />} />
+                  <Route path="/branch-manager/patients/:patientId/emr" element={<BranchManagerPatientEMR />} />
                 </Route>
               </Route>
 

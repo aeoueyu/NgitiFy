@@ -49,17 +49,20 @@ export default function LoginPage() {
             
                 // Pass full user data to AuthContext so UserAvatar shows initials immediately
                 await login({
-                    token:        data.token,
-                    role:         data.role,
-                    userId:       data.userId,
-                    userEmail:    email,
-                    name:         profileData.name,
-                    profileImage: profileData.profileImage,
+                    token:          data.token,
+                    role:           data.role,
+                    userId:         data.userId,
+                    userEmail:      email,
+                    name:           profileData.name,
+                    profileImage:   profileData.profileImage,
+                    assignedBranch: data.assignedBranch || null,
                 });
             
-                // Redirect based on role returned by backend
-                if (data.role === 'administrator' || data.role === 'co-administrator' || data.role === 'branch-manager') {
+                // Redirect based on role
+                if (data.role === 'administrator' || data.role === 'co-administrator') {
                     navigate('/admin/dashboard');
+                } else if (data.role === 'branch-manager') {
+                    navigate('/branch-manager/dashboard');
                 } else if (data.role === 'dentist') {
                     navigate('/dentist/dashboard');
                 } else if (data.role === 'secretary') {

@@ -5,22 +5,24 @@ export class User {
     lastName = '', 
     email = '', 
     role = '', 
-    permissions = {}, // Task 15 Fix: Added permissions object
+    permissions = {},
     contactNumber = '', 
     status = 'Active', 
     profileImage = '', 
-    createdAt = new Date().toISOString() 
+    createdAt = new Date().toISOString(),
+    assignedBranch = null
   } = {}) {
     this.id = id;
     this.firstName = firstName;
     this.lastName = lastName;
     this.email = email;
     this.role = role;
-    this.permissions = permissions; // Task 15 Fix: Assign permissions
+    this.permissions = permissions;
     this.contactNumber = contactNumber;
     this.status = status;
-    this.profileImage = profileImage; 
+    this.profileImage = profileImage;
     this.createdAt = createdAt;
+    this.assignedBranch = assignedBranch;
   }
 
   get fullName() {
@@ -28,6 +30,10 @@ export class User {
   }
 
   get isAdmin() {
-    return this.role === 'administrator' || this.role === 'co-administrator' || this.role === 'branch-manager';
+    return this.role === 'administrator' || this.role === 'co-administrator';
+  }
+
+  get isBranchManager() {
+    return this.role === 'branch-manager';
   }
 }
