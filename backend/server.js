@@ -610,7 +610,7 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
 // GET ALL USERS (With Role-Based Security)
 // -------------------------------------------------------
 // Explicit allowlists — any new roles added to the system are blocked by default
-const SECRETARY_ALLOWED_ROLES = ['patient', 'dentist'];
+const SECRETARY_ALLOWED_ROLES = ['patient'];
 const DENTIST_ALLOWED_ROLES   = ['patient', 'dentist', 'secretary'];
 
 app.get('/api/users', verifyToken, async (req, res) => {
@@ -709,6 +709,15 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
 
         const currentPatient = await User.findById(patientId);
         if (!currentPatient) return res.status(404).json({ message: "Patient not found" });
+
+        // Phase 5: Secretary cannot escalate or modify sensitive user fields
+        if (req.user.role === 'secretary') {
+            const blockedFields = ['role', 'isVerified', 'password'];
+            const hasBlockedField = blockedFields.some(f => req.body[f] !== undefined);
+            if (hasBlockedField) {
+                return res.status(403).json({ message: 'Access denied. Secretary cannot modify role, verification, or password fields.' });
+            }
+        }
 
         const {
             name,
@@ -1577,6 +1586,10 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const patient = await User.findById(req.params.id).select('treatmentLogs name');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -1598,6 +1611,10 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
+    // Phase 5: Secretary has read-only access to EMR — block write
+    if (req.user.role === 'secretary') {
+        return res.status(403).json({ message: 'Access denied. Secretaries have read-only access to treatment logs.' });
+    }
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -1699,6 +1716,10 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
+    // Phase 5: Secretary has read-only access to EMR — block write
+    if (req.user.role === 'secretary') {
+        return res.status(403).json({ message: 'Access denied. Secretaries have read-only access to odontogram.' });
+    }
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -1738,6 +1759,10 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const patient = await User.findById(req.params.id).select('radiographs name');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -1760,6 +1785,10 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
+    // Phase 5: Secretary has read-only access to EMR — block upload
+    if (req.user.role === 'secretary') {
+        return res.status(403).json({ message: 'Access denied. Secretaries cannot upload radiographs.' });
+    }
     try {
         const { label, date, url, notes } = req.body;
 
@@ -1805,6 +1834,10 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, res) => {
+    // Phase 5: Secretary has read-only access to EMR — block delete
+    if (req.user.role === 'secretary') {
+        return res.status(403).json({ message: 'Access denied. Secretaries cannot delete radiographs.' });
+    }
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -2856,7 +2889,7 @@ app.post('/api/support-tickets', verifyToken, async (req, res) => {
 
 // GET /api/support-tickets — Admin views all tickets with optional filters
 app.get('/api/support-tickets', verifyToken, async (req, res) => {
-    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+    if (!['administrator', 'co-administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -2928,8 +2961,8 @@ app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
             content: content.trim()
         });
 
-        // Auto-set to in-progress when admin first replies
-        if (['administrator', 'co-administrator'].includes(req.user.role) && ticket.status === 'open') {
+        // Auto-set to in-progress when staff first replies
+        if (['administrator', 'co-administrator', 'branch-manager', 'secretary'].includes(req.user.role) && ticket.status === 'open') {
             ticket.status = 'in-progress';
             if (!ticket.assignedTo) {
                 ticket.assignedTo = req.user.id;
@@ -2947,7 +2980,7 @@ app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
 
 // PATCH /api/support-tickets/:id/status — Admin updates ticket status/priority/assignee
 app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
-    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+    if (!['administrator', 'co-administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
