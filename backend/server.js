@@ -41,6 +41,10 @@ const SystemConfig = require('./models/SystemConfig');
 const RolePermission = require('./models/RolePermission');
 const backupRoutes = require('./routes/backup');
 const integrityRoutes = require('./routes/integrity');
+// ADD this line with the other model imports (after the AuditLog import)
+const MaterialUsageLog = require('./models/MaterialUsageLog');
+const Anthropic = require('@anthropic-ai/sdk');
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -2188,6 +2192,273 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error deleting user:', error);
         res.status(500).json({ message: 'Server error deleting user.' });
+    }
+});
+
+// -------------------------------------------------------
+// MATERIAL USAGE LOG — POST (create)
+// -------------------------------------------------------
+const MATERIAL_USAGE_ALLOWED = [
+    'dentist', 'administrator', 'co-administrator', 'branch-manager', 'owner'
+];
+app.post('/api/material-usage', verifyToken, async (req, res) => {
+    try {
+        if (!MATERIAL_USAGE_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        // Owners without isDentist flag cannot create usage logs
+        if (req.user.role === 'owner' && !req.user.isDentist) {
+            return res.status(403).json({ message: 'Access denied. Dentist access required.' });
+        }
+
+        const { patientId, procedureType, materials, notes, branch, usedAt } = req.body;
+        if (!procedureType || !materials || !Array.isArray(materials) || materials.length === 0) {
+            return res.status(400).json({ message: 'Procedure type and at least one material are required.' });
+        }
+
+        const dentist = await User.findById(req.user.id);
+        const dentistName = dentist
+            ? `${dentist.name?.first || ''} ${dentist.name?.last || ''}`.trim()
+            : '';
+
+        let patientName = '';
+        if (patientId) {
+            const patient = await User.findById(patientId);
+            patientName = patient
+                ? `${patient.name?.first || ''} ${patient.name?.last || ''}`.trim()
+                : '';
+        }
+
+        const log = await MaterialUsageLog.create({
+            dentistId: req.user.id,
+            dentistName,
+            patientId: patientId || null,
+            patientName,
+            procedureType,
+            materials,
+            notes: notes || '',
+            branch: branch || '',
+            usedAt: usedAt ? new Date(usedAt) : new Date(),
+        });
+
+        await AuditLog.create({
+            action: 'MATERIAL_USAGE_CREATED',
+            user: req.user.email,
+            role: req.user.role,
+            details: `Material usage log created for procedure: ${procedureType}`,
+        });
+
+        res.status(201).json(log);
+    } catch (error) {
+        console.error('Error creating material usage log:', error);
+        res.status(500).json({ message: 'Server error creating material usage log.' });
+    }
+});
+
+// -------------------------------------------------------
+// MATERIAL USAGE LOG — GET (list)
+// -------------------------------------------------------
+app.get('/api/material-usage', verifyToken, async (req, res) => {
+    try {
+        if (!MATERIAL_USAGE_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        let filter = {};
+
+        // Dentists and owner-dentists only see their own logs
+        if (req.user.role === 'dentist' ||
+            (req.user.role === 'owner' && req.user.isDentist)) {
+            filter.dentistId = req.user.id;
+        }
+        // Branch managers see only their branch
+        if (req.user.role === 'branch-manager') {
+            filter.branch = req.user.assignedBranch;
+        }
+
+        const logs = await MaterialUsageLog.find(filter)
+            .sort({ usedAt: -1 })
+            .limit(500);
+
+        res.json(logs);
+    } catch (error) {
+        console.error('Error fetching material usage logs:', error);
+        res.status(500).json({ message: 'Server error fetching logs.' });
+    }
+});
+
+// -------------------------------------------------------
+// MATERIAL USAGE LOG — DELETE
+// -------------------------------------------------------
+app.delete('/api/material-usage/:id', verifyToken, async (req, res) => {
+    try {
+        if (!MATERIAL_USAGE_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const log = await MaterialUsageLog.findById(req.params.id);
+        if (!log) return res.status(404).json({ message: 'Log not found.' });
+
+        // Dentists can only delete their own entries
+        if (req.user.role === 'dentist' && log.dentistId.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Access denied. You can only delete your own entries.' });
+        }
+
+        await MaterialUsageLog.findByIdAndDelete(req.params.id);
+
+        await AuditLog.create({
+            action: 'MATERIAL_USAGE_DELETED',
+            user: req.user.email,
+            role: req.user.role,
+            details: `Material usage log deleted: ${log.procedureType} on ${log.usedAt.toDateString()}`,
+        });
+
+        res.json({ message: 'Material usage log deleted.' });
+    } catch (error) {
+        console.error('Error deleting material usage log:', error);
+        res.status(500).json({ message: 'Server error deleting log.' });
+    }
+});
+
+// -------------------------------------------------------
+// AI RADIOGRAPH ENHANCER
+// -------------------------------------------------------
+const ENHANCE_ALLOWED = [
+    'dentist', 'administrator', 'co-administrator', 'branch-manager', 'owner'
+];
+app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
+    try {
+        if (!ENHANCE_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        if (req.user.role === 'owner' && !req.user.isDentist) {
+            return res.status(403).json({ message: 'Access denied. Dentist access required.' });
+        }
+
+        const { imageBase64, mediaType = 'image/jpeg', patientId } = req.body;
+        if (!imageBase64) {
+            return res.status(400).json({ message: 'imageBase64 is required.' });
+        }
+
+        const response = await anthropic.messages.create({
+            model: 'claude-opus-4-6',
+            max_tokens: 1024,
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'image',
+                            source: {
+                                type: 'base64',
+                                media_type: mediaType,
+                                data: imageBase64,
+                            },
+                        },
+                        {
+                            type: 'text',
+                            text: 'You are a dental radiology AI assistant. Analyze this dental radiograph and provide: 1) A detailed clinical description of what is visible, 2) Any notable findings (cavities, bone loss, root issues, calculus, etc.), 3) Recommendations for the dentist. Be concise and clinically precise. Format your response with clear sections.',
+                        },
+                    ],
+                },
+            ],
+        });
+
+        const analysis = response.content[0]?.text || 'No analysis available.';
+
+        await AuditLog.create({
+            action: 'RADIOGRAPH_ENHANCED',
+            user: req.user.email,
+            role: req.user.role,
+            details: `AI radiograph analysis performed${patientId ? ` for patient ID: ${patientId}` : ''}.`,
+        });
+
+        res.json({ analysis, enhanced: true });
+    } catch (error) {
+        console.error('Radiograph enhance error:', error);
+        res.status(500).json({ message: 'Server error during radiograph analysis.' });
+    }
+});
+
+// -------------------------------------------------------
+// AI PATIENT CARE COMPANION — Chat proxy
+// -------------------------------------------------------
+const aiChatLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 20,
+    keyGenerator: (req) => req.user?.id || req.ip,
+    message: { message: 'Too many AI requests. Please wait before trying again.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+app.post('/api/ai/chat', verifyToken, aiChatLimiter, async (req, res) => {
+    try {
+        const { messages, systemPrompt } = req.body;
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ message: 'Messages array is required.' });
+        }
+
+        const response = await anthropic.messages.create({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1024,
+            system: systemPrompt || 'You are NgitiFy\'s AI dental care companion. You help patients understand dental health, answer questions about dental procedures, and provide general oral health guidance. Always recommend consulting a dentist for specific medical advice. Be friendly, clear, and supportive.',
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
+        });
+
+        const reply = response.content[0]?.text || 'I could not generate a response. Please try again.';
+        res.json({ reply });
+    } catch (error) {
+        console.error('AI chat error:', error);
+        res.status(500).json({ message: 'Server error processing AI request.' });
+    }
+});
+
+// -------------------------------------------------------
+// AI DENTAL HEALTH EDUCATION
+// -------------------------------------------------------
+app.post('/api/ai/education', verifyToken, async (req, res) => {
+    try {
+        const { topic } = req.body;
+        if (!topic) return res.status(400).json({ message: 'Topic is required.' });
+
+        const response = await anthropic.messages.create({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1024,
+            system: 'You are a dental health educator. Write clear, patient-friendly educational content about dental topics. Use simple language, avoid jargon, and include practical tips. Format with a short intro, key points, and a helpful tip at the end.',
+            messages: [
+                {
+                    role: 'user',
+                    content: `Write an educational article about: ${topic}`,
+                },
+            ],
+        });
+
+        const content = response.content[0]?.text || 'Content unavailable.';
+        res.json({ content, topic });
+    } catch (error) {
+        console.error('AI education error:', error);
+        res.status(500).json({ message: 'Server error generating educational content.' });
+    }
+});
+
+// -------------------------------------------------------
+// ACTIVITY LOGS — Patient self-view
+// -------------------------------------------------------
+app.get('/api/activity-logs/patient', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const logs = await AuditLog.find({ user: req.user.email })
+            .sort({ timestamp: -1 })
+            .limit(200);
+
+        res.json(logs);
+    } catch (error) {
+        console.error('Error fetching patient activity logs:', error);
+        res.status(500).json({ message: 'Server error.' });
     }
 });
 
