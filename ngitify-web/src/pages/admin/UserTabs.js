@@ -4,27 +4,40 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import styles from '../../styles/admin/UserTabs.module.css';
 
-const ALL_TABS = [
-    { key: 'dentists',       label: 'Dentists',        path: '/admin/manage-users/dentists',         roles: ['administrator', 'co-administrator'] },
-    { key: 'secretaries',    label: 'Secretaries',      path: '/admin/manage-users/secretaries',      roles: ['administrator', 'co-administrator'] },
-    { key: 'patients',       label: 'Patients',         path: '/admin/manage-users/patients',         roles: ['administrator', 'co-administrator'] },
-    { key: 'branchManagers', label: 'Branch Managers',  path: '/admin/manage-users/branch-managers',  roles: ['administrator', 'co-administrator'] },
-    { key: 'coAdmins',       label: 'Co-Admins',        path: '/admin/manage-users/co-admins',        roles: ['administrator', 'co-administrator'] },
-    { key: 'owners',         label: 'Owners',           path: '/admin/manage-users/owners',           roles: ['administrator'] }, // Legacy migration tab — Admin only
+const ADMIN_TABS = [
+    { key: 'dentists',       label: 'Dentists',        path: '/admin/manage-users/dentists' },
+    { key: 'secretaries',    label: 'Secretaries',      path: '/admin/manage-users/secretaries' },
+    { key: 'patients',       label: 'Patients',         path: '/admin/manage-users/patients' },
+    { key: 'branchManagers', label: 'Branch Managers',  path: '/admin/manage-users/branch-managers' },
+    { key: 'coAdmins',       label: 'Co-Admins',        path: '/admin/manage-users/co-admins' },
+    { key: 'owners',         label: 'Owners',           path: '/admin/manage-users/owners',  adminOnly: true },
 ];
 
-// TAB BAR ONLY — navigates to routes. Child pages are rendered by App.js routes.
+const OWNER_TABS = [
+    { key: 'dentists',    label: 'Dentists',    path: '/owner/manage-users/dentists' },
+    { key: 'secretaries', label: 'Secretaries', path: '/owner/manage-users/secretaries' },
+    { key: 'patients',    label: 'Patients',    path: '/owner/manage-users/patients' },
+];
+
 const UserTabs = ({ activeTab }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
 
-    const visibleTabs = ALL_TABS.filter(tab =>
-        !tab.roles || tab.roles.includes(user?.role)
-    );
+    const isOwner = user?.role === 'owner';
+    const isAdmin = user?.role === 'administrator';
+
+    let tabs;
+    if (isOwner) {
+        tabs = OWNER_TABS;
+    } else {
+        tabs = ADMIN_TABS.filter(tab => !tab.adminOnly || isAdmin);
+    }
+
+    if (tabs.length === 0) return null;
 
     return (
         <div className={styles.tabContainer}>
-            {visibleTabs.map(tab => (
+            {tabs.map(tab => (
                 <button
                     key={tab.key}
                     className={`${styles.tabButton} ${activeTab === tab.key ? styles.activeTab : ''}`}

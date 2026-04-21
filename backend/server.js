@@ -274,7 +274,7 @@ app.post('/api/check-email', async (req, res) => {
 
 app.post('/api/add-dentist', verifyToken, async (req, res) => {
     try {
-        const allowedRoles = ['administrator', 'co-administrator', 'branch-manager'];
+        const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'owner'];
         if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({ message: "Access denied." });
         }
@@ -340,7 +340,7 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
 
 app.post('/api/add-secretary', verifyToken, async (req, res) => {
     try {
-        const allowedRoles = ['administrator', 'co-administrator', 'branch-manager'];
+        const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'owner'];
         if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({ message: "Access denied." });
         }
@@ -455,7 +455,7 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
 
 app.post('/api/add-patient', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'co-administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
+        if (!['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: "Access denied." });
         }
         const { email, ...otherData } = req.body;
@@ -1248,7 +1248,7 @@ app.post('/api/verify-password', verifyToken, async (req, res) => {
 });
 
 app.get('/api/audit-logs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1327,7 +1327,7 @@ app.post('/api/logout', verifyToken, async (req, res) => {
 });
 
 app.get('/api/inventory', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1351,7 +1351,7 @@ app.get('/api/inventory', verifyToken, async (req, res) => {
 });
 
 app.post('/api/inventory', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1408,7 +1408,7 @@ app.get('/api/inventory/:id', verifyToken, async (req, res) => {
 });
 
 app.put('/api/inventory/:id', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1445,7 +1445,7 @@ app.put('/api/inventory/:id', verifyToken, async (req, res) => {
 });
 
 app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1479,7 +1479,7 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
 // CREATE SURGERY / APPOINTMENT
 // -------------------------------------------------------
 app.post('/api/surgeries', verifyToken, async (req, res) => {
-    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
     if (!staffRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1568,7 +1568,7 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
 });
 
 app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
-    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
     if (!staffRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1748,13 +1748,22 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             details: `Patient ${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}`
         });
 
-        await Notification.create({
-            type: 'NEW_APPOINTMENT',
-            title: 'New Appointment Request',
-            message: `${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}.`,
-            recipientRole: 'administrator',
-            relatedId: newSurgery._id
-        });
+        await Notification.insertMany([
+            {
+                type: 'NEW_APPOINTMENT',
+                title: 'New Appointment Request',
+                message: `${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}.`,
+                recipientRole: 'administrator',
+                relatedId: newSurgery._id
+            },
+            {
+                type: 'NEW_APPOINTMENT',
+                title: 'New Appointment Request',
+                message: `${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}.`,
+                recipientRole: 'owner',
+                relatedId: newSurgery._id
+            }
+        ]);
 
         res.status(201).json({
             message: 'Appointment request submitted successfully. You will be notified once confirmed.',
@@ -2272,8 +2281,8 @@ app.get('/api/branches', verifyToken, async (req, res) => {
  
 app.post('/api/branches', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        if (!['administrator', 'owner'].includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
         }
         const { name, address, contactNumber } = req.body;
         if (!name) return res.status(400).json({ message: 'Branch name is required.' });
@@ -2300,8 +2309,8 @@ app.post('/api/branches', verifyToken, async (req, res) => {
  
 app.put('/api/branches/:id', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        if (!['administrator', 'owner'].includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
         }
         const { name, address, contactNumber, isActive } = req.body;
         if (!name) return res.status(400).json({ message: 'Branch name is required.' });
@@ -2830,7 +2839,7 @@ app.delete('/api/queue/:id', verifyToken, async (req, res) => {
 // ROLE PERMISSIONS — GET all role configs
 // -------------------------------------------------------
 app.get('/api/role-permissions', verifyToken, async (req, res) => {
-    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+    if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -2862,10 +2871,11 @@ app.get('/api/role-permissions', verifyToken, async (req, res) => {
 app.put('/api/role-permissions/:role', verifyToken, async (req, res) => {
     const isAdmin = req.user.role === 'administrator';
     const isCoAdmin = req.user.role === 'co-administrator';
+    const isOwner = req.user.role === 'owner';
 
-    if (!isAdmin && !isCoAdmin) {
+    if (!isAdmin && !isCoAdmin && !isOwner) {
         return res.status(403).json({ message: 'Access denied.' });
-    }
+    }   
 
     // Co-admin cannot modify administrator-level permission entries
     if (isCoAdmin && req.params.role === 'administrator') {
@@ -3052,13 +3062,22 @@ app.post('/api/support-tickets', verifyToken, async (req, res) => {
         });
 
         // Notify administrators
-        await Notification.create({
-            type: 'CHAT_TICKET_RAISED',
-            title: 'New Support Ticket',
-            message: `${fullName} submitted a ticket: "${subject}"`,
-            recipientRole: 'administrator',
-            relatedId: ticket._id
-        });
+        await Notification.insertMany([
+            {
+                type: 'CHAT_TICKET_RAISED',
+                title: 'New Support Ticket',
+                message: `${fullName} submitted a ticket: \"${subject}\"`,
+                recipientRole: 'administrator',
+                relatedId: ticket._id
+            },
+            {
+                type: 'CHAT_TICKET_RAISED',
+                title: 'New Support Ticket',
+                message: `${fullName} submitted a ticket: \"${subject}\"`,
+                recipientRole: 'owner',
+                relatedId: ticket._id
+            }
+        ]);
 
         await AuditLog.create({
             action: 'TICKET_CREATED',

@@ -89,7 +89,8 @@ export default function Sidebar() {
             : '/admin/manage-users/patients';
 
     useEffect(() => {
-        if (!canReadInventory) return;
+        // Owner always has full inventory access — bypass the permissions check
+        if (!canReadInventory && !isOwner) return;
         const fetchInventoryAlerts = async () => {
             try {
                 const response = await authFetch('/inventory');
@@ -107,7 +108,7 @@ export default function Sidebar() {
             }
         };
         fetchInventoryAlerts();
-    }, [canReadInventory]);
+    }, [canReadInventory, isOwner]);
 
     const getNavClass = (path) => {
         const isManageUsers = path === '/admin/manage-users' && location.pathname.includes('/admin/manage-');
@@ -239,6 +240,11 @@ export default function Sidebar() {
                                 )}
                             </div>
 
+                            <div className={getNavClass('/owner/roles')} onClick={() => navigate('/owner/roles')}>
+                                <FaShieldAlt className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Roles & Permissions</span>
+                            </div>
+
                             <div className={getNavClass('/owner/branches')} onClick={() => navigate('/owner/branches')}>
                                 <FaCodeBranch className={styles['nav-icon']} />
                                 <span className={styles['nav-text']}>Branches</span>
@@ -252,6 +258,9 @@ export default function Sidebar() {
                             <div className={getNavClass('/owner/inventory')} onClick={() => navigate('/owner/inventory')}>
                                 <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} />
                                 <span className={styles['nav-text']}>Inventory</span>
+                                {lowStockCount > 0 && (
+                                    <span className={styles['notification-badge']}>{lowStockCount}</span>
+                                )}
                             </div>
 
                             <div className={getNavClass('/owner/activity-logs')} onClick={() => navigate('/owner/activity-logs')}>

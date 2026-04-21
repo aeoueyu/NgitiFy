@@ -1,4 +1,3 @@
-// ngitify-web/src/pages/admin/RolesPermissions.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaShieldAlt, FaSave, FaSearch, FaUserShield, FaLock } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
@@ -33,6 +32,8 @@ export default function RolesPermissions() {
     const { addToast } = useToast();
     const { user } = useAuth();
     const isCoAdmin = user?.role === 'co-administrator';
+    // ✅ Owner can edit the matrix but cannot use Grant Admin Access
+    const isOwner   = user?.role === 'owner';
     const ROLES = ALL_ROLES;
 
     const [matrix, setMatrix]       = useState({});
@@ -73,11 +74,12 @@ export default function RolesPermissions() {
 
     useEffect(() => {
         fetchPermissions();
-        fetchUsers();
-    }, [fetchPermissions, fetchUsers]);
+        // Only admins use the Grant Admin section — skip fetching users for owner/co-admin
+        if (!isCoAdmin && !isOwner) fetchUsers();
+    }, [fetchPermissions, fetchUsers, isCoAdmin, isOwner]);
 
     const handleChange = (role, module, value) => {
-        // ✅ PHASE 1: Co-admins are view-only — block edits at the handler level too
+        // ✅ Co-admins are view-only — block edits at the handler level
         if (isCoAdmin) return;
         setMatrix(prev => ({
             ...prev,
@@ -165,7 +167,7 @@ export default function RolesPermissions() {
                 </div>
             </div>
 
-            {/* ✅ PHASE 1: Read-only banner for co-admin */}
+            {/* ✅ Read-only banner for co-admin */}
             {isCoAdmin && (
                 <div style={{
                     display: 'flex',
@@ -205,7 +207,7 @@ export default function RolesPermissions() {
                                     <th key={role.key} className={styles.roleHeader}>
                                         <div className={styles.roleHeaderContent}>
                                             <span>{role.label}</span>
-                                            {/* ✅ PHASE 1: Hide Save button entirely for co-admin */}
+                                            {/* ✅ Show Save button for admin AND owner (not co-admin) */}
                                             {!isCoAdmin && isDirty(role.key) && (
                                                 <button
                                                     className={styles.saveBtn}
@@ -229,7 +231,6 @@ export default function RolesPermissions() {
                                         const currentVal = matrix[role.key]?.[mod.key] || 'no_access';
                                         return (
                                             <td key={role.key} className={styles.accessCell}>
-                                                {/* ✅ PHASE 1: Disable selects for co-admin (view-only) */}
                                                 <select
                                                     className={styles.accessSelect}
                                                     value={currentVal}
@@ -267,8 +268,8 @@ export default function RolesPermissions() {
                 </div>
             </div>
 
-            {/* ── Grant Admin Access — hidden for co-admin ── */}
-            {!isCoAdmin && (
+            {/* ── Grant Admin Access — admin only, hidden for owner and co-admin ── */}
+            {!isCoAdmin && !isOwner && (
                 <div className={styles.card}>
                     <div className={styles.grantHeader}>
                         <FaUserShield className={styles.grantIcon} />

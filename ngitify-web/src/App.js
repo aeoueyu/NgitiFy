@@ -89,7 +89,7 @@ function App() {
     const savedTheme = localStorage.getItem('ngitify-theme') || 'system';
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
-  
+
   return (
     <AuthProvider>
       <ToastProvider>
@@ -155,6 +155,7 @@ function App() {
                   <Route path="/owner/activity-logs"                element={<ActivityLogs />} />
                   <Route path="/owner/profile"                      element={<AdminProfile />} />
                   <Route path="/owner/settings"                     element={<AdminSettings />} />
+                  <Route path="/owner/roles"                        element={<RolesPermissions />} />
                 </Route>
               </Route>
 
