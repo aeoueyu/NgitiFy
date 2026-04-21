@@ -274,11 +274,13 @@ app.post('/api/check-email', async (req, res) => {
 
 app.post('/api/add-dentist', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: "Access denied. Admin only." });
+        const allowedRoles = ['administrator', 'co-administrator', 'branch-manager'];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: "Access denied." });
         }
+
         const { email, licenseNumber, ...otherData } = req.body;
-        
+
         const existingEmail = await User.findOne({ email });
         if (existingEmail) return res.status(409).json({ field: 'email', message: 'Email address is already registered.' });
 
@@ -287,30 +289,36 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
             if (existingLicense) return res.status(409).json({ field: 'licenseNumber', message: 'License Number is already registered.' });
         }
 
-        const tempPassword = crypto.randomBytes(4).toString('hex'); 
+        // Branch managers must assign the new dentist to their own branch only
+        const assignedBranches = req.user.role === 'branch-manager'
+            ? [req.user.assignedBranch]
+            : (otherData.assignedBranches || []);
+
+        const tempPassword = crypto.randomBytes(4).toString('hex');
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         const newUser = new User({
-            ...otherData, 
+            ...otherData,
             email,
             licenseNumber,
+            assignedBranches,
             password: hashedPassword,
             role: 'dentist',
-            isVerified: false, 
-            status: 'inactive', 
+            isVerified: false,
+            status: 'inactive',
             activationToken,
             temporaryPasswordExpires
         });
-        
+
         await newUser.save();
 
         await AuditLog.create({
             action: "CREATE_USER",
-            user: req.user?.email || req.user?.id || "ADMIN", 
+            user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "administrator",
-            details: `Created new user: ${email}`
+            details: `Created new dentist: ${email}${req.user.role === 'branch-manager' ? ` (branch: ${req.user.assignedBranch})` : ''}`
         });
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
@@ -332,25 +340,33 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
 
 app.post('/api/add-secretary', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: "Access denied. Admin only." });
+        const allowedRoles = ['administrator', 'co-administrator', 'branch-manager'];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: "Access denied." });
         }
+
         const { email, ...otherData } = req.body;
 
         const existing = await User.findOne({ email });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
 
+        // Branch managers must assign the new secretary to their own branch only
+        const assignedBranches = req.user.role === 'branch-manager'
+            ? [req.user.assignedBranch]
+            : (otherData.assignedBranches || []);
+
         const tempPassword = crypto.randomBytes(4).toString('hex');
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         const newUser = new User({
             ...otherData,
-            email, 
+            email,
+            assignedBranches,
             password: hashedPassword,
             role: 'secretary',
-            isVerified: false, 
+            isVerified: false,
             status: 'inactive',
             activationToken,
             temporaryPasswordExpires
@@ -361,7 +377,7 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
             action: "CREATE_USER",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "administrator",
-            details: `Created new user: ${email}`
+            details: `Created new secretary: ${email}${req.user.role === 'branch-manager' ? ` (branch: ${req.user.assignedBranch})` : ''}`
         });
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
@@ -1232,13 +1248,35 @@ app.post('/api/verify-password', verifyToken, async (req, res) => {
 });
 
 app.get('/api/audit-logs', verifyToken, async (req, res) => {
-    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager'];
+    if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
         const { action, role, from, to, limit = 1000 } = req.query;
 
         const filter = {};
+
+        // Branch managers only see logs generated by users in their assigned branch
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+
+            // Resolve all staff emails assigned to this branch
+            const branchUsers = await User.find({
+                assignedBranches: { $in: [req.user.assignedBranch] }
+            }).select('email');
+
+            const branchEmails = branchUsers.map(u => u.email);
+
+            // Always include the branch manager's own email
+            if (req.user.email && !branchEmails.includes(req.user.email)) {
+                branchEmails.push(req.user.email);
+            }
+
+            filter.user = { $in: branchEmails };
+        }
 
         // Partial, case-insensitive match on the action field
         if (action && action.trim()) {
@@ -1294,10 +1332,20 @@ app.get('/api/inventory', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const items = await Inventory.find().sort({ createdAt: -1 });
+        const filter = {};
+
+        // Branch managers only see inventory belonging to their assigned branch
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            filter.branch = req.user.assignedBranch;
+        }
+
+        const items = await Inventory.find(filter).sort({ createdAt: -1 });
         res.status(200).json(items);
     } catch (error) {
-        console.error("Error fetching inventory:");
+        console.error("Error fetching inventory:", error);
         res.status(500).json({ message: "Server error fetching inventory" });
     }
 });
@@ -1308,13 +1356,24 @@ app.post('/api/inventory', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const newItem = new Inventory(req.body);
+        const itemData = { ...req.body };
+
+        // Branch managers can only add inventory to their own branch
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            itemData.branch = req.user.assignedBranch;
+        }
+
+        const newItem = new Inventory(itemData);
         await newItem.save();
+
         await AuditLog.create({
             action: 'ADD_INVENTORY',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Added inventory item: ${newItem.itemName}`
+            details: `Added inventory item: ${newItem.itemName}${newItem.branch ? ` (branch: ${newItem.branch})` : ''}`
         });
         res.status(201).json(newItem);
     } catch (error) {
@@ -1332,6 +1391,12 @@ app.get('/api/inventory/:id', verifyToken, async (req, res) => {
         if (!item) {
             return res.status(404).json({ message: "Item not found" });
         }
+
+        // Branch managers can only view items belonging to their branch
+        if (req.user.role === 'branch-manager' && item.branch !== req.user.assignedBranch) {
+            return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
+        }
+
         res.status(200).json(item);
     } catch (error) {
         console.error("Error fetching single inventory item:", error);
@@ -1348,17 +1413,29 @@ app.put('/api/inventory/:id', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
+        // Branch managers can only edit items belonging to their branch
+        if (req.user.role === 'branch-manager') {
+            const existing = await Inventory.findById(req.params.id);
+            if (!existing) return res.status(404).json({ message: "Item not found" });
+            if (existing.branch !== req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
+            }
+            // Prevent branch-manager from changing the branch field
+            delete req.body.branch;
+        }
+
         const updatedItem = await Inventory.findByIdAndUpdate(
-            req.params.id, 
-            req.body, 
-            { returnDocument: 'after', runValidators: true } 
+            req.params.id,
+            req.body,
+            { returnDocument: 'after', runValidators: true }
         );
         if (!updatedItem) return res.status(404).json({ message: "Item not found" });
+
         await AuditLog.create({
             action: 'UPDATE_INVENTORY',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Updated inventory item: ${updatedItem.itemName}`
+            details: `Updated inventory item: ${updatedItem.itemName}${updatedItem.branch ? ` (branch: ${updatedItem.branch})` : ''}`
         });
         res.status(200).json(updatedItem);
     } catch (error) {
@@ -1373,13 +1450,23 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
+        // Branch managers can only delete items belonging to their branch
+        if (req.user.role === 'branch-manager') {
+            const existing = await Inventory.findById(req.params.id);
+            if (!existing) return res.status(404).json({ message: "Item not found" });
+            if (existing.branch !== req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
+            }
+        }
+
         const deletedItem = await Inventory.findByIdAndDelete(req.params.id);
         if (!deletedItem) return res.status(404).json({ message: "Item not found" });
+
         await AuditLog.create({
             action: 'DELETE_INVENTORY',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Deleted inventory item: ${deletedItem.itemName}`
+            details: `Deleted inventory item: ${deletedItem.itemName}${deletedItem.branch ? ` (branch: ${deletedItem.branch})` : ''}`
         });
         res.status(200).json({ message: "Item deleted successfully" });
     } catch (error) {
@@ -1397,14 +1484,25 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const newSurgery = new Surgery(req.body);
+        const surgeryData = { ...req.body };
+
+        // Branch managers can only create appointments for their own branch
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            // Override whatever branch was sent from the frontend
+            surgeryData.branch = req.user.assignedBranch;
+        }
+
+        const newSurgery = new Surgery(surgeryData);
         await newSurgery.save();
 
         await AuditLog.create({
             action: "CREATE_SURGERY",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
-            details: `Created new surgery record for patient ID: ${newSurgery.patient}`
+            details: `Created new surgery record for patient ID: ${newSurgery.patient} at branch: ${newSurgery.branch}`
         });
 
         // ✅ REMOVED the broken Notification.create() block — it used undefined variables.
@@ -1423,6 +1521,12 @@ app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
             .populate('patient')
             .populate('dentist', 'name email role');
         if (!surgery) return res.status(404).json({ message: "Surgery not found" });
+
+        // Branch managers can only view surgeries from their own branch
+        if (req.user.role === 'branch-manager' && surgery.branch !== req.user.assignedBranch) {
+            return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
+        }
+
         res.json(surgery);
     } catch (error) {
         console.error("Error fetching single surgery:", error);
@@ -1432,6 +1536,20 @@ app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
 
 app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
     try {
+        // Branch managers can only edit surgeries in their own branch
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            const existing = await Surgery.findById(req.params.id);
+            if (!existing) return res.status(404).json({ message: "Surgery not found" });
+            if (existing.branch !== req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
+            }
+            // Prevent branch-manager from changing the branch field
+            delete req.body.branch;
+        }
+
         const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, req.body, { new: true });
         if (!updatedSurgery) return res.status(404).json({ message: "Surgery not found" });
 
@@ -1439,7 +1557,7 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
             action: "UPDATE_SURGERY",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
-            details: `Updated surgery record ID: ${updatedSurgery._id}`
+            details: `Updated surgery record ID: ${updatedSurgery._id} at branch: ${updatedSurgery.branch}`
         });
 
         res.json(updatedSurgery);
@@ -1455,6 +1573,18 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
+        // Branch managers can only delete surgeries in their own branch
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+            }
+            const existing = await Surgery.findById(req.params.id);
+            if (!existing) return res.status(404).json({ message: "Surgery not found" });
+            if (existing.branch !== req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
+            }
+        }
+
         const deletedSurgery = await Surgery.findByIdAndDelete(req.params.id);
         if (!deletedSurgery) return res.status(404).json({ message: "Surgery not found" });
 

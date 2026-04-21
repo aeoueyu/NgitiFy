@@ -4,8 +4,12 @@ import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
 import { authFetch } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function AddDentist({ onClose, onSuccess }) {
+    const { user } = useAuth();
+    const isBranchManager = user?.role === 'branch-manager';
+
     const fileInputRef = useRef(null);
     const [isSameAddress, setIsSameAddress] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
@@ -314,37 +318,55 @@ export default function AddDentist({ onClose, onSuccess }) {
                             {/* Empty flex placeholder to maintain layout grid */}
                         </div>
                     </div>
-                    {/* ✅ PHASE 2: Branch Assignment */}
-                    {branchOptions.length > 0 && (
+                    {/* Branch Assignment — locked for branch-manager, multi-select for admin */}
+                    {(isBranchManager || branchOptions.length > 0) && (
                         <>
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-15px' }}>
-                                Select the branches this dentist is assigned to.
-                            </p>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
-                                {branchOptions.map(branch => (
-                                    <label
-                                        key={branch}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: '6px',
-                                            cursor: 'pointer', padding: '6px 12px',
-                                            border: `1px solid ${formData.assignedBranches.includes(branch) ? '#01538b' : '#e2e8f0'}`,
-                                            borderRadius: '6px',
-                                            backgroundColor: formData.assignedBranches.includes(branch) ? '#e8f4fd' : '#fff',
-                                            fontSize: '14px'
-                                        }}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.assignedBranches.includes(branch)}
-                                            onChange={() => handleBranchToggle(branch)}
-                                            disabled={isLoading}
-                                        />
-                                        {branch}
-                                    </label>
-                                ))}
-                            </div>
+                            {isBranchManager ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                        padding: '6px 14px', borderRadius: '6px',
+                                        background: '#e8f4fd', border: '1px solid #01538b',
+                                        color: '#01538b', fontSize: '14px', fontWeight: '600'
+                                    }}>
+                                        🏢 {user.assignedBranch}
+                                    </span>
+                                    <span style={{ color: '#94a3b8', fontSize: '12px' }}>
+                                        Auto-assigned to your branch
+                                    </span>
+                                </div>
+                            ) : (
+                                <>
+                                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-15px' }}>
+                                        Select the branches this dentist is assigned to.
+                                    </p>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                                        {branchOptions.map(branch => (
+                                            <label
+                                                key={branch}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                                    cursor: 'pointer', padding: '6px 12px',
+                                                    border: `1px solid ${formData.assignedBranches.includes(branch) ? '#01538b' : '#e2e8f0'}`,
+                                                    borderRadius: '6px',
+                                                    backgroundColor: formData.assignedBranches.includes(branch) ? '#e8f4fd' : '#fff',
+                                                    fontSize: '14px'
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.assignedBranches.includes(branch)}
+                                                    onChange={() => handleBranchToggle(branch)}
+                                                    disabled={isLoading}
+                                                />
+                                                {branch}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </>
                     )}
                     <div className={styles.buttonGroup}>

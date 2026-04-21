@@ -6,7 +6,8 @@ const inventorySchema = new mongoose.Schema({
     quantity: { type: Number, required: true, default: 0 },
     unit: { type: String, required: true }, // e.g., 'box', 'piece', 'bottle'
     supplier: { type: String },
-    reorderLevel: { type: Number, default: 10 } // Alert when quantity drops to this level
+    reorderLevel: { type: Number, default: 10 }, // Alert when quantity drops to this level
+    branch: { type: String, default: '' } // Branch this item belongs to; empty = shared/unassigned
 }, { timestamps: true });
 
 module.exports = mongoose.model('Inventory', inventorySchema);

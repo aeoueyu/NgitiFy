@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/admin/ManageSecretaries.module.css';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
 import UserAvatar from '../../components/common/UserAvatar';
 
 import UserTabs from './UserTabs';
@@ -14,6 +15,8 @@ import { useToast } from '../../context/ToastContext';
 
 export default function ManageSecretaries() {
     const { addToast } = useToast();
+    const { user } = useAuth();
+    const isBranchManager = user?.role === 'branch-manager';
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -180,7 +183,7 @@ export default function ManageSecretaries() {
                 </button>
             </div>
 
-            <UserTabs activeTab="secretaries" />
+            {!isBranchManager && <UserTabs activeTab="secretaries" />}
 
             <div className={styles.tableContainer}>
                 <table className={styles.userTable}>

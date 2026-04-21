@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
 import UserAvatar from '../../components/common/UserAvatar';
 
 import UserTabs from './UserTabs';
@@ -14,6 +15,8 @@ import { useToast } from '../../context/ToastContext';
 
 export default function ManageDentists() {
     const { addToast } = useToast();
+    const { user } = useAuth();
+    const isBranchManager = user?.role === 'branch-manager';
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -180,7 +183,7 @@ export default function ManageDentists() {
                 </button>
             </div>
 
-            <UserTabs activeTab="dentists" />
+            {!isBranchManager && <UserTabs activeTab="dentists" />} 
 
             <div className={styles.tableContainer}>
                 <table className={styles.userTable}>

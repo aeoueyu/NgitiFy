@@ -7,6 +7,7 @@ import {
     FaCodeBranch, FaKey, FaClock, FaTooth, FaBoxes
 } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
 import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import UserAvatar from '../../components/common/UserAvatar';
 import styles from '../../styles/admin/ActivityLogs.module.css';
@@ -107,6 +108,10 @@ export default function ActivityLogs() {
     // Pagination
     const [page, setPage]               = useState(1);
 
+    // Detect branch manager to scope the UI
+    const { user } = useAuth ? useAuth() : { user: null };
+    const isBranchManager = user?.role === 'branch-manager';
+
     const fetchLogs = useCallback(async () => {
         setLoading(true);
         try {
@@ -203,18 +208,19 @@ export default function ActivityLogs() {
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-
-                    <select
-                        className={styles.select}
-                        value={roleFilter}
-                        onChange={e => setRoleFilter(e.target.value)}
-                    >
-                        {ROLES.map(r => (
-                            <option key={r} value={r}>
-                                {r === 'All' ? 'All Roles' : r}
-                            </option>
-                        ))}
-                    </select>
+                    {!isBranchManager && (
+                        <select
+                            className={styles.select}
+                            value={roleFilter}
+                            onChange={e => setRoleFilter(e.target.value)}
+                        >
+                            {ROLES.map(r => (
+                                <option key={r} value={r}>
+                                    {r === 'All' ? 'All Roles' : r}
+                                </option>
+                            ))}
+                        </select>
+                    )}
 
                     <select
                         className={styles.select}
