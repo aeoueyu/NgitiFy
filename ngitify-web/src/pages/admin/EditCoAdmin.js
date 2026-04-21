@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AddDentist.module.css';
 import successIcon from '../../assets/alert/success.svg';
+import { useToast } from '../../context/ToastContext';
 
 export default function EditCoAdmin({ coAdminId, onClose, onSuccess }) {
+    const { addToast } = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -118,6 +121,27 @@ export default function EditCoAdmin({ coAdminId, onClose, onSuccess }) {
         }
     };
 
+    // §6.3: "Reset Password" button sends a reset link to the Co-Admin's current email
+    const handleResetPassword = async () => {
+        setIsResettingPassword(true);
+        try {
+            const res = await authFetch('/forgot-password', {
+                method: 'POST',
+                body: JSON.stringify({ email: formData.email }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                addToast(`Password reset link sent to ${formData.email}.`, 'success');
+            } else {
+                addToast(data.message || 'Failed to send password reset link.', 'error');
+            }
+        } catch {
+            addToast('Cannot connect to server.', 'error');
+        } finally {
+            setIsResettingPassword(false);
+        }
+    };
+
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
         onSuccess();
@@ -172,7 +196,13 @@ export default function EditCoAdmin({ coAdminId, onClose, onSuccess }) {
 
                             <div className={styles.formRow}>
                                 <div className={styles.formGroup}>
-                                    <label className={styles.label}>Email Address *</label>
+                                    <label className={styles.label}>
+                                        Email Address *{' '}
+                                        {/* §6.3: Warn that email change triggers re-verification */}
+                                        <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '500' }}>
+                                            (changing this will require re-verification)
+                                        </span>
+                                    </label>
                                     <input
                                         type="email" name="email" value={formData.email}
                                         onChange={handleChange} className={styles.input}
@@ -220,6 +250,17 @@ export default function EditCoAdmin({ coAdminId, onClose, onSuccess }) {
                             )}
 
                             <div className={styles.buttonGroup}>
+                                {/* §6.3: Reset Password — sends link to co-admin's email */}
+                                <button
+                                    type="button"
+                                    className={styles.cancelBtn}
+                                    style={{ color: '#f59e0b', borderColor: '#f59e0b' }}
+                                    onClick={handleResetPassword}
+                                    disabled={isSaving || isResettingPassword}
+                                    title={`Send password reset link to ${formData.email}`}
+                                >
+                                    {isResettingPassword ? 'Sending...' : 'Reset Password'}
+                                </button>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>
                                     Cancel
                                 </button>

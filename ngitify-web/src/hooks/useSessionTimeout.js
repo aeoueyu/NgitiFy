@@ -1,15 +1,21 @@
 import { useEffect, useRef, useCallback } from 'react';
 
-const TIMEOUT_DURATION = 30 * 60 * 1000;  // 30 minutes
-const WARNING_BEFORE   = 5  * 60 * 1000;  // warn at 25-min mark
+const WARNING_BEFORE_MS = 5 * 60 * 1000; // Always warn 5 minutes before timeout
+const DEFAULT_TIMEOUT_MINUTES = 30;
 
-export function useSessionTimeout({ onTimeout, onWarn, onResetWarn }) {
+export function useSessionTimeout({ onTimeout, onWarn, onResetWarn, timeoutMinutes }) {
     const timeoutRef = useRef(null);
     const warningRef = useRef(null);
     const warnedRef  = useRef(false);
 
+    // Convert minutes to ms, falling back to default if not provided or invalid
+    const timeoutMs = (
+        typeof timeoutMinutes === 'number' && timeoutMinutes > 0
+            ? timeoutMinutes
+            : DEFAULT_TIMEOUT_MINUTES
+    ) * 60 * 1000;
+
     const resetTimer = useCallback(() => {
-        // Clear existing timers
         clearTimeout(timeoutRef.current);
         clearTimeout(warningRef.current);
 
@@ -19,22 +25,24 @@ export function useSessionTimeout({ onTimeout, onWarn, onResetWarn }) {
             onResetWarn?.();
         }
 
-        // Set warning timer (fires at 25-min mark)
+        // Warning fires 5 minutes before logout (or at halfway point if timeout < 10 min)
+        const warningDelay = Math.max(timeoutMs - WARNING_BEFORE_MS, timeoutMs / 2);
+
         warningRef.current = setTimeout(() => {
             warnedRef.current = true;
             onWarn?.();
-        }, TIMEOUT_DURATION - WARNING_BEFORE);
+        }, warningDelay);
 
-        // Set logout timer (fires at 30-min mark)
         timeoutRef.current = setTimeout(() => {
             onTimeout?.();
-        }, TIMEOUT_DURATION);
-    }, [onTimeout, onWarn, onResetWarn]);
+        }, timeoutMs);
+
+    }, [onTimeout, onWarn, onResetWarn, timeoutMs]);
 
     useEffect(() => {
         const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
 
-        // Throttle the reset so it doesn't fire hundreds of times per second
+        // Throttle so it doesn't fire hundreds of times per second
         let throttleTimer = null;
         const handleActivity = () => {
             if (throttleTimer) return;

@@ -36,13 +36,17 @@ export default function Settings() {
 
     // --- State: Ownership Transfer (Administrator only) ---
     const isAdministrator = user?.role === 'administrator';
-    const [coAdminList, setCoAdminList]           = useState([]);
+    const [coAdminList, setCoAdminList]             = useState([]);
     const [selectedCoAdminId, setSelectedCoAdminId] = useState('');
-    const [transferPassword, setTransferPassword] = useState('');
-    const [transferError, setTransferError]       = useState('');
-    const [isTransferring, setIsTransferring]     = useState(false);
+    const [transferPassword, setTransferPassword]   = useState('');
+    const [transferError, setTransferError]         = useState('');
+    const [isTransferring, setIsTransferring]       = useState(false);
     const [showTransferConfirm, setShowTransferConfirm] = useState(false);
     const [showTransferSuccess, setShowTransferSuccess] = useState(false);
+
+    // Derive the full Co-Admin object from the selected ID
+    // This is what the confirmation modal uses to display the target's name
+    const selectedCoAdmin = coAdminList.find(u => u._id === selectedCoAdminId) || null;
 
     // --- State: Preferences & Notifications ---
     const [theme, setTheme] = useState('system');
@@ -503,8 +507,6 @@ export default function Settings() {
             </div>
         </form>
     );
-
-    const selectedCoAdmin = coAdminList.find(u => u._id === selectedCoAdminId);
 
     const renderOwnershipSection = () => (
         <div>

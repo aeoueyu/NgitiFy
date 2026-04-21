@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from '../sidebar/Sidebar';
 import SessionWarningModal from '../common/SessionWarningModal';
@@ -12,6 +12,30 @@ export default function DashboardLayout() {
     const navigate = useNavigate();
     const [showWarning, setShowWarning] = useState(false);
 
+    // ── Fetch session timeout duration from SystemConfig ──────────────────
+    // This ensures the configured value in System Config applies to ALL roles,
+    // including Co-Administrator (spec §Phase 3 — sessionTimeoutMinutes).
+    const [timeoutMinutes, setTimeoutMinutes] = useState(30); // safe default while loading
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const res = await authFetch('/system-config');
+                if (res.ok) {
+                    const config = await res.json();
+                    const minutes = config?.sessionTimeoutMinutes;
+                    if (typeof minutes === 'number' && minutes > 0) {
+                        setTimeoutMinutes(minutes);
+                    }
+                }
+            } catch {
+                // Silent — fallback to default 30 minutes
+            }
+        };
+        fetchConfig();
+    }, []);
+    // ─────────────────────────────────────────────────────────────────────
+
     const handleTimeout = useCallback(async () => {
         setShowWarning(false);
         // Log the session timeout reason before logging out
@@ -24,7 +48,7 @@ export default function DashboardLayout() {
                     reason: 'session_timeout'
                 })
             });
-        } catch (e) { /* silent */ }
+        } catch { /* silent */ }
         logout();
         navigate('/login');
     }, [logout, navigate, user]);
@@ -44,9 +68,10 @@ export default function DashboardLayout() {
     }, []);
 
     useSessionTimeout({
-        onTimeout: handleTimeout,
-        onWarn: handleWarn,
+        onTimeout:   handleTimeout,
+        onWarn:      handleWarn,
         onResetWarn: handleResetWarn,
+        timeoutMinutes,             // ← now driven by SystemConfig
     });
 
     return (

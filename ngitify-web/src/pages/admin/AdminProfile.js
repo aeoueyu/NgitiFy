@@ -125,7 +125,11 @@ export default function MyProfile() {
                         city: cCode, cityName: dbCity,
                         barangay: dbBrgy, 
                         street: data?.currentAddress?.street || '',
-                        houseNumber: data?.currentAddress?.houseNumber || '' 
+                        houseNumber: data?.currentAddress?.houseNumber || '',
+
+                        // §6.4: Read-only account metadata
+                        createdAt: data?.createdAt || null,
+                        lastLogin: data?.lastLogin  || null,
                     };
                     
                     setFormData(fetchedData);
@@ -359,13 +363,22 @@ export default function MyProfile() {
 
     // Role display mappings
     const roleMap = {
-        'administrator': 'Clinic Administrator',
-        'dentist': 'Dentist',
-        'secretary': 'Front Desk Personnel'
+        'administrator':    'Clinic Administrator',
+        'co-administrator': 'Co-Administrator',       // §6.4: was missing — fell back to 'Staff Account'
+        'branch-manager':   'Branch Manager',
+        'dentist':          'Dentist',
+        'secretary':        'Front Desk Personnel',
     };
 
+    // Role tag color variants — co-admin gets a distinct teal style
+    const roleTagStyle = user?.role === 'co-administrator'
+        ? { backgroundColor: '#ccfbf1', color: '#0f766e', border: '1px solid #99f6e4' }
+        : user?.role === 'administrator'
+            ? { backgroundColor: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe' }
+            : {};
+
     const roleTitle = roleMap[user?.role] || 'Staff Account';
-    const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+    const fullName  = `${formData.firstName} ${formData.lastName}`.trim();
 
     return (
         <div className={styles.container}>
@@ -402,7 +415,10 @@ export default function MyProfile() {
                             <h2>
                                 {user?.role === 'dentist' ? 'Dr. ' : ''}{formData.firstName || 'User'} {formData.middleName ? `${formData.middleName.charAt(0)}.` : ''} {formData.lastName || ''}
                             </h2>
-                            <span className={styles.roleTag}>{roleTitle}</span>
+                            {/* §6.4: Role-aware color badge */}
+                            <span className={styles.roleTag} style={roleTagStyle}>
+                                {roleTitle}
+                            </span>
                         </div>
                     </div>
 
@@ -628,6 +644,40 @@ export default function MyProfile() {
                                 disabled={!isEditing || isSaving}
                             />
                             {errors.street && <span className={styles.errorText}>{errors.street}</span>}
+                        </div>
+                    </div>
+
+                    {/* §6.4: Read-only account metadata — Account Created & Last Login */}
+                    <h3 className={styles.mainSectionTitle}>Account Information</h3>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>ACCOUNT CREATED</label>
+                            <input
+                                className={styles.inputField}
+                                value={
+                                    formData.createdAt
+                                        ? new Date(formData.createdAt).toLocaleDateString('en-US', {
+                                            year: 'numeric', month: 'long', day: 'numeric'
+                                          })
+                                        : '—'
+                                }
+                                disabled
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>LAST LOGIN</label>
+                            <input
+                                className={styles.inputField}
+                                value={
+                                    formData.lastLogin
+                                        ? new Date(formData.lastLogin).toLocaleString('en-US', {
+                                            year: 'numeric', month: 'short', day: 'numeric',
+                                            hour: '2-digit', minute: '2-digit'
+                                          })
+                                        : '—'
+                                }
+                                disabled
+                            />
                         </div>
                     </div>
 

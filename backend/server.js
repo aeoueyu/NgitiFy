@@ -780,14 +780,31 @@ app.get('/api/user/:id', verifyToken, async (req, res) => {
 app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body; 
+        const { status } = req.body;
 
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: "User not found." });
 
+        // ── Co-Admin Security Guard ──────────────────────────────────────────
+        // Co-administrator cannot activate or deactivate an administrator account
+        if (user.role === 'administrator' && req.user.role === 'co-administrator') {
+            await AuditLog.create({
+                action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
+                user: req.user.email,
+                role: 'co-administrator',
+                actorId: req.user.id,
+                actorRole: 'co-administrator',
+                targetId: user._id,
+                targetModel: 'User',
+                details: `Unauthorized attempt to change status of administrator account (${user.email}) by co-administrator.`
+            });
+            return res.status(403).json({ message: 'Access denied. Cannot modify the administrator account.' });
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         if (status === 'active' && !user.isVerified) {
-            return res.status(400).json({ 
-                message: "Cannot activate user. Email is not yet verified." 
+            return res.status(400).json({
+                message: "Cannot activate user. Email is not yet verified."
             });
         }
 
@@ -798,6 +815,10 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
             action: "STATUS_CHANGE",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "administrator",
+            actorId: req.user?.id,
+            actorRole: req.user?.role,
+            targetId: user._id,
+            targetModel: 'User',
             details: `Changed status of user ${user.email} to ${status}`
         });
 
