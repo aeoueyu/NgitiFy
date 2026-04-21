@@ -109,7 +109,7 @@ export default function ActivityLogs() {
     const [page, setPage]               = useState(1);
 
     // Detect branch manager to scope the UI
-    const { user } = useAuth ? useAuth() : { user: null };
+    const { user } = useAuth();
     const isBranchManager = user?.role === 'branch-manager';
 
     const fetchLogs = useCallback(async () => {
