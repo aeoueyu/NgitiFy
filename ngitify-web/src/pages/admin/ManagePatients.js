@@ -53,8 +53,8 @@ export default function ManagePatients() {
 
             if (response.ok) {
                 const data = await response.json();
-                
-                const mappedPatients = data.map(p => {
+                const rawList = Array.isArray(data) ? data : (data.patients || []);
+                const mappedPatients = rawList.map(p => {
                     let parsedName = 'Unknown Patient';
                     if (typeof p.name === 'object' && p.name !== null) {
                         parsedName = `${p.name.first || ''} ${p.name.last || ''}`.trim();
