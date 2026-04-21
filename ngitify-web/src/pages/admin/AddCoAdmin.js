@@ -44,7 +44,7 @@ const AddCoAdmin = () => {
     const handlePhoneChange = (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
-        if (errors.phone) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
+        if (errors.phone) setErrors(prev => { const n = { ...prev }; delete n['phone']; return n; });
         setFormData(prev => ({ ...prev, phone: value }));
     };
 
