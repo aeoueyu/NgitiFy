@@ -64,6 +64,13 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
 
+    // Upload Radiograph Modal
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [uploadForm, setUploadForm] = useState({ label: '', date: '', notes: '' });
+    const [uploadFile, setUploadFile] = useState(null);
+    const [uploadPreview, setUploadPreview] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+
     // Branch list for dropdowns
     const [branches, setBranches] = useState([]);
 
@@ -535,6 +542,62 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             )}
         </div>
     );
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 3 * 1024 * 1024) {
+            addToast('Image must be under 3MB.', 'error');
+            return;
+        }
+        setUploadFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setUploadPreview(reader.result);
+        reader.readAsDataURL(file);
+    };
+    
+    const handleUploadSubmit = async (e) => {
+        e.preventDefault();
+        if (!uploadForm.label || !uploadForm.date) {
+            addToast('Label and date are required.', 'error');
+            return;
+        }
+        if (!uploadFile && !uploadPreview) {
+            addToast('Please select an image file.', 'error');
+            return;
+        }
+        setIsUploading(true);
+        try {
+            const res = await authFetch(`/patients/${activePatientId}/radiographs`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    label: uploadForm.label,
+                    date: uploadForm.date,
+                    url: uploadPreview,
+                    notes: uploadForm.notes,
+                }),
+            });
+            if (!res.ok) throw new Error((await res.json()).message || 'Upload failed.');
+            const saved = await res.json();
+            const newRad = {
+                ...saved,
+                id: saved._id || saved.id,
+                rawDate: new Date(saved.date || uploadForm.date),
+                type: saved.label || uploadForm.label,
+                url: saved.url || uploadPreview,
+            };
+            setRadiographs(prev => [newRad, ...prev]);
+            setIsUploadModalOpen(false);
+            setUploadForm({ label: '', date: '', notes: '' });
+            setUploadFile(null);
+            setUploadPreview(null);
+            addToast('Radiograph uploaded successfully.', 'success');
+        } catch (err) {
+            addToast(err.message || 'Failed to upload radiograph.', 'error');
+        } finally {
+            setIsUploading(false);
+        }
+    };
 
     // ─── TAB 4: RADIOGRAPHS ──────────────────────────────────────────────────────
     const openRadiograph = (img) => {

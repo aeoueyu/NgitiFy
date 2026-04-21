@@ -905,6 +905,39 @@ app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
     }
 });
 
+// -------------------------------------------------------
+// UPDATE NOTIFICATION PREFERENCES (GAP 2)
+// -------------------------------------------------------
+app.put('/api/user/notification-preferences', verifyToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { emailAppointments, dailySummary, criticalAlerts } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        user.notificationPreferences = {
+            emailAppointments: emailAppointments ?? user.notificationPreferences?.emailAppointments ?? true,
+            dailySummary:      dailySummary      ?? user.notificationPreferences?.dailySummary      ?? false,
+            criticalAlerts:    criticalAlerts    ?? user.notificationPreferences?.criticalAlerts    ?? true,
+        };
+
+        await user.save();
+
+        await AuditLog.create({
+            action: 'UPDATE_NOTIFICATION_PREFERENCES',
+            user: user.email,
+            role: user.role,
+            details: `Updated notification preferences.`
+        });
+
+        res.json({ message: 'Notification preferences saved.', notificationPreferences: user.notificationPreferences });
+    } catch (error) {
+        console.error('Error saving notification preferences:', error);
+        res.status(500).json({ message: 'Server error saving preferences.' });
+    }
+});
+
 app.put('/api/user/:id', verifyToken, async (req, res) => {
     try {
         const { password, email, role, isVerified, activationToken, isPasswordChanged, status, ...updateData } = req.body;

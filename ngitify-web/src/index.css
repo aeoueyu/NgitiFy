@@ -38,6 +38,56 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
 
+/* ============================================
+   THEME SYSTEM — Light / Dark / System Default
+   ============================================ */
 
+/* Light theme (explicit) — same as default */
+[data-theme="light"] {
+  --bg-page: #f4f7fa;
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --text-primary: #334155;
+  --text-muted: #64748b;
+  --text-heading: #01538b;
+  --border-color: #e2e8f0;
+  --input-bg: #fcfcfc;
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-page: #0f172a;
+  --bg-card: #1e293b;
+  --bg-sidebar: #1e293b;
+  --text-primary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-heading: #7dd3fc;
+  --border-color: #334155;
+  --input-bg: #273549;
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* System default — defers to OS preference */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --bg-page: #0f172a;
+    --bg-card: #1e293b;
+    --bg-sidebar: #1e293b;
+    --text-primary: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-heading: #7dd3fc;
+    --border-color: #334155;
+    --input-bg: #273549;
+    --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Apply theme variables to body backgrounds */
+body {
+  background-color: var(--bg-page, #f4f7fa);
+  color: var(--text-primary, #334155);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

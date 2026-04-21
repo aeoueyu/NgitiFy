@@ -1,5 +1,4 @@
-// ngitify-web/src/App.js
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -85,6 +84,12 @@ const PageLoader = () => (
 );
 
 function App() {
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('ngitify-theme') || 'system';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+  
   return (
     <AuthProvider>
       <ToastProvider>

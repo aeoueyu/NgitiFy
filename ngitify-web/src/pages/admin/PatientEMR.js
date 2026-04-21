@@ -61,6 +61,11 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [uploadForm, setUploadForm] = useState({ label: '', date: '', notes: '' });
+    const [uploadFile, setUploadFile] = useState(null);
+    const [uploadPreview, setUploadPreview] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const [branches, setBranches] = useState([]);
 
@@ -523,6 +528,62 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         setIsEnhanced(false);
     };
 
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 3 * 1024 * 1024) {
+            addToast('Image must be under 3MB.', 'error');
+            return;
+        }
+        setUploadFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setUploadPreview(reader.result);
+        reader.readAsDataURL(file);
+    };
+
+    const handleUploadSubmit = async (e) => {
+        e.preventDefault();
+        if (!uploadForm.label || !uploadForm.date) {
+            addToast('Label and date are required.', 'error');
+            return;
+        }
+        if (!uploadPreview) {
+            addToast('Please select an image file.', 'error');
+            return;
+        }
+        setIsUploading(true);
+        try {
+            const { authFetch } = await import('../../utils/api');
+            const res = await authFetch(`/patients/${activePatientId}/radiographs`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    label: uploadForm.label,
+                    date: uploadForm.date,
+                    url: uploadPreview,
+                    notes: uploadForm.notes,
+                }),
+            });
+            if (!res.ok) throw new Error((await res.json()).message || 'Upload failed.');
+            const saved = await res.json();
+            setRadiographs(prev => [{
+                ...saved,
+                id: saved._id || saved.id,
+                rawDate: new Date(saved.date || uploadForm.date),
+                type: saved.label || uploadForm.label,
+                url: saved.url || uploadPreview,
+            }, ...prev]);
+            setIsUploadModalOpen(false);
+            setUploadForm({ label: '', date: '', notes: '' });
+            setUploadFile(null);
+            setUploadPreview(null);
+            addToast('Radiograph uploaded successfully.', 'success');
+        } catch (err) {
+            addToast(err.message || 'Failed to upload radiograph.', 'error');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const handleAIEnhance = () => {
         if (isEnhanced) {
             setIsEnhanced(false);
@@ -592,8 +653,8 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             <div className={styles.contentCard}>
                 <div className={styles.sectionHeaderRow}>
                     <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Dental Radiographs (X-Rays)</h3>
-                    <button className={styles.uploadBtn} disabled title="This feature is coming soon">
-                        <FaUpload /> Upload Radiograph <span style={{ fontSize: '11px', fontWeight: '500', opacity: 0.7 }}>(Coming Soon)</span>
+                    <button className={styles.uploadBtn} onClick={() => setIsUploadModalOpen(true)}>
+                        <FaUpload /> Upload Radiograph
                     </button>
                 </div>
 
@@ -627,6 +688,67 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             </div>
             <Odontogram patientId={activePatientId} /> 
         </div>
+    );
+
+    const renderUploadModal = () => (
+        isUploadModalOpen && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
+                <div style={{ background: 'white', borderRadius: '16px', padding: '40px', width: '90%', maxWidth: '480px', boxShadow: '0 15px 40px rgba(0,0,0,0.2)', fontFamily: "'Lexend Deca', sans-serif" }}>
+                    <h3 style={{ color: '#01538b', fontSize: '20px', fontWeight: '800', margin: '0 0 20px 0', borderLeft: '4px solid #2dccf6', paddingLeft: '12px' }}>Upload Radiograph</h3>
+                    <form onSubmit={handleUploadSubmit}>
+                        <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Label / Type <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                                type="text"
+                                className={styles.inputField}
+                                placeholder="e.g. Panoramic, Periapical, Bitewing"
+                                value={uploadForm.label}
+                                onChange={(e) => setUploadForm(p => ({ ...p, label: e.target.value }))}
+                                required
+                            />
+                        </div>
+                        <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Date Taken <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                                type="date"
+                                className={styles.inputField}
+                                value={uploadForm.date}
+                                onChange={(e) => setUploadForm(p => ({ ...p, date: e.target.value }))}
+                                required
+                            />
+                        </div>
+                        <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Image File <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileSelect}
+                                style={{ fontSize: '13px', fontFamily: "'Lexend Deca', sans-serif" }}
+                            />
+                            {uploadPreview && (
+                                <img src={uploadPreview} alt="Preview" style={{ marginTop: '10px', width: '100%', maxHeight: '140px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f1f5f9' }} />
+                            )}
+                        </div>
+                        <div className={styles.formGroup} style={{ marginBottom: '24px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Notes (Optional)</label>
+                            <textarea
+                                className={styles.textareaField}
+                                placeholder="Any clinical notes about this image..."
+                                value={uploadForm.notes}
+                                onChange={(e) => setUploadForm(p => ({ ...p, notes: e.target.value }))}
+                                rows={3}
+                            />
+                        </div>
+                        <div className={styles.modalButtonGroup}>
+                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadFile(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
+                            <button type="submit" className={styles.saveBtn} disabled={isUploading}>
+                                {isUploading ? 'Uploading...' : 'Upload'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )
     );
 
     if (isLoading) {
@@ -714,6 +836,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             <div style={modalWrapperStyle}>
                 <div className={styles.overlayBackground} onClick={onClose}></div>
                 {innerContent}
+                {renderUploadModal()}
             </div>
         );
     }

@@ -45,6 +45,36 @@ export default function Settings() {
     });
     const [notifSuccess, setNotifSuccess] = useState('');
 
+    // Load saved theme preference from localStorage on mount
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('ngitify-theme') || 'system';
+        setTheme(savedTheme);
+    }, []);
+
+    // Load notification preferences from backend on mount
+    useEffect(() => {
+        const fetchNotifPrefs = async () => {
+            try {
+                const userId = user?.userId || user?.id || user?._id;
+                if (!userId) return;
+                const res = await authFetch(`/user/${userId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.notificationPreferences) {
+                        setNotifications({
+                            emailAppointments: data.notificationPreferences.emailAppointments ?? true,
+                            dailySummary:      data.notificationPreferences.dailySummary      ?? false,
+                            criticalAlerts:    data.notificationPreferences.criticalAlerts    ?? true,
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load notification preferences:', err);
+            }
+        };
+        fetchNotifPrefs();
+    }, [user]);
+
     // ==========================================
     // SECURITY: PASSWORD VALIDATION & LOGIC
     // ==========================================
@@ -173,13 +203,32 @@ export default function Settings() {
     };
 
     const handleSavePreferences = () => {
-        console.warn('Preferences settings are not yet persisted to the backend.');
-        alert('Preferences settings cannot be saved yet — this feature is not fully implemented.');
+        localStorage.setItem('ngitify-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        setPrefSuccess('Display preferences saved successfully.');
+        setTimeout(() => setPrefSuccess(''), 3000);
     };
     
-    const handleSaveNotifications = () => {
-        console.warn('Notification settings are not yet persisted to the backend.');
-        alert('Notification settings cannot be saved yet — this feature is not fully implemented.');
+    const handleSaveNotifications = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await authFetch('/user/notification-preferences', {
+                method: 'PUT',
+                body: JSON.stringify(notifications),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setNotifSuccess('Notification preferences saved successfully.');
+                setTimeout(() => setNotifSuccess(''), 3000);
+            } else {
+                setNotifSuccess('');
+                setApiError(data.message || 'Failed to save notification preferences.');
+                setTimeout(() => setApiError(''), 4000);
+            }
+        } catch (err) {
+            setApiError('Cannot connect to server.');
+            setTimeout(() => setApiError(''), 4000);
+        }
     };
 
     // ==========================================
@@ -377,7 +426,7 @@ export default function Settings() {
                     <span className={styles.toggleDesc}>Receive alerts for low inventory and unauthorized login attempts.</span>
                 </div>
                 <label className={styles.switch}>
-                    <input type="checkbox" checked={notifications.criticalAlerts} onChange={() => setNotifications({...notifications, criticalAlerts: !notifications.criticalAlerts})} disabled />
+                    <input type="checkbox" checked={notifications.criticalAlerts} onChange={() => setNotifications({...notifications, criticalAlerts: !notifications.criticalAlerts})} />
                     <span className={styles.slider}></span>
                 </label>
             </div>

@@ -155,7 +155,14 @@ const userSchema = new mongoose.Schema({
     isAdminAccess: { type: Boolean, default: false },
 
     // ✅ PHASE 3: Owner-as-Dentist flag
-    isDentist: { type: Boolean, default: false }
+    isDentist: { type: Boolean, default: false },
+
+    // ✅ GAP 2: Notification preferences per user
+    notificationPreferences: {
+        emailAppointments: { type: Boolean, default: true },
+        dailySummary:       { type: Boolean, default: false },
+        criticalAlerts:     { type: Boolean, default: true }
+    }
 
 }, { timestamps: true });
 
