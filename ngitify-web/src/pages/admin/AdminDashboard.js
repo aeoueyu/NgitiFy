@@ -309,36 +309,6 @@ export default function AdminDashboard() {
                                 </span>
                             )}
                         </button>
-
-                        <div className={styles['user-info']}>
-                            <span className={styles['user-name']}>Hello, {adminProfile?.name?.first || user?.name?.first || 'Admin'}!</span>
-                            <span className={styles['user-role']}>
-                                {(() => {
-                                    const role = adminProfile?.role || user?.role || '';
-                                    const roleMap = {
-                                        'admin': 'Clinic Admin',
-                                        'dentist': 'Dentist',
-                                        'secretary': 'Front Desk Personnel',
-                                        'patient': 'Patient'
-                                    };
-                                    return roleMap[role] || 'Staff';
-                                })()}
-                            </span>
-                        </div>
-
-                        <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                            <UserAvatar 
-                                user={adminProfile || user || { name: 'Admin' }} 
-                                size={45} 
-                            />
-                            {isProfileOpen && (
-                                <div className={styles['profile-dropdown']}>
-                                    <div className={styles['profile-dropdown-item']} onClick={handleProfileNavigation}>My Profile</div>
-                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/admin/settings')}>Settings</div>
-                                    <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={handleLogoutClick}>Logout</div>
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </header>
 

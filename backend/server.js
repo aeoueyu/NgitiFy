@@ -493,8 +493,10 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
 
 app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: "Access denied. Admin only." });
+        // Both administrator and co-administrator can create co-admin accounts
+        // (Plan §2.2: co-admin has same access as admin except ownership transfer)
+        if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+            return res.status(403).json({ message: "Access denied. Admin tier only." });
         }
         const { email, licenseNumber, branch, ...otherData } = req.body;
         
@@ -1012,7 +1014,8 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
 });
 
 app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
-    if (req.params.id !== req.user.id && req.user.role !== 'administrator') {
+    const isAdminTier = ['administrator', 'co-administrator'].includes(req.user.role);
+    if (req.params.id !== req.user.id && !isAdminTier) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -3043,6 +3046,121 @@ app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error updating ticket status:', error);
         res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// -------------------------------------------------------
+// TRANSFER SYSTEM OWNERSHIP (Administrator Only)
+// Co-Admin Plan — Phase 1, Section 5.2
+// -------------------------------------------------------
+app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
+    // Only a current administrator can initiate this action
+    if (req.user.role !== 'administrator') {
+        await AuditLog.create({
+            action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
+            user: req.user.email,
+            role: req.user.role,
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            details: `Unauthorized attempt to initiate ownership transfer by non-administrator.`
+        });
+        return res.status(403).json({ message: 'Access denied. Only the Administrator can transfer system ownership.' });
+    }
+
+    const { targetCoAdminId, currentPassword } = req.body;
+
+    if (!targetCoAdminId || !currentPassword) {
+        return res.status(400).json({ message: 'Target Co-Administrator ID and current password are required.' });
+    }
+
+    try {
+        // 1. Verify the current admin's password
+        const adminUser = await User.findById(req.user.id);
+        if (!adminUser) return res.status(404).json({ message: 'Administrator account not found.' });
+
+        const isPasswordValid = await bcrypt.compare(currentPassword, adminUser.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Incorrect password. Ownership transfer cancelled.' });
+        }
+
+        // 2. Find and validate the target co-admin
+        const targetUser = await User.findById(targetCoAdminId);
+        if (!targetUser) return res.status(404).json({ message: 'Target user not found.' });
+        if (targetUser.role !== 'co-administrator') {
+            return res.status(400).json({ message: 'Target user must be a Co-Administrator.' });
+        }
+        if (targetUser.status !== 'active') {
+            return res.status(400).json({ message: 'Target Co-Administrator account must be active.' });
+        }
+
+        // 3. Perform the atomic role swap
+        adminUser.role = 'co-administrator';
+        targetUser.role = 'administrator';
+
+        await adminUser.save();
+        await targetUser.save();
+
+        // 4. Record the ownership transfer audit log entry
+        await AuditLog.create({
+            action: 'OWNERSHIP_TRANSFER',
+            user: adminUser.email,
+            role: 'administrator',
+            actorId: adminUser._id,
+            actorRole: 'administrator',
+            targetId: targetUser._id,
+            targetModel: 'User',
+            details: `Ownership transferred from ${adminUser.email} (now Co-Administrator) to ${targetUser.email} (now Administrator).`
+        });
+
+        // 5. Notify both affected users via email
+        const newAdminName = `${targetUser.name?.first || ''} ${targetUser.name?.last || ''}`.trim();
+        const prevAdminName = `${adminUser.name?.first || ''} ${adminUser.name?.last || ''}`.trim();
+
+        try {
+            // Notify the new Administrator
+            await resend.emails.send({
+                from: 'NgitiFy Admin <noreply@ngitify.com>',
+                to: targetUser.email,
+                subject: 'NgitiFy: You are now the Administrator',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                        <h2 style="color: #005466;">Role Change Notification</h2>
+                        <p>Hello ${newAdminName},</p>
+                        <p>Your NgitiFy account role has been upgraded to <strong>Administrator</strong>.</p>
+                        <p>This change was initiated by <strong>${prevAdminName}</strong> (${adminUser.email}).</p>
+                        <p>You now hold full system ownership of NgitiFy for Dentime Dental Clinic.</p>
+                        <p style="color: #6b7280; font-size: 12px;">If you did not expect this change, please contact your clinic immediately.</p>
+                    </div>
+                `
+            });
+
+            // Notify the previous Administrator (now Co-Admin)
+            await resend.emails.send({
+                from: 'NgitiFy Admin <noreply@ngitify.com>',
+                to: adminUser.email,
+                subject: 'NgitiFy: Your role has changed to Co-Administrator',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                        <h2 style="color: #005466;">Role Change Notification</h2>
+                        <p>Hello ${prevAdminName},</p>
+                        <p>You have successfully transferred Administrator ownership to <strong>${newAdminName}</strong> (${targetUser.email}).</p>
+                        <p>Your account role is now <strong>Co-Administrator</strong>.</p>
+                        <p style="color: #6b7280; font-size: 12px;">To reverse this change, the new Administrator must initiate a transfer back.</p>
+                    </div>
+                `
+            });
+        } catch (emailError) {
+            // Email failure is non-critical — the role swap already succeeded
+            console.error('⚠️ Ownership transfer email notification failed:', emailError.message);
+        }
+
+        res.json({
+            message: `Ownership successfully transferred to ${newAdminName}. Your role is now Co-Administrator.`
+        });
+
+    } catch (error) {
+        console.error('Error during ownership transfer:', error);
+        res.status(500).json({ message: 'Server error during ownership transfer. No changes were made.' });
     }
 });
 

@@ -34,6 +34,16 @@ export default function Settings() {
     });
     const [allCriteriaMet, setAllCriteriaMet] = useState(false);
 
+    // --- State: Ownership Transfer (Administrator only) ---
+    const isAdministrator = user?.role === 'administrator';
+    const [coAdminList, setCoAdminList]           = useState([]);
+    const [selectedCoAdminId, setSelectedCoAdminId] = useState('');
+    const [transferPassword, setTransferPassword] = useState('');
+    const [transferError, setTransferError]       = useState('');
+    const [isTransferring, setIsTransferring]     = useState(false);
+    const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+    const [showTransferSuccess, setShowTransferSuccess] = useState(false);
+
     // --- State: Preferences & Notifications ---
     const [theme, setTheme] = useState('system');
     const [prefSuccess, setPrefSuccess] = useState('');
@@ -74,6 +84,23 @@ export default function Settings() {
         };
         fetchNotifPrefs();
     }, [user]);
+
+    // Load active co-admins for the ownership transfer dropdown
+    useEffect(() => {
+        if (!isAdministrator) return;
+        const fetchCoAdmins = async () => {
+            try {
+                const res = await authFetch('/users?role=co-administrator');
+                if (res.ok) {
+                    const data = await res.json();
+                    setCoAdminList(data.filter(u => u.status === 'active'));
+                }
+            } catch (err) {
+                console.error('Failed to load co-admins for ownership transfer:', err);
+            }
+        };
+        fetchCoAdmins();
+    }, [isAdministrator]);
 
     // ==========================================
     // SECURITY: PASSWORD VALIDATION & LOGIC
@@ -228,6 +255,44 @@ export default function Settings() {
         } catch (err) {
             setApiError('Cannot connect to server.');
             setTimeout(() => setApiError(''), 4000);
+        }
+    };
+
+    // ==========================================
+    // OWNERSHIP TRANSFER LOGIC
+    // ==========================================
+    const handleTransferOwnership = async () => {
+        setTransferError('');
+        if (!selectedCoAdminId) {
+            setTransferError('Please select a Co-Administrator to transfer ownership to.');
+            return;
+        }
+        if (!transferPassword) {
+            setTransferError('Please enter your current password to confirm.');
+            return;
+        }
+        setIsTransferring(true);
+        try {
+            const res = await authFetch('/transfer-ownership', {
+                method: 'POST',
+                body: JSON.stringify({
+                    targetCoAdminId: selectedCoAdminId,
+                    currentPassword: transferPassword,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setShowTransferConfirm(false);
+                setShowTransferSuccess(true);
+            } else {
+                setTransferError(data.message || 'Ownership transfer failed.');
+                setShowTransferConfirm(false);
+            }
+        } catch (err) {
+            setTransferError('Cannot connect to server. Please try again.');
+            setShowTransferConfirm(false);
+        } finally {
+            setIsTransferring(false);
         }
     };
 
@@ -439,6 +504,83 @@ export default function Settings() {
         </form>
     );
 
+    const selectedCoAdmin = coAdminList.find(u => u._id === selectedCoAdminId);
+
+    const renderOwnershipSection = () => (
+        <div>
+            <h3 className={styles.mainSectionTitle}>Transfer System Ownership</h3>
+            <p className={styles.sectionDescription}>
+                Permanently transfer the Administrator role to an active Co-Administrator.
+                Your account will be downgraded to Co-Administrator status.
+            </p>
+
+            {/* Amber Warning Card */}
+            <div className={styles.ownershipWarningCard}>
+                <span className={styles.ownershipWarningIcon}>⚠️</span>
+                <div>
+                    <strong>This action is permanent and cannot be undone without a reverse transfer.</strong>
+                    <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#92400e' }}>
+                        Once you transfer ownership, you will lose Administrator privileges immediately.
+                        The new Administrator will have full system control.
+                    </p>
+                </div>
+            </div>
+
+            {transferError && (
+                <div className={styles.apiErrorMessage}>{transferError}</div>
+            )}
+
+            {/* Target Co-Admin Dropdown */}
+            <div className={styles.row}>
+                <div className={styles.formGroup}>
+                    <label>SELECT CO-ADMINISTRATOR <span style={{ color: 'red' }}>*</span></label>
+                    {coAdminList.length === 0 ? (
+                        <div className={styles.ownershipEmptyNote}>
+                            No active Co-Administrator accounts found. Please add and activate a Co-Administrator before transferring ownership.
+                        </div>
+                    ) : (
+                        <select
+                            className={styles.inputField}
+                            value={selectedCoAdminId}
+                            onChange={e => { setSelectedCoAdminId(e.target.value); setTransferError(''); }}
+                        >
+                            <option value="">-- Select a Co-Administrator --</option>
+                            {coAdminList.map(u => (
+                                <option key={u._id} value={u._id}>
+                                    {u.name?.first} {u.name?.last} ({u.email})
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+            </div>
+
+            {/* Password Confirmation */}
+            <div className={styles.row}>
+                <div className={styles.formGroup}>
+                    <label>CONFIRM WITH YOUR PASSWORD <span style={{ color: 'red' }}>*</span></label>
+                    <input
+                        type="password"
+                        className={styles.inputField}
+                        placeholder="Enter your current password"
+                        value={transferPassword}
+                        onChange={e => { setTransferPassword(e.target.value); setTransferError(''); }}
+                    />
+                </div>
+            </div>
+
+            <div className={styles.buttonGroup}>
+                <button
+                    className={styles.ownershipTransferBtn}
+                    disabled={!selectedCoAdminId || !transferPassword || coAdminList.length === 0}
+                    onClick={() => setShowTransferConfirm(true)}
+                >
+                    INITIATE OWNERSHIP TRANSFER
+                </button>
+            </div>
+        </div>
+    );
+
     return (
         <div className={styles.container}>
             <div className={styles.headerWrapper}>
@@ -479,6 +621,15 @@ export default function Settings() {
                         >
                             Notifications
                         </li>
+                        {/* Only the Administrator sees the Ownership Transfer tab */}
+                        {isAdministrator && (
+                            <li
+                                className={`${styles.tabItem} ${activeTab === 'ownership' ? styles.activeTab : ''} ${styles.ownershipTab}`}
+                                onClick={() => setActiveTab('ownership')}
+                            >
+                                System Ownership
+                            </li>
+                        )}
                     </ul>
                 </div>
 
@@ -488,8 +639,67 @@ export default function Settings() {
                     {activeTab === 'security' && renderSecuritySection()}
                     {activeTab === 'preferences' && renderPreferencesSection()}
                     {activeTab === 'notifications' && renderNotificationsSection()}
+                    {activeTab === 'ownership' && isAdministrator && renderOwnershipSection()}
                 </div>
             </div>
+
+            {/* Ownership Transfer — Final Confirmation Modal */}
+            {showTransferConfirm && selectedCoAdmin && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <h3 className={styles.modalTitle} style={{ color: '#b45309' }}>⚠️ Confirm Transfer</h3>
+                        <p className={styles.modalMessage}>
+                            You are about to transfer Administrator ownership to{' '}
+                            <strong>{selectedCoAdmin.name?.first} {selectedCoAdmin.name?.last}</strong>.
+                            <br /><br />
+                            Your role will change to <strong>Co-Administrator</strong>.
+                            <br />
+                            <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                                This action cannot be undone without a reverse transfer by the new Administrator.
+                            </span>
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+                            <button
+                                className={styles.modalButton}
+                                style={{ background: '#e2e8f0', color: '#334155', flex: 1 }}
+                                onClick={() => setShowTransferConfirm(false)}
+                                disabled={isTransferring}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className={styles.modalButton}
+                                style={{ background: '#b45309', flex: 1 }}
+                                onClick={handleTransferOwnership}
+                                disabled={isTransferring}
+                            >
+                                {isTransferring ? 'Transferring...' : 'Yes, Transfer'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Ownership Transfer — Success Modal (forces logout) */}
+            {showTransferSuccess && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <h3 className={styles.modalTitle} style={{ color: '#15803d' }}>Transfer Complete</h3>
+                        <p className={styles.modalMessage}>
+                            System ownership has been successfully transferred.
+                            Your role is now <strong>Co-Administrator</strong>.
+                            <br /><br />
+                            You will be logged out now. Please log back in.
+                        </p>
+                        <button
+                            className={styles.modalButton}
+                            onClick={() => { setShowTransferSuccess(false); logout(); navigate('/login'); }}
+                        >
+                            Close & Log Out
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Success Modal - Forces Logout on Close */}
             {showSuccessModal && (

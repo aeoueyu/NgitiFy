@@ -164,3 +164,69 @@ input:checked + .slider:before { transform: translateX(20px); }
 .modalMessage { color: #666; font-size: 14px; margin: 0 0 30px 0; line-height: 1.5; }
 .modalButton { background-color: #01538b; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; width: 100%; font-family: 'Lexend Deca'; }
 .modalButton:hover { background-color: #013f6b; }
+
+/* ── OWNERSHIP TRANSFER SECTION ── */
+.ownershipTab {
+    margin-top: 8px;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 16px !important;
+    color: #b45309 !important;
+}
+
+.ownershipWarningCard {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background-color: #fffbeb;
+    border: 1.5px solid #fcd34d;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 28px;
+    color: #78350f;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.ownershipWarningIcon {
+    font-size: 22px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.ownershipEmptyNote {
+    background-color: #f8fafc;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 16px 20px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.ownershipTransferBtn {
+    background-color: #b45309;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 10px rgba(180, 83, 9, 0.25);
+    font-family: 'Lexend Deca';
+    font-size: 13px;
+}
+
+.ownershipTransferBtn:hover {
+    background-color: #92400e;
+    transform: translateY(-2px);
+}
+
+.ownershipTransferBtn:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}

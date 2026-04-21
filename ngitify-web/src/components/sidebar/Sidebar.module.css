@@ -186,3 +186,73 @@
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ── SIDEBAR PROFILE SECTION ── */
+.profile-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px 20px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(1, 83, 139, 0.08);
+}
+
+.profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+}
+
+.profile-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── ROLE BADGE ── */
+.role-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background-color: #e2e8f0;
+    color: #475569;
+}
+
+/* Administrator — deep blue */
+.role-administrator {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+/* Co-Administrator — teal (distinct from admin) */
+.role-co-administrator {
+    background-color: #ccfbf1;
+    color: #0f766e;
+}
+
+/* Branch Manager — amber */
+.role-branch-manager {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+/* Dentist — purple */
+.role-dentist {
+    background-color: #ede9fe;
+    color: #6d28d9;
+}
+
+/* Secretary — rose */
+.role-secretary {
+    background-color: #ffe4e6;
+    color: #9f1239;
+}

@@ -216,25 +216,6 @@ export default function DentistDashboard() {
                             {formatWeekdayDate(currentTime)} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{formatTime(currentTime, true)}</strong>
                         </p>
                     </div>
-                    <div className={styles['header-right']}>
-                        <div className={styles['user-info']}>
-                            <span className={styles['user-name']}>Hello, Dr. {dentistName.split(' ')[0]}!</span>
-                            <span className={styles['user-role']}>Dentist</span>
-                        </div>
-                        <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                            <UserAvatar
-                                user={{ name: dentistName, profileImage: profilePic }}
-                                size={45}
-                            />
-                            {isProfileOpen && (
-                                <div className={styles['profile-dropdown']}>
-                                    <div className={styles['profile-dropdown-item']} onClick={() => { setIsProfileOpen(false); navigate('/dentist/profile'); }}>My Profile</div>
-                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/dentist/settings')}>Settings</div>
-                                    <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={() => { setIsProfileOpen(false); setShowLogoutModal(true); }}>Logout</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </header>
 
                 {/* STATS GRID */}

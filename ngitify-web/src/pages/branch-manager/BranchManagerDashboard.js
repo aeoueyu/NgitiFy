@@ -89,13 +89,6 @@ export default function BranchManagerDashboard() {
                         <FaBell className={styles['bell-icon']} />
                         {unreadCount > 0 && <span className={styles['bell-badge']}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
                     </button>
-                    <div className={styles['user-info']}>
-                        <span className={styles['user-name']}>Hello, {profile?.name?.first || user?.firstName || 'Manager'}!</span>
-                        <span className={styles['user-role']}>Branch Manager</span>
-                    </div>
-                    <div className={styles['profile-wrapper']}>
-                        <UserAvatar user={profile || user || { name: 'Manager' }} size={45} />
-                    </div>
                 </div>
             </header>
 

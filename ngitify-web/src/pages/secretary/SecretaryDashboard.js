@@ -233,25 +233,6 @@ export default function SecretaryDashboard() {
                             {formatWeekdayDate(currentTime)} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{formatTime(currentTime, true)}</strong>
                         </p>
                     </div>
-                    <div className={styles['header-right']}>
-                        <div className={styles['user-info']}>
-                            <span className={styles['user-name']}>Hello, {secName.split(' ')[0]}!</span>
-                            <span className={styles['user-role']}>Front Desk</span>
-                        </div>
-                        <div className={styles['profile-wrapper']} onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                            <UserAvatar 
-                                user={{ name: secName, profileImage: profilePic }} 
-                                size={45} 
-                            />
-                            {isProfileOpen && (
-                                <div className={styles['profile-dropdown']}>
-                                    <div className={styles['profile-dropdown-item']} onClick={() => { setIsProfileOpen(false); navigate('/secretary/profile'); }}>My Profile</div>
-                                    <div className={styles['profile-dropdown-item']} onClick={() => navigate('/secretary/settings')}>Settings</div>
-                                    <div className={`${styles['profile-dropdown-item']} ${styles['logout']}`} onClick={() => { setIsProfileOpen(false); setShowLogoutModal(true); }}>Logout</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </header>
 
                 {/* STATS GRID */}

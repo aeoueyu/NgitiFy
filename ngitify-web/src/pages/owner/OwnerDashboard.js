@@ -117,17 +117,6 @@ export default function OwnerDashboard() {
                             <span className={styles['bell-badge']}>{unreadCount > 99 ? '99+' : unreadCount}</span>
                         )}
                     </button>
-                    <div className={styles['user-info']}>
-                        <span className={styles['user-name']}>
-                            Hello, {profile?.name?.first || user?.firstName || 'Owner'}!
-                        </span>
-                        <span className={styles['user-role']}>
-                            Owner{user?.isDentist ? ' · Dentist' : ''}
-                        </span>
-                    </div>
-                    <div className={styles['profile-wrapper']}>
-                        <UserAvatar user={profile || user || { name: 'Owner' }} size={45} />
-                    </div>
                 </div>
             </header>
 

@@ -5,10 +5,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { FaCog, FaSignOutAlt, FaTools, FaListUl, FaBell, FaShieldAlt, FaChartBar, FaCodeBranch, FaHeadset, FaDatabase, FaTooth } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
-
+import UserAvatar from '../common/UserAvatar';
 import ConfirmModal from '../common/ConfirmModal';
 
-import DentimeLogo from '../../assets/images/logo-dentime.svg';
 import DashboardIcon from '../../assets/icons/FinancialReports.svg';
 import ScheduleIcon from '../../assets/icons/MySchedule.svg';
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
@@ -26,13 +25,31 @@ export default function Sidebar() {
     const isAdmin         = user?.role === 'administrator' || user?.role === 'co-administrator';
     const isBranchManager = user?.role === 'branch-manager';
     const isSecretary     = user?.role === 'secretary';
-    const isOwner         = user?.role === 'owner';         // ✅ PHASE 3
-    const isDentistOwner  = isOwner && user?.isDentist;     // ✅ PHASE 3
+    const isOwner         = user?.role === 'owner';
+    const isDentistOwner  = isOwner && user?.isDentist;
     const isDentistUser   = user?.role === 'dentist';
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [lowStockCount, setLowStockCount] = useState(0);
     const [notifUnreadCount, setNotifUnreadCount] = useState(0);
+
+    // ── Full profile for avatar + name display ──
+    const [sidebarProfile, setSidebarProfile] = useState(null);
+
+    useEffect(() => {
+        const userId = user?.userId || user?.id || user?._id;
+        if (!userId) return;
+        const fetchProfile = async () => {
+            try {
+                const res = await authFetch(`/user/${userId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setSidebarProfile(data);
+                }
+            } catch (e) { /* silent */ }
+        };
+        fetchProfile();
+    }, [user]);
 
     useEffect(() => {
         if (!isAdmin && !isBranchManager && !isOwner) return;
@@ -48,13 +65,13 @@ export default function Sidebar() {
         fetchNotifCount();
         const interval = setInterval(fetchNotifCount, 60000);
         return () => clearInterval(interval);
-    }, [isAdmin, isBranchManager]);
+    }, [isAdmin, isBranchManager, isOwner]);
 
     const getBasePath = () => {
         if (user?.role === 'dentist')        return '/dentist';
         if (user?.role === 'secretary')      return '/secretary';
         if (user?.role === 'branch-manager') return '/branch-manager';
-        if (user?.role === 'owner')          return '/owner';   // ✅ PHASE 3
+        if (user?.role === 'owner')          return '/owner';
         if (user?.role === 'administrator' || user?.role === 'co-administrator') return '/admin';
         return '/login';
     };
@@ -103,12 +120,50 @@ export default function Sidebar() {
     const getFooterNavClass = (path) =>
         location.pathname === path ? `${styles['settings-link']} ${styles.active}` : styles['settings-link'];
 
+    // ── Resolve display name and avatar from fetched profile ──
+    // sidebarProfile uses { name: { first, last }, profileImage } (MongoDB shape)
+    // Fall back to user.firstName/lastName from auth context while loading
+    const displayFirst = sidebarProfile?.name?.first || user?.firstName || '';
+    const displayLast  = sidebarProfile?.name?.last  || user?.lastName  || '';
+    const displayName  = `${displayFirst} ${displayLast}`.trim() || 'User';
+
+    // UserAvatar accepts { name: { first, last }, profileImage } OR { firstName, lastName, profileImage }
+    // Pass the fetched profile if available (it has the nested name shape), otherwise pass a compatible object
+    const avatarUser = sidebarProfile || {
+        name: { first: displayFirst, last: displayLast },
+        profileImage: user?.profileImage || ''
+    };
+
+    const roleLabel = {
+        'administrator':    'Administrator',
+        'co-administrator': 'Co-Administrator',
+        'branch-manager':   'Branch Manager',
+        'dentist':          'Dentist',
+        'secretary':        'Secretary',
+        'owner':            'Owner',
+    }[user?.role] || '';
+
     return (
         <>
             <aside className={styles.sidebar}>
-                <div className={styles['logo-container']}>
-                    <img src={DentimeLogo} alt="Dentime Logo" className={styles['sidebar-logo']} />
-                </div>
+
+                {/* ── USER PROFILE SECTION ── */}
+                {user && (
+                    <div className={styles['profile-section']}>
+                        <UserAvatar
+                            user={avatarUser}
+                            size={44}
+                        />
+                        <div className={styles['profile-info']}>
+                            <span className={styles['profile-name']}>{displayName}</span>
+                            {roleLabel && (
+                                <span className={`${styles['role-badge']} ${styles[`role-${user.role}`] || ''}`}>
+                                    {roleLabel}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 <div className={styles['nav-menu']}>
                     {/* ── SHARED: Dashboard & Appointments ── */}
