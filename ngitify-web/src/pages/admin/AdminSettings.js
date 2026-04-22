@@ -8,6 +8,7 @@ import BackIcon from '../../assets/icons/Back.svg';
 export default function Settings() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const basePath = (user?.role === 'owner') ? '/owner' : '/admin';
 
     const [activeTab, setActiveTab] = useState('clinic');
 
@@ -311,7 +312,7 @@ export default function Settings() {
             </p>
             <button
                 className={styles.submitBtn}
-                onClick={() => navigate('/admin/system-config')}
+                onClick={() => navigate(`${basePath}/system-config`)}
             >
                 GO TO SYSTEM CONFIGURATION
             </button>
@@ -586,7 +587,7 @@ export default function Settings() {
     return (
         <div className={styles.container}>
             <div className={styles.headerWrapper}>
-                <button className={styles.backIconButton} onClick={() => navigate('/admin/dashboard')}>
+                <button className={styles.backIconButton} onClick={() => navigate(`${basePath}/dashboard`)}>
                     <img src={BackIcon} alt="Back" />
                 </button>
                 <div className={styles.header}>

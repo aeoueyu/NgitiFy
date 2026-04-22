@@ -144,8 +144,12 @@ export default function ManagePatients() {
 
     const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedPatientId(id); setIsEditModalOpen(true); };
     const handleViewClick = (id) => {
-        if (user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager') {
+        if (user?.role === 'administrator' || user?.role === 'co-administrator') {
             navigate(`/admin/patients/${id}/emr`);
+        } else if (user?.role === 'branch-manager') {
+            navigate(`/branch-manager/patients/${id}/emr`);
+        } else if (user?.role === 'owner') {
+            navigate(`/owner/patients/${id}/emr`);
         } else {
             // Secretary fallback — keep modal behavior
             setIsEditModalOpen(false);

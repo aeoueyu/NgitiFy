@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom'; // ✅ Add this line
+import { useAuth } from '../../hooks/useAuth';
 import styles from '../../styles/admin/AdminAppointments.module.css';
 import {
     FaPlus, FaSearch, FaRobot, FaUserMd,
@@ -70,6 +71,8 @@ const normalizeSurgery = (s) => {
 
 export default function Appointments() {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const notifPath = user?.role === 'owner' ? '/owner/notifications' : '/admin/appointment-notifications';
     const { addToast } = useToast();
 
     // ─── DATA STATE ──────────────────────────────────────────────────────────
@@ -359,7 +362,7 @@ export default function Appointments() {
                 }}>
                     <span><strong>Notice:</strong> You have unread appointment notifications.</span>
                     <button 
-                        onClick={() => navigate('/admin/appointment-notifications')}
+                        onClick={() => navigate(notifPath)}
                         style={{ background: 'none', border: 'none', color: '#856404', textDecoration: 'underline', cursor: 'pointer' }}
                     >
                         View Alerts

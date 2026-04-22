@@ -63,6 +63,8 @@ export default function LoginPage() {
                     navigate('/admin/dashboard');
                 } else if (data.role === 'branch-manager') {
                     navigate('/branch-manager/dashboard');
+                } else if (data.role === 'owner') {
+                    navigate('/owner/dashboard');
                 } else if (data.role === 'dentist') {
                     navigate('/dentist/dashboard');
                 } else if (data.role === 'secretary') {
