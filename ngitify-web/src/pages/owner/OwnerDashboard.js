@@ -1,7 +1,7 @@
 // ngitify-web/src/pages/owner/OwnerDashboard.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBell, FaCalendarCheck, FaUserFriends, FaBuilding, FaChartLine } from 'react-icons/fa';
+import { FaBell, FaCalendarCheck, FaUserFriends, FaBuilding, FaChartLine, FaBoxes } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { formatWeekdayDate, formatTime } from '../../utils/dateUtils';
@@ -17,6 +17,7 @@ export default function OwnerDashboard() {
         totalPatients: 0,
         pendingAppointments: 0,
         totalBranches: 0,
+        lowStock: 0,                        // ✅ Phase 1: Inventory alert KPI
     });
     const [recentAppointments, setRecentAppointments] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -31,9 +32,11 @@ export default function OwnerDashboard() {
         const fetchData = async () => {
             try {
                 const userId = user?.userId || user?.id;
-                const [surgRes, patientRes, branchRes, notifRes] = await Promise.all([
+
+                // ✅ Use /dashboard/stats for aggregated counts (efficient single query)
+                const [statsRes, surgRes, branchRes, notifRes] = await Promise.all([
+                    authFetch('/dashboard/stats'),
                     authFetch('/surgeries'),
-                    authFetch('/patients?limit=1'),
                     authFetch('/branches'),
                     authFetch('/notifications'),
                 ]);
@@ -43,29 +46,29 @@ export default function OwnerDashboard() {
                     if (pRes.ok) setProfile(await pRes.json());
                 }
 
-                if (surgRes.ok) {
-                    const surgeries = await surgRes.json();
-                    const today = new Date().toDateString();
-                    const todayAppts = surgeries.filter(s => new Date(s.date).toDateString() === today);
-                    const pending = surgeries.filter(s => s.status === 'pending');
+                // ✅ Populate KPI stats from the aggregated endpoint
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json();
                     setStats(prev => ({
                         ...prev,
-                        todayAppointments: todayAppts.length,
-                        pendingAppointments: pending.length,
+                        todayAppointments:  statsData.todayAppointments  || 0,
+                        pendingAppointments: statsData.pendingAppointments || 0,
+                        totalPatients:      statsData.totalPatients       || 0,
+                        lowStock:           statsData.lowStockItems        || 0,  // ✅ Low stock KPI
                     }));
-                    setRecentAppointments(surgeries.slice(0, 5).map(s => ({
-                        id: s._id,
-                        patient: `${s.patient?.name?.first || ''} ${s.patient?.name?.last || ''}`.trim() || 'Unknown',
-                        procedure: s.procedure || 'Consultation',
-                        date: new Date(s.date).toLocaleDateString('en-PH'),
-                        status: s.status,
-                        branch: s.branch || '—',
-                    })));
                 }
 
-                if (patientRes.ok) {
-                    const pData = await patientRes.json();
-                    setStats(prev => ({ ...prev, totalPatients: pData.total || 0 }));
+                // Keep /surgeries for the recent appointments table (needs patient name, branch detail)
+                if (surgRes.ok) {
+                    const surgeries = await surgRes.json();
+                    setRecentAppointments(surgeries.slice(0, 5).map(s => ({
+                        id:        s._id,
+                        patient:   `${s.patient?.name?.first || ''} ${s.patient?.name?.last || ''}`.trim() || 'Unknown',
+                        procedure: s.procedure || 'Consultation',
+                        date:      new Date(s.date).toLocaleDateString('en-PH'),
+                        status:    s.status,
+                        branch:    s.branch || '—',
+                    })));
                 }
 
                 if (branchRes.ok) {
@@ -85,18 +88,25 @@ export default function OwnerDashboard() {
     }, [user]);
 
     const statusColor = {
-        pending: '#f59e0b',
-        confirmed: '#3b82f6',
-        completed: '#22c55e',
-        cancelled: '#ef4444',
+        pending:    '#f59e0b',
+        confirmed:  '#3b82f6',
+        completed:  '#22c55e',
+        cancelled:  '#ef4444',
         'in-clinic': '#8b5cf6',
     };
 
     const kpiCards = [
-        { icon: <FaCalendarCheck />, label: "Today's Appointments", value: stats.todayAppointments, color: '#01538b', path: '/owner/appointments' },
+        { icon: <FaCalendarCheck />, label: "Today's Appointments", value: stats.todayAppointments,   color: '#01538b', path: '/owner/appointments' },
         { icon: <FaChartLine />,     label: 'Pending Approvals',    value: stats.pendingAppointments, color: '#f59e0b', path: '/owner/appointments' },
         { icon: <FaUserFriends />,   label: 'Total Patients',       value: stats.totalPatients,       color: '#22c55e', path: '/owner/manage-users/patients' },
         { icon: <FaBuilding />,      label: 'Active Branches',      value: stats.totalBranches,       color: '#8b5cf6', path: '/owner/branches' },
+        {                                                                                              // ✅ Phase 1: Low stock KPI card
+            icon:  <FaBoxes />,
+            label: 'Low Stock Alerts',
+            value: stats.lowStock,
+            color: stats.lowStock > 0 ? '#ef4444' : '#94a3b8',
+            path:  '/owner/inventory',
+        },
     ];
 
     return (
@@ -120,8 +130,26 @@ export default function OwnerDashboard() {
                 </div>
             </header>
 
+            {/* ✅ Low Stock Alert Banner — mirrors AdminDashboard behaviour */}
+            {stats.lowStock > 0 && (
+                <div
+                    onClick={() => navigate('/owner/inventory')}
+                    style={{
+                        background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px',
+                        padding: '12px 20px', marginBottom: '20px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '10px', color: '#dc2626',
+                        fontWeight: '600', fontSize: '14px',
+                    }}
+                >
+                    <FaBoxes style={{ fontSize: '18px', flexShrink: 0 }} />
+                    <span>
+                        ⚠ Action Required: {stats.lowStock} inventory item{stats.lowStock !== 1 ? 's have' : ' has'} reached critically low stock levels.
+                    </span>
+                </div>
+            )}
+
             {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '28px' }}>
                 {kpiCards.map((card, i) => (
                     <div
                         key={i}

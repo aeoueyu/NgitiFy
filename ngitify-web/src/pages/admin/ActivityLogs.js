@@ -88,7 +88,7 @@ const getCategoryForAction = (action = '') => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const ROLES = ['All', 'administrator', 'co-administrator', 'branch-manager', 'dentist', 'secretary', 'system'];
+const ROLES = ['All', 'administrator', 'co-administrator', 'owner', 'branch-manager', 'dentist', 'secretary', 'system'];
 const CATEGORIES = ['All', 'User Management', 'Appointments', 'System', 'Security'];
 const ITEMS_PER_PAGE = 20;
 

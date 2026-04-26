@@ -56,6 +56,7 @@ export default function LoginPage() {
                     name:           profileData.name,
                     profileImage:   profileData.profileImage,
                     assignedBranch: data.assignedBranch || null,
+                    isDentist:      data.isDentist || false,   // ✅ Owner isDentist flag fix
                 });
             
                 // Redirect based on role

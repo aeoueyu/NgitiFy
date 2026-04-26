@@ -364,18 +364,20 @@ export default function MyProfile() {
     // Role display mappings
     const roleMap = {
         'administrator':    'Clinic Administrator',
-        'co-administrator': 'Co-Administrator',       // §6.4: was missing — fell back to 'Staff Account'
+        'co-administrator': 'Co-Administrator',
         'branch-manager':   'Branch Manager',
         'dentist':          'Dentist',
         'secretary':        'Front Desk Personnel',
+        'owner':            'Clinic Owner',              // ✅ Owner role label
     };
-
-    // Role tag color variants — co-admin gets a distinct teal style
+    
     const roleTagStyle = user?.role === 'co-administrator'
         ? { backgroundColor: '#ccfbf1', color: '#0f766e', border: '1px solid #99f6e4' }
         : user?.role === 'administrator'
             ? { backgroundColor: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe' }
-            : {};
+            : user?.role === 'owner'
+                ? { backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }  // ✅ Amber tag for owner
+                : {};
 
     const roleTitle = roleMap[user?.role] || 'Staff Account';
     const fullName  = `${formData.firstName} ${formData.lastName}`.trim();

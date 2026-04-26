@@ -20,7 +20,8 @@ export const usePermissions = () => {
      */
     const checkPermission = (module, requiredLevel) => {
         if (!activeUser || !activeUser.role) return false;
-        if (activeUser.role === 'administrator') return true;
+        // ✅ Owner has near-complete access — treat same as administrator for permission checks
+        if (activeUser.role === 'administrator' || activeUser.role === 'owner') return true;
         const userPermission = activeUser.permissions?.[module] || 'none';
         if (requiredLevel === 'edit') return userPermission === 'edit';
         if (requiredLevel === 'read') return userPermission === 'read' || userPermission === 'edit';

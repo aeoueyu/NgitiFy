@@ -141,6 +141,7 @@ function App() {
               {/* ✅ PHASE 3: Protected Routes - Owner Area */}
               <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
                 <Route element={<DashboardLayout />}>
+                  <Route path="/owner"                              element={<Navigate to="/owner/dashboard" replace />} />
                   <Route path="/owner/dashboard"                    element={<OwnerDashboard />} />
                   <Route path="/owner/appointments"                 element={<AdminAppointments />} />
                   <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-users/dentists" replace />} />
@@ -156,6 +157,7 @@ function App() {
                   <Route path="/owner/profile"                      element={<AdminProfile />} />
                   <Route path="/owner/settings"                     element={<AdminSettings />} />
                   <Route path="/owner/roles"                        element={<RolesPermissions />} />
+                  <Route path="/owner/system-config"                element={<SystemConfig />} />  {/* ✅ owner system config */}
                 </Route>
               </Route>
 

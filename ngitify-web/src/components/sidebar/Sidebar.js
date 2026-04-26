@@ -81,6 +81,7 @@ export default function Sidebar() {
     const appointmentsPath = `${basePath}/appointments`;
     const settingsPath     = `${basePath}/settings`;
     const inventoryPath    = `${basePath}/inventory`;
+    const profilePath      = `${basePath}/profile`;
 
     const patientsPath = isSecretary
         ? '/secretary/patients'
@@ -385,6 +386,11 @@ export default function Sidebar() {
                             </div>
                         </>
                     )}
+
+                    <div className={getFooterNavClass(profilePath)} onClick={() => navigate(profilePath)}>
+                        <img src={ProfileIcon} alt="My Profile" className={styles['nav-icon']} />
+                        <span className={styles['nav-text']}>My Profile</span>
+                    </div>
 
                     <div className={getFooterNavClass(settingsPath)} onClick={() => navigate(settingsPath)}>
                         <FaCog className={styles['nav-icon']} />

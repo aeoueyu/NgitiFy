@@ -2356,7 +2356,7 @@ app.get('/api/system-config', verifyToken, async (req, res) => {
  
 app.put('/api/system-config', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
+        if (!['administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied. Admin only.' });
         }
  
