@@ -3,10 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { FaCog, FaSignOutAlt, FaTools, FaListUl, FaBell, FaShieldAlt, FaChartBar, FaCodeBranch, FaHeadset, FaDatabase, FaTooth } from 'react-icons/fa';
+import { FaCog, FaSignOutAlt, FaTools, FaListUl, FaBell, FaShieldAlt, FaChartBar, FaCodeBranch, FaHeadset, FaDatabase, FaTooth, FaFileMedical, FaRobot } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import ConfirmModal from '../common/ConfirmModal';
+import AIChatAssistant from '../common/AIChatAssistant';
 
 import DashboardIcon from '../../assets/icons/FinancialReports.svg';
 import ScheduleIcon from '../../assets/icons/MySchedule.svg';
@@ -30,6 +31,7 @@ export default function Sidebar() {
     const isDentistUser   = user?.role === 'dentist';
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
     const [lowStockCount, setLowStockCount] = useState(0);
     const [notifUnreadCount, setNotifUnreadCount] = useState(0);
 
@@ -271,8 +273,8 @@ export default function Sidebar() {
                         </>
                     )}
 
-                    {/* ── SECRETARY / DENTIST: Patients ── */}
-                    {!isAdmin && !isBranchManager && canReadPatients && (
+                    {/* ── SECRETARY: Patients (dentists use their own EMR list instead) ── */}
+                    {!isAdmin && !isBranchManager && !isDentistUser && canReadPatients && (
                         <div className={getNavClass(patientsPath)} onClick={() => navigate(patientsPath)}>
                             <img src={StaffIcon} alt="Patients" className={styles['nav-icon']} />
                             <span className={styles['nav-text']}>Patients</span>
@@ -300,6 +302,11 @@ export default function Sidebar() {
                     {/* ── DENTIST-SPECIFIC items ── */}
                     {isDentistUser && (
                         <>
+                            <div className={getNavClass('/dentist/emr')} onClick={() => navigate('/dentist/emr')}>
+                                <FaFileMedical className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Patient EMR</span>
+                            </div>
+
                             <div className={getNavClass('/dentist/material-usage')} onClick={() => navigate('/dentist/material-usage')}>
                                 <FaTooth className={styles['nav-icon']} />
                                 <span className={styles['nav-text']}>Material Usage</span>
@@ -397,12 +404,28 @@ export default function Sidebar() {
                         <span className={styles['nav-text']}>Settings</span>
                     </div>
 
+                    {/* ── AI STAFF CHAT (all staff roles) ── */}
+                    <div
+                        className={`${styles['settings-link']} ${isChatOpen ? styles.active : ''}`}
+                        onClick={() => setIsChatOpen(prev => !prev)}
+                        title="AI Staff Assistant"
+                    >
+                        <FaRobot className={styles['nav-icon']} />
+                        <span className={styles['nav-text']}>AI Assistant</span>
+                        <span className={styles['ai-badge']}>AI</span>
+                    </div>
+
                     <div className={styles['logout-btn']} onClick={() => setShowLogoutModal(true)}>
                         <FaSignOutAlt className={styles['nav-icon']} />
                         <span className={styles['nav-text']}>Logout</span>
                     </div>
                 </div>
             </aside>
+
+            <AIChatAssistant
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+            />
 
             <ConfirmModal
                 isOpen={showLogoutModal}

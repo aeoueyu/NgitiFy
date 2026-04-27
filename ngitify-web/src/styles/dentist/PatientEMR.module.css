@@ -272,6 +272,64 @@
 .aiEnhanceBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(45, 204, 246, 0.4); }
 .aiEnhanceBtn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
 
+/* --- AI ANALYSIS PANEL --- */
+.aiAnalysisPanel {
+    background: linear-gradient(135deg, #0f172a 0%, #01538b 100%);
+    border-radius: 14px;
+    padding: 24px 28px;
+    animation: fadeIn 0.4s ease;
+    margin-top: 4px;
+}
+
+.aiAnalysisHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.aiAnalysisIcon {
+    color: #2dccf6;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.aiAnalysisTitle {
+    color: white;
+    font-size: 15px;
+    font-weight: 800;
+    flex: 1;
+}
+
+.aiAnalysisBadge {
+    background: rgba(45, 204, 246, 0.18);
+    color: #2dccf6;
+    border: 1px solid rgba(45, 204, 246, 0.3);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.aiAnalysisDisclaimer {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    font-weight: 500;
+    font-style: italic;
+    margin: 0 0 16px 0;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.aiAnalysisText {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.75;
+    white-space: pre-wrap;
+}
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 

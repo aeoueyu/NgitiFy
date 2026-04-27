@@ -63,6 +63,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
+    const [aiAnalysis, setAiAnalysis] = useState('');
 
     // Upload Radiograph Modal
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -604,22 +605,72 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         setSelectedRadiograph(img);
         setIsEnhancing(false);
         setIsEnhanced(false);
+        setAiAnalysis('');
     };
 
     const closeImageModal = () => {
         setSelectedRadiograph(null);
         setIsEnhancing(false);
         setIsEnhanced(false);
+        setAiAnalysis('');
     };
 
-    const handleAIEnhance = () => {
-        if (isEnhanced) { setIsEnhanced(false); return; }
+    const handleAIEnhance = async () => {
+        // Revert: if already enhanced, toggle back to original
+        if (isEnhanced) {
+            setIsEnhanced(false);
+            setAiAnalysis('');
+            return;
+        }
+
+        if (!selectedRadiograph?.url) {
+            addToast('No image available to analyze.', 'error');
+            return;
+        }
+
         setIsEnhancing(true);
-        setTimeout(() => {
-            setIsEnhancing(false);
+        try {
+            // Extract raw base64 and media type from the data URL
+            // Radiographs are stored as data URLs: "data:image/jpeg;base64,..."
+            let imageBase64 = selectedRadiograph.url;
+            let mediaType = 'image/jpeg';
+
+            if (imageBase64.startsWith('data:')) {
+                const match = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
+                if (match) {
+                    mediaType = match[1];
+                    imageBase64 = match[2];
+                } else {
+                    throw new Error('Unrecognised image format. Please re-upload the radiograph.');
+                }
+            } else {
+                throw new Error('This radiograph cannot be analysed — only locally uploaded images are supported.');
+            }
+
+            const res = await authFetch('/radiographs/enhance', {
+                method: 'POST',
+                body: JSON.stringify({
+                    imageBase64,
+                    mediaType,
+                    patientId: activePatientId,
+                }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'AI analysis failed.');
+            }
+
+            const data = await res.json();
+            setAiAnalysis(data.analysis || 'No analysis returned.');
             setIsEnhanced(true);
-            addToast('AI Enhancement applied successfully.', 'success');
-        }, 1500);
+            addToast('AI radiograph analysis complete.', 'success');
+        } catch (err) {
+            console.error('AI Enhance error:', err);
+            addToast(err.message || 'Failed to connect to AI service.', 'error');
+        } finally {
+            setIsEnhancing(false);
+        }
     };
 
     // ✅ FIX Bug 23: Use `radiographs` state from API instead of MOCK_RADIOGRAPHS
@@ -654,9 +705,33 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                         </div>
                         <div className={styles.imageViewerControls}>
                             <button className={styles.aiEnhanceBtn} onClick={handleAIEnhance} disabled={isEnhancing}>
-                                {isEnhancing ? <>Processing...</> : isEnhanced ? <><FaMagic /> Revert to Original</> : <><FaMagic /> AI Enhance Clarity</>}
+                                {isEnhancing
+                                    ? <>Analysing...</>
+                                    : isEnhanced
+                                        ? <><FaMagic /> Revert to Original</>
+                                        : <><FaRobot /> Analyse with AI</>
+                                }
                             </button>
                         </div>
+
+                        {/* AI ANALYSIS PANEL */}
+                        {aiAnalysis && (
+                            <div className={styles.aiAnalysisPanel}>
+                                <div className={styles.aiAnalysisHeader}>
+                                    <FaRobot className={styles.aiAnalysisIcon} />
+                                    <span className={styles.aiAnalysisTitle}>AI Clinical Analysis</span>
+                                    <span className={styles.aiAnalysisBadge}>Claude AI</span>
+                                </div>
+                                <p className={styles.aiAnalysisDisclaimer}>
+                                    This is a visual aid only. All findings must be reviewed and confirmed by the treating dentist.
+                                </p>
+                                <div className={styles.aiAnalysisText}>
+                                    {aiAnalysis.split('\n').map((line, i) => (
+                                        line.trim() ? <p key={i} style={{ margin: '0 0 8px 0' }}>{line}</p> : null
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             );

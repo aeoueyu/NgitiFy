@@ -2644,6 +2644,94 @@ app.post('/api/ai/chat', verifyToken, aiChatLimiter, async (req, res) => {
 });
 
 // -------------------------------------------------------
+// AI STAFF CHAT ASSISTANT — Streaming SSE (Phase 4)
+// -------------------------------------------------------
+const STAFF_CHAT_ALLOWED = ['dentist', 'administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+
+app.post('/api/ai/staff-chat', verifyToken, aiChatLimiter, async (req, res) => {
+    try {
+        if (!STAFF_CHAT_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const { messages } = req.body;
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ message: 'Messages array is required.' });
+        }
+
+        const systemPrompt = `You are NgitiFy's AI Staff Assistant for Dentime Dental Clinic. You are a knowledgeable, professional, and helpful assistant designed exclusively for clinical and administrative staff.
+
+Your capabilities:
+- Answer questions about dental procedures, materials, and clinical protocols
+- Guide staff on how to use NgitiFy modules (Dashboard, Patient EMR, Odontogram, Material Usage Log, Notifications, Activity Logs, Account Settings)
+- Provide post-operative care instructions and patient preparation guidelines
+- Answer questions about dental materials, their uses, and standard quantities
+- Help with administrative questions about clinic operations
+
+NgitiFy module guide:
+- Dashboard: View today's schedule, KPI stats (Patients Today, Pending, Completed), and interactive calendar
+- Patient EMR: Access patient medical history, treatment logs, odontogram, and radiographs via /dentist/emr
+- Odontogram: Digital tooth chart — click a tooth to mark conditions (healthy, filled, decayed, crown, missing)
+- Material Usage Log: Record dental supplies used during procedures; stock is automatically deducted from inventory
+- Notifications: View appointment alerts, patient updates, and low-stock warnings
+- Activity Logs: Read-only audit trail of all your actions in the system
+- Account Settings: Update your profile photo and password
+
+Strict rules:
+- Only respond to work-related, clinic-related, or NgitiFy system-related questions
+- Politely decline personal, financial, or off-topic queries and redirect the user to the appropriate resource
+- Never provide medical diagnoses — always recommend professional clinical judgment for patient-specific decisions
+- Keep responses concise, well-structured, and clinically appropriate
+- When unsure about a specific clinical detail, say so and suggest consulting a senior clinician`;
+
+        // Set SSE headers for streaming
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        const stream = anthropic.messages.stream({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1024,
+            system: systemPrompt,
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
+        });
+
+        stream.on('text', (text) => {
+            res.write(`data: ${JSON.stringify({ text })}\n\n`);
+        });
+
+        stream.on('error', (err) => {
+            console.error('Staff chat stream error:', err);
+            res.write(`data: ${JSON.stringify({ error: 'Stream error occurred.' })}\n\n`);
+            res.end();
+        });
+
+        await stream.finalMessage();
+
+        res.write('data: [DONE]\n\n');
+        res.end();
+
+        // Non-blocking audit log
+        AuditLog.create({
+            action: 'AI_STAFF_CHAT',
+            user: req.user.email,
+            role: req.user.role,
+            details: `AI staff chat session — ${messages.length} message(s).`,
+        }).catch(() => {});
+
+    } catch (error) {
+        console.error('Staff chat error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: 'Server error processing AI request.' });
+        } else {
+            res.write(`data: ${JSON.stringify({ error: 'Server error.' })}\n\n`);
+            res.end();
+        }
+    }
+});
+
+// -------------------------------------------------------
 // AI DENTAL HEALTH EDUCATION
 // -------------------------------------------------------
 app.post('/api/ai/education', verifyToken, async (req, res) => {

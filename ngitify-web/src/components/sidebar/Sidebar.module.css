@@ -140,6 +140,19 @@
     filter: brightness(0) saturate(100%) invert(21%) sepia(87%) saturate(1915%) hue-rotate(188deg) brightness(94%) contrast(98%);
 }
 
+/* ── AI Chat badge ─────────────────────────────────────────────────────────── */
+.ai-badge {
+    margin-left: auto;
+    background: linear-gradient(135deg, #01538b, #2dccf6);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+}
+
 .logout-btn {
     padding: 14px 20px; color: #dc3545; font-weight: 600; font-size: 15px;
     border-radius: 8px; cursor: pointer; transition: all 0.2s ease;

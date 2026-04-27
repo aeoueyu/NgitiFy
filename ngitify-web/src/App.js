@@ -52,7 +52,8 @@ const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
 const DentistAppointments = lazy(() => import('./pages/dentist/DentistAppointments'));
-const DentistPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
+const DentistPatientEMR = lazy(() => import('./pages/dentist/PatientEMR'));
+const DentistEMRList = lazy(() => import('./pages/dentist/DentistEMRList'));
 const DentistNotifications = lazy(() => import('./pages/dentist/Notifications'));
 const DentistActivityLogs  = lazy(() => import('./pages/dentist/ActivityLogs'));
 const DentistMaterialUsage = lazy(() => import('./pages/dentist/MaterialUsageLog'));
@@ -108,15 +109,16 @@ function App() {
               {/* Protected Routes - Dentist Area */}
               <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>
                 <Route element={<DashboardLayout />}>
-                  <Route path="/dentist/dashboard" element={<DentistDashboard />} />
-                  <Route path="/dentist/appointments" element={<DentistAppointments />} />
-                  <Route path="/dentist/profile" element={<AdminProfile />} />
-                  <Route path="/dentist/settings" element={<AdminSettings />} />
-                  <Route path="/dentist/inventory" element={<InventoryTracker />} />
+                  <Route path="/dentist/dashboard"               element={<DentistDashboard />} />
+                  <Route path="/dentist/appointments"            element={<DentistAppointments />} />
+                  <Route path="/dentist/emr"                     element={<DentistEMRList />} />
                   <Route path="/dentist/patients/:patientId/emr" element={<DentistPatientEMR />} />
-                  <Route path="/dentist/material-usage"   element={<DentistMaterialUsage />} />
-                  <Route path="/dentist/notifications"    element={<DentistNotifications />} />
-                  <Route path="/dentist/activity-logs"    element={<DentistActivityLogs />} />
+                  <Route path="/dentist/material-usage"          element={<DentistMaterialUsage />} />
+                  <Route path="/dentist/notifications"           element={<DentistNotifications />} />
+                  <Route path="/dentist/activity-logs"           element={<DentistActivityLogs />} />
+                  <Route path="/dentist/profile"                 element={<AdminProfile />} />
+                  <Route path="/dentist/settings"                element={<AdminSettings />} />
+                  <Route path="/dentist/inventory"               element={<InventoryTracker />} />
                 </Route>
               </Route>
 

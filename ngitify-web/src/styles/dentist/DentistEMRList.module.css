@@ -1,0 +1,269 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.pageWrapper {
+    padding: 28px 32px;
+    font-family: 'Lexend Deca', sans-serif;
+    background: #f8fafc;
+    min-height: 100vh;
+}
+
+/* ── Header ── */
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+
+.pageTitle {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pageTitleIcon { color: #2dccf6; }
+
+.pageSubtitle {
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 500;
+    margin: 0;
+}
+
+.patientCount {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 50px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.countIcon { color: #01538b; font-size: 15px; }
+
+/* ── Filters Bar ── */
+.filtersBar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: white;
+    border-radius: 12px;
+    padding: 14px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border: 1px solid #f1f5f9;
+    margin-bottom: 24px;
+}
+
+.searchWrapper {
+    position: relative;
+    flex: 1;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.searchInput {
+    width: 100%;
+    height: 42px;
+    padding: 0 14px 0 42px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    color: #334155;
+    outline: none;
+    background: #f8fafc;
+    box-sizing: border-box;
+    transition: all 0.2s;
+}
+
+.searchInput:focus {
+    border-color: #2dccf6;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(45, 204, 246, 0.1);
+}
+
+.filterGroup {
+    display: flex;
+    gap: 6px;
+}
+
+.filterPill {
+    padding: 8px 16px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filterPill:hover { border-color: #01538b; color: #01538b; }
+
+.activePill {
+    background: #01538b;
+    color: white;
+    border-color: #01538b;
+}
+
+/* ── Patient Grid ── */
+.patientGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
+}
+
+.patientCard {
+    background: white;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.patientCard:hover {
+    box-shadow: 0 6px 20px rgba(1, 83, 139, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Card Top: avatar + name + meta */
+.cardTop {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.cardInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.patientName {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.metaRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.metaTag {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 3px 9px;
+    border-radius: 20px;
+}
+
+.statusBadge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.statusActive  { background: #dcfce7; color: #16a34a; }
+.statusInactive { background: #f1f5f9; color: #94a3b8; }
+
+/* Contact rows */
+.cardContacts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px dashed #f1f5f9;
+    padding-top: 12px;
+}
+
+.contactRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contactIcon {
+    color: #94a3b8;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+/* Open EMR button */
+.openEMRBtn {
+    width: 100%;
+    padding: 11px;
+    background: #01538b;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 3px 8px rgba(1, 83, 139, 0.18);
+    margin-top: auto;
+}
+
+.openEMRBtn:hover {
+    background: #013f6b;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(1, 83, 139, 0.28);
+}
+
+/* Empty state */
+.emptyState {
+    text-align: center;
+    padding: 70px 20px;
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .pageWrapper { padding: 20px 16px; }
+    .pageHeader { flex-direction: column; gap: 14px; }
+    .filtersBar { flex-direction: column; align-items: stretch; }
+    .patientGrid { grid-template-columns: 1fr; }
+}
