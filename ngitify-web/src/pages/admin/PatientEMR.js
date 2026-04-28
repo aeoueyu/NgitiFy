@@ -1,5 +1,3 @@
-// ngitify-web/src/pages/admin/PatientEMR.js
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/PatientEMR.module.css';
@@ -9,10 +7,11 @@ import { formatDateLong, formatDateShort } from '../../utils/dateUtils';
 import UserAvatar from '../../components/common/UserAvatar';
 
 import { 
-    FaUserMd, FaPhoneAlt, FaEnvelope, FaArrowLeft, FaCog,
+    FaUserMd, FaPhoneAlt, FaEnvelope, FaArrowLeft, FaMapMarkerAlt,
     FaSyringe, FaNotesMedical, FaSearch, FaPlus, FaHospitalUser,
     FaTooth, FaChevronDown, FaChevronUp, FaTimes,
-    FaUpload, FaMagic, FaRobot, FaCalendarAlt
+    FaUpload, FaMagic, FaRobot, FaCalendarAlt, FaIdCard,
+    FaChild, FaVenusMars, FaBirthdayCake
 } from 'react-icons/fa';
 import Odontogram from '../dentist/Odontogram';
 
@@ -23,6 +22,13 @@ const INITIAL_MEDICAL_HISTORY = {
     conditions: '',
     medications: '',
     notes: ''
+};
+
+const formatAddressDisplay = (addr) => {
+    if (!addr) return '—';
+    const parts = [addr.houseNumber, addr.street, addr.barangay, addr.city, addr.province, addr.region]
+        .filter(Boolean);
+    return parts.length ? parts.join(', ') : '—';
 };
 
 export default function PatientEMR({ patientId: propPatientId, onClose }) {
@@ -37,13 +43,13 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     const [patient, setPatient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Tab 1: Medical History States
+    // Tab: Medical History States
     const [medicalHistory, setMedicalHistory] = useState(INITIAL_MEDICAL_HISTORY);
     const [isEditingMedical, setIsEditingMedical] = useState(false);
     const [medicalForm, setMedicalForm] = useState(INITIAL_MEDICAL_HISTORY);
     const [isSavingMedical, setIsSavingMedical] = useState(false);
 
-    // Tab 2: Treatment Logs States
+    // Tab: Treatment Logs States
     const [logs, setLogs] = useState([]);
     const [logsSearchQuery, setLogsSearchQuery] = useState('');
     const [logsDateFrom, setLogsDateFrom] = useState('');
@@ -56,7 +62,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     const [isSubmittingLog, setIsSubmittingLog] = useState(false);
     const [newLogForm, setNewLogForm] = useState({ date: '', procedure: '', category: 'General', tooth: '', notes: '', branchId: '' });
 
-    // Tab 4: Radiograph States
+    // Tab: Radiograph States
     const [radiographs, setRadiographs] = useState([]);
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
@@ -69,7 +75,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
 
     const [branches, setBranches] = useState([]);
 
-    // Fetch branches for the Add Log dropdown
     useEffect(() => {
         const fetchBranches = async () => {
             try {
@@ -81,7 +86,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         fetchBranches();
     }, []);
 
-    // ✅ FIX Bug 23: Fetch real patient, treatment logs, and radiographs from API
     useEffect(() => {
         if (!activePatientId) return;
 
@@ -90,13 +94,10 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             try {
                 const { authFetch } = await import('../../utils/api');
 
-                // Fetch patient profile
                 const patientRes = await authFetch(`/patients/${activePatientId}`);
                 if (patientRes.ok) {
                     const patientData = await patientRes.json();
                     setPatient(patientData);
-                    // Normalize medicalHistory: API returns arrays, but the form/render functions
-                    // expect comma-separated strings. Convert here so renderTags/renderList don't crash.
                     if (patientData.medicalHistory) {
                         const toCSV = (val) =>
                             Array.isArray(val) ? val.join(', ') : (val || '');
@@ -107,7 +108,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                             medications: toCSV(patientData.medicalHistory.medications),
                             bloodType:   patientData.medicalHistory.bloodType || '',
                             notes:       patientData.medicalHistory.notes || '',
-                            // lastExam is saved to dentalHistory.lastExamDate on the server
                             lastExam:    patientData.dentalHistory?.lastExamDate
                                             || patientData.medicalHistory.lastExam
                                             || '',
@@ -119,11 +119,9 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                     addToast('Failed to load patient record.', 'error');
                 }
 
-                // Fetch treatment logs
                 const logsRes = await authFetch(`/patients/${activePatientId}/treatment-logs`);
                 if (logsRes.ok) {
                     const logsData = await logsRes.json();
-                    // Normalize: ensure rawDate is a Date object for filtering/sorting
                     const normalized = logsData.map(log => ({
                         ...log,
                         id: log._id || log.id,
@@ -132,7 +130,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                     setLogs(normalized.sort((a, b) => b.rawDate - a.rawDate));
                 }
 
-                // Fetch radiographs
                 const radRes = await authFetch(`/patients/${activePatientId}/radiographs`);
                 if (radRes.ok) {
                     const radData = await radRes.json();
@@ -162,7 +159,92 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         else navigate(-1); 
     };
 
-    // --- TAB 1 LOGIC (MEDICAL HISTORY) ---
+    // ─── OVERVIEW TAB: Patient Info ────────────────────────────────────────────
+    const renderOverview = () => {
+        const patientAge = patient?.birthdate
+            ? Math.floor((new Date() - new Date(patient.birthdate)) / 31557600000)
+            : null;
+
+        const infoItem = (label, value, icon = null) => (
+            <div className={styles.infoBlock}>
+                <span className={styles.infoLabel}>{label}</span>
+                <p className={styles.infoValue}>
+                    {icon && <span style={{ marginRight: '6px', color: '#94a3b8' }}>{icon}</span>}
+                    {value || '—'}
+                </p>
+            </div>
+        );
+
+        return (
+            <div className={styles.contentCard}>
+                <h3 className={styles.sectionTitle}>Personal Information</h3>
+                <div className={styles.infoGrid}>
+                    {infoItem('Full Name',
+                        patient?.name?.first
+                            ? `${patient.name.first}${patient.name.middle ? ' ' + patient.name.middle : ''} ${patient.name.last}`
+                            : (typeof patient?.name === 'string' ? patient.name : '—')
+                    )}
+                    {infoItem('Gender', patient?.gender, <FaVenusMars />)}
+                    {infoItem('Date of Birth',
+                        patient?.birthdate
+                            ? `${formatDateLong(patient.birthdate)}${patientAge !== null ? ` (${patientAge} years old)` : ''}` 
+                            : '—',
+                        <FaBirthdayCake />
+                    )}
+                    {infoItem('Email Address', patient?.email, <FaEnvelope />)}
+                    {infoItem('Contact Number', patient?.contactNumber || '—', <FaPhoneAlt />)}
+                    {infoItem('Patient ID', patient?._id || patient?.id, <FaIdCard />)}
+                </div>
+
+                {patient?.guardian && (
+                    <>
+                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Guardian Information</h3>
+                        <div className={styles.infoGrid}>
+                            {infoItem('Guardian Name', patient.guardian.name, <FaChild />)}
+                            {infoItem('Relationship', patient.guardian.relationship)}
+                            {infoItem('Guardian Contact', patient.guardian.contactNumber, <FaPhoneAlt />)}
+                        </div>
+                    </>
+                )}
+
+                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Current Address</h3>
+                <div className={styles.infoGrid}>
+                    {infoItem('House No.', patient?.currentAddress?.houseNumber)}
+                    {infoItem('Street', patient?.currentAddress?.street)}
+                    {infoItem('Barangay', patient?.currentAddress?.barangay)}
+                    {infoItem('City / Municipality', patient?.currentAddress?.city)}
+                    {infoItem('Province', patient?.currentAddress?.province)}
+                    {infoItem('Region', patient?.currentAddress?.region)}
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Full Current Address</span>
+                    <p className={styles.infoValue}>
+                        <FaMapMarkerAlt style={{ color: '#94a3b8', marginRight: '6px' }} />
+                        {formatAddressDisplay(patient?.currentAddress)}
+                    </p>
+                </div>
+
+                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Permanent Address</h3>
+                <div className={styles.infoGrid}>
+                    {infoItem('House No.', patient?.permanentAddress?.houseNumber)}
+                    {infoItem('Street', patient?.permanentAddress?.street)}
+                    {infoItem('Barangay', patient?.permanentAddress?.barangay)}
+                    {infoItem('City / Municipality', patient?.permanentAddress?.city)}
+                    {infoItem('Province', patient?.permanentAddress?.province)}
+                    {infoItem('Region', patient?.permanentAddress?.region)}
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Full Permanent Address</span>
+                    <p className={styles.infoValue}>
+                        <FaMapMarkerAlt style={{ color: '#94a3b8', marginRight: '6px' }} />
+                        {formatAddressDisplay(patient?.permanentAddress)}
+                    </p>
+                </div>
+            </div>
+        );
+    };
+
+    // ─── MEDICAL HISTORY & ALERTS TAB ──────────────────────────────────────────
     const handleMedicalFormChange = (e) => {
         const { name, value } = e.target;
         setMedicalForm(prev => ({ ...prev, [name]: value }));
@@ -232,7 +314,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         );
     };
 
-    const renderOverview = () => (
+    const renderMedicalHistory = () => (
         <div className={styles.contentCard}>
             <div className={styles.sectionHeaderRow}>
                 <h3 className={styles.sectionTitle}>Medical History & Alerts</h3>
@@ -320,13 +402,12 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         </div>
     );
 
-    // --- TAB 2 LOGIC (TREATMENT LOGS) ---
+    // ─── TREATMENT LOGS TAB ────────────────────────────────────────────────────
     const toggleLogExpand = (id, e) => {
         if (e) e.stopPropagation();
         setExpandedLogs(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    // ✅ FIX Bug 23: POST to real API instead of only updating local state
     const handleAddLogSubmit = async (e) => {
         e.preventDefault();
         setIsSubmittingLog(true);
@@ -469,7 +550,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                 )}
             </div>
 
-            {/* ADD LOG MODAL */}
             {isAddLogOpen && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalCard} style={{ maxWidth: '500px' }}>
@@ -530,7 +610,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         </div>
     );
 
-    // --- TAB 4 LOGIC (RADIOGRAPHS) ---
+    // ─── RADIOGRAPHS TAB ───────────────────────────────────────────────────────
     const openRadiograph = (img) => {
         setSelectedRadiograph(img);
         setIsEnhancing(false);
@@ -600,10 +680,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     };
 
     const handleAIEnhance = () => {
-        if (isEnhanced) {
-            setIsEnhanced(false);
-            return;
-        }
+        if (isEnhanced) { setIsEnhanced(false); return; }
         setIsEnhancing(true);
         setTimeout(() => {
             setIsEnhancing(false);
@@ -612,7 +689,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         }, 1500);
     };
 
-    // ✅ FIX Bug 23: Use `radiographs` state instead of MOCK_RADIOGRAPHS
     const renderRadiographs = () => {
         if (selectedRadiograph) {
             return (
@@ -713,46 +789,22 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                     <form onSubmit={handleUploadSubmit}>
                         <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Label / Type <span style={{ color: 'red' }}>*</span></label>
-                            <input
-                                type="text"
-                                className={styles.inputField}
-                                placeholder="e.g. Panoramic, Periapical, Bitewing"
-                                value={uploadForm.label}
-                                onChange={(e) => setUploadForm(p => ({ ...p, label: e.target.value }))}
-                                required
-                            />
+                            <input type="text" className={styles.inputField} placeholder="e.g. Panoramic, Periapical, Bitewing" value={uploadForm.label} onChange={(e) => setUploadForm(p => ({ ...p, label: e.target.value }))} required />
                         </div>
                         <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Date Taken <span style={{ color: 'red' }}>*</span></label>
-                            <input
-                                type="date"
-                                className={styles.inputField}
-                                value={uploadForm.date}
-                                onChange={(e) => setUploadForm(p => ({ ...p, date: e.target.value }))}
-                                required
-                            />
+                            <input type="date" className={styles.inputField} value={uploadForm.date} onChange={(e) => setUploadForm(p => ({ ...p, date: e.target.value }))} required />
                         </div>
                         <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Image File <span style={{ color: 'red' }}>*</span></label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileSelect}
-                                style={{ fontSize: '13px', fontFamily: "'Lexend Deca', sans-serif" }}
-                            />
+                            <input type="file" accept="image/*" onChange={handleFileSelect} style={{ fontSize: '13px', fontFamily: "'Lexend Deca', sans-serif" }} />
                             {uploadPreview && (
                                 <img src={uploadPreview} alt="Preview" style={{ marginTop: '10px', width: '100%', maxHeight: '140px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f1f5f9' }} />
                             )}
                         </div>
                         <div className={styles.formGroup} style={{ marginBottom: '24px' }}>
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Notes (Optional)</label>
-                            <textarea
-                                className={styles.textareaField}
-                                placeholder="Any clinical notes about this image..."
-                                value={uploadForm.notes}
-                                onChange={(e) => setUploadForm(p => ({ ...p, notes: e.target.value }))}
-                                rows={3}
-                            />
+                            <textarea className={styles.textareaField} placeholder="Any clinical notes about this image..." value={uploadForm.notes} onChange={(e) => setUploadForm(p => ({ ...p, notes: e.target.value }))} rows={3} />
                         </div>
                         <div className={styles.modalButtonGroup}>
                             <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadFile(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
@@ -766,20 +818,45 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         )
     );
 
+    // ─── LOADING STATE ─────────────────────────────────────────────────────────
+    // FIX: Show loading INSIDE the modal when onClose is provided
     if (isLoading) {
+        const loadingContent = (
+            <div style={{ textAlign: 'center', padding: '60px 40px', color: '#01538b', fontWeight: 'bold' }}>
+                Loading Electronic Medical Record...
+            </div>
+        );
+
+        if (onClose) {
+            return (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                    <div className={styles.overlayBackground} onClick={onClose}></div>
+                    <div className={styles.formCard} style={{ backgroundColor: '#f4f7fa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {loadingContent}
+                    </div>
+                </div>
+            );
+        }
         return (
             <main className={styles['main-content']}>
-                <div style={{ textAlign: 'center', padding: '100px', color: '#01538b', fontWeight: 'bold' }}>Loading Electronic Medical Record...</div>
+                {loadingContent}
             </main>
         );
     }
 
     if (!patient) {
-        return (
-            <main className={styles['main-content']}>
-                <div style={{ textAlign: 'center', padding: '100px', color: '#ef4444', fontWeight: 'bold' }}>Patient record not found.</div>
-            </main>
+        const notFoundContent = (
+            <div style={{ textAlign: 'center', padding: '100px', color: '#ef4444', fontWeight: 'bold' }}>Patient record not found.</div>
         );
+        if (onClose) {
+            return (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                    <div className={styles.overlayBackground} onClick={onClose}></div>
+                    <div className={styles.formCard} style={{ backgroundColor: '#f4f7fa' }}>{notFoundContent}</div>
+                </div>
+            );
+        }
+        return <main className={styles['main-content']}>{notFoundContent}</main>;
     }
 
     const patientAge = patient?.birthdate
@@ -830,18 +907,21 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                 </div>
             </div>
 
+            {/* Updated Tab Structure */}
             <div className={styles.tabContainer}>
                 <button className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.active : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
-                <button className={`${styles.tabBtn} ${activeTab === 'medical' ? styles.active : ''}`} onClick={() => setActiveTab('medical')}>Treatment Logs</button>
+                <button className={`${styles.tabBtn} ${activeTab === 'medicalHistory' ? styles.active : ''}`} onClick={() => setActiveTab('medicalHistory')}>Medical History & Alerts</button>
+                <button className={`${styles.tabBtn} ${activeTab === 'treatmentLogs' ? styles.active : ''}`} onClick={() => setActiveTab('treatmentLogs')}>Treatment Logs</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Dental Chart</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'radiographs' ? styles.active : ''}`} onClick={() => setActiveTab('radiographs')}>Radiographs</button>
             </div>
 
             <div className={styles.tabContentArea}>
-                {activeTab === 'overview' && renderOverview()}
-                {activeTab === 'medical' && renderTreatmentLogs()}
-                {activeTab === 'odontogram' && renderOdontogram()}
-                {activeTab === 'radiographs' && renderRadiographs()}
+                {activeTab === 'overview'       && renderOverview()}
+                {activeTab === 'medicalHistory' && renderMedicalHistory()}
+                {activeTab === 'treatmentLogs'  && renderTreatmentLogs()}
+                {activeTab === 'odontogram'     && renderOdontogram()}
+                {activeTab === 'radiographs'    && renderRadiographs()}
             </div>
         </div>
     );

@@ -1,5 +1,3 @@
-// ngitify-web/src/pages/admin/PatientProfile.js
-
 import React, { useState, useEffect } from 'react';
 import styles from '../../styles/admin/PatientProfile.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
@@ -8,7 +6,8 @@ import {
     FaUserMd, FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, 
     FaNotesMedical, FaSyringe, FaTooth, FaSearch, 
     FaChevronDown, FaChevronUp, FaHospitalUser,
-    FaCalendarAlt, FaUpload, FaMagic, FaRobot, FaArrowLeft
+    FaCalendarAlt, FaUpload, FaMagic, FaRobot, FaArrowLeft,
+    FaVenusMars, FaBirthdayCake, FaIdCard, FaChild
 } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
@@ -29,37 +28,34 @@ const calculateAge = (birthdate) => {
     return age;
 };
 
-const formatAddress = (addr) => {
+const formatAddressFull = (addr) => {
     if (!addr) return '—';
-    return [addr.houseNumber, addr.street, addr.barangay, addr.city, addr.province]
-        .filter(Boolean).join(', ');
+    return [addr.houseNumber, addr.street, addr.barangay, addr.city, addr.province, addr.region]
+        .filter(Boolean).join(', ') || '—';
 };
 
 export default function PatientProfile({ patientId, onClose, onEdit }) {
     const { addToast } = useToast();
+    // Updated tab order: overview, medical (Medical History & Alerts), logs, odontogram, radiographs
     const [activeTab, setActiveTab] = useState('overview');
 
-    // --- DATA STATES ---
     const [patient, setPatient] = useState(null);
     const [treatmentLogs, setTreatmentLogs] = useState([]);
     const [radiographs, setRadiographs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // --- ODONTOGRAM STATE ---
     const [chartData, setChartData] = useState({});
     const [selectedTooth, setSelectedTooth] = useState(null);
     const [tempToothStatus, setTempToothStatus] = useState('');
     const [isSavingTooth, setIsSavingTooth] = useState(false);
 
-    // --- TREATMENT LOG FILTER STATES ---
     const [logsSearchQuery, setLogsSearchQuery] = useState('');
     const [logsDateFrom, setLogsDateFrom] = useState('');
     const [logsDateTo, setLogsDateTo] = useState('');
     const [logsCategory, setLogsCategory] = useState('All');
     const [expandedLogs, setExpandedLogs] = useState({});
 
-    // --- RADIOGRAPH VIEWER STATES ---
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
@@ -69,7 +65,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
     const [uploadPreview, setUploadPreview] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
-    // --- FETCH ALL PATIENT DATA ON MOUNT ---
     useEffect(() => {
         if (!patientId) return;
         const fetchAll = async () => {
@@ -87,20 +82,9 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 const patientData = await patientRes.json();
                 setPatient(patientData);
 
-                if (logsRes.ok) {
-                    const logsData = await logsRes.json();
-                    setTreatmentLogs(logsData);
-                }
-
-                if (odontogramRes.ok) {
-                    const odontogramData = await odontogramRes.json();
-                    setChartData(odontogramData || {});
-                }
-
-                if (radiographsRes.ok) {
-                    const radiographsData = await radiographsRes.json();
-                    setRadiographs(radiographsData);
-                }
+                if (logsRes.ok) setTreatmentLogs(await logsRes.json());
+                if (odontogramRes.ok) setChartData((await odontogramRes.json()) || {});
+                if (radiographsRes.ok) setRadiographs(await radiographsRes.json());
 
             } catch (err) {
                 setError(err.message || 'Could not load patient profile.');
@@ -117,7 +101,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
     };
 
-    // --- ODONTOGRAM LOGIC ---
     const getToothStatus = (toothNum) => chartData[toothNum] || 'healthy';
 
     const openToothModal = (num) => {
@@ -159,10 +142,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 3 * 1024 * 1024) {
-            addToast('Image must be under 3MB.', 'error');
-            return;
-        }
+        if (file.size > 3 * 1024 * 1024) { addToast('Image must be under 3MB.', 'error'); return; }
         setUploadFile(file);
         const reader = new FileReader();
         reader.onloadend = () => setUploadPreview(reader.result);
@@ -171,34 +151,17 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
 
     const handleUploadSubmit = async (e) => {
         e.preventDefault();
-        if (!uploadForm.label || !uploadForm.date) {
-            addToast('Label and date are required.', 'error');
-            return;
-        }
-        if (!uploadPreview) {
-            addToast('Please select an image file.', 'error');
-            return;
-        }
+        if (!uploadForm.label || !uploadForm.date) { addToast('Label and date are required.', 'error'); return; }
+        if (!uploadPreview) { addToast('Please select an image file.', 'error'); return; }
         setIsUploading(true);
         try {
             const res = await authFetch(`/patients/${patientId}/radiographs`, {
                 method: 'POST',
-                body: JSON.stringify({
-                    label: uploadForm.label,
-                    date: uploadForm.date,
-                    url: uploadPreview,
-                    notes: uploadForm.notes,
-                }),
+                body: JSON.stringify({ label: uploadForm.label, date: uploadForm.date, url: uploadPreview, notes: uploadForm.notes }),
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Upload failed.');
             const saved = await res.json();
-            setRadiographs(prev => [{
-                ...saved,
-                id: saved._id || saved.id,
-                rawDate: new Date(saved.date || uploadForm.date),
-                type: saved.label || uploadForm.label,
-                url: saved.url || uploadPreview,
-            }, ...prev]);
+            setRadiographs(prev => [{ ...saved, id: saved._id || saved.id, rawDate: new Date(saved.date || uploadForm.date), type: saved.label || uploadForm.label, url: saved.url || uploadPreview }, ...prev]);
             setIsUploadModalOpen(false);
             setUploadForm({ label: '', date: '', notes: '' });
             setUploadFile(null);
@@ -223,15 +186,13 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         setIsEnhanced(false);
     };
 
-    // --- DERIVED DISPLAY VALUES ---
+    // ─── Derived values ────────────────────────────────────────────────────────
     const fullName = patient
-        ? `${patient.name?.first || ''} ${patient.name?.middle ? patient.name.middle + ' ' : ''}${patient.name?.last || ''}`.trim()
+        ? `${patient.name?.first || ''}${patient.name?.middle ? ' ' + patient.name.middle : ''} ${patient.name?.last || ''}`.trim()
         : '';
     const age = calculateAge(patient?.birthdate);
-    const address = formatAddress(patient?.currentAddress);
     const primaryBranch = patient?.assignedBranches?.[0] || 'Main';
 
-    // --- LOADING / ERROR STATES ---
     if (isLoading) {
         return (
             <div className={styles.mainOverlay}>
@@ -255,52 +216,88 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         );
     }
 
-    // --- RENDER HELPERS FOR TABS ---
-
-    const renderOverview = () => (
-        <div className={styles.contentCard}>
-            <div className={styles.sectionHeaderRow}>
-                <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Patient Overview</h3>
-                <button className={styles.editProfileBtn} onClick={onEdit}>Edit Profile</button>
+    // ─── OVERVIEW TAB: Complete Patient Info + Both Addresses ──────────────────
+    const renderOverview = () => {
+        const infoItem = (label, value, icon = null) => (
+            <div className={styles.infoBlock}>
+                <span className={styles.infoLabel}>{label}</span>
+                <p className={styles.infoValue}>
+                    {icon && <span style={{ marginRight: '6px', color: '#94a3b8' }}>{icon}</span>}
+                    {value || '—'}
+                </p>
             </div>
-            
-            <div className={styles.infoGrid}>
-                <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Full Address</span>
-                    <p className={styles.infoValue}><FaMapMarkerAlt style={{color: '#94a3b8', marginRight: '6px'}}/>{address}</p>
+        );
+
+        return (
+            <div className={styles.contentCard}>
+                <div className={styles.sectionHeaderRow}>
+                    <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Personal Information</h3>
+                    <button className={styles.editProfileBtn} onClick={onEdit}>Edit Profile</button>
+                </div>
+
+                <div className={styles.infoGrid}>
+                    {infoItem('Full Name', fullName)}
+                    {infoItem('Gender', patient.gender, <FaVenusMars />)}
+                    {infoItem('Date of Birth',
+                        patient.birthdate
+                            ? `${formatDateLong(patient.birthdate)} (${age} years old)`
+                            : '—',
+                        <FaBirthdayCake />
+                    )}
+                    {infoItem('Email Address', patient.email, <FaEnvelope />)}
+                    {infoItem('Contact Number', patient.contactNumber || '—', <FaPhoneAlt />)}
+                    {infoItem('Patient ID', patient._id, <FaIdCard />)}
+                </div>
+
+                {patient.guardian && (
+                    <>
+                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Guardian Information</h3>
+                        <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                            {infoItem('Guardian Name', patient.guardian.name, <FaChild />)}
+                            {infoItem('Relationship', patient.guardian.relationship)}
+                            {infoItem('Guardian Contact', patient.guardian.contactNumber, <FaPhoneAlt />)}
+                        </div>
+                    </>
+                )}
+
+                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Current Address</h3>
+                <div className={styles.infoGrid}>
+                    {infoItem('House No.', patient.currentAddress?.houseNumber)}
+                    {infoItem('Street', patient.currentAddress?.street)}
+                    {infoItem('Barangay', patient.currentAddress?.barangay)}
+                    {infoItem('City / Municipality', patient.currentAddress?.city)}
+                    {infoItem('Province', patient.currentAddress?.province)}
+                    {infoItem('Region', patient.currentAddress?.region)}
                 </div>
                 <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Date of Birth</span>
-                    <p className={styles.infoValue}>{patient.birthdate ? formatDateLong(patient.birthdate) : '—'}</p>
+                    <span className={styles.infoLabel}>Full Current Address</span>
+                    <p className={styles.infoValue}>
+                        <FaMapMarkerAlt style={{ color: '#94a3b8', marginRight: '6px' }} />
+                        {formatAddressFull(patient.currentAddress)}
+                    </p>
+                </div>
+
+                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Permanent Address</h3>
+                <div className={styles.infoGrid}>
+                    {infoItem('House No.', patient.permanentAddress?.houseNumber)}
+                    {infoItem('Street', patient.permanentAddress?.street)}
+                    {infoItem('Barangay', patient.permanentAddress?.barangay)}
+                    {infoItem('City / Municipality', patient.permanentAddress?.city)}
+                    {infoItem('Province', patient.permanentAddress?.province)}
+                    {infoItem('Region', patient.permanentAddress?.region)}
                 </div>
                 <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Occupation</span>
-                    <p className={styles.infoValue}>{patient.occupation || '—'}</p>
-                </div>
-                <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Blood Type</span>
-                    <p className={styles.infoValue}>{patient.bloodType || '—'}</p>
+                    <span className={styles.infoLabel}>Full Permanent Address</span>
+                    <p className={styles.infoValue}>
+                        <FaMapMarkerAlt style={{ color: '#94a3b8', marginRight: '6px' }} />
+                        {formatAddressFull(patient.permanentAddress)}
+                    </p>
                 </div>
             </div>
+        );
+    };
 
-            <h3 className={styles.sectionTitle}>Emergency Contact</h3>
-            <div className={styles.infoGrid} style={{ marginBottom: 0, backgroundColor: '#f8fafc', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Contact Name</span>
-                    <p className={styles.infoValue}>{patient.emergencyContact?.name || '—'}</p>
-                </div>
-                <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Relationship</span>
-                    <p className={styles.infoValue}>{patient.emergencyContact?.relationship || '—'}</p>
-                </div>
-                <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Phone Number</span>
-                    <p className={styles.infoValue}>{patient.emergencyContact?.contactNumber || '—'}</p>
-                </div>
-            </div>
-        </div>
-    );
-
+    // ─── MEDICAL HISTORY & ALERTS TAB ─────────────────────────────────────────
     const renderMedicalHistory = () => (
         <div className={styles.contentCard}>
             <h3 className={styles.sectionTitle}>Medical History & Alerts</h3>
@@ -336,6 +333,11 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 </div>
                 
                 <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Blood Type</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.bloodType || '—'}</p>
+                </div>
+
+                <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Last Physical / Dental Exam</span>
                     <p className={styles.infoValue}>
                         {patient.dentalHistory?.lastExamDate ? formatDateLong(patient.dentalHistory.lastExamDate) : '—'}
@@ -352,57 +354,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         </div>
     );
 
-    const renderOdontogram = () => {
-        const renderToothRow = (teethArray) => (
-            <div className={styles.toothQuad}>
-                {teethArray.map(num => (
-                    <div 
-                        key={num} 
-                        className={`${styles.tooth} ${styles[getToothStatus(num)]}`} 
-                        title={`Tooth ${num} - ${getToothStatus(num).toUpperCase()}`}
-                    >
-                        <span className={styles.toothNum}>{num}</span>
-                        <div className={styles.toothBox} onClick={() => openToothModal(num)}></div>
-                    </div>
-                ))}
-            </div>
-        );
-
-        return (
-            <div className={styles.contentCard}>
-                <h3 className={styles.sectionTitle}>Interactive Dental Chart</h3>
-                
-                <div className={styles.odontogramContainer}>
-                    <div className={styles.jawArch}>
-                        <h4 className={styles.archTitle}>Maxillary (Upper)</h4>
-                        <div className={styles.teethRow}>
-                            {renderToothRow(UPPER_RIGHT)}
-                            <div className={styles.archDivider}></div>
-                            {renderToothRow(UPPER_LEFT)}
-                        </div>
-                    </div>
-
-                    <div className={styles.jawArch}>
-                        <h4 className={styles.archTitle}>Mandibular (Lower)</h4>
-                        <div className={styles.teethRow}>
-                            {renderToothRow(LOWER_RIGHT)}
-                            <div className={styles.archDivider}></div>
-                            {renderToothRow(LOWER_LEFT)}
-                        </div>
-                    </div>
-
-                    <div className={styles.chartLegend}>
-                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: 'white', borderColor: '#cbd5e1' }}></div> Healthy</div>
-                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: '#e0f2fe', borderColor: '#38bdf8' }}></div> Filled</div>
-                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: '#fef2f2', borderColor: '#f87171' }}></div> Decayed</div>
-                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: '#fef9c3', borderColor: '#facc15' }}></div> Crown</div>
-                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: '#f1f5f9', borderColor: '#94a3b8' }}></div> Missing</div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
+    // ─── TREATMENT LOGS TAB ────────────────────────────────────────────────────
     const renderTreatmentLogs = () => {
         const filteredLogs = treatmentLogs.filter(log => {
             const searchLower = logsSearchQuery.toLowerCase();
@@ -434,11 +386,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                             />
                         </div>
                         
-                        <select 
-                            className={styles.filterSelect} 
-                            value={logsCategory}
-                            onChange={(e) => setLogsCategory(e.target.value)}
-                        >
+                        <select className={styles.filterSelect} value={logsCategory} onChange={(e) => setLogsCategory(e.target.value)}>
                             <option value="All">All Procedures</option>
                             <option value="Prophylaxis">Prophylaxis</option>
                             <option value="Restoration">Restoration</option>
@@ -464,13 +412,11 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                             return (
                                 <div key={logId} className={styles.timelineItem}>
                                     <div className={styles.timelineDot}></div>
-                                    
                                     <div className={styles.timelineCard}>
                                         <div className={styles.timelineHeader} onClick={(e) => toggleLogExpand(logId, e)}>
                                             <div className={styles.timelineMain}>
                                                 <h4 className={styles.timelineDate}>{displayDate}</h4>
                                                 <p className={styles.timelineProcedure}>{log.procedure}</p>
-                                                
                                                 <div className={styles.timelineMeta}>
                                                     <span className={styles.metaTag} title="Attending Dentist">
                                                         <FaUserMd className={styles.metaIcon} style={{color: '#94a3b8'}}/> {log.dentistName || '—'}
@@ -480,13 +426,11 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                                                     </span>
                                                 </div>
                                             </div>
-
                                             <button className={styles.expandBtn}>
                                                 {isExpanded ? 'Hide Details' : 'View Details'}
                                                 {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
                                             </button>
                                         </div>
-
                                         {isExpanded && (
                                             <div className={styles.timelineDetails}>
                                                 <div className={styles.detailGrid}>
@@ -518,6 +462,52 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         );
     };
 
+    // ─── DENTAL CHART TAB ──────────────────────────────────────────────────────
+    const renderOdontogram = () => {
+        const renderToothRow = (teethArray) => (
+            <div className={styles.toothQuad}>
+                {teethArray.map(num => (
+                    <div key={num} className={`${styles.tooth} ${styles[getToothStatus(num)]}`} title={`Tooth ${num} - ${getToothStatus(num).toUpperCase()}`}>
+                        <span className={styles.toothNum}>{num}</span>
+                        <div className={styles.toothBox} onClick={() => openToothModal(num)}></div>
+                    </div>
+                ))}
+            </div>
+        );
+
+        return (
+            <div className={styles.contentCard}>
+                <h3 className={styles.sectionTitle}>Interactive Dental Chart</h3>
+                <div className={styles.odontogramContainer}>
+                    <div className={styles.jawArch}>
+                        <h4 className={styles.archTitle}>Maxillary (Upper)</h4>
+                        <div className={styles.teethRow}>
+                            {renderToothRow(UPPER_RIGHT)}
+                            <div className={styles.archDivider}></div>
+                            {renderToothRow(UPPER_LEFT)}
+                        </div>
+                    </div>
+                    <div className={styles.jawArch}>
+                        <h4 className={styles.archTitle}>Mandibular (Lower)</h4>
+                        <div className={styles.teethRow}>
+                            {renderToothRow(LOWER_RIGHT)}
+                            <div className={styles.archDivider}></div>
+                            {renderToothRow(LOWER_LEFT)}
+                        </div>
+                    </div>
+                    <div className={styles.chartLegend}>
+                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: 'white', borderColor: '#cbd5e1' }}></div> Healthy</div>
+                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: '#e0f2fe', borderColor: '#38bdf8' }}></div> Filled</div>
+                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: '#fef2f2', borderColor: '#f87171' }}></div> Decayed</div>
+                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: '#fef9c3', borderColor: '#facc15' }}></div> Crown</div>
+                        <div className={styles.legendItem}><div className={styles.legendColor} style={{ backgroundColor: '#f1f5f9', borderColor: '#94a3b8' }}></div> Missing</div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // ─── RADIOGRAPHS TAB ───────────────────────────────────────────────────────
     const renderRadiographs = () => {
         if (selectedRadiograph) {
             return (
@@ -528,19 +518,12 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                                 <FaArrowLeft /> Back to Gallery
                             </button>
                             <div className={styles.imageViewerTitleBox}>
-                                <h3 className={styles.sectionTitle} style={{ margin: 0, borderLeft: 'none', paddingLeft: 0 }}>
-                                    {selectedRadiograph.label || selectedRadiograph.type}
-                                </h3>
+                                <h3 className={styles.sectionTitle} style={{ margin: 0, borderLeft: 'none', paddingLeft: 0 }}>{selectedRadiograph.label || selectedRadiograph.type}</h3>
                                 <p className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {selectedRadiograph.date ? formatDateLong(selectedRadiograph.date) : '—'}</p>
                             </div>
                         </div>
-
                         <div className={styles.largeRadiographWrapper}>
-                            <img 
-                                src={selectedRadiograph.url} 
-                                alt={selectedRadiograph.label || selectedRadiograph.type} 
-                                className={`${styles.largeRadiograph} ${isEnhanced ? styles.enhancedImage : ''}`}
-                            />
+                            <img src={selectedRadiograph.url} alt={selectedRadiograph.label || selectedRadiograph.type} className={`${styles.largeRadiograph} ${isEnhanced ? styles.enhancedImage : ''}`} />
                             {isEnhancing && (
                                 <div className={styles.loadingOverlay}>
                                     <FaRobot className={styles.spinningIcon} />
@@ -548,20 +531,9 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                                 </div>
                             )}
                         </div>
-
                         <div className={styles.imageViewerControls}>
-                            <button 
-                                className={styles.aiEnhanceBtn} 
-                                onClick={handleAIEnhance}
-                                disabled={isEnhancing}
-                            >
-                                {isEnhancing ? (
-                                    <>Processing...</>
-                                ) : isEnhanced ? (
-                                    <><FaMagic /> Revert to Original</>
-                                ) : (
-                                    <><FaMagic /> AI Enhance Clarity</>
-                                )}
+                            <button className={styles.aiEnhanceBtn} onClick={handleAIEnhance} disabled={isEnhancing}>
+                                {isEnhancing ? <>Processing...</> : isEnhanced ? <><FaMagic /> Revert to Original</> : <><FaMagic /> AI Enhance Clarity</>}
                             </button>
                         </div>
                     </div>
@@ -577,7 +549,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         <FaUpload /> Upload Radiograph
                     </button>
                 </div>
-
                 {radiographs.length > 0 ? (
                     <div className={styles.radiographGrid}>
                         {radiographs.map(img => (
@@ -593,9 +564,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         ))}
                     </div>
                 ) : (
-                    <div className={styles.emptyState}>
-                        No radiographs or imaging records found for this patient.
-                    </div>
+                    <div className={styles.emptyState}>No radiographs or imaging records found for this patient.</div>
                 )}
             </div>
         );
@@ -626,9 +595,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         </div>
                         <div className={styles.modalButtonGroup}>
                             <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadFile(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
-                            <button type="submit" className={styles.submitBtn} disabled={isUploading}>
-                                {isUploading ? 'Uploading...' : 'Upload'}
-                            </button>
+                            <button type="submit" className={styles.submitBtn} disabled={isUploading}>{isUploading ? 'Uploading...' : 'Upload'}</button>
                         </div>
                     </form>
                 </div>
@@ -661,7 +628,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                             </span>
                             <span className={styles.patientId}>ID: {patient._id}</span>
                         </div>
-                        
                         <div className={styles.metaRow}>
                             <span className={styles.metaItem}><FaUserMd className={styles.metaIcon} /> {patient.gender || '—'}, {age} y/o</span>
                             <span className={styles.metaItem}><FaPhoneAlt className={styles.metaIcon} /> {patient.contactNumber || '—'}</span>
@@ -670,31 +636,32 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                     </div>
                 </div>
 
+                {/* Updated tab structure */}
                 <div className={styles.tabContainer}>
                     <button className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.active : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
-                    <button className={`${styles.tabBtn} ${activeTab === 'medical' ? styles.active : ''}`} onClick={() => setActiveTab('medical')}>Medical History</button>
-                    <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Dental Chart</button>
+                    <button className={`${styles.tabBtn} ${activeTab === 'medical' ? styles.active : ''}`} onClick={() => setActiveTab('medical')}>Medical History & Alerts</button>
                     <button className={`${styles.tabBtn} ${activeTab === 'logs' ? styles.active : ''}`} onClick={() => setActiveTab('logs')}>Treatment Logs</button>
+                    <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Dental Chart</button>
                     <button className={`${styles.tabBtn} ${activeTab === 'radiographs' ? styles.active : ''}`} onClick={() => setActiveTab('radiographs')}>Radiographs</button>
                 </div>
 
                 <div className={styles.tabContentArea}>
                     {activeTab === 'overview'    && renderOverview()}
                     {activeTab === 'medical'     && renderMedicalHistory()}
-                    {activeTab === 'odontogram'  && renderOdontogram()}
                     {activeTab === 'logs'        && renderTreatmentLogs()}
+                    {activeTab === 'odontogram'  && renderOdontogram()}
                     {activeTab === 'radiographs' && renderRadiographs()}
                 </div>
             </div>
 
-            {/* INTERACTIVE TOOTH ACTION MODAL */}
+            {renderUploadModal()}
+
             {selectedTooth && (
                 <div className={styles.mainOverlay} style={{ zIndex: 1005 }}>
                     <div className={styles.overlayBackground} onClick={() => setSelectedTooth(null)}></div>
                     <div className={styles.miniModalCard}>
                         <h3 className={styles.title} style={{fontSize: '22px'}}>Update Tooth #{selectedTooth}</h3>
                         <p className={styles.subtitle} style={{marginBottom: '20px'}}>Select the current status for this tooth.</p>
-
                         <div className={styles.statusOptionsGrid}>
                             <button className={`${styles.statusBtn} ${tempToothStatus === 'healthy'  ? styles.activeHealthy  : ''}`} onClick={() => setTempToothStatus('healthy')}>Healthy</button>
                             <button className={`${styles.statusBtn} ${tempToothStatus === 'filled'   ? styles.activeFilled   : ''}`} onClick={() => setTempToothStatus('filled')}>Filled</button>
@@ -702,7 +669,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                             <button className={`${styles.statusBtn} ${tempToothStatus === 'crown'    ? styles.activeCrown    : ''}`} onClick={() => setTempToothStatus('crown')}>Crown</button>
                             <button className={`${styles.statusBtn} ${tempToothStatus === 'missing'  ? styles.activeMissing  : ''}`} style={{ gridColumn: 'span 2' }} onClick={() => setTempToothStatus('missing')}>Missing / Extracted</button>
                         </div>
-
                         <div className={styles.modalButtonGroup}>
                             <button className={styles.cancelBtn} style={{flex: 1}} onClick={() => setSelectedTooth(null)} disabled={isSavingTooth}>Cancel</button>
                             <button className={styles.submitBtn} style={{flex: 1}} onClick={handleSaveToothStatus} disabled={isSavingTooth}>
