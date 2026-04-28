@@ -11,6 +11,7 @@ import UserTabs from './UserTabs';
 import AddPatient from './AddPatient'; 
 import EditPatient from './EditPatient';
 import PatientProfile from './PatientProfile'; 
+import PatientEMR from './PatientEMR';
 import ConfirmModal from '../../components/common/ConfirmModal'; 
 import { useToast } from '../../context/ToastContext'; 
 
@@ -33,6 +34,7 @@ export default function ManagePatients() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false); 
+    const [isEMRModalOpen, setIsEMRModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
 
     const [confirmConfig, setConfirmConfig] = useState(null);
@@ -144,21 +146,17 @@ export default function ManagePatients() {
 
     const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedPatientId(id); setIsEditModalOpen(true); };
     const handleViewClick = (id) => {
-        if (user?.role === 'administrator' || user?.role === 'co-administrator') {
-            navigate(`/admin/patients/${id}/emr`);
-        } else if (user?.role === 'branch-manager') {
-            navigate(`/branch-manager/patients/${id}/emr`);
-        } else if (user?.role === 'owner') {
-            navigate(`/owner/patients/${id}/emr`);
-        } else {
-            // Secretary fallback — keep modal behavior
-            setIsEditModalOpen(false);
-            setSelectedPatientId(id);
+        setIsEditModalOpen(false);
+        setSelectedPatientId(id);
+        if (user?.role === 'secretary') {
             setIsViewModalOpen(true);
+        } else {
+            setIsEMRModalOpen(true);
         }
     };
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedPatientId(null); };
     const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedPatientId(null); };
+    const handleCloseEMRModal  = () => { setIsEMRModalOpen(false); setSelectedPatientId(null); };
 
     if (!canReadPatients) {
         return (
@@ -278,6 +276,12 @@ export default function ManagePatients() {
                     patientId={selectedPatientId}
                     onClose={handleCloseViewModal}
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                />
+            )}
+            {isEMRModalOpen && selectedPatientId && (
+                <PatientEMR
+                    patientId={selectedPatientId}
+                    onClose={handleCloseEMRModal}
                 />
             )}
             {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}
