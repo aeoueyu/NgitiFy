@@ -163,6 +163,127 @@
 }
 .submitBtn:hover { background-color: #013f6b; transform: translateY(-2px); }
 
+/* ── Standalone Odontogram Page ── */
+.odontogramPageWrapper {
+    padding: 28px 32px;
+    max-width: 1100px;
+}
+
+.odontogramPageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 28px;
+}
+
+.odontogramPageTitle {
+    font-size: 24px;
+    font-weight: 700;
+    color: #01538b;
+    display: flex;
+    align-items: center;
+    margin: 0 0 4px 0;
+}
+
+.odontogramPageSubtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+}
+
+.changePatientBtn {
+    padding: 8px 18px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.changePatientBtn:hover { background: #e2e8f0; }
+
+.patientSelectorCard {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 12px rgba(1,83,139,0.06);
+    overflow: hidden;
+    max-width: 560px;
+}
+
+.selectorSearchWrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.selectorSearchIcon { color: #94a3b8; font-size: 15px; }
+
+.selectorSearchInput {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    color: #334155;
+    background: transparent;
+}
+
+.selectorEmpty {
+    padding: 48px 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.selectorList {
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+.selectorItem {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid #f8fafc;
+}
+.selectorItem:hover { background: #f0f9ff; }
+.selectorItem:last-child { border-bottom: none; }
+
+.selectorItemInfo { flex: 1; }
+.selectorName { font-size: 14px; font-weight: 600; color: #1e293b; display: block; }
+.selectorMeta { font-size: 12px; color: #94a3b8; }
+.selectorChevron { color: #2dccf6; font-size: 14px; }
+
+.odontogramViewCard {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 12px rgba(1,83,139,0.06);
+    padding: 24px;
+}
+
+.selectedPatientBanner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 20px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.selectedPatientName { font-size: 16px; font-weight: 700; color: #01538b; margin: 0 0 2px 0; }
+.selectedPatientMeta { font-size: 13px; color: #94a3b8; margin: 0; }
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
@@ -177,3 +298,107 @@
     .jawSection { align-items: flex-start; }
     .statusOptionsGrid { grid-template-columns: 1fr; }
 }
+
+/* ── New condition styles ── */
+.implant .toothGraphic         { border-color: #8b5cf6; background-color: #f5f3ff; color: #7c3aed; }
+.bridge .toothGraphic          { border-color: #f97316; background-color: #fff7ed; color: #ea580c; }
+.extraction-site .toothGraphic { border-color: #64748b; background-color: #f8fafc; color: #64748b; opacity: 0.55; }
+.extraction-site .toothNum     { opacity: 0.55; text-decoration: line-through; }
+.mobility .toothGraphic        { border-color: #ec4899; background-color: #fdf2f8; color: #db2777; border-style: dashed; }
+
+.legendColor.implant         { background-color: #f5f3ff; border-color: #8b5cf6; }
+.legendColor.bridge          { background-color: #fff7ed; border-color: #f97316; }
+.legendColor.extraction-site { background-color: #f8fafc; border-color: #64748b; opacity: 0.7; }
+.legendColor.mobility        { background-color: #fdf2f8; border-color: #ec4899; }
+
+/* Active state buttons for new conditions */
+.statusBtn.activeImplant        { border-color: #8b5cf6; background: #f5f3ff; color: #7c3aed; box-shadow: 0 0 0 3px rgba(139,92,246,0.2); }
+.statusBtn.activeBridge         { border-color: #f97316; background: #fff7ed; color: #ea580c; box-shadow: 0 0 0 3px rgba(249,115,22,0.2); }
+.statusBtn.activeExtractionSite { border-color: #64748b; background: #f1f5f9; color: #475569; box-shadow: 0 0 0 3px rgba(100,116,139,0.2); }
+.statusBtn.activeMobility       { border-color: #ec4899; background: #fdf2f8; color: #db2777; box-shadow: 0 0 0 3px rgba(236,72,153,0.2); }
+
+/* ── Surface annotation ── */
+.surfaceRow {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 42px;
+}
+
+.surfaceDot {
+    font-size: 8px;
+    font-weight: 800;
+    color: #fff;
+    background: #01538b;
+    border-radius: 3px;
+    padding: 1px 3px;
+    line-height: 1.2;
+}
+
+/* Surface section inside modal */
+.surfaceSection {
+    margin-bottom: 24px;
+    padding-top: 18px;
+    border-top: 1px dashed #e2e8f0;
+    text-align: left;
+}
+
+.surfaceSectionTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    margin: 0 0 12px 0;
+}
+
+.surfaceOptional {
+    font-weight: 500;
+    color: #94a3b8;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
+.surfaceGrid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+
+.surfaceBtn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 4px;
+    border-radius: 10px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Lexend Deca', sans-serif;
+}
+.surfaceBtn:hover { border-color: #94a3b8; background: #f8fafc; }
+
+.surfaceBtn.surfaceBtnActive {
+    border-color: #01538b;
+    background: #e0f2fe;
+}
+
+.surfaceKey {
+    font-size: 15px;
+    font-weight: 800;
+    color: #334155;
+}
+.surfaceBtn.surfaceBtnActive .surfaceKey { color: #01538b; }
+
+.surfaceLabel {
+    font-size: 8px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-align: center;
+    line-height: 1.2;
+}
+.surfaceBtn.surfaceBtnActive .surfaceLabel { color: #0284c7; }
+
+/* Widen modal to fit 4-col grid + surface section */
+.miniModalCard { max-width: 480px; }

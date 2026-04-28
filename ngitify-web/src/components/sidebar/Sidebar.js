@@ -307,6 +307,11 @@ export default function Sidebar() {
                                 <span className={styles['nav-text']}>Patient EMR</span>
                             </div>
 
+                            <div className={getNavClass('/dentist/odontogram')} onClick={() => navigate('/dentist/odontogram')}>
+                                <FaTooth className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Odontogram</span>
+                            </div>
+
                             <div className={getNavClass('/dentist/material-usage')} onClick={() => navigate('/dentist/material-usage')}>
                                 <FaTooth className={styles['nav-icon']} />
                                 <span className={styles['nav-text']}>Material Usage</span>

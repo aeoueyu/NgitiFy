@@ -741,8 +741,8 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             <div className={styles.contentCard}>
                 <div className={styles.sectionHeaderRow}>
                     <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Dental Radiographs (X-Rays)</h3>
-                    <button className={styles.uploadBtn} disabled title="This feature is coming soon">
-                        <FaUpload /> Upload Radiograph <span style={{ fontSize: '11px', fontWeight: '500', opacity: 0.7 }}>(Coming Soon)</span>
+                    <button className={styles.uploadBtn} onClick={() => setIsUploadModalOpen(true)}>
+                        <FaUpload /> Upload Radiograph
                     </button>
                 </div>
 
