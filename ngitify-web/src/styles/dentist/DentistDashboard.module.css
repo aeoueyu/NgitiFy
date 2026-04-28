@@ -2,9 +2,10 @@
 
 /* --- STRICT NO-SCROLL LAYOUT CONSTRAINTS --- */
 .main-content {
-    flex: 1; padding: 20px 30px; height: 100vh; box-sizing: border-box;
-    overflow: hidden; display: flex; flex-direction: column;
+    flex: 1; padding: 20px 30px; min-height: 100vh; box-sizing: border-box;
+    overflow-y: auto; display: flex; flex-direction: column;
     background-color: #f4f7fa; font-family: 'Lexend Deca', sans-serif;
+    position: relative;
 }
 
 /* --- HEADER --- */

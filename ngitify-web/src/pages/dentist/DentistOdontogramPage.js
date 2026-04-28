@@ -24,8 +24,6 @@ export default function DentistOdontogramPage() {
     const [selectedPatient, setSelectedPatient] = useState(null);
 
     // Support direct linking via ?patientId=xxx
-    const initialPatientId = searchParams.get('patientId');
-
     const fetchPatients = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -42,9 +40,11 @@ export default function DentistOdontogramPage() {
             }));
             setPatients(normalized);
 
-            // Auto-select if patientId is in URL
-            if (initialPatientId) {
-                const found = normalized.find(p => p.id === initialPatientId);
+            // Auto-select if patientId is in URL — read once from searchParams,
+            // NOT as a dependency so we don't loop on setSearchParams calls
+            const urlPatientId = new URLSearchParams(window.location.search).get('patientId');
+            if (urlPatientId) {
+                const found = normalized.find(p => p.id === urlPatientId);
                 if (found) setSelectedPatient(found);
             }
         } catch (err) {
@@ -52,7 +52,7 @@ export default function DentistOdontogramPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [addToast, initialPatientId]);
+    }, [addToast]); // ← removed initialPatientId from deps to prevent infinite loop
 
     useEffect(() => { fetchPatients(); }, [fetchPatients]);
 
