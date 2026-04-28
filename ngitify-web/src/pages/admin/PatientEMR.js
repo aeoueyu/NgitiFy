@@ -4,6 +4,7 @@ import styles from '../../styles/dentist/PatientEMR.module.css';
 
 import { useToast } from '../../context/ToastContext';
 import { formatDateLong, formatDateShort } from '../../utils/dateUtils';
+import { regions, provinces, cities } from '../../utils/addressData';
 import UserAvatar from '../../components/common/UserAvatar';
 
 import { 
@@ -26,8 +27,10 @@ const INITIAL_MEDICAL_HISTORY = {
 
 const formatAddressDisplay = (addr) => {
     if (!addr) return '—';
-    const parts = [addr.houseNumber, addr.street, addr.barangay, addr.city, addr.province, addr.region]
-        .filter(Boolean);
+    const rName = regions.find(r => r.code === addr.region)?.name || addr.region || '';
+    const pName = provinces[addr.region]?.find(p => p.code === addr.province)?.name || addr.province || '';
+    const cName = cities[addr.province]?.find(c => c.code === addr.city)?.name || addr.city || '';
+    const parts = [addr.houseNumber, addr.street, addr.barangay, cName, pName, rName].filter(Boolean);
     return parts.length ? parts.join(', ') : '—';
 };
 
@@ -212,9 +215,9 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                     {infoItem('House No.', patient?.currentAddress?.houseNumber)}
                     {infoItem('Street', patient?.currentAddress?.street)}
                     {infoItem('Barangay', patient?.currentAddress?.barangay)}
-                    {infoItem('City / Municipality', patient?.currentAddress?.city)}
-                    {infoItem('Province', patient?.currentAddress?.province)}
-                    {infoItem('Region', patient?.currentAddress?.region)}
+                    {infoItem('City / Municipality', cities[patient?.currentAddress?.province]?.find(c => c.code === patient?.currentAddress?.city)?.name || patient?.currentAddress?.city)}
+                    {infoItem('Province', provinces[patient?.currentAddress?.region]?.find(p => p.code === patient?.currentAddress?.province)?.name || patient?.currentAddress?.province)}
+                    {infoItem('Region', regions.find(r => r.code === patient?.currentAddress?.region)?.name || patient?.currentAddress?.region)}
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Full Current Address</span>
@@ -229,9 +232,9 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                     {infoItem('House No.', patient?.permanentAddress?.houseNumber)}
                     {infoItem('Street', patient?.permanentAddress?.street)}
                     {infoItem('Barangay', patient?.permanentAddress?.barangay)}
-                    {infoItem('City / Municipality', patient?.permanentAddress?.city)}
-                    {infoItem('Province', patient?.permanentAddress?.province)}
-                    {infoItem('Region', patient?.permanentAddress?.region)}
+                    {infoItem('City / Municipality', cities[patient?.permanentAddress?.province]?.find(c => c.code === patient?.permanentAddress?.city)?.name || patient?.permanentAddress?.city)}
+                    {infoItem('Province', provinces[patient?.permanentAddress?.region]?.find(p => p.code === patient?.permanentAddress?.province)?.name || patient?.permanentAddress?.province)}
+                    {infoItem('Region', regions.find(r => r.code === patient?.permanentAddress?.region)?.name || patient?.permanentAddress?.region)}
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Full Permanent Address</span>
