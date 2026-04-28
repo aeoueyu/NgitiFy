@@ -95,10 +95,25 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                 if (patientRes.ok) {
                     const patientData = await patientRes.json();
                     setPatient(patientData);
-                    // Populate medical history from patient record if available
+                    // Normalize medicalHistory: API returns arrays, but the form/render functions
+                    // expect comma-separated strings. Convert here so renderTags/renderList don't crash.
                     if (patientData.medicalHistory) {
-                        setMedicalHistory(patientData.medicalHistory);
-                        setMedicalForm(patientData.medicalHistory);
+                        const toCSV = (val) =>
+                            Array.isArray(val) ? val.join(', ') : (val || '');
+
+                        const normalizedHistory = {
+                            allergies:   toCSV(patientData.medicalHistory.allergies),
+                            conditions:  toCSV(patientData.medicalHistory.conditions),
+                            medications: toCSV(patientData.medicalHistory.medications),
+                            bloodType:   patientData.medicalHistory.bloodType || '',
+                            notes:       patientData.medicalHistory.notes || '',
+                            // lastExam is saved to dentalHistory.lastExamDate on the server
+                            lastExam:    patientData.dentalHistory?.lastExamDate
+                                            || patientData.medicalHistory.lastExam
+                                            || '',
+                        };
+                        setMedicalHistory(normalizedHistory);
+                        setMedicalForm(normalizedHistory);
                     }
                 } else {
                     addToast('Failed to load patient record.', 'error');
