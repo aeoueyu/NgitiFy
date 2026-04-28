@@ -54,7 +54,7 @@ export default function Sidebar() {
     }, [user]);
 
     useEffect(() => {
-        if (!isAdmin && !isBranchManager && !isOwner) return;
+        if (!isAdmin && !isBranchManager && !isOwner && !isSecretary) return;
         const fetchNotifCount = async () => {
             try {
                 const res = await authFetch('/notifications');
@@ -67,7 +67,7 @@ export default function Sidebar() {
         fetchNotifCount();
         const interval = setInterval(fetchNotifCount, 60000);
         return () => clearInterval(interval);
-    }, [isAdmin, isBranchManager, isOwner]);
+    }, [isAdmin, isBranchManager, isOwner, isSecretary]);
 
     const getBasePath = () => {
         if (user?.role === 'dentist')        return '/dentist';
@@ -273,12 +273,37 @@ export default function Sidebar() {
                         </>
                     )}
 
-                    {/* ── SECRETARY: Patients (dentists use their own EMR list instead) ── */}
-                    {!isAdmin && !isBranchManager && !isDentistUser && canReadPatients && (
-                        <div className={getNavClass(patientsPath)} onClick={() => navigate(patientsPath)}>
-                            <img src={StaffIcon} alt="Patients" className={styles['nav-icon']} />
-                            <span className={styles['nav-text']}>Patients</span>
-                        </div>
+                    {/* ── SECRETARY-SPECIFIC items ── */}
+                    {isSecretary && (
+                        <>
+                            <div className={getNavClass('/secretary/patients')} onClick={() => navigate('/secretary/patients')}>
+                                <img src={StaffIcon} alt="Patients" className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Patients</span>
+                            </div>
+
+                            <div className={getNavClass('/secretary/notifications')} onClick={() => navigate('/secretary/notifications')}>
+                                <FaBell className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Notifications</span>
+                                {notifUnreadCount > 0 && (
+                                    <span className={styles['notification-badge']}>{notifUnreadCount}</span>
+                                )}
+                            </div>
+
+                            <div className={getNavClass('/secretary/queue')} onClick={() => navigate('/secretary/queue')}>
+                                <FaListUl className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Queue</span>
+                            </div>
+
+                            <div className={getNavClass('/secretary/chat-support')} onClick={() => navigate('/secretary/chat-support')}>
+                                <FaHeadset className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Chat Support</span>
+                            </div>
+
+                            <div className={getNavClass('/secretary/activity-logs')} onClick={() => navigate('/secretary/activity-logs')}>
+                                <FaListUl className={styles['nav-icon']} />
+                                <span className={styles['nav-text']}>Activity Logs</span>
+                            </div>
+                        </>
                     )}
 
                     {/* ── INVENTORY (admin + branch-manager) ── */}
@@ -292,7 +317,7 @@ export default function Sidebar() {
                         </div>
                     )}
 
-                    {canReadInventory && !isAdmin && !isBranchManager && (
+                    {canReadInventory && !isAdmin && !isBranchManager && !isSecretary && (
                         <div className={getNavClass(inventoryPath)} onClick={() => navigate(inventoryPath)}>
                             <img src={InventoryIcon} alt="Inventory" className={styles['nav-icon']} />
                             <span className={styles['nav-text']}>Inventory</span>

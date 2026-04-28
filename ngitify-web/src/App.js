@@ -61,8 +61,18 @@ const DentistOdontogram    = lazy(() => import('./pages/dentist/DentistOdontogra
 const DentistSettings      = lazy(() => import('./pages/dentist/DentistSettings'));
 
 // Pages - Secretary
-const SecretaryDashboard = lazy(() => import('./pages/secretary/SecretaryDashboard'));
+const SecretaryDashboard    = lazy(() => import('./pages/secretary/SecretaryDashboard'));
 const SecretaryAppointments = lazy(() => import('./pages/secretary/SecretaryAppointments'));
+const SecretaryPatients     = lazy(() => import('./pages/secretary/SecretaryPatients'));
+const SecretaryAddPatient   = lazy(() => import('./pages/secretary/SecretaryAddPatient'));
+const SecretaryEditPatient  = lazy(() => import('./pages/secretary/SecretaryEditPatient'));
+const SecretaryViewPatient  = lazy(() => import('./pages/secretary/SecretaryViewPatient'));
+const SecretaryPatientEMR   = lazy(() => import('./pages/secretary/SecretaryPatientEMR'));
+const SecretaryQueue        = lazy(() => import('./pages/secretary/SecretaryQueue'));
+const SecretaryChatSupport  = lazy(() => import('./pages/secretary/SecretaryChatSupport'));
+const SecretaryNotifications = lazy(() => import('./pages/secretary/SecretaryNotifications'));
+const SecretaryActivityLogs = lazy(() => import('./pages/secretary/SecretaryActivityLogs'));
+const SecretarySettings     = lazy(() => import('./pages/secretary/SecretarySettings'));
 
 // Pages - Branch Manager
 const BranchManagerDashboard = lazy(() => import('./pages/branch-manager/BranchManagerDashboard'));
@@ -169,12 +179,19 @@ function App() {
               {/* Protected Routes - Secretary Area */}
               <Route element={<ProtectedRoute allowedRoles={['secretary']}/>}>
                 <Route element={<DashboardLayout />}>
-                  <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
-                  <Route path="/secretary/appointments" element={<SecretaryAppointments />} />
-                  <Route path="/secretary/profile" element={<AdminProfile />} />
-                  <Route path="/secretary/settings" element={<AdminSettings />} />
-                  <Route path="/secretary/patients" element={<ManagePatients />} />
-                  <Route path="/secretary/inventory" element={<InventoryTracker />} />
+                  <Route path="/secretary/dashboard"                    element={<SecretaryDashboard />} />
+                  <Route path="/secretary/appointments"                 element={<SecretaryAppointments />} />
+                  <Route path="/secretary/patients"                     element={<SecretaryPatients />} />
+                  <Route path="/secretary/patients/add"                 element={<SecretaryAddPatient />} />
+                  <Route path="/secretary/patients/:patientId/edit"     element={<SecretaryEditPatient />} />
+                  <Route path="/secretary/patients/:patientId"          element={<SecretaryViewPatient />} />
+                  <Route path="/secretary/patients/:patientId/emr"      element={<SecretaryPatientEMR />} />
+                  <Route path="/secretary/queue"                        element={<SecretaryQueue />} />
+                  <Route path="/secretary/chat-support"                 element={<SecretaryChatSupport />} />
+                  <Route path="/secretary/notifications"                element={<SecretaryNotifications />} />
+                  <Route path="/secretary/activity-logs"                element={<SecretaryActivityLogs />} />
+                  <Route path="/secretary/profile"                      element={<AdminProfile />} />
+                  <Route path="/secretary/settings"                     element={<SecretarySettings />} />
                 </Route>
               </Route>
 
