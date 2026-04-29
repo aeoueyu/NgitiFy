@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../../context/AuthContext';
 import LogoutModal from '../../components/LogoutModal';
 import BackIcon from '../../assets/icons/Back.svg';
+import { Ionicons } from '@expo/vector-icons';
 
 const DARK_MODE_KEY = 'ngitify_darkMode';
 
@@ -212,7 +213,7 @@ export default function SettingsScreen({ navigation }) {
             const data = await res.json();
 
             if (res.ok) {
-                setPwSuccess('Password updated successfully! 🎉');
+                setPwSuccess('Password updated successfully!');
                 setTimeout(() => setPwModalVisible(false), 1800);
             } else {
                 setPwError(data.message || 'Failed to update password.');
@@ -293,7 +294,7 @@ export default function SettingsScreen({ navigation }) {
                         activeOpacity={0.7}
                     >
                         <View style={styles.menuItemLeft}>
-                            <Text style={styles.menuIcon}>👤</Text>
+                            <Ionicons name="person-outline" size={18} color="#555" style={styles.menuIcon} />
                             <Text style={styles.menuText}>View My Profile</Text>
                         </View>
                         <Text style={styles.arrow}>›</Text>
@@ -305,7 +306,7 @@ export default function SettingsScreen({ navigation }) {
                         activeOpacity={0.7}
                     >
                         <View style={styles.menuItemLeft}>
-                            <Text style={styles.menuIcon}>✏️</Text>
+                            <Ionicons name="create-outline" size={18} color="#555" style={styles.menuIcon} />
                             <Text style={styles.menuText}>Edit Profile Information</Text>
                         </View>
                         <Text style={styles.arrow}>›</Text>
@@ -317,7 +318,7 @@ export default function SettingsScreen({ navigation }) {
                         activeOpacity={0.7}
                     >
                         <View style={styles.menuItemLeft}>
-                            <Text style={styles.menuIcon}>🔒</Text>
+                            <Ionicons name="lock-closed-outline" size={18} color="#555" style={styles.menuIcon} />
                             <Text style={styles.menuText}>Change Password</Text>
                         </View>
                         <Text style={styles.arrow}>›</Text>
@@ -329,7 +330,7 @@ export default function SettingsScreen({ navigation }) {
                         activeOpacity={0.7}
                     >
                         <View style={styles.menuItemLeft}>
-                            <Text style={styles.menuIcon}>📋</Text>
+                            <Ionicons name="document-text-outline" size={18} color="#555" style={styles.menuIcon} />
                             <Text style={styles.menuText}>Activity Logs</Text>
                         </View>
                         <Text style={styles.arrow}>›</Text>
@@ -387,9 +388,10 @@ export default function SettingsScreen({ navigation }) {
                         )}
                         {!educationConsent && (
                             <View style={styles.consentNote}>
-                                <Text style={styles.consentNoteText}>
-                                    🔒 Off — you'll receive general dental tips only.
-                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Ionicons name="lock-closed-outline" size={13} color="#888" style={{ marginRight: 6 }} />
+                                    <Text style={styles.consentNoteText}>Off — you'll receive general dental tips only.</Text>
+                                </View>
                             </View>
                         )}
                     </View>
@@ -408,7 +410,7 @@ export default function SettingsScreen({ navigation }) {
                     <View style={styles.divider} />
                     <View style={styles.menuItem}>
                         <View style={styles.menuItemLeft}>
-                            <Text style={styles.menuIcon}>ℹ️</Text>
+                            <Ionicons name="information-circle-outline" size={18} color="#555" style={styles.menuIcon} />
                             <View>
                                 <Text style={styles.menuText}>About NgitiFy</Text>
                                 <Text style={styles.menuSub}>Dentime Dental Clinic · v1.0.0</Text>
@@ -485,12 +487,15 @@ export default function SettingsScreen({ navigation }) {
                                             autoCapitalize="none"
                                         />
                                         <TouchableOpacity onPress={() => setShowCurrent(v => !v)} style={styles.eyeBtn}>
-                                            <Text style={styles.eyeIcon}>{showCurrent ? '🙈' : '👁️'}</Text>
+                                            <Ionicons name={showCurrent ? 'eye-off-outline' : 'eye-outline'} size={20} color="#888" /> 
                                         </TouchableOpacity>
                                     </View>
 
                                     {currentPwError ? (
-                                        <Text style={styles.fieldError}>⚠️ {currentPwError}</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="warning-outline" size={13} color="#c62828" style={{ marginRight: 4 }} />
+                                            <Text style={styles.fieldError}>{currentPwError}</Text>
+                                        </View>
                                     ) : null}
 
                                     <TouchableOpacity
@@ -509,9 +514,10 @@ export default function SettingsScreen({ navigation }) {
                                 <>
                                     {/* ── STEP 2: Set new password ── */}
                                     <View style={[styles.stepBadge, styles.stepBadgeSuccess]}>
-                                        <Text style={[styles.stepBadgeText, { color: '#2e7d32' }]}>
-                                            ✅ Step 2 of 2 — Set New Password
-                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="checkmark-circle-outline" size={14} color="#2e7d32" style={{ marginRight: 6 }} />
+                                            <Text style={[styles.stepBadgeText, { color: '#2e7d32' }]}>Step 2 of 2 — Set New Password</Text>
+                                        </View>
                                     </View>
 
                                     {/* New Password */}
@@ -531,14 +537,15 @@ export default function SettingsScreen({ navigation }) {
                                             autoCapitalize="none"
                                         />
                                         <TouchableOpacity onPress={() => setShowNew(v => !v)} style={styles.eyeBtn}>
-                                            <Text style={styles.eyeIcon}>{showNew ? '🙈' : '👁️'}</Text>
+                                            <Ionicons name={showNew ? 'eye-off-outline' : 'eye-outline'} size={20} color="#888" />
                                         </TouchableOpacity>
                                     </View>
 
                                     {isSamePassword && (
-                                        <Text style={styles.fieldError}>
-                                            ⚠️ New password cannot be the same as your current password.
-                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="warning-outline" size={13} color="#c62828" style={{ marginRight: 4 }} />
+                                            <Text style={styles.fieldError}>New password cannot be the same as your current password.</Text>
+                                        </View>
                                     )}
 
                                     {/* Live checklist */}
@@ -575,18 +582,24 @@ export default function SettingsScreen({ navigation }) {
                                             autoCapitalize="none"
                                         />
                                         <TouchableOpacity onPress={() => setShowConfirm(v => !v)} style={styles.eyeBtn}>
-                                            <Text style={styles.eyeIcon}>{showConfirm ? '🙈' : '👁️'}</Text>
+                                            <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#888" />
                                         </TouchableOpacity>
                                     </View>
 
                                     {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-                                        <Text style={styles.fieldError}>⚠️ Passwords do not match.</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="warning-outline" size={13} color="#c62828" style={{ marginRight: 4 }} />
+                                            <Text style={styles.fieldError}>Passwords do not match.</Text>
+                                        </View>                                    
                                     )}
 
                                     {/* Error / Success */}
                                     {pwError ? (
                                         <View style={styles.pwMessage}>
-                                            <Text style={styles.pwError}>⚠️ {pwError}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <Ionicons name="warning-outline" size={13} color="#c62828" style={{ marginRight: 4 }} />
+                                                <Text style={styles.pwError}>{pwError}</Text>
+                                            </View>
                                         </View>
                                     ) : null}
                                     {pwSuccess ? (
@@ -670,7 +683,6 @@ const styles = StyleSheet.create({
         paddingVertical: 15, paddingHorizontal: 18, alignItems: 'center',
     },
     menuItemLeft:  { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    menuIcon:      { fontSize: 18, marginRight: 12 },
     menuText:      { fontSize: 15, color: '#333', fontWeight: '500' },
     menuSub:       { fontSize: 12, color: '#aaa', marginTop: 1 },
     arrow:         { fontSize: 22, color: '#ccc' },
@@ -726,7 +738,6 @@ const styles = StyleSheet.create({
     pwInputError: { borderColor: '#d32f2f' },
     pwInput:      { flex: 1, fontSize: 14, color: '#333', paddingVertical: 13 },
     eyeBtn:       { padding: 4 },
-    eyeIcon:      { fontSize: 18 },
 
     fieldError: { color: '#d32f2f', fontSize: 12, marginBottom: 10, marginLeft: 2 },
 

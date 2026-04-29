@@ -1,11 +1,13 @@
-// src/screens/patient/PatientXRayView.js
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
     View, Text, TouchableOpacity, StyleSheet,
     Animated, Image, Dimensions, ActivityIndicator
 } from 'react-native';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
+import { AuthContext } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -41,7 +43,7 @@ export default function PatientXRayView({ navigation, route }) {
                     onPress={() => navigation.goBack()}
                     style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
                 >
-                    <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
+                    <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
                     <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>X-Ray Viewer</Text>
@@ -55,7 +57,12 @@ export default function PatientXRayView({ navigation, route }) {
             >
                 {/* X-Ray Label & Date */}
                 <Text style={styles.xrayLabel}>{radiograph?.label || 'Radiograph'}</Text>
-                {dateStr ? <Text style={styles.xrayDate}>📅 Taken on: {dateStr}</Text> : null}
+                {dateStr ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
+                        <Ionicons name="calendar-outline" size={13} color="#888" style={{ marginRight: 4 }} />
+                        <Text style={[styles.xrayDate, { marginBottom: 0 }]}>Taken on: {dateStr}</Text>
+                    </View>
+                ) : null}
 
                 {/* Image Viewer Card */}
                 <View style={styles.viewerCard}>
@@ -77,7 +84,7 @@ export default function PatientXRayView({ navigation, route }) {
                                 />
                             ) : (
                                 <View style={styles.imageError}>
-                                    <Text style={styles.imageErrorIcon}>⚠️</Text>
+                                    <Ionicons name="warning-outline" size={36} color="#ef5350" style={{ marginBottom: 10 }} />
                                     <Text style={styles.imageErrorText}>Unable to load image.</Text>
                                     <Text style={styles.imageErrorSub}>Please contact the clinic for a copy.</Text>
                                 </View>
@@ -86,7 +93,7 @@ export default function PatientXRayView({ navigation, route }) {
                     ) : (
                         // No URL yet — placeholder
                         <View style={styles.placeholderContainer}>
-                            <Text style={styles.placeholderIcon}>🩻</Text>
+                            <MaterialCommunityIcons name="bone" size={50} color="#aaa" style={{ marginBottom: 14 }} />
                             <Text style={styles.placeholderTitle}>Image Not Yet Available</Text>
                             <Text style={styles.placeholderSub}>
                                 Your dentist has not yet uploaded the digital image for this radiograph. 
@@ -99,7 +106,10 @@ export default function PatientXRayView({ navigation, route }) {
                 {/* Dentist Notes (if any) */}
                 {radiograph?.notes ? (
                     <View style={styles.notesCard}>
-                        <Text style={styles.notesTitle}>📝 Notes from Your Dentist</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <Ionicons name="document-text-outline" size={14} color="#01538b" style={{ marginRight: 6 }} />
+                        <Text style={[styles.notesTitle, { marginBottom: 0 }]}>Notes from Your Dentist</Text>
+                    </View>
                         <Text style={styles.notesText}>{radiograph.notes}</Text>
                     </View>
                 ) : null}
@@ -143,12 +153,10 @@ const styles = StyleSheet.create({
     imageLoaderText: { color: '#aaa', marginTop: 10, fontSize: 13 },
 
     imageError: { padding: 40, alignItems: 'center' },
-    imageErrorIcon: { fontSize: 36, marginBottom: 10 },
     imageErrorText: { color: '#ef5350', fontWeight: 'bold', fontSize: 15, marginBottom: 5 },
     imageErrorSub: { color: '#888', fontSize: 13, textAlign: 'center' },
 
     placeholderContainer: { padding: 40, alignItems: 'center' },
-    placeholderIcon: { fontSize: 50, marginBottom: 14 },
     placeholderTitle: { color: 'white', fontWeight: 'bold', fontSize: 16, marginBottom: 10, textAlign: 'center' },
     placeholderSub: { color: '#aaa', fontSize: 13, textAlign: 'center', lineHeight: 19 },
 

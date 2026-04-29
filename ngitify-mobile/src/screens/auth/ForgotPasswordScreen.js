@@ -24,6 +24,13 @@ export default function ForgotPasswordScreen({ navigation }) {
     const [resendCooldown, setResendCooldown] = useState(0);
     const cooldownRef = useRef(null);
 
+    // Clean up interval on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            if (cooldownRef.current) clearInterval(cooldownRef.current);
+        };
+    }, []);
+
     // Step 3
     const [newPassword, setNewPassword]         = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -334,7 +341,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                     onPress={() => step > 1 ? setStep(s => s - 1) : navigation.goBack()}
                     style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
                 >
-                    <BackIcon width={16} height={16} style={{ color: '#005466', marginRight: 5 }} />
+                    <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
                     <Text style={styles.backText}>
                         {step > 1 ? 'Back' : 'Back to Login'}
                     </Text>

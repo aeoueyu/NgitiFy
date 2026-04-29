@@ -6,6 +6,8 @@ import {
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -39,16 +41,21 @@ const STATUS_COLORS = {
 const DEFAULT_STATUS_COLOR = { bg: '#f5f5f5', text: '#333' };
 
 const CATEGORY_ICONS = {
-    Restoration:    '🔧',
-    Extraction:     '🦷',
-    Prophylaxis:    '✨',
-    Orthodontics:   '🔩',
-    Endodontics:    '🩺',
-    Prosthodontics: '👑',
-    'Oral Surgery': '⚕️',
-    Consultation:   '💬',
-    Other:          '📋',
+    Restoration:    { name: 'construct-outline',     lib: 'Ionicons' },
+    Extraction:     { name: 'medical-outline',       lib: 'Ionicons' },
+    Prophylaxis:    { name: 'sparkles-outline',      lib: 'Ionicons' },
+    Orthodontics:   { name: 'git-merge-outline',     lib: 'Ionicons' },
+    Endodontics:    { name: 'pulse-outline',         lib: 'Ionicons' },
+    Prosthodontics: { name: 'diamond-outline',       lib: 'Ionicons' },
+    'Oral Surgery': { name: 'cut-outline',           lib: 'Ionicons' },
+    Consultation:   { name: 'chatbubble-outline',    lib: 'Ionicons' },
+    Other:          { name: 'document-text-outline', lib: 'Ionicons' },
 };
+
+function CategoryIcon({ category, size = 14, color = '#555' }) {
+    const cfg = CATEGORY_ICONS[category] || CATEGORY_ICONS.Other;
+    return <Ionicons name={cfg.name} size={size} color={color} />;
+}
 
 const SURGERY_STATUS_COLORS = {
     completed:  { color: '#2e7d32', bg: '#e8f5e9' },
@@ -71,10 +78,10 @@ const fmtDate = (iso) => {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function EmptyState({ icon, title, sub }) {
+function EmptyState({ iconComponent, title, sub }) {
     return (
         <View style={shared.emptyBox}>
-            <Text style={shared.emptyIcon}>{icon}</Text>
+            <View style={{ marginBottom: 12 }}>{iconComponent}</View>
             <Text style={shared.emptyTitle}>{title}</Text>
             {sub && <Text style={shared.emptySub}>{sub}</Text>}
         </View>
@@ -93,7 +100,7 @@ function LoadingState() {
 function ErrorState({ message, onRetry }) {
     return (
         <View style={shared.errorBox}>
-            <Text style={shared.errorIcon}>⚠️</Text>
+            <Ionicons name="warning-outline" size={36} color="#e65100" style={{ marginBottom: 10 }} />
             <Text style={shared.errorText}>{message}</Text>
             <TouchableOpacity style={shared.retryBtn} onPress={onRetry}>
                 <Text style={shared.retryText}>Retry</Text>
@@ -111,7 +118,7 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
     if (error)   return <ErrorState message={error} onRetry={onRetry} />;
     if (!logs.length) return (
         <EmptyState
-            icon="📋"
+            iconComponent={<Ionicons name="document-text-outline" size={40} color="#bbb" />}
             title="No Treatment Notes Yet"
             sub="Your dentist's notes will appear here after your first visit."
         />
@@ -121,7 +128,6 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
             {logs.map((log) => {
                 const isOpen = expanded === log._id;
-                const icon   = CATEGORY_ICONS[log.category] || '📋';
                 return (
                     <TouchableOpacity
                         key={log._id}
@@ -137,20 +143,28 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
                             </View>
                             <View style={styles.logMeta}>
                                 <View style={styles.logTitleRow}>
-                                    <Text style={styles.logIcon}>{icon}</Text>
+                                    <CategoryIcon category={log.category} size={14} color="#555" style={{ marginRight: 6 }} />
                                     <Text style={styles.logProcedure} numberOfLines={isOpen ? 0 : 1}>
                                         {log.procedure}
                                     </Text>
                                 </View>
                                 <Text style={styles.logCategory}>{log.category || 'Other'}</Text>
                                 {log.dentistName && (
-                                    <Text style={styles.logDentist}>🦷 Dr. {log.dentistName}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <MaterialCommunityIcons name="tooth-outline" size={13} color="#555" style={{ marginRight: 4 }} />
+                                        <Text style={styles.logDentist}>Dr. {log.dentistName}</Text>
+                                    </View>
                                 )}
                                 {log.tooth && (
                                     <Text style={styles.logTooth}>Tooth: {log.tooth}</Text>
                                 )}
                             </View>
-                            <Text style={styles.chevron}>{isOpen ? '▲' : '▼'}</Text>
+                            <Ionicons
+                                name={isOpen ? 'chevron-up' : 'chevron-down'}
+                                size={14}
+                                color="#bbb"
+                                style={{ paddingLeft: 8, paddingTop: 2 }}
+                            />
                         </View>
 
                         {isOpen && log.notes ? (
@@ -161,7 +175,10 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
                         ) : null}
 
                         {isOpen && log.branch ? (
-                            <Text style={styles.logBranch}>📍 {log.branch}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 12 }}>
+                                <Ionicons name="location-outline" size={12} color="#aaa" style={{ marginRight: 4 }} />
+                                <Text style={[styles.logBranch, { paddingHorizontal: 0, paddingBottom: 0 }]}>{log.branch}</Text>
+                            </View>
                         ) : null}
                     </TouchableOpacity>
                 );
@@ -244,9 +261,10 @@ function OdontogramTab({ data, loading, error, onRetry }) {
             </View>
 
             <View style={styles.readOnlyBanner}>
-                <Text style={styles.readOnlyText}>
-                    🔒 View-only. Only your dentist can update tooth conditions.
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="lock-closed-outline" size={13} color="#1565c0" style={{ marginRight: 6 }} />
+                    <Text style={styles.readOnlyText}>View-only. Only your dentist can update tooth conditions.</Text>
+                </View>
             </View>
         </ScrollView>
     );
@@ -259,7 +277,7 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
     if (error)   return <ErrorState message={error} onRetry={onRetry} />;
     if (!radiographs.length) return (
         <EmptyState
-            icon="🩻"
+            iconComponent={<MaterialCommunityIcons name="bone" size={40} color="#bbb" />}
             title="No X-Rays On File"
             sub="Uploaded radiographs will appear here after your dentist scans them in."
         />
@@ -279,7 +297,7 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
                     onPress={() => navigation.navigate('PatientXRayView', { radiograph: item })}
                 >
                     <View style={styles.xrayThumb}>
-                        <Text style={styles.xrayThumbIcon}>🩻</Text>
+                        <MaterialCommunityIcons name="bone" size={36} color="#aaa" />
                         {item.url && (
                             <View style={styles.xrayAvailableDot} />
                         )}
@@ -305,7 +323,7 @@ function HistoryTab({ surgeries, loading, error, onRetry }) {
     if (error)   return <ErrorState message={error} onRetry={onRetry} />;
     if (!surgeries.length) return (
         <EmptyState
-            icon="📅"
+            iconComponent={<Ionicons name="calendar-outline" size={40} color="#bbb" />}
             title="No Visit History Yet"
             sub="Your completed appointments will appear here."
         />
@@ -324,15 +342,26 @@ function HistoryTab({ surgeries, loading, error, onRetry }) {
                     <View key={s._id} style={styles.historyCard}>
                         <View style={styles.historyLeft}>
                             <Text style={styles.historyDate}>{fmtDate(s.date)}</Text>
-                            {s.time ? <Text style={styles.historyTime}>🕐 {s.time}</Text> : null}
+                            {s.time ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                                    <Ionicons name="time-outline" size={11} color="#888" style={{ marginRight: 3 }} />
+                                    <Text style={styles.historyTime}>{s.time}</Text>
+                                </View>
+                            ) : null}
                         </View>
                         <View style={styles.historyRight}>
                             <Text style={styles.historyProcedure}>{s.procedure}</Text>
                             {dentistName ? (
-                                <Text style={styles.historyDentist}>🦷 Dr. {dentistName}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                                    <MaterialCommunityIcons name="tooth-outline" size={13} color="#555" style={{ marginRight: 4 }} />
+                                    <Text style={styles.historyDentist}>Dr. {dentistName}</Text>
+                                </View>
                             ) : null}
                             {s.branch ? (
-                                <Text style={styles.historyBranch}>📍 {s.branch}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                    <Ionicons name="location-outline" size={12} color="#aaa" style={{ marginRight: 4 }} />
+                                    <Text style={styles.historyBranch}>{s.branch}</Text>
+                                </View>
                             ) : null}
                             <View style={[styles.historyStatusPill, { backgroundColor: sc.bg }]}>
                                 <Text style={[styles.historyStatusText, { color: sc.color }]}>
@@ -475,7 +504,7 @@ export default function MedicalRecordsScreen({ navigation }) {
                     onPress={() => navigation.goBack()}
                     style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
                 >
-                    <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
+                    <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
                     <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>My EMR</Text>
@@ -546,13 +575,11 @@ export default function MedicalRecordsScreen({ navigation }) {
 
 const shared = StyleSheet.create({
     emptyBox:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 },
-    emptyIcon:  { fontSize: 48, marginBottom: 14 },
     emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#555', marginBottom: 8, textAlign: 'center' },
     emptySub:   { fontSize: 13, color: '#aaa', textAlign: 'center', lineHeight: 19 },
     loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 60 },
     loadingText:{ color: '#888', marginTop: 12, fontSize: 14 },
     errorBox:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, marginTop: 40 },
-    errorIcon:  { fontSize: 36, marginBottom: 12 },
     errorText:  { color: '#d32f2f', fontSize: 14, textAlign: 'center', marginBottom: 16 },
     retryBtn:   { backgroundColor: '#01538b', paddingHorizontal: 24, paddingVertical: 11, borderRadius: 8 },
     retryText:  { color: 'white', fontWeight: 'bold', fontSize: 14 },
@@ -586,16 +613,13 @@ const styles = StyleSheet.create({
     logYear:      { fontSize: 10, color: '#aaa' },
     logMeta:      { flex: 1 },
     logTitleRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
-    logIcon:      { fontSize: 14, marginRight: 6 },
     logProcedure: { fontSize: 14, fontWeight: 'bold', color: '#333', flex: 1 },
     logCategory:  { fontSize: 11, color: '#888', marginBottom: 2 },
     logDentist:   { fontSize: 12, color: '#555' },
     logTooth:     { fontSize: 11, color: '#aaa', marginTop: 2 },
-    chevron:      { fontSize: 12, color: '#bbb', paddingLeft: 8, paddingTop: 2 },
     logNotesBox:  { backgroundColor: '#f9f9f9', padding: 14, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
     logNotesLabel:{ fontSize: 11, fontWeight: 'bold', color: '#01538b', marginBottom: 4 },
     logNotes:     { fontSize: 13, color: '#555', lineHeight: 19 },
-    logBranch:    { fontSize: 11, color: '#aaa', paddingHorizontal: 14, paddingBottom: 12 },
 
     // Odontogram
     odontogramCard:   { backgroundColor: 'white', borderRadius: 14, padding: 16, elevation: 2, marginBottom: 16 },
@@ -621,7 +645,6 @@ const styles = StyleSheet.create({
     // Radiograph cards
     xrayCard:          { flex: 1, backgroundColor: 'white', borderRadius: 14, marginBottom: 12, elevation: 2, overflow: 'hidden' },
     xrayThumb:         { backgroundColor: '#1a1a2e', height: 90, alignItems: 'center', justifyContent: 'center' },
-    xrayThumbIcon:     { fontSize: 36 },
     xrayAvailableDot:  { position: 'absolute', top: 8, right: 8, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4caf50' },
     xrayInfo:          { padding: 10 },
     xrayLabel:         { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 3 },
@@ -633,11 +656,8 @@ const styles = StyleSheet.create({
     historyCard:       { backgroundColor: 'white', borderRadius: 14, padding: 14, marginBottom: 10, elevation: 1, flexDirection: 'row', gap: 12 },
     historyLeft:       { width: 72, alignItems: 'center' },
     historyDate:       { fontSize: 12, fontWeight: 'bold', color: '#01538b', textAlign: 'center' },
-    historyTime:       { fontSize: 10, color: '#888', textAlign: 'center', marginTop: 3 },
     historyRight:      { flex: 1 },
     historyProcedure:  { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 3 },
-    historyDentist:    { fontSize: 12, color: '#555', marginBottom: 2 },
-    historyBranch:     { fontSize: 11, color: '#aaa', marginBottom: 6 },
     historyStatusPill: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
     historyStatusText: { fontSize: 11, fontWeight: 'bold' },
 });

@@ -36,15 +36,15 @@ export default function PreOpInstructionsScreen({ navigation }) {
                     <View style={styles.divider} />
                     
                     <View style={styles.detailRow}>
-                        <SurgeryProcedureIcon width={16} height={16} style={styles.icon} />
+                        <SurgeryProcedureIcon width={16} height={16} fill="#01538b" style={{ marginRight: 10 }} />
                         <Text style={styles.detailText}>Impacted Wisdom Tooth Extraction</Text>
                     </View>
                     <View style={styles.detailRow}>
-                        <TimeIcon width={16} height={16} style={styles.icon} />
+                        <TimeIcon width={16} height={16} fill="#01538b" style={{ marginRight: 10 }} />
                         <Text style={styles.detailText}>March 15, 2026 | 10:00 AM</Text>
                     </View>
                     <View style={styles.detailRow}>
-                        <DentistIcon width={16} height={16} style={styles.icon} />
+                        <DentistIcon width={16} height={16} fill="#01538b" style={{ marginRight: 10 }} />
                         <Text style={styles.detailText}>Dr. Smile Brillante</Text>
                     </View>
                 </View>
@@ -107,7 +107,6 @@ const styles = StyleSheet.create({
     cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
     divider: { height: 1, backgroundColor: '#eee', marginBottom: 15 },
     detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-    icon: { color: '#01538b', marginRight: 10 },
     detailText: { fontSize: 14, color: '#555', fontWeight: '500' },
 
     sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#555', marginBottom: 10 },

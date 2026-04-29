@@ -7,6 +7,8 @@ import {
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -25,23 +27,28 @@ const formatTimestamp = (ts) => {
     return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-const getNotifIcon = (type = '') => {
-    switch (type) {
-        case 'NEW_APPOINTMENT':           return '📅';
-        case 'APPOINTMENT_CONFIRMED':     return '✅';
-        case 'APPOINTMENT_DECLINED':      return '❌';
-        case 'APPOINTMENT_REMINDER':      return '⏰';
-        case 'APPOINTMENT_CANCELLED':     return '🚫';
-        case 'PREDICTIVE_VISIT_DUE':      return '⚠️';
-        case 'PREDICTIVE_VISIT_OVERDUE':  return '🚨';
-        case 'DENTAL_HEALTH_TIP':         return '🦷';
-        case 'CHAT_TICKET_RAISED':        return '💬';
-        case 'INQUIRY_ESCALATED':         return '📣';
-        case 'NEW_RADIOGRAPH':            return '🩻';
-        case 'LOW_INVENTORY':             return '📦';
-        default:                          return '🔔';
-    }
+const NOTIF_ICON_MAP = {
+    NEW_APPOINTMENT:          { name: 'calendar-outline',          lib: 'Ionicons',                color: '#1e88e5' },
+    APPOINTMENT_CONFIRMED:    { name: 'checkmark-circle-outline',  lib: 'Ionicons',                color: '#2e7d32' },
+    APPOINTMENT_DECLINED:     { name: 'close-circle-outline',      lib: 'Ionicons',                color: '#c62828' },
+    APPOINTMENT_REMINDER:     { name: 'alarm-outline',             lib: 'Ionicons',                color: '#f57f17' },
+    APPOINTMENT_CANCELLED:    { name: 'ban-outline',               lib: 'Ionicons',                color: '#757575' },
+    PREDICTIVE_VISIT_DUE:     { name: 'warning-outline',           lib: 'Ionicons',                color: '#e65100' },
+    PREDICTIVE_VISIT_OVERDUE: { name: 'alert-circle-outline',      lib: 'Ionicons',                color: '#b71c1c' },
+    DENTAL_HEALTH_TIP:        { name: 'tooth-outline',             lib: 'MaterialCommunityIcons',  color: '#00897b' },
+    CHAT_TICKET_RAISED:       { name: 'chatbubble-outline',        lib: 'Ionicons',                color: '#6a1b9a' },
+    INQUIRY_ESCALATED:        { name: 'megaphone-outline',         lib: 'Ionicons',                color: '#ad1457' },
+    NEW_RADIOGRAPH:           { name: 'bone',                      lib: 'MaterialCommunityIcons',  color: '#4527a0' },
+    LOW_INVENTORY:            { name: 'cube-outline',              lib: 'Ionicons',                color: '#558b2f' },
 };
+
+function NotifIcon({ type, size = 22 }) {
+    const cfg = NOTIF_ICON_MAP[type] || { name: 'notifications-outline', lib: 'Ionicons', color: '#01538b' };
+    if (cfg.lib === 'MaterialCommunityIcons') {
+        return <MaterialCommunityIcons name={cfg.name} size={size} color={cfg.color} />;
+    }
+    return <Ionicons name={cfg.name} size={size} color={cfg.color} />;
+}
 
 // Determines which screen to navigate to when a notification is tapped
 const getNavTarget = (type = '') => {
@@ -69,7 +76,7 @@ function NotifItem({ item, onPress }) {
 
             {/* Icon */}
             <View style={[styles.iconCircle, unread && styles.iconCircleUnread]}>
-                <Text style={styles.iconText}>{getNotifIcon(item.type)}</Text>
+                <NotifIcon type={item.type} size={22} />
             </View>
 
             {/* Content */}
@@ -181,7 +188,7 @@ export default function NotificationsScreen({ navigation }) {
         if (loading) return null;
         return (
             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>🔔</Text>
+                <Ionicons name="notifications-outline" size={52} color="#bbb" style={{ marginBottom: 16 }} />
                 <Text style={styles.emptyTitle}>No notifications yet</Text>
                 <Text style={styles.emptySubtitle}>
                     You'll be notified here when your appointments are confirmed,
@@ -194,7 +201,7 @@ export default function NotificationsScreen({ navigation }) {
     // ── Error state ──
     const renderError = () => (
         <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>⚠️</Text>
+            <Ionicons name="warning-outline" size={52} color="#e65100" style={{ marginBottom: 16 }} />
             <Text style={styles.emptyTitle}>Could not load notifications</Text>
             <Text style={styles.emptySubtitle}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={fetchNotifications}>
@@ -348,7 +355,6 @@ const styles = StyleSheet.create({
         alignItems: 'center', marginRight: 12,
     },
     iconCircleUnread: { backgroundColor: '#dceeff' },
-    iconText: { fontSize: 20 },
 
     notifContent:      { flex: 1, marginRight: 8 },
     notifTitle:        { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 2 },
@@ -363,7 +369,6 @@ const styles = StyleSheet.create({
     // Empty / error
     emptyFlex:      { flexGrow: 1, justifyContent: 'center' },
     emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-    emptyIcon:      { fontSize: 52, marginBottom: 16 },
     emptyTitle:     { fontSize: 18, fontWeight: 'bold', color: '#555', marginBottom: 8, textAlign: 'center' },
     emptySubtitle:  { fontSize: 13, color: '#aaa', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
     retryBtn:       { backgroundColor: '#01538b', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 },

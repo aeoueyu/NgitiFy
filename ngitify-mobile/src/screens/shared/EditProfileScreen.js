@@ -310,7 +310,7 @@ export default function EditProfileScreen({ navigation }) {
                 <StatusBar barStyle="dark-content" backgroundColor="white" />
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}>
-                        <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
+                        <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
                         <Text style={styles.backText}>Back</Text>
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Edit Profile</Text>
@@ -340,7 +340,7 @@ export default function EditProfileScreen({ navigation }) {
                     onPress={() => navigation.goBack()}
                     style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
                 >
-                    <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
+                    <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
                     <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Edit Profile</Text>

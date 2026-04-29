@@ -8,6 +8,8 @@ import {
 import { AuthContext } from '../../context/AuthContext';
 import { getVisitPrediction } from '../../utils/visitPrediction';
 import LogoutModal from '../../components/LogoutModal';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,10 +33,10 @@ const formatTime = (time24) => {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function QuickActionCard({ icon, label, color, onPress }) {
+function QuickActionCard({ iconComponent, label, color, onPress }) {
     return (
         <TouchableOpacity style={[styles.qaCard, { borderTopColor: color }]} onPress={onPress} activeOpacity={0.75}>
-            <Text style={styles.qaIcon}>{icon}</Text>
+            <View style={{ marginBottom: 8 }}>{iconComponent}</View>
             <Text style={styles.qaLabel}>{label}</Text>
         </TouchableOpacity>
     );
@@ -55,13 +57,13 @@ function ProfileMenuSheet({ visible, onClose, navigation, userInfo, logout }) {
     const email     = userInfo?.email || '';
 
     const menuItems = [
-        { icon: '👤', label: 'My Profile',    screen: 'MyProfile' },
-        { icon: '✏️',  label: 'Edit Profile',  screen: 'EditProfile' },
-        { icon: '⚙️',  label: 'Settings',      screen: 'Settings' },
-        { icon: '📋', label: 'Activity Logs', screen: 'ActivityLogs' },
-        { icon: '🔔', label: 'Notifications', screen: 'Notifications' },
-        { icon: '📅', label: 'My Appointments', screen: 'AppointmentBooking' },
-        { icon: '🦷', label: 'My EMR',        screen: 'MedicalRecords' },
+        { iconName: 'person-outline',        lib: 'Ionicons',                label: 'My Profile',     screen: 'MyProfile' },
+        { iconName: 'create-outline',        lib: 'Ionicons',                label: 'Edit Profile',   screen: 'EditProfile' },
+        { iconName: 'settings-outline',      lib: 'Ionicons',                label: 'Settings',       screen: 'Settings' },
+        { iconName: 'document-text-outline', lib: 'Ionicons',                label: 'Activity Logs',  screen: 'ActivityLogs' },
+        { iconName: 'notifications-outline', lib: 'Ionicons',                label: 'Notifications',  screen: 'Notifications' },
+        { iconName: 'calendar-outline',      lib: 'Ionicons',                label: 'My Appointments',screen: 'AppointmentBooking' },
+        { iconName: 'tooth-outline',         lib: 'MaterialCommunityIcons',  label: 'My EMR',         screen: 'MedicalRecords' },
     ];
 
     const handleNav = (screen) => {
@@ -96,18 +98,25 @@ function ProfileMenuSheet({ visible, onClose, navigation, userInfo, logout }) {
                                 <View style={sheet.divider} />
 
                                 {/* Menu items */}
-                                {menuItems.map((item) => (
-                                    <TouchableOpacity
-                                        key={item.screen}
-                                        style={sheet.menuItem}
-                                        onPress={() => handleNav(item.screen)}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Text style={sheet.menuIcon}>{item.icon}</Text>
-                                        <Text style={sheet.menuLabel}>{item.label}</Text>
-                                        <Text style={sheet.menuArrow}>›</Text>
-                                    </TouchableOpacity>
-                                ))}
+                                {menuItems.map((item) => {
+                                    const IconComp = item.lib === 'MaterialCommunityIcons'
+                                        ? MaterialCommunityIcons
+                                        : Ionicons;
+                                    return (
+                                        <TouchableOpacity
+                                            key={item.screen}
+                                            style={sheet.menuItem}
+                                            onPress={() => handleNav(item.screen)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={sheet.menuIcon}>
+                                                <IconComp name={item.iconName} size={18} color="#555" />
+                                            </View>
+                                            <Text style={sheet.menuLabel}>{item.label}</Text>
+                                            <Text style={sheet.menuArrow}>›</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
 
                                 <View style={sheet.divider} />
 
@@ -120,7 +129,9 @@ function ProfileMenuSheet({ visible, onClose, navigation, userInfo, logout }) {
                                     }}
                                     activeOpacity={0.7}
                                 >
-                                    <Text style={sheet.menuIcon}>🚪</Text>
+                                    <View style={sheet.menuIcon}>
+                                        <Ionicons name="log-out-outline" size={18} color="#d32f2f" />
+                                    </View>
                                     <Text style={sheet.logoutLabel}>Log Out</Text>
                                 </TouchableOpacity>
 
@@ -228,7 +239,7 @@ export default function PatientDashboard({ navigation }) {
         if (apptError) {
             return (
                 <View style={[styles.apptCard, styles.apptCardEmpty]}>
-                    <Text style={styles.emptyIcon}>⚠️</Text>
+                    <Ionicons name="warning-outline" size={36} color="#e65100" style={{ marginBottom: 10 }} />
                     <Text style={styles.emptyTitle}>Could not load appointment</Text>
                     <Text style={styles.emptySubtitle}>Check your connection and pull to refresh.</Text>
                 </View>
@@ -242,7 +253,7 @@ export default function PatientDashboard({ navigation }) {
                     onPress={() => navigation.navigate('AppointmentBooking')}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.emptyIcon}>📅</Text>
+                    <Ionicons name="calendar-outline" size={36} color="#bbb" style={{ marginBottom: 10 }} />
                     <Text style={styles.emptyTitle}>No upcoming appointment</Text>
                     <Text style={styles.emptySubtitle}>Tap to book your next dental visit.</Text>
                     <View style={styles.bookBtn}>
@@ -285,7 +296,10 @@ export default function PatientDashboard({ navigation }) {
                     </View>
                 </View>
                 <View style={styles.apptCardFooter}>
-                    <Text style={styles.apptBranch}>📍 {upcomingAppt.branch || 'Dentime Dental Clinic'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="location-outline" size={13} color="#888" style={{ marginRight: 4 }} />
+                        <Text style={styles.apptBranch}>{upcomingAppt.branch || 'Dentime Dental Clinic'}</Text>
+                    </View>
                     <Text style={styles.apptTapHint}>Tap to manage →</Text>
                 </View>
             </TouchableOpacity>
@@ -296,7 +310,7 @@ export default function PatientDashboard({ navigation }) {
         if (!visitPrediction) {
             return (
                 <View style={[styles.visitBanner, { backgroundColor: '#f5f5f5' }]}>
-                    <Text style={styles.visitBannerIcon}>🦷</Text>
+                    <MaterialCommunityIcons name="tooth-outline" size={28} color="#999" style={{ marginRight: 12 }} />
                     <View style={styles.visitBannerText}>
                         <Text style={styles.visitBannerTitle}>No visit history yet</Text>
                         <Text style={styles.visitBannerSub}>Your visit prediction will appear after your first recorded treatment.</Text>
@@ -307,10 +321,12 @@ export default function PatientDashboard({ navigation }) {
 
         return (
             <View style={[styles.visitBanner, { backgroundColor: visitPrediction.bg }]}>
-                <Text style={styles.visitBannerIcon}>
-                    {visitPrediction.label === 'On Track' ? '✅' :
-                     visitPrediction.label === 'Due Soon'  ? '⚠️' : '🚨'}
-                </Text>
+                {visitPrediction.label === 'On Track'
+                    ? <Ionicons name="checkmark-circle-outline" size={28} color={visitPrediction.color} style={{ marginRight: 12 }} />
+                    : visitPrediction.label === 'Due Soon'
+                    ? <Ionicons name="warning-outline" size={28} color={visitPrediction.color} style={{ marginRight: 12 }} />
+                    : <Ionicons name="alert-circle-outline" size={28} color={visitPrediction.color} style={{ marginRight: 12 }} />
+                }
                 <View style={styles.visitBannerText}>
                     <Text style={[styles.visitBannerTitle, { color: visitPrediction.color }]}>
                         {visitPrediction.label}
@@ -345,7 +361,10 @@ export default function PatientDashboard({ navigation }) {
             {/* ── Header ── */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
-                    <Text style={styles.headerGreeting}>Hello, {firstName} 👋</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={styles.headerGreeting}>Hello, {firstName} </Text>
+                        <Ionicons name="hand-right-outline" size={22} color="white" />
+                    </View>
                     <Text style={styles.headerSub}>Welcome back to NgitiFy</Text>
                 </View>
 
@@ -356,7 +375,7 @@ export default function PatientDashboard({ navigation }) {
                         onPress={() => navigation.navigate('Notifications')}
                         activeOpacity={0.7}
                     >
-                        <Text style={styles.iconBtnText}>🔔</Text>
+                        <Ionicons name="notifications-outline" size={24} color="white" />
                         {unreadCount > 0 && (
                             <View style={styles.badge}>
                                 <Text style={styles.badgeText}>
@@ -401,30 +420,30 @@ export default function PatientDashboard({ navigation }) {
                 {/* ── Quick Actions ── */}
                 <SectionHeader title="Quick Actions" />
                 <View style={styles.qaGrid}>
-                    <QuickActionCard
-                        icon="📅"
-                        label="Book Appointment"
-                        color="#01538b"
-                        onPress={() => navigation.navigate('AppointmentBooking')}
-                    />
-                    <QuickActionCard
-                        icon="🦷"
-                        label="My EMR"
-                        color="#00897b"
-                        onPress={() => navigation.navigate('MedicalRecords')}
-                    />
-                    <QuickActionCard
-                        icon="🤖"
-                        label="AI Companion"
-                        color="#7b1fa2"
-                        onPress={() => navigation.navigate('AiPatientCareCompanion')}
-                    />
-                    <QuickActionCard
-                        icon="⚙️"
-                        label="Settings"
-                        color="#e65100"
-                        onPress={() => navigation.navigate('Settings')}
-                    />
+                <QuickActionCard
+                    iconComponent={<Ionicons name="calendar-outline" size={28} color="#01538b" />}
+                    label="Book Appointment"
+                    color="#01538b"
+                    onPress={() => navigation.navigate('AppointmentBooking')}
+                />
+                <QuickActionCard
+                    iconComponent={<MaterialCommunityIcons name="tooth-outline" size={28} color="#00897b" />}
+                    label="My EMR"
+                    color="#00897b"
+                    onPress={() => navigation.navigate('MedicalRecords')}
+                />
+                <QuickActionCard
+                    iconComponent={<Ionicons name="hardware-chip-outline" size={28} color="#7b1fa2" />}
+                    label="AI Companion"
+                    color="#7b1fa2"
+                    onPress={() => navigation.navigate('AiPatientCareCompanion')}
+                />
+                <QuickActionCard
+                    iconComponent={<Ionicons name="settings-outline" size={28} color="#e65100" />}
+                    label="Settings"
+                    color="#e65100"
+                    onPress={() => navigation.navigate('Settings')}
+                />
                 </View>
 
                 {/* ── Bottom padding for FAB ── */}
@@ -437,7 +456,10 @@ export default function PatientDashboard({ navigation }) {
                 onPress={() => navigation.navigate('AiPatientCareCompanion')}
                 underlayColor="#014a7a"
             >
-                <Text style={styles.fabLabel}>🤖 NgitiBot</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="hardware-chip-outline" size={18} color="white" style={{ marginRight: 6 }} />
+                    <Text style={styles.fabLabel}>NgitiBot</Text>
+                </View>
             </TouchableHighlight>
 
             {/* ── Profile Menu Sheet ── */}
@@ -471,7 +493,6 @@ const styles = StyleSheet.create({
     headerActions:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
     iconBtn:     { padding: 8, position: 'relative' },
-    iconBtnText: { fontSize: 24 },
     badge: {
         position: 'absolute', top: 4, right: 4, backgroundColor: '#e53935',
         borderRadius: 8, minWidth: 16, height: 16,
@@ -517,7 +538,6 @@ const styles = StyleSheet.create({
     statusDot:     { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
     statusText:    { fontSize: 12, fontWeight: '700' },
 
-    emptyIcon:     { fontSize: 36, marginBottom: 10 },
     emptyTitle:    { fontSize: 15, fontWeight: 'bold', color: '#555', marginBottom: 4 },
     emptySubtitle: { fontSize: 12, color: '#999', textAlign: 'center', marginBottom: 16 },
     bookBtn:       { backgroundColor: '#01538b', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
@@ -525,7 +545,6 @@ const styles = StyleSheet.create({
 
     // Visit banner
     visitBanner:     { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 14, marginBottom: 16 },
-    visitBannerIcon: { fontSize: 28, marginRight: 12 },
     visitBannerText: { flex: 1 },
     visitBannerTitle:{ fontSize: 15, fontWeight: 'bold', marginBottom: 2 },
     visitBannerSub:  { fontSize: 12, color: '#555', lineHeight: 16 },
@@ -537,7 +556,6 @@ const styles = StyleSheet.create({
         marginBottom: 10, alignItems: 'center', elevation: 2, borderTopWidth: 3,
         shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 3,
     },
-    qaIcon:  { fontSize: 28, marginBottom: 8 },
     qaLabel: { fontSize: 13, fontWeight: '600', color: '#333', textAlign: 'center' },
 
     // FAB
@@ -594,7 +612,7 @@ const sheet = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
     },
-    menuIcon:  { fontSize: 16, width: 26 },
+    menuIcon:  { width: 26, alignItems: 'center', justifyContent: 'center' },
     menuLabel: { flex: 1, fontSize: 14, color: '#333', fontWeight: '500' },
     menuArrow: { fontSize: 18, color: '#ccc' },
 
