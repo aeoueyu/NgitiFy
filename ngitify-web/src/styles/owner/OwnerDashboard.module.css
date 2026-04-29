@@ -1,0 +1,252 @@
+.mainContent {
+    flex: 1;
+    padding: 32px 36px;
+    background-color: #f4f7fa;
+    font-family: 'Lexend Deca', sans-serif;
+    overflow-y: auto;
+}
+
+/* ── Header ── */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 28px;
+}
+
+.headerLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.divider {
+    margin: 0 8px;
+    color: #2dccf6;
+}
+
+.timeText {
+    color: #01538b;
+}
+
+.bellBtn {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.bellBtn:hover {
+    background: #f1f5f9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.bellIcon {
+    color: #01538b;
+    font-size: 18px;
+}
+
+.bellBadge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 20px;
+    line-height: 1;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+}
+
+/* ── Alert Banner ── */
+.alertBanner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    color: #dc2626;
+    font-weight: 600;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.alertBanner:hover {
+    background: #fee2e2;
+}
+
+.alertIcon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+/* ── KPI Grid ── */
+.kpiGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.kpiCard {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    cursor: pointer;
+    border-top: 4px solid transparent;
+    transition: transform 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.kpiCard:hover {
+    transform: translateY(-2px);
+}
+
+.kpiIcon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.kpiLabel {
+    margin: 0;
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.kpiValue {
+    margin: 4px 0 0;
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+/* ── Table Card ── */
+.tableCard {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.tableCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.tableCardTitle {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.viewAllBtn {
+    background: none;
+    border: none;
+    color: #01538b;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Lexend Deca', sans-serif;
+    transition: opacity 0.2s;
+}
+
+.viewAllBtn:hover {
+    opacity: 0.7;
+}
+
+.emptyText {
+    color: #94a3b8;
+    text-align: center;
+    padding: 20px 0;
+    margin: 0;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.tableHeadRow {
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.th {
+    text-align: left;
+    padding: 8px 12px;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.tableRow {
+    border-bottom: 1px solid #f8fafc;
+    transition: background 0.15s;
+}
+
+.tableRow:hover {
+    background: #f8fafc;
+}
+
+.td {
+    padding: 10px 12px;
+    color: #475569;
+}
+
+.tdBold {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.statusBadge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+    display: inline-block;
+}

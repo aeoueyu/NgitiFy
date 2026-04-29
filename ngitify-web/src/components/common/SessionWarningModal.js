@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FaClock } from 'react-icons/fa';
 import styles from './SessionWarningModal.module.css';
 
 const WARNING_SECONDS = 5 * 60; // 5 minutes countdown
@@ -33,14 +34,13 @@ export default function SessionWarningModal({ isOpen, onStayLoggedIn }) {
     const seconds = secondsLeft % 60;
     const timeDisplay = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-    // Urgency color shifts red as time runs out
     const isUrgent = secondsLeft <= 60;
 
     return (
         <div className={styles.overlay}>
             <div className={styles.modal}>
                 <div className={styles.iconWrapper}>
-                    <span className={styles.clockIcon}>⏱</span>
+                    <FaClock className={`${styles.clockIcon} ${isUrgent ? styles.urgentIcon : ''}`} />
                 </div>
 
                 <h2 className={styles.title}>Session Expiring Soon</h2>

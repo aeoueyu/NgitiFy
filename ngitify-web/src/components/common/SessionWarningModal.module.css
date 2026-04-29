@@ -32,10 +32,20 @@
 
 .iconWrapper {
     margin-bottom: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .clockIcon {
     font-size: 48px;
+    color: #01538b;
+    transition: color 0.3s;
+}
+
+.clockIcon.urgentIcon {
+    color: #e74c3c;
+    animation: pulse 1s infinite;
 }
 
 .title {
