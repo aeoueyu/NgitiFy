@@ -1,4 +1,14 @@
-require('dotenv').config(); 
+require('dotenv').config();
+
+// ── Fail fast: crash at startup if any required env var is missing ──
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL'];
+REQUIRED_ENV_VARS.forEach(key => {
+    if (!process.env[key]) {
+        console.error(`❌ Missing required environment variable: ${key}`);
+        process.exit(1);
+    }
+});
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -1062,7 +1072,8 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             contactNumber, 
             birthdate, 
             gender, 
-            currentAddress, 
+            currentAddress,
+            permanentAddress,
             profileImage 
         } = req.body;
 
@@ -1088,9 +1099,16 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         }
 
         if (currentAddress) {
-             user.currentAddress = {
-                ...user.currentAddress,
+            user.currentAddress = {
+                ...user.currentAddress?.toObject(),
                 ...currentAddress
+            };
+        }
+
+        if (permanentAddress) {
+            user.permanentAddress = {
+                ...user.permanentAddress?.toObject(),
+                ...permanentAddress
             };
         }
 
@@ -3034,14 +3052,6 @@ app.post('/api/activity-logs', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error creating activity log:', error);
         res.status(500).json({ message: 'Server error.' });
-    }
-});
-
-const REQUIRED_ENV_VARS = ['JWT_SECRET', 'MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL'];
-REQUIRED_ENV_VARS.forEach(key => {
-    if (!process.env[key]) {
-        console.error(`❌ Missing required environment variable: ${key}`);
-        process.exit(1);
     }
 });
 

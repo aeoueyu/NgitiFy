@@ -1,8 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-
-import WarningIcon from '../assets/images/warning.svg';
-import SuccessIcon from '../assets/images/success.svg';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function CustomModal({ visible, title, message, type, onClose }) {
     return (
@@ -15,9 +13,9 @@ export default function CustomModal({ visible, title, message, type, onClose }) 
             <View style={styles.modalOverlay}>
                 <View style={styles.modalCard}>
                     {type === 'warning' ? (
-                        <WarningIcon width={60} height={60} style={styles.icon} />
+                        <Ionicons name="warning-outline" size={60} color="#f57f17" style={styles.icon} />
                     ) : (
-                        <SuccessIcon width={60} height={60} style={styles.icon} />
+                        <Ionicons name="checkmark-circle-outline" size={60} color="#2e7d32" style={styles.icon} />
                     )}
 
                     <Text style={styles.modalTitle}>{title}</Text>
@@ -35,7 +33,7 @@ export default function CustomModal({ visible, title, message, type, onClose }) 
 const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,

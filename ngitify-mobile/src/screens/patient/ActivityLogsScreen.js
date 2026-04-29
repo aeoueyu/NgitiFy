@@ -225,7 +225,7 @@ export default function ActivityLogsScreen({ navigation }) {
                     onPress={() => navigation.goBack()}
                     style={styles.backBtn}
                 >
-                    <BackIcon width={16} height={16} style={{ color: '#01538b' }} />
+                    <BackIcon width={16} height={16} fill="#01538b" />
                     <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Activity Logs</Text>

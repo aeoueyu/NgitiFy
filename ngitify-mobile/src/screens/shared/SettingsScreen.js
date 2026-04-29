@@ -213,8 +213,11 @@ export default function SettingsScreen({ navigation }) {
             const data = await res.json();
 
             if (res.ok) {
-                setPwSuccess('Password updated successfully!');
-                setTimeout(() => setPwModalVisible(false), 1800);
+                setPwSuccess('Password changed. You will be logged out for security.');
+                setTimeout(() => {
+                    setPwModalVisible(false);
+                    logout();
+                }, 1800);
             } else {
                 setPwError(data.message || 'Failed to update password.');
             }
@@ -262,7 +265,7 @@ export default function SettingsScreen({ navigation }) {
                     onPress={() => navigation.goBack()}
                     style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
                 >
-                    <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
+                    <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
                     <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Settings</Text>

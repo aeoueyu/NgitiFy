@@ -28,18 +28,19 @@ const formatTimestamp = (ts) => {
 };
 
 const NOTIF_ICON_MAP = {
-    NEW_APPOINTMENT:          { name: 'calendar-outline',         lib: 'Ionicons',               color: '#1e88e5' },
-    APPOINTMENT_CONFIRMED:    { name: 'checkmark-circle-outline', lib: 'Ionicons',               color: '#2e7d32' },
-    APPOINTMENT_DECLINED:     { name: 'close-circle-outline',     lib: 'Ionicons',               color: '#c62828' },
-    APPOINTMENT_REMINDER:     { name: 'alarm-outline',            lib: 'Ionicons',               color: '#f57f17' },
-    APPOINTMENT_CANCELLED:    { name: 'ban-outline',              lib: 'Ionicons',               color: '#757575' },
-    PREDICTIVE_VISIT_DUE:     { name: 'warning-outline',          lib: 'Ionicons',               color: '#e65100' },
-    PREDICTIVE_VISIT_OVERDUE: { name: 'alert-circle-outline',     lib: 'Ionicons',               color: '#b71c1c' },
-    DENTAL_HEALTH_TIP:        { name: 'tooth-outline',            lib: 'MaterialCommunityIcons', color: '#00897b' },
-    CHAT_TICKET_RAISED:       { name: 'chatbubble-outline',       lib: 'Ionicons',               color: '#6a1b9a' },
-    INQUIRY_ESCALATED:        { name: 'megaphone-outline',        lib: 'Ionicons',               color: '#ad1457' },
-    NEW_RADIOGRAPH:           { name: 'bone',                     lib: 'MaterialCommunityIcons', color: '#4527a0' },
-    LOW_INVENTORY:            { name: 'cube-outline',             lib: 'Ionicons',               color: '#558b2f' },
+    NEW_APPOINTMENT:             { name: 'calendar-outline',         lib: 'Ionicons',               color: '#1e88e5' },
+    APPOINTMENT_CONFIRMED:       { name: 'checkmark-circle-outline', lib: 'Ionicons',               color: '#2e7d32' },
+    APPOINTMENT_DECLINED:        { name: 'close-circle-outline',     lib: 'Ionicons',               color: '#c62828' },
+    APPOINTMENT_REMINDER:        { name: 'alarm-outline',            lib: 'Ionicons',               color: '#f57f17' },
+    APPOINTMENT_CANCELLED:       { name: 'ban-outline',              lib: 'Ionicons',               color: '#757575' },
+    PREDICTIVE_VISIT_DUE:        { name: 'warning-outline',          lib: 'Ionicons',               color: '#e65100' },
+    PREDICTIVE_VISIT_OVERDUE:    { name: 'alert-circle-outline',     lib: 'Ionicons',               color: '#b71c1c' },
+    DENTAL_HEALTH_TIP:           { name: 'tooth-outline',            lib: 'MaterialCommunityIcons', color: '#00897b' },
+    CHAT_TICKET_RAISED:          { name: 'chatbubble-outline',       lib: 'Ionicons',               color: '#6a1b9a' },
+    INQUIRY_ESCALATED:           { name: 'megaphone-outline',        lib: 'Ionicons',               color: '#ad1457' },
+    NEW_RADIOGRAPH:              { name: 'bone',                     lib: 'MaterialCommunityIcons', color: '#4527a0' },
+    LOW_INVENTORY:               { name: 'cube-outline',             lib: 'Ionicons',               color: '#558b2f' },
+    NEW_PATIENT_REGISTRATION:    { name: 'person-add-outline',       lib: 'Ionicons',               color: '#00838f' },
 };
 
 function NotifIcon({ type, size = 22 }) {

@@ -3,8 +3,10 @@ import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
     Animated, Modal, TextInput, Alert, ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import { getVisitPrediction } from '../../utils/visitPrediction'; // ✅ shared utility
+import { getVisitPrediction } from '../../utils/visitPrediction';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
 
@@ -12,28 +14,36 @@ import { logActivity } from '../../utils/logActivity';
 const EDUCATION_ARTICLES = [
     {
         id: '1',
-        emoji: '🪥',
+        iconName: 'toothbrush',
+        iconLib:  'MaterialCommunityIcons',
+        iconColor: '#01538b',
         title: 'Proper Brushing Technique',
         summary: 'Brush for 2 minutes, twice a day using circular motions at a 45° angle.',
         body: "Use a soft-bristled toothbrush and fluoride toothpaste. Hold the brush at a 45° angle to your gums. Use short, gentle circular strokes — never scrub. Brush outer surfaces, inner surfaces, and chewing surfaces of all teeth. Don't forget to brush your tongue to remove bacteria and freshen breath. Replace your toothbrush every 3–4 months.",
     },
     {
         id: '2',
-        emoji: '🦷',
+        iconName: 'tooth-outline',
+        iconLib:  'MaterialCommunityIcons',
+        iconColor: '#00897b',
         title: 'Why Flossing Matters',
         summary: 'Flossing removes plaque from areas your toothbrush cannot reach.',
         body: 'Floss at least once a day, ideally before bed. Break off about 45 cm of floss and wind it around your middle fingers. Gently slide it between teeth in a C-shape motion, going just below the gumline. Using floss picks or a water flosser are equally effective alternatives. Skipping flossing leaves 40% of tooth surfaces uncleaned.',
     },
     {
         id: '3',
-        emoji: '🍎',
+        iconName: 'nutrition-outline',
+        iconLib:  'Ionicons',
+        iconColor: '#2e7d32',
         title: 'Foods That Protect Your Teeth',
         summary: 'Cheese, leafy greens, and crunchy vegetables naturally strengthen enamel.',
         body: 'Dairy products (cheese, milk, yogurt) provide calcium and phosphates that remineralize enamel. Crunchy fruits and vegetables like apples and carrots increase saliva production, washing away bacteria. Leafy greens are rich in calcium and folic acid. Green and black teas contain polyphenols that suppress bacteria. Drink plenty of water — especially fluoridated water — throughout the day.',
     },
     {
         id: '4',
-        emoji: '☕',
+        iconName: 'cafe-outline',
+        iconLib:  'Ionicons',
+        iconColor: '#c62828',
         title: 'Habits That Harm Your Teeth',
         summary: 'Coffee, soda, and tobacco significantly accelerate dental decay.',
         body: 'Sugary and acidic drinks erode enamel over time. Sipping throughout the day is worse than drinking in one sitting. Tobacco use causes gum disease, tooth loss, and oral cancer. Grinding your teeth (bruxism) damages enamel and causes jaw pain — ask your dentist about a night guard. Using your teeth to open packaging or bottles can cause chips or fractures.',
@@ -42,12 +52,12 @@ const EDUCATION_ARTICLES = [
 
 // ─── ORAL HEALTH TIPS ────────────────────────────────────────────────────────
 const ORAL_HEALTH_TIPS = [
-    { id: '1', icon: '🌅', title: 'Morning Routine',  tip: 'Brush and rinse before breakfast to remove overnight bacteria buildup.' },
-    { id: '2', icon: '🌙', title: 'Night Routine',    tip: 'Brush and floss before bed. This is the most important brushing session.' },
-    { id: '3', icon: '💧', title: 'Stay Hydrated',    tip: 'Drink water after meals to rinse away food particles and acid.' },
-    { id: '4', icon: '🧴', title: 'Mouthwash',        tip: 'Use fluoride or antibacterial mouthwash to reach areas brushing misses.' },
-    { id: '5', icon: '📅', title: 'Regular Check-ups',tip: 'Visit your dentist every 6 months for cleaning and early detection.' },
-    { id: '6', icon: '🪥', title: 'Change Your Brush', tip: 'Replace your toothbrush every 3 months or after any illness.' },
+    { id: '1', iconName: 'sunny-outline',        iconLib: 'Ionicons',               iconColor: '#f57f17', title: 'Morning Routine',   tip: 'Brush and rinse before breakfast to remove overnight bacteria buildup.' },
+    { id: '2', iconName: 'moon-outline',          iconLib: 'Ionicons',               iconColor: '#5c6bc0', title: 'Night Routine',     tip: 'Brush and floss before bed. This is the most important brushing session.' },
+    { id: '3', iconName: 'water-outline',         iconLib: 'Ionicons',               iconColor: '#0288d1', title: 'Stay Hydrated',     tip: 'Drink water after meals to rinse away food particles and acid.' },
+    { id: '4', iconName: 'flask-outline',         iconLib: 'Ionicons',               iconColor: '#00897b', title: 'Mouthwash',         tip: 'Use fluoride or antibacterial mouthwash to reach areas brushing misses.' },
+    { id: '5', iconName: 'calendar-outline',      iconLib: 'Ionicons',               iconColor: '#01538b', title: 'Regular Check-ups', tip: 'Visit your dentist every 6 months for cleaning and early detection.' },
+    { id: '6', iconName: 'toothbrush',            iconLib: 'MaterialCommunityIcons', iconColor: '#6a1b9a', title: 'Change Your Brush', tip: 'Replace your toothbrush every 3 months or after any illness.' },
 ];
 
 // ─── SECTION CONFIG ──────────────────────────────────────────────────────────
@@ -66,6 +76,13 @@ const fmtDate = (iso) => {
     const d = new Date(iso);
     return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 };
+
+function DynamicIcon({ iconName, iconLib, iconColor, size }) {
+    if (iconLib === 'MaterialCommunityIcons') {
+        return <MaterialCommunityIcons name={iconName} size={size} color={iconColor} />;
+    }
+    return <Ionicons name={iconName} size={size} color={iconColor} />;
+}
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function AiPatientCareCompanionScreen({ navigation }) {
@@ -173,7 +190,7 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                         style={[styles.featureCard, { backgroundColor: '#01538b' }]}
                         onPress={() => navigation.navigate('Chatbot')}
                     >
-                        <Text style={styles.featureEmoji}>🤖</Text>
+                        <Ionicons name="chatbubbles-outline" size={28} color="white" style={styles.featureIcon} />
                         <Text style={styles.featureCardTitle}>NgitiBot</Text>
                         <Text style={styles.featureCardSub}>Chat with our AI dental assistant</Text>
                     </TouchableOpacity>
@@ -182,7 +199,7 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                         style={[styles.featureCard, { backgroundColor: '#006064' }]}
                         onPress={() => setActiveSection('inquiry')}
                     >
-                        <Text style={styles.featureEmoji}>✉️</Text>
+                        <Ionicons name="mail-outline" size={28} color="white" style={styles.featureIcon} />
                         <Text style={styles.featureCardTitle}>Inquiry</Text>
                         <Text style={styles.featureCardSub}>Send questions to our team</Text>
                     </TouchableOpacity>
@@ -191,7 +208,7 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                         style={[styles.featureCard, { backgroundColor: '#1565c0' }]}
                         onPress={() => setActiveSection('education')}
                     >
-                        <Text style={styles.featureEmoji}>📚</Text>
+                        <Ionicons name="book-outline" size={28} color="white" style={styles.featureIcon} />
                         <Text style={styles.featureCardTitle}>Dental Education</Text>
                         <Text style={styles.featureCardSub}>Learn about oral care</Text>
                     </TouchableOpacity>
@@ -200,7 +217,7 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                         style={[styles.featureCard, { backgroundColor: '#00695c' }]}
                         onPress={() => setActiveSection('oralHealth')}
                     >
-                        <Text style={styles.featureEmoji}>🦷</Text>
+                        <MaterialCommunityIcons name="tooth-outline" size={28} color="white" style={styles.featureIcon} />
                         <Text style={styles.featureCardTitle}>Oral Health</Text>
                         <Text style={styles.featureCardSub}>Daily care reminders & tips</Text>
                     </TouchableOpacity>
@@ -287,14 +304,20 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
             >
                 {submittingInquiry
                     ? <ActivityIndicator color="white" />
-                    : <Text style={styles.submitBtnText}>Send Inquiry ✉️</Text>
+                    : <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="send-outline" size={15} color="white" style={{ marginRight: 8 }} />
+                        <Text style={styles.submitBtnText}>Send Inquiry</Text>
+                      </View>
                 }
             </TouchableOpacity>
 
             <View style={styles.infoNote}>
-                <Text style={styles.infoNoteText}>
-                    📞 You can also reach us at (02) 8123-4567 or visit the clinic during operating hours: Mon–Sat, 9:00 AM–5:00 PM.
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <Ionicons name="call-outline" size={14} color="#1565c0" style={{ marginRight: 6, marginTop: 2 }} />
+                    <Text style={styles.infoNoteText}>
+                        You can also reach us at (02) 8123-4567 or visit the clinic during operating hours: Mon–Sat, 9:00 AM–5:00 PM.
+                    </Text>
+                </View>
             </View>
         </View>
     );
@@ -311,12 +334,19 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                     onPress={() => setSelectedArticle(article)}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.articleEmoji}>{article.emoji}</Text>
+                    <View style={[styles.articleIconCircle, { backgroundColor: article.iconColor + '20' }]}>
+                        <DynamicIcon
+                            iconName={article.iconName}
+                            iconLib={article.iconLib}
+                            iconColor={article.iconColor}
+                            size={26}
+                        />
+                    </View>
                     <View style={styles.articleInfo}>
                         <Text style={styles.articleTitle}>{article.title}</Text>
                         <Text style={styles.articleSummary}>{article.summary}</Text>
                     </View>
-                    <Text style={styles.articleArrow}>›</Text>
+                    <Ionicons name="chevron-forward" size={20} color="#01538b" />
                 </TouchableOpacity>
             ))}
         </View>
@@ -330,7 +360,12 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
             <View style={styles.tipGrid}>
                 {ORAL_HEALTH_TIPS.map(tip => (
                     <View key={tip.id} style={styles.tipCard}>
-                        <Text style={styles.tipIcon}>{tip.icon}</Text>
+                        <DynamicIcon
+                            iconName={tip.iconName}
+                            iconLib={tip.iconLib}
+                            iconColor={tip.iconColor}
+                            size={24}
+                        />
                         <Text style={styles.tipTitle}>{tip.title}</Text>
                         <Text style={styles.tipText}>{tip.tip}</Text>
                     </View>
@@ -338,7 +373,10 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
             </View>
 
             <View style={styles.highlightCard}>
-                <Text style={styles.highlightTitle}>🏆 Did You Know?</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Ionicons name="trophy-outline" size={16} color="#f57f17" style={{ marginRight: 6 }} />
+                    <Text style={styles.highlightTitle}>Did You Know?</Text>
+                </View>
                 <Text style={styles.highlightText}>
                     Poor oral health is linked to heart disease, diabetes, and respiratory infections.
                     Brushing twice daily reduces your risk of systemic disease by up to 30%.
@@ -351,7 +389,10 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                 onPress={() => navigation.navigate('AppointmentBooking')}
                 activeOpacity={0.8}
             >
-                <Text style={styles.bookVisitBtnText}>📅  Book Your Next Visit</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="calendar-outline" size={16} color="white" style={{ marginRight: 8 }} />
+                    <Text style={styles.bookVisitBtnText}>Book Your Next Visit</Text>
+                </View>
             </TouchableOpacity>
         </View>
     );
@@ -371,7 +412,7 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                 <View>
                     <Text style={styles.sectionHeader}>Predictive Visit Window</Text>
                     <View style={styles.visitEmptyCard}>
-                        <Text style={styles.visitEmptyIcon}>🦷</Text>
+                        <MaterialCommunityIcons name="tooth-outline" size={48} color="#bbb" style={{ marginBottom: 12 }} />
                         <Text style={styles.visitEmptyTitle}>No Visit History Yet</Text>
                         <Text style={styles.visitEmptySub}>
                             Your predicted next visit will appear here after your first recorded treatment.
@@ -382,7 +423,10 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                         onPress={() => navigation.navigate('AppointmentBooking')}
                         activeOpacity={0.8}
                     >
-                        <Text style={styles.bookVisitBtnText}>📅  Book Your First Visit</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="calendar-outline" size={16} color="white" style={{ marginRight: 8 }} />
+                            <Text style={styles.bookVisitBtnText}>Book Your First Visit</Text>
+                        </View>
                     </TouchableOpacity>
                 </View>
             );
@@ -405,7 +449,10 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                 </View>
 
                 <View style={styles.visitDetailsCard}>
-                    <Text style={styles.visitDetailTitle}>📋 Based On</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                        <Ionicons name="clipboard-outline" size={16} color="#333" style={{ marginRight: 6 }} />
+                        <Text style={styles.visitDetailTitle}>Based On</Text>
+                    </View>
                     <View style={styles.visitDetailRow}>
                         <Text style={styles.visitDetailLabel}>Last Visit:</Text>
                         <Text style={styles.visitDetailValue}>{fmtDate(lastVisitDate)}</Text>
@@ -423,7 +470,10 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                 </View>
 
                 <View style={styles.visitTipCard}>
-                    <Text style={styles.visitTipTitle}>💡 Why Regular Visits Matter</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <Ionicons name="bulb-outline" size={16} color="#2e7d32" style={{ marginRight: 6 }} />
+                        <Text style={styles.visitTipTitle}>Why Regular Visits Matter</Text>
+                    </View>
                     <Text style={styles.visitTipText}>
                         Routine check-ups allow your dentist to catch cavities, gum disease, and other issues
                         before they become serious. Early detection saves you pain, time, and cost.
@@ -435,7 +485,10 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                     onPress={() => navigation.navigate('AppointmentBooking')}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.bookVisitBtnText}>📅  Book Your Next Visit</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="calendar-outline" size={16} color="white" style={{ marginRight: 8 }} />
+                        <Text style={styles.bookVisitBtnText}>Book Your Next Visit</Text>
+                    </View>
                 </TouchableOpacity>
             </View>
         );
@@ -450,7 +503,7 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                     onPress={() => navigation.goBack()}
                     style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
                 >
-                    <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
+                    <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
                     <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>AI Care Companion</Text>
@@ -501,7 +554,16 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
-                        <Text style={styles.modalEmoji}>{selectedArticle?.emoji}</Text>
+                        {selectedArticle && (
+                            <View style={styles.modalIconCircle}>
+                                <DynamicIcon
+                                    iconName={selectedArticle.iconName}
+                                    iconLib={selectedArticle.iconLib}
+                                    iconColor={selectedArticle.iconColor}
+                                    size={36}
+                                />
+                            </View>
+                        )}
                         <Text style={styles.modalTitle}>{selectedArticle?.title}</Text>
                         <ScrollView showsVerticalScrollIndicator={false}>
                             <Text style={styles.modalBody}>{selectedArticle?.body}</Text>
@@ -549,7 +611,6 @@ const styles = StyleSheet.create({
     // Feature grid
     featureGrid:      { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
     featureCard:      { width: '48%', padding: 18, borderRadius: 15, marginBottom: 12, elevation: 2 },
-    featureEmoji:     { fontSize: 28, marginBottom: 8 },
     featureCardTitle: { color: 'white', fontWeight: 'bold', fontSize: 14, marginBottom: 3 },
     featureCardSub:   { color: 'rgba(255,255,255,0.75)', fontSize: 11, lineHeight: 15 },
 
@@ -581,27 +642,22 @@ const styles = StyleSheet.create({
 
     // Education
     articleCard:    { backgroundColor: 'white', padding: 15, borderRadius: 15, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },
-    articleEmoji:   { fontSize: 30, marginRight: 15 },
     articleInfo:    { flex: 1 },
     articleTitle:   { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 3 },
     articleSummary: { fontSize: 12, color: '#888', lineHeight: 17 },
-    articleArrow:   { fontSize: 22, color: '#01538b', fontWeight: 'bold' },
 
     // Oral health tips
     tipGrid:       { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 15 },
     tipCard:       { width: '48%', backgroundColor: 'white', padding: 15, borderRadius: 15, marginBottom: 12, elevation: 2 },
-    tipIcon:       { fontSize: 24, marginBottom: 8 },
     tipTitle:      { fontWeight: 'bold', fontSize: 13, color: '#01538b', marginBottom: 4 },
     tipText:       { fontSize: 12, color: '#666', lineHeight: 16 },
     highlightCard: { backgroundColor: '#fff8e1', padding: 18, borderRadius: 15, borderLeftWidth: 4, borderLeftColor: '#f9a825', marginBottom: 16 },
-    highlightTitle:{ fontWeight: 'bold', fontSize: 14, color: '#f57f17', marginBottom: 8 },
     highlightText: { fontSize: 13, color: '#555', lineHeight: 20 },
 
     // Visit window
     visitLoadingBox:    { alignItems: 'center', paddingVertical: 60 },
     visitLoadingText:   { color: '#888', marginTop: 12, fontSize: 14 },
     visitEmptyCard:     { backgroundColor: 'white', borderRadius: 15, padding: 30, alignItems: 'center', elevation: 2, marginBottom: 16 },
-    visitEmptyIcon:     { fontSize: 48, marginBottom: 12 },
     visitEmptyTitle:    { fontSize: 16, fontWeight: 'bold', color: '#555', marginBottom: 8 },
     visitEmptySub:      { fontSize: 13, color: '#aaa', textAlign: 'center', lineHeight: 19 },
     visitMainCard:      { padding: 25, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', marginBottom: 15, elevation: 1 },
@@ -609,12 +665,10 @@ const styles = StyleSheet.create({
     visitNextDate:      { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 3 },
     visitDaysText:      { fontSize: 13, color: '#888' },
     visitDetailsCard:   { backgroundColor: 'white', padding: 18, borderRadius: 15, marginBottom: 15, elevation: 2 },
-    visitDetailTitle:   { fontWeight: 'bold', fontSize: 14, color: '#333', marginBottom: 12 },
     visitDetailRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
     visitDetailLabel:   { fontSize: 13, color: '#888', flex: 1 },
     visitDetailValue:   { fontSize: 13, color: '#333', fontWeight: '600', flex: 1.2, textAlign: 'right' },
     visitTipCard:       { backgroundColor: '#e8f5e9', padding: 18, borderRadius: 15, marginBottom: 15, borderLeftWidth: 4, borderLeftColor: '#4caf50' },
-    visitTipTitle:      { fontWeight: 'bold', fontSize: 14, color: '#2e7d32', marginBottom: 8 },
     visitTipText:       { fontSize: 13, color: '#555', lineHeight: 20 },
     bookVisitBtn:       { backgroundColor: '#01538b', paddingVertical: 16, borderRadius: 12, alignItems: 'center', elevation: 2, marginTop: 4 },
     bookVisitBtnText:   { color: 'white', fontWeight: 'bold', fontSize: 15 },
@@ -622,9 +676,15 @@ const styles = StyleSheet.create({
     // Article modal
     modalOverlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalCard:         { backgroundColor: 'white', padding: 25, borderTopLeftRadius: 25, borderTopRightRadius: 25, maxHeight: '75%' },
-    modalEmoji:        { fontSize: 40, textAlign: 'center', marginBottom: 10 },
     modalTitle:        { fontSize: 20, fontWeight: 'bold', color: '#01538b', textAlign: 'center', marginBottom: 15 },
     modalBody:         { fontSize: 14, color: '#555', lineHeight: 22, marginBottom: 20 },
     modalCloseBtn:     { backgroundColor: '#01538b', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
     modalCloseBtnText: { color: 'white', fontWeight: 'bold', fontSize: 15 },
+
+    featureIcon:      { marginBottom: 8 },
+    articleIconCircle:{ width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
+    modalIconCircle:  { width: 70, height: 70, borderRadius: 35, backgroundColor: '#f3f7f9', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 14 },
+    highlightTitle:   { fontWeight: 'bold', fontSize: 14, color: '#f57f17' },
+    visitDetailTitle: { fontWeight: 'bold', fontSize: 14, color: '#333' },
+    visitTipTitle:    { fontWeight: 'bold', fontSize: 14, color: '#2e7d32' },
 });

@@ -85,6 +85,15 @@ export default function MyProfileScreen({ navigation }) {
 
     useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+    // Refresh when navigating back from EditProfile so changes show immediately
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            setLoading(true);
+            fetchProfile();
+        });
+        return unsubscribe;
+    }, [navigation, fetchProfile]);
+
     const onRefresh = () => { setRefreshing(true); fetchProfile(); };
 
     // ─── Derived display values ───────────────────────────────────────────────
@@ -94,15 +103,23 @@ export default function MyProfileScreen({ navigation }) {
     const fullName   = [firstName, middleName, lastName].filter(Boolean).join(' ') || 'Patient';
     const initials   = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '?';
 
-    const age        = calculateAge(profile?.birthdate);
-    const ageLabel   = age !== null
+    const age      = calculateAge(profile?.birthdate);
+    const ageLabel = age !== null
         ? `${age} yrs old (${formatDate(profile.birthdate)})`
         : '—';
 
-    const ec = profile?.emergencyContact;
-    const ecLabel = ec?.name
-        ? `${ec.name}${ec.relationship ? ` (${ec.relationship})` : ''}`
-        : '—';
+    // Check if permanent address is same as current
+    const currAddr = profile?.currentAddress;
+    const permAddr = profile?.permanentAddress;
+    const isSameAddress =
+        currAddr && permAddr &&
+        currAddr.region      === permAddr.region      &&
+        currAddr.province    === permAddr.province    &&
+        currAddr.city        === permAddr.city        &&
+        currAddr.barangay    === permAddr.barangay    &&
+        currAddr.street      === permAddr.street      &&
+        currAddr.houseNumber === permAddr.houseNumber &&
+        !!currAddr.region;
 
     // ─── Loading state ────────────────────────────────────────────────────────
     if (loading) {
@@ -186,22 +203,31 @@ export default function MyProfileScreen({ navigation }) {
 
                 {/* Personal Information */}
                 <SectionCard title="👤  Personal Information">
-                    <InfoRow label="Full Name"      value={fullName} />
+                    <InfoRow label="Full Name"       value={fullName} />
                     <View style={styles.divider} />
                     <InfoRow label="Age & Birthdate" value={ageLabel} />
                     <View style={styles.divider} />
-                    <InfoRow label="Gender"         value={profile?.gender} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Occupation"     value={profile?.occupation} />
+                    <InfoRow label="Gender"          value={profile?.gender} />
                 </SectionCard>
 
                 {/* Contact Details */}
                 <SectionCard title="📞  Contact Details">
-                    <InfoRow label="Email Address"  value={profile?.email || userInfo?.email} />
+                    <InfoRow label="Email Address"     value={profile?.email || userInfo?.email} />
                     <View style={styles.divider} />
-                    <InfoRow label="Phone Number"   value={profile?.contactNumber} />
+                    <InfoRow label="Phone Number"      value={profile?.contactNumber} />
                     <View style={styles.divider} />
-                    <InfoRow label="Home Address"   value={formatAddress(profile?.address)} />
+                    <InfoRow label="Current Address"   value={formatAddress(profile?.currentAddress)} />
+                    <View style={styles.divider} />
+                    {isSameAddress ? (
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Permanent Address</Text>
+                            <View style={styles.sameAddrBadge}>
+                                <Text style={styles.sameAddrBadgeText}>✓ Same as Current Address</Text>
+                            </View>
+                        </View>
+                    ) : (
+                        <InfoRow label="Permanent Address" value={formatAddress(profile?.permanentAddress)} />
+                    )}
                 </SectionCard>
 
                 {/* Physical Information */}
@@ -246,15 +272,6 @@ export default function MyProfileScreen({ navigation }) {
                         )}
                     </SectionCard>
                 )}
-
-                {/* Emergency Contact */}
-                <SectionCard title="🚨  Emergency Contact">
-                    <InfoRow label="Name"           value={ec?.name} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Relationship"   value={ec?.relationship} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Phone Number"   value={ec?.contactNumber} />
-                </SectionCard>
 
                 {/* Notice */}
                 <View style={styles.noticeCard}>
@@ -334,6 +351,14 @@ const styles = StyleSheet.create({
     infoLabel:  { fontSize: 12, color: '#aaa', fontWeight: '600', marginBottom: 3 },
     infoValue:  { fontSize: 14, color: '#333', fontWeight: '500', lineHeight: 20 },
     divider:    { height: 1, backgroundColor: '#f0f0f0' },
+
+    // Same address badge
+    sameAddrBadge: {
+        backgroundColor: '#e3f2fd', borderRadius: 8,
+        paddingHorizontal: 10, paddingVertical: 4,
+        alignSelf: 'flex-start', marginTop: 2,
+    },
+    sameAddrBadgeText: { color: '#01538b', fontSize: 12, fontWeight: '600' },
 
     // Notice
     noticeCard: {
