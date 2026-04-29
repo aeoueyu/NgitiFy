@@ -1,4 +1,3 @@
-// ngitify-web/src/pages/admin/AddOwner.js
 import React, { useState, useEffect } from 'react';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AddDentist.module.css';
@@ -16,6 +15,7 @@ export default function AddOwner({ onClose, onSuccess }) {
         lastName: '',
         email: '',
         phone: '',
+        gender: '',
         assignedBranches: [],
         isDentist: false,
     });
@@ -67,12 +67,11 @@ export default function AddOwner({ onClose, onSuccess }) {
     const validateForm = () => {
         const newErrors = {};
         if (!formData.firstName.trim()) newErrors.firstName = 'Required';
-        if (!formData.lastName.trim()) newErrors.lastName = 'Required';
-        if (!formData.email) newErrors.email = 'Required';
+        if (!formData.lastName.trim())  newErrors.lastName  = 'Required';
+        if (!formData.email)            newErrors.email     = 'Required';
         else if (!validateEmail(formData.email)) newErrors.email = 'Invalid email domain (e.g. gmail.com)';
-        if (formData.phone && (formData.phone.length !== 10 || formData.phone[0] !== '9')) {
+        if (formData.phone && (formData.phone.length !== 10 || formData.phone[0] !== '9'))
             newErrors.phone = 'Invalid format (9xxxxxxxxx)';
-        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -83,11 +82,12 @@ export default function AddOwner({ onClose, onSuccess }) {
         setIsLoading(true);
 
         const finalData = {
-            name: { first: formData.firstName, last: formData.lastName },
-            email: formData.email,
-            contactNumber: formData.phone ? `+63${formData.phone}` : '',
+            name:             { first: formData.firstName, last: formData.lastName },
+            email:            formData.email,
+            contactNumber:    formData.phone ? `+63${formData.phone}` : '',
+            gender:           formData.gender,
             assignedBranches: formData.assignedBranches,
-            isDentist: formData.isDentist,
+            isDentist:        formData.isDentist,
         };
 
         try {
@@ -136,16 +136,14 @@ export default function AddOwner({ onClose, onSuccess }) {
                 <form onSubmit={handleSubmit} noValidate>
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>
 
+                    {/* Row 1: First / Last Name */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>FIRST NAME <span style={{ color: 'red' }}>*</span></label>
                             <input
                                 className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`}
-                                name="firstName"
-                                value={formData.firstName}
-                                onChange={handleChange}
-                                maxLength={50}
-                                disabled={isLoading}
+                                name="firstName" value={formData.firstName}
+                                onChange={handleChange} maxLength={50} disabled={isLoading}
                             />
                             {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
                         </div>
@@ -153,27 +151,22 @@ export default function AddOwner({ onClose, onSuccess }) {
                             <label>LAST NAME <span style={{ color: 'red' }}>*</span></label>
                             <input
                                 className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`}
-                                name="lastName"
-                                value={formData.lastName}
-                                onChange={handleChange}
-                                maxLength={50}
-                                disabled={isLoading}
+                                name="lastName" value={formData.lastName}
+                                onChange={handleChange} maxLength={50} disabled={isLoading}
                             />
                             {errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}
                         </div>
                     </div>
 
+                    {/* Row 2: Email / Phone */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label>
                             <input
                                 type="email"
                                 className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`}
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                maxLength={100}
-                                disabled={isLoading}
+                                name="email" value={formData.email}
+                                onChange={handleChange} maxLength={100} disabled={isLoading}
                             />
                             {errors.email && <span className={styles.errorText}>{errors.email}</span>}
                         </div>
@@ -183,22 +176,38 @@ export default function AddOwner({ onClose, onSuccess }) {
                                 <span className={styles.phonePrefix}>+63</span>
                                 <input
                                     className={styles.phoneField}
-                                    name="phone"
-                                    value={formData.phone}
+                                    name="phone" value={formData.phone}
                                     onChange={handlePhoneChange}
-                                    maxLength={10}
-                                    placeholder="9xxxxxxxxx"
-                                    disabled={isLoading}
+                                    maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading}
                                 />
                             </div>
                             {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                         </div>
                     </div>
 
-                    {/* Grant Dentist Access Toggle */}
+                    {/* Row 3: Gender */}
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>GENDER</label>
+                            <select
+                                className={styles.inputField}
+                                name="gender" value={formData.gender}
+                                onChange={handleChange} disabled={isLoading}
+                            >
+                                <option value="" hidden>Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup} />
+                    </div>
+
+                    {/* Dentist Access Toggle */}
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Dentist Access</h3>
-                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '16px', marginTop: '-12px' }}>
+                    <p className={styles.sectionSubtitle}>
                         Enable this to grant the owner full Dentist-level access (EMR editing, Material Usage, AI Image Enhancer).
                     </p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', background: formData.isDentist ? '#eff6ff' : '#f8fafc', padding: '14px 16px', borderRadius: '10px', border: `1px solid ${formData.isDentist ? '#bfdbfe' : '#e2e8f0'}` }}>
@@ -210,23 +219,12 @@ export default function AddOwner({ onClose, onSuccess }) {
                                 disabled={isLoading}
                                 style={{ opacity: 0, width: 0, height: 0 }}
                             />
-                            <span style={{
-                                position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-                                background: formData.isDentist ? '#01538b' : '#cbd5e1',
-                                borderRadius: '24px', transition: '0.3s',
-                            }}>
-                                <span style={{
-                                    position: 'absolute', content: '', height: '18px', width: '18px',
-                                    left: formData.isDentist ? '22px' : '3px', bottom: '3px',
-                                    background: 'white', borderRadius: '50%', transition: '0.3s',
-                                    display: 'block',
-                                }} />
+                            <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, background: formData.isDentist ? '#01538b' : '#cbd5e1', borderRadius: '24px', transition: '0.3s' }}>
+                                <span style={{ position: 'absolute', height: '18px', width: '18px', left: formData.isDentist ? '22px' : '3px', bottom: '3px', background: 'white', borderRadius: '50%', transition: '0.3s', display: 'block' }} />
                             </span>
                         </label>
                         <div>
-                            <p style={{ margin: 0, fontWeight: '600', fontSize: '14px', color: formData.isDentist ? '#1d4ed8' : '#374151' }}>
-                                Grant Dentist Access
-                            </p>
+                            <p style={{ margin: 0, fontWeight: '600', fontSize: '14px', color: formData.isDentist ? '#1d4ed8' : '#374151' }}>Grant Dentist Access</p>
                             <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
                                 {formData.isDentist ? 'Owner will have full dentist-level clinical features.' : 'Owner will have business-level access only.'}
                             </p>
@@ -238,21 +236,12 @@ export default function AddOwner({ onClose, onSuccess }) {
                         <>
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-12px' }}>
-                                Select the branches this owner oversees.
-                            </p>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                            <p className={styles.sectionSubtitle}>Select the branches this owner oversees.</p>
+                            <div className={styles.branchChipsContainer}>
                                 {branchOptions.map(branch => (
                                     <label
                                         key={branch}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: '6px',
-                                            cursor: 'pointer', padding: '6px 12px',
-                                            border: `1px solid ${formData.assignedBranches.includes(branch) ? '#01538b' : '#e2e8f0'}`,
-                                            borderRadius: '6px',
-                                            backgroundColor: formData.assignedBranches.includes(branch) ? '#e8f4fd' : '#fff',
-                                            fontSize: '14px',
-                                        }}
+                                        className={`${styles.branchChip} ${formData.assignedBranches.includes(branch) ? styles.branchChipActive : ''}`}
                                     >
                                         <input
                                             type="checkbox"
@@ -268,9 +257,7 @@ export default function AddOwner({ onClose, onSuccess }) {
                     )}
 
                     <div className={styles.buttonGroup}>
-                        <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>
-                            CANCEL
-                        </button>
+                        <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
                         <button type="submit" className={styles.submitBtn} disabled={isLoading}>
                             {isLoading ? 'ADDING OWNER...' : 'ADD OWNER'}
                         </button>
@@ -283,9 +270,7 @@ export default function AddOwner({ onClose, onSuccess }) {
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
                         <h3 className={styles.modalTitle}>Owner Added!</h3>
-                        <p className={styles.modalMessage}>
-                            The owner account has been created successfully. An activation email has been sent.
-                        </p>
+                        <p className={styles.modalMessage}>The owner account has been created successfully. An activation email has been sent.</p>
                         <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
                     </div>
                 </div>

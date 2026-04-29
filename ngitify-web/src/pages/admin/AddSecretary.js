@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import styles from '../../styles/admin/AddSecretary.module.css';
-import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
-import successIcon from '../../assets/alert/success.svg'; 
+import styles from '../../styles/admin/AddDentist.module.css';
+import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -19,12 +19,15 @@ export default function AddSecretary({ onClose, onSuccess }) {
     const [branchOptions, setBranchOptions] = useState([]);
 
     const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
-    
+
     const [formData, setFormData] = useState({
-        firstName: '', middleName: '', lastName: '', birthdate: '',
-        email: '', phone: '', currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState },
+        firstName: '', middleName: '', lastName: '',
+        birthdate: '', gender: '',
+        email: '', phone: '',
+        currentAddress: { ...initialAddressState },
+        permanentAddress: { ...initialAddressState },
         permissions: { patients: 'none', appointments: 'none', inventory: 'none' },
-        assignedBranches: []
+        assignedBranches: [],
     });
 
     const validateEmail = (email) => {
@@ -34,31 +37,26 @@ export default function AddSecretary({ onClose, onSuccess }) {
         return allowedDomains.includes(email.split('@')[1].toLowerCase());
     };
 
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
-    const getAge = (d) => { const today=new Date(); const birth=new Date(d); let age=today.getFullYear()-birth.getFullYear(); const m=today.getMonth()-birth.getMonth(); if(m<0||(m===0&&today.getDate()<birth.getDate()))age--; return age; };
-    const getMaxDate = () => { const t=new Date(); t.setFullYear(t.getFullYear()-18); return t.toISOString().split('T')[0]; }; // Min age 18 for secretary
+    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, c => c.toUpperCase());
+    const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
+    const getMaxDate = () => { const t = new Date(); t.setFullYear(t.getFullYear() - 18); return t.toISOString().split('T')[0]; };
 
     const handleBlur = (e) => {
         const { name, value } = e.target;
-        let newError = "";
-        if (name === 'email') {
-            if (!value) newError = "Required";
-            else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
-        } else if (name === 'phone') {
-            if (!value) newError = "Required";
-            else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
-        }
+        let newError = '';
+        if (name === 'email') { if (!value) newError = 'Required'; else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)'; }
+        else if (name === 'phone') { if (!value) newError = 'Required'; else if (value.length !== 10 || value[0] !== '9') newError = 'Invalid format (9xxxxxxxxx)'; }
         setErrors(prev => ({ ...prev, [name]: newError }));
     };
 
-    const handleImageChange = (e) => { const file=e.target.files[0]; if(file){ const r=new FileReader(); r.onloadend=()=>setProfileImage(r.result); r.readAsDataURL(file); }};
+    const handleImageChange = (e) => { const file = e.target.files[0]; if (file) { const r = new FileReader(); r.onloadend = () => setProfileImage(r.result); r.readAsDataURL(file); } };
     const triggerFileInput = () => fileInputRef.current.click();
-    
+
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
-        if (errors[name]) setErrors(prev => { const n={...prev}; delete n[name]; return n; });
+        if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
         if (['firstName', 'middleName', 'lastName'].includes(name)) {
-            if (value===''||/^[a-zA-Z\s.-]+$/.test(value)) setFormData({...formData, [name]: toTitleCase(value)});
+            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) setFormData({ ...formData, [name]: toTitleCase(value) });
             return;
         }
         setFormData({ ...formData, [name]: value });
@@ -67,109 +65,89 @@ export default function AddSecretary({ onClose, onSuccess }) {
     const handlePhoneChange = (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
-        if (errors.phone) setErrors(prev => { const n={...prev}; delete n.phone; return n; });
+        if (errors.phone) setErrors(prev => { const n = { ...prev }; delete n.phone; return n; });
         setFormData({ ...formData, phone: value });
     };
 
     const handleAddressChange = (type, field, value) => {
-        const errorKey = `${type==='currentAddress'?'current':'permanent'}_${field}`;
-        if(errors[errorKey]) setErrors(prev=>{const n={...prev};delete n[errorKey];return n;});
+        const errorKey = `${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`;
+        if (errors[errorKey]) setErrors(prev => { const n = { ...prev }; delete n[errorKey]; return n; });
         setFormData(prev => {
             const updated = { ...prev[type], [field]: value };
-            if(field==='region'){updated.province='';updated.city='';updated.barangay='';}
-            else if(field==='province'){updated.city='';updated.barangay='';}
-            else if(field==='city'){updated.barangay='';}
-            if(type==='currentAddress'&&isSameAddress) return {...prev, currentAddress: updated, permanentAddress: updated};
-            return {...prev, [type]: updated};
+            if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
+            else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
+            else if (field === 'city') { updated.barangay = ''; }
+            if (type === 'currentAddress' && isSameAddress) return { ...prev, currentAddress: updated, permanentAddress: updated };
+            return { ...prev, [type]: updated };
         });
     };
 
     const handleSameAddressToggle = (e) => {
-        const checked = e.target.checked; setIsSameAddress(checked);
-        if(checked) {
-            setFormData(prev => ({...prev, permanentAddress: {...prev.currentAddress}}));
-            setErrors(prev=>{const n={...prev}; Object.keys(n).forEach(k=>{if(k.startsWith('permanent_'))delete n[k];}); return n;});
+        const checked = e.target.checked;
+        setIsSameAddress(checked);
+        if (checked) {
+            setFormData(prev => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
+            setErrors(prev => { const n = { ...prev }; Object.keys(n).forEach(k => { if (k.startsWith('permanent_')) delete n[k]; }); return n; });
         } else {
-            setFormData(prev => ({...prev, permanentAddress: {...initialAddressState}}));
+            setFormData(prev => ({ ...prev, permanentAddress: { ...initialAddressState } }));
         }
     };
 
-    // Added Permissions Handler
     const handlePermissionChange = (module, value) => {
-        setFormData(prev => ({
-            ...prev,
-            permissions: { ...prev.permissions, [module]: value }
-        }));
-    };
-
-    const validateForm = () => {
-        let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'email'];
-        required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
-        if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
-        else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
-        if(formData.email && !validateEmail(formData.email)) { newErrors.email = "Invalid domain"; isValid=false; }
-        if(formData.birthdate && getAge(formData.birthdate)<18) { newErrors.birthdate="Min age 18"; isValid=false; }
-
-        const validateAddr = (addr, prefix) => {
-            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
-                if(!addr[f]) { newErrors[`${prefix}_${f}`]="Required"; isValid=false; }
-            });
-        };
-        validateAddr(formData.currentAddress, 'current');
-        if(!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
-
-        setErrors(newErrors);
-        if (!isValid) {
-            const el = document.getElementsByName(Object.keys(newErrors)[0])[0];
-            if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-        }
-        return isValid;
+        setFormData(prev => ({ ...prev, permissions: { ...prev.permissions, [module]: value } }));
     };
 
     const handleBranchToggle = (branchName) => {
         setFormData(prev => {
             const already = prev.assignedBranches.includes(branchName);
-            return {
-                ...prev,
-                assignedBranches: already
-                    ? prev.assignedBranches.filter(b => b !== branchName)
-                    : [...prev.assignedBranches, branchName]
-            };
+            return { ...prev, assignedBranches: already ? prev.assignedBranches.filter(b => b !== branchName) : [...prev.assignedBranches, branchName] };
         });
+    };
+
+    const validateForm = () => {
+        let newErrors = {}; let isValid = true;
+        const required = ['firstName', 'lastName', 'birthdate', 'email'];
+        required.forEach(f => { if (!formData[f]) { newErrors[f] = 'Required'; isValid = false; } });
+        if (!formData.phone) { newErrors.phone = 'Required'; isValid = false; }
+        else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
+        if (formData.email && !validateEmail(formData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
+        if (formData.birthdate && getAge(formData.birthdate) < 18) { newErrors.birthdate = 'Min age 18'; isValid = false; }
+        const validateAddr = (addr, prefix) => {
+            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
+                if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
+            });
+        };
+        validateAddr(formData.currentAddress, 'current');
+        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
+        setErrors(newErrors);
+        if (!isValid) { const el = document.getElementsByName(Object.keys(newErrors)[0])[0]; if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); } }
+        return isValid;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
         setIsLoading(true);
-
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
-            email: formData.email, contactNumber: `+63${formData.phone}`, birthdate: formData.birthdate,
+            email: formData.email, contactNumber: `+63${formData.phone}`,
+            birthdate: formData.birthdate, gender: formData.gender,
             profileImage: profileImage,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
             permissions: formData.permissions,
-            assignedBranches: formData.assignedBranches
+            assignedBranches: formData.assignedBranches,
         };
-
         try {
-            const response = await authFetch('/add-secretary', {
-                method: 'POST',
-                body: JSON.stringify(finalData),
-            });
-
+            const response = await authFetch('/add-secretary', { method: 'POST', body: JSON.stringify(finalData) });
             const data = await response.json();
-            if (response.ok) { setShowSuccessModal(true); } 
-            else {
-                if (response.status === 409) {
-                    setErrors(prev => ({ ...prev, [data.field]: data.message }));
-                    const el = document.getElementsByName(data.field)[0];
-                    if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-                } else alert(data.message || "Failed to add secretary");
-            }
-        } catch (error) { console.error(error); alert("Cannot connect to server."); } 
+            if (response.ok) { setShowSuccessModal(true); }
+            else if (response.status === 409) {
+                setErrors(prev => ({ ...prev, [data.field]: data.message }));
+                const el = document.getElementsByName(data.field)[0];
+                if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+            } else alert(data.message || 'Failed to add secretary');
+        } catch (error) { console.error(error); alert('Cannot connect to server.'); }
         finally { setIsLoading(false); }
     };
 
@@ -180,22 +158,23 @@ export default function AddSecretary({ onClose, onSuccess }) {
         const availableProvinces = address.region ? provinces[address.region] || [] : [];
         const availableCities = address.province ? cities[address.province] || [] : [];
         const availableBarangays = address.city ? barangays[address.city] || [] : [];
-        const getError = (field) => errors[`${prefix}_${field}`]; const getErrorClass = (field) => getError(field) ? styles.errorBorder : '';
+        const getError = (field) => errors[`${prefix}_${field}`];
+        const getErrorClass = (field) => getError(field) ? styles.errorBorder : '';
 
         return (
             <div className={styles.addressSection}>
                 <h3 className={styles.sectionTitle}>{title}</h3>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>REGION <span style={{color:'red'}}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={(e)=>handleAddressChange(type,'region',e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map(r=><option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
-                    <div className={styles.formGroup}><label>PROVINCE <span style={{color:'red'}}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={(e)=>handleAddressChange(type,'province',e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map(p=><option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
+                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={e => handleAddressChange(type, 'region', e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
+                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={e => handleAddressChange(type, 'province', e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
                 </div>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{color:'red'}}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={(e)=>handleAddressChange(type,'city',e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
-                    <div className={styles.formGroup}><label>BARANGAY <span style={{color:'red'}}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={(e)=>handleAddressChange(type,'barangay',e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b=><option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
+                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={e => handleAddressChange(type, 'city', e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
+                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={e => handleAddressChange(type, 'barangay', e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b => <option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
                 </div>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>STREET <span style={{color:'red'}}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={(e)=>handleAddressChange(type,'street',e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St."/>{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
-                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{color:'red'}}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={(e)=>handleAddressChange(type,'houseNumber',e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123"/>{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
+                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={e => handleAddressChange(type, 'street', e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
+                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={e => handleAddressChange(type, 'houseNumber', e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
                 </div>
             </div>
         );
@@ -205,10 +184,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
         const fetchBranches = async () => {
             try {
                 const res = await authFetch('/branches');
-                if (res.ok) {
-                    const data = await res.json();
-                    setBranchOptions(data.map(b => b.name));
-                }
+                if (res.ok) { const data = await res.json(); setBranchOptions(data.map(b => b.name)); }
             } catch (e) { console.error('Failed to load branches:', e); }
         };
         fetchBranches();
@@ -216,8 +192,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
 
     return (
         <div className={styles.mainOverlay}>
-            <div className={styles.overlayBackground} onClick={!isLoading && !showSuccessModal ? onClose : undefined}></div>
-            
+            <div className={styles.overlayBackground} onClick={!isLoading && !showSuccessModal ? onClose : undefined} />
+
             <div className={styles.formCard}>
                 <div className={styles.headerWrapper}>
                     <button className={styles.backIconButton} onClick={onClose} type="button" disabled={isLoading}>
@@ -238,109 +214,75 @@ export default function AddSecretary({ onClose, onSuccess }) {
                     </div>
 
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>
+
+                    {/* Row 1: Names */}
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
-                        <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/></div>
-                        <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
+                        <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} />{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
+                        <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>LAST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading} />{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                     </div>
-                    
+
+                    {/* Row 2: Birthdate / Gender */}
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                        <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
-                        <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
+                        <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                        <div className={styles.formGroup}><label>GENDER</label><select className={styles.inputField} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select></div>
+                    </div>
+
+                    {/* Row 3: Email / Phone */}
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
+                        <div className={styles.formGroup}>
+                            <label>PHONE NUMBER <span style={{ color: 'red' }}>*</span></label>
                             <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
                                 <span className={styles.phonePrefix}>+63</span>
-                                <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading}/>
+                                <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
                             </div>
                             {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                         </div>
                     </div>
 
+                    {/* Address */}
                     <hr className={styles.divider} />
                     {renderAddressFields('currentAddress', 'Current Address')}
-                    <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
+                    <div className={styles.permanentHeader}>
+                        <h3 className={styles.sectionTitle}>Permanent Address</h3>
+                        <div className={styles.checkboxContainer}>
+                            <input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} />
+                            <label htmlFor="sameAddress">Same as Current Address</label>
+                        </div>
+                    </div>
                     {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
 
-                    {/* SYSTEM PERMISSIONS SECTION */}
+                    {/* Permissions */}
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>System Permissions</h3>
-                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>
+                    <p className={styles.sectionSubtitle}>Assign access levels for different system modules.</p>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}><label>PATIENTS</label><select className={styles.inputField} value={formData.permissions.patients} onChange={e => handlePermissionChange('patients', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
+                        <div className={styles.formGroup}><label>APPOINTMENTS</label><select className={styles.inputField} value={formData.permissions.appointments} onChange={e => handlePermissionChange('appointments', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
+                    </div>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}><label>INVENTORY</label><select className={styles.inputField} value={formData.permissions.inventory} onChange={e => handlePermissionChange('inventory', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
+                        <div className={styles.formGroup} />
+                    </div>
 
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}>
-                            <label>PATIENTS <span style={{color:'red'}}>*</span></label>
-                            <select className={styles.inputField} value={formData.permissions.patients} onChange={(e) => handlePermissionChange('patients', e.target.value)} disabled={isLoading}>
-                                <option value="none">No Access</option>
-                                <option value="read">Read-Only</option>
-                                <option value="edit">Editor</option>
-                            </select>
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>APPOINTMENTS <span style={{color:'red'}}>*</span></label>
-                            <select className={styles.inputField} value={formData.permissions.appointments} onChange={(e) => handlePermissionChange('appointments', e.target.value)} disabled={isLoading}>
-                                <option value="none">No Access</option>
-                                <option value="read">Read-Only</option>
-                                <option value="edit">Editor</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}>
-                            <label>INVENTORY <span style={{color:'red'}}>*</span></label>
-                            <select className={styles.inputField} value={formData.permissions.inventory} onChange={(e) => handlePermissionChange('inventory', e.target.value)} disabled={isLoading}>
-                                <option value="none">No Access</option>
-                                <option value="read">Read-Only</option>
-                                <option value="edit">Editor</option>
-                            </select>
-                        </div>
-                        <div className={styles.formGroup}>
-                            {/* Empty flex placeholder to maintain layout grid */}
-                        </div>
-                    </div>
-                    {/* ✅ PHASE 2: Branch Assignment */}
-                    {/* Branch Assignment — locked for branch-manager, multi-select for admin */}
+                    {/* Branch Assignment */}
                     {(isBranchManager || branchOptions.length > 0) && (
                         <>
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
                             {isBranchManager ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                    <span style={{
-                                        display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                        padding: '6px 14px', borderRadius: '6px',
-                                        background: '#e8f4fd', border: '1px solid #01538b',
-                                        color: '#01538b', fontSize: '14px', fontWeight: '600'
-                                    }}>
-                                        🏢 {user.assignedBranch}
-                                    </span>
-                                    <span style={{ color: '#94a3b8', fontSize: '12px' }}>
-                                        Auto-assigned to your branch
-                                    </span>
+                                    <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
+                                    <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
                                 </div>
                             ) : (
                                 <>
-                                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-15px' }}>
-                                        Select the branches this secretary is assigned to.
-                                    </p>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                                    <p className={styles.sectionSubtitle}>Select the branches this secretary is assigned to.</p>
+                                    <div className={styles.branchChipsContainer}>
                                         {branchOptions.map(branch => (
-                                            <label
-                                                key={branch}
-                                                style={{
-                                                    display: 'flex', alignItems: 'center', gap: '6px',
-                                                    cursor: 'pointer', padding: '6px 12px',
-                                                    border: `1px solid ${formData.assignedBranches.includes(branch) ? '#01538b' : '#e2e8f0'}`,
-                                                    borderRadius: '6px',
-                                                    backgroundColor: formData.assignedBranches.includes(branch) ? '#e8f4fd' : '#fff',
-                                                    fontSize: '14px'
-                                                }}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.assignedBranches.includes(branch)}
-                                                    onChange={() => handleBranchToggle(branch)}
-                                                    disabled={isLoading}
-                                                />
+                                            <label key={branch} className={`${styles.branchChip} ${formData.assignedBranches.includes(branch) ? styles.branchChipActive : ''}`}>
+                                                <input type="checkbox" checked={formData.assignedBranches.includes(branch)} onChange={() => handleBranchToggle(branch)} disabled={isLoading} />
                                                 {branch}
                                             </label>
                                         ))}
@@ -349,6 +291,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
                             )}
                         </>
                     )}
+
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
                         <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'ADDING SECRETARY...' : 'ADD SECRETARY'}</button>

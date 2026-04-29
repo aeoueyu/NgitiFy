@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AddDentist.module.css';
+import successIcon from '../../assets/alert/success.svg';
+import BackIcon from '../../assets/icons/Back.svg';
 import { useToast } from '../../context/ToastContext';
 
-const AddCoAdmin = () => {
-    const navigate = useNavigate();
+export default function AddCoAdmin({ onClose, onSuccess }) {
     const { addToast } = useToast();
-
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
@@ -17,7 +17,8 @@ const AddCoAdmin = () => {
         lastName: '',
         email: '',
         phone: '',
-        assignedBranches: []
+        gender: '',
+        assignedBranches: [],
     });
 
     useEffect(() => {
@@ -35,6 +36,13 @@ const AddCoAdmin = () => {
         fetchBranches();
     }, []);
 
+    const validateEmail = (email) => {
+        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formatRegex.test(email)) return false;
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
+        return allowedDomains.includes(email.split('@')[1].toLowerCase());
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
@@ -44,7 +52,7 @@ const AddCoAdmin = () => {
     const handlePhoneChange = (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
-        if (errors.phone) setErrors(prev => { const n = { ...prev }; delete n['phone']; return n; });
+        if (errors.phone) setErrors(prev => { const n = { ...prev }; delete n.phone; return n; });
         setFormData(prev => ({ ...prev, phone: value }));
     };
 
@@ -55,7 +63,7 @@ const AddCoAdmin = () => {
                 ...prev,
                 assignedBranches: already
                     ? prev.assignedBranches.filter(b => b !== branchName)
-                    : [...prev.assignedBranches, branchName]
+                    : [...prev.assignedBranches, branchName],
             };
         });
     };
@@ -64,9 +72,8 @@ const AddCoAdmin = () => {
         const newErrors = {};
         if (!formData.firstName.trim()) newErrors.firstName = 'Required';
         if (!formData.lastName.trim())  newErrors.lastName  = 'Required';
-        if (!formData.email.trim())     newErrors.email     = 'Required';
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
-            newErrors.email = 'Invalid email address';
+        if (!formData.email)            newErrors.email     = 'Required';
+        else if (!validateEmail(formData.email)) newErrors.email = 'Invalid email domain (e.g. gmail.com)';
         if (formData.phone && (formData.phone.length !== 10 || formData.phone[0] !== '9'))
             newErrors.phone = 'Invalid format (9xxxxxxxxx)';
         setErrors(newErrors);
@@ -76,32 +83,28 @@ const AddCoAdmin = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
-
         setIsLoading(true);
 
         const finalData = {
-            name: { first: formData.firstName.trim(), last: formData.lastName.trim() },
-            email: formData.email.trim(),
-            contactNumber: formData.phone ? `+63${formData.phone}` : '',
-            assignedBranches: formData.assignedBranches
+            name:             { first: formData.firstName.trim(), last: formData.lastName.trim() },
+            email:            formData.email.trim(),
+            contactNumber:    formData.phone ? `+63${formData.phone}` : '',
+            gender:           formData.gender,
+            assignedBranches: formData.assignedBranches,
         };
 
         try {
             const res = await authFetch('/add-co-administrator', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(finalData)
+                body: JSON.stringify(finalData),
             });
             const data = await res.json();
 
             if (res.ok) {
-                addToast(
-                    `Co-Administrator ${formData.firstName} ${formData.lastName} added. Activation email sent.`,
-                    'success'
-                );
-                navigate('/admin/manage-users/co-admins');
+                setShowSuccessModal(true);
             } else if (res.status === 409) {
-                setErrors({ email: data.message || 'This email is already in use.' });
+                setErrors(prev => ({ ...prev, email: data.message || 'This email is already in use.' }));
             } else {
                 addToast(data.message || 'Failed to add co-administrator.', 'error');
             }
@@ -112,66 +115,80 @@ const AddCoAdmin = () => {
         }
     };
 
+    const handleSuccessClose = () => { setShowSuccessModal(false); onSuccess(); onClose(); };
+
     return (
-        <div className={styles.pageContainer}>
+        <div className={styles.mainOverlay}>
+            <div className={styles.overlayBackground} onClick={!isLoading && !showSuccessModal ? onClose : undefined} />
+
             <div className={styles.formCard}>
-                <div className={styles.formHeader}>
-                    <button className={styles.backBtn} onClick={() => navigate(-1)} disabled={isLoading}>
-                        ← Back
+                <div className={styles.headerWrapper}>
+                    <button className={styles.backIconButton} onClick={onClose} type="button" disabled={isLoading}>
+                        <img src={BackIcon} alt="Back" />
                     </button>
-                    <h2 className={styles.formTitle}>Add Co-Administrator</h2>
+                    <div className={styles.header}>
+                        <h2>Add New <span className={styles.highlight}>Co-Administrator</span></h2>
+                        <p>Enter the co-administrator's details and configure their access.</p>
+                    </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className={styles.form} noValidate>
-                    <hr className={styles.divider} />
+                <form onSubmit={handleSubmit} noValidate>
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>
 
-                    <div className={styles.formRow}>
+                    {/* Row 1: First / Last Name */}
+                    <div className={styles.row}>
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>First Name <span style={{ color: 'red' }}>*</span></label>
+                            <label>FIRST NAME <span style={{ color: 'red' }}>*</span></label>
                             <input
-                                type="text" name="firstName" value={formData.firstName}
+                                className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`}
+                                name="firstName"
+                                value={formData.firstName}
                                 onChange={handleChange}
-                                className={`${styles.input} ${errors.firstName ? styles.errorBorder : ''}`}
+                                maxLength={50}
                                 disabled={isLoading}
                             />
                             {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
                         </div>
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Last Name <span style={{ color: 'red' }}>*</span></label>
+                            <label>LAST NAME <span style={{ color: 'red' }}>*</span></label>
                             <input
-                                type="text" name="lastName" value={formData.lastName}
+                                className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`}
+                                name="lastName"
+                                value={formData.lastName}
                                 onChange={handleChange}
-                                className={`${styles.input} ${errors.lastName ? styles.errorBorder : ''}`}
+                                maxLength={50}
                                 disabled={isLoading}
                             />
                             {errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}
                         </div>
                     </div>
 
-                    <div className={styles.formRow}>
+                    {/* Row 2: Email / Phone */}
+                    <div className={styles.row}>
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Email Address <span style={{ color: 'red' }}>*</span></label>
+                            <label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label>
                             <input
-                                type="email" name="email" value={formData.email}
+                                type="email"
+                                className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`}
+                                name="email"
+                                value={formData.email}
                                 onChange={handleChange}
-                                className={`${styles.input} ${errors.email ? styles.errorBorder : ''}`}
+                                maxLength={100}
                                 disabled={isLoading}
                             />
                             {errors.email && <span className={styles.errorText}>{errors.email}</span>}
                         </div>
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Phone Number</label>
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                <span style={{ position: 'absolute', left: '14px', color: '#64748b', fontSize: '14px', fontWeight: '500', pointerEvents: 'none' }}>
-                                    +63
-                                </span>
+                            <label>PHONE NUMBER</label>
+                            <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
+                                <span className={styles.phonePrefix}>+63</span>
                                 <input
-                                    type="tel" name="phone" value={formData.phone}
+                                    className={styles.phoneField}
+                                    name="phone"
+                                    value={formData.phone}
                                     onChange={handlePhoneChange}
-                                    className={`${styles.input} ${errors.phone ? styles.errorBorder : ''}`}
-                                    style={{ paddingLeft: '48px' }}
-                                    placeholder="9xxxxxxxxx" maxLength={10}
+                                    maxLength={10}
+                                    placeholder="9xxxxxxxxx"
                                     disabled={isLoading}
                                 />
                             </div>
@@ -179,23 +196,41 @@ const AddCoAdmin = () => {
                         </div>
                     </div>
 
+                    {/* Row 3: Gender */}
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>GENDER</label>
+                            <select
+                                className={styles.inputField}
+                                name="gender"
+                                value={formData.gender}
+                                onChange={handleChange}
+                                disabled={isLoading}
+                            >
+                                <option value="" hidden>Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup} />
+                    </div>
+
+                    {/* Branch Assignment */}
                     {branchOptions.length > 0 && (
                         <>
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-15px' }}>
+                            <p className={styles.sectionSubtitle}>
                                 Select the branches this co-administrator will have access to.
                             </p>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                            <div className={styles.branchChipsContainer}>
                                 {branchOptions.map(branch => (
-                                    <label key={branch} style={{
-                                        display: 'flex', alignItems: 'center', gap: '6px',
-                                        cursor: 'pointer', padding: '6px 12px',
-                                        border: `1px solid ${formData.assignedBranches.includes(branch) ? '#01538b' : '#e2e8f0'}`,
-                                        borderRadius: '6px',
-                                        backgroundColor: formData.assignedBranches.includes(branch) ? '#e8f4fd' : '#fff',
-                                        fontSize: '14px'
-                                    }}>
+                                    <label
+                                        key={branch}
+                                        className={`${styles.branchChip} ${formData.assignedBranches.includes(branch) ? styles.branchChipActive : ''}`}
+                                    >
                                         <input
                                             type="checkbox"
                                             checked={formData.assignedBranches.includes(branch)}
@@ -210,17 +245,28 @@ const AddCoAdmin = () => {
                     )}
 
                     <div className={styles.buttonGroup}>
-                        <button type="button" className={styles.cancelBtn} onClick={() => navigate(-1)} disabled={isLoading}>
-                            Cancel
+                        <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>
+                            CANCEL
                         </button>
                         <button type="submit" className={styles.submitBtn} disabled={isLoading}>
-                            {isLoading ? 'Adding...' : 'Add Co-Administrator'}
+                            {isLoading ? 'ADDING...' : 'ADD CO-ADMINISTRATOR'}
                         </button>
                     </div>
                 </form>
             </div>
+
+            {showSuccessModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <img src={successIcon} alt="Success" className={styles.modalIcon} />
+                        <h3 className={styles.modalTitle}>Co-Administrator Added!</h3>
+                        <p className={styles.modalMessage}>
+                            The account has been created successfully. An activation email has been sent.
+                        </p>
+                        <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
-};
-
-export default AddCoAdmin;
+}

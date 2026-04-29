@@ -1,22 +1,22 @@
-// ngitify-web/src/pages/admin/UserTabs.js
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import styles from '../../styles/admin/UserTabs.module.css';
 
+// Order: Patients → Secretaries → Dentists → Branch Managers → Owners (admin-only) → Co-Admins
 const ADMIN_TABS = [
+    { key: 'patients',       label: 'Patients',        path: '/admin/manage-users/patients' },
+    { key: 'secretaries',    label: 'Secretaries',     path: '/admin/manage-users/secretaries' },
     { key: 'dentists',       label: 'Dentists',        path: '/admin/manage-users/dentists' },
-    { key: 'secretaries',    label: 'Secretaries',      path: '/admin/manage-users/secretaries' },
-    { key: 'patients',       label: 'Patients',         path: '/admin/manage-users/patients' },
-    { key: 'branchManagers', label: 'Branch Managers',  path: '/admin/manage-users/branch-managers' },
-    { key: 'coAdmins',       label: 'Co-Admins',        path: '/admin/manage-users/co-admins' },
-    { key: 'owners',         label: 'Owners',           path: '/admin/manage-users/owners',  adminOnly: true },
+    { key: 'branchManagers', label: 'Branch Managers', path: '/admin/manage-users/branch-managers' },
+    { key: 'owners',         label: 'Owners',          path: '/admin/manage-users/owners', adminOnly: true },
+    { key: 'coAdmins',       label: 'Co-Admins',       path: '/admin/manage-users/co-admins' },
 ];
 
 const OWNER_TABS = [
-    { key: 'dentists',    label: 'Dentists',    path: '/owner/manage-users/dentists' },
-    { key: 'secretaries', label: 'Secretaries', path: '/owner/manage-users/secretaries' },
     { key: 'patients',    label: 'Patients',    path: '/owner/manage-users/patients' },
+    { key: 'secretaries', label: 'Secretaries', path: '/owner/manage-users/secretaries' },
+    { key: 'dentists',    label: 'Dentists',    path: '/owner/manage-users/dentists' },
 ];
 
 const UserTabs = ({ activeTab }) => {
