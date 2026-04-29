@@ -182,15 +182,24 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
 };
 
 app.post('/api/forgot-password', otpLimiter, async (req, res) => {
-    const { email } = req.body;
+    const { email, source } = req.body;
 
     try {
         const user = await User.findOne({ email });
 
+        // If the request comes from the mobile app, only patient accounts
+        // are allowed to reset their password there. All other roles
+        // (dentist, secretary, admin, etc.) must use the web portal.
+        if (source === 'mobile' && user && user.role !== 'patient') {
+            return res.status(403).json({
+                message: 'This account type can only reset its password on the Ngitify web portal. Please visit the website to continue.',
+            });
+        }
+
         if (user) {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             user.resetPasswordOtp = code;
-            user.resetPasswordExpires = Date.now() + 3600000; 
+            user.resetPasswordExpires = Date.now() + 3600000;
             await user.save();
 
             await resend.emails.send({
@@ -200,10 +209,50 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
                 text: `Your password reset code is: ${code}`,
             });
         }
+
         res.status(200).json({ message: 'If your email is registered, you will receive a password reset code.' });
 
     } catch (error) {
         console.error('Forgot Password Error:', error);
+        res.status(200).json({ message: 'If your email is registered, you will receive a password reset code.' });
+    }
+});
+
+// Mobile-only forgot password — enforces patient-role restriction server-side
+app.post('/api/mobile/forgot-password', otpLimiter, async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const user = await User.findOne({ email });
+
+        // Only patient accounts can reset their password via the mobile app.
+        // All other roles (dentist, admin, secretary, etc.) must use the web portal.
+        if (user && user.role !== 'patient') {
+            return res.status(403).json({
+                message: 'This account can only reset its password on the Ngitify web portal. Please visit the website to continue.',
+            });
+        }
+
+        // If user is a patient, generate and send OTP as normal
+        if (user) {
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            user.resetPasswordOtp = code;
+            user.resetPasswordExpires = Date.now() + 3600000;
+            await user.save();
+
+            await resend.emails.send({
+                from: 'NgitiFy Support <noreply@ngitify.com>',
+                to: user.email,
+                subject: 'Your Password Reset Code',
+                text: `Your password reset code is: ${code}`,
+            });
+        }
+
+        // Non-existent emails still get a 200 to prevent enumeration
+        res.status(200).json({ message: 'If your email is registered, you will receive a password reset code.' });
+
+    } catch (error) {
+        console.error('Mobile Forgot Password Error:', error);
         res.status(200).json({ message: 'If your email is registered, you will receive a password reset code.' });
     }
 });

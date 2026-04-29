@@ -1,26 +1,44 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useRef, useContext } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
     KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator, ScrollView
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import LogoGreenPink from '../../assets/images/logo-dentime.svg';
 import LoginBg from '../../assets/images/login-bg.svg';
 
 const { width, height } = Dimensions.get('window');
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginScreen({ navigation }) {
-    const [email, setEmail]         = useState('');
-    const [password, setPassword]   = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const [email, setEmail]           = useState('');
+    const [password, setPassword]     = useState('');
+    const [isLoading, setIsLoading]   = useState(false);
+    const [emailError, setEmailError] = useState('');
     const [loginError, setLoginError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    const passwordRef = useRef(null);
     const { login } = useContext(AuthContext);
 
     const handleLogin = async () => {
+        // Reset errors
+        setEmailError('');
         setLoginError('');
 
-        if (!email.trim() || !password.trim()) {
-            setLoginError('Please enter both email and password.');
+        // Field-level validation
+        if (!email.trim()) {
+            setEmailError('Email address is required.');
+            return;
+        }
+        if (!EMAIL_REGEX.test(email.trim())) {
+            setEmailError('Please enter a valid email address.');
+            return;
+        }
+        if (!password) {
+            setLoginError('Password is required.');
             return;
         }
 
@@ -30,7 +48,6 @@ export default function LoginScreen({ navigation }) {
             if (!result.success) {
                 setLoginError(result.message || 'Login failed. Please try again.');
             }
-            // On success, AuthContext sets userToken → AppNavigator renders PatientNavigator automatically
         } catch (err) {
             setLoginError('Unable to connect to the server. Please check your internet connection.');
         } finally {
@@ -62,30 +79,50 @@ export default function LoginScreen({ navigation }) {
                     <Text style={styles.welcomeText}>Welcome Back</Text>
                     <Text style={styles.subText}>Sign in to continue</Text>
 
+                    {/* Email */}
                     <TextInput
-                        style={[styles.input, loginError ? styles.inputError : null]}
+                        style={[styles.input, emailError ? styles.inputError : null]}
                         placeholder="Email Address"
                         placeholderTextColor="#aaa"
                         keyboardType="email-address"
                         autoCapitalize="none"
+                        autoCorrect={false}
                         value={email}
-                        onChangeText={(text) => { setEmail(text); setLoginError(''); }}
+                        onChangeText={(text) => { setEmail(text); setEmailError(''); }}
                         editable={!isLoading}
                         returnKeyType="next"
+                        onSubmitEditing={() => passwordRef.current?.focus()}
                     />
+                    {emailError !== '' && (
+                        <Text style={styles.errorText}>{emailError}</Text>
+                    )}
 
-                    <TextInput
-                        style={[styles.input, loginError ? styles.inputError : null]}
-                        placeholder="Password"
-                        placeholderTextColor="#aaa"
-                        secureTextEntry
-                        value={password}
-                        onChangeText={(text) => { setPassword(text); setLoginError(''); }}
-                        editable={!isLoading}
-                        returnKeyType="done"
-                        onSubmitEditing={handleLogin}
-                    />
-
+                    {/* Password */}
+                    <View style={styles.passwordWrapper}>
+                        <TextInput
+                            ref={passwordRef}
+                            style={[styles.passwordInput, loginError ? styles.inputError : null]}
+                            placeholder="Password"
+                            placeholderTextColor="#aaa"
+                            secureTextEntry={!showPassword}
+                            value={password}
+                            onChangeText={(text) => { setPassword(text); setLoginError(''); }}
+                            editable={!isLoading}
+                            returnKeyType="done"
+                            onSubmitEditing={handleLogin}
+                        />
+                        <TouchableOpacity
+                            style={styles.eyeBtn}
+                            onPress={() => setShowPassword(v => !v)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Ionicons
+                                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                                size={22}
+                                color="#aaa"
+                            />
+                        </TouchableOpacity>
+                    </View>
                     {loginError !== '' && (
                         <Text style={styles.errorText}>{loginError}</Text>
                     )}
@@ -161,11 +198,30 @@ const styles = StyleSheet.create({
         backgroundColor: '#f9f9f9',
         borderRadius: 10,
         padding: 15,
-        marginBottom: 15,
+        marginBottom: 5,
         borderWidth: 1,
         borderColor: '#eee',
         fontSize: 16,
         color: '#333'
+    },
+    passwordWrapper: {
+        position: 'relative',
+        marginBottom: 5,
+    },
+    passwordInput: {
+        backgroundColor: '#f9f9f9',
+        borderRadius: 10,
+        padding: 15,
+        paddingRight: 50,
+        borderWidth: 1,
+        borderColor: '#eee',
+        fontSize: 16,
+        color: '#333'
+    },
+    eyeBtn: {
+        position: 'absolute',
+        right: 15,
+        top: 15,
     },
     inputError: {
         borderColor: '#d9534f',
@@ -174,13 +230,14 @@ const styles = StyleSheet.create({
     errorText: {
         color: '#d9534f',
         fontSize: 12,
-        marginBottom: 15,
-        marginTop: -5,
+        marginBottom: 12,
+        marginTop: 4,
         marginLeft: 5
     },
     forgotPassword: {
         alignSelf: 'flex-end',
-        marginBottom: 25
+        marginBottom: 25,
+        marginTop: 10,
     },
     forgotPasswordText: {
         color: '#01538b',
