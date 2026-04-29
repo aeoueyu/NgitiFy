@@ -1811,10 +1811,10 @@ app.get('/api/appointments/slots', verifyToken, async (req, res) => {
         const end = new Date(date);
         end.setHours(23, 59, 59, 999);
 
-        // Find all active (non-terminal) appointments on this date
+        // Block slots for active AND completed appointments (prevents rebooking taken slots)
         const query = {
             date:   { $gte: start, $lte: end },
-            status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+            status: { $in: ['pending', 'confirmed', 'in-clinic', 'completed'] },
         };
         if (branch) query.branch = branch;
 

@@ -52,6 +52,14 @@ const to12h = (time24) => {
     return `${hour12}:${min} ${suffix}`;
 };
 
+// Returns true if a 24h slot has already passed (only applies when selected date is today)
+const isSlotPast = (slot24, dateStr, todayStr) => {
+    if (dateStr !== todayStr) return false;
+    const now = new Date();
+    const [hour, min] = slot24.split(':').map(Number);
+    return (hour * 60 + min) <= (now.getHours() * 60 + now.getMinutes());
+};
+
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 function StepIndicator({ current }) {
     const steps = ['Date', 'Time', 'Procedure', 'Confirm'];
@@ -451,31 +459,47 @@ export default function AppointmentBookingScreen({ navigation }) {
                     </View>
                 ) : (
                     <>
+                        {/* Warn if all slots for today are unavailable */}
+                        {selectedDate === today &&
+                            allowedSlots.every(s =>
+                                isSlotTaken(to12h(s)) || isSlotTaken(s) || isSlotPast(s, selectedDate, today)
+                            ) && (
+                            <View style={styles.warningBox}>
+                                <Text style={styles.warningText}>
+                                    All slots for today are either taken or have already passed. Please go back and select a different date.
+                                </Text>
+                            </View>
+                        )}
+
                         <View style={styles.slotGrid}>
                             {allowedSlots.map((slot24) => {
                                 const slot12   = to12h(slot24);
                                 const taken    = isSlotTaken(slot12) || isSlotTaken(slot24);
+                                const past     = isSlotPast(slot24, selectedDate, today);
+                                const disabled = taken || past;
                                 const selected = selectedTime === slot12;
                                 return (
                                     <TouchableOpacity
                                         key={slot24}
                                         style={[
                                             styles.slotChip,
-                                            selected && styles.slotSelected,
-                                            taken    && styles.slotTaken,
+                                            selected            && styles.slotSelected,
+                                            taken               && styles.slotTaken,
+                                            past && !taken      && styles.slotPast,
                                         ]}
-                                        onPress={() => !taken && setSelectedTime(slot12)}
-                                        activeOpacity={taken ? 1 : 0.7}
-                                        disabled={taken}
+                                        onPress={() => !disabled && setSelectedTime(slot12)}
+                                        activeOpacity={disabled ? 1 : 0.7}
+                                        disabled={disabled}
                                     >
                                         <Text style={[
                                             styles.slotText,
-                                            selected && styles.slotTextSelected,
-                                            taken    && styles.slotTextTaken,
+                                            selected            && styles.slotTextSelected,
+                                            disabled            && styles.slotTextTaken,
                                         ]}>
                                             {slot12}
                                         </Text>
-                                        {taken && <Text style={styles.takenLabel}>Taken</Text>}
+                                        {taken          && <Text style={styles.takenLabel}>Taken</Text>}
+                                        {past && !taken && <Text style={styles.takenLabel}>Past</Text>}
                                     </TouchableOpacity>
                                 );
                             })}
@@ -494,6 +518,10 @@ export default function AppointmentBookingScreen({ navigation }) {
                             <View style={styles.legendItem}>
                                 <View style={[styles.legendDot, { backgroundColor: '#bbb' }]} />
                                 <Text style={styles.legendText}>Taken</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: '#ffe082' }]} />
+                                <Text style={styles.legendText}>Past</Text>
                             </View>
                         </View>
                     </>
@@ -796,4 +824,11 @@ const styles = StyleSheet.create({
     // Disclaimer
     disclaimerCard: { backgroundColor: '#fff8e1', borderRadius: 12, padding: 15, borderLeftWidth: 4, borderLeftColor: '#ffc107', marginBottom: 10 },
     disclaimerText: { fontSize: 13, color: '#795548', lineHeight: 19 },
+
+    // Past slot
+    slotPast:    { backgroundColor: '#fff8e1', borderColor: '#ffe082', opacity: 0.75 },
+
+    // All-slots-unavailable warning
+    warningBox:  { backgroundColor: '#fff3e0', borderRadius: 10, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: '#ff9800' },
+    warningText: { color: '#e65100', fontSize: 13, lineHeight: 19 },
 });
