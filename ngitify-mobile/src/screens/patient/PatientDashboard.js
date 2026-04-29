@@ -368,7 +368,6 @@ export default function PatientDashboard({ navigation }) {
                 <View style={styles.headerLeft}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={styles.headerGreeting}>Hello, {firstName} </Text>
-                        <Ionicons name="hand-right-outline" size={22} color="white" />
                     </View>
                     <Text style={styles.headerSub}>Welcome back to NgitiFy</Text>
                 </View>
