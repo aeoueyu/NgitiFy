@@ -193,7 +193,13 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
         // This mirrors the behavior of a non-existent email (prevents role enumeration).
         const isMobileNonPatient = source === 'mobile' && user && user.role !== 'patient';
 
-        if (user && !isMobileNonPatient) {
+        // Web requests: patient accounts must NOT receive a code.
+        // Patients only exist in the mobile app — the web portal does not support the patient role.
+        // We still navigate the user to the verification page on the frontend (anti-enumeration),
+        // but we silently skip sending the OTP here.
+        const isWebPatient = source !== 'mobile' && user && user.role === 'patient';
+
+        if (user && !isMobileNonPatient && !isWebPatient) {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             user.resetPasswordOtp = code;
             user.resetPasswordExpires = Date.now() + 3600000;
@@ -207,6 +213,7 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
             });
         }
 
+        // Always return 200 — prevents email/role enumeration regardless of outcome.
         res.status(200).json({ message: 'If your email is registered, you will receive a password reset code.' });
 
     } catch (error) {
