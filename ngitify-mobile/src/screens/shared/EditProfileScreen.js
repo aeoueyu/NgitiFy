@@ -2,8 +2,9 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
     ScrollView, KeyboardAvoidingView, Platform, Modal, FlatList,
-    ActivityIndicator, StatusBar,
+    ActivityIndicator, StatusBar, Image, Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AuthContext } from '../../context/AuthContext';
 import CustomModal from '../../components/CustomModal';
@@ -17,16 +18,30 @@ import citiesData    from '../../utils/json/city.json';
 import barangaysData from '../../utils/json/barangay.json';
 
 // ─── Helpers: resolve codes ↔ names ──────────────────────────────────────────
+
+// Converts a name to its code (used when saving dropdowns).
 const codeFromName = (list, nameKey, codeKey, name) => {
     if (!name) return '';
     const found = list.find(i => i[nameKey]?.toLowerCase() === name?.toLowerCase());
     return found ? found[codeKey] : '';
 };
 
+// Converts a code to its display name (used when saving to DB).
 const nameFromCode = (list, codeKey, nameKey, code) => {
     if (!code) return '';
     const found = list.find(i => i[codeKey] === code);
     return found ? found[nameKey] : '';
+};
+
+// Resolves a stored DB value (code OR name) → the correct code for dropdown state.
+// Fixes the case where the DB previously stored codes instead of names.
+const resolveToCode = (list, nameKey, codeKey, value) => {
+    if (!value) return '';
+    // If value is already a valid code, return it directly
+    if (list.find(i => i[codeKey] === value)) return value;
+    // Otherwise try to match by name
+    const byName = list.find(i => i[nameKey]?.toLowerCase() === value.toLowerCase());
+    return byName ? byName[codeKey] : '';
 };
 
 const formatDisplayDate = (dateStr) => {
@@ -39,7 +54,7 @@ const formatDisplayDate = (dateStr) => {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function EditProfileScreen({ navigation }) {
-    const { userToken, userId, API_BASE_URL } = useContext(AuthContext);
+    const { userToken, userId, API_BASE_URL, refreshUserInfo } = useContext(AuthContext);
 
     // ── Remote data state ──
     const [fetching,     setFetching]     = useState(true);
@@ -82,6 +97,7 @@ export default function EditProfileScreen({ navigation }) {
     const [savedData,    setSavedData]    = useState(null);
     const [savedSameAddr, setSavedSameAddr] = useState(false);
 
+    const [profileImage,   setProfileImage]   = useState(null);
     const [dateObj,        setDateObj]        = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [dropdown,       setDropdown]       = useState({
@@ -104,16 +120,33 @@ export default function EditProfileScreen({ navigation }) {
             const addr     = data.currentAddress  || {};
             const permAddr = data.permanentAddress || {};
 
-            // Resolve stored names → codes for dropdown filtering
-            const regCode      = codeFromName(regionsData,   'region_name',   'region_code',   addr.region);
-            const provCode     = codeFromName(provincesData, 'province_name', 'province_code', addr.province);
-            const cityCode     = codeFromName(citiesData,    'city_name',     'city_code',     addr.city);
-            const brgyCode     = codeFromName(barangaysData, 'brgy_name',     'brgy_code',     addr.barangay);
+            // Resolve stored values (code OR name) → codes for dropdown filtering
+            const regCode      = resolveToCode(regionsData,   'region_name',   'region_code',   addr.region);
+            const provCode     = resolveToCode(provincesData, 'province_name', 'province_code', addr.province);
+            const cityCode     = resolveToCode(citiesData,    'city_name',     'city_code',     addr.city);
+            const brgyCode = (() => {
+                const val = addr.barangay;
+                if (!val) return '';
+                if (barangaysData.find(b => b.brgy_code === val)) return val;  // already a code
+                // Scope to resolved city to avoid ambiguous name matches
+                const inCity = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase() && b.city_code === cityCode);
+                if (inCity) return inCity.brgy_code;
+                const anywhere = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase());
+                return anywhere ? anywhere.brgy_code : '';
+            })();
 
-            const permRegCode  = codeFromName(regionsData,   'region_name',   'region_code',   permAddr.region);
-            const permProvCode = codeFromName(provincesData, 'province_name', 'province_code', permAddr.province);
-            const permCityCode = codeFromName(citiesData,    'city_name',     'city_code',     permAddr.city);
-            const permBrgyCode = codeFromName(barangaysData, 'brgy_name',     'brgy_code',     permAddr.barangay);
+            const permRegCode  = resolveToCode(regionsData,   'region_name',   'region_code',   permAddr.region);
+            const permProvCode = resolveToCode(provincesData, 'province_name', 'province_code', permAddr.province);
+            const permCityCode = resolveToCode(citiesData,    'city_name',     'city_code',     permAddr.city);
+            const permBrgyCode = (() => {
+                const val = permAddr.barangay;
+                if (!val) return '';
+                if (barangaysData.find(b => b.brgy_code === val)) return val;
+                const inCity = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase() && b.city_code === permCityCode);
+                if (inCity) return inCity.brgy_code;
+                const anywhere = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase());
+                return anywhere ? anywhere.brgy_code : '';
+            })();
 
             // Detect if permanent === current (same address)
             const sameAddr =
@@ -155,6 +188,7 @@ export default function EditProfileScreen({ navigation }) {
                 const bd = new Date(data.birthdate);
                 if (!isNaN(bd.getTime())) setDateObj(bd);
             }
+            setProfileImage(data.profileImage || null);
         } catch (err) {
             setFetchError('Could not load your profile. Pull down to retry.');
         } finally {
@@ -272,6 +306,32 @@ export default function EditProfileScreen({ navigation }) {
         );
     };
 
+    // ─── Pick profile image ───────────────────────────────────────────────────
+    const pickImage = async () => {
+        if (!isEditing) return;
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Required', 'Please allow access to your photo library to change your profile picture.');
+            return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+            base64: true,
+        });
+        if (!result.canceled && result.assets?.[0]) {
+            const asset = result.assets[0];
+            // Backend limit is 1.5MB for the base64 string
+            if (asset.base64 && asset.base64.length > 1.5 * 1024 * 1024) {
+                Alert.alert('Image Too Large', 'Please choose a smaller image (under 1.5MB).');
+                return;
+            }
+            setProfileImage(`data:image/jpeg;base64,${asset.base64}`);
+        }
+    };
+
     // ─── Cancel edit ─────────────────────────────────────────────────────────
     const handleCancel = () => {
         if (savedData) setFormData(savedData);
@@ -339,6 +399,7 @@ export default function EditProfileScreen({ navigation }) {
             gender:           formData.gender    || undefined,
             currentAddress:   currentAddressPayload,
             permanentAddress: permanentAddressPayload,
+            profileImage:     profileImage ?? undefined,
         };
 
         setSaving(true);
@@ -359,6 +420,7 @@ export default function EditProfileScreen({ navigation }) {
             setSavedSameAddr(isSameAddress);
             setIsEditing(false);
             setSuccessModal(true);
+            refreshUserInfo(); // sync profileImage + name to global context
         } catch {
             setSaveError('Unable to connect. Please check your internet connection.');
         } finally {
@@ -470,9 +532,23 @@ export default function EditProfileScreen({ navigation }) {
 
                 {/* Avatar */}
                 <View style={styles.avatarContainer}>
-                    <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarText}>{initials}</Text>
-                    </View>
+                    <TouchableOpacity onPress={pickImage} activeOpacity={isEditing ? 0.75 : 1}>
+                        {profileImage ? (
+                            <Image
+                                source={{ uri: profileImage }}
+                                style={[styles.avatarCircle, { backgroundColor: '#ccc' }]}
+                            />
+                        ) : (
+                            <View style={styles.avatarCircle}>
+                                <Text style={styles.avatarText}>{initials}</Text>
+                            </View>
+                        )}
+                        {isEditing && (
+                            <View style={styles.avatarEditOverlay}>
+                                <Text style={styles.avatarEditText}>📷 Change</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
                 </View>
 
                 {/* ── Personal Information ── */}
@@ -798,6 +874,12 @@ const styles = StyleSheet.create({
         alignItems: 'center', marginBottom: 10,
     },
     avatarText: { color: 'white', fontSize: 28, fontWeight: 'bold' },
+    avatarEditOverlay: {
+        position: 'absolute', bottom: 10, left: 0, right: 0,
+        backgroundColor: 'rgba(0,0,0,0.45)', borderBottomLeftRadius: 40,
+        borderBottomRightRadius: 40, paddingVertical: 4, alignItems: 'center',
+    },
+    avatarEditText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
 
     // Section
     section: {

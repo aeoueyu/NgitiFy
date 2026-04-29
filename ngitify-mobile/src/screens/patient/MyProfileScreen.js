@@ -1,10 +1,16 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
-    ActivityIndicator, RefreshControl, StatusBar,
+    ActivityIndicator, RefreshControl, StatusBar, Image,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
+
+// Address JSON data (needed to resolve codes → names for display)
+import regionsData   from '../../utils/json/region.json';
+import provincesData from '../../utils/json/province.json';
+import citiesData    from '../../utils/json/city.json';
+import barangaysData from '../../utils/json/barangay.json';
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '—';
@@ -26,15 +32,30 @@ const calculateAge = (dateStr) => {
     return age;
 };
 
+// Resolves a stored value (which may be a code OR a name) to its display name.
+const resolveAddressName = (list, codeKey, nameKey, value) => {
+    if (!value) return '';
+    // Check if already a readable name
+    const byName = list.find(i => i[nameKey]?.toLowerCase() === value.toLowerCase());
+    if (byName) return byName[nameKey];
+    // Fallback: treat as code and resolve to name
+    const byCode = list.find(i => i[codeKey] === value);
+    return byCode ? byCode[nameKey] : value; // last resort: show raw value
+};
+
 const formatAddress = (address) => {
     if (!address) return '—';
+    const regionName   = resolveAddressName(regionsData,   'region_code',   'region_name',   address.region);
+    const provinceName = resolveAddressName(provincesData, 'province_code', 'province_name', address.province);
+    const cityName     = resolveAddressName(citiesData,    'city_code',     'city_name',     address.city);
+    const barangayName = resolveAddressName(barangaysData, 'brgy_code',     'brgy_name',     address.barangay);
     const parts = [
         address.houseNumber,
         address.street,
-        address.barangay,
-        address.city,
-        address.province,
-        address.region,
+        barangayName,
+        cityName,
+        provinceName,
+        regionName,
     ].filter(Boolean);
     return parts.length > 0 ? parts.join(', ') : '—';
 };
@@ -189,9 +210,16 @@ export default function MyProfileScreen({ navigation }) {
 
                 {/* Avatar + name card */}
                 <View style={styles.profileCard}>
-                    <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarText}>{initials}</Text>
-                    </View>
+                    {profile?.profileImage ? (
+                        <Image
+                            source={{ uri: profile.profileImage }}
+                            style={styles.avatarCircle}
+                        />
+                    ) : (
+                        <View style={styles.avatarCircle}>
+                            <Text style={styles.avatarText}>{initials}</Text>
+                        </View>
+                    )}
                     <Text style={styles.patientName}>{fullName}</Text>
                     <Text style={styles.patientEmail}>{profile?.email || userInfo?.email || ''}</Text>
                     {profile?.gender && (

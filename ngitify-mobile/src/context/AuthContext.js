@@ -63,10 +63,11 @@ export const AuthProvider = ({ children }) => {
             if (!res.ok) return null;
             const data = await res.json();
             return {
-                firstName: data.name?.first  || '',
-                lastName:  data.name?.last   || '',
-                fullName:  `${data.name?.first || ''} ${data.name?.last || ''}`.trim(),
-                email:     data.email || '',
+                firstName:    data.name?.first  || '',
+                lastName:     data.name?.last   || '',
+                fullName:     `${data.name?.first || ''} ${data.name?.last || ''}`.trim(),
+                email:        data.email || '',
+                profileImage: data.profileImage || null,
             };
         } catch {
             return null;
@@ -125,6 +126,13 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // ─── Refresh userInfo (call after profile edits) ─────────────────────────
+    const refreshUserInfo = async () => {
+        if (!userId || !userToken) return;
+        const profile = await fetchUserProfile(userId, userToken);
+        if (profile) setUserInfo(profile);
+    };
+
     // ─── Logout ──────────────────────────────────────────────────────────────
     const logout = async () => {
         logActivity('LOGOUT', 'User logged out', userToken, API_BASE_URL);
@@ -153,7 +161,8 @@ export const AuthProvider = ({ children }) => {
                 userToken,
                 userRole,
                 userId,
-                userInfo,   // { firstName, lastName, fullName, email }
+                userInfo,         // { firstName, lastName, fullName, email, profileImage }
+                refreshUserInfo,
                 API_BASE_URL,
             }}
         >

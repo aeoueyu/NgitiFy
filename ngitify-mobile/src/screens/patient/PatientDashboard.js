@@ -3,7 +3,7 @@ import {
     View, Text, TouchableOpacity, StyleSheet,
     ScrollView, RefreshControl, ActivityIndicator,
     StatusBar, TouchableHighlight, Modal, Animated,
-    TouchableWithoutFeedback,
+    TouchableWithoutFeedback, Image,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { getVisitPrediction } from '../../utils/visitPrediction';
@@ -86,9 +86,16 @@ function ProfileMenuSheet({ visible, onClose, navigation, userInfo, logout }) {
 
                                 {/* Profile summary */}
                                 <View style={sheet.profileRow}>
-                                    <View style={sheet.avatar}>
-                                        <Text style={sheet.avatarText}>{initials}</Text>
-                                    </View>
+                                    {userInfo?.profileImage ? (
+                                        <Image
+                                            source={{ uri: userInfo.profileImage }}
+                                            style={sheet.avatar}
+                                        />
+                                    ) : (
+                                        <View style={sheet.avatar}>
+                                            <Text style={sheet.avatarText}>{initials}</Text>
+                                        </View>
+                                    )}
                                     <View style={sheet.profileInfo}>
                                         <Text style={sheet.name} numberOfLines={1}>{fullName}</Text>
                                         <Text style={sheet.email} numberOfLines={1}>{email}</Text>
@@ -395,7 +402,14 @@ export default function PatientDashboard({ navigation }) {
                         onPress={() => setProfileMenuVisible(true)}
                         activeOpacity={0.8}
                     >
-                        <Text style={styles.avatarBtnText}>{initials}</Text>
+                        {userInfo?.profileImage ? (
+                            <Image
+                                source={{ uri: userInfo.profileImage }}
+                                style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: 'white' }}
+                            />
+                        ) : (
+                            <Text style={styles.avatarBtnText}>{initials}</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
