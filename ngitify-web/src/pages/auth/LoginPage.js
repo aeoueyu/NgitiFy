@@ -1,42 +1,48 @@
 import React, { useState, useContext } from 'react';
 import styles from '../../styles/auth/LoginPage.module.css';
-import logo from '../../assets/icons/logo-dentime.svg'; 
+import logo from '../../assets/icons/logo-dentime.svg';
 import { useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContext'; // Imported AuthContext directly
+import { AuthContext } from '../../context/AuthContext';
+import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from 'react-icons/fa';
 
 export default function LoginPage() {
     const navigate = useNavigate();
-    // Use useContext directly with your AuthContext to extract the login function
-    const { login } = useContext(AuthContext); 
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
+    const { login } = useContext(AuthContext);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
+
+    const validateFields = () => {
+        const errors = {};
+        if (!email.trim()) errors.email = 'Email address is required.';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Please enter a valid email address.';
+        if (!password) errors.password = 'Password is required.';
+        setFieldErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        setErrorMessage(""); // Clear previous errors
+        setErrorMessage('');
+        if (!validateFields()) return;
         setIsLoading(true);
-        
+
         try {
-            // Task 12 Fix: Moved hardcoded localhost:5000 to .env
             const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
             const response = await fetch(`${apiUrl}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    email, 
-                    password
-                }),
+                body: JSON.stringify({ email, password }),
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                // === FIX: EXPLICITLY SAVE THE CLEAN TOKEN STRING HERE ===
                 localStorage.setItem('token', data.token);
-            
-                // ✅ FIX Bug 28: Fetch full profile so AuthContext gets real name + avatar
+
                 let profileData = {};
                 try {
                     const profileRes = await fetch(`${apiUrl}/api/user/${data.userId}`, {
@@ -44,10 +50,9 @@ export default function LoginPage() {
                     });
                     if (profileRes.ok) profileData = await profileRes.json();
                 } catch (e) {
-                    console.warn('Profile pre-fetch failed, name will be blank until refresh:', e);
+                    console.warn('Profile pre-fetch failed:', e);
                 }
-            
-                // Pass full user data to AuthContext so UserAvatar shows initials immediately
+
                 await login({
                     token:          data.token,
                     role:           data.role,
@@ -56,10 +61,9 @@ export default function LoginPage() {
                     name:           profileData.name,
                     profileImage:   profileData.profileImage,
                     assignedBranch: data.assignedBranch || null,
-                    isDentist:      data.isDentist || false,   // ✅ Owner isDentist flag fix
+                    isDentist:      data.isDentist || false,
                 });
-            
-                // Redirect based on role
+
                 if (data.role === 'administrator' || data.role === 'co-administrator') {
                     navigate('/admin/dashboard');
                 } else if (data.role === 'branch-manager') {
@@ -71,18 +75,17 @@ export default function LoginPage() {
                 } else if (data.role === 'secretary') {
                     navigate('/secretary/dashboard');
                 } else if (data.role === 'patient') {
-                    setErrorMessage("Patient access is only available on the mobile app.");
+                    setErrorMessage('Patient access is only available on the mobile app.');
                     localStorage.removeItem('token');
                 } else {
-                    setErrorMessage("Unrecognized user role.");
+                    setErrorMessage('Unrecognized user role.');
                 }
             } else {
-                // Show Error
-                setErrorMessage(data.message || "Invalid email or password.");
+                setErrorMessage(data.message || 'Invalid email or password.');
             }
         } catch (error) {
-            console.error("Login failed", error);
-            setErrorMessage("Cannot connect to server.");
+            console.error('Login failed', error);
+            setErrorMessage('Cannot connect to server. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -90,63 +93,90 @@ export default function LoginPage() {
 
     return (
         <div className={styles['main-container']}>
-            <form className={styles['container']} onSubmit={handleLogin}>
-                <img src={logo} alt='Lardizabal Dental Clinic' className={styles['logo']} />
-                
+            <form className={styles['container']} onSubmit={handleLogin} noValidate>
+                <img src={logo} alt="Dentime Dental Clinic" className={styles['logo']} />
+
                 <div className={styles['header-text']}>
                     <h2>Login to your <span className={styles['accent-text']}>Account</span></h2>
                 </div>
 
+                {/* Email Field */}
                 <div className={styles['form-group']}>
                     <label className={styles['label']}>EMAIL ADDRESS</label>
-                    <input
-                        type='email' 
-                        placeholder='Enter your email' 
-                        className={styles['input-field']}
-                        value={email}
-                        onChange={(e)=>setEmail(e.target.value)}
-                        required
-                        disabled={isLoading}
-                    />
+                    <div className={styles['input-wrapper']}>
+                        <FaEnvelope className={styles['input-icon']} />
+                        <input
+                            type="email"
+                            placeholder="Enter your email"
+                            className={`${styles['input-field']} ${fieldErrors.email ? styles['input-error'] : ''}`}
+                            value={email}
+                            onChange={(e) => {
+                                setEmail(e.target.value);
+                                if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' }));
+                            }}
+                            disabled={isLoading}
+                            autoComplete="email"
+                        />
+                    </div>
+                    {fieldErrors.email && (
+                        <span className={styles['field-error']}>{fieldErrors.email}</span>
+                    )}
                 </div>
 
+                {/* Password Field */}
                 <div className={styles['form-group']}>
                     <label className={styles['label']}>PASSWORD</label>
-                    <input
-                        type='password'
-                        placeholder='Enter your password'
-                        className={styles['input-field']}
-                        value={password}
-                        onChange={(e)=>setPassword(e.target.value)}
-                        required
-                        disabled={isLoading}
-                    />
-                    <span 
-                        onClick={() => navigate('/forgot-password')} 
+                    <div className={styles['input-wrapper']}>
+                        <FaLock className={styles['input-icon']} />
+                        <input
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="Enter your password"
+                            className={`${styles['input-field']} ${styles['input-field--padded-right']} ${fieldErrors.password ? styles['input-error'] : ''}`}
+                            value={password}
+                            onChange={(e) => {
+                                setPassword(e.target.value);
+                                if (fieldErrors.password) setFieldErrors(p => ({ ...p, password: '' }));
+                            }}
+                            disabled={isLoading}
+                            autoComplete="current-password"
+                        />
+                        <button
+                            type="button"
+                            className={styles['toggle-password']}
+                            onClick={() => setShowPassword(p => !p)}
+                            tabIndex={-1}
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
+                    </div>
+                    {fieldErrors.password && (
+                        <span className={styles['field-error']}>{fieldErrors.password}</span>
+                    )}
+                    <span
+                        onClick={() => navigate('/forgot-password')}
                         className={styles['forgotpass-link']}
-                        style={{cursor: 'pointer'}}
                     >
                         Forgot Password?
                     </span>
                 </div>
 
-                {/* Error Message Display */}
+                {/* Server-level Error */}
                 {errorMessage && (
-                    <div className={styles.error} style={{ color: 'red', marginBottom: '10px', fontSize: '14px', textAlign: 'center' }}>
-                        {errorMessage}
-                    </div>
+                    <div className={styles.error}>{errorMessage}</div>
                 )}
 
-                <button 
-                    type="submit" 
-                    className={styles['login-button']} 
+                <button
+                    type="submit"
+                    className={styles['login-button']}
                     disabled={isLoading}
                 >
                     {isLoading ? 'LOGGING IN...' : 'LOGIN'}
                 </button>
 
                 <div className={styles['back-home']}>
-                    Don't have an account? <span onClick={() => navigate('/')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>Go back to Home</span>
+                    Don't have an account?{' '}
+                    <span onClick={() => navigate('/')}>Go back to Home</span>
                 </div>
             </form>
         </div>

@@ -29,15 +29,6 @@
     background-repeat: no-repeat;
 }
 
-.bg-element {
-    position: absolute;
-    bottom: -50px;
-    left: -50px;
-    width: 500px;
-    opacity: 0.5;
-    z-index: 0;
-}
-
 .logo {
     width: 150px;
     margin-bottom: 25px;
@@ -55,7 +46,7 @@
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
     text-align: center;
-    border: 1px solid rgba(1, 83, 139, 0.1); /* Updated to Deep Blue with opacity */
+    border: 1px solid rgba(1, 83, 139, 0.1);
     animation: fadeInPop 0.8s ease-out 0.1s backwards;
 }
 
@@ -66,9 +57,8 @@
     font-weight: 600;
 }
 
-/* Replaced pink-text with accent-text using the Cyan palette */
 .accent-text {
-    color: #2dccf6; /* Cyan */
+    color: #2dccf6;
     font-weight: 800;
     text-transform: uppercase;
 }
@@ -82,14 +72,30 @@
     display: block;
     font-size: 12px;
     font-weight: 700;
-    color: #01538b; /* Deep Blue */
+    color: #01538b;
     margin-bottom: 8px;
     margin-left: 10px;
 }
 
+/* Input wrapper for icon + input side by side */
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 16px;
+    color: #01538b;
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
 .input-field {
     width: 100%;
-    padding: 12px 20px;
+    padding: 12px 20px 12px 40px;
     border-radius: 50px;
     border: 1.5px solid #ddd;
     font-family: 'Lexend Deca', sans-serif;
@@ -97,24 +103,68 @@
     outline: none;
     transition: all 0.3s ease;
     box-sizing: border-box;
+    color: #333;
+}
+
+/* Extra right padding when toggle button is present */
+.input-field--padded-right {
+    padding-right: 44px;
 }
 
 .input-field:focus {
-    border-color: #01538b; /* Deep Blue */
-    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1); /* Deep Blue with opacity */
+    border-color: #01538b;
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
 }
 
+.input-field.input-error {
+    border-color: #d9534f;
+    box-shadow: 0 0 0 3px rgba(217, 83, 79, 0.1);
+}
+
+/* Show/hide password toggle */
+.toggle-password {
+    position: absolute;
+    right: 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    padding: 0;
+    transition: color 0.2s ease;
+}
+
+.toggle-password:hover {
+    color: #01538b;
+}
+
+/* Field-level validation error (below input) */
+.field-error {
+    display: block;
+    font-size: 12px;
+    color: #d9534f;
+    margin-top: 5px;
+    margin-left: 12px;
+}
+
+/* Server-level error banner */
 .error {
     color: #d9534f;
     font-size: 13px;
     margin-bottom: 15px;
     min-height: 20px;
+    text-align: center;
+    background: rgba(217, 83, 79, 0.07);
+    border-radius: 8px;
+    padding: 8px 12px;
 }
 
 .login-button {
     width: 100%;
     padding: 14px;
-    background-color: #01538b; /* Deep Blue */
+    background-color: #01538b;
     color: white;
     border: none;
     border-radius: 50px;
@@ -123,12 +173,20 @@
     cursor: pointer;
     transition: all 0.3s ease;
     margin-top: 10px;
-    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2); /* Deep Blue with opacity */
+    font-family: 'Lexend Deca', sans-serif;
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
+    letter-spacing: 0.5px;
 }
 
-.login-button:hover {
-    background-color: #013b63; /* Darker Deep Blue for hover */
+.login-button:hover:not(:disabled) {
+    background-color: #013b63;
     transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(1, 83, 139, 0.3);
+}
+
+.login-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .forgotpass-link {
@@ -136,13 +194,15 @@
     text-align: right;
     font-size: 12px;
     color: #888;
-    margin-top: 5px;
+    margin-top: 6px;
     text-decoration: none;
     margin-right: 10px;
+    cursor: pointer;
+    transition: color 0.2s ease;
 }
 
 .forgotpass-link:hover {
-    color: #01538b; /* Deep Blue */
+    color: #01538b;
 }
 
 .back-home {
@@ -152,12 +212,13 @@
 }
 
 .back-home span {
-    color: #01538b; /* Deep Blue */
+    color: #01538b;
     font-weight: 700;
     cursor: pointer;
     text-decoration: underline;
+    transition: color 0.2s ease;
 }
 
 .back-home span:hover {
-    color: #2dccf6; /* Cyan */
+    color: #2dccf6;
 }
