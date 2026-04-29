@@ -2,10 +2,12 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet,
     ScrollView, RefreshControl, ActivityIndicator,
-    StatusBar, TouchableHighlight,
+    StatusBar, TouchableHighlight, Modal, Animated,
+    TouchableWithoutFeedback,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { getVisitPrediction } from '../../utils/visitPrediction';
+import LogoutModal from '../../components/LogoutModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,33 +29,6 @@ const formatTime = (time24) => {
     return `${hour12}:${m} ${suffix}`;
 };
 
-const formatTimestamp = (ts) => {
-    if (!ts) return '';
-    const d = new Date(ts);
-    const now = new Date();
-    const diffMs = now - d;
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHrs = Math.floor(diffMins / 60);
-    if (diffHrs < 24) return `${diffHrs}h ago`;
-    const diffDays = Math.floor(diffHrs / 24);
-    return `${diffDays}d ago`;
-};
-
-const getActivityIcon = (action = '') => {
-    const a = action.toUpperCase();
-    if (a.includes('LOGIN'))       return '🔑';
-    if (a.includes('LOGOUT'))      return '🚪';
-    if (a.includes('APPOINTMENT')) return '📅';
-    if (a.includes('TREATMENT'))   return '🦷';
-    if (a.includes('RADIOGRAPH'))  return '🩻';
-    if (a.includes('PROFILE'))     return '👤';
-    if (a.includes('PASSWORD'))    return '🔒';
-    if (a.includes('TICKET'))      return '💬';
-    return '📋';
-};
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function QuickActionCard({ icon, label, color, onPress }) {
@@ -69,24 +44,124 @@ function SectionHeader({ title }) {
     return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
+// ─── Profile Menu Sheet ───────────────────────────────────────────────────────
+
+function ProfileMenuSheet({ visible, onClose, navigation, userInfo, logout }) {
+    const [logoutVisible, setLogoutVisible] = useState(false);
+
+    const initials = [userInfo?.firstName?.[0], userInfo?.lastName?.[0]]
+        .filter(Boolean).join('').toUpperCase() || '?';
+    const fullName  = userInfo?.fullName || userInfo?.firstName || 'Patient';
+    const email     = userInfo?.email || '';
+
+    const menuItems = [
+        { icon: '👤', label: 'My Profile',    screen: 'MyProfile' },
+        { icon: '✏️',  label: 'Edit Profile',  screen: 'EditProfile' },
+        { icon: '⚙️',  label: 'Settings',      screen: 'Settings' },
+        { icon: '📋', label: 'Activity Logs', screen: 'ActivityLogs' },
+        { icon: '🔔', label: 'Notifications', screen: 'Notifications' },
+        { icon: '📅', label: 'My Appointments', screen: 'AppointmentBooking' },
+        { icon: '🦷', label: 'My EMR',        screen: 'MedicalRecords' },
+    ];
+
+    const handleNav = (screen) => {
+        onClose();
+        setTimeout(() => navigation.navigate(screen), 150);
+    };
+
+    return (
+        <>
+            <Modal
+                visible={visible}
+                transparent
+                animationType="fade"
+                onRequestClose={onClose}
+            >
+                <TouchableWithoutFeedback onPress={onClose}>
+                    <View style={sheet.overlay}>
+                        <TouchableWithoutFeedback>
+                            <View style={sheet.container}>
+
+                                {/* Profile summary */}
+                                <View style={sheet.profileRow}>
+                                    <View style={sheet.avatar}>
+                                        <Text style={sheet.avatarText}>{initials}</Text>
+                                    </View>
+                                    <View style={sheet.profileInfo}>
+                                        <Text style={sheet.name} numberOfLines={1}>{fullName}</Text>
+                                        <Text style={sheet.email} numberOfLines={1}>{email}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={sheet.divider} />
+
+                                {/* Menu items */}
+                                {menuItems.map((item) => (
+                                    <TouchableOpacity
+                                        key={item.screen}
+                                        style={sheet.menuItem}
+                                        onPress={() => handleNav(item.screen)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={sheet.menuIcon}>{item.icon}</Text>
+                                        <Text style={sheet.menuLabel}>{item.label}</Text>
+                                        <Text style={sheet.menuArrow}>›</Text>
+                                    </TouchableOpacity>
+                                ))}
+
+                                <View style={sheet.divider} />
+
+                                {/* Logout */}
+                                <TouchableOpacity
+                                    style={sheet.logoutItem}
+                                    onPress={() => {
+                                        onClose();
+                                        setTimeout(() => setLogoutVisible(true), 200);
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={sheet.menuIcon}>🚪</Text>
+                                    <Text style={sheet.logoutLabel}>Log Out</Text>
+                                </TouchableOpacity>
+
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+
+            <LogoutModal
+                visible={logoutVisible}
+                onCancel={() => setLogoutVisible(false)}
+                onConfirm={logout}
+            />
+        </>
+    );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function PatientDashboard({ navigation }) {
-    const { userToken, userId, userInfo, API_BASE_URL } = useContext(AuthContext);
+    const { userToken, userId, userInfo, API_BASE_URL, logout } = useContext(AuthContext);
 
     // ── Data state ──
     const [upcomingAppt,    setUpcomingAppt]    = useState(null);
     const [notifications,   setNotifications]   = useState([]);
-    const [activityLogs,    setActivityLogs]    = useState([]);
     const [lastVisitDate,   setLastVisitDate]   = useState(null);
     const [visitPrediction, setVisitPrediction] = useState(null);
 
     // ── Loading / error state ──
-    const [loading,     setLoading]     = useState(true);
-    const [refreshing,  setRefreshing]  = useState(false);
-    const [apptError,   setApptError]   = useState(false);
+    const [loading,    setLoading]    = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [apptError,  setApptError]  = useState(false);
+
+    // ── Profile menu state ──
+    const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
     const unreadCount = notifications.filter(n => !n.isRead).length;
+
+    const initials = [userInfo?.firstName?.[0], userInfo?.lastName?.[0]]
+        .filter(Boolean).join('').toUpperCase() || '?';
 
     // ─── Data fetching ────────────────────────────────────────────────────────
 
@@ -96,10 +171,9 @@ export default function PatientDashboard({ navigation }) {
         if (!userToken || !userId) return;
 
         try {
-            const [apptRes, notifRes, logRes, treatRes] = await Promise.allSettled([
+            const [apptRes, notifRes, treatRes] = await Promise.allSettled([
                 fetch(`${API_BASE_URL}/api/surgeries?patientId=${userId}`, { headers: authHeader }),
                 fetch(`${API_BASE_URL}/api/notifications`, { headers: authHeader }),
-                fetch(`${API_BASE_URL}/api/activity-logs/patient`, { headers: authHeader }),
                 fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers: authHeader }),
             ]);
 
@@ -121,12 +195,6 @@ export default function PatientDashboard({ navigation }) {
                 setNotifications(Array.isArray(notifs) ? notifs : []);
             }
 
-            // ── Activity logs (show last 3) ──
-            if (logRes.status === 'fulfilled' && logRes.value.ok) {
-                const logs = await logRes.value.json();
-                setActivityLogs((Array.isArray(logs) ? logs : []).slice(0, 3));
-            }
-
             // ── Last visit → visit prediction ──
             if (treatRes.status === 'fulfilled' && treatRes.value.ok) {
                 const logs = await treatRes.value.json();
@@ -145,20 +213,12 @@ export default function PatientDashboard({ navigation }) {
         }
     }, [userToken, userId, API_BASE_URL]);
 
-    useEffect(() => {
-        fetchAll();
-    }, [fetchAll]);
+    useEffect(() => { fetchAll(); }, [fetchAll]);
 
-    const onRefresh = () => {
-        setRefreshing(true);
-        fetchAll();
-    };
+    const onRefresh = () => { setRefreshing(true); fetchAll(); };
 
-    // ─── Focus refresh (return from another screen) ───────────────────────────
     useEffect(() => {
-        const unsub = navigation.addListener('focus', () => {
-            fetchAll();
-        });
+        const unsub = navigation.addListener('focus', () => fetchAll());
         return unsub;
     }, [navigation, fetchAll]);
 
@@ -193,8 +253,8 @@ export default function PatientDashboard({ navigation }) {
         }
 
         const statusColors = {
-            pending:   { bg: '#fff3e0', text: '#e65100', dot: '#ff9800' },
-            confirmed: { bg: '#e8f5e9', text: '#2e7d32', dot: '#4caf50' },
+            pending:     { bg: '#fff3e0', text: '#e65100', dot: '#ff9800' },
+            confirmed:   { bg: '#e8f5e9', text: '#2e7d32', dot: '#4caf50' },
             'in-clinic': { bg: '#e3f2fd', text: '#01538b', dot: '#2196f3' },
         };
         const sc = statusColors[upcomingAppt.status] || statusColors.pending;
@@ -249,7 +309,7 @@ export default function PatientDashboard({ navigation }) {
             <View style={[styles.visitBanner, { backgroundColor: visitPrediction.bg }]}>
                 <Text style={styles.visitBannerIcon}>
                     {visitPrediction.label === 'On Track' ? '✅' :
-                     visitPrediction.label === 'Due Soon' ? '⚠️' : '🚨'}
+                     visitPrediction.label === 'Due Soon'  ? '⚠️' : '🚨'}
                 </Text>
                 <View style={styles.visitBannerText}>
                     <Text style={[styles.visitBannerTitle, { color: visitPrediction.color }]}>
@@ -263,28 +323,6 @@ export default function PatientDashboard({ navigation }) {
                 </View>
             </View>
         );
-    };
-
-    const renderActivityLog = () => {
-        if (activityLogs.length === 0) {
-            return (
-                <View style={styles.emptyLogCard}>
-                    <Text style={styles.emptyLogText}>No recent activity to show.</Text>
-                </View>
-            );
-        }
-
-        return activityLogs.map((log, idx) => (
-            <View key={log._id || idx} style={styles.logRow}>
-                <Text style={styles.logIcon}>{getActivityIcon(log.action)}</Text>
-                <View style={styles.logContent}>
-                    <Text style={styles.logAction} numberOfLines={1}>
-                        {log.details || log.action || 'Activity recorded'}
-                    </Text>
-                    <Text style={styles.logTime}>{formatTimestamp(log.timestamp || log.createdAt)}</Text>
-                </View>
-            </View>
-        ));
     };
 
     // ─── Full render ──────────────────────────────────────────────────────────
@@ -310,20 +348,33 @@ export default function PatientDashboard({ navigation }) {
                     <Text style={styles.headerGreeting}>Hello, {firstName} 👋</Text>
                     <Text style={styles.headerSub}>Welcome back to NgitiFy</Text>
                 </View>
-                <TouchableOpacity
-                    style={styles.notifBtn}
-                    onPress={() => navigation.navigate('Notifications')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.notifIcon}>🔔</Text>
-                    {unreadCount > 0 && (
-                        <View style={styles.badge}>
-                            <Text style={styles.badgeText}>
-                                {unreadCount > 9 ? '9+' : unreadCount}
-                            </Text>
-                        </View>
-                    )}
-                </TouchableOpacity>
+
+                <View style={styles.headerActions}>
+                    {/* Notification bell */}
+                    <TouchableOpacity
+                        style={styles.iconBtn}
+                        onPress={() => navigation.navigate('Notifications')}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.iconBtnText}>🔔</Text>
+                        {unreadCount > 0 && (
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* Profile avatar button */}
+                    <TouchableOpacity
+                        style={styles.avatarBtn}
+                        onPress={() => setProfileMenuVisible(true)}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.avatarBtnText}>{initials}</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ScrollView
@@ -376,19 +427,6 @@ export default function PatientDashboard({ navigation }) {
                     />
                 </View>
 
-                {/* ── Recent Activity ── */}
-                <View style={styles.activitySection}>
-                    <View style={styles.activityHeader}>
-                        <SectionHeader title="Recent Activity" />
-                        <TouchableOpacity onPress={() => navigation.navigate('ActivityLogs')}>
-                            <Text style={styles.seeAll}>See All</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.activityCard}>
-                        {renderActivityLog()}
-                    </View>
-                </View>
-
                 {/* ── Bottom padding for FAB ── */}
                 <View style={{ height: 100 }} />
             </ScrollView>
@@ -401,6 +439,15 @@ export default function PatientDashboard({ navigation }) {
             >
                 <Text style={styles.fabLabel}>🤖 NgitiBot</Text>
             </TouchableHighlight>
+
+            {/* ── Profile Menu Sheet ── */}
+            <ProfileMenuSheet
+                visible={profileMenuVisible}
+                onClose={() => setProfileMenuVisible(false)}
+                navigation={navigation}
+                userInfo={userInfo}
+                logout={logout}
+            />
         </View>
     );
 }
@@ -413,24 +460,50 @@ const styles = StyleSheet.create({
     loadingText:      { marginTop: 12, color: '#888', fontSize: 14 },
 
     // Header
-    header:       { backgroundColor: '#01538b', paddingTop: 52, paddingBottom: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    headerLeft:   { flex: 1 },
-    headerGreeting: { fontSize: 22, fontWeight: 'bold', color: 'white' },
-    headerSub:    { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-    notifBtn:     { padding: 8, position: 'relative' },
-    notifIcon:    { fontSize: 24 },
-    badge:        { position: 'absolute', top: 4, right: 4, backgroundColor: '#e53935', borderRadius: 8, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 },
-    badgeText:    { color: 'white', fontSize: 9, fontWeight: 'bold' },
+    header: {
+        backgroundColor: '#01538b', paddingTop: 52, paddingBottom: 20,
+        paddingHorizontal: 20, flexDirection: 'row',
+        alignItems: 'center', justifyContent: 'space-between',
+    },
+    headerLeft:      { flex: 1 },
+    headerGreeting:  { fontSize: 22, fontWeight: 'bold', color: 'white' },
+    headerSub:       { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+    headerActions:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+
+    iconBtn:     { padding: 8, position: 'relative' },
+    iconBtnText: { fontSize: 24 },
+    badge: {
+        position: 'absolute', top: 4, right: 4, backgroundColor: '#e53935',
+        borderRadius: 8, minWidth: 16, height: 16,
+        justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3,
+    },
+    badgeText: { color: 'white', fontSize: 9, fontWeight: 'bold' },
+
+    avatarBtn: {
+        width: 38, height: 38, borderRadius: 19,
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    avatarBtnText: { color: 'white', fontSize: 13, fontWeight: 'bold' },
 
     // Scroll
-    scroll:       { flex: 1 },
-    scrollContent:{ paddingHorizontal: 16, paddingTop: 16 },
+    scroll:        { flex: 1 },
+    scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
 
     // Section header
-    sectionHeader: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
+    sectionHeader: {
+        fontSize: 13, fontWeight: '700', color: '#888',
+        textTransform: 'uppercase', letterSpacing: 0.8,
+        marginBottom: 8, marginTop: 4,
+    },
 
     // Appointment card
-    apptCard:      { backgroundColor: 'white', borderRadius: 14, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+    apptCard:      {
+        backgroundColor: 'white', borderRadius: 14, padding: 16,
+        marginBottom: 16, elevation: 2, shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4,
+    },
     apptCardEmpty: { alignItems: 'center', paddingVertical: 28 },
     apptCardTop:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
     apptCardFooter:{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 10, marginTop: 4 },
@@ -458,25 +531,76 @@ const styles = StyleSheet.create({
     visitBannerSub:  { fontSize: 12, color: '#555', lineHeight: 16 },
 
     // Quick actions
-    qaGrid:   { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
-    qaCard:   { width: '48%', backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 10, alignItems: 'center', elevation: 2, borderTopWidth: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 3 },
-    qaIcon:   { fontSize: 28, marginBottom: 8 },
-    qaLabel:  { fontSize: 13, fontWeight: '600', color: '#333', textAlign: 'center' },
-
-    // Activity
-    activitySection: { marginBottom: 8 },
-    activityHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    seeAll:          { fontSize: 13, color: '#01538b', fontWeight: '600', marginBottom: 8 },
-    activityCard:    { backgroundColor: 'white', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 3 },
-    logRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-    logIcon:         { fontSize: 20, marginRight: 12 },
-    logContent:      { flex: 1 },
-    logAction:       { fontSize: 13, color: '#333', fontWeight: '500', marginBottom: 2 },
-    logTime:         { fontSize: 11, color: '#aaa' },
-    emptyLogCard:    { padding: 20, alignItems: 'center' },
-    emptyLogText:    { color: '#bbb', fontSize: 13 },
+    qaGrid:  { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
+    qaCard:  {
+        width: '48%', backgroundColor: 'white', borderRadius: 12, padding: 16,
+        marginBottom: 10, alignItems: 'center', elevation: 2, borderTopWidth: 3,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 3,
+    },
+    qaIcon:  { fontSize: 28, marginBottom: 8 },
+    qaLabel: { fontSize: 13, fontWeight: '600', color: '#333', textAlign: 'center' },
 
     // FAB
-    fab:      { position: 'absolute', bottom: 24, right: 20, backgroundColor: '#01538b', borderRadius: 28, paddingHorizontal: 20, paddingVertical: 14, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6 },
+    fab: {
+        position: 'absolute', bottom: 24, right: 20, backgroundColor: '#01538b',
+        borderRadius: 28, paddingHorizontal: 20, paddingVertical: 14,
+        elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2, shadowRadius: 6,
+    },
     fabLabel: { color: 'white', fontWeight: 'bold', fontSize: 14 },
+});
+
+// ─── Profile menu sheet styles ────────────────────────────────────────────────
+
+const sheet = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.35)',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-end',
+        paddingTop: 100,   // drops below the header
+        paddingRight: 16,
+    },
+    container: {
+        backgroundColor: 'white',
+        borderRadius: 18,
+        width: 260,
+        paddingVertical: 12,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+    },
+    profileRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
+    avatar: {
+        width: 44, height: 44, borderRadius: 22,
+        backgroundColor: '#01538b', justifyContent: 'center', alignItems: 'center',
+        marginRight: 10,
+    },
+    avatarText:  { color: 'white', fontSize: 16, fontWeight: 'bold' },
+    profileInfo: { flex: 1 },
+    name:        { fontSize: 14, fontWeight: 'bold', color: '#222' },
+    email:       { fontSize: 11, color: '#999', marginTop: 2 },
+
+    divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 6 },
+
+    menuItem: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 12,
+    },
+    menuIcon:  { fontSize: 16, width: 26 },
+    menuLabel: { flex: 1, fontSize: 14, color: '#333', fontWeight: '500' },
+    menuArrow: { fontSize: 18, color: '#ccc' },
+
+    logoutItem: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 12,
+    },
+    logoutLabel: { flex: 1, fontSize: 14, color: '#d32f2f', fontWeight: '600' },
 });

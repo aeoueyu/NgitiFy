@@ -8,7 +8,8 @@ export const AuthContext = createContext();
 // For local dev on Android emulator: http://10.0.2.2:5000
 // For a physical device: http://<your-machine-local-ip>:5000
 // For production: https://your-backend.com
-export const API_BASE_URL = 'http://10.0.2.2:5000';
+export const API_BASE_URL =
+    process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:5000';
 // ──────────────────────────────────────────────────────────────────────────────
 
 const STORAGE_KEYS = {
