@@ -18,6 +18,7 @@ const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
 
 const loginLimiter = rateLimit({
@@ -187,16 +188,12 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
     try {
         const user = await User.findOne({ email });
 
-        // If the request comes from the mobile app, only patient accounts
-        // are allowed to reset their password there. All other roles
-        // (dentist, secretary, admin, etc.) must use the web portal.
-        if (source === 'mobile' && user && user.role !== 'patient') {
-            return res.status(403).json({
-                message: 'This account type can only reset its password on the Ngitify web portal. Please visit the website to continue.',
-            });
-        }
+        // Mobile requests: only send OTP to patient accounts.
+        // Non-patient roles silently skip — no code is sent, no error is shown.
+        // This mirrors the behavior of a non-existent email (prevents role enumeration).
+        const isMobileNonPatient = source === 'mobile' && user && user.role !== 'patient';
 
-        if (user) {
+        if (user && !isMobileNonPatient) {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             user.resetPasswordOtp = code;
             user.resetPasswordExpires = Date.now() + 3600000;
@@ -225,16 +222,10 @@ app.post('/api/mobile/forgot-password', otpLimiter, async (req, res) => {
     try {
         const user = await User.findOne({ email });
 
-        // Only patient accounts can reset their password via the mobile app.
-        // All other roles (dentist, admin, secretary, etc.) must use the web portal.
-        if (user && user.role !== 'patient') {
-            return res.status(403).json({
-                message: 'This account can only reset its password on the Ngitify web portal. Please visit the website to continue.',
-            });
-        }
-
-        // If user is a patient, generate and send OTP as normal
-        if (user) {
+        // Only patient accounts receive an OTP via the mobile app.
+        // Non-patient roles silently skip — no code is sent, no error is shown.
+        // This mirrors the behavior of a non-existent email (prevents role enumeration).
+        if (user && user.role === 'patient') {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             user.resetPasswordOtp = code;
             user.resetPasswordExpires = Date.now() + 3600000;
@@ -2933,10 +2924,11 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 // AI PATIENT CARE COMPANION — Chat proxy
 // -------------------------------------------------------
+
 const aiChatLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 20,
-    keyGenerator: (req) => req.user?.id || req.ip,
+    keyGenerator: (req) => req.user?.id || ipKeyGenerator(req),
     message: { message: 'Too many AI requests. Please wait before trying again.' },
     standardHeaders: true,
     legacyHeaders: false,

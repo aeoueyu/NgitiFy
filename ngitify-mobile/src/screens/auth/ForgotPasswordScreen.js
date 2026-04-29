@@ -85,24 +85,15 @@ export default function ForgotPasswordScreen({ navigation }) {
         setEmailError('');
         setIsLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/mobile/forgot-password`, {
+            await fetch(`${API_BASE_URL}/api/mobile/forgot-password`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({ email: email.trim() }),
             });
-
-            if (res.status === 403) {
-                const data = await res.json();
-                setEmailError(data.message || 'This account can only reset its password on the web portal.');
-                return;
-            }
-
-            if (res.ok) {
-                startCooldown();
-                setStep(2);
-            } else {
-                setEmailError('Something went wrong. Please try again.');
-            }
+            // Always proceed to step 2 regardless of response.
+            // A code is only sent if the email belongs to a valid patient.
+            startCooldown();
+            setStep(2);
         } catch {
             setEmailError('Unable to connect to the server. Please check your connection.');
         } finally {
@@ -117,18 +108,12 @@ export default function ForgotPasswordScreen({ navigation }) {
         setOtpError('');
         setIsLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/mobile/forgot-password`, {
+            await fetch(`${API_BASE_URL}/api/mobile/forgot-password`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({ email: email.trim() }),
             });
-
-            if (res.status === 403) {
-                const data = await res.json();
-                setOtpError(data.message || 'This account can only reset its password on the web portal.');
-                return;
-            }
-
+            // Always restart cooldown — a code is only actually sent for valid patient emails.
             startCooldown();
         } catch {
             Alert.alert('Error', 'Could not resend code. Please try again.');
