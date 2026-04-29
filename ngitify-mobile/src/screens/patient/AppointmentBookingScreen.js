@@ -26,6 +26,13 @@ const PROCEDURES = [
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
 
+// Returns 'YYYY-MM' for a given Date object
+const toMonthString = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+};
+
 const formatDisplayDate = (dateStr) => {
     if (!dateStr) return '';
     const [year, month, day] = dateStr.split('-');
@@ -36,6 +43,7 @@ const formatDisplayDate = (dateStr) => {
 
 // "08:00" → "8:00 AM" | "13:00" → "1:00 PM"
 const to12h = (time24) => {
+    if (!time24) return '';
     const [hourStr, min] = time24.split(':');
     const hour   = parseInt(hourStr, 10);
     const suffix = hour >= 12 ? 'PM' : 'AM';
@@ -109,17 +117,20 @@ export default function AppointmentBookingScreen({ navigation }) {
     // ── Wizard state ──
     const [step, setStep] = useState(1);
 
-    // Step 1
-    const [selectedDate, setSelectedDate] = useState('');
+    // Step 1 — Date
+    const [selectedDate,   setSelectedDate]   = useState('');
+    const [blockedDates,   setBlockedDates]   = useState([]); // fully booked date strings
+    const [loadingBlocked, setLoadingBlocked] = useState(false);
+    const [currentMonth,   setCurrentMonth]   = useState(toMonthString(new Date()));
 
-    // Step 2
-    const [allowedSlots, setAllowedSlots]   = useState([]);
-    const [takenSlots,   setTakenSlots]     = useState([]);
-    const [loadingSlots, setLoadingSlots]   = useState(false);
-    const [slotsError,   setSlotsError]     = useState('');
-    const [selectedTime, setSelectedTime]   = useState('');
+    // Step 2 — Time
+    const [allowedSlots, setAllowedSlots] = useState([]);
+    const [takenSlots,   setTakenSlots]   = useState([]);
+    const [loadingSlots, setLoadingSlots] = useState(false);
+    const [slotsError,   setSlotsError]   = useState('');
+    const [selectedTime, setSelectedTime] = useState('');
 
-    // Step 3
+    // Step 3 — Procedure, Branch, Notes
     const [selectedProcedure, setSelectedProcedure] = useState('');
     const [notes,              setNotes]             = useState('');
     const [branches,           setBranches]          = useState([]);
@@ -127,10 +138,10 @@ export default function AppointmentBookingScreen({ navigation }) {
     const [loadingBranches,    setLoadingBranches]   = useState(true);
 
     // Step 4 / submit
-    const [isSubmitting,   setIsSubmitting]   = useState(false);
-    const [modalVisible,   setModalVisible]   = useState(false);
-    const [modalType,      setModalType]      = useState('success');
-    const [modalMessage,   setModalMessage]   = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalType,    setModalType]    = useState('success');
+    const [modalMessage, setModalMessage] = useState('');
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const today    = getTodayString();
@@ -151,7 +162,6 @@ export default function AppointmentBookingScreen({ navigation }) {
                 const data = await res.json();
                 const list = Array.isArray(data) ? data : [];
                 setBranches(list);
-                // Auto-select if only one branch
                 if (list.length === 1) setSelectedBranch(list[0].name);
             } catch (err) {
                 console.warn('Could not fetch branches:', err);
@@ -162,24 +172,50 @@ export default function AppointmentBookingScreen({ navigation }) {
         fetchBranches();
     }, []);
 
-    // ── Fetch time slots when date is selected ──
+    // ── Fetch blocked dates for a given month ──
+    const fetchBlockedDates = useCallback(async (month) => {
+        setLoadingBlocked(true);
+        try {
+            const branchQ = selectedBranch
+                ? `&branch=${encodeURIComponent(selectedBranch)}`
+                : '';
+            const res = await fetch(
+                `${API_BASE_URL}/api/appointments/blocked-dates?month=${month}${branchQ}`,
+                { headers: { Authorization: `Bearer ${userToken}` } }
+            );
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            setBlockedDates(Array.isArray(data.blockedDates) ? data.blockedDates : []);
+        } catch {
+            setBlockedDates([]);
+        } finally {
+            setLoadingBlocked(false);
+        }
+    }, [userToken, API_BASE_URL, selectedBranch]);
+
+    // Fetch blocked dates on mount and whenever branch changes
+    useEffect(() => {
+        fetchBlockedDates(currentMonth);
+    }, [currentMonth, fetchBlockedDates]);
+
+    // ── Fetch time slots when date selected ──
     const fetchSlots = useCallback(async (date) => {
         setLoadingSlots(true);
         setSlotsError('');
         setSelectedTime('');
         try {
-            const branch = selectedBranch
+            const branchQ = selectedBranch
                 ? `&branch=${encodeURIComponent(selectedBranch)}`
                 : '';
-            const res  = await fetch(
-                `${API_BASE_URL}/api/appointments/slots?date=${date}${branch}`,
+            const res = await fetch(
+                `${API_BASE_URL}/api/appointments/slots?date=${date}${branchQ}`,
                 { headers: { Authorization: `Bearer ${userToken}` } }
             );
             if (!res.ok) throw new Error('Failed to fetch slots');
             const data = await res.json();
             setAllowedSlots(data.allowedSlots || []);
             setTakenSlots(data.takenSlots   || []);
-        } catch (err) {
+        } catch {
             setSlotsError('Could not load time slots. Please try again.');
             setAllowedSlots([]);
             setTakenSlots([]);
@@ -188,18 +224,57 @@ export default function AppointmentBookingScreen({ navigation }) {
         }
     }, [userToken, API_BASE_URL, selectedBranch]);
 
+    // ── Build markedDates object for Calendar ──
+    const buildMarkedDates = () => {
+        const marked = {};
+
+        // Mark blocked (fully booked) dates in red
+        blockedDates.forEach((dateStr) => {
+            marked[dateStr] = {
+                disabled: true,
+                disableTouchEvent: true,
+                customStyles: {
+                    container: { backgroundColor: '#ffebee', borderRadius: 6 },
+                    text:       { color: '#e57373', textDecorationLine: 'line-through' },
+                },
+                // Fallback for non-custom-styles theme:
+                dotColor:     '#e53935',
+                marked:       true,
+            };
+        });
+
+        // Highlight selected date (overrides blocked if somehow selected)
+        if (selectedDate) {
+            marked[selectedDate] = {
+                selected:           true,
+                selectedColor:      '#01538b',
+                disableTouchEvent:  false,
+            };
+        }
+
+        return marked;
+    };
+
     // ── Handlers ──
     const handleDateSelect = (day) => {
-        const date = new Date(day.dateString + 'T12:00:00'); // noon to avoid TZ issues
-        if (date.getDay() === 0) return; // block Sundays
+        const date = new Date(day.dateString + 'T12:00:00');
+        // Block Sundays (0) client-side regardless of backend
+        if (date.getDay() === 0) return;
+        // Block fully booked dates
+        if (blockedDates.includes(day.dateString)) return;
         setSelectedDate(day.dateString);
         fetchSlots(day.dateString);
     };
 
+    const handleMonthChange = (month) => {
+        const monthStr = `${month.year}-${String(month.month).padStart(2, '0')}`;
+        setCurrentMonth(monthStr);
+        // fetchBlockedDates is triggered by the useEffect above
+    };
+
     const handleNext = () => {
-        if (step === 1) {
-            // Fetch slots now if not yet done (edge case)
-            if (allowedSlots.length === 0 && !loadingSlots) fetchSlots(selectedDate);
+        if (step === 1 && allowedSlots.length === 0 && !loadingSlots) {
+            fetchSlots(selectedDate);
         }
         if (step < 4) setStep(step + 1);
     };
@@ -209,10 +284,10 @@ export default function AppointmentBookingScreen({ navigation }) {
         else navigation.goBack();
     };
 
-    // ── Real submit ──
+    // ── Submit ──
     const handleSubmit = async () => {
         if (!selectedBranch) {
-            Alert.alert('Branch Required', 'Please select a clinic branch in Step 3 before confirming.');
+            Alert.alert('Branch Required', 'Please go back to Step 3 and select a clinic branch.');
             setStep(3);
             return;
         }
@@ -223,7 +298,7 @@ export default function AppointmentBookingScreen({ navigation }) {
                 method:  'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${userToken}`,
+                    Authorization:  `Bearer ${userToken}`,
                 },
                 body: JSON.stringify({
                     date:      selectedDate,
@@ -240,7 +315,7 @@ export default function AppointmentBookingScreen({ navigation }) {
                 setModalType('success');
                 setModalMessage(
                     `Your appointment request for ${formatDisplayDate(selectedDate)}` +
-                    (selectedTime ? ` at ${selectedTime}` : '') +
+                    (selectedTime ? ` at ${to12h(selectedTime) || selectedTime}` : '') +
                     ' has been submitted. The clinic will confirm your schedule shortly.'
                 );
                 setModalVisible(true);
@@ -249,7 +324,7 @@ export default function AppointmentBookingScreen({ navigation }) {
                 setModalMessage(data.message || 'Booking failed. Please try again.');
                 setModalVisible(true);
             }
-        } catch (err) {
+        } catch {
             setModalType('error');
             setModalMessage('Unable to connect to the server. Please check your internet connection.');
             setModalVisible(true);
@@ -267,30 +342,57 @@ export default function AppointmentBookingScreen({ navigation }) {
     const renderStep1 = () => (
         <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
             <Text style={styles.stepHeading}>Select a Date</Text>
-            <Text style={styles.stepSub}>Sundays are unavailable. Tap any available weekday.</Text>
+            <Text style={styles.stepSub}>Sundays are unavailable. Red dates are fully booked.</Text>
+
+            {loadingBlocked && (
+                <View style={styles.blockedLoadingRow}>
+                    <ActivityIndicator size="small" color="#01538b" />
+                    <Text style={styles.blockedLoadingText}>Checking availability…</Text>
+                </View>
+            )}
+
             <Calendar
                 minDate={today}
                 onDayPress={handleDateSelect}
-                markedDates={{
-                    ...(selectedDate
-                        ? { [selectedDate]: { selected: true, selectedColor: '#01538b' } }
-                        : {}
-                    ),
-                }}
+                onMonthChange={handleMonthChange}
+                markedDates={buildMarkedDates()}
+                markingType="simple"
+                // Visually dim Sundays (index 0 = Sunday)
+                disabledDaysIndexes={[0]}
                 disableAllTouchEventsForDisabledDays
                 theme={{
                     selectedDayBackgroundColor: '#01538b',
                     todayTextColor:             '#01538b',
                     arrowColor:                 '#01538b',
-                    dotColor:                   '#01538b',
+                    dotColor:                   '#e53935',
+                    selectedDotColor:           'white',
                     textDayFontWeight:          '600',
                     textMonthFontWeight:        'bold',
                     textDayHeaderFontWeight:    '600',
                     calendarBackground:         'white',
                     textSectionTitleColor:      '#01538b',
+                    // Dimmed color for Sundays
+                    textDisabledColor:          '#ddd',
                 }}
                 style={styles.calendar}
             />
+
+            {/* Legend */}
+            <View style={styles.legendRow}>
+                <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#01538b' }]} />
+                    <Text style={styles.legendText}>Selected</Text>
+                </View>
+                <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#e53935' }]} />
+                    <Text style={styles.legendText}>Fully Booked</Text>
+                </View>
+                <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#ddd' }]} />
+                    <Text style={styles.legendText}>Unavailable</Text>
+                </View>
+            </View>
+
             {selectedDate ? (
                 <View style={styles.selectedDatePill}>
                     <Text style={styles.selectedDateText}>
@@ -298,6 +400,7 @@ export default function AppointmentBookingScreen({ navigation }) {
                     </Text>
                 </View>
             ) : null}
+
             <TouchableOpacity
                 style={[styles.primaryBtn, !selectedDate && styles.disabledBtn]}
                 onPress={handleNext}
@@ -311,8 +414,6 @@ export default function AppointmentBookingScreen({ navigation }) {
 
     // ── Step 2: Pick a Time ───────────────────────────────────────────────────
     const renderStep2 = () => {
-        // Taken slots use the stored 12h format "8:00 AM" OR 24h "08:00"
-        // Normalise: convert allowedSlots (24h) → 12h for display, then check takenSlots
         const isSlotTaken = (slot12h) =>
             takenSlots.some(t => t === slot12h || to12h(t) === slot12h);
 
@@ -343,35 +444,53 @@ export default function AppointmentBookingScreen({ navigation }) {
                         </Text>
                     </View>
                 ) : (
-                    <View style={styles.slotGrid}>
-                        {allowedSlots.map((slot24) => {
-                            const slot12   = to12h(slot24);
-                            const taken    = isSlotTaken(slot12) || isSlotTaken(slot24);
-                            const selected = selectedTime === slot12;
-                            return (
-                                <TouchableOpacity
-                                    key={slot24}
-                                    style={[
-                                        styles.slotChip,
-                                        selected && styles.slotSelected,
-                                        taken    && styles.slotTaken,
-                                    ]}
-                                    onPress={() => !taken && setSelectedTime(slot12)}
-                                    activeOpacity={taken ? 1 : 0.7}
-                                    disabled={taken}
-                                >
-                                    <Text style={[
-                                        styles.slotText,
-                                        selected && styles.slotTextSelected,
-                                        taken    && styles.slotTextTaken,
-                                    ]}>
-                                        {slot12}
-                                    </Text>
-                                    {taken && <Text style={styles.takenLabel}>Taken</Text>}
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
+                    <>
+                        <View style={styles.slotGrid}>
+                            {allowedSlots.map((slot24) => {
+                                const slot12   = to12h(slot24);
+                                const taken    = isSlotTaken(slot12) || isSlotTaken(slot24);
+                                const selected = selectedTime === slot12;
+                                return (
+                                    <TouchableOpacity
+                                        key={slot24}
+                                        style={[
+                                            styles.slotChip,
+                                            selected && styles.slotSelected,
+                                            taken    && styles.slotTaken,
+                                        ]}
+                                        onPress={() => !taken && setSelectedTime(slot12)}
+                                        activeOpacity={taken ? 1 : 0.7}
+                                        disabled={taken}
+                                    >
+                                        <Text style={[
+                                            styles.slotText,
+                                            selected && styles.slotTextSelected,
+                                            taken    && styles.slotTextTaken,
+                                        ]}>
+                                            {slot12}
+                                        </Text>
+                                        {taken && <Text style={styles.takenLabel}>Taken</Text>}
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        {/* Slot legend */}
+                        <View style={styles.slotLegendRow}>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: '#01538b' }]} />
+                                <Text style={styles.legendText}>Selected</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: '#e0e0e0' }]} />
+                                <Text style={styles.legendText}>Available</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: '#bbb' }]} />
+                                <Text style={styles.legendText}>Taken</Text>
+                            </View>
+                        </View>
+                    </>
                 )}
 
                 <View style={styles.navRow}>
@@ -506,10 +625,7 @@ export default function AppointmentBookingScreen({ navigation }) {
                 <SummaryRow label="Time"      value={selectedTime || '—'} />
                 <SummaryRow label="Branch"    value={selectedBranch} />
                 <SummaryRow label="Procedure" value={selectedProcedure} />
-                {notes.trim()
-                    ? <SummaryRow label="Notes" value={notes.trim()} />
-                    : null
-                }
+                {notes.trim() ? <SummaryRow label="Notes" value={notes.trim()} /> : null}
             </View>
 
             <View style={styles.disclaimerCard}>
@@ -547,7 +663,7 @@ export default function AppointmentBookingScreen({ navigation }) {
         </Animated.View>
     );
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    // ── Main render ───────────────────────────────────────────────────────────
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -599,21 +715,32 @@ const styles = StyleSheet.create({
     // Step content
     content:      { padding: 20, paddingBottom: 50 },
     stepHeading:  { fontSize: 20, fontWeight: 'bold', color: '#01538b', marginBottom: 4, marginTop: 4 },
-    stepSub:      { fontSize: 13, color: '#888', marginBottom: 20 },
+    stepSub:      { fontSize: 13, color: '#888', marginBottom: 16 },
 
     // Calendar
-    calendar:     { borderRadius: 15, elevation: 2, marginBottom: 16, overflow: 'hidden' },
+    calendar:     { borderRadius: 15, elevation: 2, marginBottom: 12, overflow: 'hidden' },
+
+    // Blocked-date loading
+    blockedLoadingRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+    blockedLoadingText: { marginLeft: 8, fontSize: 12, color: '#888' },
+
+    // Legend
+    legendRow:    { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 12 },
+    slotLegendRow:{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 16 },
+    legendItem:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    legendDot:    { width: 10, height: 10, borderRadius: 5 },
+    legendText:   { fontSize: 11, color: '#888' },
 
     selectedDatePill: { backgroundColor: '#e8f1f8', borderRadius: 10, padding: 10, alignItems: 'center', marginBottom: 16 },
     selectedDateText: { color: '#01538b', fontWeight: '700', fontSize: 13 },
 
     // Buttons
-    primaryBtn:      { backgroundColor: '#01538b', paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-    primaryBtnText:  { color: 'white', fontWeight: 'bold', fontSize: 16 },
-    disabledBtn:     { backgroundColor: '#b0bec5' },
-    secondaryBtn:    { backgroundColor: 'white', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', borderWidth: 1.5, borderColor: '#01538b', marginTop: 10 },
-    secondaryBtnText:{ color: '#01538b', fontWeight: 'bold', fontSize: 15 },
-    navRow:          { flexDirection: 'row', alignItems: 'center' },
+    primaryBtn:       { backgroundColor: '#01538b', paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+    primaryBtnText:   { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    disabledBtn:      { backgroundColor: '#b0bec5' },
+    secondaryBtn:     { backgroundColor: 'white', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', borderWidth: 1.5, borderColor: '#01538b', marginTop: 10 },
+    secondaryBtnText: { color: '#01538b', fontWeight: 'bold', fontSize: 15 },
+    navRow:           { flexDirection: 'row', alignItems: 'center' },
 
     // Slot grid
     loadingBox:   { alignItems: 'center', paddingVertical: 40 },
@@ -623,14 +750,14 @@ const styles = StyleSheet.create({
     retryBtn:     { backgroundColor: '#01538b', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
     retryBtnText: { color: 'white', fontWeight: 'bold' },
 
-    slotGrid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-    slotChip:          { width: '46%', paddingVertical: 14, borderRadius: 12, backgroundColor: 'white', alignItems: 'center', elevation: 1, borderWidth: 1.5, borderColor: '#e0e0e0' },
-    slotSelected:      { backgroundColor: '#01538b', borderColor: '#01538b' },
-    slotTaken:         { backgroundColor: '#f5f5f5', borderColor: '#e0e0e0', opacity: 0.6 },
-    slotText:          { fontWeight: 'bold', color: '#333', fontSize: 14 },
-    slotTextSelected:  { color: 'white' },
-    slotTextTaken:     { color: '#bbb' },
-    takenLabel:        { fontSize: 10, color: '#bbb', marginTop: 2 },
+    slotGrid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+    slotChip:         { width: '46%', paddingVertical: 14, borderRadius: 12, backgroundColor: 'white', alignItems: 'center', elevation: 1, borderWidth: 1.5, borderColor: '#e0e0e0' },
+    slotSelected:     { backgroundColor: '#01538b', borderColor: '#01538b' },
+    slotTaken:        { backgroundColor: '#f5f5f5', borderColor: '#e0e0e0', opacity: 0.6 },
+    slotText:         { fontWeight: 'bold', color: '#333', fontSize: 14 },
+    slotTextSelected: { color: 'white' },
+    slotTextTaken:    { color: '#bbb' },
+    takenLabel:       { fontSize: 10, color: '#bbb', marginTop: 2 },
 
     // Procedures
     procedureList:         { marginBottom: 16 },
@@ -650,15 +777,15 @@ const styles = StyleSheet.create({
     branchChipTextSelected: { color: '#01538b' },
 
     // Notes / inputs
-    inputLabel:   { fontSize: 13, fontWeight: '700', color: '#555', marginBottom: 8 },
-    optionalTag:  { fontSize: 12, color: '#aaa', fontWeight: '400' },
-    notesInput:   { backgroundColor: 'white', borderRadius: 12, padding: 14, fontSize: 14, color: '#333', elevation: 1, borderWidth: 1.5, borderColor: '#e0e0e0', minHeight: 90, marginBottom: 10 },
+    inputLabel:  { fontSize: 13, fontWeight: '700', color: '#555', marginBottom: 8 },
+    optionalTag: { fontSize: 12, color: '#aaa', fontWeight: '400' },
+    notesInput:  { backgroundColor: 'white', borderRadius: 12, padding: 14, fontSize: 14, color: '#333', elevation: 1, borderWidth: 1.5, borderColor: '#e0e0e0', minHeight: 90, marginBottom: 10 },
 
     // Summary
-    summaryCard:   { backgroundColor: 'white', borderRadius: 15, padding: 20, elevation: 2, marginBottom: 16 },
-    summaryRow:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-    summaryLabel:  { fontSize: 13, color: '#888', fontWeight: '600' },
-    summaryValue:  { fontSize: 14, color: '#333', fontWeight: 'bold', maxWidth: '60%', textAlign: 'right' },
+    summaryCard:  { backgroundColor: 'white', borderRadius: 15, padding: 20, elevation: 2, marginBottom: 16 },
+    summaryRow:   { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+    summaryLabel: { fontSize: 13, color: '#888', fontWeight: '600' },
+    summaryValue: { fontSize: 14, color: '#333', fontWeight: 'bold', maxWidth: '60%', textAlign: 'right' },
 
     // Disclaimer
     disclaimerCard: { backgroundColor: '#fff8e1', borderRadius: 12, padding: 15, borderLeftWidth: 4, borderLeftColor: '#ffc107', marginBottom: 10 },

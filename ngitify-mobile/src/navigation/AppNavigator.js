@@ -17,6 +17,8 @@ import AiPatientCareCompanionScreen from '../screens/patient/AIPatientCareCompan
 import PatientXRayView from '../screens/patient/PatientXRayView';
 import PreOpInstructionsScreen from '../screens/patient/PreOpInstructionsScreen';
 import AppointmentBookingScreen from '../screens/patient/AppointmentBookingScreen';
+import NotificationsScreen from '../screens/patient/NotificationsScreen';
+import ActivityLogsScreen from '../screens/patient/ActivityLogsScreen';
 
 // --- SHARED SCREENS ---
 import SurgerySchedulesScreen from '../screens/shared/SurgerySchedulesScreen';
@@ -57,6 +59,8 @@ function PatientNavigator() {
             <PatientStack.Screen name="SurgerySchedules" component={SurgerySchedulesScreen} />
             <PatientStack.Screen name="Settings" component={SettingsScreen} />
             <PatientStack.Screen name="EditProfile" component={EditProfileScreen} />
+            <PatientStack.Screen name="Notifications" component={NotificationsScreen} />
+            <PatientStack.Screen name="ActivityLogs" component={ActivityLogsScreen} />
         </PatientStack.Navigator>
     );
 }
