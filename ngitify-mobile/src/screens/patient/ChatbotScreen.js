@@ -1,4 +1,3 @@
-// src/screens/patient/ChatbotScreen.js
 import React, { useState, useRef, useContext } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
@@ -15,10 +14,12 @@ const INITIAL_MESSAGES = [
     },
 ];
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.100:5000';
+// ← REMOVED: const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.100:5000'
+//   This was a hardcoded IP that bypassed AuthContext entirely. Any device not on
+//   that exact local network would silently fail. Now uses API_BASE_URL from AuthContext.
 
 export default function ChatbotScreen({ navigation }) {
-    const { userToken } = useContext(AuthContext);
+    const { userToken, API_BASE_URL } = useContext(AuthContext); // ← API_BASE_URL added
     const [messages, setMessages] = useState(INITIAL_MESSAGES);
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -34,7 +35,6 @@ export default function ChatbotScreen({ navigation }) {
         const text = inputText.trim();
         if (!text) return;
 
-        // Add user message
         const userMsg = { id: Date.now().toString(), text, sender: 'user' };
         setMessages(prev => [...prev, userMsg]);
         setInputText('');
@@ -42,7 +42,6 @@ export default function ChatbotScreen({ navigation }) {
         scrollToBottom();
 
         try {
-            // Build conversation history for context (last 10 messages only)
             const history = [...messages, userMsg]
                 .slice(-10)
                 .map(m => ({
@@ -50,7 +49,8 @@ export default function ChatbotScreen({ navigation }) {
                     content: m.text
                 }));
 
-            const response = await fetch(`${API_URL}/api/chatbot/message`, {
+            // ← was: `${API_URL}/api/chatbot/message`
+            const response = await fetch(`${API_BASE_URL}/api/chatbot/message`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -70,7 +70,6 @@ export default function ChatbotScreen({ navigation }) {
             setMessages(prev => [...prev, botMsg]);
 
         } catch (err) {
-            // Fallback response if backend not reachable
             const fallbackMsg = {
                 id: (Date.now() + 1).toString(),
                 text: "I'm having trouble connecting right now. Please try again in a moment, or contact us directly at the clinic. 😊",
@@ -113,7 +112,6 @@ export default function ChatbotScreen({ navigation }) {
         </View>
     );
 
-    // Quick suggestion chips
     const SUGGESTIONS = [
         'What are your clinic hours?',
         'How do I prepare for tooth extraction?',
@@ -153,7 +151,7 @@ export default function ChatbotScreen({ navigation }) {
                 ListFooterComponent={isTyping ? renderTypingIndicator : null}
             />
 
-            {/* Suggestion Chips (only shown when no user messages yet) */}
+            {/* Suggestion Chips */}
             {messages.length === 1 && (
                 <View style={styles.suggestionsContainer}>
                     <Text style={styles.suggestionsLabel}>Quick questions:</Text>
@@ -162,9 +160,7 @@ export default function ChatbotScreen({ navigation }) {
                             <TouchableOpacity
                                 key={i}
                                 style={styles.suggestionChip}
-                                onPress={() => {
-                                    setInputText(s);
-                                }}
+                                onPress={() => setInputText(s)}
                             >
                                 <Text style={styles.suggestionText}>{s}</Text>
                             </TouchableOpacity>

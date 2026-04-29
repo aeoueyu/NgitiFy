@@ -1,15 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';   // ← useEffect added
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
     KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Alert
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';                 // ← added
 import BackIcon from '../../assets/icons/Back.svg';
 import CustomModal from '../../components/CustomModal';
 import { API_BASE_URL } from '../../context/AuthContext';
-
-// ─── Steps ───────────────────────────────────────────────────────────────────
-// 1 = Enter email  →  2 = Enter OTP  →  3 = Set new password
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ForgotPasswordScreen({ navigation }) {
     const [step, setStep] = useState(1);
@@ -69,7 +66,6 @@ export default function ForgotPasswordScreen({ navigation }) {
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({ email: email.trim() }),
             });
-            // Backend always returns 200 (never reveals if email exists)
             if (res.ok) {
                 startCooldown();
                 setStep(2);
@@ -274,8 +270,13 @@ export default function ForgotPasswordScreen({ navigation }) {
                     editable={!isLoading}
                     returnKeyType="next"
                 />
+                {/* ← was: emoji 🙈/👁️ */}
                 <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowNew(v => !v)}>
-                    <Text style={styles.eyeText}>{showNew ? '🙈' : '👁️'}</Text>
+                    <Ionicons
+                        name={showNew ? 'eye-off-outline' : 'eye-outline'}
+                        size={22}
+                        color="#aaa"
+                    />
                 </TouchableOpacity>
             </View>
 
@@ -292,8 +293,13 @@ export default function ForgotPasswordScreen({ navigation }) {
                     returnKeyType="done"
                     onSubmitEditing={handleResetPassword}
                 />
+                {/* ← was: emoji 🙈/👁️ */}
                 <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirm(v => !v)}>
-                    <Text style={styles.eyeText}>{showConfirm ? '🙈' : '👁️'}</Text>
+                    <Ionicons
+                        name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
+                        size={22}
+                        color="#aaa"
+                    />
                 </TouchableOpacity>
             </View>
 
@@ -321,9 +327,14 @@ export default function ForgotPasswordScreen({ navigation }) {
             {[1, 2, 3].map(n => (
                 <View key={n} style={styles.progressItem}>
                     <View style={[styles.progressDot, step >= n && styles.progressDotActive]}>
-                        <Text style={[styles.progressNum, step >= n && styles.progressNumActive]}>
-                            {step > n ? '✓' : n}
-                        </Text>
+                        {step > n ? (
+                            /* ← was: '✓' text character */
+                            <Ionicons name="checkmark" size={16} color="white" />
+                        ) : (
+                            <Text style={[styles.progressNum, step >= n && styles.progressNumActive]}>
+                                {n}
+                            </Text>
+                        )}
                     </View>
                     {n < 3 && <View style={[styles.progressLine, step > n && styles.progressLineActive]} />}
                 </View>
@@ -418,7 +429,6 @@ const styles = StyleSheet.create({
         paddingRight: 50, borderWidth: 1, borderColor: '#ddd', fontSize: 16, color: '#333'
     },
     eyeBtn: { position: 'absolute', right: 15, top: 15 },
-    eyeText: { fontSize: 18 },
 
     errorText: { color: '#d9534f', fontSize: 12, marginBottom: 15, marginLeft: 5 },
 

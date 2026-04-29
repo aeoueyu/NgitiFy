@@ -4,6 +4,8 @@ import {
     FlatList, RefreshControl, ActivityIndicator,
     StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';                  // ← added
+import { MaterialCommunityIcons } from '@expo/vector-icons';    // ← added
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 
@@ -26,25 +28,31 @@ const formatTimestamp = (ts) => {
     });
 };
 
+// ← was: returned emoji strings. Now returns icon name + lib for proper rendering.
 const getActionIcon = (action = '') => {
     const a = action.toUpperCase();
-    if (a === 'LOGIN')                    return { icon: '🔑', color: '#1e88e5', bg: '#dceeff' };
-    if (a === 'LOGOUT')                   return { icon: '🚪', color: '#757575', bg: '#f5f5f5' };
-    if (a.includes('APPOINTMENT_REQUEST'))return { icon: '📅', color: '#7b1fa2', bg: '#f3e5f5' };
-    if (a.includes('APPOINTMENT'))        return { icon: '📅', color: '#7b1fa2', bg: '#f3e5f5' };
-    if (a.includes('TREATMENT'))          return { icon: '🦷', color: '#00897b', bg: '#e0f2f1' };
-    if (a.includes('RADIOGRAPH'))         return { icon: '🩻', color: '#0288d1', bg: '#e1f5fe' };
-    if (a.includes('PROFILE') ||
-        a.includes('UPDATE'))             return { icon: '👤', color: '#f57c00', bg: '#fff3e0' };
-    if (a.includes('PASSWORD'))           return { icon: '🔒', color: '#e53935', bg: '#ffebee' };
-    if (a.includes('TICKET') ||
-        a.includes('INQUIRY'))            return { icon: '💬', color: '#039be5', bg: '#e1f5fe' };
-    if (a.includes('NOTIFICATION'))       return { icon: '🔔', color: '#fdd835', bg: '#fffde7' };
-    return                                       { icon: '📋', color: '#90a4ae', bg: '#f5f5f5' };
+    if (a === 'LOGIN')
+        return { name: 'key-outline',              lib: 'Ionicons',               color: '#1e88e5', bg: '#dceeff' };
+    if (a === 'LOGOUT')
+        return { name: 'exit-outline',             lib: 'Ionicons',               color: '#757575', bg: '#f5f5f5' };
+    if (a.includes('APPOINTMENT'))
+        return { name: 'calendar-outline',         lib: 'Ionicons',               color: '#7b1fa2', bg: '#f3e5f5' };
+    if (a.includes('TREATMENT'))
+        return { name: 'tooth-outline',            lib: 'MaterialCommunityIcons', color: '#00897b', bg: '#e0f2f1' };
+    if (a.includes('RADIOGRAPH'))
+        return { name: 'bone',                     lib: 'MaterialCommunityIcons', color: '#0288d1', bg: '#e1f5fe' };
+    if (a.includes('PROFILE') || a.includes('UPDATE'))
+        return { name: 'person-outline',           lib: 'Ionicons',               color: '#f57c00', bg: '#fff3e0' };
+    if (a.includes('PASSWORD'))
+        return { name: 'lock-closed-outline',      lib: 'Ionicons',               color: '#e53935', bg: '#ffebee' };
+    if (a.includes('TICKET') || a.includes('INQUIRY'))
+        return { name: 'chatbubble-outline',        lib: 'Ionicons',               color: '#039be5', bg: '#e1f5fe' };
+    if (a.includes('NOTIFICATION'))
+        return { name: 'notifications-outline',    lib: 'Ionicons',               color: '#f57f17', bg: '#fffde7' };
+    return         { name: 'document-text-outline',lib: 'Ionicons',               color: '#90a4ae', bg: '#f5f5f5' };
 };
 
 const formatActionLabel = (action = '') => {
-    // Convert SNAKE_CASE to Title Case
     return action
         .toLowerCase()
         .replace(/_/g, ' ')
@@ -54,11 +62,16 @@ const formatActionLabel = (action = '') => {
 // ─── Log Item ─────────────────────────────────────────────────────────────────
 
 function LogItem({ item }) {
-    const { icon, color, bg } = getActionIcon(item.action);
+    const { name, lib, color, bg } = getActionIcon(item.action);
     return (
         <View style={styles.logRow}>
             <View style={[styles.iconCircle, { backgroundColor: bg }]}>
-                <Text style={styles.iconText}>{icon}</Text>
+                {/* ← was: <Text style={styles.iconText}>{icon}</Text> */}
+                {lib === 'MaterialCommunityIcons' ? (
+                    <MaterialCommunityIcons name={name} size={22} color={color} />
+                ) : (
+                    <Ionicons name={name} size={22} color={color} />
+                )}
             </View>
             <View style={styles.logContent}>
                 <Text style={[styles.logAction, { color }]}>
@@ -78,22 +91,23 @@ function LogItem({ item }) {
 export default function ActivityLogsScreen({ navigation }) {
     const { userToken, API_BASE_URL } = useContext(AuthContext);
 
-    const [allLogs,     setAllLogs]     = useState([]);   // full fetched list
-    const [visibleLogs, setVisibleLogs] = useState([]);   // paginated slice shown
+    const [allLogs,     setAllLogs]     = useState([]);
+    const [visibleLogs, setVisibleLogs] = useState([]);
     const [page,        setPage]        = useState(1);
     const [loading,     setLoading]     = useState(true);
     const [refreshing,  setRefreshing]  = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error,       setError]       = useState('');
 
-    const authHeader = { Authorization: `Bearer ${userToken}` };
-
-    // ── Fetch all logs (backend returns up to 200, we paginate client-side) ──
+    // ── Fetch all logs ──
+    // ← FIX: authHeader moved inside fetchLogs to avoid stale-closure on token refresh.
+    //   Previously it was defined outside useCallback as a plain object, so if userToken
+    //   changed between renders the callback would still hold the old value.
     const fetchLogs = useCallback(async () => {
         try {
             setError('');
-            const res  = await fetch(`${API_BASE_URL}/api/activity-logs/patient`, {
-                headers: authHeader,
+            const res = await fetch(`${API_BASE_URL}/api/activity-logs/patient`, {
+                headers: { Authorization: `Bearer ${userToken}` },
             });
             if (!res.ok) throw new Error();
             const data = await res.json();
@@ -120,11 +134,10 @@ export default function ActivityLogsScreen({ navigation }) {
     // ── Load next page ──
     const loadMore = () => {
         if (loadingMore) return;
-        const nextPage = page + 1;
+        const nextPage  = page + 1;
         const nextSlice = allLogs.slice(0, nextPage * PAGE_SIZE);
-        if (nextSlice.length === visibleLogs.length) return; // nothing new to load
+        if (nextSlice.length === visibleLogs.length) return;
         setLoadingMore(true);
-        // Simulate async to avoid jank
         setTimeout(() => {
             setVisibleLogs(nextSlice);
             setPage(nextPage);
@@ -170,15 +183,15 @@ export default function ActivityLogsScreen({ navigation }) {
         );
     };
 
-    // ── Separator ──
     const renderSeparator = () => <View style={styles.separator} />;
 
     // ── Empty state ──
+    // ← was: <Text style={styles.emptyIcon}>📋</Text>
     const renderEmpty = () => {
         if (loading) return null;
         return (
             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>📋</Text>
+                <Ionicons name="document-text-outline" size={52} color="#bbb" style={{ marginBottom: 16 }} />
                 <Text style={styles.emptyTitle}>No activity yet</Text>
                 <Text style={styles.emptySubtitle}>
                     Your in-app actions — logins, appointments, EMR views, and more —
@@ -189,9 +202,10 @@ export default function ActivityLogsScreen({ navigation }) {
     };
 
     // ── Error state ──
+    // ← was: <Text style={styles.emptyIcon}>⚠️</Text>
     const renderError = () => (
         <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>⚠️</Text>
+            <Ionicons name="warning-outline" size={52} color="#e65100" style={{ marginBottom: 16 }} />
             <Text style={styles.emptyTitle}>Could not load activity logs</Text>
             <Text style={styles.emptySubtitle}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={fetchLogs}>
@@ -218,10 +232,11 @@ export default function ActivityLogsScreen({ navigation }) {
                 <View style={{ width: 70 }} />
             </View>
 
-            {/* Info banner */}
+            {/* Info banner — ← was: emoji 🔍 inside a <Text> string */}
             <View style={styles.infoBanner}>
+                <Ionicons name="information-circle-outline" size={14} color="#01538b" style={{ marginRight: 6 }} />
                 <Text style={styles.infoBannerText}>
-                    🔍 A read-only record of all your actions in NgitiFy.
+                    A read-only record of all your actions in NgitiFy.
                 </Text>
             </View>
 
@@ -275,12 +290,13 @@ const styles = StyleSheet.create({
     backText:    { color: '#01538b', fontWeight: 'bold', fontSize: 16, marginLeft: 4 },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
 
-    // Info banner
+    // Info banner — ← flexDirection added so icon sits beside the text
     infoBanner: {
         backgroundColor: '#e8f1f8', paddingHorizontal: 16,
         paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#d0e4f7',
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     },
-    infoBannerText: { fontSize: 12, color: '#01538b', textAlign: 'center', fontWeight: '500' },
+    infoBannerText: { fontSize: 12, color: '#01538b', fontWeight: '500' },
 
     // Loading
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -304,7 +320,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
         marginRight: 14, marginTop: 1,
     },
-    iconText:   { fontSize: 20 },
+    // ← iconText removed: no longer rendering emoji as <Text>
     logContent: { flex: 1 },
     logAction:  { fontSize: 13, fontWeight: '700', marginBottom: 3 },
     logDetails: { fontSize: 13, color: '#555', lineHeight: 18, marginBottom: 4 },
@@ -324,7 +340,7 @@ const styles = StyleSheet.create({
     // Empty / error
     emptyFlex:      { flexGrow: 1, justifyContent: 'center' },
     emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-    emptyIcon:      { fontSize: 52, marginBottom: 16 },
+    // ← emptyIcon removed: was only used for emoji <Text>, now icons are rendered directly
     emptyTitle:     { fontSize: 18, fontWeight: 'bold', color: '#555', marginBottom: 8, textAlign: 'center' },
     emptySubtitle:  { fontSize: 13, color: '#aaa', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
     retryBtn:       { backgroundColor: '#01538b', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 },

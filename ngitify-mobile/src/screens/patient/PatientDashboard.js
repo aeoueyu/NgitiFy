@@ -53,17 +53,17 @@ function ProfileMenuSheet({ visible, onClose, navigation, userInfo, logout }) {
 
     const initials = [userInfo?.firstName?.[0], userInfo?.lastName?.[0]]
         .filter(Boolean).join('').toUpperCase() || '?';
-    const fullName  = userInfo?.fullName || userInfo?.firstName || 'Patient';
-    const email     = userInfo?.email || '';
+    const fullName = userInfo?.fullName || userInfo?.firstName || 'Patient';
+    const email    = userInfo?.email || '';
 
     const menuItems = [
-        { iconName: 'person-outline',        lib: 'Ionicons',                label: 'My Profile',     screen: 'MyProfile' },
-        { iconName: 'create-outline',        lib: 'Ionicons',                label: 'Edit Profile',   screen: 'EditProfile' },
-        { iconName: 'settings-outline',      lib: 'Ionicons',                label: 'Settings',       screen: 'Settings' },
-        { iconName: 'document-text-outline', lib: 'Ionicons',                label: 'Activity Logs',  screen: 'ActivityLogs' },
-        { iconName: 'notifications-outline', lib: 'Ionicons',                label: 'Notifications',  screen: 'Notifications' },
-        { iconName: 'calendar-outline',      lib: 'Ionicons',                label: 'My Appointments',screen: 'AppointmentBooking' },
-        { iconName: 'tooth-outline',         lib: 'MaterialCommunityIcons',  label: 'My EMR',         screen: 'MedicalRecords' },
+        { iconName: 'person-outline',        lib: 'Ionicons',               label: 'My Profile',      screen: 'MyProfile' },
+        { iconName: 'create-outline',        lib: 'Ionicons',               label: 'Edit Profile',    screen: 'EditProfile' },
+        { iconName: 'settings-outline',      lib: 'Ionicons',               label: 'Settings',        screen: 'Settings' },
+        { iconName: 'document-text-outline', lib: 'Ionicons',               label: 'Activity Logs',   screen: 'ActivityLogs' },
+        { iconName: 'notifications-outline', lib: 'Ionicons',               label: 'Notifications',   screen: 'Notifications' },
+        { iconName: 'calendar-outline',      lib: 'Ionicons',               label: 'My Appointments', screen: 'AppointmentBooking' },
+        { iconName: 'tooth-outline',         lib: 'MaterialCommunityIcons', label: 'My EMR',          screen: 'MedicalRecords' },
     ];
 
     const handleNav = (screen) => {
@@ -113,7 +113,8 @@ function ProfileMenuSheet({ visible, onClose, navigation, userInfo, logout }) {
                                                 <IconComp name={item.iconName} size={18} color="#555" />
                                             </View>
                                             <Text style={sheet.menuLabel}>{item.label}</Text>
-                                            <Text style={sheet.menuArrow}>›</Text>
+                                            {/* ← was: <Text style={sheet.menuArrow}>›</Text> */}
+                                            <Ionicons name="chevron-forward" size={16} color="#ccc" />
                                         </TouchableOpacity>
                                     );
                                 })}
@@ -176,16 +177,20 @@ export default function PatientDashboard({ navigation }) {
 
     // ─── Data fetching ────────────────────────────────────────────────────────
 
-    const authHeader = { Authorization: `Bearer ${userToken}` };
-
+    // ← FIX: authHeader moved inside fetchAll to avoid stale closure.
+    //   Previously `const authHeader = { Authorization: \`Bearer ${userToken}\` }`
+    //   was defined at component level and captured by useCallback without being
+    //   in the dependency array.
     const fetchAll = useCallback(async () => {
         if (!userToken || !userId) return;
+
+        const authHeader = { Authorization: `Bearer ${userToken}` };
 
         try {
             const [apptRes, notifRes, treatRes] = await Promise.allSettled([
                 fetch(`${API_BASE_URL}/api/surgeries?patientId=${userId}`, { headers: authHeader }),
-                fetch(`${API_BASE_URL}/api/notifications`, { headers: authHeader }),
-                fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers: authHeader }),
+                fetch(`${API_BASE_URL}/api/notifications`,                 { headers: authHeader }),
+                fetch(`${API_BASE_URL}/api/my/treatment-logs`,             { headers: authHeader }),
             ]);
 
             // ── Upcoming appointment ──
@@ -420,30 +425,30 @@ export default function PatientDashboard({ navigation }) {
                 {/* ── Quick Actions ── */}
                 <SectionHeader title="Quick Actions" />
                 <View style={styles.qaGrid}>
-                <QuickActionCard
-                    iconComponent={<Ionicons name="calendar-outline" size={28} color="#01538b" />}
-                    label="Book Appointment"
-                    color="#01538b"
-                    onPress={() => navigation.navigate('AppointmentBooking')}
-                />
-                <QuickActionCard
-                    iconComponent={<MaterialCommunityIcons name="tooth-outline" size={28} color="#00897b" />}
-                    label="My EMR"
-                    color="#00897b"
-                    onPress={() => navigation.navigate('MedicalRecords')}
-                />
-                <QuickActionCard
-                    iconComponent={<Ionicons name="hardware-chip-outline" size={28} color="#7b1fa2" />}
-                    label="AI Companion"
-                    color="#7b1fa2"
-                    onPress={() => navigation.navigate('AiPatientCareCompanion')}
-                />
-                <QuickActionCard
-                    iconComponent={<Ionicons name="settings-outline" size={28} color="#e65100" />}
-                    label="Settings"
-                    color="#e65100"
-                    onPress={() => navigation.navigate('Settings')}
-                />
+                    <QuickActionCard
+                        iconComponent={<Ionicons name="calendar-outline" size={28} color="#01538b" />}
+                        label="Book Appointment"
+                        color="#01538b"
+                        onPress={() => navigation.navigate('AppointmentBooking')}
+                    />
+                    <QuickActionCard
+                        iconComponent={<MaterialCommunityIcons name="tooth-outline" size={28} color="#00897b" />}
+                        label="My EMR"
+                        color="#00897b"
+                        onPress={() => navigation.navigate('MedicalRecords')}
+                    />
+                    <QuickActionCard
+                        iconComponent={<Ionicons name="hardware-chip-outline" size={28} color="#7b1fa2" />}
+                        label="AI Companion"
+                        color="#7b1fa2"
+                        onPress={() => navigation.navigate('AiPatientCareCompanion')}
+                    />
+                    <QuickActionCard
+                        iconComponent={<Ionicons name="settings-outline" size={28} color="#e65100" />}
+                        label="Settings"
+                        color="#e65100"
+                        onPress={() => navigation.navigate('Settings')}
+                    />
                 </View>
 
                 {/* ── Bottom padding for FAB ── */}
@@ -487,12 +492,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20, flexDirection: 'row',
         alignItems: 'center', justifyContent: 'space-between',
     },
-    headerLeft:      { flex: 1 },
-    headerGreeting:  { fontSize: 22, fontWeight: 'bold', color: 'white' },
-    headerSub:       { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-    headerActions:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerLeft:     { flex: 1 },
+    headerGreeting: { fontSize: 22, fontWeight: 'bold', color: 'white' },
+    headerSub:      { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+    headerActions:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
-    iconBtn:     { padding: 8, position: 'relative' },
+    iconBtn: { padding: 8, position: 'relative' },
     badge: {
         position: 'absolute', top: 4, right: 4, backgroundColor: '#e53935',
         borderRadius: 8, minWidth: 16, height: 16,
@@ -520,23 +525,23 @@ const styles = StyleSheet.create({
     },
 
     // Appointment card
-    apptCard:      {
+    apptCard: {
         backgroundColor: 'white', borderRadius: 14, padding: 16,
         marginBottom: 16, elevation: 2, shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4,
     },
-    apptCardEmpty: { alignItems: 'center', paddingVertical: 28 },
-    apptCardTop:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-    apptCardFooter:{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 10, marginTop: 4 },
-    apptProcedure: { fontSize: 17, fontWeight: 'bold', color: '#01538b', marginBottom: 4 },
-    apptMeta:      { fontSize: 13, color: '#555', marginBottom: 2 },
-    apptDentist:   { fontSize: 12, color: '#888', marginTop: 2 },
-    apptBranch:    { fontSize: 12, color: '#888' },
-    apptTapHint:   { fontSize: 12, color: '#01538b', fontWeight: '600' },
+    apptCardEmpty:  { alignItems: 'center', paddingVertical: 28 },
+    apptCardTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+    apptCardFooter: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 10, marginTop: 4 },
+    apptProcedure:  { fontSize: 17, fontWeight: 'bold', color: '#01538b', marginBottom: 4 },
+    apptMeta:       { fontSize: 13, color: '#555', marginBottom: 2 },
+    apptDentist:    { fontSize: 12, color: '#888', marginTop: 2 },
+    apptBranch:     { fontSize: 12, color: '#888' },
+    apptTapHint:    { fontSize: 12, color: '#01538b', fontWeight: '600' },
 
-    statusBadge:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-    statusDot:     { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
-    statusText:    { fontSize: 12, fontWeight: '700' },
+    statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+    statusDot:   { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
+    statusText:  { fontSize: 12, fontWeight: '700' },
 
     emptyTitle:    { fontSize: 15, fontWeight: 'bold', color: '#555', marginBottom: 4 },
     emptySubtitle: { fontSize: 12, color: '#999', textAlign: 'center', marginBottom: 16 },
@@ -544,14 +549,14 @@ const styles = StyleSheet.create({
     bookBtnText:   { color: 'white', fontWeight: 'bold', fontSize: 14 },
 
     // Visit banner
-    visitBanner:     { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 14, marginBottom: 16 },
-    visitBannerText: { flex: 1 },
-    visitBannerTitle:{ fontSize: 15, fontWeight: 'bold', marginBottom: 2 },
-    visitBannerSub:  { fontSize: 12, color: '#555', lineHeight: 16 },
+    visitBanner:      { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 14, marginBottom: 16 },
+    visitBannerText:  { flex: 1 },
+    visitBannerTitle: { fontSize: 15, fontWeight: 'bold', marginBottom: 2 },
+    visitBannerSub:   { fontSize: 12, color: '#555', lineHeight: 16 },
 
     // Quick actions
-    qaGrid:  { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
-    qaCard:  {
+    qaGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
+    qaCard: {
         width: '48%', backgroundColor: 'white', borderRadius: 12, padding: 16,
         marginBottom: 10, alignItems: 'center', elevation: 2, borderTopWidth: 3,
         shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 3,
@@ -576,7 +581,7 @@ const sheet = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.35)',
         justifyContent: 'flex-start',
         alignItems: 'flex-end',
-        paddingTop: 100,   // drops below the header
+        paddingTop: 100,
         paddingRight: 16,
     },
     container: {
@@ -614,7 +619,7 @@ const sheet = StyleSheet.create({
     },
     menuIcon:  { width: 26, alignItems: 'center', justifyContent: 'center' },
     menuLabel: { flex: 1, fontSize: 14, color: '#333', fontWeight: '500' },
-    menuArrow: { fontSize: 18, color: '#ccc' },
+    // ← menuArrow style removed: replaced by Ionicons component directly in menuItem
 
     logoutItem: {
         flexDirection: 'row', alignItems: 'center',

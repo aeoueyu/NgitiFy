@@ -4,11 +4,11 @@ import {
     FlatList, RefreshControl, ActivityIndicator,
     StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
-import { Ionicons } from '@expo/vector-icons';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,18 +28,18 @@ const formatTimestamp = (ts) => {
 };
 
 const NOTIF_ICON_MAP = {
-    NEW_APPOINTMENT:          { name: 'calendar-outline',          lib: 'Ionicons',                color: '#1e88e5' },
-    APPOINTMENT_CONFIRMED:    { name: 'checkmark-circle-outline',  lib: 'Ionicons',                color: '#2e7d32' },
-    APPOINTMENT_DECLINED:     { name: 'close-circle-outline',      lib: 'Ionicons',                color: '#c62828' },
-    APPOINTMENT_REMINDER:     { name: 'alarm-outline',             lib: 'Ionicons',                color: '#f57f17' },
-    APPOINTMENT_CANCELLED:    { name: 'ban-outline',               lib: 'Ionicons',                color: '#757575' },
-    PREDICTIVE_VISIT_DUE:     { name: 'warning-outline',           lib: 'Ionicons',                color: '#e65100' },
-    PREDICTIVE_VISIT_OVERDUE: { name: 'alert-circle-outline',      lib: 'Ionicons',                color: '#b71c1c' },
-    DENTAL_HEALTH_TIP:        { name: 'tooth-outline',             lib: 'MaterialCommunityIcons',  color: '#00897b' },
-    CHAT_TICKET_RAISED:       { name: 'chatbubble-outline',        lib: 'Ionicons',                color: '#6a1b9a' },
-    INQUIRY_ESCALATED:        { name: 'megaphone-outline',         lib: 'Ionicons',                color: '#ad1457' },
-    NEW_RADIOGRAPH:           { name: 'bone',                      lib: 'MaterialCommunityIcons',  color: '#4527a0' },
-    LOW_INVENTORY:            { name: 'cube-outline',              lib: 'Ionicons',                color: '#558b2f' },
+    NEW_APPOINTMENT:          { name: 'calendar-outline',         lib: 'Ionicons',               color: '#1e88e5' },
+    APPOINTMENT_CONFIRMED:    { name: 'checkmark-circle-outline', lib: 'Ionicons',               color: '#2e7d32' },
+    APPOINTMENT_DECLINED:     { name: 'close-circle-outline',     lib: 'Ionicons',               color: '#c62828' },
+    APPOINTMENT_REMINDER:     { name: 'alarm-outline',            lib: 'Ionicons',               color: '#f57f17' },
+    APPOINTMENT_CANCELLED:    { name: 'ban-outline',              lib: 'Ionicons',               color: '#757575' },
+    PREDICTIVE_VISIT_DUE:     { name: 'warning-outline',          lib: 'Ionicons',               color: '#e65100' },
+    PREDICTIVE_VISIT_OVERDUE: { name: 'alert-circle-outline',     lib: 'Ionicons',               color: '#b71c1c' },
+    DENTAL_HEALTH_TIP:        { name: 'tooth-outline',            lib: 'MaterialCommunityIcons', color: '#00897b' },
+    CHAT_TICKET_RAISED:       { name: 'chatbubble-outline',       lib: 'Ionicons',               color: '#6a1b9a' },
+    INQUIRY_ESCALATED:        { name: 'megaphone-outline',        lib: 'Ionicons',               color: '#ad1457' },
+    NEW_RADIOGRAPH:           { name: 'bone',                     lib: 'MaterialCommunityIcons', color: '#4527a0' },
+    LOW_INVENTORY:            { name: 'cube-outline',             lib: 'Ionicons',               color: '#558b2f' },
 };
 
 function NotifIcon({ type, size = 22 }) {
@@ -50,7 +50,6 @@ function NotifIcon({ type, size = 22 }) {
     return <Ionicons name={cfg.name} size={size} color={cfg.color} />;
 }
 
-// Determines which screen to navigate to when a notification is tapped
 const getNavTarget = (type = '') => {
     if (type.includes('APPOINTMENT'))  return 'AppointmentBooking';
     if (type.includes('RADIOGRAPH'))   return 'MedicalRecords';
@@ -90,8 +89,8 @@ function NotifItem({ item, onPress }) {
                 <Text style={styles.notifTime}>{formatTimestamp(item.createdAt)}</Text>
             </View>
 
-            {/* Arrow */}
-            <Text style={styles.arrow}>›</Text>
+            {/* ← was: <Text style={styles.arrow}>›</Text> — bare Unicode chevron */}
+            <Ionicons name="chevron-forward" size={18} color="#ccc" />
         </TouchableOpacity>
     );
 }
@@ -107,13 +106,15 @@ export default function NotificationsScreen({ navigation }) {
     const [markingAll,    setMarkingAll]    = useState(false);
     const [error,         setError]         = useState('');
 
-    const authHeader = { Authorization: `Bearer ${userToken}` };
-
-    // ── Fetch notifications ──
+    // ← FIX: authHeader moved inside fetchNotifications to avoid stale closure.
+    //   Previously defined at component level and captured by useCallback without
+    //   being in the dependency array.
     const fetchNotifications = useCallback(async () => {
         try {
             setError('');
-            const res  = await fetch(`${API_BASE_URL}/api/notifications`, { headers: authHeader });
+            const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+                headers: { Authorization: `Bearer ${userToken}` },
+            });
             if (!res.ok) throw new Error();
             const data = await res.json();
             setNotifications(Array.isArray(data) ? data : []);
@@ -133,8 +134,8 @@ export default function NotificationsScreen({ navigation }) {
     };
 
     // ── Mark single as read ──
+    // (not memoized — always captures current token from render closure, no fix needed)
     const handleNotifPress = async (item) => {
-        // Optimistically mark as read in local state
         if (!item.isRead) {
             setNotifications(prev =>
                 prev.map(n => n._id === item._id ? { ...n, isRead: true } : n)
@@ -142,14 +143,13 @@ export default function NotificationsScreen({ navigation }) {
             try {
                 await fetch(`${API_BASE_URL}/api/notifications/${item._id}/read`, {
                     method:  'PATCH',
-                    headers: authHeader,
+                    headers: { Authorization: `Bearer ${userToken}` },
                 });
             } catch {
                 // non-critical — local state already updated
             }
         }
 
-        // Navigate to relevant screen
         logActivity(
             'NOTIFICATION_VIEWED',
             `Viewed notification: ${item.title || item.type}`,
@@ -165,13 +165,12 @@ export default function NotificationsScreen({ navigation }) {
         if (!hasUnread) return;
 
         setMarkingAll(true);
-        // Optimistic update
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
 
         try {
             await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
                 method:  'PATCH',
-                headers: authHeader,
+                headers: { Authorization: `Bearer ${userToken}` },
             });
         } catch {
             // non-critical
@@ -180,7 +179,6 @@ export default function NotificationsScreen({ navigation }) {
         }
     };
 
-    // ── Derived ──
     const unreadCount = notifications.filter(n => !n.isRead).length;
 
     // ── Empty state ──
@@ -210,7 +208,6 @@ export default function NotificationsScreen({ navigation }) {
         </View>
     );
 
-    // ── Separator ──
     const renderSeparator = () => <View style={styles.separator} />;
 
     // ── List header (mark-all row) ──
@@ -242,7 +239,6 @@ export default function NotificationsScreen({ navigation }) {
         );
     };
 
-    // ── Main render ──
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="white" />
@@ -362,7 +358,7 @@ const styles = StyleSheet.create({
     notifMessage:      { fontSize: 13, color: '#666', lineHeight: 18, marginBottom: 4 },
     notifTime:         { fontSize: 11, color: '#aaa' },
 
-    arrow: { fontSize: 22, color: '#ccc', fontWeight: '300' },
+    // ← arrow style removed: replaced by Ionicons component directly in NotifItem
 
     separator: { height: 1, backgroundColor: '#f0f0f0', marginLeft: 66 },
 
