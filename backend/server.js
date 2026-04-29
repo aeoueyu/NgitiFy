@@ -2218,6 +2218,78 @@ app.get('/api/my/radiographs', verifyToken, async (req, res) => {
     }
 });
 
+// ─── PATIENT MOBILE: Patient settings (notification prefs + privacy consent) ───
+
+// GET /api/my/settings — return patient's current preferences
+app.get('/api/my/settings', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        const patient = await User.findById(req.user.id).select(
+            'educationConsent notifAppointments notifVisitWindow notifHealthTips'
+        );
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        res.json({
+            educationConsent:  patient.educationConsent  ?? false,
+            notifAppointments: patient.notifAppointments ?? true,
+            notifVisitWindow:  patient.notifVisitWindow  ?? true,
+            notifHealthTips:   patient.notifHealthTips   ?? true,
+        });
+    } catch (error) {
+        console.error('Error fetching patient settings:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// PATCH /api/my/settings — update patient's preferences
+app.patch('/api/my/settings', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const allowed = ['educationConsent', 'notifAppointments', 'notifVisitWindow', 'notifHealthTips'];
+        const updates = {};
+        for (const key of allowed) {
+            if (typeof req.body[key] === 'boolean') {
+                updates[key] = req.body[key];
+            }
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ message: 'No valid fields provided.' });
+        }
+
+        const patient = await User.findByIdAndUpdate(
+            req.user.id,
+            { $set: updates },
+            { new: true, select: 'educationConsent notifAppointments notifVisitWindow notifHealthTips' }
+        );
+
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        await AuditLog.create({
+            action:  'UPDATE_PATIENT_SETTINGS',
+            user:    req.user.email,
+            role:    req.user.role,
+            details: `Patient updated settings: ${JSON.stringify(updates)}`,
+            actorId: req.user.id,
+        });
+
+        res.json({
+            message:           'Settings saved.',
+            educationConsent:  patient.educationConsent,
+            notifAppointments: patient.notifAppointments,
+            notifVisitWindow:  patient.notifVisitWindow,
+            notifHealthTips:   patient.notifHealthTips,
+        });
+    } catch (error) {
+        console.error('Error saving patient settings:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
 
 // -------------------------------------------------------
 // INVENTORY DEDUCTION: Reduce stock after treatment
@@ -2933,6 +3005,34 @@ app.get('/api/activity-logs/patient', verifyToken, async (req, res) => {
         res.json(logs);
     } catch (error) {
         console.error('Error fetching patient activity logs:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// POST /api/activity-logs — Patient client logs an in-app action
+app.post('/api/activity-logs', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const { action, details } = req.body;
+        if (!action) {
+            return res.status(400).json({ message: 'action is required.' });
+        }
+
+        await AuditLog.create({
+            action:   action.toUpperCase(),
+            user:     req.user.email,
+            role:     req.user.role,
+            details:  details || '',
+            actorId:  req.user.id,
+            actorRole: req.user.role,
+        });
+
+        res.status(201).json({ message: 'Activity logged.' });
+    } catch (error) {
+        console.error('Error creating activity log:', error);
         res.status(500).json({ message: 'Server error.' });
     }
 });

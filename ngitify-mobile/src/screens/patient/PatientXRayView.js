@@ -5,6 +5,7 @@ import {
     Animated, Image, Dimensions, ActivityIndicator
 } from 'react-native';
 import BackIcon from '../../assets/icons/Back.svg';
+import { logActivity } from '../../utils/logActivity';
 
 const { width } = Dimensions.get('window');
 
@@ -22,6 +23,14 @@ export default function PatientXRayView({ navigation, route }) {
 
     useEffect(() => {
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    }, []);
+
+    // Destructure userToken and API_BASE_URL from AuthContext if not already there:
+    const { userToken, API_BASE_URL } = useContext(AuthContext);
+
+    useEffect(() => {
+        const label = route?.params?.radiograph?.label || 'Radiograph';
+        logActivity('RADIOGRAPH_VIEWED', `Viewed X-Ray: ${label}`, userToken, API_BASE_URL);
     }, []);
 
     return (

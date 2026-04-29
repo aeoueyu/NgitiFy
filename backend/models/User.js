@@ -157,12 +157,18 @@ const userSchema = new mongoose.Schema({
     // ✅ PHASE 3: Owner-as-Dentist flag
     isDentist: { type: Boolean, default: false },
 
-    // ✅ GAP 2: Notification preferences per user
+    // ✅ GAP 2: Notification preferences per user (staff)
     notificationPreferences: {
         emailAppointments: { type: Boolean, default: true },
         dailySummary:       { type: Boolean, default: false },
         criticalAlerts:     { type: Boolean, default: true }
-    }
+    },
+
+    // ✅ PATIENT MOBILE: Patient-specific preferences (Phase 3)
+    educationConsent:   { type: Boolean, default: false }, // Allow personalized dental education
+    notifAppointments:  { type: Boolean, default: true  }, // Appointment confirmation/reminder alerts
+    notifVisitWindow:   { type: Boolean, default: true  }, // Predictive visit due/overdue alerts
+    notifHealthTips:    { type: Boolean, default: true  }, // Weekly dental health tip notifications
 
 }, { timestamps: true });
 

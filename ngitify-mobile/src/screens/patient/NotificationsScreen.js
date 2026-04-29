@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
+import { logActivity } from '../../utils/logActivity';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -142,6 +143,11 @@ export default function NotificationsScreen({ navigation }) {
         }
 
         // Navigate to relevant screen
+        logActivity(
+            'NOTIFICATION_VIEWED',
+            `Viewed notification: ${item.title || item.type}`,
+            userToken, API_BASE_URL
+        );
         const target = getNavTarget(item.type);
         if (target) navigation.navigate(target);
     };

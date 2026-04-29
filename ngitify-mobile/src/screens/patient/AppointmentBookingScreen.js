@@ -7,6 +7,7 @@ import { Calendar } from 'react-native-calendars';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon   from '../../assets/icons/Back.svg';
 import CustomModal from '../../components/CustomModal';
+import { logActivity } from '../../utils/logActivity';
 
 // ─── Static procedure list ────────────────────────────────────────────────────
 const PROCEDURES = [
@@ -319,6 +320,11 @@ export default function AppointmentBookingScreen({ navigation }) {
                     ' has been submitted. The clinic will confirm your schedule shortly.'
                 );
                 setModalVisible(true);
+                logActivity(
+                    'APPOINTMENT_REQUEST',
+                    `Requested ${selectedProcedure} on ${formatDisplayDate(selectedDate)} at ${to12h(selectedTime) || selectedTime}`,
+                    userToken, API_BASE_URL
+                );
             } else {
                 setModalType('error');
                 setModalMessage(data.message || 'Booking failed. Please try again.');

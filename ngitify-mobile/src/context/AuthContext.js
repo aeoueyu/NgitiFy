@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logActivity } from '../utils/logActivity';
 
 export const AuthContext = createContext();
 
@@ -125,6 +126,7 @@ export const AuthProvider = ({ children }) => {
 
     // ─── Logout ──────────────────────────────────────────────────────────────
     const logout = async () => {
+        logActivity('LOGOUT', 'User logged out', userToken, API_BASE_URL);
         try {
             await Promise.all([
                 AsyncStorage.removeItem(STORAGE_KEYS.TOKEN),

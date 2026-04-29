@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
+import { logActivity } from '../../utils/logActivity';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -448,6 +449,11 @@ export default function MedicalRecordsScreen({ navigation }) {
         if (!fetched[activeTab]) {
             FETCHERS[activeTab]();
         }
+        logActivity(
+            'EMR_VIEWED',
+            `Viewed Medical Records — ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab`,
+            userToken, API_BASE_URL
+        );
     }, [activeTab]);
 
     // Animate tab underline
