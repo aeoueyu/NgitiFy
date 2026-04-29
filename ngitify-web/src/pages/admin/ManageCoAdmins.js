@@ -155,9 +155,14 @@ const ManageCoAdmins = () => {
     // ─── Render ───────────────────────────────────────────────────────
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>Manage Co-Administrators</h1>
-                <p className={styles.subtitle}>View, filter, and manage co-administrator accounts.</p>
+            <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1 className={styles.title}>Manage Co-Administrators</h1>
+                    <p className={styles.subtitle}>View, filter, and manage co-administrator accounts.</p>
+                </div>
+                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                    <FaUserPlus className={styles.btnIcon} /> Add Co-Administrator
+                </button>
             </header>
 
             <div className={styles.controlsRow}>
@@ -190,10 +195,6 @@ const ManageCoAdmins = () => {
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
                     </div>
                 </div>
-
-                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} /> Add Co-Administrator
-                </button>
             </div>
 
             <UserTabs activeTab="coAdmins" />

@@ -1,4 +1,3 @@
-// ngitify-web/src/pages/admin/ManageOwners.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaSearch, FaUserPlus, FaEdit, FaToggleOn, FaToggleOff, FaEnvelope, FaUserMd } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
@@ -17,6 +16,7 @@ export default function ManageOwners() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [verifiedFilter, setVerifiedFilter] = useState('All'); // ✅ ADDED
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -58,7 +58,10 @@ export default function ManageOwners() {
             o.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             o.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || o.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        const matchesVerified = verifiedFilter === 'All' ||   // ✅ ADDED
+                                (verifiedFilter === 'Verified' && o.isVerified) ||
+                                (verifiedFilter === 'Unverified' && !o.isVerified);
+        return matchesSearch && matchesStatus && matchesVerified; // ✅ ADDED matchesVerified
     });
 
     const handleToggleStatus = (owner) => {
@@ -114,9 +117,14 @@ export default function ManageOwners() {
 
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>Manage Owners</h1>
-                <p className={styles.subtitle}>View and manage clinic owner accounts.</p>
+            <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1 className={styles.title}>Manage Owners</h1>
+                    <p className={styles.subtitle}>View and manage clinic owner accounts.</p>
+                </div>
+                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                    <FaUserPlus className={styles.btnIcon} /> Add New Owner
+                </button>
             </header>
 
             <div className={styles.controlsRow}>
@@ -140,10 +148,14 @@ export default function ManageOwners() {
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
                     </select>
+
+                    {/* ✅ ADDED: Verified/Unverified pill filter */}
+                    <div className={styles.pillGroup}>
+                        <button className={`${styles.filterPill} ${verifiedFilter === 'All' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('All')}>All</button>
+                        <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
+                        <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
+                    </div>
                 </div>
-                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} /> Add New Owner
-                </button>
             </div>
 
             <UserTabs activeTab="owners" />

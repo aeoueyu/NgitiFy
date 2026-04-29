@@ -17,6 +17,7 @@ const ManageBranchManagers = () => {
     const [searchQuery, setSearchQuery]         = useState('');
     const [statusFilter, setStatusFilter]       = useState('All');
     const [verifiedFilter, setVerifiedFilter]   = useState('All');
+    const [branchFilter, setBranchFilter] = useState('All');
 
     const [isAddModalOpen, setIsAddModalOpen]         = useState(false);
     const [isEditModalOpen, setIsEditModalOpen]       = useState(false);
@@ -52,6 +53,8 @@ const ManageBranchManagers = () => {
     useEffect(() => { fetchManagers(); }, [fetchManagers]);
 
     // ─── Filtered list ────────────────────────────────────────────────
+    const allBranches = [...new Set(managers.flatMap(m => m.assignedBranches))].sort();
+
     const filteredManagers = managers.filter(m => {
         const matchesSearch   = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                                 m.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -59,7 +62,8 @@ const ManageBranchManagers = () => {
         const matchesVerified = verifiedFilter === 'All' ||
                                 (verifiedFilter === 'Verified'   &&  m.isVerified) ||
                                 (verifiedFilter === 'Unverified' && !m.isVerified);
-        return matchesSearch && matchesStatus && matchesVerified;
+        const matchesBranch   = branchFilter === 'All' || m.assignedBranches.includes(branchFilter);
+        return matchesSearch && matchesStatus && matchesVerified && matchesBranch;
     });
 
     // ─── Toggle Status ────────────────────────────────────────────────
@@ -140,9 +144,14 @@ const ManageBranchManagers = () => {
     // ─── Render ───────────────────────────────────────────────────────
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>Manage Branch Managers</h1>
-                <p className={styles.subtitle}>View, filter, and manage clinic branch managers.</p>
+            <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1 className={styles.title}>Manage Branch Managers</h1>
+                    <p className={styles.subtitle}>View, filter, and manage clinic branch managers.</p>
+                </div>
+                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                    <FaUserPlus className={styles.btnIcon} /> Add Branch Manager
+                </button>
             </header>
 
             <div className={styles.controlsRow}>
@@ -174,11 +183,18 @@ const ManageBranchManagers = () => {
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Verified'   ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
                     </div>
-                </div>
 
-                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} /> Add Branch Manager
-                </button>
+                    <select
+                        className={styles.filterSelect}
+                        value={branchFilter}
+                        onChange={(e) => setBranchFilter(e.target.value)}
+                    >
+                        <option value="All">All Branches</option>
+                        {allBranches.map(branch => (
+                            <option key={branch} value={branch}>{branch}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             <UserTabs activeTab="branchManagers" />

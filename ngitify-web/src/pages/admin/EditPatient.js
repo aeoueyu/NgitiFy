@@ -3,7 +3,8 @@ import styles from '../../styles/admin/AddPatient.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
-import { authFetch } from '../../utils/api'; // <-- ADDED: Using our custom fetch
+import { authFetch } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -15,11 +16,16 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     const [errors, setErrors] = useState({}); 
     const [isLoading, setIsLoading] = useState(true); 
     const [isSaving, setIsSaving] = useState(false);
+    const [branchOptions, setBranchOptions] = useState([]);
+
+    const { user } = useAuth();
+    const isBranchManager = user?.role === 'branch-manager';
 
     const [formData, setFormData] = useState({
         firstName: '', middleName: '', lastName: '', birthdate: '',
         gender: '', email: '', phone: '', 
         guardianName: '', guardianRelationship: '', guardianContact: '',
+        assignedBranch: '',
         currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
     });
 
@@ -54,7 +60,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                     const fetchedCurrent = data?.currentAddress || { ...initialAddressState };
                     const fetchedPermanent = data?.permanentAddress || { ...initialAddressState };
 
-                    const isAddressSame = (
+                    const hasAnyAddress = !!(fetchedCurrent.region || fetchedCurrent.city || fetchedCurrent.street);
+                    const isAddressSame = hasAnyAddress && (
                         fetchedCurrent.region === fetchedPermanent.region &&
                         fetchedCurrent.province === fetchedPermanent.province &&
                         fetchedCurrent.city === fetchedPermanent.city &&
@@ -75,6 +82,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                         guardianName: data.guardian?.name || '',
                         guardianRelationship: data.guardian?.relationship || '',
                         guardianContact: guardianPhone,
+                        assignedBranch: data.assignedBranch || '',
                         currentAddress: { ...initialAddressState, ...fetchedCurrent },
                         permanentAddress: { ...initialAddressState, ...fetchedPermanent }
                     };
@@ -183,7 +191,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'email'];
+        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
         
         if (isMinor) {
             required.push('guardianName', 'guardianRelationship');
@@ -223,6 +231,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             birthdate: formData.birthdate,
             gender: formData.gender,
             profileImage: profileImage,
+            assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : (formData.assignedBranch || undefined),
             guardian: isMinor ? {
                 name: formData.guardianName,
                 relationship: formData.guardianRelationship,
@@ -280,6 +289,16 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         );
     };
 
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const res = await authFetch('/branches');
+                if (res.ok) { const data = await res.json(); setBranchOptions(data.map(b => b.name)); }
+            } catch (e) { console.error('Failed to load branches:', e); }
+        };
+        fetchBranches();
+    }, []);
+
     return (
         <div className={styles.mainOverlay}>
             <div className={styles.overlayBackground} onClick={!isSaving && !showSuccessModal ? onClose : undefined}></div>
@@ -311,16 +330,16 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
                             <h3 className={styles.mainSectionTitle}>Personal Information</h3>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
-                                <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/></div>
-                                <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
+                            <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isSaving}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
+                                <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isSaving}/></div>
+                                <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isSaving}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                                <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
+                            <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                            <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
+                            <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isSaving}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                                 <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
                                     <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
                                         <span className={styles.phonePrefix}>+63</span>
@@ -357,6 +376,44 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                         </div>
                                         <div className={styles.formGroup}></div>
                                     </div>
+                                </>
+                            )}
+
+                            {/* Branch Assignment */}
+                            {(isBranchManager || branchOptions.length > 0) && (
+                                <>
+                                    <hr className={styles.divider} />
+                                    <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
+                                    {isBranchManager ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                                            <span style={{ background: '#e0f0ff', color: '#01538b', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '13px' }}>
+                                                🏢 {user.assignedBranch}
+                                            </span>
+                                            <span style={{ color: '#64748b', fontSize: '13px' }}>Auto-assigned to your branch</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '16px', marginTop: '-8px' }}>
+                                                Transfer this patient to a different branch.
+                                            </p>
+                                            <div className={styles.row}>
+                                                <div className={styles.formGroup}>
+                                                    <label>BRANCH</label>
+                                                    <select
+                                                        className={styles.inputField}
+                                                        name="assignedBranch"
+                                                        value={formData.assignedBranch}
+                                                        onChange={handlePersonalChange}
+                                                        disabled={isSaving}
+                                                    >
+                                                        <option value="">No Branch (Walk-in)</option>
+                                                        {branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className={styles.formGroup} />
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             )}
 

@@ -21,6 +21,7 @@ export default function ManageSecretaries() {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [verifiedFilter, setVerifiedFilter] = useState('All');
+    const [branchFilter, setBranchFilter] = useState('All');
 
     const [secretariesList, setSecretariesList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -71,14 +72,17 @@ export default function ManageSecretaries() {
 
     useEffect(() => { fetchSecretaries(); }, [fetchSecretaries]);
 
+    const allBranches = [...new Set(secretariesList.flatMap(s => s.assignedBranches))].sort();
+
     const filteredSecretaries = secretariesList.filter(secretary => {
         const matchesSearch = secretary.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              secretary.email.toLowerCase().includes(searchQuery.toLowerCase());
+                            secretary.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || secretary.status === statusFilter;
         const matchesVerified = verifiedFilter === 'All' ||
                                 (verifiedFilter === 'Verified' && secretary.isVerified) ||
                                 (verifiedFilter === 'Unverified' && !secretary.isVerified);
-        return matchesSearch && matchesStatus && matchesVerified;
+        const matchesBranch = branchFilter === 'All' || secretary.assignedBranches.includes(branchFilter);
+        return matchesSearch && matchesStatus && matchesVerified && matchesBranch;
     });
 
     const handleToggleStatus = (secretary) => {
@@ -143,9 +147,14 @@ export default function ManageSecretaries() {
 
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>Manage Secretaries</h1>
-                <p className={styles.subtitle}>View, filter, and manage clinic front desk personnel.</p>
+            <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1 className={styles.title}>Manage Secretaries</h1>
+                    <p className={styles.subtitle}>View, filter, and manage clinic front desk personnel.</p>
+                </div>
+                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                    <FaUserPlus className={styles.btnIcon} /> Add New Secretary
+                </button>
             </header>
 
             <div className={styles.controlsRow}>
@@ -176,11 +185,18 @@ export default function ManageSecretaries() {
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
                     </div>
-                </div>
 
-                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} /> Add New Secretary
-                </button>
+                    <select
+                        className={styles.filterSelect}
+                        value={branchFilter}
+                        onChange={(e) => setBranchFilter(e.target.value)}
+                    >
+                        <option value="All">All Branches</option>
+                        {allBranches.map(branch => (
+                            <option key={branch} value={branch}>{branch}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {!isBranchManager && <UserTabs activeTab="secretaries" />}

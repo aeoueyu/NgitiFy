@@ -21,6 +21,7 @@ export default function ManageDentists() {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [verifiedFilter, setVerifiedFilter] = useState('All');
+    const [branchFilter, setBranchFilter] = useState('All');
 
     const [dentistsList, setDentistsList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -71,14 +72,17 @@ export default function ManageDentists() {
 
     useEffect(() => { fetchDentists(); }, [fetchDentists]);
 
+    const allBranches = [...new Set(dentistsList.flatMap(d => d.assignedBranches))].sort();
+
     const filteredDentists = dentistsList.filter(dentist => {
         const matchesSearch = dentist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              dentist.email.toLowerCase().includes(searchQuery.toLowerCase());
+                            dentist.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || dentist.status === statusFilter;
         const matchesVerified = verifiedFilter === 'All' ||
                                 (verifiedFilter === 'Verified' && dentist.isVerified) ||
                                 (verifiedFilter === 'Unverified' && !dentist.isVerified);
-        return matchesSearch && matchesStatus && matchesVerified;
+        const matchesBranch = branchFilter === 'All' || dentist.assignedBranches.includes(branchFilter);
+        return matchesSearch && matchesStatus && matchesVerified && matchesBranch;
     });
 
     const handleToggleStatus = (dentist) => {
@@ -143,10 +147,15 @@ export default function ManageDentists() {
 
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>Manage Dentists</h1>
-                <p className={styles.subtitle}>View, filter, and manage clinic dental professionals.</p>
-            </header>
+            <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1 className={styles.title}>Manage Dentists</h1>
+                    <p className={styles.subtitle}>View, filter, and manage clinic dental professionals.</p>
+                </div>
+                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                    <FaUserPlus className={styles.btnIcon} /> Add New Dentist
+                </button>
+            </header>   
 
             <div className={styles.controlsRow}>
                 <div className={styles.searchFilterGroup}>
@@ -176,11 +185,18 @@ export default function ManageDentists() {
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
                     </div>
-                </div>
 
-                <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                    <FaUserPlus className={styles.btnIcon} /> Add New Dentist
-                </button>
+                    <select
+                        className={styles.filterSelect}
+                        value={branchFilter}
+                        onChange={(e) => setBranchFilter(e.target.value)}
+                    >
+                        <option value="All">All Branches</option>
+                        {allBranches.map(branch => (
+                            <option key={branch} value={branch}>{branch}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {!isBranchManager && <UserTabs activeTab="dentists" />} 

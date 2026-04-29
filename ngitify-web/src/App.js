@@ -207,7 +207,7 @@ function App() {
                   <Route path="/admin/inventory" element={<InventoryTracker />} />
 
                   {/* User Management */}
-                  <Route path="/admin/manage-users" element={<Navigate to="/admin/manage-users/dentists" replace />} />
+                  <Route path="/admin/manage-users" element={<Navigate to="/admin/manage-users/patients" replace />} />
                   <Route path="/admin/manage-users/dentists" element={<ManageDentists />} />
                   <Route path="/admin/manage-users/secretaries" element={<ManageSecretaries />} />
                   <Route path="/admin/manage-users/patients" element={<ManagePatients />} />
