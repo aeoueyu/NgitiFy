@@ -1776,6 +1776,46 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
     }
 });
 
+// -------------------------------------------------------
+// APPOINTMENT SLOTS — patient: get taken slots for a date
+// -------------------------------------------------------
+
+app.get('/api/appointments/slots', verifyToken, async (req, res) => {
+    try {
+        const { date, branch } = req.query;
+
+        if (!date) {
+            return res.status(400).json({ message: 'date query parameter is required.' });
+        }
+
+        const start = new Date(date);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(date);
+        end.setHours(23, 59, 59, 999);
+
+        // Find all active (non-terminal) appointments on this date
+        const query = {
+            date:   { $gte: start, $lte: end },
+            status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+        };
+        if (branch) query.branch = branch;
+
+        const surgeries = await Surgery.find(query).select('time status');
+        const takenSlots = surgeries.map(s => s.time).filter(Boolean);
+
+        // Pull clinic's allowed time slots from SystemConfig
+        let config = await SystemConfig.findOne();
+        if (!config) config = await SystemConfig.create({});
+        const allowedSlots = config.allowedTimeSlots ||
+            ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+
+        res.json({ allowedSlots, takenSlots });
+    } catch (error) {
+        console.error('Error fetching appointment slots:', error);
+        res.status(500).json({ message: 'Server error fetching appointment slots.' });
+    }
+});
+
 
 // -------------------------------------------------------
 // TREATMENT LOGS: GET all logs for a patient
@@ -2057,6 +2097,66 @@ app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, re
     } catch (error) {
         console.error('Error deleting radiograph:', error);
         res.status(500).json({ message: 'Server error deleting radiograph.' });
+    }
+});
+
+// -------------------------------------------------------
+// PATIENT SELF-SERVICE EMR ROUTES
+// Patients can only read their own records.
+// Separate from the staff routes above which block role: 'patient'.
+// -------------------------------------------------------
+
+app.get('/api/my/treatment-logs', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        const patient = await User.findById(req.user.id).select('treatmentLogs');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const sorted = (patient.treatmentLogs || []).sort(
+            (a, b) => new Date(b.date) - new Date(a.date)
+        );
+        res.json(sorted);
+    } catch (error) {
+        console.error('Error fetching own treatment logs:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+app.get('/api/my/odontogram', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        const patient = await User.findById(req.user.id).select('odontogram');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const odontogramObj = patient.odontogram
+            ? Object.fromEntries(patient.odontogram)
+            : {};
+        res.json(odontogramObj);
+    } catch (error) {
+        console.error('Error fetching own odontogram:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+app.get('/api/my/radiographs', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        const patient = await User.findById(req.user.id).select('radiographs');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const sorted = (patient.radiographs || []).sort(
+            (a, b) => new Date(b.date) - new Date(a.date)
+        );
+        res.json(sorted);
+    } catch (error) {
+        console.error('Error fetching own radiographs:', error);
+        res.status(500).json({ message: 'Server error.' });
     }
 });
 
