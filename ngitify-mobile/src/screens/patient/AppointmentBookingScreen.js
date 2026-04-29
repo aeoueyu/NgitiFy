@@ -4,8 +4,9 @@ import {
     ScrollView, Animated, TextInput, ActivityIndicator, Alert
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import BackIcon   from '../../assets/icons/Back.svg';
+import BackIcon from '../../assets/icons/Back.svg';
 import CustomModal from '../../components/CustomModal';
 import { logActivity } from '../../utils/logActivity';
 
@@ -27,7 +28,6 @@ const PROCEDURES = [
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
 
-// Returns 'YYYY-MM' for a given Date object
 const toMonthString = (d) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -52,17 +52,20 @@ const to12h = (time24) => {
     return `${hour12}:${min} ${suffix}`;
 };
 
-// Returns true if a 24h slot has already passed (only applies when selected date is today)
+// Returns true if a slot is in the past OR within the 30-minute booking buffer.
+// Slots starting within the next 30 min are not realistically bookable.
 const isSlotPast = (slot24, dateStr, todayStr) => {
     if (dateStr !== todayStr) return false;
     const now = new Date();
     const [hour, min] = slot24.split(':').map(Number);
-    return (hour * 60 + min) <= (now.getHours() * 60 + now.getMinutes());
+    const slotMinutes   = hour * 60 + min;
+    const bufferMinutes = now.getHours() * 60 + now.getMinutes() + 30; // 30-min buffer
+    return slotMinutes <= bufferMinutes;
 };
 
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 function StepIndicator({ current }) {
-    const steps = ['Date', 'Time', 'Procedure', 'Confirm'];
+    const steps = ['Branch', 'Date', 'Time', 'Details', 'Confirm'];
     return (
         <View style={indicator.row}>
             {steps.map((label, i) => {
@@ -77,9 +80,10 @@ function StepIndicator({ current }) {
                                 active && indicator.activeCircle,
                                 done   && indicator.doneCircle,
                             ]}>
-                                <Text style={[indicator.num, (active || done) && indicator.activeNum]}>
-                                    {done ? '✓' : idx}
-                                </Text>
+                                {done
+                                    ? <Ionicons name="checkmark" size={13} color="white" />
+                                    : <Text style={[indicator.num, active && indicator.activeNum]}>{idx}</Text>
+                                }
                             </View>
                             <Text style={[indicator.label, active && indicator.activeLabel]}>
                                 {label}
@@ -96,16 +100,16 @@ function StepIndicator({ current }) {
 }
 
 const indicator = StyleSheet.create({
-    row:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, backgroundColor: 'white', elevation: 1 },
+    row:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 16, backgroundColor: 'white', elevation: 1 },
     item:         { alignItems: 'center', flex: 0 },
-    circle:       { width: 28, height: 28, borderRadius: 14, backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+    circle:       { width: 24, height: 24, borderRadius: 12, backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
     activeCircle: { backgroundColor: '#01538b' },
     doneCircle:   { backgroundColor: '#4caf50' },
-    num:          { fontSize: 12, fontWeight: 'bold', color: '#999' },
+    num:          { fontSize: 11, fontWeight: 'bold', color: '#999' },
     activeNum:    { color: 'white' },
-    label:        { fontSize: 10, color: '#aaa', fontWeight: '600' },
+    label:        { fontSize: 9, color: '#aaa', fontWeight: '600' },
     activeLabel:  { color: '#01538b' },
-    line:         { flex: 1, height: 2, backgroundColor: '#e0e0e0', marginBottom: 16, marginHorizontal: 4 },
+    line:         { flex: 1, height: 2, backgroundColor: '#e0e0e0', marginBottom: 16, marginHorizontal: 2 },
     doneLine:     { backgroundColor: '#4caf50' },
 });
 
@@ -126,34 +130,40 @@ export default function AppointmentBookingScreen({ navigation }) {
     // ── Wizard state ──
     const [step, setStep] = useState(1);
 
-    // Step 1 — Date
+    // Step 1 — Branch
+    const [branches,        setBranches]        = useState([]);
+    const [selectedBranch,  setSelectedBranch]  = useState('');
+    const [loadingBranches, setLoadingBranches] = useState(true);
+
+    // Step 2 — Date
     const [selectedDate,   setSelectedDate]   = useState('');
-    const [blockedDates,   setBlockedDates]   = useState([]); // fully booked date strings
+    const [blockedDates,   setBlockedDates]   = useState([]);
     const [loadingBlocked, setLoadingBlocked] = useState(false);
     const [currentMonth,   setCurrentMonth]   = useState(toMonthString(new Date()));
 
-    // Step 2 — Time
+    // Step 3 — Time
     const [allowedSlots, setAllowedSlots] = useState([]);
     const [takenSlots,   setTakenSlots]   = useState([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [slotsError,   setSlotsError]   = useState('');
     const [selectedTime, setSelectedTime] = useState('');
 
-    // Step 3 — Procedure, Branch, Notes
+    // Step 4 — Procedure & Notes
     const [selectedProcedure, setSelectedProcedure] = useState('');
-    const [notes,              setNotes]             = useState('');
-    const [branches,           setBranches]          = useState([]);
-    const [selectedBranch,     setSelectedBranch]    = useState('');
-    const [loadingBranches,    setLoadingBranches]   = useState(true);
+    const [notes,             setNotes]             = useState('');
 
-    // Step 4 / submit
+    // Step 5 / submit
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType,    setModalType]    = useState('success');
     const [modalMessage, setModalMessage] = useState('');
 
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const today    = getTodayString();
+    // Duplicate booking guard
+    const [duplicateAppt, setDuplicateAppt] = useState(null);
+
+    const fadeAnim        = useRef(new Animated.Value(0)).current;
+    const isInitialBranch = useRef(true);
+    const today           = getTodayString();
 
     // ── Animate on step change ──
     useEffect(() => {
@@ -181,15 +191,43 @@ export default function AppointmentBookingScreen({ navigation }) {
         fetchBranches();
     }, []);
 
+    // ── Duplicate booking guard: check for active appointment on mount ──
+    useEffect(() => {
+        const checkDuplicate = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/appointments/my-active`, {
+                    headers: { Authorization: `Bearer ${userToken}` },
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.hasActive) setDuplicateAppt(data.appointment);
+            } catch {
+                // Silent fail — never block booking if the check fails
+            }
+        };
+        checkDuplicate();
+    }, []);
+
+    // ── Clear downstream selections when branch changes ──
+    // Prevents stale date/time data from a previous branch carrying over.
+    useEffect(() => {
+        if (isInitialBranch.current) {
+            isInitialBranch.current = false;
+            return;
+        }
+        setSelectedDate('');
+        setSelectedTime('');
+        setAllowedSlots([]);
+        setTakenSlots([]);
+    }, [selectedBranch]);
+
     // ── Fetch blocked dates for a given month ──
     const fetchBlockedDates = useCallback(async (month) => {
+        if (!selectedBranch) return; // Wait until branch is selected (Step 1)
         setLoadingBlocked(true);
         try {
-            const branchQ = selectedBranch
-                ? `&branch=${encodeURIComponent(selectedBranch)}`
-                : '';
             const res = await fetch(
-                `${API_BASE_URL}/api/appointments/blocked-dates?month=${month}${branchQ}`,
+                `${API_BASE_URL}/api/appointments/blocked-dates?month=${month}&branch=${encodeURIComponent(selectedBranch)}`,
                 { headers: { Authorization: `Bearer ${userToken}` } }
             );
             if (!res.ok) throw new Error();
@@ -202,7 +240,7 @@ export default function AppointmentBookingScreen({ navigation }) {
         }
     }, [userToken, API_BASE_URL, selectedBranch]);
 
-    // Fetch blocked dates on mount and whenever branch changes
+    // Fetch blocked dates whenever month or branch changes
     useEffect(() => {
         fetchBlockedDates(currentMonth);
     }, [currentMonth, fetchBlockedDates]);
@@ -223,7 +261,7 @@ export default function AppointmentBookingScreen({ navigation }) {
             if (!res.ok) throw new Error('Failed to fetch slots');
             const data = await res.json();
             setAllowedSlots(data.allowedSlots || []);
-            setTakenSlots(data.takenSlots   || []);
+            setTakenSlots(data.takenSlots     || []);
         } catch {
             setSlotsError('Could not load time slots. Please try again.');
             setAllowedSlots([]);
@@ -236,40 +274,32 @@ export default function AppointmentBookingScreen({ navigation }) {
     // ── Build markedDates object for Calendar ──
     const buildMarkedDates = () => {
         const marked = {};
-
-        // Mark blocked (fully booked) dates in red
         blockedDates.forEach((dateStr) => {
             marked[dateStr] = {
-                disabled: true,
+                disabled:          true,
                 disableTouchEvent: true,
                 customStyles: {
                     container: { backgroundColor: '#ffebee', borderRadius: 6 },
                     text:       { color: '#e57373', textDecorationLine: 'line-through' },
                 },
-                // Fallback for non-custom-styles theme:
-                dotColor:     '#e53935',
-                marked:       true,
+                dotColor: '#e53935',
+                marked:   true,
             };
         });
-
-        // Highlight selected date (overrides blocked if somehow selected)
         if (selectedDate) {
             marked[selectedDate] = {
-                selected:           true,
-                selectedColor:      '#01538b',
-                disableTouchEvent:  false,
+                selected:          true,
+                selectedColor:     '#01538b',
+                disableTouchEvent: false,
             };
         }
-
         return marked;
     };
 
     // ── Handlers ──
     const handleDateSelect = (day) => {
         const date = new Date(day.dateString + 'T12:00:00');
-        // Block Sundays (0) client-side regardless of backend
         if (date.getDay() === 0) return;
-        // Block fully booked dates
         if (blockedDates.includes(day.dateString)) return;
         setSelectedDate(day.dateString);
         fetchSlots(day.dateString);
@@ -278,29 +308,43 @@ export default function AppointmentBookingScreen({ navigation }) {
     const handleMonthChange = (month) => {
         const monthStr = `${month.year}-${String(month.month).padStart(2, '0')}`;
         setCurrentMonth(monthStr);
-        // fetchBlockedDates is triggered by the useEffect above
     };
 
     const handleNext = () => {
-        if (step === 1 && allowedSlots.length === 0 && !loadingSlots) {
+        // Safety net: re-fetch slots if advancing from Date step with empty slots
+        if (step === 2 && selectedDate && allowedSlots.length === 0 && !loadingSlots) {
             fetchSlots(selectedDate);
         }
-        if (step < 4) setStep(step + 1);
+
+        // Duplicate booking guard: warn before the Confirm step
+        if (step === 4 && duplicateAppt) {
+            const apptDateStr = duplicateAppt.date
+                ? new Date(duplicateAppt.date).toISOString().split('T')[0]
+                : '';
+            const apptDate = apptDateStr ? formatDisplayDate(apptDateStr) : 'a scheduled date';
+            Alert.alert(
+                'Existing Appointment Found',
+                `You already have a ${duplicateAppt.status} appointment for "${duplicateAppt.procedure}" on ${apptDate} at ${duplicateAppt.branch}.\n\nAre you sure you want to book another?`,
+                [
+                    { text: 'Go Back', style: 'cancel' },
+                    { text: 'Continue Anyway', onPress: () => setStep(5) },
+                ]
+            );
+            return;
+        }
+
+        if (step < 5) setStep(step + 1);
     };
 
     const handleBack = () => {
+        // Going back to Date step: clear time so stale selection isn't carried over
+        if (step === 3) setSelectedTime('');
         if (step > 1) setStep(step - 1);
         else navigation.goBack();
     };
 
     // ── Submit ──
     const handleSubmit = async () => {
-        if (!selectedBranch) {
-            Alert.alert('Branch Required', 'Please go back to Step 3 and select a clinic branch.');
-            setStep(3);
-            return;
-        }
-
         setIsSubmitting(true);
         try {
             const res = await fetch(`${API_BASE_URL}/api/appointments/request`, {
@@ -352,11 +396,77 @@ export default function AppointmentBookingScreen({ navigation }) {
         if (modalType === 'success') navigation.goBack();
     };
 
-    // ── Step 1: Pick a Date ───────────────────────────────────────────────────
+    // ── Step 1: Pick a Branch ─────────────────────────────────────────────────
     const renderStep1 = () => (
         <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
+            <Text style={styles.stepHeading}>Select a Branch</Text>
+            <Text style={styles.stepSub}>Choose your preferred clinic location to continue.</Text>
+
+            {loadingBranches ? (
+                <View style={styles.loadingBox}>
+                    <ActivityIndicator color="#01538b" size="large" />
+                    <Text style={styles.loadingText}>Loading branches…</Text>
+                </View>
+            ) : branches.length === 0 ? (
+                <>
+                    <Text style={styles.inputLabel}>
+                        Branch Name <Text style={{ color: '#d32f2f' }}>*</Text>
+                    </Text>
+                    <TextInput
+                        style={styles.notesInput}
+                        placeholder="Enter branch name (e.g. Dentime - Marikina)"
+                        placeholderTextColor="#bbb"
+                        value={selectedBranch}
+                        onChangeText={setSelectedBranch}
+                    />
+                </>
+            ) : (
+                <View style={styles.branchListVertical}>
+                    {branches.map((b) => {
+                        const active = selectedBranch === b.name;
+                        return (
+                            <TouchableOpacity
+                                key={b._id}
+                                style={[styles.branchCard, active && styles.branchCardSelected]}
+                                onPress={() => setSelectedBranch(b.name)}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons
+                                    name={active ? 'location' : 'location-outline'}
+                                    size={20}
+                                    color={active ? '#01538b' : '#888'}
+                                    style={styles.branchCardIcon}
+                                />
+                                <Text style={[styles.branchCardText, active && styles.branchCardTextSelected]}>
+                                    {b.name}
+                                </Text>
+                                {active && (
+                                    <Ionicons name="checkmark-circle" size={20} color="#01538b" />
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+            )}
+
+            <TouchableOpacity
+                style={[styles.primaryBtn, !selectedBranch && styles.disabledBtn]}
+                onPress={handleNext}
+                disabled={!selectedBranch}
+                activeOpacity={0.8}
+            >
+                <Text style={styles.primaryBtnText}>Next →</Text>
+            </TouchableOpacity>
+        </Animated.View>
+    );
+
+    // ── Step 2: Pick a Date ───────────────────────────────────────────────────
+    const renderStep2 = () => (
+        <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
             <Text style={styles.stepHeading}>Select a Date</Text>
-            <Text style={styles.stepSub}>Sundays are unavailable. Red dates are fully booked.</Text>
+            <Text style={styles.stepSub}>
+                {selectedBranch} · Sundays and fully booked dates are unavailable.
+            </Text>
 
             {loadingBlocked && (
                 <View style={styles.blockedLoadingRow}>
@@ -371,7 +481,6 @@ export default function AppointmentBookingScreen({ navigation }) {
                 onMonthChange={handleMonthChange}
                 markedDates={buildMarkedDates()}
                 markingType="simple"
-                // Visually dim Sundays (index 0 = Sunday)
                 disabledDaysIndexes={[0]}
                 disableAllTouchEventsForDisabledDays
                 theme={{
@@ -385,13 +494,11 @@ export default function AppointmentBookingScreen({ navigation }) {
                     textDayHeaderFontWeight:    '600',
                     calendarBackground:         'white',
                     textSectionTitleColor:      '#01538b',
-                    // Dimmed color for Sundays
                     textDisabledColor:          '#ddd',
                 }}
                 style={styles.calendar}
             />
 
-            {/* Legend */}
             <View style={styles.legendRow}>
                 <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#01538b' }]} />
@@ -409,32 +516,44 @@ export default function AppointmentBookingScreen({ navigation }) {
 
             {selectedDate ? (
                 <View style={styles.selectedDatePill}>
-                    <Text style={styles.selectedDateText}>
-                        📅 Selected: {formatDisplayDate(selectedDate)}
+                    <Ionicons name="calendar-outline" size={14} color="#01538b" />
+                    <Text style={[styles.selectedDateText, { marginLeft: 6 }]}>
+                        Selected: {formatDisplayDate(selectedDate)}
                     </Text>
                 </View>
             ) : null}
 
-            <TouchableOpacity
-                style={[styles.primaryBtn, !selectedDate && styles.disabledBtn]}
-                onPress={handleNext}
-                disabled={!selectedDate}
-                activeOpacity={0.8}
-            >
-                <Text style={styles.primaryBtnText}>Next →</Text>
-            </TouchableOpacity>
+            <View style={styles.navRow}>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={handleBack}>
+                    <Text style={styles.secondaryBtnText}>← Back</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[
+                        styles.primaryBtn,
+                        { flex: 1, marginLeft: 10 },
+                        !selectedDate && styles.disabledBtn,
+                    ]}
+                    onPress={handleNext}
+                    disabled={!selectedDate}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.primaryBtnText}>Next →</Text>
+                </TouchableOpacity>
+            </View>
         </Animated.View>
     );
 
-    // ── Step 2: Pick a Time ───────────────────────────────────────────────────
-    const renderStep2 = () => {
+    // ── Step 3: Pick a Time ───────────────────────────────────────────────────
+    const renderStep3 = () => {
         const isSlotTaken = (slot12h) =>
             takenSlots.some(t => t === slot12h || to12h(t) === slot12h);
 
         return (
             <Animated.View style={{ opacity: fadeAnim }}>
                 <Text style={styles.stepHeading}>Select a Time Slot</Text>
-                <Text style={styles.stepSub}>For {formatDisplayDate(selectedDate)}</Text>
+                <Text style={styles.stepSub}>
+                    {selectedBranch} · {formatDisplayDate(selectedDate)}
+                </Text>
 
                 {loadingSlots ? (
                     <View style={styles.loadingBox}>
@@ -459,14 +578,13 @@ export default function AppointmentBookingScreen({ navigation }) {
                     </View>
                 ) : (
                     <>
-                        {/* Warn if all slots for today are unavailable */}
                         {selectedDate === today &&
                             allowedSlots.every(s =>
                                 isSlotTaken(to12h(s)) || isSlotTaken(s) || isSlotPast(s, selectedDate, today)
                             ) && (
                             <View style={styles.warningBox}>
                                 <Text style={styles.warningText}>
-                                    All slots for today are either taken or have already passed. Please go back and select a different date.
+                                    All slots for today are either taken or no longer available. Please go back and select a different date.
                                 </Text>
                             </View>
                         )}
@@ -483,9 +601,9 @@ export default function AppointmentBookingScreen({ navigation }) {
                                         key={slot24}
                                         style={[
                                             styles.slotChip,
-                                            selected            && styles.slotSelected,
-                                            taken               && styles.slotTaken,
-                                            past && !taken      && styles.slotPast,
+                                            selected        && styles.slotSelected,
+                                            taken           && styles.slotTaken,
+                                            past && !taken  && styles.slotPast,
                                         ]}
                                         onPress={() => !disabled && setSelectedTime(slot12)}
                                         activeOpacity={disabled ? 1 : 0.7}
@@ -493,8 +611,8 @@ export default function AppointmentBookingScreen({ navigation }) {
                                     >
                                         <Text style={[
                                             styles.slotText,
-                                            selected            && styles.slotTextSelected,
-                                            disabled            && styles.slotTextTaken,
+                                            selected  && styles.slotTextSelected,
+                                            disabled  && styles.slotTextTaken,
                                         ]}>
                                             {slot12}
                                         </Text>
@@ -505,7 +623,6 @@ export default function AppointmentBookingScreen({ navigation }) {
                             })}
                         </View>
 
-                        {/* Slot legend */}
                         <View style={styles.slotLegendRow}>
                             <View style={styles.legendItem}>
                                 <View style={[styles.legendDot, { backgroundColor: '#01538b' }]} />
@@ -548,13 +665,12 @@ export default function AppointmentBookingScreen({ navigation }) {
         );
     };
 
-    // ── Step 3: Procedure, Branch & Notes ─────────────────────────────────────
-    const renderStep3 = () => (
+    // ── Step 4: Procedure & Notes ─────────────────────────────────────────────
+    const renderStep4 = () => (
         <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.stepHeading}>Procedure & Details</Text>
             <Text style={styles.stepSub}>What brings you in?</Text>
 
-            {/* Procedure picker */}
             <View style={styles.procedureList}>
                 {PROCEDURES.map((proc) => {
                     const selected = selectedProcedure === proc;
@@ -576,44 +692,6 @@ export default function AppointmentBookingScreen({ navigation }) {
                 })}
             </View>
 
-            {/* Branch selector */}
-            <Text style={styles.inputLabel}>
-                Clinic Branch <Text style={{ color: '#d32f2f' }}>*</Text>
-            </Text>
-            {loadingBranches ? (
-                <ActivityIndicator color="#01538b" style={{ marginVertical: 10 }} />
-            ) : branches.length === 0 ? (
-                <TextInput
-                    style={styles.notesInput}
-                    placeholder="Enter branch name (e.g. Dentime - Marikina)"
-                    placeholderTextColor="#bbb"
-                    value={selectedBranch}
-                    onChangeText={setSelectedBranch}
-                />
-            ) : (
-                <View style={styles.branchList}>
-                    {branches.map((b) => {
-                        const active = selectedBranch === b.name;
-                        return (
-                            <TouchableOpacity
-                                key={b._id}
-                                style={[styles.branchChip, active && styles.branchChipSelected]}
-                                onPress={() => setSelectedBranch(b.name)}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={[
-                                    styles.branchChipText,
-                                    active && styles.branchChipTextSelected,
-                                ]}>
-                                    {b.name}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-            )}
-
-            {/* Notes */}
             <Text style={[styles.inputLabel, { marginTop: 14 }]}>
                 Additional Notes <Text style={styles.optionalTag}>(optional)</Text>
             </Text>
@@ -636,10 +714,10 @@ export default function AppointmentBookingScreen({ navigation }) {
                     style={[
                         styles.primaryBtn,
                         { flex: 1, marginLeft: 10 },
-                        (!selectedProcedure || !selectedBranch) && styles.disabledBtn,
+                        !selectedProcedure && styles.disabledBtn,
                     ]}
                     onPress={handleNext}
-                    disabled={!selectedProcedure || !selectedBranch}
+                    disabled={!selectedProcedure}
                     activeOpacity={0.8}
                 >
                     <Text style={styles.primaryBtnText}>Next →</Text>
@@ -648,26 +726,34 @@ export default function AppointmentBookingScreen({ navigation }) {
         </Animated.View>
     );
 
-    // ── Step 4: Review & Confirm ──────────────────────────────────────────────
-    const renderStep4 = () => (
+    // ── Step 5: Review & Confirm ──────────────────────────────────────────────
+    const renderStep5 = () => (
         <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.stepHeading}>Confirm Your Booking</Text>
             <Text style={styles.stepSub}>Please review your appointment details below.</Text>
 
             <View style={styles.summaryCard}>
+                <SummaryRow label="Branch"    value={selectedBranch} />
                 <SummaryRow label="Date"      value={formatDisplayDate(selectedDate)} />
                 <SummaryRow label="Time"      value={selectedTime || '—'} />
-                <SummaryRow label="Branch"    value={selectedBranch} />
                 <SummaryRow label="Procedure" value={selectedProcedure} />
                 {notes.trim() ? <SummaryRow label="Notes" value={notes.trim()} /> : null}
             </View>
 
             <View style={styles.disclaimerCard}>
-                <Text style={styles.disclaimerText}>
-                    📌 Your appointment is{' '}
-                    <Text style={{ fontWeight: 'bold' }}>pending confirmation</Text> by the clinic.
-                    You will be notified once it is approved.
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <Ionicons
+                        name="information-circle-outline"
+                        size={16}
+                        color="#795548"
+                        style={{ marginRight: 8, marginTop: 1 }}
+                    />
+                    <Text style={[styles.disclaimerText, { flex: 1 }]}>
+                        Your appointment is{' '}
+                        <Text style={{ fontWeight: 'bold' }}>pending confirmation</Text> by the clinic.
+                        You will be notified once it is approved.
+                    </Text>
+                </View>
             </View>
 
             <View style={styles.navRow}>
@@ -723,6 +809,7 @@ export default function AppointmentBookingScreen({ navigation }) {
                 {step === 2 && renderStep2()}
                 {step === 3 && renderStep3()}
                 {step === 4 && renderStep4()}
+                {step === 5 && renderStep5()}
             </ScrollView>
 
             <CustomModal
@@ -759,13 +846,14 @@ const styles = StyleSheet.create({
     blockedLoadingText: { marginLeft: 8, fontSize: 12, color: '#888' },
 
     // Legend
-    legendRow:    { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 12 },
-    slotLegendRow:{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 16 },
-    legendItem:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    legendDot:    { width: 10, height: 10, borderRadius: 5 },
-    legendText:   { fontSize: 11, color: '#888' },
+    legendRow:     { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 12 },
+    slotLegendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 16 },
+    legendItem:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    legendDot:     { width: 10, height: 10, borderRadius: 5 },
+    legendText:    { fontSize: 11, color: '#888' },
 
-    selectedDatePill: { backgroundColor: '#e8f1f8', borderRadius: 10, padding: 10, alignItems: 'center', marginBottom: 16 },
+    // Selected date pill — row layout for icon + text
+    selectedDatePill: { backgroundColor: '#e8f1f8', borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
     selectedDateText: { color: '#01538b', fontWeight: '700', fontSize: 13 },
 
     // Buttons
@@ -776,7 +864,7 @@ const styles = StyleSheet.create({
     secondaryBtnText: { color: '#01538b', fontWeight: 'bold', fontSize: 15 },
     navRow:           { flexDirection: 'row', alignItems: 'center' },
 
-    // Slot grid
+    // Loading / error
     loadingBox:   { alignItems: 'center', paddingVertical: 40 },
     loadingText:  { color: '#888', marginTop: 12, fontSize: 14 },
     errorBox:     { backgroundColor: '#fff3f3', borderRadius: 12, padding: 20, alignItems: 'center', marginBottom: 16 },
@@ -784,6 +872,7 @@ const styles = StyleSheet.create({
     retryBtn:     { backgroundColor: '#01538b', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
     retryBtnText: { color: 'white', fontWeight: 'bold' },
 
+    // Slot grid
     slotGrid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
     slotChip:         { width: '46%', paddingVertical: 14, borderRadius: 12, backgroundColor: 'white', alignItems: 'center', elevation: 1, borderWidth: 1.5, borderColor: '#e0e0e0' },
     slotSelected:     { backgroundColor: '#01538b', borderColor: '#01538b' },
@@ -792,6 +881,7 @@ const styles = StyleSheet.create({
     slotTextSelected: { color: 'white' },
     slotTextTaken:    { color: '#bbb' },
     takenLabel:       { fontSize: 10, color: '#bbb', marginTop: 2 },
+    slotPast:         { backgroundColor: '#fff8e1', borderColor: '#ffe082', opacity: 0.75 },
 
     // Procedures
     procedureList:         { marginBottom: 16 },
@@ -803,12 +893,13 @@ const styles = StyleSheet.create({
     procedureText:         { fontSize: 14, color: '#444', flex: 1 },
     procedureTextSelected: { color: '#01538b', fontWeight: '700' },
 
-    // Branch
-    branchList:             { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-    branchChip:             { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: '#ccc', backgroundColor: 'white' },
-    branchChipSelected:     { borderColor: '#01538b', backgroundColor: '#e8f1f8' },
-    branchChipText:         { fontSize: 13, color: '#555', fontWeight: '600' },
-    branchChipTextSelected: { color: '#01538b' },
+    // Branch cards (Step 1)
+    branchListVertical:     { marginBottom: 16 },
+    branchCard:             { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', padding: 16, borderRadius: 12, marginBottom: 10, elevation: 1, borderWidth: 1.5, borderColor: '#e0e0e0' },
+    branchCardSelected:     { borderColor: '#01538b', backgroundColor: '#e8f1f8' },
+    branchCardIcon:         { marginRight: 12 },
+    branchCardText:         { flex: 1, fontSize: 14, color: '#444', fontWeight: '600' },
+    branchCardTextSelected: { color: '#01538b' },
 
     // Notes / inputs
     inputLabel:  { fontSize: 13, fontWeight: '700', color: '#555', marginBottom: 8 },
@@ -825,10 +916,7 @@ const styles = StyleSheet.create({
     disclaimerCard: { backgroundColor: '#fff8e1', borderRadius: 12, padding: 15, borderLeftWidth: 4, borderLeftColor: '#ffc107', marginBottom: 10 },
     disclaimerText: { fontSize: 13, color: '#795548', lineHeight: 19 },
 
-    // Past slot
-    slotPast:    { backgroundColor: '#fff8e1', borderColor: '#ffe082', opacity: 0.75 },
-
-    // All-slots-unavailable warning
+    // Warnings
     warningBox:  { backgroundColor: '#fff3e0', borderRadius: 10, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: '#ff9800' },
     warningText: { color: '#e65100', fontSize: 13, lineHeight: 19 },
 });

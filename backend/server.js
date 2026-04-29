@@ -1835,6 +1835,30 @@ app.get('/api/appointments/slots', verifyToken, async (req, res) => {
 });
 
 // -------------------------------------------------------
+// APPOINTMENT DUPLICATE CHECK — patient: check for active booking
+// -------------------------------------------------------
+app.get('/api/appointments/my-active', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const activeAppointment = await Surgery.findOne({
+            patient: req.user.id,
+            status: { $in: ['pending', 'confirmed'] },
+        })
+            .select('date time procedure status branch')
+            .sort({ date: 1 })
+            .lean();
+
+        res.json({ hasActive: !!activeAppointment, appointment: activeAppointment || null });
+    } catch (error) {
+        console.error('Error checking active appointments:', error);
+        res.status(500).json({ message: 'Server error checking appointments.' });
+    }
+});
+
+// -------------------------------------------------------
 // APPOINTMENT BLOCKED DATES — fully booked days for calendar
 // -------------------------------------------------------
 app.get('/api/appointments/blocked-dates', verifyToken, async (req, res) => {
