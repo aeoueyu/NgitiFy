@@ -35,7 +35,7 @@ const normalizeSurgery = (s) => {
     const date = isValidDate(rawDate) ? rawDate : null;
 
     // Build patient name safely
-    let patientName = 'Unknown Patient';
+    let patientName = s.guestName || 'Unknown Patient';
     if (s.patient?.name) {
         const first = s.patient.name.first || '';
         const last  = s.patient.name.last  || '';

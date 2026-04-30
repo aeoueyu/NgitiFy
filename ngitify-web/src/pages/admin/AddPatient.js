@@ -113,6 +113,8 @@ export default function AddPatient({ onClose, onSuccess }) {
         if (!formData.phone) { newErrors.phone = 'Required'; isValid = false; }
         else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
         if (formData.email && !validateEmail(formData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
+        // Branch is required unless branch manager (auto-assigned)
+        if (!isBranchManager && !formData.assignedBranch) { newErrors.assignedBranch = 'Required'; isValid = false; }
         const validateAddr = (addr, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
                 if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
@@ -134,7 +136,8 @@ export default function AddPatient({ onClose, onSuccess }) {
             email: formData.email, contactNumber: `+63${formData.phone}`,
             birthdate: formData.birthdate, gender: formData.gender,
             profileImage: profileImage,
-            assignedBranch: formData.assignedBranch || undefined,
+            assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : (formData.assignedBranch || undefined),
+            assignedBranches: isBranchManager ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
             guardian: isMinor ? { name: formData.guardianName, relationship: formData.guardianRelationship, contactNumber: `+63${formData.guardianContact}` } : null,
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
@@ -265,37 +268,34 @@ export default function AddPatient({ onClose, onSuccess }) {
                         </>
                     )}
 
-                    {/* Branch Assignment */}
-                    {(isBranchManager || branchOptions.length > 0) && (
+                    {/* Branch Assignment — required, shown before address */}
+                    <hr className={styles.divider} />
+                    <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
+                    {isBranchManager ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                            <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
+                            <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
+                        </div>
+                    ) : (
                         <>
-                            <hr className={styles.divider} />
-                            <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                            {isBranchManager ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                    <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
-                                    <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
+                            <p className={styles.sectionSubtitle}>Select the branch this patient is registered under.</p>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>BRANCH <span style={{ color: 'red' }}>*</span></label>
+                                    <select
+                                        className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`}
+                                        name="assignedBranch"
+                                        value={formData.assignedBranch}
+                                        onChange={handlePersonalChange}
+                                        disabled={isLoading}
+                                    >
+                                        <option value="" hidden>Select a branch</option>
+                                        {branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                    {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
                                 </div>
-                            ) : (
-                                <>
-                                    <p className={styles.sectionSubtitle}>Assign this patient to a branch (optional).</p>
-                                    <div className={styles.row}>
-                                        <div className={styles.formGroup}>
-                                            <label>BRANCH</label>
-                                            <select
-                                                className={styles.inputField}
-                                                name="assignedBranch"
-                                                value={formData.assignedBranch}
-                                                onChange={handlePersonalChange}
-                                                disabled={isLoading}
-                                            >
-                                                <option value="">No Branch (Walk-in)</option>
-                                                {branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className={styles.formGroup} />
-                                    </div>
-                                </>
-                            )}
+                                <div className={styles.formGroup} />
+                            </div>
                         </>
                     )}
 

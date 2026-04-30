@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     progressLineActive: { backgroundColor: '#01538b' },
 
     // Text
-    title: { fontSize: 28, fontWeight: 'bold', color: '#005466', marginBottom: 10 },
+    title: { fontSize: 28, fontWeight: 'bold', color: '#01538b', marginBottom: 10 },
     subTitle: { fontSize: 14, color: '#666', marginBottom: 25, lineHeight: 22 },
     emailHighlight: { fontWeight: 'bold', color: '#01538b' },
     fieldLabel: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 8 },

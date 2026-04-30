@@ -4,8 +4,12 @@ const mongoose = require('mongoose');
 
 const surgerySchema = new mongoose.Schema({
     // ✅ FIX: Changed ref from 'Patient' to 'User' — patients are stored in the User collection
-    patient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    patient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     dentist: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
+    guestName:  { type: String, trim: true },
+    guestEmail: { type: String, trim: true, lowercase: true },
+    guestPhone: { type: String, trim: true },
 
     branch: { type: String, required: true },
     date:   { type: Date,   required: true },

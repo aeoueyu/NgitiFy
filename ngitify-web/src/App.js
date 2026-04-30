@@ -7,6 +7,11 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import DashboardLayout from './components/layout/DashboardLayout';
 
 import WebsiteHome from './pages/website/WebsiteHome';
+import WebsiteAbout from './pages/website/WebsiteAbout';
+import WebsiteServices from './pages/website/WebsiteServices';
+import WebsiteLocations from './pages/website/WebsiteLocations';
+import WebsiteContact from './pages/website/WebsiteContact';
+import WebsiteAppointment from './pages/website/WebsiteAppointment';
 import LoginPage from './pages/auth/LoginPage';
 
 const ForgotPassPage = lazy(() => import('./pages/auth/ForgotPassPage'));
@@ -35,8 +40,6 @@ const ManageBranchManagers = lazy(() => import('./pages/admin/ManageBranchManage
 const AddBranchManager = lazy(() => import('./pages/admin/AddBranchManager'));
 const ManageCoAdmins = lazy(() => import('./pages/admin/ManageCoAdmins'));
 const AddCoAdmin = lazy(() => import('./pages/admin/AddCoAdmin'));
-const EditBranchManager = lazy(() => import('./pages/admin/EditBranchManager'));
-const EditCoAdmin = lazy(() => import('./pages/admin/EditCoAdmin'));
 const AdminPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
 const SystemConfig = lazy(() => import('./pages/admin/SystemConfig'));
 const QueueManagement = lazy(() => import('./pages/admin/QueueManagement'));
@@ -111,6 +114,11 @@ function App() {
             <Routes>
               {/* Public & Authentication Routes */}
               <Route path="/" element={<WebsiteHome />} />
+              <Route path="/about" element={<WebsiteAbout />} />
+              <Route path="/services" element={<WebsiteServices />} />
+              <Route path="/locations" element={<WebsiteLocations />} />
+              <Route path="/contact-us" element={<WebsiteContact />} />
+              <Route path="/appointment" element={<WebsiteAppointment />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/forgot-password" element={<ForgotPassPage />} />
               <Route path="/verification-code" element={<VerificationCodePage />} />

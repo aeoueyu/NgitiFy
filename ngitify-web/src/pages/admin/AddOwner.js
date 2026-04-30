@@ -1,23 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AddDentist.module.css';
 import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
+import { regions, provinces, cities, barangays } from '../../utils/addressData';
 
 export default function AddOwner({ onClose, onSuccess }) {
+    const fileInputRef = useRef(null);
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({});
+    const [profileImage, setProfileImage] = useState(null);
+    const [isSameAddress, setIsSameAddress] = useState(false);
+    const specializationOptions = [
+        'General Dentist', 'Orthodontist', 'Pediatric Dentist (Pedodontist)',
+        'Periodontist', 'Endodontist', 'Oral & Maxillofacial Surgeon',
+        'Prosthodontist', 'Cosmetic Dentist',
+    ];
+    const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
     const [formData, setFormData] = useState({
         firstName: '',
+        middleName: '',
         lastName: '',
+        birthday: '',
         email: '',
         phone: '',
         gender: '',
-        assignedBranches: [],
+        assignedBranch: '',
         isDentist: false,
+        licenseNumber: '',
+        specialization: '',
+        currentAddress: { ...initialAddressState },
+        permanentAddress: { ...initialAddressState },
     });
 
     useEffect(() => {
@@ -52,26 +68,64 @@ export default function AddOwner({ onClose, onSuccess }) {
         setFormData(prev => ({ ...prev, phone: value }));
     };
 
-    const handleBranchToggle = (branchName) => {
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onloadend = () => setProfileImage(reader.result);
+        reader.readAsDataURL(file);
+    };
+
+    const triggerFileInput = () => fileInputRef.current?.click();
+
+    const handleAddressChange = (type, field, value) => {
+        const errorKey = `${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`;
+        if (errors[errorKey]) setErrors(prev => { const n = { ...prev }; delete n[errorKey]; return n; });
         setFormData(prev => {
-            const already = prev.assignedBranches.includes(branchName);
-            return {
-                ...prev,
-                assignedBranches: already
-                    ? prev.assignedBranches.filter(b => b !== branchName)
-                    : [...prev.assignedBranches, branchName],
-            };
+            const updated = { ...prev[type], [field]: value };
+            if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
+            else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
+            else if (field === 'city') { updated.barangay = ''; }
+            if (type === 'currentAddress' && isSameAddress) return { ...prev, currentAddress: updated, permanentAddress: updated };
+            return { ...prev, [type]: updated };
         });
+    };
+
+    const handleSameAddressToggle = (e) => {
+        const checked = e.target.checked;
+        setIsSameAddress(checked);
+        if (checked) {
+            setFormData(prev => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
+            setErrors(prev => { const n = { ...prev }; Object.keys(n).forEach(k => { if (k.startsWith('permanent_')) delete n[k]; }); return n; });
+        } else {
+            setFormData(prev => ({ ...prev, permanentAddress: { ...initialAddressState } }));
+        }
     };
 
     const validateForm = () => {
         const newErrors = {};
         if (!formData.firstName.trim()) newErrors.firstName = 'Required';
+        if (!formData.middleName.trim()) newErrors.middleName = 'Required';
         if (!formData.lastName.trim())  newErrors.lastName  = 'Required';
+        if (!formData.birthday)         newErrors.birthday  = 'Required';
+        if (!formData.gender)           newErrors.gender    = 'Required';
         if (!formData.email)            newErrors.email     = 'Required';
         else if (!validateEmail(formData.email)) newErrors.email = 'Invalid email domain (e.g. gmail.com)';
-        if (formData.phone && (formData.phone.length !== 10 || formData.phone[0] !== '9'))
-            newErrors.phone = 'Invalid format (9xxxxxxxxx)';
+        if (!formData.phone)            newErrors.phone     = 'Required';
+        else if (formData.phone.length !== 10 || formData.phone[0] !== '9') newErrors.phone = 'Invalid format (9xxxxxxxxx)';
+        if (formData.isDentist) {
+            if (!formData.licenseNumber) newErrors.licenseNumber = 'Required';
+            else if (formData.licenseNumber.length !== 7) newErrors.licenseNumber = 'Must be 7 digits';
+            if (!formData.specialization) newErrors.specialization = 'Required';
+            if (!formData.assignedBranch) newErrors.assignedBranch = 'Required';
+        }
+        const validateAddr = (addr, prefix) => {
+            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
+                if (!addr[f]) newErrors[`${prefix}_${f}`] = 'Required';
+            });
+        };
+        validateAddr(formData.currentAddress, 'current');
+        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -82,12 +136,19 @@ export default function AddOwner({ onClose, onSuccess }) {
         setIsLoading(true);
 
         const finalData = {
-            name:             { first: formData.firstName, last: formData.lastName },
+            name:             { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email:            formData.email,
-            contactNumber:    formData.phone ? `+63${formData.phone}` : '',
+            contactNumber:    `+63${formData.phone}`,
+            birthdate:        formData.birthday,
             gender:           formData.gender,
-            assignedBranches: formData.assignedBranches,
+            profileImage,
             isDentist:        formData.isDentist,
+            licenseNumber:    formData.isDentist ? formData.licenseNumber : '',
+            specialization:   formData.isDentist ? formData.specialization : '',
+            assignedBranch:   formData.isDentist ? formData.assignedBranch : '',
+            assignedBranches: formData.isDentist && formData.assignedBranch ? [formData.assignedBranch] : [],
+            currentAddress:   { country: 'Philippines', ...formData.currentAddress },
+            permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
         };
 
         try {
@@ -112,6 +173,34 @@ export default function AddOwner({ onClose, onSuccess }) {
 
     const handleSuccessClose = () => { setShowSuccessModal(false); onSuccess(); onClose(); };
 
+    const renderAddressFields = (type, title, isDisabled = false) => {
+        const address = formData[type];
+        const prefix = type === 'currentAddress' ? 'current' : 'permanent';
+        const availableProvinces = address.region ? provinces[address.region] || [] : [];
+        const availableCities = address.province ? cities[address.province] || [] : [];
+        const availableBarangays = address.city ? barangays[address.city] || [] : [];
+        const getError = (field) => errors[`${prefix}_${field}`];
+        const getErrorClass = (field) => getError(field) ? styles.errorBorder : '';
+
+        return (
+            <div className={styles.addressSection}>
+                <h3 className={styles.sectionTitle}>{title}</h3>
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={e => handleAddressChange(type, 'region', e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
+                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={e => handleAddressChange(type, 'province', e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
+                </div>
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={e => handleAddressChange(type, 'city', e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
+                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={e => handleAddressChange(type, 'barangay', e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b => <option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
+                </div>
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={e => handleAddressChange(type, 'street', e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
+                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={e => handleAddressChange(type, 'houseNumber', e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className={styles.mainOverlay}>
             <div className={styles.overlayBackground} onClick={!isLoading && !showSuccessModal ? onClose : undefined} />
@@ -134,9 +223,16 @@ export default function AddOwner({ onClose, onSuccess }) {
                 )}
 
                 <form onSubmit={handleSubmit} noValidate>
+                    <div className={styles.uploadSection}>
+                        <div className={styles.imageWrapper} onClick={triggerFileInput}>
+                            {profileImage ? <img src={profileImage} alt="Profile" className={styles.previewImage} /> : <div className={styles.uploadPlaceholder}><span>Upload Photo</span></div>}
+                        </div>
+                        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} disabled={isLoading} />
+                    </div>
+
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>
 
-                    {/* Row 1: First / Last Name */}
+                    {/* Row 1: First / Middle / Last Name */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>FIRST NAME <span style={{ color: 'red' }}>*</span></label>
@@ -146,6 +242,15 @@ export default function AddOwner({ onClose, onSuccess }) {
                                 onChange={handleChange} maxLength={50} disabled={isLoading}
                             />
                             {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>MIDDLE NAME <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                                className={`${styles.inputField} ${errors.middleName ? styles.errorBorder : ''}`}
+                                name="middleName" value={formData.middleName}
+                                onChange={handleChange} maxLength={50} disabled={isLoading}
+                            />
+                            {errors.middleName && <span className={styles.errorText}>{errors.middleName}</span>}
                         </div>
                         <div className={styles.formGroup}>
                             <label>LAST NAME <span style={{ color: 'red' }}>*</span></label>
@@ -158,7 +263,36 @@ export default function AddOwner({ onClose, onSuccess }) {
                         </div>
                     </div>
 
-                    {/* Row 2: Email / Phone */}
+                    {/* Row 2: Birthday / Gender */}
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>BIRTHDAY <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                                type="date"
+                                className={`${styles.inputField} ${errors.birthday ? styles.errorBorder : ''}`}
+                                name="birthday" value={formData.birthday}
+                                onChange={handleChange} disabled={isLoading}
+                            />
+                            {errors.birthday && <span className={styles.errorText}>{errors.birthday}</span>}
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>GENDER <span style={{ color: 'red' }}>*</span></label>
+                            <select
+                                className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`}
+                                name="gender" value={formData.gender}
+                                onChange={handleChange} disabled={isLoading}
+                            >
+                                <option value="" hidden>Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                            {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
+                        </div>
+                    </div>
+
+                    {/* Row 3: Email / Phone */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label>
@@ -183,25 +317,6 @@ export default function AddOwner({ onClose, onSuccess }) {
                             </div>
                             {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                         </div>
-                    </div>
-
-                    {/* Row 3: Gender */}
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}>
-                            <label>GENDER</label>
-                            <select
-                                className={styles.inputField}
-                                name="gender" value={formData.gender}
-                                onChange={handleChange} disabled={isLoading}
-                            >
-                                <option value="" hidden>Select Gender</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                                <option value="Prefer not to say">Prefer not to say</option>
-                            </select>
-                        </div>
-                        <div className={styles.formGroup} />
                     </div>
 
                     {/* Dentist Access Toggle */}
@@ -231,30 +346,66 @@ export default function AddOwner({ onClose, onSuccess }) {
                         </div>
                     </div>
 
-                    {/* Branch Assignment */}
-                    {branchOptions.length > 0 && (
+                    {/* Dentist-only fields */}
+                    {formData.isDentist && (
                         <>
                             <hr className={styles.divider} />
-                            <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                            <p className={styles.sectionSubtitle}>Select the branches this owner oversees.</p>
-                            <div className={styles.branchChipsContainer}>
-                                {branchOptions.map(branch => (
-                                    <label
-                                        key={branch}
-                                        className={`${styles.branchChip} ${formData.assignedBranches.includes(branch) ? styles.branchChipActive : ''}`}
+                            <h3 className={styles.mainSectionTitle}>Professional Information</h3>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>LICENSE NO. <span style={{ color: 'red' }}>*</span></label>
+                                    <input
+                                        className={`${styles.inputField} ${errors.licenseNumber ? styles.errorBorder : ''}`}
+                                        name="licenseNumber" value={formData.licenseNumber}
+                                        onChange={handleChange} maxLength={7} disabled={isLoading}
+                                    />
+                                    {errors.licenseNumber && <span className={styles.errorText}>{errors.licenseNumber}</span>}
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>SPECIALIZATION <span style={{ color: 'red' }}>*</span></label>
+                                    <select
+                                        className={`${styles.inputField} ${errors.specialization ? styles.errorBorder : ''}`}
+                                        name="specialization" value={formData.specialization}
+                                        onChange={handleChange} disabled={isLoading}
                                     >
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.assignedBranches.includes(branch)}
-                                            onChange={() => handleBranchToggle(branch)}
-                                            disabled={isLoading}
-                                        />
-                                        {branch}
-                                    </label>
-                                ))}
+                                        <option value="" hidden>Select Specialization</option>
+                                        {specializationOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                                    </select>
+                                    {errors.specialization && <span className={styles.errorText}>{errors.specialization}</span>}
+                                </div>
+                            </div>
+
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
+                            <p className={styles.sectionSubtitle}>Select the branch this owner is assigned to as a dentist.</p>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>BRANCH <span style={{ color: 'red' }}>*</span></label>
+                                    <select
+                                        className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`}
+                                        name="assignedBranch" value={formData.assignedBranch}
+                                        onChange={handleChange} disabled={isLoading}
+                                    >
+                                        <option value="" hidden>Select a branch</option>
+                                        {branchOptions.map(branch => <option key={branch} value={branch}>{branch}</option>)}
+                                    </select>
+                                    {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
+                                </div>
+                                <div className={styles.formGroup} />
                             </div>
                         </>
                     )}
+
+                    <hr className={styles.divider} />
+                    {renderAddressFields('currentAddress', 'Current Address')}
+                    <div className={styles.permanentHeader}>
+                        <h3 className={styles.sectionTitle}>Permanent Address</h3>
+                        <div className={styles.checkboxContainer}>
+                            <input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} />
+                            <label htmlFor="sameAddress">Same as Current Address</label>
+                        </div>
+                    </div>
+                    {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>

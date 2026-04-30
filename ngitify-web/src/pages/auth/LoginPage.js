@@ -4,6 +4,7 @@ import logo from '../../assets/icons/logo-dentime.svg';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from 'react-icons/fa';
+import { BASE_URL } from '../../utils/api';
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -31,21 +32,21 @@ export default function LoginPage() {
         setIsLoading(true);
 
         try {
-            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${apiUrl}/api/login`, {
+            const response = await fetch(`${BASE_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
             });
 
-            const data = await response.json();
+            const rawBody = await response.text();
+            const data = rawBody ? JSON.parse(rawBody) : {};
 
             if (response.ok) {
                 localStorage.setItem('token', data.token);
 
                 let profileData = {};
                 try {
-                    const profileRes = await fetch(`${apiUrl}/api/user/${data.userId}`, {
+                    const profileRes = await fetch(`${BASE_URL}/api/user/${data.userId}`, {
                         headers: { 'Authorization': `Bearer ${data.token}` }
                     });
                     if (profileRes.ok) profileData = await profileRes.json();

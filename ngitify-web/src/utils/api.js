@@ -1,6 +1,32 @@
-export const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const resolveBaseUrl = () => {
+    if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+
+    if (typeof window !== 'undefined') {
+        const { hostname, protocol } = window.location;
+
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return 'http://localhost:5000';
+        }
+
+        if (hostname === 'ngitify.com' || hostname === 'www.ngitify.com') {
+            return `${protocol}//${hostname}`;
+        }
+
+        if (hostname.endsWith('netlify.app')) {
+            return 'https://ngitify.com';
+        }
+    }
+
+    return 'http://localhost:5000';
+};
+
+export const BASE_URL = resolveBaseUrl();
 
 const API_BASE = `${BASE_URL}/api`;
+export const buildApiUrl = (endpoint) => {
+    const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    return `${API_BASE}${formattedEndpoint}`;
+};
 
 /**
  * A wrapper around the native fetch API that automatically includes
@@ -11,10 +37,10 @@ const API_BASE = `${BASE_URL}/api`;
  */
 export const authFetch = async (endpoint, options = {}) => {
     const token = localStorage.getItem('token');
-    
-    // Set up default headers, attaching the token if it exists
+    const hasBody = options.body !== undefined && !(options.body instanceof FormData);
+
     const defaultHeaders = {
-        'Content-Type': 'application/json',
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
 
@@ -31,7 +57,7 @@ export const authFetch = async (endpoint, options = {}) => {
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
     try {
-        const response = await fetch(`${API_BASE}${formattedEndpoint}`, config);
+        const response = await fetch(buildApiUrl(formattedEndpoint), config);
 
         if (response.status === 401) {
             console.warn("Session expired. Redirecting to login.");
@@ -44,6 +70,30 @@ export const authFetch = async (endpoint, options = {}) => {
         
     } catch (error) {
         console.error(`API Fetch Error [${formattedEndpoint}]:`, error);
+        throw error;
+    }
+};
+
+export const publicFetch = async (endpoint, options = {}) => {
+    const hasBody = options.body !== undefined && !(options.body instanceof FormData);
+    const defaultHeaders = {
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+    };
+
+    const config = {
+        ...options,
+        headers: {
+            ...defaultHeaders,
+            ...options.headers,
+        },
+    };
+
+    const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+    try {
+        return await fetch(buildApiUrl(formattedEndpoint), config);
+    } catch (error) {
+        console.error(`Public API Fetch Error [${formattedEndpoint}]:`, error);
         throw error;
     }
 };

@@ -27,7 +27,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
         currentAddress: { ...initialAddressState },
         permanentAddress: { ...initialAddressState },
         permissions: { patients: 'none', appointments: 'none', inventory: 'none' },
-        assignedBranches: [],
+        assignedBranch: '',
     });
 
     const validateEmail = (email) => {
@@ -38,7 +38,6 @@ export default function AddSecretary({ onClose, onSuccess }) {
     };
 
     const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, c => c.toUpperCase());
-    const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
     const getMaxDate = () => { const t = new Date(); t.setFullYear(t.getFullYear() - 18); return t.toISOString().split('T')[0]; };
 
     const handleBlur = (e) => {
@@ -97,21 +96,20 @@ export default function AddSecretary({ onClose, onSuccess }) {
         setFormData(prev => ({ ...prev, permissions: { ...prev.permissions, [module]: value } }));
     };
 
-    const handleBranchToggle = (branchName) => {
-        setFormData(prev => {
-            const already = prev.assignedBranches.includes(branchName);
-            return { ...prev, assignedBranches: already ? prev.assignedBranches.filter(b => b !== branchName) : [...prev.assignedBranches, branchName] };
-        });
-    };
-
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'email'];
+        const required = ['firstName', 'lastName', 'birthdate', 'email', 'assignedBranch'];
         required.forEach(f => { if (!formData[f]) { newErrors[f] = 'Required'; isValid = false; } });
         if (!formData.phone) { newErrors.phone = 'Required'; isValid = false; }
         else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
         if (formData.email && !validateEmail(formData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
-        if (formData.birthdate && getAge(formData.birthdate) < 18) { newErrors.birthdate = 'Min age 18'; isValid = false; }
+        if (formData.birthdate) {
+            const today = new Date(); const birth = new Date(formData.birthdate);
+            let age = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+            if (age < 18) { newErrors.birthdate = 'Min age 18'; isValid = false; }
+        }
         const validateAddr = (addr, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
                 if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
@@ -136,7 +134,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
             permissions: formData.permissions,
-            assignedBranches: formData.assignedBranches,
+            assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : formData.assignedBranch,
+            assignedBranches: isBranchManager ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
         };
         try {
             const response = await authFetch('/add-secretary', { method: 'POST', body: JSON.stringify(finalData) });
@@ -160,7 +159,6 @@ export default function AddSecretary({ onClose, onSuccess }) {
         const availableBarangays = address.city ? barangays[address.city] || [] : [];
         const getError = (field) => errors[`${prefix}_${field}`];
         const getErrorClass = (field) => getError(field) ? styles.errorBorder : '';
-
         return (
             <div className={styles.addressSection}>
                 <h3 className={styles.sectionTitle}>{title}</h3>
@@ -215,20 +213,17 @@ export default function AddSecretary({ onClose, onSuccess }) {
 
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>
 
-                    {/* Row 1: Names */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} />{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
-                        <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>LAST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading} />{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
+                        <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={30} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>LAST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} />{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                     </div>
 
-                    {/* Row 2: Birthdate / Gender */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
                         <div className={styles.formGroup}><label>GENDER</label><select className={styles.inputField} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select></div>
                     </div>
 
-                    {/* Row 3: Email / Phone */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                         <div className={styles.formGroup}>
@@ -241,7 +236,38 @@ export default function AddSecretary({ onClose, onSuccess }) {
                         </div>
                     </div>
 
-                    {/* Address */}
+                    {/* Branch Assignment — BEFORE address */}
+                    <hr className={styles.divider} />
+                    <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
+                    {isBranchManager ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                            <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
+                            <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
+                        </div>
+                    ) : (
+                        <>
+                            <p className={styles.sectionSubtitle}>Select the branch this secretary is assigned to.</p>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>BRANCH <span style={{ color: 'red' }}>*</span></label>
+                                    <select
+                                        className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`}
+                                        name="assignedBranch"
+                                        value={formData.assignedBranch}
+                                        onChange={handlePersonalChange}
+                                        disabled={isLoading}
+                                    >
+                                        <option value="" hidden>Select a branch</option>
+                                        {branchOptions.map(branch => <option key={branch} value={branch}>{branch}</option>)}
+                                    </select>
+                                    {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
+                                </div>
+                                <div className={styles.formGroup} />
+                            </div>
+                        </>
+                    )}
+
+                    {/* Address fields — AFTER branch */}
                     <hr className={styles.divider} />
                     {renderAddressFields('currentAddress', 'Current Address')}
                     <div className={styles.permanentHeader}>
@@ -255,46 +281,32 @@ export default function AddSecretary({ onClose, onSuccess }) {
 
                     {/* Permissions */}
                     <hr className={styles.divider} />
-                    <h3 className={styles.mainSectionTitle}>System Permissions</h3>
-                    <p className={styles.sectionSubtitle}>Assign access levels for different system modules.</p>
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}><label>PATIENTS</label><select className={styles.inputField} value={formData.permissions.patients} onChange={e => handlePermissionChange('patients', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
-                        <div className={styles.formGroup}><label>APPOINTMENTS</label><select className={styles.inputField} value={formData.permissions.appointments} onChange={e => handlePermissionChange('appointments', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
-                    </div>
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}><label>INVENTORY</label><select className={styles.inputField} value={formData.permissions.inventory} onChange={e => handlePermissionChange('inventory', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
-                        <div className={styles.formGroup} />
-                    </div>
-
-                    {/* Branch Assignment */}
-                    {(isBranchManager || branchOptions.length > 0) && (
-                        <>
-                            <hr className={styles.divider} />
-                            <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                            {isBranchManager ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                    <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
-                                    <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
-                                </div>
-                            ) : (
-                                <>
-                                    <p className={styles.sectionSubtitle}>Select the branches this secretary is assigned to.</p>
-                                    <div className={styles.branchChipsContainer}>
-                                        {branchOptions.map(branch => (
-                                            <label key={branch} className={`${styles.branchChip} ${formData.assignedBranches.includes(branch) ? styles.branchChipActive : ''}`}>
-                                                <input type="checkbox" checked={formData.assignedBranches.includes(branch)} onChange={() => handleBranchToggle(branch)} disabled={isLoading} />
-                                                {branch}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </>
-                    )}
+                    <h3 className={styles.mainSectionTitle}>Module Permissions</h3>
+                    <p className={styles.sectionSubtitle}>Configure what this secretary can access.</p>
+                    {['patients', 'appointments', 'inventory'].map(module => (
+                        <div key={module} className={styles.permissionRow}>
+                            <span className={styles.permissionLabel}>{module.charAt(0).toUpperCase() + module.slice(1)}</span>
+                            <div className={styles.permissionOptions}>
+                                {['none', 'read', 'read-write'].map(level => (
+                                    <label key={level} className={styles.permissionOption}>
+                                        <input
+                                            type="radio"
+                                            name={`perm_${module}`}
+                                            value={level}
+                                            checked={formData.permissions[module] === level}
+                                            onChange={() => handlePermissionChange(module, level)}
+                                            disabled={isLoading}
+                                        />
+                                        {level === 'none' ? 'No Access' : level === 'read' ? 'View Only' : 'Full Access'}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
-                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'ADDING SECRETARY...' : 'ADD SECRETARY'}</button>
+                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'ADDING...' : 'ADD SECRETARY'}</button>
                     </div>
                 </form>
             </div>
@@ -303,8 +315,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
-                        <h3 className={styles.modalTitle}>Success!</h3>
-                        <p className={styles.modalMessage}>New secretary has been successfully added. An activation email has been sent.</p>
+                        <h3 className={styles.modalTitle}>Secretary Added!</h3>
+                        <p className={styles.modalMessage}>The account has been created successfully. An activation email has been sent.</p>
                         <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
                     </div>
                 </div>

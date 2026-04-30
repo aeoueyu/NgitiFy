@@ -33,7 +33,7 @@ export default function AddDentist({ onClose, onSuccess }) {
         currentAddress: { ...initialAddressState },
         permanentAddress: { ...initialAddressState },
         permissions: { patients: 'none', appointments: 'none', inventory: 'none' },
-        assignedBranches: [],
+        assignedBranch: '',
     });
 
     const validateEmail = (email) => {
@@ -113,16 +113,9 @@ export default function AddDentist({ onClose, onSuccess }) {
         setFormData(prev => ({ ...prev, permissions: { ...prev.permissions, [module]: value } }));
     };
 
-    const handleBranchToggle = (branchName) => {
-        setFormData(prev => {
-            const already = prev.assignedBranches.includes(branchName);
-            return { ...prev, assignedBranches: already ? prev.assignedBranches.filter(b => b !== branchName) : [...prev.assignedBranches, branchName] };
-        });
-    };
-
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email'];
+        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email', 'assignedBranch'];
         required.forEach(f => { if (!formData[f]) { newErrors[f] = 'Required'; isValid = false; } });
         if (!formData.phone) { newErrors.phone = 'Required'; isValid = false; }
         else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
@@ -152,7 +145,8 @@ export default function AddDentist({ onClose, onSuccess }) {
             birthdate: formData.birthdate, gender: formData.gender,
             licenseNumber: formData.licenseNumber, specialization: formData.specialization,
             profileImage: profileImage,
-            assignedBranches: formData.assignedBranches,
+            assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : formData.assignedBranch,
+            assignedBranches: isBranchManager ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
             permissions: formData.permissions,
@@ -269,6 +263,41 @@ export default function AddDentist({ onClose, onSuccess }) {
                         </div>
                     </div>
 
+                    {/* Branch Assignment */}
+                    {(isBranchManager || branchOptions.length > 0) && (
+                        <>
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
+                            {isBranchManager ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                                    <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
+                                    <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className={styles.sectionSubtitle}>Select the branch this dentist is assigned to.</p>
+                                    <div className={styles.row}>
+                                        <div className={styles.formGroup}>
+                                            <label>BRANCH <span style={{ color: 'red' }}>*</span></label>
+                                            <select
+                                                className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`}
+                                                name="assignedBranch"
+                                                value={formData.assignedBranch}
+                                                onChange={handlePersonalChange}
+                                                disabled={isLoading}
+                                            >
+                                                <option value="" hidden>Select a branch</option>
+                                                {branchOptions.map(branch => <option key={branch} value={branch}>{branch}</option>)}
+                                            </select>
+                                            {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
+                                        </div>
+                                        <div className={styles.formGroup} />
+                                    </div>
+                                </>
+                            )}
+                        </>
+                    )}
+
                     {/* Address */}
                     <hr className={styles.divider} />
                     {renderAddressFields('currentAddress', 'Current Address')}
@@ -293,32 +322,6 @@ export default function AddDentist({ onClose, onSuccess }) {
                         <div className={styles.formGroup}><label>INVENTORY <span style={{ color: 'red' }}>*</span></label><select className={styles.inputField} value={formData.permissions.inventory} onChange={e => handlePermissionChange('inventory', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
                         <div className={styles.formGroup} />
                     </div>
-
-                    {/* Branch Assignment */}
-                    {(isBranchManager || branchOptions.length > 0) && (
-                        <>
-                            <hr className={styles.divider} />
-                            <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                            {isBranchManager ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                    <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
-                                    <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
-                                </div>
-                            ) : (
-                                <>
-                                    <p className={styles.sectionSubtitle}>Select the branches this dentist is assigned to.</p>
-                                    <div className={styles.branchChipsContainer}>
-                                        {branchOptions.map(branch => (
-                                            <label key={branch} className={`${styles.branchChip} ${formData.assignedBranches.includes(branch) ? styles.branchChipActive : ''}`}>
-                                                <input type="checkbox" checked={formData.assignedBranches.includes(branch)} onChange={() => handleBranchToggle(branch)} disabled={isLoading} />
-                                                {branch}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </>
-                    )}
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>

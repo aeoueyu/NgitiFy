@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaSearch, FaUserPlus, FaEdit, FaToggleOn, FaToggleOff, FaEnvelope, FaUserMd } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -16,7 +16,7 @@ export default function ManageOwners() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [verifiedFilter, setVerifiedFilter] = useState('All'); // ✅ ADDED
+    const [verifiedFilter, setVerifiedFilter] = useState('All');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -38,9 +38,7 @@ export default function ManageOwners() {
                             email: u.email || 'N/A',
                             status: u.status === 'active' ? 'Active' : 'Inactive',
                             isVerified: u.isVerified,
-                            isDentist: u.isDentist || false,
                             profileImage: u.profileImage,
-                            assignedBranches: u.assignedBranches || [],
                         }))
                 );
             }
@@ -58,10 +56,10 @@ export default function ManageOwners() {
             o.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             o.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || o.status === statusFilter;
-        const matchesVerified = verifiedFilter === 'All' ||   // ✅ ADDED
+        const matchesVerified = verifiedFilter === 'All' ||
                                 (verifiedFilter === 'Verified' && o.isVerified) ||
                                 (verifiedFilter === 'Unverified' && !o.isVerified);
-        return matchesSearch && matchesStatus && matchesVerified; // ✅ ADDED matchesVerified
+        return matchesSearch && matchesStatus && matchesVerified;
     });
 
     const handleToggleStatus = (owner) => {
@@ -149,7 +147,6 @@ export default function ManageOwners() {
                         <option value="Inactive">Inactive</option>
                     </select>
 
-                    {/* ✅ ADDED: Verified/Unverified pill filter */}
                     <div className={styles.pillGroup}>
                         <button className={`${styles.filterPill} ${verifiedFilter === 'All' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('All')}>All</button>
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
@@ -167,15 +164,13 @@ export default function ManageOwners() {
                             <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
                             <th>Owner Name</th>
                             <th>Email Address</th>
-                            <th>Dentist Access</th>
-                            <th>Assigned Branches</th>
                             <th style={{ width: '160px' }}>Account Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
+                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredOwners.length > 0 ? (
                             filteredOwners.map(owner => (
                                 <tr key={owner.id} style={{ opacity: owner.status === 'Inactive' ? 0.6 : 1 }}>
@@ -192,27 +187,19 @@ export default function ManageOwners() {
                                     </td>
                                     <td>{owner.email}</td>
                                     <td>
-                                        {owner.isDentist ? (
-                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#eff6ff', color: '#1d4ed8', padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
-                                                <FaUserMd style={{ fontSize: '11px' }} /> Dentist
-                                            </span>
-                                        ) : (
-                                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>—</span>
-                                        )}
-                                    </td>
-                                    <td>
-                                        {owner.assignedBranches.length > 0
-                                            ? owner.assignedBranches.join(', ')
-                                            : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>
-                                        }
-                                    </td>
-                                    <td>
                                         <span className={`${styles.statusDot} ${owner.status === 'Active' ? styles.activeDot : styles.inactiveDot}`} />
                                         <span style={{ fontWeight: '500', color: owner.status === 'Active' ? '#15803d' : '#b91c1c' }}>
                                             {owner.status}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
+                                        <button
+                                            className={styles.iconBtn}
+                                            onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
+                                            title="View Owner"
+                                        >
+                                            <FaEye />
+                                        </button>
                                         <button
                                             className={styles.iconBtn}
                                             onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
@@ -242,7 +229,7 @@ export default function ManageOwners() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No owners found.</td></tr>
+                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No owners found.</td></tr>
                         )}
                     </tbody>
                 </table>

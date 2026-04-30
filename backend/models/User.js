@@ -67,6 +67,9 @@ const userSchema = new mongoose.Schema({
         default: {}
     },
 
+    // Single-branch shortcut used by patient and branch-manager flows.
+    assignedBranch: { type: String, default: '' },
+
     // ✅ PHASE 2: Branch assignment for staff members
     assignedBranches: [{ type: String }], 
 

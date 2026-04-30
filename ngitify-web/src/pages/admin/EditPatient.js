@@ -82,7 +82,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                         guardianName: data.guardian?.name || '',
                         guardianRelationship: data.guardian?.relationship || '',
                         guardianContact: guardianPhone,
-                        assignedBranch: data.assignedBranch || '',
+                        assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
                         currentAddress: { ...initialAddressState, ...fetchedCurrent },
                         permanentAddress: { ...initialAddressState, ...fetchedPermanent }
                     };
@@ -203,6 +203,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
         else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
         if(formData.email && !validateEmail(formData.email)) { newErrors.email = "Invalid domain"; isValid=false; }
+        if (!isBranchManager && !formData.assignedBranch) { newErrors.assignedBranch = "Required"; isValid = false; }
 
         const validateAddr = (addr, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
@@ -232,6 +233,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             gender: formData.gender,
             profileImage: profileImage,
             assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : (formData.assignedBranch || undefined),
+            assignedBranches: isBranchManager ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
             guardian: isMinor ? {
                 name: formData.guardianName,
                 relationship: formData.guardianRelationship,
@@ -398,17 +400,18 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                             </p>
                                             <div className={styles.row}>
                                                 <div className={styles.formGroup}>
-                                                    <label>BRANCH</label>
+                                                    <label>BRANCH <span style={{color:'red'}}>*</span></label>
                                                     <select
-                                                        className={styles.inputField}
+                                                        className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`}
                                                         name="assignedBranch"
                                                         value={formData.assignedBranch}
                                                         onChange={handlePersonalChange}
                                                         disabled={isSaving}
                                                     >
-                                                        <option value="">No Branch (Walk-in)</option>
+                                                        <option value="" hidden>Select a branch</option>
                                                         {branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
                                                     </select>
+                                                    {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
                                                 </div>
                                                 <div className={styles.formGroup} />
                                             </div>

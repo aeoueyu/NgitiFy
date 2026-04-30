@@ -38,7 +38,7 @@ const normalizeSurgery = (s) => ({
     patientId:    s.patient?._id || s.patient,
     patientName:  s.patient?.name
         ? `${s.patient.name.first} ${s.patient.name.last}`
-        : 'Unknown Patient',
+        : (s.guestName || 'Unknown Patient'),
     patientImage: s.patient?.profileImage || null,
     dentistId:    s.dentist?._id || s.dentist,
     dentistName:  s.dentist?.name

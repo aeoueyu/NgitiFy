@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.page {
+    min-height: 100vh;
+    font-family: 'Lexend Deca', sans-serif;
+    background-color: #ffffff;
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.9), rgba(244, 251, 255, 0.92)),
+        url('../../assets/images/bg.svg');
+    background-size: 100% auto;
+    background-position: top center;
+    background-repeat: no-repeat;
+}
+
+.topBar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 18px;
+    padding: 16px 48px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 10px 35px rgba(7, 48, 78, 0.05);
+}
+
+.logoButton {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.logo {
+    height: 44px;
+    display: block;
+}
+
+.navLinks {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 12px;
+    justify-self: center;
+}
+
+.navItem {
+    position: relative;
+    color: #4a6272;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: color 0.25s ease;
+}
+
+.navItem::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -8px;
+    width: 100%;
+    height: 2px;
+    transform: scaleX(0);
+    transform-origin: left;
+    background: linear-gradient(90deg, #01538b, #2dccf6);
+    transition: transform 0.25s ease;
+}
+
+.navItem:hover,
+.activeNavItem {
+    color: #01538b;
+}
+
+.navItem:hover::after,
+.activeNavItem::after {
+    transform: scaleX(1);
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+}
+
+.loginBtn {
+    border: 1.5px solid #01538b;
+    background: #fff;
+    color: #01538b;
+    padding: 11px 28px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+}
+
+.loginBtn:hover {
+    background: #01538b;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.content {
+    padding: 0 48px 48px;
+}
+
+@media (max-width: 900px) {
+    .topBar {
+        display: flex;
+        padding: 16px 20px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .content {
+        padding: 0 20px 36px;
+    }
+
+    .navLinks {
+        gap: 12px 18px;
+        justify-content: flex-start;
+    }
+
+    .actions {
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 680px) {
+    .page {
+        background-size: 100% 100%;
+    }
+}

@@ -62,7 +62,16 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 const corsOptions = {
-    origin: ['http://localhost:3000', 'http://ngitify.com', 'https://ngitify.com', 'https://www.ngitify.com', 'https://ngitify.netlify.app'],
+    origin: [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://ngitify.com',
+        'https://ngitify.com',
+        'https://www.ngitify.com',
+        'https://ngitify.netlify.app'
+    ],
     credentials: true, 
 };
 app.use(helmet());
@@ -109,7 +118,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         }
 
         const assignedBranch = user.role === 'branch-manager'
-            ? (user.assignedBranches?.[0] || null)
+            ? (user.assignedBranch || user.assignedBranches?.[0] || null)
             : null;
 
         // ✅ PHASE 3: Include isDentist flag for owner-role users
@@ -180,6 +189,161 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
             </div>
         `
     });
+};
+
+const GUEST_APPOINTMENT_PROCEDURES = [
+    'Oral Prophylaxis (Cleaning)',
+    'Tooth Extraction',
+    'Dental Filling',
+    'Root Canal Treatment',
+    'Orthodontic Consultation',
+    'Dental Implant Consultation',
+    'Teeth Whitening',
+    'Dentures / Retainers',
+    'X-Ray / Imaging',
+    'Other / General Check-up',
+];
+
+const GUEST_FULL_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
+const GUEST_PHONE_REGEX = /^(?:\+63|0)\d{10}$/;
+const GUEST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const getClinicAllowedSlots = async () => {
+    let config = await SystemConfig.findOne();
+    if (!config) config = await SystemConfig.create({});
+    return config.allowedTimeSlots ||
+        ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+};
+
+const getTakenSlotsForDate = async ({ date, branch }) => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+
+    const query = {
+        date: { $gte: start, $lte: end },
+        status: { $in: ['pending', 'confirmed', 'in-clinic', 'completed'] },
+    };
+    if (branch) query.branch = branch;
+
+    const surgeries = await Surgery.find(query).select('time status');
+    return surgeries.map((s) => s.time).filter(Boolean);
+};
+
+const getBlockedDatesForMonth = async ({ branch, month }) => {
+    let start;
+    let end;
+
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+        const [y, m] = month.split('-').map(Number);
+        start = new Date(y, m - 1, 1, 0, 0, 0, 0);
+        end = new Date(y, m, 0, 23, 59, 59, 999);
+    } else {
+        start = new Date();
+        start.setHours(0, 0, 0, 0);
+        end = new Date();
+        end.setDate(end.getDate() + 60);
+        end.setHours(23, 59, 59, 999);
+    }
+
+    const allowedSlots = await getClinicAllowedSlots();
+    const totalSlots = allowedSlots.length;
+
+    const query = {
+        date: { $gte: start, $lte: end },
+        status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+    };
+    if (branch) query.branch = branch;
+
+    const appointments = await Surgery.find(query).select('date time');
+    const countByDate = new Map();
+
+    for (const appt of appointments) {
+        const key = new Date(appt.date).toISOString().split('T')[0];
+        const nextCount = (countByDate.get(key) || 0) + 1;
+        countByDate.set(key, nextCount);
+    }
+
+    return [...countByDate.entries()]
+        .filter(([, count]) => count >= totalSlots)
+        .map(([dateString]) => dateString);
+};
+
+const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, procedure }) => {
+    if (!email) return;
+
+    const appointmentDate = new Date(date);
+    const safeName = name || 'Patient';
+
+    await resend.emails.send({
+        from: 'NgitiFy Appointments <noreply@ngitify.com>',
+        to: email,
+        subject: 'Your Dentime appointment is confirmed',
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #005466;">Appointment Confirmed</h2>
+                <p>Hello ${safeName},</p>
+                <p>Your appointment request at Dentime Dental Clinic has been confirmed.</p>
+                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                    <p><strong>Branch:</strong> ${branch}</p>
+                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
+                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p><strong>Procedure:</strong> ${procedure}</p>
+                </div>
+                <p>If you need to update your appointment, please contact the clinic directly.</p>
+            </div>
+        `,
+    });
+};
+
+const notifyAppointmentManagers = async ({ appointmentId, patientName, procedure, date, branch }) => {
+    const message = `${patientName} requested an appointment for: ${procedure} on ${new Date(date).toDateString()} at ${branch}.`;
+    const notifications = [
+        {
+            type: 'NEW_APPOINTMENT',
+            title: 'New Appointment Request',
+            message,
+            recipientRole: 'administrator',
+            relatedId: appointmentId,
+        },
+        {
+            type: 'NEW_APPOINTMENT',
+            title: 'New Appointment Request',
+            message,
+            recipientRole: 'co-administrator',
+            relatedId: appointmentId,
+        },
+        {
+            type: 'NEW_APPOINTMENT',
+            title: 'New Appointment Request',
+            message,
+            recipientRole: 'owner',
+            relatedId: appointmentId,
+        },
+    ];
+
+    const branchScopedStaff = await User.find({
+        role: { $in: ['secretary', 'branch-manager'] },
+        status: 'active',
+        isArchived: { $ne: true },
+        $or: [
+            { assignedBranch: branch },
+            { assignedBranches: branch },
+        ],
+    }).select('_id');
+
+    for (const staff of branchScopedStaff) {
+        notifications.push({
+            type: 'NEW_APPOINTMENT',
+            title: 'New Appointment Request',
+            message,
+            recipientId: staff._id,
+            relatedId: appointmentId,
+        });
+    }
+
+    await Notification.insertMany(notifications);
 };
 
 app.post('/api/forgot-password', otpLimiter, async (req, res) => {
@@ -464,7 +628,7 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
             return res.status(403).json({ message: "Access denied. Admin only." });
         }
 
-        const { email, ...otherData } = req.body;
+        const { email, assignedBranch = '', ...otherData } = req.body;
 
         const existing = await User.findOne({ email });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
@@ -477,6 +641,8 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
         const newUser = new User({
             ...otherData,
             email, 
+            assignedBranch,
+            assignedBranches: assignedBranch ? [assignedBranch] : [],
             password: hashedPassword,
             role: 'branch-manager', // Explicitly setting the role
             isVerified: false, 
@@ -515,7 +681,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
         if (!['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: "Access denied." });
         }
-        const { email, ...otherData } = req.body;
+        const { email, assignedBranch = '', assignedBranches = [], ...otherData } = req.body;
 
         const existing = await User.findOne({ email });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
@@ -528,6 +694,8 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
         const newUser = new User({
             ...otherData,
             email,
+            assignedBranch,
+            assignedBranches: assignedBranch ? [assignedBranch] : assignedBranches,
             password: hashedPassword,
             role: 'patient',
             isVerified: false,
@@ -802,7 +970,10 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             currentAddress,
             permanentAddress,
             medicalHistory,
-            guardian
+            guardian,
+            profileImage,
+            assignedBranch,
+            assignedBranches
         } = req.body;
 
         const updateData = {
@@ -813,8 +984,17 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             currentAddress,
             permanentAddress,
             medicalHistory,
-            guardian
+            guardian,
+            profileImage
         };
+
+        if (assignedBranch !== undefined) {
+            updateData.assignedBranch = assignedBranch;
+            updateData.assignedBranches = assignedBranch ? [assignedBranch] : [];
+        } else if (Array.isArray(assignedBranches)) {
+            updateData.assignedBranches = assignedBranches;
+            updateData.assignedBranch = assignedBranches[0] || '';
+        }
 
         if (email && email !== currentPatient.email) {
             const emailExists = await User.findOne({ email, _id: { $ne: patientId } });
@@ -1040,6 +1220,12 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
         const userId = req.params.id;
         const currentUser = await User.findById(userId);
         if (!currentUser) return res.status(404).json({ message: "User not found" });
+
+        if (updateData.assignedBranch !== undefined) {
+            updateData.assignedBranches = updateData.assignedBranch ? [updateData.assignedBranch] : [];
+        } else if (Array.isArray(updateData.assignedBranches)) {
+            updateData.assignedBranch = updateData.assignedBranches[0] || '';
+        }
 
         // Co-admin escalation guard
         if (req.user.role === 'co-administrator') {
@@ -1755,6 +1941,36 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
 
         if (!updatedSurgery) return res.status(404).json({ message: 'Surgery not found.' });
 
+        const wasConfirmedNow = currentSurgery.status !== 'confirmed' && status === 'confirmed';
+        if (wasConfirmedNow) {
+            const patientName = updatedSurgery.patient?.name
+                ? `${updatedSurgery.patient.name.first || ''} ${updatedSurgery.patient.name.last || ''}`.trim()
+                : (updatedSurgery.guestName || 'Patient');
+            const patientEmail = updatedSurgery.patient?.email || updatedSurgery.guestEmail || '';
+
+            if (updatedSurgery.patient?._id) {
+                await Notification.create({
+                    type: 'APPOINTMENT_CONFIRMED',
+                    title: 'Appointment Confirmed',
+                    message: `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} has been confirmed.`,
+                    recipientId: updatedSurgery.patient._id,
+                    recipientRole: 'patient',
+                    relatedId: updatedSurgery._id,
+                });
+            }
+
+            if (patientEmail) {
+                await sendAppointmentConfirmedEmail({
+                    email: patientEmail,
+                    name: patientName,
+                    branch: updatedSurgery.branch,
+                    date: updatedSurgery.date,
+                    time: updatedSurgery.time,
+                    procedure: updatedSurgery.procedure,
+                });
+            }
+        }
+
         await AuditLog.create({
             action: 'UPDATE_SURGERY_STATUS',
             user: req.user?.email || req.user?.id,
@@ -1766,6 +1982,151 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error updating surgery status:', error);
         res.status(500).json({ message: 'Server error updating surgery status.' });
+    }
+});
+
+app.get('/api/public/appointments/slots', async (req, res) => {
+    try {
+        const { date, branch } = req.query;
+
+        if (!date) {
+            return res.status(400).json({ message: 'date query parameter is required.' });
+        }
+
+        const allowedSlots = await getClinicAllowedSlots();
+        const takenSlots = await getTakenSlotsForDate({ date, branch });
+
+        res.json({ allowedSlots, takenSlots });
+    } catch (error) {
+        console.error('Error fetching public appointment slots:', error);
+        res.status(500).json({ message: 'Server error fetching appointment slots.' });
+    }
+});
+
+app.get('/api/public/appointments/blocked-dates', async (req, res) => {
+    try {
+        const { branch, month } = req.query;
+        const blockedDates = await getBlockedDatesForMonth({ branch, month });
+        res.json({ blockedDates });
+    } catch (error) {
+        console.error('Error fetching public blocked dates:', error);
+        res.status(500).json({ message: 'Server error fetching blocked dates.' });
+    }
+});
+
+app.post('/api/public/appointments/request', async (req, res) => {
+    try {
+        const {
+            fullName,
+            phone,
+            email,
+            branch,
+            date,
+            time,
+            procedure,
+            notes,
+        } = req.body;
+
+        if (!fullName || !phone || !email || !branch || !date || !time || !procedure || !notes) {
+            return res.status(400).json({ message: 'All appointment request fields are required.' });
+        }
+
+        const normalizedName = String(fullName).trim().replace(/\s+/g, ' ');
+        const normalizedPhone = String(phone).trim();
+        const normalizedEmail = String(email).trim().toLowerCase();
+        const normalizedBranch = String(branch).trim();
+        const normalizedProcedure = String(procedure).trim();
+        const normalizedNotes = String(notes).trim();
+
+        if (!GUEST_FULL_NAME_REGEX.test(normalizedName)) {
+            return res.status(400).json({ message: 'Please enter a valid full name.' });
+        }
+
+        if (!GUEST_PHONE_REGEX.test(normalizedPhone)) {
+            return res.status(400).json({ message: 'Please enter a valid Philippine contact number.' });
+        }
+
+        if (!GUEST_EMAIL_REGEX.test(normalizedEmail)) {
+            return res.status(400).json({ message: 'Please enter a valid email address.' });
+        }
+
+        if (!GUEST_APPOINTMENT_PROCEDURES.includes(normalizedProcedure)) {
+            return res.status(400).json({ message: 'Please select a valid procedure.' });
+        }
+
+        const branchRecord = await Branch.findOne({ name: normalizedBranch, isActive: true }).select('name');
+        if (!branchRecord) {
+            return res.status(400).json({ message: 'Selected branch is not available.' });
+        }
+
+        const appointmentDate = new Date(`${date}T12:00:00`);
+        if (Number.isNaN(appointmentDate.getTime())) {
+            return res.status(400).json({ message: 'Please select a valid appointment date.' });
+        }
+
+        if (appointmentDate.getDay() === 0) {
+            return res.status(400).json({ message: 'Appointments cannot be requested on Sundays.' });
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (appointmentDate < today) {
+            return res.status(400).json({ message: 'Please select today or a future date.' });
+        }
+
+        const allowedSlots = await getClinicAllowedSlots();
+        if (!allowedSlots.includes(time)) {
+            return res.status(400).json({ message: 'Please select a valid appointment time.' });
+        }
+
+        const requestedDateTime = new Date(`${date}T${time}:00`);
+        const now = new Date();
+        if (requestedDateTime.getTime() <= now.getTime() + (30 * 60 * 1000)) {
+            return res.status(400).json({ message: 'Please choose a later appointment time.' });
+        }
+
+        const takenSlots = await getTakenSlotsForDate({ date, branch: normalizedBranch });
+        if (takenSlots.includes(time)) {
+            return res.status(409).json({ message: 'That time slot is no longer available. Please choose another time.' });
+        }
+
+        const newSurgery = new Surgery({
+            guestName: normalizedName,
+            guestPhone: normalizedPhone,
+            guestEmail: normalizedEmail,
+            branch: normalizedBranch,
+            date: new Date(date),
+            time,
+            procedure: normalizedProcedure,
+            notes: normalizedNotes,
+            status: 'pending',
+            source: 'Smile Hub (Online)',
+        });
+
+        await newSurgery.save();
+
+        await AuditLog.create({
+            action: 'GUEST_APPOINTMENT_REQUEST',
+            user: normalizedEmail,
+            role: 'guest',
+            details: `Guest ${normalizedName} requested ${normalizedProcedure} on ${new Date(date).toDateString()} at ${normalizedBranch}.`,
+        });
+
+        await notifyAppointmentManagers({
+            appointmentId: newSurgery._id,
+            patientName: normalizedName,
+            procedure: normalizedProcedure,
+            date,
+            branch: normalizedBranch,
+        });
+
+        res.status(201).json({
+            message: 'Appointment request submitted successfully. The clinic will email you once it is confirmed.',
+            surgery: newSurgery,
+        });
+    } catch (error) {
+        console.error('Error submitting public appointment request:', error);
+        res.status(500).json({ message: 'Server error submitting appointment request.' });
     }
 });
 
@@ -1813,22 +2174,13 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             details: `Patient ${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}`
         });
 
-        await Notification.insertMany([
-            {
-                type: 'NEW_APPOINTMENT',
-                title: 'New Appointment Request',
-                message: `${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}.`,
-                recipientRole: 'administrator',
-                relatedId: newSurgery._id
-            },
-            {
-                type: 'NEW_APPOINTMENT',
-                title: 'New Appointment Request',
-                message: `${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}.`,
-                recipientRole: 'owner',
-                relatedId: newSurgery._id
-            }
-        ]);
+        await notifyAppointmentManagers({
+            appointmentId: newSurgery._id,
+            patientName: `${patientUser.name.first} ${patientUser.name.last}`.trim(),
+            procedure,
+            date,
+            branch,
+        });
 
         res.status(201).json({
             message: 'Appointment request submitted successfully. You will be notified once confirmed.',
