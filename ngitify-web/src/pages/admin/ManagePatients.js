@@ -41,14 +41,15 @@ export default function ManagePatients() {
 
     const [confirmConfig, setConfirmConfig] = useState(null);
 
+    const isSecretary = user?.role === 'secretary';
     const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager' || user?.role === 'owner';
 
     useEffect(() => {
-        if (location.state?.openAddModal && canEditPatients) {
+        if (location.state?.openAddModal && canEditPatients && !isSecretary) {
             setIsAddModalOpen(true);
             navigate(location.pathname, { replace: true, state: {} });
         }
-    }, [location, navigate, canEditPatients]);
+    }, [location, navigate, canEditPatients, isSecretary]);
 
     // Fetch branches from API so the filter always reflects admin-created branches
     const fetchBranches = useCallback(async () => {
@@ -174,15 +175,23 @@ export default function ManagePatients() {
         }
     };
 
-    const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedPatientId(id); setIsEditModalOpen(true); };
+    const handleEditClick = (id) => {
+        if (isSecretary) {
+            navigate(`/secretary/patients/${id}/edit`);
+            return;
+        }
+        setIsViewModalOpen(false);
+        setSelectedPatientId(id);
+        setIsEditModalOpen(true);
+    };
     const handleViewClick = (id) => {
+        if (isSecretary) {
+            navigate(`/secretary/patients/${id}`);
+            return;
+        }
         setIsEditModalOpen(false);
         setSelectedPatientId(id);
-        if (user?.role === 'secretary') {
-            setIsViewModalOpen(true);
-        } else {
-            setIsEMRModalOpen(true);
-        }
+        setIsEMRModalOpen(true);
     };
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedPatientId(null); };
     const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedPatientId(null); };
@@ -206,7 +215,10 @@ export default function ManagePatients() {
                     <p className={styles.subtitle}>View, filter, and manage clinic patient records.</p>
                 </div>
                 {canEditPatients && (
-                    <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
+                    <button
+                        className={styles.addBtn}
+                        onClick={() => isSecretary ? navigate('/secretary/patients/add') : setIsAddModalOpen(true)}
+                    >
                         <FaUserPlus className={styles.btnIcon} /> Add New Patient
                     </button>
                 )}
@@ -242,16 +254,18 @@ export default function ManagePatients() {
                     </div>
 
                     {/* Branch filter populated from admin-added branches */}
-                    <select
-                        className={styles.filterSelect}
-                        value={branchFilter}
-                        onChange={(e) => setBranchFilter(e.target.value)}
-                    >
-                        <option value="All">All Branches</option>
-                        {branchOptions.map(branch => (
-                            <option key={branch} value={branch}>{branch}</option>
-                        ))}
-                    </select>
+                    {!isSecretary && (
+                        <select
+                            className={styles.filterSelect}
+                            value={branchFilter}
+                            onChange={(e) => setBranchFilter(e.target.value)}
+                        >
+                            <option value="All">All Branches</option>
+                            {branchOptions.map(branch => (
+                                <option key={branch} value={branch}>{branch}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
             </div>
 

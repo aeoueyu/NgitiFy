@@ -57,26 +57,34 @@
 }
 
 .nav-icon {
-    width: 20px; height: 20px; margin-right: 12px;
-    transition: filter 0.2s ease-in-out;
-    filter: invert(43%) sepia(3%) saturate(11%) hue-rotate(334deg) brightness(95%) contrast(88%);
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    flex-shrink: 0;
+    color: #666666;
+    font-size: 18px;
+    transition: color 0.2s ease-in-out;
 }
 
-.dropdown-item .nav-icon { width: 18px; height: 18px; }
+.dropdown-item .nav-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 16px;
+}
 
 .nav-item:hover, .dropdown-item:hover {
     background-color: rgba(1, 83, 139, 0.05);
     color: #01538b;
 }
 
-.nav-item:hover .nav-icon, .dropdown-item:hover .nav-icon { filter: grayscale(0%) opacity(1); }
+.nav-item:hover .nav-icon, .dropdown-item:hover .nav-icon { color: #01538b; }
 
 .nav-item.active, .dropdown-item.active {
     background-color: #01538b; color: white;
     box-shadow: 0 4px 12px rgba(1, 83, 139, 0.25);
 }
 
-.nav-item.active .nav-icon, .dropdown-item.active .nav-icon { filter: brightness(0) invert(1); }
+.nav-item.active .nav-icon, .dropdown-item.active .nav-icon { color: white; }
 
 .dropdown-menu {
     background-color: transparent; padding: 0; margin-top: 5px;
@@ -127,7 +135,7 @@
 }
 
 .settings-link:hover { background-color: rgba(1, 83, 139, 0.05); color: #01538b; }
-.settings-link .nav-icon { width: 20px; height: 20px; margin-right: 12px; transition: color 0.2s, filter 0.2s; color: #666; }
+.settings-link .nav-icon { width: 20px; height: 20px; margin-right: 12px; transition: color 0.2s ease; color: #666; }
 .settings-link:hover .nav-icon { color: #01538b; }
 
 /* TASK 1.2: Added active state for footer links */
@@ -137,7 +145,6 @@
 }
 .settings-link.active .nav-icon {
     color: #01538b;
-    filter: brightness(0) saturate(100%) invert(21%) sepia(87%) saturate(1915%) hue-rotate(188deg) brightness(94%) contrast(98%);
 }
 
 /* ── AI Chat badge ─────────────────────────────────────────────────────────── */

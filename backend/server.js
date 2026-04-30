@@ -117,7 +117,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             return res.status(403).json({ message: "Your account is inactive. Please contact an administrator." });
         }
 
-        const assignedBranch = user.role === 'branch-manager'
+        const assignedBranch = ['branch-manager', 'secretary'].includes(user.role)
             ? (user.assignedBranch || user.assignedBranches?.[0] || null)
             : null;
 
@@ -268,6 +268,19 @@ const getBlockedDatesForMonth = async ({ branch, month }) => {
     return [...countByDate.entries()]
         .filter(([, count]) => count >= totalSlots)
         .map(([dateString]) => dateString);
+};
+
+const getScopedBranchForUser = (user) => {
+    if (!user) return null;
+    return user.assignedBranch || user.assignedBranches?.[0] || null;
+};
+
+const isBranchScopedStaff = (role) => ['branch-manager', 'secretary'].includes(role);
+
+const patientBelongsToBranch = (patient, branch) => {
+    if (!patient || !branch) return false;
+    const patientBranches = patient.assignedBranches || (patient.assignedBranch ? [patient.assignedBranch] : []);
+    return patientBranches.includes(branch);
 };
 
 const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, procedure }) => {
@@ -682,6 +695,18 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             return res.status(403).json({ message: "Access denied." });
         }
         const { email, assignedBranch = '', assignedBranches = [], ...otherData } = req.body;
+        const scopedBranch = getScopedBranchForUser(req.user);
+
+        let normalizedAssignedBranch = assignedBranch;
+        let normalizedAssignedBranches = assignedBranch ? [assignedBranch] : assignedBranches;
+
+        if (isBranchScopedStaff(req.user.role)) {
+            if (!scopedBranch) {
+                return res.status(403).json({ message: 'Assigned branch is required for this account.' });
+            }
+            normalizedAssignedBranch = scopedBranch;
+            normalizedAssignedBranches = [scopedBranch];
+        }
 
         const existing = await User.findOne({ email });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
@@ -694,8 +719,8 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
         const newUser = new User({
             ...otherData,
             email,
-            assignedBranch,
-            assignedBranches: assignedBranch ? [assignedBranch] : assignedBranches,
+            assignedBranch: normalizedAssignedBranch,
+            assignedBranches: normalizedAssignedBranches,
             password: hashedPassword,
             role: 'patient',
             isVerified: false,
@@ -909,10 +934,10 @@ app.get('/api/patients', verifyToken, async (req, res) => {
 
         const baseFilter = { role: 'patient' };
 
-        // Branch managers only see patients in their branch
-        if (req.user.role === 'branch-manager') {
+        // Branch-scoped staff only see patients in their assigned branch
+        if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
             if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
             baseFilter.assignedBranches = { $in: [req.user.assignedBranch] };
         }
@@ -939,6 +964,18 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
     try {
         const patient = await User.findById(req.params.id).select('-password');
         if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+        if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
+            }
+
+            const patientBranches = patient.assignedBranches || (patient.assignedBranch ? [patient.assignedBranch] : []);
+            if (!patientBranches.includes(req.user.assignedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
+
         res.json(patient);
     } catch (error) {
         res.status(500).json({ message: "Server error." });
@@ -952,6 +989,17 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
 
         const currentPatient = await User.findById(patientId);
         if (!currentPatient) return res.status(404).json({ message: "Patient not found" });
+
+        if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
+            }
+
+            const patientBranches = currentPatient.assignedBranches || (currentPatient.assignedBranch ? [currentPatient.assignedBranch] : []);
+            if (!patientBranches.includes(req.user.assignedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
 
         // Phase 5: Secretary cannot escalate or modify sensitive user fields
         if (req.user.role === 'secretary') {
@@ -988,7 +1036,10 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             profileImage
         };
 
-        if (assignedBranch !== undefined) {
+        if (req.user.role === 'secretary' && req.user.assignedBranch) {
+            updateData.assignedBranch = req.user.assignedBranch;
+            updateData.assignedBranches = [req.user.assignedBranch];
+        } else if (assignedBranch !== undefined) {
             updateData.assignedBranch = assignedBranch;
             updateData.assignedBranches = assignedBranch ? [assignedBranch] : [];
         } else if (Array.isArray(assignedBranches)) {
@@ -1737,13 +1788,20 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
     try {
         const surgeryData = { ...req.body };
 
-        // Branch managers can only create appointments for their own branch
-        if (req.user.role === 'branch-manager') {
-            if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+        // Branch-scoped staff can only create appointments for their own branch
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch) {
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
-            // Override whatever branch was sent from the frontend
-            surgeryData.branch = req.user.assignedBranch;
+            surgeryData.branch = scopedBranch;
+        }
+
+        if (req.user.role === 'secretary' && surgeryData.patient) {
+            const patient = await User.findById(surgeryData.patient).select('assignedBranch assignedBranches');
+            if (!patientBelongsToBranch(patient, surgeryData.branch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
         }
 
         const newSurgery = new Surgery(surgeryData);
@@ -1773,8 +1831,7 @@ app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
             .populate('dentist', 'name email role');
         if (!surgery) return res.status(404).json({ message: "Surgery not found" });
 
-        // Branch managers can only view surgeries from their own branch
-        if (req.user.role === 'branch-manager' && surgery.branch !== req.user.assignedBranch) {
+        if (isBranchScopedStaff(req.user.role) && surgery.branch !== getScopedBranchForUser(req.user)) {
             return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
         }
 
@@ -1787,17 +1844,17 @@ app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
 
 app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
     try {
-        // Branch managers can only edit surgeries in their own branch
-        if (req.user.role === 'branch-manager') {
-            if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch) {
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
             const existing = await Surgery.findById(req.params.id);
             if (!existing) return res.status(404).json({ message: "Surgery not found" });
-            if (existing.branch !== req.user.assignedBranch) {
+            if (existing.branch !== scopedBranch) {
                 return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
             }
-            // Prevent branch-manager from changing the branch field
+            // Prevent branch-scoped staff from changing the branch field
             delete req.body.branch;
         }
 
@@ -1824,14 +1881,14 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        // Branch managers can only delete surgeries in their own branch
-        if (req.user.role === 'branch-manager') {
-            if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch) {
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
             const existing = await Surgery.findById(req.params.id);
             if (!existing) return res.status(404).json({ message: "Surgery not found" });
-            if (existing.branch !== req.user.assignedBranch) {
+            if (existing.branch !== scopedBranch) {
                 return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
             }
         }
@@ -1870,12 +1927,12 @@ app.get('/api/surgeries', verifyToken, async (req, res) => {
         if (req.user.role === 'dentist') {
             // Dentists are always scoped to their own appointments only
             query.dentist = req.user.id;
-        } else if (req.user.role === 'branch-manager') {
-            // Branch managers are scoped to their assigned branch
-            if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+        } else if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch) {
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
-            query.branch = req.user.assignedBranch;
+            query.branch = scopedBranch;
             if (req.query.dentistId) query.dentist = req.query.dentistId;
         } else {
             // Admin/co-admin roles can filter by dentistId via query param
@@ -1922,6 +1979,13 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
         const TERMINAL_STATUSES = ['completed', 'cancelled'];
         const currentSurgery = await Surgery.findById(req.params.id);
         if (!currentSurgery) return res.status(404).json({ message: 'Surgery not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch || currentSurgery.branch !== scopedBranch) {
+                return res.status(403).json({ message: 'Access denied. This appointment belongs to a different branch.' });
+            }
+        }
 
         if (TERMINAL_STATUSES.includes(currentSurgery.status) && req.user.role !== 'administrator') {
             return res.status(400).json({ message: 'Cannot change status of a completed or cancelled appointment.' });
@@ -2326,8 +2390,15 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const patient = await User.findById(req.params.id).select('treatmentLogs name');
+        const patient = await User.findById(req.params.id).select('treatmentLogs name assignedBranch assignedBranches');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
 
         const sorted = (patient.treatmentLogs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
@@ -2431,8 +2502,15 @@ app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, r
 
 app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
     try {
-        const patient = await User.findById(req.params.id).select('odontogram name');
+        const patient = await User.findById(req.params.id).select('odontogram name assignedBranch assignedBranches');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
 
         const odontogramObj = patient.odontogram
             ? Object.fromEntries(patient.odontogram)
@@ -2499,8 +2577,15 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const patient = await User.findById(req.params.id).select('radiographs name');
+        const patient = await User.findById(req.params.id).select('radiographs name assignedBranch assignedBranches');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
 
         const sorted = (patient.radiographs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
@@ -3486,9 +3571,19 @@ app.post('/api/queue', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied.' });
         }
  
+        const scopedBranch = isBranchScopedStaff(req.user.role) ? getScopedBranchForUser(req.user) : null;
         const { patientName, branch, assignedDentist, procedureType, contactNumber, patientId } = req.body;
-        if (!patientName || !branch) {
+        const normalizedBranch = (scopedBranch || branch || '').trim();
+
+        if (!patientName || !normalizedBranch) {
             return res.status(400).json({ message: 'Patient name and branch are required.' });
+        }
+
+        if (patientId) {
+            const patient = await User.findById(patientId).select('assignedBranch assignedBranches');
+            if (!patient || !patientBelongsToBranch(patient, normalizedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
         }
  
         // Auto-increment ticket number: max today's ticket + 1 per branch
@@ -3496,7 +3591,7 @@ app.post('/api/queue', verifyToken, async (req, res) => {
         startOfDay.setHours(0, 0, 0, 0);
  
         const last = await Queue.findOne({
-            branch,
+            branch: normalizedBranch,
             createdAt: { $gte: startOfDay }
         }).sort({ ticketNumber: -1 });
  
@@ -3504,7 +3599,7 @@ app.post('/api/queue', verifyToken, async (req, res) => {
  
         const entry = await Queue.create({
             patientName: patientName.trim(),
-            branch: branch.trim(),
+            branch: normalizedBranch,
             ticketNumber,
             assignedDentist: assignedDentist || '',
             procedureType: procedureType || '',
@@ -3516,7 +3611,7 @@ app.post('/api/queue', verifyToken, async (req, res) => {
             action: 'QUEUE_CREATE',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Walk-in ticket #${ticketNumber} created for ${patientName} at ${branch}.`
+            details: `Walk-in ticket #${ticketNumber} created for ${patientName} at ${normalizedBranch}.`
         });
  
         res.status(201).json(entry);
@@ -3536,16 +3631,15 @@ app.get('/api/queue', verifyToken, async (req, res) => {
  
         const filter = {};
  
-        // Branch managers are locked to their own branch only
-        if (req.user.role === 'branch-manager') {
-            if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch) {
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
-            // Reject if they try to query a different branch
-            if (req.query.branch && req.query.branch !== req.user.assignedBranch) {
+            if (req.query.branch && req.query.branch !== scopedBranch) {
                 return res.status(403).json({ message: 'Access denied. You can only view your assigned branch queue.' });
             }
-            filter.branch = req.user.assignedBranch;
+            filter.branch = scopedBranch;
         } else if (req.query.branch) {
             filter.branch = req.query.branch;
         }
@@ -3576,12 +3670,21 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Invalid status value.' });
         }
  
+        const existingEntry = await Queue.findById(req.params.id);
+        if (!existingEntry) return res.status(404).json({ message: 'Queue entry not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch || existingEntry.branch !== scopedBranch) {
+                return res.status(403).json({ message: 'Access denied. This queue entry belongs to a different branch.' });
+            }
+        }
+
         const update = { status };
         if (status === 'serving') update.calledAt = new Date();
         if (status === 'done' || status === 'skipped') update.completedAt = new Date();
  
         const entry = await Queue.findByIdAndUpdate(req.params.id, update, { new: true });
-        if (!entry) return res.status(404).json({ message: 'Queue entry not found.' });
  
         await AuditLog.create({
             action: 'QUEUE_UPDATE',
@@ -3605,6 +3708,16 @@ app.delete('/api/queue/:id', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied.' });
         }
  
+        const existingEntry = await Queue.findById(req.params.id);
+        if (!existingEntry) return res.status(404).json({ message: 'Queue entry not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch || existingEntry.branch !== scopedBranch) {
+                return res.status(403).json({ message: 'Access denied. This queue entry belongs to a different branch.' });
+            }
+        }
+
         const entry = await Queue.findByIdAndDelete(req.params.id);
         if (!entry) return res.status(404).json({ message: 'Queue entry not found.' });
  

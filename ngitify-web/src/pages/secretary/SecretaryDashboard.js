@@ -1,11 +1,10 @@
 // ngitify-web/src/pages/secretary/SecretaryDashboard.js
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/secretary/SecretaryDashboard.module.css';
 import { 
     FaClock, FaUserInjured, FaClipboardList, 
-    FaUserPlus, FaRegCalendarCheck, FaCheck, FaUserMd
+    FaUserPlus, FaRegCalendarCheck, FaCheck, FaUserMd, FaListUl
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -13,7 +12,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { formatWeekdayDate, formatTime, formatDateShort } from '../../utils/dateUtils';
-import UserAvatar from '../../components/common/UserAvatar';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
 const PH_HOLIDAYS = [
@@ -35,18 +33,16 @@ const STATUS_DISPLAY = {
 
 export default function SecretaryDashboard() {
     const { user, logout } = useAuth();
-    const navigate = useNavigate(); 
     const { addToast } = useToast();
     
     const [currentTime, setCurrentTime] = useState(new Date());
     
     // Data States
-    const [secretaryProfile, setSecretaryProfile] = useState(null);
     const [allAppointments, setAllAppointments] = useState([]);
     const [newRegistrations, setNewRegistrations] = useState(0);
+    const [queueSummary, setQueueSummary] = useState({ waiting: 0, serving: 0, total: 0 });
     
     // UI States
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false); 
     const [checkInTarget, setCheckInTarget] = useState(null);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
@@ -63,22 +59,17 @@ export default function SecretaryDashboard() {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const userId = user?.id || user?._id;
-                if (userId) {
-                    const profileRes = await authFetch(`/user/${userId}`);
-                    if (profileRes.ok) {
-                        const profileData = await profileRes.json();
-                        setSecretaryProfile(profileData);
-                    }
-                }
-
                 const statsRes = await authFetch('/dashboard/stats');
                 if (statsRes.ok) {
                     const statsData = await statsRes.json();
                     setNewRegistrations(statsData.newRegistrations ?? 0);
                 }
 
-                const surgRes = await authFetch('/surgeries');
+                const [surgRes, queueRes] = await Promise.all([
+                    authFetch('/surgeries'),
+                    authFetch('/queue'),
+                ]);
+
                 if (surgRes.ok) {
                     const surgData = await surgRes.json();
                     const mapped = surgData.map(s => ({
@@ -86,7 +77,7 @@ export default function SecretaryDashboard() {
                         patientId: s.patient?._id || '',
                         patientName: s.patient?.name
                             ? `${s.patient.name.first || ''} ${s.patient.name.last || ''}`.trim()
-                            : 'Unknown Patient',
+                            : (s.guestName || 'Unknown Patient'),
                         dentistName: s.dentist?.name
                             ? `Dr. ${s.dentist.name.first || ''} ${s.dentist.name.last || ''}`.trim()
                             : 'Unassigned',
@@ -98,6 +89,15 @@ export default function SecretaryDashboard() {
                         rawDate: new Date(s.date),
                     }));
                     setAllAppointments(mapped.sort((a, b) => a.rawDate - b.rawDate));
+                }
+
+                if (queueRes.ok) {
+                    const queueData = await queueRes.json();
+                    setQueueSummary({
+                        waiting: queueData.filter(item => item.status === 'waiting').length,
+                        serving: queueData.filter(item => item.status === 'serving').length,
+                        total: queueData.length,
+                    });
                 }
 
             } catch (error) {
@@ -186,14 +186,6 @@ export default function SecretaryDashboard() {
         }
     };
 
-    const secName = secretaryProfile?.name?.first 
-        ? `${secretaryProfile.name.first} ${secretaryProfile.name.last}` 
-        : user?.name?.first 
-            ? `${user.name.first} ${user.name.last}` 
-            : 'Secretary';
-            
-    const profilePic = secretaryProfile?.profileImage || user?.profileImage;
-
     // --- CHECK IN LOGIC ---
     const handleConfirmCheckIn = async () => {
         if (!checkInTarget) return;
@@ -268,6 +260,17 @@ export default function SecretaryDashboard() {
                         </div>
                         <h2 className={styles['stat-value']}>{newRegistrations}</h2>
                         <p className={styles['stat-desc']}>Patients added today</p>
+                    </div>
+
+                    <div className={styles['stat-card']}>
+                        <div className={styles['stat-header']}>
+                            <p className={styles['stat-title']}>Live Queue</p>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-blue']}`}>
+                                <FaListUl className={`${styles['stat-icon']} ${styles['raw']}`} />
+                            </div>
+                        </div>
+                        <h2 className={styles['stat-value']}>{queueSummary.total}</h2>
+                        <p className={styles['stat-desc']}>{queueSummary.waiting} waiting, {queueSummary.serving} serving</p>
                     </div>
                 </div>
 

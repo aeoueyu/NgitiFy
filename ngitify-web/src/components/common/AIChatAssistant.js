@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styles from './AIChatAssistant.module.css';
 import { FaTimes, FaRobot, FaPaperPlane, FaTrash, FaChevronDown } from 'react-icons/fa';
-
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { BASE_URL } from '../../utils/api';
 
 const QUICK_PROMPTS = [
     'What materials are needed for a tooth extraction?',
