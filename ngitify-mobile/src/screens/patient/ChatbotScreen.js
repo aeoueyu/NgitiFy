@@ -31,6 +31,14 @@ export default function ChatbotScreen({ navigation }) {
         }, 100);
     };
 
+    const buildConversationHistory = (conversation) => conversation
+        .filter(message => message.sender === 'user' || (message.sender === 'bot' && message.id !== '1'))
+        .slice(-10)
+        .map(message => ({
+            role: message.sender === 'user' ? 'user' : 'assistant',
+            content: message.text
+        }));
+
     const handleSend = async () => {
         const text = inputText.trim();
         if (!text) return;
@@ -42,12 +50,7 @@ export default function ChatbotScreen({ navigation }) {
         scrollToBottom();
 
         try {
-            const history = [...messages, userMsg]
-                .slice(-10)
-                .map(m => ({
-                    role: m.sender === 'user' ? 'user' : 'assistant',
-                    content: m.text
-                }));
+            const history = buildConversationHistory([...messages, userMsg]);
 
             // ← was: `${API_URL}/api/chatbot/message`
             const response = await fetch(`${API_BASE_URL}/api/chatbot/message`, {

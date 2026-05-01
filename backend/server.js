@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 // ── Fail fast: crash at startup if any required env var is missing ──
-const REQUIRED_ENV_VARS = ['JWT_SECRET', 'MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL'];
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL', 'ANTHROPIC_API_KEY'];
 REQUIRED_ENV_VARS.forEach(key => {
     if (!process.env[key]) {
         console.error(`❌ Missing required environment variable: ${key}`);
@@ -17,7 +17,6 @@ const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
-const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
 
 const loginLimiter = rateLimit({
@@ -60,6 +59,18 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const defaultJsonParser = express.json({ limit: '1mb' });
+const defaultFormParser = express.urlencoded({ limit: '1mb', extended: true });
+const largeJsonParser = express.json({ limit: '50mb' });
+const isLargePayloadRoute = (req) => {
+    if (req.method === 'POST' && /^\/api\/patients\/[^/]+\/radiographs$/.test(req.path)) {
+        return true;
+    }
+    if (req.method === 'POST' && req.path === '/api/radiographs/enhance') {
+        return true;
+    }
+    return false;
+};
 
 // Middleware
 const corsOptions = {
@@ -68,7 +79,6 @@ const corsOptions = {
         'http://127.0.0.1:3000',
         'http://localhost:5173',
         'http://127.0.0.1:5173',
-        'http://ngitify.com',
         'https://ngitify.com',
         'https://www.ngitify.com',
         'https://ngitify.netlify.app'
@@ -77,11 +87,13 @@ const corsOptions = {
 };
 app.use(helmet());
 app.use(cors(corsOptions));
+app.use((req, res, next) => {
+    const parser = isLargePayloadRoute(req) ? largeJsonParser : defaultJsonParser;
+    parser(req, res, next);
+});
+app.use(defaultFormParser);
 app.use('/api', backupRoutes);
 app.use('/api', integrityRoutes);
-
-app.use(express.json({ limit: '50mb' })); 
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -526,11 +538,14 @@ app.post('/api/verify-otp', otpLimiter, async (req, res) => {
 
 app.post('/api/reset-password', otpLimiter, async (req, res) => {
     try {
-        const { email, newPassword } = req.body;
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ message: "Email, OTP, and new password are required." });
+        }
         
         const user = await User.findOne({ 
             email,
-            resetPasswordOtp: { $exists: true, $ne: null },
+            resetPasswordOtp: otp,
             resetPasswordExpires: { $gt: Date.now() }
         });
 
@@ -2769,6 +2784,10 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'dentist', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -3157,6 +3176,10 @@ app.patch('/api/my/settings', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'dentist', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const { itemsUsed, patientId, surgeryId } = req.body;
 
@@ -3762,7 +3785,7 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
 const aiChatLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 20,
-    keyGenerator: (req) => req.user?.id || ipKeyGenerator(req),
+    keyGenerator: (req) => req.user?.id || req.ip,
     message: { message: 'Too many AI requests. Please wait before trying again.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -4538,95 +4561,96 @@ app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
     let session;
     try {
         session = await mongoose.startSession();
-        // 1. Verify the current admin's password
-        const adminUser = await User.findById(req.user.id).session(session);
-        if (!adminUser) return res.status(404).json({ message: 'Administrator account not found.' });
-
-        const isPasswordValid = await bcrypt.compare(currentPassword, adminUser.password);
-        if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Incorrect password. Ownership transfer cancelled.' });
-        }
-
-        // 2. Find and validate the target co-admin
-        const targetUser = await User.findById(targetCoAdminId).session(session);
-        if (!targetUser) return res.status(404).json({ message: 'Target user not found.' });
-        if (targetUser.role !== 'co-administrator') {
-            return res.status(400).json({ message: 'Target user must be a Co-Administrator.' });
-        }
-        if (targetUser.status !== 'active') {
-            return res.status(400).json({ message: 'Target Co-Administrator account must be active.' });
-        }
-
-        // 3. Perform the atomic role swap
-        adminUser.role = 'co-administrator';
-        targetUser.role = 'administrator';
+        let responsePayload = null;
 
         await session.withTransaction(async () => {
+            const adminUser = await User.findById(req.user.id).session(session);
+            if (!adminUser) {
+                throw Object.assign(new Error('Administrator account not found.'), { statusCode: 404 });
+            }
+
+            const isPasswordValid = await bcrypt.compare(currentPassword, adminUser.password);
+            if (!isPasswordValid) {
+                throw Object.assign(new Error('Incorrect password. Ownership transfer cancelled.'), { statusCode: 401 });
+            }
+
+            const targetUser = await User.findById(targetCoAdminId).session(session);
+            if (!targetUser) {
+                throw Object.assign(new Error('Target user not found.'), { statusCode: 404 });
+            }
+            if (targetUser.role !== 'co-administrator') {
+                throw Object.assign(new Error('Target user must be a Co-Administrator.'), { statusCode: 400 });
+            }
+            if (targetUser.status !== 'active') {
+                throw Object.assign(new Error('Target Co-Administrator account must be active.'), { statusCode: 400 });
+            }
+
+            adminUser.role = 'co-administrator';
+            targetUser.role = 'administrator';
+
             await adminUser.save({ session });
             await targetUser.save({ session });
+
+            await AuditLog.create([{
+                action: 'OWNERSHIP_TRANSFER',
+                user: adminUser.email,
+                role: 'administrator',
+                actorId: adminUser._id,
+                actorRole: 'administrator',
+                targetId: targetUser._id,
+                targetModel: 'User',
+                details: `Ownership transferred from ${adminUser.email} (now Co-Administrator) to ${targetUser.email} (now Administrator).`
+            }], { session });
+
+            const newAdminName = `${targetUser.name?.first || ''} ${targetUser.name?.last || ''}`.trim();
+            const prevAdminName = `${adminUser.name?.first || ''} ${adminUser.name?.last || ''}`.trim();
+
+            try {
+                await resend.emails.send({
+                    from: 'NgitiFy Admin <noreply@ngitify.com>',
+                    to: targetUser.email,
+                    subject: 'NgitiFy: You are now the Administrator',
+                    html: `
+                        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                            <h2 style="color: #005466;">Role Change Notification</h2>
+                            <p>Hello ${newAdminName},</p>
+                            <p>Your NgitiFy account role has been upgraded to <strong>Administrator</strong>.</p>
+                            <p>This change was initiated by <strong>${prevAdminName}</strong> (${adminUser.email}).</p>
+                            <p>You now hold full system ownership of NgitiFy for Dentime Dental Clinic.</p>
+                            <p style="color: #6b7280; font-size: 12px;">If you did not expect this change, please contact your clinic immediately.</p>
+                        </div>
+                    `
+                });
+
+                await resend.emails.send({
+                    from: 'NgitiFy Admin <noreply@ngitify.com>',
+                    to: adminUser.email,
+                    subject: 'NgitiFy: Your role has changed to Co-Administrator',
+                    html: `
+                        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                            <h2 style="color: #005466;">Role Change Notification</h2>
+                            <p>Hello ${prevAdminName},</p>
+                            <p>You have successfully transferred Administrator ownership to <strong>${newAdminName}</strong> (${targetUser.email}).</p>
+                            <p>Your account role is now <strong>Co-Administrator</strong>.</p>
+                            <p style="color: #6b7280; font-size: 12px;">To reverse this change, the new Administrator must initiate a transfer back.</p>
+                        </div>
+                    `
+                });
+            } catch (emailError) {
+                console.error('⚠️ Ownership transfer email notification failed:', emailError.message);
+            }
+
+            responsePayload = {
+                message: `Ownership successfully transferred to ${newAdminName}. Your role is now Co-Administrator.`
+            };
         });
 
-        // 4. Record the ownership transfer audit log entry
-        await AuditLog.create({
-            action: 'OWNERSHIP_TRANSFER',
-            user: adminUser.email,
-            role: 'administrator',
-            actorId: adminUser._id,
-            actorRole: 'administrator',
-            targetId: targetUser._id,
-            targetModel: 'User',
-            details: `Ownership transferred from ${adminUser.email} (now Co-Administrator) to ${targetUser.email} (now Administrator).`
-        });
-
-        // 5. Notify both affected users via email
-        const newAdminName = `${targetUser.name?.first || ''} ${targetUser.name?.last || ''}`.trim();
-        const prevAdminName = `${adminUser.name?.first || ''} ${adminUser.name?.last || ''}`.trim();
-
-        try {
-            // Notify the new Administrator
-            await resend.emails.send({
-                from: 'NgitiFy Admin <noreply@ngitify.com>',
-                to: targetUser.email,
-                subject: 'NgitiFy: You are now the Administrator',
-                html: `
-                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                        <h2 style="color: #005466;">Role Change Notification</h2>
-                        <p>Hello ${newAdminName},</p>
-                        <p>Your NgitiFy account role has been upgraded to <strong>Administrator</strong>.</p>
-                        <p>This change was initiated by <strong>${prevAdminName}</strong> (${adminUser.email}).</p>
-                        <p>You now hold full system ownership of NgitiFy for Dentime Dental Clinic.</p>
-                        <p style="color: #6b7280; font-size: 12px;">If you did not expect this change, please contact your clinic immediately.</p>
-                    </div>
-                `
-            });
-
-            // Notify the previous Administrator (now Co-Admin)
-            await resend.emails.send({
-                from: 'NgitiFy Admin <noreply@ngitify.com>',
-                to: adminUser.email,
-                subject: 'NgitiFy: Your role has changed to Co-Administrator',
-                html: `
-                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                        <h2 style="color: #005466;">Role Change Notification</h2>
-                        <p>Hello ${prevAdminName},</p>
-                        <p>You have successfully transferred Administrator ownership to <strong>${newAdminName}</strong> (${targetUser.email}).</p>
-                        <p>Your account role is now <strong>Co-Administrator</strong>.</p>
-                        <p style="color: #6b7280; font-size: 12px;">To reverse this change, the new Administrator must initiate a transfer back.</p>
-                    </div>
-                `
-            });
-        } catch (emailError) {
-            // Email failure is non-critical — the role swap already succeeded
-            console.error('⚠️ Ownership transfer email notification failed:', emailError.message);
-        }
-
-        res.json({
-            message: `Ownership successfully transferred to ${newAdminName}. Your role is now Co-Administrator.`
-        });
+        res.json(responsePayload);
 
     } catch (error) {
+        const statusCode = error.statusCode || 500;
         console.error('Error during ownership transfer:', error);
-        res.status(500).json({ message: 'Server error during ownership transfer. No changes were made.' });
+        res.status(statusCode).json({ message: error.message || 'Server error during ownership transfer. No changes were made.' });
     } finally {
         if (session) {
             await session.endSession();

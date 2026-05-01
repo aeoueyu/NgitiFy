@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const verifyToken = require('../middleware/auth');
+const isAdmin = require('../middleware/isAdmin');
 const AuditLog = require('../models/AuditLog');
 const BackupLog = require('../models/BackupLog');
 
@@ -14,13 +15,6 @@ const BACKUP_DIR = path.join(__dirname, '..', 'backups');
 if (!fs.existsSync(BACKUP_DIR)) {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
-
-const isAdmin = (req, res, next) => {
-    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Access denied. Admin tier only.' });
-    }
-    next();
-};
 
 // -------------------------------------------------------
 // POST /api/backup/create  — Trigger a mongodump backup

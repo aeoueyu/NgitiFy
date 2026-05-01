@@ -157,27 +157,17 @@ export default function SettingsScreen({ navigation }) {
         setIsVerifying(true);
         setCurrentPwError('');
         try {
-            const res = await fetch(`${API_BASE_URL}/api/change-password`, {
+            const res = await fetch(`${API_BASE_URL}/api/verify-password`, {
                 method:  'POST',
                 headers: { ...authHeader, 'Content-Type': 'application/json' },
-                // Send a dummy new password we'll discard — backend just needs to verify current
-                // Better: use a dedicated verify endpoint if available
-                body: JSON.stringify({ userId, currentPassword, newPassword: currentPassword }),
+                body: JSON.stringify({ password: currentPassword }),
             });
-            // We only call this to check if currentPassword is correct.
-            // Since we're sending currentPassword === newPassword the backend will
-            // likely reject with "must be different" — that still means the current
-            // password was correct. We watch for auth errors (401/400 wrong password).
             const data = await res.json();
-
-            // If 400 and message says "wrong"/"incorrect"/"invalid" → wrong password
-            if (!res.ok && /incorrect|invalid|wrong|current/i.test(data.message || '')) {
-                setCurrentPwError(data.message || 'Incorrect current password.');
+            if (res.ok && data.success) {
+                setIsCurrentVerified(true);
                 return;
             }
-            // Any other response (including success or "must be different") means
-            // the current password was accepted → proceed to step 2
-            setIsCurrentVerified(true);
+            setCurrentPwError(data.message || 'Incorrect current password.');
         } catch {
             setCurrentPwError('Unable to connect. Please check your internet connection.');
         } finally {
