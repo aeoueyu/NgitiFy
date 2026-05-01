@@ -1,9 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
 import { clinicInfo, locationCards } from '../../data/websiteContent';
 
 export default function WebsiteContact() {
+    const navigate = useNavigate();
+
     return (
         <WebsiteShell>
             <section className={`${styles.section} ${styles.pageHeroSection}`}>
@@ -15,6 +18,14 @@ export default function WebsiteContact() {
                             Dentime currently accommodates patients through regular scheduled appointments and walk-ins.
                             You may also follow the clinic through its social channels for updates and inquiries.
                         </p>
+                        <div className={styles.buttonRow}>
+                            <button className={styles.primaryBtn} onClick={() => navigate('/appointment')} type="button">
+                                Book an Appointment
+                            </button>
+                            <a href={`tel:${clinicInfo.contactNumber}`} className={styles.secondaryBtn}>
+                                Call the Clinic
+                            </a>
+                        </div>
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
@@ -55,6 +66,14 @@ export default function WebsiteContact() {
                         </div>
                         <h2 className={styles.cardTitle}>Instagram</h2>
                         <span className={styles.contactValue}>@{clinicInfo.instagramHandle}</span>
+                        <a
+                            href={`https://www.instagram.com/${clinicInfo.instagramHandle}/`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={styles.socialBtn}
+                        >
+                            Open Instagram
+                        </a>
                     </article>
                 </div>
             </section>

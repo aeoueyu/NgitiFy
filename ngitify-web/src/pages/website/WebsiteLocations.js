@@ -1,10 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
 import locationsHeroImage from '../../assets/images/locations-hero-image.jpg';
-import { locationCards } from '../../data/websiteContent';
+import { clinicInfo, locationCards } from '../../data/websiteContent';
 
 export default function WebsiteLocations() {
+    const navigate = useNavigate();
+
     return (
         <WebsiteShell>
             <section className={`${styles.section} ${styles.pageHeroSection}`}>
@@ -34,6 +37,14 @@ export default function WebsiteLocations() {
                             <h2 className={styles.cardTitle}>{location.name}</h2>
                             <p>{location.address}</p>
                             <p className={styles.bodyText}>{location.note}</p>
+                            <div className={styles.buttonRow}>
+                                <button className={styles.primaryBtn} onClick={() => navigate('/appointment')} type="button">
+                                    Book at This Branch
+                                </button>
+                                <a href={`tel:${clinicInfo.contactNumber}`} className={styles.secondaryBtn}>
+                                    Call the Clinic
+                                </a>
+                            </div>
                         </article>
                     ))}
                 </div>
