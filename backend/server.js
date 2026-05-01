@@ -1994,7 +1994,7 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
             action: "CREATE_SURGERY",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
-            details: `Created new surgery record for patient ID: ${newSurgery.patient} at branch: ${newSurgery.branch}`
+            details: `Created new dental treatment record for patient ID: ${newSurgery.patient} at branch: ${newSurgery.branch}`
         });
 
         if (newSurgery.dentist) {
@@ -2010,8 +2010,8 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
 
         res.status(201).json(newSurgery);
     } catch (error) {
-        console.error("Error creating surgery:", error);
-        res.status(500).json({ message: "Server error creating surgery." });
+        console.error("Error creating dental treatment:", error);
+        res.status(500).json({ message: "Server error creating dental treatment." });
     }
 });
 
@@ -2020,7 +2020,7 @@ app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
         const surgery = await Surgery.findById(req.params.id)
             .populate('patient')
             .populate('dentist', 'name email role');
-        if (!surgery) return res.status(404).json({ message: "Surgery not found" });
+        if (!surgery) return res.status(404).json({ message: "Dental treatment not found" });
 
         if (isBranchScopedStaff(req.user.role) && surgery.branch !== getScopedBranchForUser(req.user)) {
             return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
@@ -2032,8 +2032,8 @@ app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
 
         res.json(surgery);
     } catch (error) {
-        console.error("Error fetching single surgery:", error);
-        res.status(500).json({ message: "Server error fetching surgery." });
+        console.error("Error fetching single dental treatment:", error);
+        res.status(500).json({ message: "Server error fetching dental treatment." });
     }
 });
 
@@ -2045,7 +2045,7 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
                 return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
             const existing = await Surgery.findById(req.params.id);
-            if (!existing) return res.status(404).json({ message: "Surgery not found" });
+            if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
             if (existing.branch !== scopedBranch) {
                 return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
             }
@@ -2055,7 +2055,7 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
 
         if (req.user.role === 'dentist') {
             const existing = await Surgery.findById(req.params.id);
-            if (!existing) return res.status(404).json({ message: "Surgery not found" });
+            if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
             if (existing.dentist?.toString() !== req.user.id) {
                 return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
             }
@@ -2063,19 +2063,19 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
         }
 
         const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        if (!updatedSurgery) return res.status(404).json({ message: "Surgery not found" });
+        if (!updatedSurgery) return res.status(404).json({ message: "Dental treatment not found" });
 
         await AuditLog.create({
             action: "UPDATE_SURGERY",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
-            details: `Updated surgery record ID: ${updatedSurgery._id} at branch: ${updatedSurgery.branch}`
+            details: `Updated dental treatment record ID: ${updatedSurgery._id} at branch: ${updatedSurgery.branch}`
         });
 
         res.json(updatedSurgery);
     } catch (error) {
-        console.error("Error updating surgery:", error);
-        res.status(500).json({ message: "Error updating surgery." });
+        console.error("Error updating dental treatment:", error);
+        res.status(500).json({ message: "Error updating dental treatment." });
     }
 });
 
@@ -2091,7 +2091,7 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
                 return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
             const existing = await Surgery.findById(req.params.id);
-            if (!existing) return res.status(404).json({ message: "Surgery not found" });
+            if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
             if (existing.branch !== scopedBranch) {
                 return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
             }
@@ -2099,7 +2099,7 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
 
         if (req.user.role === 'dentist') {
             const existing = await Surgery.findById(req.params.id);
-            if (!existing) return res.status(404).json({ message: "Surgery not found" });
+            if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
             if (existing.dentist?.toString() !== req.user.id) {
                 return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
             }
@@ -2115,19 +2115,19 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
             },
             { new: true }
         );
-        if (!archivedSurgery) return res.status(404).json({ message: "Surgery not found" });
+        if (!archivedSurgery) return res.status(404).json({ message: "Dental treatment not found" });
 
         await AuditLog.create({
             action: "ARCHIVE_SURGERY",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
-            details: `Archived surgery record ID: ${req.params.id}`
+            details: `Archived dental treatment record ID: ${req.params.id}`
         });
 
         res.json({ message: "Appointment archived successfully.", surgery: archivedSurgery });
     } catch (error) {
-        console.error("Error deleting surgery:", error);
-        res.status(500).json({ message: "Error deleting surgery." });
+        console.error("Error deleting dental treatment:", error);
+        res.status(500).json({ message: "Error deleting dental treatment." });
     }
 });
 
@@ -2199,7 +2199,7 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
 
         const TERMINAL_STATUSES = ['completed', 'cancelled'];
         const currentSurgery = await Surgery.findById(req.params.id);
-        if (!currentSurgery) return res.status(404).json({ message: 'Surgery not found.' });
+        if (!currentSurgery) return res.status(404).json({ message: 'Dental treatment not found.' });
 
         if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);
@@ -2229,7 +2229,7 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
             { new: true }
         ).populate('patient', 'name email').populate('dentist', 'name email');
 
-        if (!updatedSurgery) return res.status(404).json({ message: 'Surgery not found.' });
+        if (!updatedSurgery) return res.status(404).json({ message: 'Dental treatment not found.' });
 
         const wasConfirmedNow = currentSurgery.status !== 'confirmed' && status === 'confirmed';
         const dentistChanged = String(currentSurgery.dentist || '') !== String(updatedSurgery.dentist?._id || '');
@@ -2311,13 +2311,13 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
             action: 'UPDATE_SURGERY_STATUS',
             user: req.user?.email || req.user?.id,
             role: req.user?.role,
-            details: `Surgery ID ${updatedSurgery._id} status changed to '${status}'.`
+            details: `Dental treatment ID ${updatedSurgery._id} status changed to '${status}'.`
         });
 
         res.json(updatedSurgery);
     } catch (error) {
-        console.error('Error updating surgery status:', error);
-        res.status(500).json({ message: 'Server error updating surgery status.' });
+        console.error('Error updating dental treatment status:', error);
+        res.status(500).json({ message: 'Server error updating dental treatment status.' });
     }
 });
 

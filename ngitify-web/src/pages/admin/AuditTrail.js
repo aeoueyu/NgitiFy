@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import styles from '../../styles/admin/AuditTrail.module.css'; 
+import styles from '../../styles/admin/AuditTrail.module.css';
 import { FaSearch, FaHistory, FaDownload, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { authFetch } from '../../utils/api'; 
 import { formatDateShort, formatTime } from '../../utils/dateUtils'; // NEW: Imported Date Utilities
+
+const formatActionLabel = (action = '') => {
+    if (!action) return 'Unknown action performed';
+    if (action.toUpperCase() === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
+    return action;
+};
 
 export default function AuditTrail() {
     // Original States
@@ -48,7 +54,7 @@ export default function AuditTrail() {
 
                     return {
                         id: log._id || Math.random().toString(),
-                        action: log.action || 'Unknown action performed',
+                        action: formatActionLabel(log.action),
                         userName: userName,
                         role: userRole.toLowerCase(),
                         date: formattedDate,

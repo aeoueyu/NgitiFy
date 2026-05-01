@@ -20,6 +20,12 @@ import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
 import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
 import PatientIcon from '../../assets/icons/Patient.svg';
 
+const formatActionLabel = (action = '') => {
+    if (!action) return 'Unknown action performed';
+    if (action.toUpperCase() === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
+    return action;
+};
+
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
     { month: 3, day: 9, name: "Araw ng Kagitingan" },
@@ -173,7 +179,7 @@ export default function AdminDashboard() {
                         const logDate = new Date(log.createdAt || log.timestamp);
                         return {
                             id: log._id || Math.random().toString(),
-                            action: log.action || 'Unknown action performed',
+                            action: formatActionLabel(log.action),
                             userName, role: userRole.toLowerCase(), rawDate: logDate,
                             timeDisplay: `${formatDateShort(logDate)}, ${formatTime(logDate)}`
                         };

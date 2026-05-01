@@ -86,6 +86,12 @@ const getCategoryForAction = (action = '') => {
     return getActionMeta(action).category;
 };
 
+const formatActionLabel = (action = '') => {
+    if (!action) return 'Unknown Action';
+    if (action.toUpperCase() === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
+    return action;
+};
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const ROLES = ['All', 'administrator', 'co-administrator', 'owner', 'branch-manager', 'dentist', 'secretary', 'system'];
@@ -122,7 +128,7 @@ export default function ActivityLogs() {
                     const date = new Date(log.timestamp || log.createdAt);
                     return {
                         id:       log._id,
-                        action:   log.action || 'Unknown Action',
+                        action:   formatActionLabel(log.action),
                         user:     log.user   || 'System',
                         role:     (log.role  || 'system').toLowerCase(),
                         details:  log.details || '',

@@ -78,7 +78,7 @@ export default function SurgerySchedulesScreen({ navigation }) {
                     <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
                     <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Surgery Schedules</Text>
+                <Text style={styles.headerTitle}>Dental Treatment Schedules</Text>
                 <View style={{width: 60}} />
             </View>
 
@@ -104,7 +104,7 @@ export default function SurgerySchedulesScreen({ navigation }) {
                     keyExtractor={item => item.id}
                     renderItem={renderScheduleCard}
                     ListEmptyComponent={
-                        <Text style={styles.emptyText}>No surgeries scheduled for this date.</Text>
+                        <Text style={styles.emptyText}>No dental treatments scheduled for this date.</Text>
                     }
                     showsVerticalScrollIndicator={false}
                 />

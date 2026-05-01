@@ -119,7 +119,7 @@ function RecordsTable({ checkName, records }) {
             <table className={styles.recordTable}>
                 <thead>
                     <tr>
-                        <th>Surgery ID</th>
+                        <th>Dental Treatment ID</th>
                         <th>Procedure</th>
                         <th>Date</th>
                         <th>Missing</th>

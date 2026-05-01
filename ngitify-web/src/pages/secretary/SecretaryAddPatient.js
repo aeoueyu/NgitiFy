@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/secretary/SecretaryAddPatient.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { authFetch } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
 
 export default function SecretaryAddPatient() {
     const navigate  = useNavigate();
+    const { user } = useAuth();
     const { addToast } = useToast();
     const fileInputRef = useRef(null);
 
@@ -178,6 +180,8 @@ export default function SecretaryAddPatient() {
             birthdate:     formData.birthdate,
             gender:        formData.gender,
             profileImage,
+            assignedBranch: user?.assignedBranch || undefined,
+            assignedBranches: user?.assignedBranch ? [user.assignedBranch] : [],
             guardian: isMinor ? {
                 name:          formData.guardianName,
                 relationship:  formData.guardianRelationship,

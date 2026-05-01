@@ -46,11 +46,11 @@ export default function ManagePatients() {
     const showBranchColumn = !isSecretary;
 
     useEffect(() => {
-        if (location.state?.openAddModal && canEditPatients && !isSecretary) {
+        if (location.state?.openAddModal && canEditPatients) {
             setIsAddModalOpen(true);
             navigate(location.pathname, { replace: true, state: {} });
         }
-    }, [location, navigate, canEditPatients, isSecretary]);
+    }, [location, navigate, canEditPatients]);
 
     const fetchBranches = useCallback(async () => {
         try {
@@ -176,21 +176,15 @@ export default function ManagePatients() {
     };
 
     const handleEditClick = (id) => {
-        if (isSecretary) {
-            navigate(`/secretary/patients/${id}/edit`);
-            return;
-        }
         setIsViewModalOpen(false);
+        setIsEMRModalOpen(false);
         setSelectedPatientId(id);
         setIsEditModalOpen(true);
     };
 
     const handleViewClick = (id) => {
-        if (isSecretary) {
-            navigate(`/secretary/patients/${id}`);
-            return;
-        }
         setIsEditModalOpen(false);
+        setIsViewModalOpen(false);
         setSelectedPatientId(id);
         setIsEMRModalOpen(true);
     };
@@ -219,7 +213,7 @@ export default function ManagePatients() {
                 {canEditPatients && (
                     <button
                         className={styles.addBtn}
-                        onClick={() => isSecretary ? navigate('/secretary/patients/add') : setIsAddModalOpen(true)}
+                        onClick={() => setIsAddModalOpen(true)}
                     >
                         <FaUserPlus className={styles.btnIcon} /> Add New Patient
                     </button>

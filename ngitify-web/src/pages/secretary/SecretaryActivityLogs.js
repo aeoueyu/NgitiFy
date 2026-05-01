@@ -103,6 +103,12 @@ const getActionMeta = (action = '') => {
     return { icon: <FaListUl />, color: '#95a5a6' };
 };
 
+const formatActionLabel = (action = '') => {
+    if (!action) return 'Unknown Action';
+    if (action.toUpperCase() === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
+    return action;
+};
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const ITEMS_PER_PAGE = 20;
@@ -141,7 +147,7 @@ export default function SecretaryActivityLogs() {
                     const date = new Date(log.timestamp || log.createdAt);
                     return {
                         id:             log._id,
-                        action:         log.action || 'Unknown Action',
+                        action:         formatActionLabel(log.action),
                         user:           log.user   || 'Secretary',
                         role:           (log.role  || 'secretary').toLowerCase(),
                         details:        log.details || '',

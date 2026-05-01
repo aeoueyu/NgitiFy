@@ -13,7 +13,7 @@ export default function PreOpInstructionsScreen({ navigation }) {
 
     const handleSignAgreement = () => {
         setIsSigned(true);
-        Alert.alert("Digital Consent Signed", "Thank you. Your consent has been recorded. We will see you on your surgery date.");
+        Alert.alert("Digital Consent Signed", "Thank you. Your consent has been recorded. We will see you on your dental treatment date.");
     };
 
     return (
@@ -30,9 +30,9 @@ export default function PreOpInstructionsScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 
-                {/* Surgery Information Card */}
+                {/* Dental Treatment Information Card */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Scheduled Surgery</Text>
+                    <Text style={styles.cardTitle}>Scheduled Dental Treatment</Text>
                     <View style={styles.divider} />
                     
                     <View style={styles.detailRow}>
@@ -52,10 +52,10 @@ export default function PreOpInstructionsScreen({ navigation }) {
                 {/* Pre-Op Guidelines */}
                 <Text style={styles.sectionTitle}>Important Pre-Op Guidelines</Text>
                 <View style={styles.guidelineCard}>
-                    <Text style={styles.guidelinePoint}>• Please observe fasting (NPO) 8 hours prior to the surgery. No food or water.</Text>
+                    <Text style={styles.guidelinePoint}>• Please observe fasting (NPO) 8 hours prior to the dental treatment. No food or water.</Text>
                     <Text style={styles.guidelinePoint}>• Wear comfortable, loose-fitting clothing. Avoid wearing heavy makeup or jewelry.</Text>
                     <Text style={styles.guidelinePoint}>• Please arrange for a responsible adult to drive you home after the procedure.</Text>
-                    <Text style={styles.guidelinePoint}>• Inform the dentist immediately if you develop a cold, fever, or flu before the surgery.</Text>
+                    <Text style={styles.guidelinePoint}>• Inform the dentist immediately if you develop a cold, fever, or flu before the dental treatment.</Text>
                 </View>
 
                 {/* Digital Consent Section */}
