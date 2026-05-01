@@ -259,6 +259,7 @@ export default function AdminDashboard() {
     const calendarDays = getCalendarDays();
     const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
+    const visibleHolidays = PH_HOLIDAYS.filter((holiday) => holiday.month === currentMonthView.getMonth());
 
     const PIE_COLORS = ['#01538b', '#2dccf6', '#ea8b89', '#f3ca63'];
 
@@ -482,6 +483,22 @@ export default function AdminDashboard() {
                                         {day.hasEvent && <div className={`${styles['event-dot']} ${day.active ? styles['white'] : ''}`}></div>}
                                     </div>
                                 ))}
+                            </div>
+
+                            <div className={styles['holiday-panel']}>
+                                <p className={styles['holiday-heading']}>Holidays This Month</p>
+                                {visibleHolidays.length > 0 ? (
+                                    <div className={styles['holiday-list']}>
+                                        {visibleHolidays.map((holiday) => (
+                                            <div key={`${holiday.month}-${holiday.day}`} className={styles['holiday-item']}>
+                                                <span className={styles['holiday-date']}>{holiday.day}</span>
+                                                <span className={styles['holiday-name']}>{holiday.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className={styles['holiday-empty']}>No fixed holidays in this month.</p>
+                                )}
                             </div>
                         </div>
 

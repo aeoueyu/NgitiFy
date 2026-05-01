@@ -591,7 +591,7 @@ export default function Settings() {
                     <img src={BackIcon} alt="Back" />
                 </button>
                 <div className={styles.header}>
-                    <h1 className={styles.title}>Account Settings</h1>
+                    <h1 className={styles.title}>Settings</h1>
                     <p className={styles.subtitle}>Manage your clinic info, security, preferences, and notifications.</p>
                 </div>
             </div>

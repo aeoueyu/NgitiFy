@@ -35,6 +35,9 @@ const surgerySchema = new mongoose.Schema({
     preOpInstructions: { type: String },
     requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     remarks:     { type: String },
+    isArchived: { type: Boolean, default: false },
+    archivedAt: { type: Date, default: null },
+    archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
 }, { timestamps: true });
 

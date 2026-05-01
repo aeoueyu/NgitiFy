@@ -7,6 +7,7 @@ import { clinicInfo, locationCards } from '../../data/websiteContent';
 
 export default function WebsiteLocations() {
     const navigate = useNavigate();
+    const getMapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
     return (
         <WebsiteShell>
@@ -37,12 +38,20 @@ export default function WebsiteLocations() {
                             <h2 className={styles.cardTitle}>{location.name}</h2>
                             <p>{location.address}</p>
                             <p className={styles.bodyText}>{location.note}</p>
-                            <div className={styles.buttonRow}>
+                            <div className={styles.contactActionRow}>
                                 <button className={styles.primaryBtn} onClick={() => navigate('/appointment')} type="button">
                                     Book at This Branch
                                 </button>
                                 <a href={`tel:${clinicInfo.contactNumber}`} className={styles.secondaryBtn}>
                                     Call the Clinic
+                                </a>
+                                <a
+                                    href={getMapUrl(location.address)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={styles.socialBtn}
+                                >
+                                    Open in Maps
                                 </a>
                             </div>
                         </article>

@@ -167,7 +167,29 @@
 .actions {
     display: flex;
     align-items: center;
+    gap: 12px;
     justify-self: end;
+}
+
+.contactChip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid rgba(1, 83, 139, 0.14);
+    background: rgba(255, 255, 255, 0.96);
+    color: #01538b;
+    padding: 11px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+
+.contactChip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(1, 83, 139, 0.12);
+    background: #f7fcff;
 }
 
 .loginBtn {
@@ -210,6 +232,168 @@
 
 .menuBackdrop {
     display: none;
+}
+
+.mobileQuickBar {
+    display: none;
+}
+
+.chatbotLayer {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 14px;
+}
+
+.chatbotFab {
+    width: 64px;
+    height: 64px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #01538b 0%, #2dccf6 100%);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 18px 30px rgba(1, 83, 139, 0.28);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.chatbotFab:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 22px 36px rgba(1, 83, 139, 0.32);
+}
+
+.chatbotPanel {
+    width: min(360px, calc(100vw - 32px));
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(1, 83, 139, 0.12);
+    border-radius: 24px;
+    box-shadow: 0 26px 50px rgba(8, 31, 46, 0.18);
+    overflow: hidden;
+    backdrop-filter: blur(18px);
+}
+
+.chatbotHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 18px 14px;
+    background: linear-gradient(135deg, rgba(1, 83, 139, 0.98) 0%, rgba(45, 204, 246, 0.9) 100%);
+    color: #fff;
+}
+
+.chatbotEyebrow {
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.86;
+}
+
+.chatbotTitle {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.chatbotClose {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.chatbotBody {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: linear-gradient(180deg, #f7fbfe 0%, #ffffff 100%);
+}
+
+.chatBubbleBot {
+    max-width: 88%;
+    padding: 12px 14px;
+    border-radius: 16px 16px 16px 6px;
+    background: #edf7fd;
+    color: #28516a;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.chatQuickActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.chatActionBtn {
+    border: 1px solid rgba(1, 83, 139, 0.14);
+    background: #fff;
+    color: #01538b;
+    padding: 9px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.chatActionBtn:hover {
+    background: #f0f8fd;
+    transform: translateY(-1px);
+}
+
+.chatbotInputRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px 18px;
+    background: #fff;
+}
+
+.chatbotStaticInput {
+    flex: 1;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: #f2f7fb;
+    color: #89a0b0;
+    font-size: 13px;
+}
+
+.chatbotSendBtn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: #01538b;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: default;
+    box-shadow: 0 12px 20px rgba(1, 83, 139, 0.18);
 }
 
 @media (max-width: 900px) {
@@ -273,6 +457,8 @@
     .actions {
         margin-left: 0;
         justify-self: stretch;
+        display: grid;
+        gap: 10px;
     }
 
     .navItem {
@@ -290,8 +476,10 @@
         background: rgba(1, 83, 139, 0.08);
     }
 
+    .contactChip,
     .loginBtn {
         width: 100%;
+        box-sizing: border-box;
     }
 
     .menuBackdrop {
@@ -302,6 +490,50 @@
         background: rgba(8, 31, 46, 0.18);
         z-index: 999;
     }
+
+    .chatbotLayer {
+        right: 18px;
+        bottom: 88px;
+    }
+
+    .mobileQuickBar {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        bottom: 14px;
+        z-index: 1050;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid rgba(1, 83, 139, 0.1);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 20px 34px rgba(8, 31, 46, 0.14);
+        backdrop-filter: blur(16px);
+    }
+
+    .mobileQuickAction {
+        min-height: 46px;
+        border: none;
+        border-radius: 16px;
+        background: rgba(1, 83, 139, 0.06);
+        color: #01538b;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .mobileQuickAction:hover {
+        background: rgba(1, 83, 139, 0.12);
+        transform: translateY(-1px);
+    }
 }
 
 @media (max-width: 680px) {
@@ -311,7 +543,7 @@
     }
 
     .content {
-        padding: 88px 16px 28px;
+        padding: 88px 16px 108px;
     }
 
     .topBar {
@@ -321,5 +553,15 @@
     .navPanel {
         left: 16px;
         right: 16px;
+    }
+
+    .chatbotFab {
+        width: 58px;
+        height: 58px;
+        font-size: 24px;
+    }
+
+    .chatbotPanel {
+        width: min(100vw - 20px, 360px);
     }
 }

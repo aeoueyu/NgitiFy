@@ -1,12 +1,46 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FaCodeBranch, FaPlus, FaEdit, FaPowerOff, FaPhone, FaMapMarkerAlt, FaUserTie } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { FaPlus, FaEdit, FaPowerOff, FaPhone, FaMapMarkerAlt, FaUserTie } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import styles from '../../styles/admin/BranchManagement.module.css';
 
-const EMPTY_FORM = { name: '', address: '', contactNumber: '' };
+const EMPTY_ADDRESS = { region: '', province: '', city: '', barangay: '', street: '', houseNumber: '' };
+const EMPTY_FORM = { name: '', phone: '', addressDetails: { ...EMPTY_ADDRESS } };
+
+const toTitleCase = (value) => value
+    .toLowerCase()
+    .replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
+
+const formatBranchAddress = (addressDetails, fallback = '') => {
+    if (!addressDetails) return fallback || '';
+
+    const regionName = regions.find((item) => item.code === addressDetails.region)?.name || '';
+    const provinceName = (provinces[addressDetails.region] || []).find((item) => item.code === addressDetails.province)?.name || '';
+    const cityName = (cities[addressDetails.province] || []).find((item) => item.code === addressDetails.city)?.name || '';
+
+    const pieces = [
+        addressDetails.houseNumber,
+        addressDetails.street,
+        addressDetails.barangay,
+        cityName,
+        provinceName,
+        regionName,
+    ].filter(Boolean);
+
+    return pieces.length > 0 ? pieces.join(', ') : fallback;
+};
+
+const normalizeBranchForEdit = (branch) => ({
+    name: branch?.name || '',
+    phone: (branch?.contactNumber || '').replace(/^\+63/, ''),
+    addressDetails: {
+        ...EMPTY_ADDRESS,
+        ...(branch?.addressDetails || {}),
+    },
+});
 
 export default function BranchManagement() {
     const { addToast } = useToast();
@@ -14,26 +48,26 @@ export default function BranchManagement() {
     const isBranchManager = user?.role === 'branch-manager';
     const assignedBranch = user?.assignedBranch || '';
 
-    const [branches, setBranches]       = useState([]);
-    const [managers, setManagers]       = useState([]);
-    const [loading, setLoading]         = useState(true);
-
-    // Modal state
-    const [showModal, setShowModal]     = useState(false);
-    const [editTarget, setEditTarget]   = useState(null); // null = add, object = edit
-    const [form, setForm]               = useState(EMPTY_FORM);
-    const [submitting, setSubmitting]   = useState(false);
-    const [formError, setFormError]     = useState('');
-
-    // Deactivate confirm
+    const [branches, setBranches] = useState([]);
+    const [managers, setManagers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [editTarget, setEditTarget] = useState(null);
+    const [form, setForm] = useState(EMPTY_FORM);
+    const [submitting, setSubmitting] = useState(false);
+    const [errors, setErrors] = useState({});
     const [confirmTarget, setConfirmTarget] = useState(null);
+    const [analyticsTarget, setAnalyticsTarget] = useState(null);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [analyticsData, setAnalyticsData] = useState(null);
 
-    // ── Fetch ─────────────────────────────────────────────────
     const fetchBranches = useCallback(async () => {
         try {
             const res = await authFetch(isBranchManager ? '/branches' : '/branches?all=true');
-            if (res.ok) setBranches(await res.json());
-        } catch (err) {
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            setBranches(Array.isArray(data) ? data : []);
+        } catch (error) {
             addToast('Failed to load branches.', 'error');
         } finally {
             setLoading(false);
@@ -43,8 +77,12 @@ export default function BranchManagement() {
     const fetchManagers = useCallback(async () => {
         try {
             const res = await authFetch('/users?role=branch-manager');
-            if (res.ok) setManagers(await res.json());
-        } catch (err) { /* silent */ }
+            if (!res.ok) return;
+            const data = await res.json();
+            setManagers(Array.isArray(data) ? data : []);
+        } catch (error) {
+            // silent
+        }
     }, []);
 
     useEffect(() => {
@@ -52,54 +90,124 @@ export default function BranchManagement() {
         fetchManagers();
     }, [fetchBranches, fetchManagers]);
 
-    // ── Open Add Modal ────────────────────────────────────────
+    const getManagerName = useCallback((managerIds = []) => {
+        if (!managerIds.length) return 'No manager assigned';
+        const match = managers.find((manager) => managerIds.map(String).includes(String(manager._id)));
+        return match ? `${match.name?.first || ''} ${match.name?.last || ''}`.trim() : 'No manager assigned';
+    }, [managers]);
+
+    const activeBranches = branches.filter((branch) => branch.isActive);
+    const inactiveBranches = branches.filter((branch) => !branch.isActive);
+
     const openAdd = () => {
         setEditTarget(null);
         setForm(EMPTY_FORM);
-        setFormError('');
+        setErrors({});
         setShowModal(true);
     };
 
-    // ── Open Edit Modal ───────────────────────────────────────
     const openEdit = (branch) => {
         setEditTarget(branch);
-        setForm({ name: branch.name, address: branch.address || '', contactNumber: branch.contactNumber || '' });
-        setFormError('');
+        setForm(normalizeBranchForEdit(branch));
+        setErrors({});
         setShowModal(true);
     };
 
-    // ── Submit (Add or Edit) ──────────────────────────────────
+    const closeModal = () => {
+        if (submitting) return;
+        setShowModal(false);
+        setEditTarget(null);
+        setForm(EMPTY_FORM);
+        setErrors({});
+    };
+
+    const handleNameChange = (value) => {
+        setForm((prev) => ({ ...prev, name: toTitleCase(value) }));
+        if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+    };
+
+    const handlePhoneChange = (value) => {
+        const next = value.replace(/\D/g, '').slice(0, 10);
+        setForm((prev) => ({ ...prev, phone: next }));
+        if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+    };
+
+    const handleAddressChange = (field, value) => {
+        setForm((prev) => {
+            const nextAddress = { ...prev.addressDetails, [field]: value };
+            if (field === 'region') {
+                nextAddress.province = '';
+                nextAddress.city = '';
+                nextAddress.barangay = '';
+            }
+            if (field === 'province') {
+                nextAddress.city = '';
+                nextAddress.barangay = '';
+            }
+            if (field === 'city') {
+                nextAddress.barangay = '';
+            }
+            return { ...prev, addressDetails: nextAddress };
+        });
+
+        if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
+    };
+
+    const validateForm = () => {
+        const nextErrors = {};
+
+        if (!form.name.trim()) nextErrors.name = 'Branch name is required.';
+        if (!form.phone) nextErrors.phone = 'Contact number is required.';
+        else if (form.phone.length !== 10 || form.phone[0] !== '9') nextErrors.phone = 'Use the format 9xxxxxxxxx.';
+
+        ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
+            if (!form.addressDetails[field]) {
+                nextErrors[field] = 'Required';
+            }
+        });
+
+        setErrors(nextErrors);
+        return Object.keys(nextErrors).length === 0;
+    };
+
     const handleSubmit = async () => {
-        if (!form.name.trim()) { setFormError('Branch name is required.'); return; }
+        if (!validateForm()) return;
         setSubmitting(true);
-        setFormError('');
+
+        const payload = {
+            name: form.name.trim(),
+            contactNumber: `+63${form.phone}`,
+            addressDetails: form.addressDetails,
+            address: formatBranchAddress(form.addressDetails),
+            isActive: editTarget ? editTarget.isActive : true,
+        };
 
         try {
-            const isEdit = !!editTarget;
             const res = await authFetch(
-                isEdit ? `/branches/${editTarget._id}` : '/branches',
+                editTarget ? `/branches/${editTarget._id}` : '/branches',
                 {
-                    method: isEdit ? 'PUT' : 'POST',
+                    method: editTarget ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...form, isActive: isEdit ? editTarget.isActive : true })
+                    body: JSON.stringify(payload),
                 }
             );
-            const data = await res.json();
-            if (res.ok) {
-                addToast(`Branch ${isEdit ? 'updated' : 'created'} successfully.`, 'success');
-                setShowModal(false);
-                fetchBranches();
-            } else {
-                setFormError(data.message || 'Failed to save branch.');
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setErrors((prev) => ({ ...prev, form: data.message || 'Failed to save branch.' }));
+                return;
             }
-        } catch (err) {
-            setFormError('Network error. Please try again.');
+
+            addToast(`Branch ${editTarget ? 'updated' : 'created'} successfully.`, 'success');
+            closeModal();
+            fetchBranches();
+        } catch (error) {
+            setErrors((prev) => ({ ...prev, form: 'Network error. Please try again.' }));
         } finally {
             setSubmitting(false);
         }
     };
 
-    // ── Toggle Active / Inactive ──────────────────────────────
     const handleToggleActive = async (branch) => {
         try {
             const res = await authFetch(`/branches/${branch._id}`, {
@@ -107,89 +215,127 @@ export default function BranchManagement() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: branch.name,
-                    address: branch.address,
-                    contactNumber: branch.contactNumber,
-                    isActive: !branch.isActive
-                })
+                    address: branch.address || formatBranchAddress(branch.addressDetails),
+                    addressDetails: branch.addressDetails || EMPTY_ADDRESS,
+                    contactNumber: branch.contactNumber || '',
+                    isActive: !branch.isActive,
+                }),
             });
-            if (res.ok) {
-                addToast(`Branch ${!branch.isActive ? 'activated' : 'deactivated'} successfully.`, 'success');
-                setConfirmTarget(null);
-                fetchBranches();
-            } else {
-                const d = await res.json();
-                addToast(d.message || 'Failed to update branch.', 'error');
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || 'Failed to update branch.');
             }
-        } catch (err) {
-            addToast('Network error.', 'error');
+
+            addToast(`Branch ${branch.isActive ? 'deactivated' : 'activated'} successfully.`, 'success');
+            setConfirmTarget(null);
+            fetchBranches();
+        } catch (error) {
+            addToast(error.message || 'Failed to update branch.', 'error');
         }
     };
 
-    // ── Manager name lookup ───────────────────────────────────
-    const getManagerName = (managerIds = []) => {
-        if (!managerIds.length) return 'No manager assigned';
-        const match = managers.find(m => managerIds.map(String).includes(String(m._id)));
-        return match ? `${match.name?.first} ${match.name?.last}` : 'No manager assigned';
+    const openAnalytics = async (branch) => {
+        setAnalyticsTarget(branch);
+        setAnalyticsLoading(true);
+        setAnalyticsData(null);
+
+        try {
+            const res = await authFetch('/analytics/branches');
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+
+            const branchCounts = (data.branchCounts || []).find((entry) => entry._id === branch.name)?.total || 0;
+            const procedures = (data.procedures || []).slice(0, 6);
+            const statusBreakdown = (data.statusBreakdown || [])
+                .filter((entry) => entry._id?.branch === branch.name)
+                .map((entry) => ({
+                    label: entry._id?.status || 'unknown',
+                    count: entry.count,
+                }));
+            const monthly = (data.monthly || [])
+                .filter((entry) => entry._id?.branch === branch.name)
+                .map((entry) => ({
+                    label: `${entry._id.month}/${entry._id.year}`,
+                    count: entry.count,
+                }));
+
+            setAnalyticsData({
+                totalAppointments: branchCounts,
+                procedures,
+                statusBreakdown,
+                monthly,
+            });
+        } catch (error) {
+            addToast('Failed to load branch analytics.', 'error');
+        } finally {
+            setAnalyticsLoading(false);
+        }
     };
 
-    const activeBranches   = branches.filter(b => b.isActive);
-    const inactiveBranches = branches.filter(b => !b.isActive);
+    const availableProvinces = useMemo(() => (
+        form.addressDetails.region ? (provinces[form.addressDetails.region] || []) : []
+    ), [form.addressDetails.region]);
+    const availableCities = useMemo(() => (
+        form.addressDetails.province ? (cities[form.addressDetails.province] || []) : []
+    ), [form.addressDetails.province]);
+    const availableBarangays = useMemo(() => (
+        form.addressDetails.city ? (barangays[form.addressDetails.city] || []) : []
+    ), [form.addressDetails.city]);
 
-    if (loading) return <div className={styles.container}><p className={styles.loading}>Loading branches...</p></div>;
+    if (loading) {
+        return <div className={styles.container}><p className={styles.loading}>Loading branches...</p></div>;
+    }
 
     return (
         <div className={styles.container}>
-            {/* Header */}
             <div className={styles.pageHeader}>
-                <div className={styles.headerLeft}>
-                    <FaCodeBranch className={styles.headerIcon} />
-                    <div>
-                        <h1 className={styles.pageTitle}>Branch Management</h1>
-                        <p className={styles.pageSubtitle}>
-                            {isBranchManager
-                                ? `Viewing ${assignedBranch || 'your assigned branch'} only`
-                                : `${activeBranches.length} active branch${activeBranches.length !== 1 ? 'es' : ''}`}
-                        </p>
-                    </div>
+                <div>
+                    <h1 className={styles.pageTitle}>Branch Management</h1>
+                    <p className={styles.pageSubtitle}>
+                        {isBranchManager
+                            ? `Viewing ${assignedBranch || 'your assigned branch'} only`
+                            : `${activeBranches.length} active branch${activeBranches.length === 1 ? '' : 'es'}`}
+                    </p>
                 </div>
                 {!isBranchManager && (
-                    <button className={styles.addBtn} onClick={openAdd}>
+                    <button className={styles.addBtn} onClick={openAdd} type="button">
                         <FaPlus /> Add Branch
                     </button>
                 )}
             </div>
 
-            {/* Active Branches */}
             <h2 className={styles.sectionLabel}>Active Branches</h2>
             {activeBranches.length === 0 ? (
                 <div className={styles.emptyState}>No active branches yet. Click "Add Branch" to create one.</div>
             ) : (
                 <div className={styles.grid}>
-                    {activeBranches.map(branch => (
-                            <BranchCard
-                                key={branch._id}
-                                branch={branch}
-                                managerName={getManagerName(branch.managerIds)}
-                                onEdit={() => openEdit(branch)}
-                                onToggle={() => setConfirmTarget(branch)}
-                                readOnly={isBranchManager}
-                            />
-                        ))}
-                    </div>
+                    {activeBranches.map((branch) => (
+                        <BranchCard
+                            key={branch._id}
+                            branch={branch}
+                            managerName={getManagerName(branch.managerIds)}
+                            onEdit={() => openEdit(branch)}
+                            onToggle={() => setConfirmTarget(branch)}
+                            onView={() => openAnalytics(branch)}
+                            readOnly={isBranchManager}
+                        />
+                    ))}
+                </div>
             )}
 
-            {/* Inactive Branches */}
             {inactiveBranches.length > 0 && (
                 <>
                     <h2 className={`${styles.sectionLabel} ${styles.inactiveLabel}`}>Inactive Branches</h2>
                     <div className={styles.grid}>
-                        {inactiveBranches.map(branch => (
+                        {inactiveBranches.map((branch) => (
                             <BranchCard
                                 key={branch._id}
                                 branch={branch}
                                 managerName={getManagerName(branch.managerIds)}
                                 onEdit={() => openEdit(branch)}
                                 onToggle={() => setConfirmTarget(branch)}
+                                onView={() => openAnalytics(branch)}
                                 inactive
                                 readOnly={isBranchManager}
                             />
@@ -198,51 +344,130 @@ export default function BranchManagement() {
                 </>
             )}
 
-            {/* Add / Edit Modal */}
             {!isBranchManager && showModal && (
                 <div className={styles.overlay}>
-                    <div className={styles.modal}>
-                        <h2 className={styles.modalTitle}>
-                            {editTarget ? 'Edit Branch' : 'Add New Branch'}
-                        </h2>
+                    <div className={`${styles.modal} ${styles.largeModal}`}>
+                        <h2 className={styles.modalTitle}>{editTarget ? 'Edit Branch' : 'Add New Branch'}</h2>
 
-                        {formError && <p className={styles.formError}>{formError}</p>}
+                        {errors.form && <p className={styles.formError}>{errors.form}</p>}
 
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Branch Name <span className={styles.required}>*</span></label>
                             <input
-                                className={styles.input}
+                                className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
                                 value={form.name}
-                                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                                onChange={(event) => handleNameChange(event.target.value)}
                                 placeholder="e.g. Main Branch - Makati"
                             />
+                            {errors.name && <span className={styles.errorText}>{errors.name}</span>}
                         </div>
 
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Address</label>
-                            <input
-                                className={styles.input}
-                                value={form.address}
-                                onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                                placeholder="Full address"
-                            />
+                            <label className={styles.label}>Contact Number <span className={styles.required}>*</span></label>
+                            <div className={styles.phoneInputWrap}>
+                                <span className={styles.phonePrefix}>+63</span>
+                                <input
+                                    className={`${styles.input} ${errors.phone ? styles.inputError : ''}`}
+                                    value={form.phone}
+                                    onChange={(event) => handlePhoneChange(event.target.value)}
+                                    placeholder="9xxxxxxxxx"
+                                />
+                            </div>
+                            {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                         </div>
 
-                        <div className={styles.formGroup}>
-                            <label className={styles.label}>Contact Number</label>
-                            <input
-                                className={styles.input}
-                                value={form.contactNumber}
-                                onChange={e => setForm(f => ({ ...f, contactNumber: e.target.value }))}
-                                placeholder="+63 9XX XXX XXXX"
-                            />
+                        <div className={styles.addressGrid}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Region <span className={styles.required}>*</span></label>
+                                <select
+                                    className={`${styles.input} ${errors.region ? styles.inputError : ''}`}
+                                    value={form.addressDetails.region}
+                                    onChange={(event) => handleAddressChange('region', event.target.value)}
+                                >
+                                    <option value="">Select Region</option>
+                                    {regions.map((region) => (
+                                        <option key={region.code} value={region.code}>{region.name}</option>
+                                    ))}
+                                </select>
+                                {errors.region && <span className={styles.errorText}>{errors.region}</span>}
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Province <span className={styles.required}>*</span></label>
+                                <select
+                                    className={`${styles.input} ${errors.province ? styles.inputError : ''}`}
+                                    value={form.addressDetails.province}
+                                    onChange={(event) => handleAddressChange('province', event.target.value)}
+                                    disabled={!form.addressDetails.region}
+                                >
+                                    <option value="">Select Province</option>
+                                    {availableProvinces.map((province) => (
+                                        <option key={province.code} value={province.code}>{province.name}</option>
+                                    ))}
+                                </select>
+                                {errors.province && <span className={styles.errorText}>{errors.province}</span>}
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>City / Municipality <span className={styles.required}>*</span></label>
+                                <select
+                                    className={`${styles.input} ${errors.city ? styles.inputError : ''}`}
+                                    value={form.addressDetails.city}
+                                    onChange={(event) => handleAddressChange('city', event.target.value)}
+                                    disabled={!form.addressDetails.province}
+                                >
+                                    <option value="">Select City</option>
+                                    {availableCities.map((city) => (
+                                        <option key={city.code} value={city.code}>{city.name}</option>
+                                    ))}
+                                </select>
+                                {errors.city && <span className={styles.errorText}>{errors.city}</span>}
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Barangay <span className={styles.required}>*</span></label>
+                                <select
+                                    className={`${styles.input} ${errors.barangay ? styles.inputError : ''}`}
+                                    value={form.addressDetails.barangay}
+                                    onChange={(event) => handleAddressChange('barangay', event.target.value)}
+                                    disabled={!form.addressDetails.city}
+                                >
+                                    <option value="">Select Barangay</option>
+                                    {availableBarangays.map((barangay) => (
+                                        <option key={barangay} value={barangay}>{barangay}</option>
+                                    ))}
+                                </select>
+                                {errors.barangay && <span className={styles.errorText}>{errors.barangay}</span>}
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Street <span className={styles.required}>*</span></label>
+                                <input
+                                    className={`${styles.input} ${errors.street ? styles.inputError : ''}`}
+                                    value={form.addressDetails.street}
+                                    onChange={(event) => handleAddressChange('street', event.target.value)}
+                                    placeholder="e.g. Mabini St."
+                                />
+                                {errors.street && <span className={styles.errorText}>{errors.street}</span>}
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>House No. <span className={styles.required}>*</span></label>
+                                <input
+                                    className={`${styles.input} ${errors.houseNumber ? styles.inputError : ''}`}
+                                    value={form.addressDetails.houseNumber}
+                                    onChange={(event) => handleAddressChange('houseNumber', event.target.value)}
+                                    placeholder="e.g. Unit 12"
+                                />
+                                {errors.houseNumber && <span className={styles.errorText}>{errors.houseNumber}</span>}
+                            </div>
                         </div>
 
                         <div className={styles.modalActions}>
-                            <button className={styles.cancelBtn} onClick={() => setShowModal(false)} disabled={submitting}>
+                            <button className={styles.cancelBtn} onClick={closeModal} disabled={submitting} type="button">
                                 Cancel
                             </button>
-                            <button className={styles.submitBtn} onClick={handleSubmit} disabled={submitting}>
+                            <button className={styles.submitBtn} onClick={handleSubmit} disabled={submitting} type="button">
                                 {submitting ? 'Saving...' : (editTarget ? 'Save Changes' : 'Add Branch')}
                             </button>
                         </div>
@@ -250,16 +475,100 @@ export default function BranchManagement() {
                 </div>
             )}
 
-            {/* Confirm Toggle Modal */}
+            {analyticsTarget && (
+                <div className={styles.overlay}>
+                    <div className={`${styles.modal} ${styles.analyticsModal}`}>
+                        <div className={styles.analyticsHeader}>
+                            <div>
+                                <h2 className={styles.modalTitle}>{analyticsTarget.name}</h2>
+                                <p className={styles.analyticsSubtitle}>Branch analytics overview</p>
+                            </div>
+                            <button className={styles.cancelBtn} onClick={() => setAnalyticsTarget(null)} type="button">
+                                Close
+                            </button>
+                        </div>
+
+                        {analyticsLoading ? (
+                            <div className={styles.emptyState}>Loading analytics...</div>
+                        ) : analyticsData ? (
+                            <>
+                                <div className={styles.analyticsStats}>
+                                    <div className={styles.analyticsStatCard}>
+                                        <span className={styles.analyticsStatLabel}>Appointments</span>
+                                        <strong className={styles.analyticsStatValue}>{analyticsData.totalAppointments}</strong>
+                                    </div>
+                                    <div className={styles.analyticsStatCard}>
+                                        <span className={styles.analyticsStatLabel}>Status Types</span>
+                                        <strong className={styles.analyticsStatValue}>{analyticsData.statusBreakdown.length}</strong>
+                                    </div>
+                                    <div className={styles.analyticsStatCard}>
+                                        <span className={styles.analyticsStatLabel}>Monthly Entries</span>
+                                        <strong className={styles.analyticsStatValue}>{analyticsData.monthly.length}</strong>
+                                    </div>
+                                </div>
+
+                                <div className={styles.analyticsSection}>
+                                    <h3 className={styles.analyticsSectionTitle}>Status Breakdown</h3>
+                                    {analyticsData.statusBreakdown.length > 0 ? (
+                                        <div className={styles.analyticsList}>
+                                            {analyticsData.statusBreakdown.map((item) => (
+                                                <div key={item.label} className={styles.analyticsListItem}>
+                                                    <span>{item.label}</span>
+                                                    <strong>{item.count}</strong>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className={styles.analyticsEmpty}>No status data yet.</p>
+                                    )}
+                                </div>
+
+                                <div className={styles.analyticsSection}>
+                                    <h3 className={styles.analyticsSectionTitle}>Monthly Activity</h3>
+                                    {analyticsData.monthly.length > 0 ? (
+                                        <div className={styles.analyticsList}>
+                                            {analyticsData.monthly.map((item) => (
+                                                <div key={item.label} className={styles.analyticsListItem}>
+                                                    <span>{item.label}</span>
+                                                    <strong>{item.count}</strong>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className={styles.analyticsEmpty}>No monthly activity yet.</p>
+                                    )}
+                                </div>
+
+                                <div className={styles.analyticsSection}>
+                                    <h3 className={styles.analyticsSectionTitle}>Top Procedures</h3>
+                                    {analyticsData.procedures.length > 0 ? (
+                                        <div className={styles.analyticsList}>
+                                            {analyticsData.procedures.map((item) => (
+                                                <div key={item._id} className={styles.analyticsListItem}>
+                                                    <span>{item._id}</span>
+                                                    <strong>{item.value}</strong>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className={styles.analyticsEmpty}>No procedure data yet.</p>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <div className={styles.emptyState}>Analytics unavailable for this branch right now.</div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {!isBranchManager && (
                 <ConfirmModal
                     isOpen={!!confirmTarget}
                     title={confirmTarget?.isActive ? 'Deactivate Branch' : 'Activate Branch'}
-                    message={
-                        confirmTarget?.isActive
-                            ? `Are you sure you want to deactivate "${confirmTarget?.name}"? It will no longer appear in active branch lists.`
-                            : `Reactivate "${confirmTarget?.name}"?`
-                    }
+                    message={confirmTarget?.isActive
+                        ? `Are you sure you want to deactivate "${confirmTarget?.name}"?`
+                        : `Reactivate "${confirmTarget?.name}"?`}
                     confirmText={confirmTarget?.isActive ? 'Deactivate' : 'Activate'}
                     isDestructive={confirmTarget?.isActive}
                     onConfirm={() => handleToggleActive(confirmTarget)}
@@ -270,13 +579,12 @@ export default function BranchManagement() {
     );
 }
 
-function BranchCard({ branch, managerName, onEdit, onToggle, inactive, readOnly = false }) {
+function BranchCard({ branch, managerName, onEdit, onToggle, onView, inactive, readOnly = false }) {
+    const displayAddress = formatBranchAddress(branch.addressDetails, branch.address);
+
     return (
         <div className={`${styles.card} ${inactive ? styles.cardInactive : ''}`}>
             <div className={styles.cardHeader}>
-                <div className={styles.branchIcon}>
-                    <FaCodeBranch />
-                </div>
                 <span className={`${styles.statusBadge} ${branch.isActive ? styles.badgeActive : styles.badgeInactive}`}>
                     {branch.isActive ? 'Active' : 'Inactive'}
                 </span>
@@ -285,10 +593,10 @@ function BranchCard({ branch, managerName, onEdit, onToggle, inactive, readOnly 
             <h3 className={styles.branchName}>{branch.name}</h3>
 
             <div className={styles.branchMeta}>
-                {branch.address && (
+                {displayAddress && (
                     <p className={styles.metaRow}>
                         <FaMapMarkerAlt className={styles.metaIcon} />
-                        {branch.address}
+                        {displayAddress}
                     </p>
                 )}
                 {branch.contactNumber && (
@@ -303,20 +611,26 @@ function BranchCard({ branch, managerName, onEdit, onToggle, inactive, readOnly 
                 </p>
             </div>
 
-            {!readOnly && (
-                <div className={styles.cardActions}>
-                    <button className={styles.editBtn} onClick={onEdit}>
-                        <FaEdit /> Edit
-                    </button>
-                    <button
-                        className={`${styles.toggleBtn} ${branch.isActive ? styles.toggleDeactivate : styles.toggleActivate}`}
-                        onClick={onToggle}
-                    >
-                        <FaPowerOff />
-                        {branch.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                </div>
-            )}
+            <div className={styles.cardActions}>
+                <button className={styles.viewBtn} onClick={onView} type="button">
+                    View Branch
+                </button>
+                {!readOnly && (
+                    <>
+                        <button className={styles.editBtn} onClick={onEdit} type="button">
+                            <FaEdit /> Edit
+                        </button>
+                        <button
+                            className={`${styles.toggleBtn} ${branch.isActive ? styles.toggleDeactivate : styles.toggleActivate}`}
+                            onClick={onToggle}
+                            type="button"
+                        >
+                            <FaPowerOff />
+                            {branch.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                    </>
+                )}
+            </div>
         </div>
     );
 }

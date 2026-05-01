@@ -83,6 +83,7 @@
 .heroCard {
     padding: 36px;
     align-self: center;
+    max-width: 700px;
 }
 
 .hero .heroCard,
@@ -130,6 +131,7 @@
     gap: 14px;
     margin-top: 26px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .primaryBtn,
@@ -372,6 +374,13 @@
     gap: 20px;
     padding: 24px 28px;
     background: transparent;
+}
+
+.contactActionRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
 }
 
 .consultChip {
@@ -1009,6 +1018,10 @@
         padding: 24px 0 8px;
     }
 
+    .sectionHeader {
+        margin-bottom: 14px;
+    }
+
     .referenceActionCard {
         padding: 22px;
     }
@@ -1026,6 +1039,11 @@
     .heroCard {
         max-width: 720px;
         padding-right: 0;
+    }
+
+    .referenceImageCard {
+        padding: 0;
+        gap: 14px;
     }
 }
 
@@ -1049,6 +1067,11 @@
     }
 
     .buttonRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .contactActionRow {
         flex-direction: column;
         align-items: stretch;
     }
@@ -1114,6 +1137,10 @@
         align-items: stretch;
     }
 
+    .referenceActionCard {
+        gap: 16px;
+    }
+
     .serviceMetaRow {
         flex-direction: column;
     }
@@ -1132,6 +1159,7 @@
 
     .heroTitle {
         font-size: clamp(2.15rem, 10vw, 3rem);
+        line-height: 1.02;
     }
 }
 

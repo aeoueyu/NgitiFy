@@ -116,6 +116,18 @@
     box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
 }
 
+.input-field::-ms-reveal,
+.input-field::-ms-clear {
+    display: none;
+}
+
+.input-field::-webkit-credentials-auto-fill-button,
+.input-field::-webkit-contacts-auto-fill-button {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+}
+
 .input-field.input-error {
     border-color: #d9534f;
     box-shadow: 0 0 0 3px rgba(217, 83, 79, 0.1);

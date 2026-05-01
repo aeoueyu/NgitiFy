@@ -294,11 +294,69 @@ const dentistCanAccessPatient = async (dentistId, patientId) => {
     return Boolean(assignedAppointment);
 };
 
-const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, procedure }) => {
+const getClinicContactDetails = async () => {
+    const config = await SystemConfig.findOne().lean();
+    return {
+        clinicName: config?.clinicName || 'Dentime Dental Clinic',
+        clinicContact: config?.clinicContact || 'N/A',
+        clinicEmail: config?.clinicEmail || 'N/A',
+        clinicAddress: config?.clinicAddress || 'N/A',
+    };
+};
+
+const getDentistDisplayName = (dentist) => {
+    if (!dentist) return 'To be assigned by the clinic';
+    const fullName = dentist?.name
+        ? `${dentist.name.first || ''} ${dentist.name.last || ''}`.trim()
+        : '';
+    return fullName ? `Dr. ${fullName}` : 'To be assigned by the clinic';
+};
+
+const getPatientDisplayName = (appointment) => {
+    if (appointment?.patient?.name) {
+        return `${appointment.patient.name.first || ''} ${appointment.patient.name.last || ''}`.trim() || 'Patient';
+    }
+    return appointment?.guestName || 'Patient';
+};
+
+const sendAppointmentReceivedEmail = async ({ email, name, branch, date, time, procedure }) => {
     if (!email) return;
 
     const appointmentDate = new Date(date);
     const safeName = name || 'Patient';
+    const clinic = await getClinicContactDetails();
+
+    await resend.emails.send({
+        from: 'NgitiFy Appointments <noreply@ngitify.com>',
+        to: email,
+        subject: 'Your Dentime appointment request is in process',
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #005466;">Appointment Request Received</h2>
+                <p>Hello ${safeName},</p>
+                <p>Your appointment request is now in process. Please wait for confirmation from the clinic.</p>
+                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
+                    <p><strong>Branch:</strong> ${branch}</p>
+                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
+                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p><strong>Procedure:</strong> ${procedure}</p>
+                </div>
+                <p>If you have questions, you may contact the clinic through the details below.</p>
+                <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
+                <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
+                <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
+            </div>
+        `,
+    });
+};
+
+const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, procedure, dentistName }) => {
+    if (!email) return;
+
+    const appointmentDate = new Date(date);
+    const safeName = name || 'Patient';
+    const clinic = await getClinicContactDetails();
 
     await resend.emails.send({
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
@@ -310,12 +368,17 @@ const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, 
                 <p>Hello ${safeName},</p>
                 <p>Your appointment request at Dentime Dental Clinic has been confirmed.</p>
                 <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
                     <p><strong>Branch:</strong> ${branch}</p>
                     <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
                     <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
                     <p><strong>Procedure:</strong> ${procedure}</p>
+                    <p><strong>Assigned Dentist:</strong> ${dentistName || 'To be assigned by the clinic'}</p>
                 </div>
                 <p>If you need to update your appointment, please contact the clinic directly.</p>
+                <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
+                <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
+                <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
             </div>
         `,
     });
@@ -1976,17 +2039,26 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
             }
         }
 
-        const deletedSurgery = await Surgery.findByIdAndDelete(req.params.id);
-        if (!deletedSurgery) return res.status(404).json({ message: "Surgery not found" });
+        const archivedSurgery = await Surgery.findByIdAndUpdate(
+            req.params.id,
+            {
+                isArchived: true,
+                archivedAt: new Date(),
+                archivedBy: req.user.id,
+                status: 'cancelled',
+            },
+            { new: true }
+        );
+        if (!archivedSurgery) return res.status(404).json({ message: "Surgery not found" });
 
         await AuditLog.create({
-            action: "DELETE_SURGERY",
+            action: "ARCHIVE_SURGERY",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
-            details: `Deleted surgery record ID: ${req.params.id}`
+            details: `Archived surgery record ID: ${req.params.id}`
         });
 
-        res.json({ message: "Surgery deleted successfully." });
+        res.json({ message: "Appointment archived successfully.", surgery: archivedSurgery });
     } catch (error) {
         console.error("Error deleting surgery:", error);
         res.status(500).json({ message: "Error deleting surgery." });
@@ -2005,7 +2077,7 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
 app.get('/api/surgeries', verifyToken, async (req, res) => {
     try {
         const { patientId, status, date } = req.query;
-        const query = {};
+        const query = { isArchived: { $ne: true } };
 
         if (req.user.role === 'dentist') {
             // Dentists are always scoped to their own appointments only
@@ -2052,7 +2124,7 @@ app.get('/api/surgeries', verifyToken, async (req, res) => {
 
 app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
     try {
-        const { status, remarks, preOpInstructions, date, time } = req.body;
+        const { status, remarks, preOpInstructions, date, time, dentistId } = req.body;
 
         const allowedStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         if (!allowedStatuses.includes(status)) {
@@ -2083,6 +2155,7 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
         if (preOpInstructions !== undefined) updateFields.preOpInstructions = preOpInstructions;
         if (date) updateFields.date = new Date(date);
         if (time) updateFields.time = time;
+        if (dentistId !== undefined && req.user.role !== 'dentist') updateFields.dentist = dentistId || null;
 
         const updatedSurgery = await Surgery.findByIdAndUpdate(
             req.params.id,
@@ -2093,17 +2166,17 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
         if (!updatedSurgery) return res.status(404).json({ message: 'Surgery not found.' });
 
         const wasConfirmedNow = currentSurgery.status !== 'confirmed' && status === 'confirmed';
+        const dentistChanged = String(currentSurgery.dentist || '') !== String(updatedSurgery.dentist?._id || '');
         if (wasConfirmedNow) {
-            const patientName = updatedSurgery.patient?.name
-                ? `${updatedSurgery.patient.name.first || ''} ${updatedSurgery.patient.name.last || ''}`.trim()
-                : (updatedSurgery.guestName || 'Patient');
+            const patientName = getPatientDisplayName(updatedSurgery);
             const patientEmail = updatedSurgery.patient?.email || updatedSurgery.guestEmail || '';
+            const dentistName = getDentistDisplayName(updatedSurgery.dentist);
 
             if (updatedSurgery.patient?._id) {
                 await Notification.create({
                     type: 'APPOINTMENT_CONFIRMED',
                     title: 'Appointment Confirmed',
-                    message: `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} has been confirmed.`,
+                    message: `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} has been confirmed. Assigned dentist: ${dentistName}.`,
                     recipientId: updatedSurgery.patient._id,
                     recipientRole: 'patient',
                     relatedId: updatedSurgery._id,
@@ -2118,6 +2191,33 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
                     date: updatedSurgery.date,
                     time: updatedSurgery.time,
                     procedure: updatedSurgery.procedure,
+                    dentistName,
+                });
+            }
+        }
+
+        if (!wasConfirmedNow && dentistChanged) {
+            if (updatedSurgery.patient?._id) {
+                await Notification.create({
+                    type: 'APPOINTMENT_CONFIRMED',
+                    title: 'Dentist Assigned',
+                    message: `Your appointment for ${updatedSurgery.procedure} is assigned to ${getDentistDisplayName(updatedSurgery.dentist)}.`,
+                    recipientId: updatedSurgery.patient._id,
+                    recipientRole: 'patient',
+                    relatedId: updatedSurgery._id,
+                });
+            }
+
+            const followUpEmail = updatedSurgery.patient?.email || updatedSurgery.guestEmail || '';
+            if (followUpEmail && currentSurgery.status === 'confirmed') {
+                await sendAppointmentConfirmedEmail({
+                    email: followUpEmail,
+                    name: getPatientDisplayName(updatedSurgery),
+                    branch: updatedSurgery.branch,
+                    date: updatedSurgery.date,
+                    time: updatedSurgery.time,
+                    procedure: updatedSurgery.procedure,
+                    dentistName: getDentistDisplayName(updatedSurgery.dentist),
                 });
             }
         }
@@ -2290,6 +2390,15 @@ app.post('/api/public/appointments/request', async (req, res) => {
             branch: normalizedBranch,
         });
 
+        await sendAppointmentReceivedEmail({
+            email: normalizedEmail,
+            name: normalizedName,
+            branch: normalizedBranch,
+            date,
+            time,
+            procedure: normalizedProcedure,
+        });
+
         res.status(201).json({
             message: 'Appointment request submitted successfully. The clinic will email you once it is confirmed.',
             surgery: newSurgery,
@@ -2351,6 +2460,17 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             date,
             branch,
         });
+
+        if (patientUser.email) {
+            await sendAppointmentReceivedEmail({
+                email: patientUser.email,
+                name: `${patientUser.name.first} ${patientUser.name.last}`.trim(),
+                branch,
+                date,
+                time,
+                procedure,
+            });
+        }
 
         res.status(201).json({
             message: 'Appointment request submitted successfully. You will be notified once confirmed.',
@@ -3210,13 +3330,21 @@ app.post('/api/branches', verifyToken, async (req, res) => {
         if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
-        const { name, address, contactNumber } = req.body;
+        const { name, address, addressDetails, contactNumber } = req.body;
         if (!name) return res.status(400).json({ message: 'Branch name is required.' });
+        if (contactNumber && !/^\+639\d{9}$/.test(String(contactNumber).trim())) {
+            return res.status(400).json({ message: 'Invalid contact number format.' });
+        }
  
         const existing = await Branch.findOne({ name: name.trim() });
         if (existing) return res.status(409).json({ message: 'A branch with this name already exists.' });
  
-        const newBranch = new Branch({ name: name.trim(), address, contactNumber });
+        const newBranch = new Branch({
+            name: name.trim(),
+            address,
+            addressDetails: addressDetails || undefined,
+            contactNumber: contactNumber?.trim() || '',
+        });
         await newBranch.save();
  
         await AuditLog.create({
@@ -3238,11 +3366,20 @@ app.put('/api/branches/:id', verifyToken, async (req, res) => {
         if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
-        const { name, address, contactNumber, isActive } = req.body;
+        const { name, address, addressDetails, contactNumber, isActive } = req.body;
         if (!name) return res.status(400).json({ message: 'Branch name is required.' });
+        if (contactNumber && !/^\+639\d{9}$/.test(String(contactNumber).trim())) {
+            return res.status(400).json({ message: 'Invalid contact number format.' });
+        }
         const updatedBranch = await Branch.findByIdAndUpdate(
             req.params.id,
-            { name, address, contactNumber, isActive },
+            {
+                name: name.trim(),
+                address,
+                addressDetails: addressDetails || undefined,
+                contactNumber: contactNumber?.trim() || '',
+                isActive,
+            },
             { new: true }
         );
         if (!updatedBranch) return res.status(404).json({ message: 'Branch not found.' });

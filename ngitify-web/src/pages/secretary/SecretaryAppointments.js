@@ -286,9 +286,9 @@ export default function SecretaryAppointments() {
             const res = await authFetch(`/surgeries/${deleteTarget.id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error();
             setAllAppointments((prev) => prev.filter((item) => item.id !== deleteTarget.id));
-            addToast('Appointment deleted successfully.', 'success');
+            addToast('Appointment archived successfully.', 'success');
         } catch {
-            addToast('Failed to delete appointment.', 'error');
+            addToast('Failed to archive appointment.', 'error');
         } finally {
             setDeleteTarget(null);
         }
@@ -498,7 +498,7 @@ export default function SecretaryAppointments() {
                                     <button
                                         className={`${styles.iconBtn} ${styles.cancelActionBtn}`}
                                         onClick={() => setDeleteTarget(appointment)}
-                                        title="Delete Appointment"
+                                        title="Archive Appointment"
                                     >
                                         <FaTrashAlt />
                                     </button>
@@ -691,9 +691,9 @@ export default function SecretaryAppointments() {
 
             <ConfirmModal
                 isOpen={!!deleteTarget}
-                title="Delete Appointment"
-                message={`Are you sure you want to permanently delete the appointment for ${deleteTarget?.patientName}?`}
-                confirmText="Yes, Delete"
+                title="Archive Appointment"
+                message={`Are you sure you want to archive the appointment for ${deleteTarget?.patientName}?`}
+                confirmText="Yes, Archive"
                 isDestructive={true}
                 onConfirm={confirmDeleteAppointment}
                 onCancel={() => setDeleteTarget(null)}

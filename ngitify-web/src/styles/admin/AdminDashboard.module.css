@@ -178,6 +178,57 @@
 .event-dot { width: 4px; height: 4px; background-color: #2dccf6; border-radius: 50%; margin-top: 2px; }
 .event-dot.white { background-color: white; }
 
+.holiday-panel {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #eef4f8;
+}
+
+.holiday-heading {
+    margin: 0 0 10px;
+    color: #01538b;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.holiday-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.holiday-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #475569;
+}
+
+.holiday-date {
+    min-width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #fef2f2;
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.holiday-name {
+    line-height: 1.4;
+}
+
+.holiday-empty {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 13px;
+}
+
 /* --- QUICK ACTIONS BAR (FLOATING) --- */
 .quick-actions-bar {
     position: fixed;
