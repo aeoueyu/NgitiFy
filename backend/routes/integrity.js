@@ -160,11 +160,18 @@ router.post('/integrity/fix/:checkName', verifyToken, isAdmin, async (req, res) 
             if (orphanedIds.length > 0) {
                 await Surgery.updateMany(
                     { _id: { $in: orphanedIds } },
-                    { $set: { status: 'archived', notes: 'Auto-archived: linked user no longer exists.' } }
+                    {
+                        $set: {
+                            isArchived: true,
+                            archivedAt: new Date(),
+                            status: 'cancelled',
+                            notes: 'Auto-archived: linked user no longer exists.'
+                        }
+                    }
                 );
             }
 
-            fixResult = { fixed: orphanedIds.length, action: 'Marked as archived' };
+            fixResult = { fixed: orphanedIds.length, action: 'Archived orphaned surgeries' };
 
         } else if (checkName === 'unverified_users') {
             // Deactivate stale unverified accounts

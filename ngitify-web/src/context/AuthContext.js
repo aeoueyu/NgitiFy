@@ -9,14 +9,51 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('ngitify_user');
-    const token = localStorage.getItem('token');
+    const restoreSession = async () => {
+      const storedUser = localStorage.getItem('ngitify_user');
+      const token = localStorage.getItem('token');
 
-    if (storedUser && token) {
-        setCurrentUser(new User(JSON.parse(storedUser)));
-    }
+      if (!storedUser || !token) {
+        setLoading(false);
+        return;
+      }
 
-    setLoading(false);
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        const restoredUser = new User(parsedUser);
+        const userId = restoredUser.id || restoredUser.userId || restoredUser._id;
+
+        if (!userId) {
+          throw new Error('Missing stored user id.');
+        }
+
+        const response = await authFetch(`/user/${userId}`);
+        if (!response.ok) {
+          throw new Error('Session is no longer valid.');
+        }
+
+        const liveUser = await response.json();
+        setCurrentUser(new User({
+          ...parsedUser,
+          id: liveUser._id || parsedUser.id,
+          email: liveUser.email || parsedUser.email,
+          role: liveUser.role || parsedUser.role,
+          firstName: liveUser.name?.first || parsedUser.firstName || '',
+          lastName: liveUser.name?.last || parsedUser.lastName || '',
+          profileImage: liveUser.profileImage || parsedUser.profileImage || '',
+          assignedBranch: liveUser.assignedBranch || liveUser.assignedBranches?.[0] || parsedUser.assignedBranch || null,
+          isDentist: typeof liveUser.isDentist === 'boolean' ? liveUser.isDentist : parsedUser.isDentist || false,
+        }));
+      } catch (error) {
+        localStorage.removeItem('ngitify_user');
+        localStorage.removeItem('token');
+        setCurrentUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    restoreSession();
   }, []);
 
   const login = async (userData) => {

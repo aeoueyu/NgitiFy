@@ -4,7 +4,7 @@ export const clinicInfo = {
     owner: 'Dr. Michael Edwin Tamayo, DMD',
     contactNumber: '09524417533',
     facebookUrl: 'https://web.facebook.com/dentimedentalclinic',
-    facebookName: 'Dental Dental Clinic - Marikina City',
+    facebookName: 'Dentime Dental Clinic - Marikina City',
     instagramHandle: 'dentimedentalclinicmarikina',
 };
 

@@ -39,7 +39,7 @@ const FALLBACK_BASE_URL = BASE_URL === REMOTE_API_URL ? '' : REMOTE_API_URL;
 export const buildApiUrl = (endpoint) => buildApiUrlWithBase(BASE_URL, endpoint);
 
 const shouldRetryWithFallback = (response) => (
-    Boolean(FALLBACK_BASE_URL) && [404, 502, 503, 504].includes(response.status)
+    Boolean(FALLBACK_BASE_URL) && [502, 503, 504].includes(response.status)
 );
 
 const fetchWithFallback = async (endpoint, config) => {

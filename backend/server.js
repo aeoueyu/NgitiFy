@@ -12,7 +12,6 @@ REQUIRED_ENV_VARS.forEach(key => {
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
@@ -48,6 +47,8 @@ const Surgery = require('./models/Surgery');
 const Inventory = require('./models/Inventory');
 const Notification = require('./models/Notification');
 const Branch = require('./models/Branch');
+const Queue = require('./models/Queue');
+const SupportTicket = require('./models/SupportTicket');
 const SystemConfig = require('./models/SystemConfig');
 const RolePermission = require('./models/RolePermission');
 const backupRoutes = require('./routes/backup');
@@ -951,6 +952,7 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
 // Explicit allowlists — any new roles added to the system are blocked by default
 const SECRETARY_ALLOWED_ROLES = ['patient'];
 const DENTIST_ALLOWED_ROLES   = ['patient', 'dentist', 'secretary'];
+const BRANCH_MANAGER_ALLOWED_ROLES = ['patient', 'dentist', 'secretary'];
 
 app.get('/api/users', verifyToken, async (req, res) => {
     try {
@@ -970,6 +972,14 @@ app.get('/api/users', verifyToken, async (req, res) => {
             if (!role || !DENTIST_ALLOWED_ROLES.includes(role)) {
                 return res.status(403).json({
                     message: "Access denied. You do not have permission to view management accounts."
+                });
+            }
+        }
+
+        if (req.user.role === 'branch-manager') {
+            if (!role || !BRANCH_MANAGER_ALLOWED_ROLES.includes(role)) {
+                return res.status(403).json({
+                    message: "Access denied. You do not have permission to view these user accounts."
                 });
             }
         }
@@ -1410,9 +1420,14 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             updateData.status = 'inactive'; 
 
             const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
-            
+
             const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-            await sendActivationEmail(email, currentUser.role, tempPassword, activationLink);
+            try {
+                await sendActivationEmail(email, currentUser.role, tempPassword, activationLink);
+            } catch (emailError) {
+                console.error('Activation email failed after user update:', emailError.message);
+                return res.status(207).json({ message: 'User updated, but activation email failed to send.' });
+            }
 
             await AuditLog.create({
                 action: 'EMAIL_CHANGE',
@@ -1600,6 +1615,9 @@ app.post('/api/verify-current-password', verifyToken, async (req, res) => {
 app.post('/api/change-password', verifyToken, async (req, res) => {
     try {
         const { userId, currentPassword, newPassword } = req.body;
+        if (userId !== req.user.id && req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
         const user = await User.findById(userId);
 
         if (!user) return res.status(404).json({ message: "User not found." });
@@ -1681,14 +1699,10 @@ app.get('/api/audit-logs', verifyToken, async (req, res) => {
             filter.user = req.user.email;
         }
 
-        if (userId && ['administrator', 'co-administrator', 'owner', 'branch-manager', 'secretary'].includes(req.user.role)) {
+        if (userId && ['administrator', 'co-administrator', 'owner', 'branch-manager'].includes(req.user.role)) {
             const targetUser = await User.findById(userId).select('email assignedBranch assignedBranches');
             if (!targetUser?.email) {
                 return res.status(404).json({ message: 'User not found.' });
-            }
-
-            if (req.user.role === 'secretary' && targetUser.email !== req.user.email) {
-                return res.status(403).json({ message: 'Access denied.' });
             }
 
             if (req.user.role === 'branch-manager') {
@@ -2458,6 +2472,18 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Only patients can submit appointment requests.' });
         }
 
+        if (time) {
+            const allowedSlots = await getClinicAllowedSlots();
+            if (!allowedSlots.includes(time)) {
+                return res.status(400).json({ message: 'Please select a valid appointment time.' });
+            }
+
+            const takenSlots = await getTakenSlotsForDate({ date, branch });
+            if (takenSlots.includes(time)) {
+                return res.status(409).json({ message: 'That time slot is already taken. Please choose another time.' });
+            }
+        }
+
         const newSurgery = new Surgery({
             patient: req.user.id,
             dentist: req.body.dentistId || null,
@@ -3205,6 +3231,10 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
 
 app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
     try {
+        const ARCHIVE_ALLOWED = ['administrator', 'co-administrator', 'owner'];
+        if (!ARCHIVE_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
         const { isArchived } = req.body;
 
         const user = await User.findById(req.params.id);
@@ -3244,6 +3274,10 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
 
 app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
     try {
+        const STATS_ALLOWED = ['administrator', 'co-administrator', 'branch-manager', 'dentist', 'secretary', 'owner'];
+        if (!STATS_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         const todayEnd = new Date();
@@ -3321,11 +3355,23 @@ app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
 // Mark a single notification as read
 app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
     try {
-        const notification = await Notification.findByIdAndUpdate(
-            req.params.id, 
-            { isRead: true }, 
-            { new: true }
-        );
+        const notification = await Notification.findById(req.params.id);
+        if (!notification) {
+            return res.status(404).json({ message: 'Notification not found.' });
+        }
+
+        const recipientId = notification.recipientId?.toString?.();
+        const roleMatches = notification.recipientRole === req.user.role;
+        const userMatches = recipientId === req.user.id;
+        if (recipientId && !userMatches) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        if (notification.recipientRole && !roleMatches) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        notification.isRead = true;
+        await notification.save();
         res.json(notification);
     } catch (error) {
         console.error('Error marking notification read:', error);
@@ -3335,13 +3381,19 @@ app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
 
 app.get('/api/branches', verifyToken, async (req, res) => {
     try {
-        let filter = req.query.all === 'true' ? {} : { isActive: true };
+        const BRANCH_ALLOWED = ['administrator', 'co-administrator', 'branch-manager', 'owner', 'secretary', 'dentist'];
+        if (!BRANCH_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        let filter = {};
 
         if (req.user.role === 'branch-manager') {
             if (!req.user.assignedBranch) {
                 return res.status(403).json({ message: 'Access denied. No assigned branch found.' });
             }
-            filter = { ...filter, name: req.user.assignedBranch };
+            filter = { name: req.user.assignedBranch };
+        } else if (req.query.all !== 'true') {
+            filter.isActive = true;
         }
 
         const branches = await Branch.find(filter).sort({ name: 1 });
@@ -3432,6 +3484,10 @@ app.put('/api/branches/:id', verifyToken, async (req, res) => {
  
 app.get('/api/system-config', verifyToken, async (req, res) => {
     try {
+        const CONFIG_ALLOWED = ['administrator', 'co-administrator', 'owner', 'branch-manager', 'secretary', 'dentist'];
+        if (!CONFIG_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
         // Get the single config doc (or create a default one on first access)
         let config = await SystemConfig.findOne();
         if (!config) {
@@ -3827,6 +3883,10 @@ Strict rules:
 // -------------------------------------------------------
 app.post('/api/ai/education', verifyToken, async (req, res) => {
     try {
+        const EDU_ALLOWED = ['dentist', 'administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+        if (!EDU_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
         const { topic } = req.body;
         if (!topic) return res.status(400).json({ message: 'Topic is required.' });
 
@@ -4475,9 +4535,11 @@ app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
         return res.status(400).json({ message: 'Target Co-Administrator ID and current password are required.' });
     }
 
+    let session;
     try {
+        session = await mongoose.startSession();
         // 1. Verify the current admin's password
-        const adminUser = await User.findById(req.user.id);
+        const adminUser = await User.findById(req.user.id).session(session);
         if (!adminUser) return res.status(404).json({ message: 'Administrator account not found.' });
 
         const isPasswordValid = await bcrypt.compare(currentPassword, adminUser.password);
@@ -4486,7 +4548,7 @@ app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
         }
 
         // 2. Find and validate the target co-admin
-        const targetUser = await User.findById(targetCoAdminId);
+        const targetUser = await User.findById(targetCoAdminId).session(session);
         if (!targetUser) return res.status(404).json({ message: 'Target user not found.' });
         if (targetUser.role !== 'co-administrator') {
             return res.status(400).json({ message: 'Target user must be a Co-Administrator.' });
@@ -4499,8 +4561,10 @@ app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
         adminUser.role = 'co-administrator';
         targetUser.role = 'administrator';
 
-        await adminUser.save();
-        await targetUser.save();
+        await session.withTransaction(async () => {
+            await adminUser.save({ session });
+            await targetUser.save({ session });
+        });
 
         // 4. Record the ownership transfer audit log entry
         await AuditLog.create({
@@ -4563,6 +4627,10 @@ app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error during ownership transfer:', error);
         res.status(500).json({ message: 'Server error during ownership transfer. No changes were made.' });
+    } finally {
+        if (session) {
+            await session.endSession();
+        }
     }
 });
 
