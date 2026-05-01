@@ -1,14 +1,26 @@
 import React from 'react';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
+import estheticsImage from '../../assets/images/esthetics-image.jpg';
+import generalDentistryImage from '../../assets/images/general-dentistry-image.jpg';
+import oralSurgeryImage from '../../assets/images/oral-surgery-image.jpg';
+import orthodonticsImage from '../../assets/images/orthodontics-image.jpg';
+import servicesHeroImage from '../../assets/images/services-hero-image.jpg';
 import { serviceHighlights } from '../../data/websiteContent';
+
+const serviceImages = {
+    'General Dentistry': generalDentistryImage,
+    Orthodontics: orthodonticsImage,
+    Esthetics: estheticsImage,
+    'Oral Surgery': oralSurgeryImage,
+};
 
 export default function WebsiteServices() {
     return (
         <WebsiteShell>
-            <section className={styles.section}>
+            <section className={`${styles.section} ${styles.pageHeroSection}`}>
                 <div className={styles.splitSection}>
-                    <article className={styles.infoCard}>
+                    <article className={`${styles.infoCard} ${styles.pageHeroCard}`}>
                         <p className={styles.eyebrow}>Services</p>
                         <h1 className={styles.sectionTitle}>Comprehensive dental services for everyday care and long-term smile support</h1>
                         <p className={styles.bodyText}>
@@ -17,8 +29,8 @@ export default function WebsiteServices() {
                         </p>
                     </article>
 
-                    <div className={styles.portraitPlaceholder}>
-                        <span className={styles.placeholderLabel}>Services Hero Image Placeholder</span>
+                    <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
+                        <img src={servicesHeroImage} alt="Dentime dental services" className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -28,7 +40,7 @@ export default function WebsiteServices() {
                     {serviceHighlights.map((service) => (
                         <article key={service.category} className={styles.serviceCard}>
                             <div className={styles.bannerPlaceholder}>
-                                <span className={styles.placeholderLabel}>{service.category} Featured Image Placeholder</span>
+                                <img src={serviceImages[service.category]} alt={service.category} className={styles.placeholderImage} />
                             </div>
                             <span className={styles.serviceTag}>{service.category}</span>
                             <h2 className={styles.cardTitle}>{service.category}</h2>

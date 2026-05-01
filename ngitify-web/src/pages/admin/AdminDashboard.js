@@ -6,7 +6,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid // TASK 4.1: Imported AreaChart components
 } from 'recharts';
 import { 
-    FaBoxOpen, FaHistory, FaCheckCircle, FaUserClock, 
+    FaHistory, FaCheckCircle, FaUserClock, 
     FaArrowUp, FaArrowDown, FaChartPie, FaUserPlus, 
     FaCalendarPlus, FaTimes, FaExclamationTriangle,
     FaChartLine, FaBell
@@ -41,7 +41,6 @@ export default function AdminDashboard() {
     const navigate = useNavigate(); 
     const [currentTime, setCurrentTime] = useState(new Date());
     
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false); 
     
     const [showAlertBanner, setShowAlertBanner] = useState(true);
@@ -60,10 +59,8 @@ export default function AdminDashboard() {
     const [treatmentData, setTreatmentData] = useState([{ name: 'Loading Data...', value: 1 }]);
     const [patientVolumeData, setPatientVolumeData] = useState([]); 
 
-    const [inventoryAlerts, setInventoryAlerts] = useState([]);
     const [recentLogs, setRecentLogs] = useState([]);
 
-    const [adminProfile, setAdminProfile] = useState(null);
     const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
@@ -80,15 +77,6 @@ export default function AdminDashboard() {
                     authFetch('/surgeries'),
                     authFetch('/audit-logs')
                 ]);
-
-                const userId = user?.userId || user?.id || user?._id;
-                if (userId) {
-                    const profileRes = await authFetch(`/user/${userId}`);
-                    if (profileRes.ok) {
-                        const profileData = await profileRes.json();
-                        setAdminProfile(profileData);
-                    }
-                }
 
                 if (statsRes.ok) {
                     const statsData = await statsRes.json();
@@ -114,7 +102,6 @@ export default function AdminDashboard() {
                     
                     setLowStockAlerts(alerts.length);
                     alerts.sort((a, b) => a.current - b.current);
-                    setInventoryAlerts(alerts.slice(0, 6));
                 }
 
                 if (surgRes.ok) {
@@ -199,7 +186,7 @@ export default function AdminDashboard() {
         };
 
         fetchDashboardData();
-    }, []);
+    }, [user?.userId, user?.id, user?._id]);
 
     useEffect(() => {
         const fetchUnread = async () => {
@@ -267,16 +254,6 @@ export default function AdminDashboard() {
     const handleDateClick = (day) => {
         setSelectedDate(day.date);
         if (day.faded) setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
-    };
-
-    const handleLogoutClick = () => {
-        setIsProfileOpen(false);
-        setShowLogoutModal(true);
-    };
-
-    const handleProfileNavigation = () => {
-        setIsProfileOpen(false);
-        navigate('/admin/profile');
     };
 
     const calendarDays = getCalendarDays();

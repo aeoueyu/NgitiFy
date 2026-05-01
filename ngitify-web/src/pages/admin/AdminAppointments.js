@@ -72,7 +72,11 @@ const normalizeSurgery = (s) => {
 export default function Appointments() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const notifPath = user?.role === 'owner' ? '/owner/notifications' : '/admin/appointment-notifications';
+    const notifPath = user?.role === 'owner'
+        ? '/owner/notifications'
+        : user?.role === 'branch-manager'
+            ? '/branch-manager/notifications'
+            : '/admin/appointment-notifications';
     const { addToast } = useToast();
 
     // ─── DATA STATE ──────────────────────────────────────────────────────────

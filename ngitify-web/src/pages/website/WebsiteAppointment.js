@@ -246,9 +246,9 @@ export default function WebsiteAppointment() {
 
     return (
         <WebsiteShell>
-            <section className={styles.section}>
+            <section className={`${styles.section} ${styles.pageHeroSection}`}>
                 <div className={styles.splitSection}>
-                    <article className={styles.infoCard}>
+                    <article className={`${styles.infoCard} ${styles.pageHeroCard}`}>
                         <p className={styles.eyebrow}>Appointment</p>
                         <h1 className={styles.sectionTitle}>Send your appointment request</h1>
                         <p className={styles.bodyText}>
@@ -265,7 +265,7 @@ export default function WebsiteAppointment() {
                         </div>
                     </article>
 
-                    <div className={styles.portraitPlaceholder}>
+                    <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
                         <span className={styles.placeholderLabel}>Appointment Hero Image Placeholder</span>
                     </div>
                 </div>

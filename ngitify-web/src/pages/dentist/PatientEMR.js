@@ -616,7 +616,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     };
 
     const handleAIEnhance = async () => {
-        // Revert: if already enhanced, toggle back to original
         if (isEnhanced) {
             setIsEnhanced(false);
             setAiAnalysis('');
@@ -629,48 +628,18 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         }
 
         setIsEnhancing(true);
-        try {
-            // Extract raw base64 and media type from the data URL
-            // Radiographs are stored as data URLs: "data:image/jpeg;base64,..."
-            let imageBase64 = selectedRadiograph.url;
-            let mediaType = 'image/jpeg';
-
-            if (imageBase64.startsWith('data:')) {
-                const match = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
-                if (match) {
-                    mediaType = match[1];
-                    imageBase64 = match[2];
-                } else {
-                    throw new Error('Unrecognised image format. Please re-upload the radiograph.');
-                }
-            } else {
-                throw new Error('This radiograph cannot be analysed — only locally uploaded images are supported.');
-            }
-
-            const res = await authFetch('/radiographs/enhance', {
-                method: 'POST',
-                body: JSON.stringify({
-                    imageBase64,
-                    mediaType,
-                    patientId: activePatientId,
-                }),
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.message || 'AI analysis failed.');
-            }
-
-            const data = await res.json();
-            setAiAnalysis(data.analysis || 'No analysis returned.');
+        setTimeout(() => {
+            setAiAnalysis(
+                [
+                    `Preview mode only: ${selectedRadiograph.type} has been visually enhanced for dentist-side UI testing.`,
+                    'Planned output will highlight contrast, surface suspicious areas, and summarize possible findings for dentist review.',
+                    'Final AI enhancement is not enabled yet in this module, so this screen currently demonstrates layout and workflow only.',
+                ].join('\n')
+            );
             setIsEnhanced(true);
-            addToast('AI radiograph analysis complete.', 'success');
-        } catch (err) {
-            console.error('AI Enhance error:', err);
-            addToast(err.message || 'Failed to connect to AI service.', 'error');
-        } finally {
             setIsEnhancing(false);
-        }
+            addToast('AI image enhancer preview applied.', 'success');
+        }, 1100);
     };
 
     // ✅ FIX Bug 23: Use `radiographs` state from API instead of MOCK_RADIOGRAPHS
@@ -706,10 +675,10 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                         <div className={styles.imageViewerControls}>
                             <button className={styles.aiEnhanceBtn} onClick={handleAIEnhance} disabled={isEnhancing}>
                                 {isEnhancing
-                                    ? <>Analysing...</>
+                                    ? <>Preparing preview...</>
                                     : isEnhanced
                                         ? <><FaMagic /> Revert to Original</>
-                                        : <><FaRobot /> Analyse with AI</>
+                                        : <><FaRobot /> Preview AI Enhancement</>
                                 }
                             </button>
                         </div>
@@ -719,11 +688,11 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                             <div className={styles.aiAnalysisPanel}>
                                 <div className={styles.aiAnalysisHeader}>
                                     <FaRobot className={styles.aiAnalysisIcon} />
-                                    <span className={styles.aiAnalysisTitle}>AI Clinical Analysis</span>
-                                    <span className={styles.aiAnalysisBadge}>Claude AI</span>
+                                    <span className={styles.aiAnalysisTitle}>AI Enhancement Preview</span>
+                                    <span className={styles.aiAnalysisBadge}>Coming Soon</span>
                                 </div>
                                 <p className={styles.aiAnalysisDisclaimer}>
-                                    This is a visual aid only. All findings must be reviewed and confirmed by the treating dentist.
+                                    This is a frontend-only preview. Final enhancement and anomaly analysis will be reviewed by the treating dentist once implemented.
                                 </p>
                                 <div className={styles.aiAnalysisText}>
                                     {aiAnalysis.split('\n').map((line, i) => (

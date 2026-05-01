@@ -6,9 +6,9 @@ import { clinicInfo, locationCards } from '../../data/websiteContent';
 export default function WebsiteContact() {
     return (
         <WebsiteShell>
-            <section className={styles.section}>
+            <section className={`${styles.section} ${styles.pageHeroSection}`}>
                 <div className={styles.splitSection}>
-                    <article className={styles.infoCard}>
+                    <article className={`${styles.infoCard} ${styles.pageHeroCard}`}>
                         <p className={styles.eyebrow}>Contact Us</p>
                         <h1 className={styles.sectionTitle}>Reach the clinic through call or social media</h1>
                         <p className={styles.bodyText}>
@@ -17,7 +17,7 @@ export default function WebsiteContact() {
                         </p>
                     </article>
 
-                    <div className={styles.portraitPlaceholder}>
+                    <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
                         <span className={styles.placeholderLabel}>Contact Hero Image Placeholder</span>
                     </div>
                 </div>

@@ -1,24 +1,24 @@
 import React from 'react';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
+import locationsHeroImage from '../../assets/images/locations-hero-image.jpg';
 import { locationCards } from '../../data/websiteContent';
 
 export default function WebsiteLocations() {
     return (
         <WebsiteShell>
-            <section className={styles.section}>
+            <section className={`${styles.section} ${styles.pageHeroSection}`}>
                 <div className={styles.splitSection}>
-                    <article className={styles.infoCard}>
+                    <article className={`${styles.infoCard} ${styles.pageHeroCard}`}>
                         <p className={styles.eyebrow}>Locations</p>
-                        <h1 className={styles.sectionTitle}>Current and upcoming branch locations</h1>
+                        <h1 className={styles.sectionTitle}>Visit Dentime at the branch nearest to you</h1>
                         <p className={styles.bodyText}>
-                            Dentime is currently operating in Marikina City and preparing a second branch in Rodriguez, Rizal
-                            to support a larger patient community.
+                            Dentime is currently serving patients in Marikina City and Rodriguez, Rizal through its active branches.
                         </p>
                     </article>
 
-                    <div className={styles.portraitPlaceholder}>
-                        <span className={styles.placeholderLabel}>Locations Hero Image Placeholder</span>
+                    <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
+                        <img src={locationsHeroImage} alt="Dentime branch locations" className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>

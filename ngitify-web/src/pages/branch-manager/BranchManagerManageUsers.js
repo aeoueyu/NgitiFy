@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import ManageDentists from '../admin/ManageDentists';
 import ManageSecretaries from '../admin/ManageSecretaries';
 import ManagePatients from '../admin/ManagePatients';

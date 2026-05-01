@@ -55,6 +55,7 @@ export default function DentistAppointments() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const { addToast } = useToast();
+    const currentUserId = user?.userId || user?.id || user?._id || '';
 
     // ─── DATA STATE ──────────────────────────────────────────────────────────
     const [allAppointments, setAllAppointments] = useState([]);
@@ -100,6 +101,12 @@ export default function DentistAppointments() {
         branchId: '',   // BUG 20 FIX: was hardcoded 'Marikina Branch'
     });
 
+    useEffect(() => {
+        if (currentUserId) {
+            setBookingForm((prev) => ({ ...prev, dentistId: currentUserId }));
+        }
+    }, [currentUserId]);
+
     // ─── FETCH APPOINTMENTS ──────────────────────────────────────────────────
     const fetchAppointments = useCallback(async (silent = false) => {
         if (!silent) setIsLoading(true);
@@ -133,15 +140,22 @@ export default function DentistAppointments() {
                     authFetch('/users?role=dentist'),
                     authFetch('/branches'),
                 ]);
-                if (patientsRes.ok)  setPatients((await patientsRes.json()).filter(u => u.status === 'active'));
-                if (dentistsRes.ok)  setDentists((await dentistsRes.json()).filter(u => u.status === 'active' && !u.isArchived));
+                if (patientsRes.ok) {
+                    const patientData = await patientsRes.json();
+                    const patientList = Array.isArray(patientData) ? patientData : (patientData.patients || []);
+                    setPatients(patientList.filter(u => u.status === 'active'));
+                }
+                if (dentistsRes.ok) {
+                    const dentistList = (await dentistsRes.json()).filter(u => u.status === 'active' && !u.isArchived);
+                    setDentists(dentistList.filter((entry) => (entry._id || entry.id) === currentUserId));
+                }
                 if (branchesRes.ok)  setBranches(await branchesRes.json());
             } catch (err) {
                 console.error('Failed to load booking data:', err);
             }
         };
         loadBookingData();
-    }, []);
+    }, [currentUserId]);
 
     // ─── DYNAMIC PROCEDURE LIST ───────────────────────────────────────────────
     const dynamicProcedures = useMemo(() => {
@@ -268,7 +282,7 @@ export default function DentistAppointments() {
     };
 
     const resetBookingForm = () => {
-        setBookingForm({ patientId: '', dentistId: '', date: '', time: '', procedure: '', branchId: '' });
+        setBookingForm({ patientId: '', dentistId: currentUserId, date: '', time: '', procedure: '', branchId: '' });
     };
 
     const handleBookAppointment = async (e) => {

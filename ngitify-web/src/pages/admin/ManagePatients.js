@@ -42,7 +42,7 @@ export default function ManagePatients() {
     const [confirmConfig, setConfirmConfig] = useState(null);
 
     const isSecretary = user?.role === 'secretary';
-    const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'branch-manager' || user?.role === 'owner';
+    const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'owner';
 
     useEffect(() => {
         if (location.state?.openAddModal && canEditPatients && !isSecretary) {

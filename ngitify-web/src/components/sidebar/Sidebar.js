@@ -164,6 +164,16 @@ export default function Sidebar() {
         <span className={styles['notification-badge']}>{lowStockCount}</span>
     ) : null;
 
+    const aiAssistantActive = isDentistUser
+        ? location.pathname === '/dentist/ai-assistant'
+        : isOwner
+            ? location.pathname === '/owner/ai-assistant'
+            : isBranchManager
+                ? location.pathname === '/branch-manager/ai-assistant'
+                : isAdmin
+                    ? location.pathname === '/admin/ai-assistant'
+                : isChatOpen;
+
     return (
         <>
             <aside className={styles.sidebar}>
@@ -193,6 +203,7 @@ export default function Sidebar() {
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/branch-manager/queue', FaListUl, 'Queue')}
                             {navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
+                            {navItem('/branch-manager/branches', FaCodeBranch, 'Branch')}
                             {navItem('/branch-manager/analytics', FaChartBar, 'Branch Analytics')}
                             {navItem('/branch-manager/activity-logs', FaClipboardList, 'Activity Logs')}
                         </>
@@ -227,7 +238,7 @@ export default function Sidebar() {
                         <>
                             {navItem('/dentist/emr', FaFileMedical, 'Patient EMR')}
                             {navItem('/dentist/odontogram', FaTooth, 'Odontogram')}
-                            {navItem('/dentist/material-usage', FaTooth, 'Material Usage')}
+                            {navItem('/dentist/material-usage', FaBoxes, 'Material Usage')}
                             {navItem('/dentist/notifications', FaBell, 'Notifications')}
                             {navItem('/dentist/activity-logs', FaClipboardList, 'Activity Logs')}
                         </>
@@ -278,8 +289,26 @@ export default function Sidebar() {
                     </div>
 
                     <div
-                        className={`${styles['settings-link']} ${isChatOpen ? styles.active : ''}`}
-                        onClick={() => setIsChatOpen((prev) => !prev)}
+                        className={`${styles['settings-link']} ${aiAssistantActive ? styles.active : ''}`}
+                        onClick={() => {
+                            if (isDentistUser) {
+                                navigate('/dentist/ai-assistant');
+                                return;
+                            }
+                            if (isOwner) {
+                                navigate('/owner/ai-assistant');
+                                return;
+                            }
+                            if (isBranchManager) {
+                                navigate('/branch-manager/ai-assistant');
+                                return;
+                            }
+                            if (isAdmin) {
+                                navigate('/admin/ai-assistant');
+                                return;
+                            }
+                            setIsChatOpen((prev) => !prev);
+                        }}
                         title="AI Staff Assistant"
                     >
                         <FaRobot className={styles['nav-icon']} />

@@ -1,22 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBell, FaCalendarCheck, FaUserFriends, FaClipboardList, FaChartBar } from 'react-icons/fa';
+import {
+    FaBell,
+    FaBoxes,
+    FaCalendarCheck,
+    FaChartBar,
+    FaCodeBranch,
+    FaListUl,
+    FaRobot,
+    FaUserFriends,
+    FaUsers,
+} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
-import { formatWeekdayDate, formatTime } from '../../utils/dateUtils';
-import styles from '../../styles/admin/AdminDashboard.module.css';
-import UserAvatar from '../../components/common/UserAvatar';
+import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
+import styles from '../../styles/branch-manager/BranchManagerDashboard.module.css';
+
+const startOfDay = (value) => {
+    const date = new Date(value);
+    date.setHours(0, 0, 0, 0);
+    return date;
+};
+
+const normalizeAppointment = (entry) => ({
+    id: entry._id,
+    patientName: entry.patient?.name
+        ? `${entry.patient.name.first || ''} ${entry.patient.name.last || ''}`.trim()
+        : (entry.guestName || 'Unknown Patient'),
+    procedure: entry.procedure || 'Consultation',
+    branch: entry.branch || '',
+    status: entry.status || 'pending',
+    time: entry.time || '',
+    rawDate: new Date(entry.date),
+});
+
+const formatStatus = (status) => {
+    if (!status) return 'Pending';
+    if (status === 'in-clinic') return 'In Clinic';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+};
 
 export default function BranchManagerDashboard() {
     const { user } = useAuth();
+    const { addToast } = useToast();
     const navigate = useNavigate();
-    const [currentTime, setCurrentTime] = useState(new Date());
-    const [stats, setStats] = useState({ todayAppointments: 0, totalPatients: 0, pendingAppointments: 0, queueLength: 0 });
-    const [recentAppointments, setRecentAppointments] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [profile, setProfile] = useState(null);
 
-    const branch = user?.assignedBranch || '';
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [appointments, setAppointments] = useState([]);
+    const [patients, setPatients] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [inventory, setInventory] = useState([]);
+    const [activityLogs, setActivityLogs] = useState([]);
+    const [queueEntries, setQueueEntries] = useState([]);
+    const [staffUsers, setStaffUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const assignedBranch = user?.assignedBranch || '';
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -24,131 +64,420 @@ export default function BranchManagerDashboard() {
     }, []);
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchDashboardData = async () => {
+            setIsLoading(true);
             try {
-                const [surgRes, queueRes, notifRes] = await Promise.all([
+                const [
+                    surgeriesRes,
+                    patientsRes,
+                    notificationsRes,
+                    inventoryRes,
+                    activityRes,
+                    queueRes,
+                    dentistsRes,
+                    secretariesRes,
+                ] = await Promise.all([
                     authFetch('/surgeries'),
-                    authFetch(`/queue?branch=${encodeURIComponent(branch)}`),
+                    authFetch('/patients'),
                     authFetch('/notifications'),
+                    authFetch('/inventory'),
+                    authFetch('/audit-logs'),
+                    authFetch('/queue'),
+                    authFetch('/users?role=dentist'),
+                    authFetch('/users?role=secretary'),
                 ]);
 
-                const userId = user?.userId || user?.id;
-                if (userId) {
-                    const pRes = await authFetch(`/user/${userId}`);
-                    if (pRes.ok) setProfile(await pRes.json());
+                if (surgeriesRes.ok) {
+                    const data = await surgeriesRes.json();
+                    setAppointments(data.map(normalizeAppointment).sort((a, b) => a.rawDate - b.rawDate));
                 }
 
-                if (surgRes.ok) {
-                    const surgeries = await surgRes.json();
-                    const today = new Date().toDateString();
-                    const todayAppts = surgeries.filter(s => new Date(s.date).toDateString() === today);
-                    const pending = surgeries.filter(s => s.status === 'pending');
-                    setStats(prev => ({ ...prev, todayAppointments: todayAppts.length, pendingAppointments: pending.length }));
-                    setRecentAppointments(surgeries.slice(0, 5).map(s => ({
-                        id: s._id,
-                        patient: `${s.patient?.name?.first || ''} ${s.patient?.name?.last || ''}`.trim() || 'Unknown',
-                        procedure: s.procedure || 'Consultation',
-                        date: new Date(s.date).toLocaleDateString('en-PH'),
-                        status: s.status,
-                    })));
+                if (patientsRes.ok) {
+                    const data = await patientsRes.json();
+                    const patientList = Array.isArray(data) ? data : (data.patients || []);
+                    setPatients(patientList);
+                }
+
+                if (notificationsRes.ok) {
+                    setNotifications(await notificationsRes.json());
+                }
+
+                if (inventoryRes.ok) {
+                    setInventory(await inventoryRes.json());
+                }
+
+                if (activityRes.ok) {
+                    setActivityLogs(await activityRes.json());
                 }
 
                 if (queueRes.ok) {
-                    const queue = await queueRes.json();
-                    const active = queue.filter(q => q.status === 'waiting' || q.status === 'serving');
-                    setStats(prev => ({ ...prev, queueLength: active.length }));
+                    setQueueEntries(await queueRes.json());
                 }
 
-                if (notifRes.ok) {
-                    const notifs = await notifRes.json();
-                    setUnreadCount(notifs.filter(n => !n.isRead).length);
+                const staff = [];
+                if (dentistsRes.ok) {
+                    const dentists = await dentistsRes.json();
+                    staff.push(...dentists.filter((entry) => entry.role === 'dentist'));
                 }
-            } catch (err) {
-                console.error('Dashboard fetch error:', err);
+                if (secretariesRes.ok) {
+                    const secretaries = await secretariesRes.json();
+                    staff.push(...secretaries.filter((entry) => entry.role === 'secretary'));
+                }
+                setStaffUsers(staff);
+            } catch (error) {
+                console.error('Branch manager dashboard fetch error:', error);
+                addToast('Failed to load branch manager dashboard data.', 'error');
+            } finally {
+                setIsLoading(false);
             }
         };
-        fetchData();
-    }, [branch, user]);
 
-    const statusColor = { pending: '#f59e0b', confirmed: '#3b82f6', completed: '#22c55e', cancelled: '#ef4444', 'in-clinic': '#8b5cf6' };
+        fetchDashboardData();
+    }, [addToast, assignedBranch]);
+
+    const todayKey = startOfDay(new Date()).getTime();
+
+    const todayAppointments = useMemo(
+        () => appointments.filter((item) => startOfDay(item.rawDate).getTime() === todayKey),
+        [appointments, todayKey]
+    );
+
+    const pendingAppointments = appointments.filter((item) => item.status === 'pending').length;
+    const waitingQueue = queueEntries.filter((entry) => entry.status === 'waiting' || entry.status === 'serving');
+    const unreadNotifications = notifications.filter((item) => !item.isRead).length;
+    const recentNotifications = notifications.slice(0, 4);
+    const recentActivity = activityLogs.slice(0, 5);
+
+    const lowStockItems = useMemo(() => {
+        return inventory.filter((item) => {
+            const stock = Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0));
+            const limit = Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0));
+            return stock <= limit;
+        }).slice(0, 4);
+    }, [inventory]);
+
+    const upcomingAppointments = useMemo(() => {
+        const now = new Date();
+        return appointments
+            .filter((item) => item.rawDate >= startOfDay(now) && ['pending', 'confirmed', 'in-clinic'].includes(item.status))
+            .slice(0, 5);
+    }, [appointments]);
+
+    const statCards = [
+        {
+            title: "Today's Appointments",
+            value: todayAppointments.length,
+            icon: <FaCalendarCheck />,
+            accent: styles.blueAccent,
+            path: '/branch-manager/appointments',
+        },
+        {
+            title: 'Pending Confirmations',
+            value: pendingAppointments,
+            icon: <FaBell />,
+            accent: styles.orangeAccent,
+            path: '/branch-manager/appointments',
+        },
+        {
+            title: 'Branch Patients',
+            value: patients.length,
+            icon: <FaUserFriends />,
+            accent: styles.greenAccent,
+            path: '/branch-manager/manage-users',
+        },
+        {
+            title: 'Active Queue',
+            value: waitingQueue.length,
+            icon: <FaListUl />,
+            accent: styles.purpleAccent,
+            path: '/branch-manager/queue',
+        },
+    ];
+
+    const moduleCards = [
+        {
+            title: 'User Management',
+            description: 'Manage patients, dentists, and secretaries assigned to your branch.',
+            value: `${staffUsers.length} branch staff accounts`,
+            icon: <FaUsers className={styles.moduleIcon} />,
+            actionLabel: 'Open Users',
+            action: () => navigate('/branch-manager/manage-users'),
+        },
+        {
+            title: 'Branch Profile',
+            description: 'Review your assigned branch details without crossing into other branches.',
+            value: assignedBranch || 'Assigned branch',
+            icon: <FaCodeBranch className={styles.moduleIcon} />,
+            actionLabel: 'Open Branch',
+            action: () => navigate('/branch-manager/branches'),
+        },
+        {
+            title: 'Inventory',
+            description: 'Track stock levels and stay ahead of low inventory items in your branch.',
+            value: `${lowStockItems.length} low-stock items`,
+            icon: <FaBoxes className={styles.moduleIcon} />,
+            actionLabel: 'Open Inventory',
+            action: () => navigate('/branch-manager/inventory'),
+        },
+        {
+            title: 'AI Assistant',
+            description: 'Preview the future branch manager AI helper for faster workflow guidance.',
+            value: 'Frontend preview ready',
+            icon: <FaRobot className={styles.moduleIcon} />,
+            actionLabel: 'Open Preview',
+            action: () => navigate('/branch-manager/ai-assistant'),
+        },
+    ];
 
     return (
-        <main className={styles['main-content']}>
-            <header className={styles['header']}>
-                <div className={styles['header-left']}>
-                    <h1 className={styles['title']}>Branch Overview</h1>
-                    <p className={styles['subtitle']}>
+        <main className={styles.page}>
+            <header className={styles.header}>
+                <div>
+                    <h1 className={styles.title}>Branch Manager Dashboard</h1>
+                    <p className={styles.subtitle}>
                         {formatWeekdayDate(currentTime)}
-                        <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span>
-                        <strong style={{ color: '#01538b' }}>{formatTime(currentTime, true)}</strong>
-                        {branch && <span style={{ marginLeft: '8px', color: '#64748b' }}>— {branch}</span>}
+                        <span className={styles.divider}>|</span>
+                        <strong className={styles.timeText}>{formatTime(currentTime, true)}</strong>
+                        {assignedBranch && <span className={styles.branchText}>| {assignedBranch}</span>}
                     </p>
                 </div>
-                <div className={styles['header-right']}>
-                    <button className={styles['bell-btn']} onClick={() => navigate('/branch-manager/notifications')}>
-                        <FaBell className={styles['bell-icon']} />
-                        {unreadCount > 0 && <span className={styles['bell-badge']}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
-                    </button>
-                </div>
+
+                <button className={styles.bellBtn} type="button" onClick={() => navigate('/branch-manager/notifications')}>
+                    <FaBell className={styles.bellIcon} />
+                    {unreadNotifications > 0 && (
+                        <span className={styles.bellBadge}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>
+                    )}
+                </button>
             </header>
 
-            {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-                {[
-                    { icon: <FaCalendarCheck />, label: "Today's Appointments", value: stats.todayAppointments, color: '#01538b', path: '/branch-manager/appointments' },
-                    { icon: <FaClipboardList />, label: 'Pending Approvals', value: stats.pendingAppointments, color: '#f59e0b', path: '/branch-manager/appointments' },
-                    { icon: <FaUserFriends />, label: 'Active Queue', value: stats.queueLength, color: '#22c55e', path: '/branch-manager/queue' },
-                    { icon: <FaChartBar />, label: 'Branch', value: branch || 'N/A', color: '#8b5cf6', path: '/branch-manager/analytics' },
-                ].map((card, i) => (
-                    <div key={i}
+            <section className={styles.statsGrid}>
+                {statCards.map((card) => (
+                    <button
+                        key={card.title}
+                        type="button"
+                        className={`${styles.statCard} ${card.accent}`}
                         onClick={() => navigate(card.path)}
-                        style={{ background: '#fff', borderRadius: '16px', padding: '20px 24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', cursor: 'pointer', borderTop: `4px solid ${card.color}`, transition: 'transform 0.15s', display: 'flex', alignItems: 'center', gap: '16px' }}
-                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
                     >
-                        <div style={{ fontSize: '28px', color: card.color }}>{card.icon}</div>
+                        <div className={styles.statIcon}>{card.icon}</div>
                         <div>
-                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b', fontWeight: '500' }}>{card.label}</p>
-                            <p style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: '800', color: '#0f172a' }}>{card.value}</p>
+                            <p className={styles.statLabel}>{card.title}</p>
+                            <p className={styles.statValue}>{card.value}</p>
                         </div>
-                    </div>
+                    </button>
                 ))}
-            </div>
+            </section>
 
-            {/* Recent Appointments */}
-            <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>Recent Appointments</h2>
-                    <button onClick={() => navigate('/branch-manager/appointments')} style={{ background: 'none', border: 'none', color: '#01538b', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>View All →</button>
-                </div>
-                {recentAppointments.length === 0 ? (
-                    <p style={{ color: '#94a3b8', textAlign: 'center', padding: '20px 0' }}>No appointments found for this branch.</p>
-                ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                                {['Patient', 'Procedure', 'Date', 'Status'].map(h => (
-                                    <th key={h} style={{ textAlign: 'left', padding: '8px 12px', color: '#64748b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase' }}>{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {recentAppointments.map(a => (
-                                <tr key={a.id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                    <td style={{ padding: '10px 12px', fontWeight: '600', color: '#0f172a' }}>{a.patient}</td>
-                                    <td style={{ padding: '10px 12px', color: '#475569' }}>{a.procedure}</td>
-                                    <td style={{ padding: '10px 12px', color: '#475569' }}>{a.date}</td>
-                                    <td style={{ padding: '10px 12px' }}>
-                                        <span style={{ background: `${statusColor[a.status] || '#94a3b8'}20`, color: statusColor[a.status] || '#94a3b8', padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', textTransform: 'capitalize' }}>
-                                            {a.status}
-                                        </span>
-                                    </td>
-                                </tr>
+            <section className={styles.mainGrid}>
+                <div className={styles.leftColumn}>
+                    <article className={styles.panel}>
+                        <div className={styles.panelHeader}>
+                            <div>
+                                <p className={styles.panelEyebrow}>Module Summary</p>
+                                <h2 className={styles.panelTitle}>Branch tools at a glance</h2>
+                            </div>
+                        </div>
+
+                        <div className={styles.moduleGrid}>
+                            {moduleCards.map((card) => (
+                                <div key={card.title} className={styles.moduleCard}>
+                                    <div className={styles.moduleHeader}>
+                                        {card.icon}
+                                        <span className={styles.moduleValue}>{card.value}</span>
+                                    </div>
+                                    <h3 className={styles.moduleTitle}>{card.title}</h3>
+                                    <p className={styles.moduleDescription}>{card.description}</p>
+                                    <button type="button" className={styles.quickLinkBtn} onClick={card.action}>
+                                        {card.actionLabel}
+                                    </button>
+                                </div>
                             ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+                        </div>
+                    </article>
+
+                    <article className={styles.panel}>
+                        <div className={styles.panelHeader}>
+                            <div>
+                                <p className={styles.panelEyebrow}>Appointments</p>
+                                <h2 className={styles.panelTitle}>Upcoming branch schedule</h2>
+                            </div>
+                            <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/appointments')}>
+                                View all
+                            </button>
+                        </div>
+
+                        {isLoading ? (
+                            <p className={styles.emptyState}>Loading schedule...</p>
+                        ) : upcomingAppointments.length === 0 ? (
+                            <p className={styles.emptyState}>No upcoming appointments found.</p>
+                        ) : (
+                            <div className={styles.listStack}>
+                                {upcomingAppointments.map((appointment) => (
+                                    <div key={appointment.id} className={styles.listItem}>
+                                        <div>
+                                            <p className={styles.itemTitle}>{appointment.patientName}</p>
+                                            <p className={styles.itemMeta}>
+                                                {appointment.procedure} - {appointment.branch || assignedBranch}
+                                            </p>
+                                        </div>
+                                        <div className={styles.itemAside}>
+                                            <span className={styles.itemDate}>
+                                                {formatDateShort(appointment.rawDate)} {appointment.time ? `| ${appointment.time}` : ''}
+                                            </span>
+                                            <span className={styles.statusBadge}>{formatStatus(appointment.status)}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </article>
+
+                    <article className={styles.panel}>
+                        <div className={styles.panelHeader}>
+                            <div>
+                                <p className={styles.panelEyebrow}>Activity Logs</p>
+                                <h2 className={styles.panelTitle}>Recent branch-visible activity</h2>
+                            </div>
+                            <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/activity-logs')}>
+                                Open logs
+                            </button>
+                        </div>
+
+                        {recentActivity.length === 0 ? (
+                            <p className={styles.emptyState}>No activity logs available yet.</p>
+                        ) : (
+                            <div className={styles.listStack}>
+                                {recentActivity.map((entry) => (
+                                    <div key={entry._id || `${entry.action}-${entry.timestamp}`} className={styles.listItem}>
+                                        <div>
+                                            <p className={styles.itemTitle}>{entry.action || 'System Event'}</p>
+                                            <p className={styles.itemMeta}>{entry.details || 'No additional details provided.'}</p>
+                                        </div>
+                                        <span className={styles.itemDate}>{formatDateShort(entry.timestamp || entry.createdAt)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </article>
+                </div>
+
+                <div className={styles.rightColumn}>
+                    <article className={styles.panel}>
+                        <div className={styles.panelHeader}>
+                            <div>
+                                <p className={styles.panelEyebrow}>Branch Snapshot</p>
+                                <h2 className={styles.panelTitle}>Today in your branch</h2>
+                            </div>
+                        </div>
+
+                        <div className={styles.summaryGrid}>
+                            <div className={styles.summaryCard}>
+                                <FaChartBar className={styles.summaryIcon} />
+                                <span className={styles.summaryLabel}>Appointments Today</span>
+                                <strong className={styles.summaryValue}>{todayAppointments.length}</strong>
+                            </div>
+                            <div className={styles.summaryCard}>
+                                <FaBell className={styles.summaryIcon} />
+                                <span className={styles.summaryLabel}>Unread Notifications</span>
+                                <strong className={styles.summaryValue}>{unreadNotifications}</strong>
+                            </div>
+                            <div className={styles.summaryCard}>
+                                <FaListUl className={styles.summaryIcon} />
+                                <span className={styles.summaryLabel}>Waiting Queue</span>
+                                <strong className={styles.summaryValue}>{waitingQueue.length}</strong>
+                            </div>
+                            <div className={styles.summaryCard}>
+                                <FaUsers className={styles.summaryIcon} />
+                                <span className={styles.summaryLabel}>Branch Staff</span>
+                                <strong className={styles.summaryValue}>{staffUsers.length}</strong>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article className={styles.panel}>
+                        <div className={styles.panelHeader}>
+                            <div>
+                                <p className={styles.panelEyebrow}>Notifications</p>
+                                <h2 className={styles.panelTitle}>Latest alerts</h2>
+                            </div>
+                            <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/notifications')}>
+                                Open alerts
+                            </button>
+                        </div>
+
+                        {recentNotifications.length === 0 ? (
+                            <p className={styles.emptyState}>No notifications yet.</p>
+                        ) : (
+                            <div className={styles.listStack}>
+                                {recentNotifications.map((notification) => (
+                                    <div key={notification._id} className={styles.listItem}>
+                                        <div>
+                                            <p className={styles.itemTitle}>{notification.title || 'Notification'}</p>
+                                            <p className={styles.itemMeta}>{notification.message || 'No message provided.'}</p>
+                                        </div>
+                                        {!notification.isRead && <span className={styles.helperPill}>Unread</span>}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </article>
+
+                    <article className={styles.panel}>
+                        <div className={styles.panelHeader}>
+                            <div>
+                                <p className={styles.panelEyebrow}>Inventory Watch</p>
+                                <h2 className={styles.panelTitle}>Stock attention items</h2>
+                            </div>
+                            <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/inventory')}>
+                                Open inventory
+                            </button>
+                        </div>
+
+                        {lowStockItems.length === 0 ? (
+                            <p className={styles.emptyState}>No low-stock items right now.</p>
+                        ) : (
+                            <div className={styles.listStack}>
+                                {lowStockItems.map((item) => (
+                                    <div key={item._id || item.name} className={styles.listItem}>
+                                        <div>
+                                            <p className={styles.itemTitle}>{item.name || 'Unnamed Item'}</p>
+                                            <p className={styles.itemMeta}>
+                                                Branch: {item.branch || assignedBranch || 'Assigned Branch'}
+                                            </p>
+                                        </div>
+                                        <span className={styles.helperPill}>
+                                            {item.quantity !== undefined ? item.quantity : (item.currentStock || 0)} left
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </article>
+
+                    <article className={styles.panel}>
+                        <div className={styles.panelHeader}>
+                            <div>
+                                <p className={styles.panelEyebrow}>Quick Access</p>
+                                <h2 className={styles.panelTitle}>Branch shortcuts</h2>
+                            </div>
+                        </div>
+
+                        <div className={styles.shortcutStack}>
+                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/branch-manager/queue')}>
+                                Queue management
+                            </button>
+                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/branch-manager/chat-support')}>
+                                Chat support
+                            </button>
+                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/branch-manager/analytics')}>
+                                Branch analytics
+                            </button>
+                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/branch-manager/branches')}>
+                                Branch details
+                            </button>
+                        </div>
+                    </article>
+                </div>
+            </section>
         </main>
     );
 }

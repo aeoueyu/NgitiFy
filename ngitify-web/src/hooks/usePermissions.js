@@ -39,9 +39,9 @@ export const usePermissions = () => {
                 appointments: 'edit',
             },
             'branch-manager': {
-                patients: 'read',
+                patients: 'edit',
                 appointments: 'edit',
-                inventory: 'read',
+                inventory: 'edit',
             },
         };
 

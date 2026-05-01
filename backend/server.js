@@ -283,6 +283,17 @@ const patientBelongsToBranch = (patient, branch) => {
     return patientBranches.includes(branch);
 };
 
+const dentistCanAccessPatient = async (dentistId, patientId) => {
+    if (!dentistId || !patientId) return false;
+
+    const assignedAppointment = await Surgery.exists({
+        dentist: dentistId,
+        patient: patientId,
+    });
+
+    return Boolean(assignedAppointment);
+};
+
 const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, procedure }) => {
     if (!email) return;
 
@@ -632,13 +643,12 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
 });
 
 // -------------------------------------------------------
-// ADD BRANCH MANAGER (Admin Only)
+// ADD BRANCH MANAGER (Administrator or Owner)
 // -------------------------------------------------------
 app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
     try {
-        // Security: Ensure only administrators can add branch managers
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: "Access denied. Admin only." });
+        if (!['administrator', 'owner'].includes(req.user.role)) {
+            return res.status(403).json({ message: "Access denied. Administrator or owner only." });
         }
 
         const { email, assignedBranch = '', ...otherData } = req.body;
@@ -759,10 +769,8 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
 
 app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
     try {
-        // Both administrator and co-administrator can create co-admin accounts
-        // (Plan §2.2: co-admin has same access as admin except ownership transfer)
-        if (!['administrator', 'co-administrator'].includes(req.user.role)) {
-            return res.status(403).json({ message: "Access denied. Admin tier only." });
+        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
+            return res.status(403).json({ message: "Access denied. Admin tier or owner only." });
         }
         const { email, licenseNumber, branch, ...otherData } = req.body;
         
@@ -824,8 +832,8 @@ app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 app.post('/api/add-owner', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: 'Access denied. Admin only.' });
+        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied. Admin tier or owner only.' });
         }
 
         const { email, isDentist, ...otherData } = req.body;
@@ -942,6 +950,14 @@ app.get('/api/patients', verifyToken, async (req, res) => {
             baseFilter.assignedBranches = { $in: [req.user.assignedBranch] };
         }
 
+        if (req.user.role === 'dentist') {
+            const assignedPatientIds = await Surgery.distinct('patient', {
+                dentist: req.user.id,
+                patient: { $ne: null },
+            });
+            baseFilter._id = { $in: assignedPatientIds };
+        }
+
         const patients = await User.find(baseFilter)
             .select('-password')
             .skip(skip)
@@ -976,6 +992,13 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
             }
         }
 
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
+
         res.json(patient);
     } catch (error) {
         res.status(500).json({ message: "Server error." });
@@ -998,6 +1021,13 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             const patientBranches = currentPatient.assignedBranches || (currentPatient.assignedBranch ? [currentPatient.assignedBranch] : []);
             if (!patientBranches.includes(req.user.assignedBranch)) {
                 return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
+
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, currentPatient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
             }
         }
 
@@ -1550,7 +1580,7 @@ app.post('/api/verify-password', verifyToken, async (req, res) => {
 });
 
 app.get('/api/audit-logs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'owner'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'owner', 'dentist'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1578,6 +1608,10 @@ app.get('/api/audit-logs', verifyToken, async (req, res) => {
             }
 
             filter.user = { $in: branchEmails };
+        }
+
+        if (req.user.role === 'dentist') {
+            filter.user = req.user.email;
         }
 
         // Partial, case-insensitive match on the action field
@@ -1781,7 +1815,7 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
 // CREATE SURGERY / APPOINTMENT
 // -------------------------------------------------------
 app.post('/api/surgeries', verifyToken, async (req, res) => {
-    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
     if (!staffRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1804,6 +1838,26 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
             }
         }
 
+        if (req.user.role === 'dentist') {
+            const dentistUser = await User.findById(req.user.id).select('assignedBranch assignedBranches');
+            const dentistBranches = dentistUser?.assignedBranches?.length
+                ? dentistUser.assignedBranches
+                : (dentistUser?.assignedBranch ? [dentistUser.assignedBranch] : []);
+
+            if (!surgeryData.branch || !dentistBranches.includes(surgeryData.branch)) {
+                return res.status(403).json({ message: 'Access denied. Dentists can only create appointments in their assigned branch.' });
+            }
+
+            surgeryData.dentist = req.user.id;
+
+            if (surgeryData.patient) {
+                const patient = await User.findById(surgeryData.patient).select('assignedBranch assignedBranches');
+                if (!patientBelongsToBranch(patient, surgeryData.branch)) {
+                    return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+                }
+            }
+        }
+
         const newSurgery = new Surgery(surgeryData);
         await newSurgery.save();
 
@@ -1814,8 +1868,16 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
             details: `Created new surgery record for patient ID: ${newSurgery.patient} at branch: ${newSurgery.branch}`
         });
 
-        // ✅ REMOVED the broken Notification.create() block — it used undefined variables.
-        // Notifications are correctly handled in POST /api/appointments/request instead.
+        if (newSurgery.dentist) {
+            await Notification.create({
+                type: 'NEW_APPOINTMENT',
+                title: 'New Appointment Assigned',
+                message: `You have a new ${newSurgery.procedure} appointment on ${new Date(newSurgery.date).toDateString()} at ${newSurgery.time || 'the scheduled time'}.`,
+                recipientId: newSurgery.dentist,
+                recipientRole: 'dentist',
+                relatedId: newSurgery._id,
+            });
+        }
 
         res.status(201).json(newSurgery);
     } catch (error) {
@@ -1833,6 +1895,10 @@ app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
 
         if (isBranchScopedStaff(req.user.role) && surgery.branch !== getScopedBranchForUser(req.user)) {
             return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
+        }
+
+        if (req.user.role === 'dentist' && surgery.dentist?._id?.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
         }
 
         res.json(surgery);
@@ -1858,6 +1924,15 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
             delete req.body.branch;
         }
 
+        if (req.user.role === 'dentist') {
+            const existing = await Surgery.findById(req.params.id);
+            if (!existing) return res.status(404).json({ message: "Surgery not found" });
+            if (existing.dentist?.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
+            }
+            delete req.body.dentist;
+        }
+
         const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, req.body, { new: true });
         if (!updatedSurgery) return res.status(404).json({ message: "Surgery not found" });
 
@@ -1876,7 +1951,7 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
 });
 
 app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
-    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
     if (!staffRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1890,6 +1965,14 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
             if (!existing) return res.status(404).json({ message: "Surgery not found" });
             if (existing.branch !== scopedBranch) {
                 return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
+            }
+        }
+
+        if (req.user.role === 'dentist') {
+            const existing = await Surgery.findById(req.params.id);
+            if (!existing) return res.status(404).json({ message: "Surgery not found" });
+            if (existing.dentist?.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
             }
         }
 
@@ -1987,6 +2070,10 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
             }
         }
 
+        if (req.user.role === 'dentist' && currentSurgery.dentist?.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
+        }
+
         if (TERMINAL_STATUSES.includes(currentSurgery.status) && req.user.role !== 'administrator') {
             return res.status(400).json({ message: 'Cannot change status of a completed or cancelled appointment.' });
         }
@@ -2033,6 +2120,25 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
                     procedure: updatedSurgery.procedure,
                 });
             }
+        }
+
+        const scheduleChanged = (date && new Date(currentSurgery.date).toDateString() !== new Date(date).toDateString()) ||
+            (time && currentSurgery.time !== time);
+
+        if (updatedSurgery.dentist?._id && req.user.role !== 'dentist') {
+            let dentistMessage = `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} is now marked ${status}.`;
+            if (scheduleChanged) {
+                dentistMessage = `${updatedSurgery.procedure} was rescheduled to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`;
+            }
+
+            await Notification.create({
+                type: status === 'cancelled' ? 'APPOINTMENT_CANCELLED' : 'NEW_APPOINTMENT',
+                title: scheduleChanged ? 'Appointment Schedule Updated' : 'Appointment Status Updated',
+                message: dentistMessage,
+                recipientId: updatedSurgery.dentist._id,
+                recipientRole: 'dentist',
+                relatedId: updatedSurgery._id,
+            });
         }
 
         await AuditLog.create({
@@ -2400,6 +2506,13 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             }
         }
 
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
+
         const sorted = (patient.treatmentLogs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
         );
@@ -2424,6 +2537,13 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
 
         const { date, procedure, tooth, category, notes, branch } = req.body;
 
@@ -2480,6 +2600,13 @@ app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, r
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
+
         const logIndex = patient.treatmentLogs.findIndex(
             (l) => l._id.toString() === req.params.logId
         );
@@ -2512,6 +2639,13 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
             }
         }
 
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
+
         const odontogramObj = patient.odontogram
             ? Object.fromEntries(patient.odontogram)
             : {};
@@ -2536,6 +2670,13 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
 
         const updates = req.body;
         if (!updates || typeof updates !== 'object') {
@@ -2587,6 +2728,13 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             }
         }
 
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
+
         const sorted = (patient.radiographs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
         );
@@ -2618,6 +2766,13 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
 
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
 
         if (!patient.radiographs) patient.radiographs = [];
 
@@ -2661,6 +2816,13 @@ app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, re
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
 
         const index = (patient.radiographs || []).findIndex(
             r => r._id.toString() === req.params.entryId
@@ -3026,7 +3188,15 @@ app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
 
 app.get('/api/branches', verifyToken, async (req, res) => {
     try {
-        const filter = req.query.all === 'true' ? {} : { isActive: true };
+        let filter = req.query.all === 'true' ? {} : { isActive: true };
+
+        if (req.user.role === 'branch-manager') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: 'Access denied. No assigned branch found.' });
+            }
+            filter = { ...filter, name: req.user.assignedBranch };
+        }
+
         const branches = await Branch.find(filter).sort({ name: 1 });
         res.json(branches);
     } catch (error) {
@@ -3037,7 +3207,7 @@ app.get('/api/branches', verifyToken, async (req, res) => {
  
 app.post('/api/branches', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'owner'].includes(req.user.role)) {
+        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
         const { name, address, contactNumber } = req.body;
@@ -3065,7 +3235,7 @@ app.post('/api/branches', verifyToken, async (req, res) => {
  
 app.put('/api/branches/:id', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'owner'].includes(req.user.role)) {
+        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
         const { name, address, contactNumber, isActive } = req.body;
@@ -3112,7 +3282,7 @@ app.get('/api/system-config', verifyToken, async (req, res) => {
  
 app.put('/api/system-config', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'owner'].includes(req.user.role)) {
+        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied. Admin only.' });
         }
  
@@ -3886,7 +4056,12 @@ app.get('/api/analytics/branches', verifyToken, async (req, res) => {
         sixMonthsAgo.setHours(0, 0, 0, 0);
 
         const monthly = await Surgery.aggregate([
-            { $match: { date: { $gte: sixMonthsAgo } } },
+            {
+                $match: {
+                    date: { $gte: sixMonthsAgo },
+                    ...branchFilter
+                }
+            },
             {
                 $group: {
                     _id: {

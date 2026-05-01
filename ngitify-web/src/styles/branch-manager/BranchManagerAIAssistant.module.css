@@ -1,0 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.page {
+    min-height: 100vh;
+    padding: 24px 30px;
+    background: #f4f7fa;
+    font-family: 'Lexend Deca', sans-serif;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.heroCard,
+.panel,
+.chatShell {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid rgba(1, 83, 139, 0.06);
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
+}
+
+.heroCard {
+    padding: 24px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 18px;
+    align-items: center;
+}
+
+.heroIconWrap {
+    width: 68px;
+    height: 68px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(1, 83, 139, 0.12), rgba(45, 204, 246, 0.2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.heroIcon {
+    font-size: 30px;
+    color: #01538b;
+}
+
+.eyebrow {
+    margin: 0 0 6px;
+    color: #0ea5e9;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.title {
+    margin: 0;
+    color: #01538b;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.subtitle {
+    margin: 10px 0 0;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.7;
+    max-width: 760px;
+}
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    background: rgba(249, 115, 22, 0.12);
+    color: #c2410c;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.mainGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.panel,
+.chatShell {
+    padding: 22px;
+}
+
+.panelHeader,
+.chatHeader {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.panelIcon,
+.chatHeaderIcon {
+    color: #2dccf6;
+    font-size: 18px;
+    margin-top: 4px;
+}
+
+.panelTitle,
+.chatTitle {
+    margin: 0;
+    color: #01538b;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.panelText,
+.chatSubtitle {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.promptList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.promptChip {
+    border: 1px solid rgba(1, 83, 139, 0.12);
+    background: #f8fafc;
+    color: #0f172a;
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.scopeList {
+    margin: 0;
+    padding-left: 20px;
+    color: #475569;
+    line-height: 1.9;
+    font-size: 14px;
+}
+
+.mockMessages {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.messageBubble {
+    max-width: 78%;
+    padding: 12px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.assistantBubble {
+    align-self: flex-start;
+    background: #eef6fb;
+    color: #1e3a56;
+}
+
+.userBubble {
+    align-self: flex-end;
+    background: #01538b;
+    color: #fff;
+}
+
+.inputRow {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.disabledInput {
+    flex: 1;
+    min-height: 52px;
+    border-radius: 14px;
+    border: 1px solid #dbe7ef;
+    background: #f8fafc;
+    color: #94a3b8;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+}
+
+.sendBtn {
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 14px;
+    background: #cbd5e1;
+    color: #fff;
+    cursor: not-allowed;
+}
+
+@media (max-width: 960px) {
+    .heroCard,
+    .mainGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .statusBadge {
+        justify-self: flex-start;
+    }
+}

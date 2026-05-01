@@ -1,31 +1,63 @@
+const LOCAL_API_URL = 'http://localhost:5000';
+const REMOTE_API_URL = 'https://ngitify.onrender.com';
+
+const normalizeBaseUrl = (value) => (value ? value.replace(/\/+$/, '') : '');
+
 const resolveBaseUrl = () => {
-    if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+    const envUrl = normalizeBaseUrl(process.env.REACT_APP_API_URL);
+    if (envUrl) return envUrl;
 
     if (typeof window !== 'undefined') {
-        const { hostname, protocol } = window.location;
+        const { hostname, origin } = window.location;
 
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return 'http://localhost:5000';
+            return LOCAL_API_URL;
         }
 
-        if (hostname === 'ngitify.com' || hostname === 'www.ngitify.com') {
-            return `${protocol}//${hostname}`;
+        if (
+            hostname === 'ngitify.com' ||
+            hostname === 'www.ngitify.com' ||
+            hostname.endsWith('.onrender.com')
+        ) {
+            return normalizeBaseUrl(origin);
         }
 
-        if (hostname.endsWith('netlify.app')) {
-            return 'https://ngitify.com';
-        }
+        return REMOTE_API_URL;
     }
 
-    return 'http://localhost:5000';
+    return REMOTE_API_URL;
+};
+
+const buildApiUrlWithBase = (baseUrl, endpoint) => {
+    const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    return `${normalizeBaseUrl(baseUrl)}/api${formattedEndpoint}`;
 };
 
 export const BASE_URL = resolveBaseUrl();
+const FALLBACK_BASE_URL = BASE_URL === REMOTE_API_URL ? '' : REMOTE_API_URL;
 
-const API_BASE = `${BASE_URL}/api`;
-export const buildApiUrl = (endpoint) => {
+export const buildApiUrl = (endpoint) => buildApiUrlWithBase(BASE_URL, endpoint);
+
+const shouldRetryWithFallback = (response) => (
+    Boolean(FALLBACK_BASE_URL) && [404, 502, 503, 504].includes(response.status)
+);
+
+const fetchWithFallback = async (endpoint, config) => {
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    return `${API_BASE}${formattedEndpoint}`;
+    const primaryUrl = buildApiUrlWithBase(BASE_URL, formattedEndpoint);
+
+    try {
+        const primaryResponse = await fetch(primaryUrl, config);
+        if (!shouldRetryWithFallback(primaryResponse)) {
+            return primaryResponse;
+        }
+    } catch (primaryError) {
+        if (!FALLBACK_BASE_URL) {
+            throw primaryError;
+        }
+    }
+
+    return fetch(buildApiUrlWithBase(FALLBACK_BASE_URL, formattedEndpoint), config);
 };
 
 /**
@@ -57,7 +89,7 @@ export const authFetch = async (endpoint, options = {}) => {
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
     try {
-        const response = await fetch(buildApiUrl(formattedEndpoint), config);
+        const response = await fetchWithFallback(formattedEndpoint, config);
 
         if (response.status === 401) {
             console.warn("Session expired. Redirecting to login.");
@@ -91,7 +123,7 @@ export const publicFetch = async (endpoint, options = {}) => {
     const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
     try {
-        return await fetch(buildApiUrl(formattedEndpoint), config);
+        return await fetchWithFallback(formattedEndpoint, config);
     } catch (error) {
         console.error(`Public API Fetch Error [${formattedEndpoint}]:`, error);
         throw error;

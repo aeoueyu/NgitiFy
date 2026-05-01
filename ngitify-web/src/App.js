@@ -51,6 +51,7 @@ const ChatSupport = lazy(() => import('./pages/admin/ChatSupport'));
 const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const IntegrityTools = lazy(() => import('./pages/admin/IntegrityTools'));
 const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
+const CoAdminAIAssistant = lazy(() => import('./pages/admin/CoAdminAIAssistant'));
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
@@ -62,6 +63,7 @@ const DentistActivityLogs  = lazy(() => import('./pages/dentist/ActivityLogs'));
 const DentistMaterialUsage = lazy(() => import('./pages/dentist/MaterialUsageLog'));
 const DentistOdontogram    = lazy(() => import('./pages/dentist/DentistOdontogramPage'));
 const DentistSettings      = lazy(() => import('./pages/dentist/DentistSettings'));
+const DentistAIAssistant   = lazy(() => import('./pages/dentist/DentistAIAssistant'));
 
 // Pages - Secretary
 const SecretaryDashboard    = lazy(() => import('./pages/secretary/SecretaryDashboard'));
@@ -87,9 +89,11 @@ const BranchManagerAnalytics = lazy(() => import('./pages/branch-manager/BranchM
 const BranchManagerPatientEMR = lazy(() => import('./pages/branch-manager/BranchManagerPatientEMR'));
 const BranchManagerActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
 const BranchManagerNotifications = lazy(() => import('./pages/admin/Notifications'));
+const BranchManagerAIAssistant = lazy(() => import('./pages/branch-manager/BranchManagerAIAssistant'));
 
 // ✅ PHASE 3: Owner pages
 const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
+const OwnerAIAssistant = lazy(() => import('./pages/owner/OwnerAIAssistant'));
 const ManageOwners = lazy(() => import('./pages/admin/ManageOwners'));
 
 
@@ -137,6 +141,7 @@ function App() {
                   <Route path="/dentist/odontogram"              element={<DentistOdontogram />} />
                   <Route path="/dentist/notifications"           element={<DentistNotifications />} />
                   <Route path="/dentist/activity-logs"           element={<DentistActivityLogs />} />
+                  <Route path="/dentist/ai-assistant"            element={<DentistAIAssistant />} />
                   <Route path="/dentist/profile"                 element={<AdminProfile />} />
                   <Route path="/dentist/settings"                element={<DentistSettings />} />
                   <Route path="/dentist/inventory"               element={<InventoryTracker />} />
@@ -151,9 +156,11 @@ function App() {
                   <Route path="/branch-manager/manage-users" element={<BranchManagerManageUsers />} />
                   <Route path="/branch-manager/queue"        element={<BranchManagerQueue />} />
                   <Route path="/branch-manager/chat-support" element={<BranchManagerChatSupport />} />
+                  <Route path="/branch-manager/branches"     element={<BranchManagement />} />
                   <Route path="/branch-manager/analytics"    element={<BranchManagerAnalytics />} />
                   <Route path="/branch-manager/activity-logs" element={<BranchManagerActivityLogs />} />
                   <Route path="/branch-manager/notifications" element={<BranchManagerNotifications />} />
+                  <Route path="/branch-manager/ai-assistant" element={<BranchManagerAIAssistant />} />
                   <Route path="/branch-manager/inventory"    element={<InventoryTracker />} />
                   <Route path="/branch-manager/profile"      element={<AdminProfile />} />
                   <Route path="/branch-manager/settings"     element={<AdminSettings />} />
@@ -171,16 +178,19 @@ function App() {
                   <Route path="/owner/manage-users/dentists"        element={<ManageDentists />} />
                   <Route path="/owner/manage-users/secretaries"     element={<ManageSecretaries />} />
                   <Route path="/owner/manage-users/patients"        element={<ManagePatients />} />
+                  <Route path="/owner/manage-users/branch-managers" element={<ManageBranchManagers />} />
+                  <Route path="/owner/manage-users/co-admins"       element={<ManageCoAdmins />} />
+                  <Route path="/owner/manage-users/owners"          element={<ManageOwners />} />
                   <Route path="/owner/patients/:patientId/emr"      element={<AdminPatientEMR />} />
                   <Route path="/owner/branches"                     element={<BranchManagement />} />
                   <Route path="/owner/branches/analytics"           element={<BranchAnalytics />} />
                   <Route path="/owner/inventory"                    element={<InventoryTracker />} />
                   <Route path="/owner/notifications"                element={<Notifications />} />
                   <Route path="/owner/activity-logs"                element={<ActivityLogs />} />
+                  <Route path="/owner/ai-assistant"                 element={<OwnerAIAssistant />} />
                   <Route path="/owner/profile"                      element={<AdminProfile />} />
                   <Route path="/owner/settings"                     element={<AdminSettings />} />
                   <Route path="/owner/roles"                        element={<RolesPermissions />} />
-                  <Route path="/owner/system-config"                element={<SystemConfig />} />  {/* ✅ owner system config */}
                 </Route>
               </Route>
 
@@ -204,7 +214,7 @@ function App() {
               </Route>
 
               {/* Protected Routes - Administrator Area */}
-              <Route element={<ProtectedRoute allowedRoles={['administrator', 'co-administrator', 'branch-manager']} />}>
+              <Route element={<ProtectedRoute allowedRoles={['administrator', 'co-administrator']} />}>
                 <Route element={<DashboardLayout />}>
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
                   <Route path="/admin/profile" element={<AdminProfile />} />
@@ -246,6 +256,7 @@ function App() {
                   <Route path="/admin/chat-support" element={<ChatSupport />} />
                   <Route path="/admin/integrity" element={<IntegrityTools />} />
                   <Route path="/admin/activity-logs" element={<ActivityLogs />} />
+                  <Route path="/admin/ai-assistant" element={<CoAdminAIAssistant />} />
                 </Route>
               </Route>
 

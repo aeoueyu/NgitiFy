@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaCodeBranch, FaPlus, FaEdit, FaPowerOff, FaPhone, FaMapMarkerAlt, FaUserTie } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import styles from '../../styles/admin/BranchManagement.module.css';
 
@@ -9,6 +10,9 @@ const EMPTY_FORM = { name: '', address: '', contactNumber: '' };
 
 export default function BranchManagement() {
     const { addToast } = useToast();
+    const { user } = useAuth();
+    const isBranchManager = user?.role === 'branch-manager';
+    const assignedBranch = user?.assignedBranch || '';
 
     const [branches, setBranches]       = useState([]);
     const [managers, setManagers]       = useState([]);
@@ -27,14 +31,14 @@ export default function BranchManagement() {
     // ── Fetch ─────────────────────────────────────────────────
     const fetchBranches = useCallback(async () => {
         try {
-            const res = await authFetch('/branches?all=true');
+            const res = await authFetch(isBranchManager ? '/branches' : '/branches?all=true');
             if (res.ok) setBranches(await res.json());
         } catch (err) {
             addToast('Failed to load branches.', 'error');
         } finally {
             setLoading(false);
         }
-    }, [addToast]);
+    }, [addToast, isBranchManager]);
 
     const fetchManagers = useCallback(async () => {
         try {
@@ -142,13 +146,17 @@ export default function BranchManagement() {
                     <div>
                         <h1 className={styles.pageTitle}>Branch Management</h1>
                         <p className={styles.pageSubtitle}>
-                            {activeBranches.length} active branch{activeBranches.length !== 1 ? 'es' : ''}
+                            {isBranchManager
+                                ? `Viewing ${assignedBranch || 'your assigned branch'} only`
+                                : `${activeBranches.length} active branch${activeBranches.length !== 1 ? 'es' : ''}`}
                         </p>
                     </div>
                 </div>
-                <button className={styles.addBtn} onClick={openAdd}>
-                    <FaPlus /> Add Branch
-                </button>
+                {!isBranchManager && (
+                    <button className={styles.addBtn} onClick={openAdd}>
+                        <FaPlus /> Add Branch
+                    </button>
+                )}
             </div>
 
             {/* Active Branches */}
@@ -158,15 +166,16 @@ export default function BranchManagement() {
             ) : (
                 <div className={styles.grid}>
                     {activeBranches.map(branch => (
-                        <BranchCard
-                            key={branch._id}
-                            branch={branch}
-                            managerName={getManagerName(branch.managerIds)}
-                            onEdit={() => openEdit(branch)}
-                            onToggle={() => setConfirmTarget(branch)}
-                        />
-                    ))}
-                </div>
+                            <BranchCard
+                                key={branch._id}
+                                branch={branch}
+                                managerName={getManagerName(branch.managerIds)}
+                                onEdit={() => openEdit(branch)}
+                                onToggle={() => setConfirmTarget(branch)}
+                                readOnly={isBranchManager}
+                            />
+                        ))}
+                    </div>
             )}
 
             {/* Inactive Branches */}
@@ -182,6 +191,7 @@ export default function BranchManagement() {
                                 onEdit={() => openEdit(branch)}
                                 onToggle={() => setConfirmTarget(branch)}
                                 inactive
+                                readOnly={isBranchManager}
                             />
                         ))}
                     </div>
@@ -189,7 +199,7 @@ export default function BranchManagement() {
             )}
 
             {/* Add / Edit Modal */}
-            {showModal && (
+            {!isBranchManager && showModal && (
                 <div className={styles.overlay}>
                     <div className={styles.modal}>
                         <h2 className={styles.modalTitle}>
@@ -241,24 +251,26 @@ export default function BranchManagement() {
             )}
 
             {/* Confirm Toggle Modal */}
-            <ConfirmModal
-                isOpen={!!confirmTarget}
-                title={confirmTarget?.isActive ? 'Deactivate Branch' : 'Activate Branch'}
-                message={
-                    confirmTarget?.isActive
-                        ? `Are you sure you want to deactivate "${confirmTarget?.name}"? It will no longer appear in active branch lists.`
-                        : `Reactivate "${confirmTarget?.name}"?`
-                }
-                confirmText={confirmTarget?.isActive ? 'Deactivate' : 'Activate'}
-                isDestructive={confirmTarget?.isActive}
-                onConfirm={() => handleToggleActive(confirmTarget)}
-                onCancel={() => setConfirmTarget(null)}
-            />
+            {!isBranchManager && (
+                <ConfirmModal
+                    isOpen={!!confirmTarget}
+                    title={confirmTarget?.isActive ? 'Deactivate Branch' : 'Activate Branch'}
+                    message={
+                        confirmTarget?.isActive
+                            ? `Are you sure you want to deactivate "${confirmTarget?.name}"? It will no longer appear in active branch lists.`
+                            : `Reactivate "${confirmTarget?.name}"?`
+                    }
+                    confirmText={confirmTarget?.isActive ? 'Deactivate' : 'Activate'}
+                    isDestructive={confirmTarget?.isActive}
+                    onConfirm={() => handleToggleActive(confirmTarget)}
+                    onCancel={() => setConfirmTarget(null)}
+                />
+            )}
         </div>
     );
 }
 
-function BranchCard({ branch, managerName, onEdit, onToggle, inactive }) {
+function BranchCard({ branch, managerName, onEdit, onToggle, inactive, readOnly = false }) {
     return (
         <div className={`${styles.card} ${inactive ? styles.cardInactive : ''}`}>
             <div className={styles.cardHeader}>
@@ -291,18 +303,20 @@ function BranchCard({ branch, managerName, onEdit, onToggle, inactive }) {
                 </p>
             </div>
 
-            <div className={styles.cardActions}>
-                <button className={styles.editBtn} onClick={onEdit}>
-                    <FaEdit /> Edit
-                </button>
-                <button
-                    className={`${styles.toggleBtn} ${branch.isActive ? styles.toggleDeactivate : styles.toggleActivate}`}
-                    onClick={onToggle}
-                >
-                    <FaPowerOff />
-                    {branch.isActive ? 'Deactivate' : 'Activate'}
-                </button>
-            </div>
+            {!readOnly && (
+                <div className={styles.cardActions}>
+                    <button className={styles.editBtn} onClick={onEdit}>
+                        <FaEdit /> Edit
+                    </button>
+                    <button
+                        className={`${styles.toggleBtn} ${branch.isActive ? styles.toggleDeactivate : styles.toggleActivate}`}
+                        onClick={onToggle}
+                    >
+                        <FaPowerOff />
+                        {branch.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

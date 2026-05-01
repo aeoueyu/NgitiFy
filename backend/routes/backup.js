@@ -16,8 +16,8 @@ if (!fs.existsSync(BACKUP_DIR)) {
 }
 
 const isAdmin = (req, res, next) => {
-    if (req.user.role !== 'administrator') {
-        return res.status(403).json({ message: 'Access denied. Admin only.' });
+    if (!['administrator', 'co-administrator'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied. Admin tier only.' });
     }
     next();
 };
