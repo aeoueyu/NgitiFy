@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/dentist/MaterialUsageLog.module.css';
-import { FaBoxOpen, FaTrash, FaPlus, FaSearch, FaChevronDown, FaChevronUp, FaClipboardList } from 'react-icons/fa';
+import { FaBoxOpen, FaTrash, FaPlus, FaSearch, FaChevronDown, FaChevronUp, FaClipboardList, FaUserAlt, FaTooth, FaCalendarCheck } from 'react-icons/fa';
 import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatDateLong } from '../../utils/dateUtils';
@@ -78,7 +78,6 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
                     patientId: appointment.patientId || null,
                     procedureType: appointment.procedure || 'Procedure',
                     materials: itemsWithNames,
-                    branch: appointment.branch || '',
                     usedAt: appointment.rawDate || new Date().toISOString(),
                 }),
             });
@@ -166,19 +165,45 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
 }
 
 // ─── LOG NEW ENTRY MODAL (standalone page modal) ──────────────────────────────
+// Dentist selects a completed appointment; no branch or date input needed.
 
-function LogNewEntryModal({ onClose, onSuccess, inventoryList, branches }) {
+function LogNewEntryModal({ onClose, onSuccess, inventoryList }) {
     const { addToast } = useToast();
-    const [form, setForm] = useState({
-        procedureType: '',
-        patientName: '',
-        branch: '',
-        usedAt: new Date().toISOString().split('T')[0],
-    });
+
+    // Completed appointments for this dentist
+    const [appointments, setAppointments] = useState([]);
+    const [isLoadingAppts, setIsLoadingAppts] = useState(true);
+
+    // Selected appointment data
+    const [selectedApptId, setSelectedApptId] = useState('');
+    const [selectedAppt, setSelectedAppt] = useState(null);
+
+    // Materials rows
     const [usedMaterials, setUsedMaterials] = useState([{ itemId: '', quantity: 1 }]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+    // Fetch dentist's completed appointments on mount
+    useEffect(() => {
+        const fetchAppointments = async () => {
+            try {
+                const res = await authFetch('/material-usage/appointments');
+                if (!res.ok) throw new Error('Failed to load appointments.');
+                setAppointments(await res.json());
+            } catch (error) {
+                addToast('Could not load your completed appointments.', 'error');
+            } finally {
+                setIsLoadingAppts(false);
+            }
+        };
+        fetchAppointments();
+    }, [addToast]);
+
+    const handleAppointmentSelect = (apptId) => {
+        setSelectedApptId(apptId);
+        const found = appointments.find(a => a._id === apptId);
+        setSelectedAppt(found || null);
+    };
+
     const handleAddRow = () => setUsedMaterials(prev => [...prev, { itemId: '', quantity: 1 }]);
     const handleRemoveRow = (index) => setUsedMaterials(prev => prev.filter((_, i) => i !== index));
     const handleRowChange = (index, field, value) => {
@@ -191,27 +216,33 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList, branches }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.procedureType || !form.branch) {
-            addToast('Procedure type and branch are required.', 'error');
+        if (!selectedAppt) {
+            addToast('Please select a patient appointment.', 'error');
             return;
         }
-        const isValid = usedMaterials.every(m => m.itemId && m.quantity > 0);
+        const isValid = usedMaterials.every(m => m.itemId && Number(m.quantity) > 0);
         if (!isValid) {
             addToast('Please select an item and valid quantity for all rows.', 'error');
             return;
         }
+
         setIsSubmitting(true);
         try {
             // Step 1: Deduct inventory
-            await authFetch('/inventory/deduct', {
+            const deductRes = await authFetch('/inventory/deduct', {
                 method: 'PATCH',
                 body: JSON.stringify({
+                    patientId: selectedAppt.patientId || null,
                     itemsUsed: usedMaterials.map(m => ({
                         inventoryId: m.itemId,
                         quantityUsed: Number(m.quantity),
                     })),
                 }),
             });
+            if (!deductRes.ok) {
+                const errData = await deductRes.json();
+                throw new Error(errData.message || 'Failed to deduct inventory.');
+            }
 
             // Step 2: Create usage log
             const itemsWithNames = usedMaterials.map(m => {
@@ -226,11 +257,11 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList, branches }) {
             const res = await authFetch('/material-usage', {
                 method: 'POST',
                 body: JSON.stringify({
-                    procedureType: form.procedureType,
+                    patientId: selectedAppt.patientId || null,
+                    procedureType: selectedAppt.procedure || 'Procedure',
                     materials: itemsWithNames,
-                    branch: form.branch,
-                    usedAt: form.usedAt,
-                    notes: form.patientName ? `Patient: ${form.patientName}` : '',
+                    // usedAt and branch are resolved server-side (completedAt & dentist's branch)
+                    usedAt: selectedAppt.completedAt || new Date().toISOString(),
                 }),
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to save log.');
@@ -250,91 +281,123 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList, branches }) {
             <div className={styles.materialModalCard} style={{ maxWidth: '600px' }}>
                 <div className={styles.materialHeaderInfo}>
                     <h2 className={styles.modalTitle}><FaPlus /> Log New Material Usage</h2>
-                    <p className={styles.materialProcedure}>Record materials used during a procedure and deduct from stock.</p>
+                    <p className={styles.materialProcedure}>Select a completed appointment and log the materials used.</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    <div className={styles.formGrid}>
-                        <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>Procedure Type <span style={{ color: 'red' }}>*</span></label>
-                            <input
-                                type="text" required className={styles.materialSelect} style={{ flex: 'none', width: '100%' }}
-                                placeholder="e.g., Tooth Extraction, Scaling"
-                                value={form.procedureType}
-                                onChange={e => handleChange('procedureType', e.target.value)}
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>Patient Name (optional)</label>
-                            <input
-                                type="text" className={styles.materialSelect} style={{ flex: 'none', width: '100%' }}
-                                placeholder="e.g., Juan dela Cruz"
-                                value={form.patientName}
-                                onChange={e => handleChange('patientName', e.target.value)}
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>Branch <span style={{ color: 'red' }}>*</span></label>
+                    {/* ── Appointment selector ── */}
+                    <div className={styles.formGroup} style={{ marginBottom: '18px' }}>
+                        <label className={styles.formLabel}>
+                            Patient / Appointment <span style={{ color: 'red' }}>*</span>
+                        </label>
+                        {isLoadingAppts ? (
+                            <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0' }}>Loading your completed appointments...</p>
+                        ) : appointments.length === 0 ? (
+                            <p style={{ fontSize: '13px', color: '#ef4444', margin: '6px 0' }}>
+                                No completed appointments found. Appointments are logged once staff marks them as "completed".
+                            </p>
+                        ) : (
                             <select
-                                required className={styles.materialSelect} style={{ flex: 'none', width: '100%' }}
-                                value={form.branch}
-                                onChange={e => handleChange('branch', e.target.value)}
+                                required
+                                className={styles.materialSelect}
+                                style={{ flex: 'none', width: '100%', height: '44px' }}
+                                value={selectedApptId}
+                                onChange={e => handleAppointmentSelect(e.target.value)}
                                 disabled={isSubmitting}
                             >
-                                <option value="" disabled hidden>Select Branch</option>
-                                {branches.map(b => (
-                                    <option key={b._id} value={b.name}>{b.name}</option>
+                                <option value="" disabled hidden>Select a patient...</option>
+                                {appointments.map(appt => (
+                                    <option key={appt._id} value={appt._id}>
+                                        {appt.patientName} — {appt.procedure} ({appt.completedAt
+                                            ? new Date(appt.completedAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+                                            : 'Date unknown'})
+                                    </option>
                                 ))}
                             </select>
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>Date Used <span style={{ color: 'red' }}>*</span></label>
-                            <input
-                                type="date" required className={styles.materialSelect} style={{ flex: 'none', width: '100%' }}
-                                value={form.usedAt}
-                                onChange={e => handleChange('usedAt', e.target.value)}
-                                disabled={isSubmitting}
-                            />
-                        </div>
+                        )}
                     </div>
 
-                    <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '18px', marginBottom: '10px' }}>
-                        <p className={styles.formLabel} style={{ marginBottom: '12px' }}>Materials Used <span style={{ color: 'red' }}>*</span></p>
-                        <div style={{ maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }}>
-                            {usedMaterials.map((row, idx) => (
-                                <div key={idx} className={styles.materialRow}>
-                                    <select
-                                        className={styles.materialSelect} required
-                                        value={row.itemId}
-                                        onChange={e => handleRowChange(idx, 'itemId', e.target.value)}
-                                        disabled={isSubmitting}
-                                    >
-                                        <option value="" disabled hidden>Select item...</option>
-                                        {inventoryList.map(item => (
-                                            <option key={item._id || item.id} value={item._id || item.id}>
-                                                {item.name || item.itemName} ({item.stock ?? item.quantity} {item.unit} left)
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <input
-                                        type="number" min="1" placeholder="Qty"
-                                        className={styles.qtyInput} required
-                                        value={row.quantity}
-                                        onChange={e => handleRowChange(idx, 'quantity', e.target.value)}
-                                        disabled={isSubmitting}
-                                    />
-                                    <button
-                                        type="button" className={styles.removeBtn}
-                                        onClick={() => handleRemoveRow(idx)}
-                                        disabled={usedMaterials.length === 1 || isSubmitting}
-                                    >
-                                        <FaTrash />
-                                    </button>
+                    {/* ── Auto-filled appointment info ── */}
+                    {selectedAppt && (
+                        <div style={{
+                            background: '#f0f7fb', border: '1px solid #bae6fd', borderRadius: '10px',
+                            padding: '14px 18px', marginBottom: '18px', display: 'grid',
+                            gridTemplateColumns: '1fr 1fr', gap: '10px',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FaUserAlt style={{ color: '#01538b', fontSize: '12px', flexShrink: 0 }} />
+                                <div>
+                                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Patient</p>
+                                    <p style={{ margin: 0, fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>{selectedAppt.patientName}</p>
                                 </div>
-                            ))}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FaTooth style={{ color: '#01538b', fontSize: '12px', flexShrink: 0 }} />
+                                <div>
+                                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Procedure</p>
+                                    <p style={{ margin: 0, fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>{selectedAppt.procedure}</p>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
+                                <FaCalendarCheck style={{ color: '#01538b', fontSize: '12px', flexShrink: 0 }} />
+                                <div>
+                                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Completed On</p>
+                                    <p style={{ margin: 0, fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>
+                                        {selectedAppt.completedAt
+                                            ? new Date(selectedAppt.completedAt).toLocaleDateString('en-PH', {
+                                                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                                            })
+                                            : 'Date not recorded'}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
+                    )}
+
+                    {/* ── Materials section ── */}
+                    <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '18px', marginBottom: '10px' }}>
+                        <p className={styles.formLabel} style={{ marginBottom: '12px' }}>
+                            Materials Used <span style={{ color: 'red' }}>*</span>
+                        </p>
+                        {inventoryList.length === 0 ? (
+                            <p style={{ fontSize: '13px', color: '#94a3b8', margin: '8px 0 20px' }}>
+                                No inventory items found for your branch.
+                            </p>
+                        ) : (
+                            <div style={{ maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }}>
+                                {usedMaterials.map((row, idx) => (
+                                    <div key={idx} className={styles.materialRow}>
+                                        <select
+                                            className={styles.materialSelect} required
+                                            value={row.itemId}
+                                            onChange={e => handleRowChange(idx, 'itemId', e.target.value)}
+                                            disabled={isSubmitting}
+                                        >
+                                            <option value="" disabled hidden>Select item...</option>
+                                            {inventoryList.map(item => (
+                                                <option key={item._id || item.id} value={item._id || item.id}>
+                                                    {item.name || item.itemName} ({item.stock ?? item.quantity} {item.unit} left)
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="number" min="1" placeholder="Qty"
+                                            className={styles.qtyInput} required
+                                            value={row.quantity}
+                                            onChange={e => handleRowChange(idx, 'quantity', e.target.value)}
+                                            disabled={isSubmitting}
+                                        />
+                                        <button
+                                            type="button" className={styles.removeBtn}
+                                            onClick={() => handleRemoveRow(idx)}
+                                            disabled={usedMaterials.length === 1 || isSubmitting}
+                                        >
+                                            <FaTrash />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                         <button type="button" className={styles.addMaterialRowBtn} onClick={handleAddRow} disabled={isSubmitting}>
                             <FaPlus style={{ marginRight: '6px' }} /> Add Another Item
                         </button>
@@ -342,7 +405,7 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList, branches }) {
 
                     <div className={styles.modalButtonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSubmitting}>Cancel</button>
-                        <button type="submit" className={styles.saveMaterialBtn} disabled={isSubmitting}>
+                        <button type="submit" className={styles.saveMaterialBtn} disabled={isSubmitting || !selectedAppt}>
                             {isSubmitting ? 'Saving...' : 'Save & Deduct Stock'}
                         </button>
                     </div>
@@ -360,7 +423,6 @@ function MaterialUsagePage() {
 
     const [logs, setLogs] = useState([]);
     const [inventoryList, setInventoryList] = useState([]);
-    const [branches, setBranches] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [expandedLogs, setExpandedLogs] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
@@ -387,17 +449,10 @@ function MaterialUsagePage() {
 
     useEffect(() => {
         fetchLogs();
-        const fetchSupportData = async () => {
-            try {
-                const [invRes, branchRes] = await Promise.all([
-                    authFetch('/inventory'),
-                    authFetch('/branches'),
-                ]);
-                if (invRes.ok) setInventoryList(await invRes.json());
-                if (branchRes.ok) setBranches(await branchRes.json());
-            } catch (e) { /* silent */ }
-        };
-        fetchSupportData();
+        // Fetch branch-filtered inventory for the dentist
+        authFetch('/inventory').then(res => {
+            if (res.ok) res.json().then(setInventoryList);
+        }).catch(() => {});
     }, [fetchLogs]);
 
     const toggleExpand = (id) => setExpandedLogs(prev => ({ ...prev, [id]: !prev[id] }));
@@ -406,8 +461,7 @@ function MaterialUsagePage() {
         const lower = searchQuery.toLowerCase();
         const matchSearch = !searchQuery ||
             (log.procedureType || '').toLowerCase().includes(lower) ||
-            (log.patientName || '').toLowerCase().includes(lower) ||
-            (log.branch || '').toLowerCase().includes(lower);
+            (log.patientName || '').toLowerCase().includes(lower);
         let matchDate = true;
         if (dateFrom) matchDate = matchDate && log.rawDate >= new Date(dateFrom);
         if (dateTo) {
@@ -467,7 +521,7 @@ function MaterialUsagePage() {
                 <div className={styles.searchWrapper}>
                     <FaSearch className={styles.searchIcon} />
                     <input
-                        type="text" placeholder="Search by procedure, patient, or branch..."
+                        type="text" placeholder="Search by procedure or patient..."
                         className={styles.searchInput}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
@@ -493,10 +547,9 @@ function MaterialUsagePage() {
                     <table className={styles.logTable}>
                         <thead>
                             <tr className={styles.tableHeader}>
-                                <th>Date</th>
+                                <th>Date Completed</th>
                                 <th>Procedure</th>
                                 <th>Patient</th>
-                                <th>Branch</th>
                                 <th>Items Used</th>
                                 <th></th>
                             </tr>
@@ -508,7 +561,6 @@ function MaterialUsagePage() {
                                         <td className={styles.tdDate}>{formatDateShort(log.rawDate)}</td>
                                         <td className={styles.tdProcedure}>{log.procedureType}</td>
                                         <td className={styles.tdPatient}>{log.patientName || '—'}</td>
-                                        <td className={styles.tdBranch}>{log.branch || '—'}</td>
                                         <td className={styles.tdItems}>
                                             <span className={styles.itemsBadge}>{(log.materials || []).length} item(s)</span>
                                         </td>
@@ -523,7 +575,7 @@ function MaterialUsagePage() {
                                     </tr>
                                     {expandedLogs[log.id] && (
                                         <tr className={styles.expandedRow}>
-                                            <td colSpan={6}>
+                                            <td colSpan={5}>
                                                 <div className={styles.expandedContent}>
                                                     <p className={styles.expandedTitle}>Materials Used on {formatDateLong(log.rawDate.toISOString())}</p>
                                                     <div className={styles.materialChips}>
@@ -553,7 +605,6 @@ function MaterialUsagePage() {
                     onClose={() => setIsLogModalOpen(false)}
                     onSuccess={() => { fetchLogs(); }}
                     inventoryList={inventoryList}
-                    branches={branches}
                 />
             )}
         </main>
