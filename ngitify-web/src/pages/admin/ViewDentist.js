@@ -45,7 +45,7 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
             <div className={styles.overlayBackground} onClick={onClose}></div>
             <div className={styles.formCard}>
                 {isLoading ? (
-                    <div style={{ textAlign: 'center', padding: '50px', color: '#01538b' }}>Loading Profile...</div>
+                    <div className={styles.loadingState}>Loading profile...</div>
                 ) : dentist ? (
                     <>
                         <div className={styles.headerWrapper}>
@@ -67,7 +67,7 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
                                 }} 
                                 size={70} 
                             />
-                            <div style={{ marginLeft: '15px' }}>
+                            <div>
                                 <h3 className={styles.profileName}>Dr. {dentist.name?.first} {dentist.name?.last}</h3>
                                 <p className={styles.profileRole}>{dentist.specialization || 'General Dentist'}</p>
                             </div>
@@ -97,7 +97,7 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
                             </div>
                         </div>
 
-                        <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px', marginTop: '30px' }}>Address Details</h3>
+                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Address Details</h3>
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Current Address</span>
@@ -110,7 +110,7 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
                         </div>
                     </>
                 ) : (
-                    <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>Profile not found.</div>
+                    <div className={styles.errorState}>Profile not found.</div>
                 )}
             </div>
         </div>

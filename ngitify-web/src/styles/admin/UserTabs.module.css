@@ -1,5 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
 
+.pageShell {
+    padding: 24px;
+    background: #f4f7fa;
+    min-height: 100vh;
+    font-family: 'Lexend Deca', sans-serif;
+}
+
+.pageIntro {
+    margin-bottom: 20px;
+}
+
+.pageTitle {
+    color: #01538b;
+    font-size: 24px;
+    font-weight: 800;
+    margin: 0 0 4px;
+}
+
+.pageSubtitle {
+    color: #64748b;
+    font-size: 13px;
+    margin: 0;
+}
+
 /* --- UNIFIED TAB HEADER STYLES --- */
 .tabContainer {
     display: flex;
@@ -34,4 +58,31 @@
 .activeTab {
     color: #01538b;
     border-bottom: 3px solid #2dccf6;
+}
+
+.tabPanel {
+    margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+    .pageShell {
+        padding: 16px;
+    }
+
+    .pageTitle {
+        font-size: 22px;
+    }
+
+    .tabContainer {
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scrollbar-width: thin;
+    }
+
+    .tabButton {
+        padding: 10px 16px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
 }

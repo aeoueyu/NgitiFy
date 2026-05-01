@@ -52,7 +52,7 @@ export default function SecretaryViewPatient() {
 
     if (isLoading) return (
         <div className={styles.page}>
-            <div className={styles.loadingState}>Loading patient profile…</div>
+            <div className={styles.loadingState}>Loading patient profile...</div>
         </div>
     );
 
@@ -69,11 +69,11 @@ export default function SecretaryViewPatient() {
                 <button className={styles.backBtn} onClick={() => navigate('/secretary/patients')}>
                     <FaArrowLeft /> Back to Patients
                 </button>
-                <div style={{ flex: 1 }}>
+                <div className={styles.headerContent}>
                     <h1 className={styles.pageTitle}>Patient Profile</h1>
-                    <p className={styles.pageSubtitle}>View-only — demographic and contact information.</p>
+                    <p className={styles.pageSubtitle}>View-only profile for demographic and contact information.</p>
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div className={styles.headerActions}>
                     <button className={styles.actionBtnSecondary}
                         onClick={() => navigate(`/secretary/patients/${patientId}/emr`)}>
                         <FaFileMedical /> View EMR
@@ -156,14 +156,22 @@ export default function SecretaryViewPatient() {
 }
 
 function InfoBox({ label, value, highlight, warning, danger }) {
-    const bgColor = warning ? '#fffbeb' : danger ? '#fef2f2' : undefined;
-    const bdColor = warning ? '#fde68a' : danger ? '#fecaca' : undefined;
-    const valColor = highlight === 'green' ? '#15803d' : highlight === 'red' ? '#b91c1c' : undefined;
+    const boxClassName = [
+        styles.infoBox,
+        warning ? styles.infoBoxWarning : '',
+        danger ? styles.infoBoxDanger : '',
+    ].filter(Boolean).join(' ');
+
+    const valueClassName = [
+        styles.infoValue,
+        highlight === 'green' ? styles.infoValueSuccess : '',
+        highlight === 'red' ? styles.infoValueDanger : '',
+    ].filter(Boolean).join(' ');
 
     return (
-        <div className={styles.infoBox} style={{ backgroundColor: bgColor, borderColor: bdColor }}>
+        <div className={boxClassName}>
             <span className={styles.infoLabel}>{label}</span>
-            <p className={styles.infoValue} style={{ color: valColor }}>{value}</p>
+            <p className={valueClassName}>{value}</p>
         </div>
     );
 }

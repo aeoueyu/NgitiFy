@@ -14,9 +14,11 @@ export default function BranchManagerManageUsers() {
     const [activeTab, setActiveTab] = useState('dentists');
 
     return (
-        <div style={{ padding: '24px', background: '#f4f7fa', minHeight: '100vh', fontFamily: "'Lexend Deca', sans-serif" }}>
-            <h1 style={{ color: '#01538b', fontSize: '24px', fontWeight: '800', margin: '0 0 4px' }}>User Management</h1>
-            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px' }}>Manage staff and patients in your branch.</p>
+        <div className={styles.pageShell}>
+            <div className={styles.pageIntro}>
+                <h1 className={styles.pageTitle}>User Management</h1>
+                <p className={styles.pageSubtitle}>Manage staff and patients in your branch.</p>
+            </div>
 
             <div className={styles.tabContainer}>
                 {TABS.map(tab => (
@@ -30,7 +32,7 @@ export default function BranchManagerManageUsers() {
                 ))}
             </div>
 
-            <div style={{ marginTop: '20px' }}>
+            <div className={styles.tabPanel}>
                 {activeTab === 'dentists'    && <ManageDentists />}
                 {activeTab === 'secretaries' && <ManageSecretaries />}
                 {activeTab === 'patients'    && <ManagePatients />}

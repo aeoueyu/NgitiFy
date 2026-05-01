@@ -63,7 +63,7 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
             <div className={styles.overlayBackground} onClick={onClose}></div>
             <div className={styles.formCard}>
                 {isLoading ? (
-                    <div style={{ textAlign: 'center', padding: '50px', color: '#01538b' }}>Loading Profile...</div>
+                    <div className={styles.loadingState}>Loading profile...</div>
                 ) : patient ? (
                     <>
                         <div className={styles.headerWrapper}>
@@ -86,11 +86,11 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                             )}
                             <div>
                                 <h3 className={styles.profileName}>{patient.name?.first} {patient.name?.last}</h3>
-                                <p className={styles.profileRole} style={{backgroundColor: '#dcfce7', color: '#15803d'}}>Registered Patient</p>
+                                <p className={`${styles.profileRole} ${styles.statusRole}`}>Registered Patient</p>
                             </div>
                         </div>
 
-                        <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px' }}>Core Information</h3>
+                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Core Information</h3>
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Email Address</span>
@@ -119,19 +119,19 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                         {/* CONDITIONAL GUARDIAN SECTION */}
                         {isMinor && (
                             <>
-                                <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px', marginTop: '30px', borderLeftColor: '#f59e0b' }}>
+                                <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>
                                     Guardian Information (Minor)
                                 </h3>
                                 <div className={styles.infoGrid}>
-                                    <div className={styles.infoBox} style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}>
+                                    <div className={`${styles.infoBox} ${styles.infoBoxWarning}`}>
                                         <span className={styles.infoLabel}>Guardian Name</span>
                                         <p className={styles.infoValue}>{patient.guardian?.name || 'Not provided'}</p>
                                     </div>
-                                    <div className={styles.infoBox} style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}>
+                                    <div className={`${styles.infoBox} ${styles.infoBoxWarning}`}>
                                         <span className={styles.infoLabel}>Relationship</span>
                                         <p className={styles.infoValue}>{patient.guardian?.relationship || 'Not provided'}</p>
                                     </div>
-                                    <div className={styles.infoBox} style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}>
+                                    <div className={`${styles.infoBox} ${styles.infoBoxWarning}`}>
                                         <span className={styles.infoLabel}>Guardian Contact</span>
                                         <p className={styles.infoValue}>{patient.guardian?.contactNumber || 'Not provided'}</p>
                                     </div>
@@ -140,20 +140,20 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                         )}
 
                         {/* MEDICAL HISTORY SECTION (Non-Financial Ops) */}
-                        <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px', marginTop: '30px', borderLeftColor: '#dc3545' }}>
+                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>
                             Medical History Summary
                         </h3>
                         <div className={styles.infoGrid}>
-                            <div className={styles.infoBox} style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}>
-                                <span className={styles.infoLabel} style={{ color: '#dc3545' }}>Known Allergies</span>
+                            <div className={`${styles.infoBox} ${styles.infoBoxDanger}`}>
+                                <span className={`${styles.infoLabel} ${styles.infoLabelDanger}`}>Known Allergies</span>
                                 <p className={styles.infoValue}>
                                     {patient.medicalHistory?.allergies?.length > 0 
                                         ? patient.medicalHistory.allergies.join(', ') 
                                         : 'None reported'}
                                 </p>
                             </div>
-                            <div className={styles.infoBox} style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}>
-                                <span className={styles.infoLabel} style={{ color: '#dc3545' }}>Medical Conditions</span>
+                            <div className={`${styles.infoBox} ${styles.infoBoxDanger}`}>
+                                <span className={`${styles.infoLabel} ${styles.infoLabelDanger}`}>Medical Conditions</span>
                                 <p className={styles.infoValue}>
                                     {patient.medicalHistory?.conditions?.length > 0 
                                         ? patient.medicalHistory.conditions.join(', ') 
@@ -162,7 +162,7 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                             </div>
                         </div>
 
-                        <h3 className={styles.mainSectionTitle} style={{ fontSize: '15px', marginTop: '30px' }}>Address Details</h3>
+                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Address Details</h3>
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Current Address</span>
@@ -175,7 +175,7 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                         </div>
                     </>
                 ) : (
-                    <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>Profile not found.</div>
+                    <div className={styles.errorState}>Profile not found.</div>
                 )}
             </div>
         </div>

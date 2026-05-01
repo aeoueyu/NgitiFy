@@ -4,6 +4,7 @@
     min-height: 100vh;
     font-family: 'Lexend Deca', sans-serif;
     overflow-x: hidden;
+    position: relative;
     background-color: #ffffff;
     background:
         linear-gradient(rgba(255, 255, 255, 0.9), rgba(244, 251, 255, 0.92)),
@@ -14,8 +15,10 @@
 }
 
 .topBar {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 1000;
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -108,7 +111,7 @@
 }
 
 .content {
-    padding: 0 48px 48px;
+    padding: 108px 48px 48px;
     overflow-x: hidden;
 }
 
@@ -121,7 +124,7 @@
     }
 
     .content {
-        padding: 0 20px 36px;
+        padding: 152px 20px 36px;
     }
 
     .navLinks {
@@ -137,5 +140,9 @@
 @media (max-width: 680px) {
     .page {
         background-size: 100% 100%;
+    }
+
+    .content {
+        padding-top: 168px;
     }
 }

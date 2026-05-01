@@ -292,7 +292,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
             
             <div className={styles.formCard}>
                 {isLoading ? (
-                    <div style={{ textAlign: 'center', padding: '50px', color: '#01538b', fontWeight: 'bold' }}>
+                    <div className={styles.loadingState}>
                         Loading Secretary Data...
                     </div>
                 ) : (
@@ -312,7 +312,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                                 <div className={styles.imageWrapper} onClick={triggerFileInput}>
                                     {profileImage ? <img src={profileImage} alt="Profile" className={styles.previewImage} /> : <div className={styles.uploadPlaceholder}><span>Upload Photo</span></div>}
                                 </div>
-                                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} disabled={isSaving} />
+                                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className={styles.hiddenFileInput} disabled={isSaving} />
                             </div>
 
                             <h3 className={styles.mainSectionTitle}>Personal Information</h3>
@@ -341,7 +341,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
 
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '15px', marginTop: '-15px' }}>
+                            <p className={styles.sectionSubtitle}>
                                 Select the branch this secretary is assigned to.
                             </p>
                             <div className={styles.row}>
@@ -370,7 +370,7 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                             {/* SYSTEM PERMISSIONS SECTION */}
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>System Permissions</h3>
-                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>
+                            <p className={styles.sectionSubtitle}>Assign access levels for different system modules.</p>
 
                             <div className={styles.row}>
                                 <div className={styles.formGroup}>

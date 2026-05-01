@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import styles from '../../styles/admin/AddDentist.module.css';
+import styles from '../../styles/admin/AddSecretary.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
@@ -240,8 +240,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
                     {isBranchManager ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                            <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
+                        <div className={styles.branchLockedRow}>
+                            <span className={styles.branchLockedBadge}>{user.assignedBranch}</span>
                             <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
                         </div>
                     ) : (
@@ -287,7 +287,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
                         <div key={module} className={styles.permissionRow}>
                             <span className={styles.permissionLabel}>{module.charAt(0).toUpperCase() + module.slice(1)}</span>
                             <div className={styles.permissionOptions}>
-                                {['none', 'read', 'read-write'].map(level => (
+                                {['none', 'read', 'edit'].map(level => (
                                     <label key={level} className={styles.permissionOption}>
                                         <input
                                             type="radio"

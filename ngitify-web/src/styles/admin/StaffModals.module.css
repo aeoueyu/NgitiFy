@@ -24,6 +24,26 @@
 .editActionBtn { background-color: #01538b; color: white; border: none; padding: 10px 20px; border-radius: 50px; font-weight: 600; cursor: pointer; font-family: 'Lexend Deca'; font-size: 13px; transition: 0.2s; }
 .editActionBtn:hover { background-color: #013f6b; transform: translateY(-2px); }
 
+.loadingState,
+.errorState {
+    text-align: center;
+    padding: 50px 20px;
+    font-weight: 600;
+}
+
+.loadingState { color: #01538b; }
+.errorState { color: #dc2626; }
+
+.sectionHeading {
+    font-size: 15px;
+    margin-top: 30px;
+}
+
+.statusRole { background-color: #dcfce7; color: #15803d; }
+.infoBoxWarning { background-color: #fffbeb; border-color: #fde68a; }
+.infoBoxDanger { background-color: #fef2f2; border-color: #fecaca; }
+.infoLabelDanger { color: #dc3545; }
+
 /* View Profile Layout */
 .profileHeader { display: flex; align-items: center; gap: 20px; margin-bottom: 30px; padding: 20px; background-color: #f8fafc; border-radius: 15px; border: 1px solid #e2e8f0; }
 .profileImageLg { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #2dccf6; }
@@ -70,3 +90,65 @@ select.inputField { appearance: none; background-image: url("data:image/svg+xml;
 .modalTitle { color: #01538b; font-size: 22px; font-weight: 700; margin: 0 0 10px 0; }
 .modalMessage { color: #666; font-size: 14px; margin: 0 0 30px 0; line-height: 1.5; }
 .modalButton { background-color: #01538b; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; }
+
+@media (max-width: 900px) {
+    .formCard {
+        width: min(96%, 760px);
+        padding: 24px 20px;
+        max-height: 88vh;
+    }
+
+    .headerWrapper {
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+
+    .headerLeft {
+        min-width: 0;
+        flex: 1 1 100%;
+    }
+
+    .editActionBtn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .profileHeader {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    .mainOverlay {
+        align-items: flex-start;
+        padding: 16px 0;
+    }
+
+    .row,
+    .buttonGroup {
+        flex-direction: column;
+    }
+
+    .infoGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .profileHeader {
+        padding: 16px;
+    }
+
+    .buttonGroup {
+        gap: 12px;
+    }
+
+    .submitBtn,
+    .cancelBtn,
+    .modalButton {
+        width: 100%;
+    }
+
+    .modalCard {
+        padding: 28px 24px;
+    }
+}
