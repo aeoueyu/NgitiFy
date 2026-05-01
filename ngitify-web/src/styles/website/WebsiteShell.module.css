@@ -13,13 +13,14 @@
     content: '';
     position: absolute;
     top: 0;
-    left: 0;
-    right: 0;
+    left: 50%;
+    width: 100vw;
     height: clamp(720px, 92vh, 1120px);
     background-image: url('../../assets/images/bg.svg');
-    background-size: 100% 100%;
+    background-size: 100vw 100%;
     background-position: top center;
     background-repeat: no-repeat;
+    transform: translateX(-50%);
     opacity: 0.95;
     -webkit-mask-image: linear-gradient(
         to bottom,
@@ -539,7 +540,7 @@
 @media (max-width: 680px) {
     .page::before {
         height: clamp(560px, 76vh, 760px);
-        background-size: cover;
+        background-size: 100vw 100%;
     }
 
     .content {
