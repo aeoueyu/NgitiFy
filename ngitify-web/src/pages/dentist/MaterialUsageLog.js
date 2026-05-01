@@ -433,7 +433,7 @@ function MaterialUsagePage() {
         <main className={styles.pageWrapper}>
             <div className={styles.pageHeader}>
                 <div>
-                    <h1 className={styles.pageTitle}><FaBoxOpen style={{ marginRight: '10px', color: '#2dccf6' }} />Material Usage Log</h1>
+                    <h1 className={styles.pageTitle}>Material Usage Log</h1>
                     <p className={styles.pageSubtitle}>Track and record dental supplies used during patient procedures.</p>
                 </div>
                 <button className={styles.saveMaterialBtn} onClick={() => setIsLogModalOpen(true)}>

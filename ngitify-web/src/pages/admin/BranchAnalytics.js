@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaChartBar, FaFilter } from 'react-icons/fa';
+import { FaFilter } from 'react-icons/fa';
 import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
     Tooltip, LineChart, Line, PieChart, Pie, Cell, Legend
@@ -87,7 +87,6 @@ export default function BranchAnalytics() {
             {/* Header */}
             <div className={styles.pageHeader}>
                 <div className={styles.headerLeft}>
-                    <FaChartBar className={styles.headerIcon} />
                     <div>
                         <h1 className={styles.pageTitle}>Branch Analytics</h1>
                         <p className={styles.pageSubtitle}>

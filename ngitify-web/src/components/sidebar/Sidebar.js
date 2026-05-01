@@ -7,7 +7,6 @@ import {
     FaBell,
     FaBoxes,
     FaCalendarCheck,
-    FaChartBar,
     FaClipboardList,
     FaCodeBranch,
     FaCog,
@@ -204,7 +203,6 @@ export default function Sidebar() {
                             {navItem('/branch-manager/queue', FaListUl, 'Queue')}
                             {navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/branch-manager/branches', FaCodeBranch, 'Branch')}
-                            {navItem('/branch-manager/analytics', FaChartBar, 'Branch Analytics')}
                             {navItem('/branch-manager/activity-logs', FaClipboardList, 'Activity Logs')}
                         </>
                     )}
@@ -215,7 +213,6 @@ export default function Sidebar() {
                             {navItem('/owner/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/owner/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/owner/branches', FaCodeBranch, 'Branches')}
-                            {navItem('/owner/branches/analytics', FaChartBar, 'Branch Analytics')}
                             {navItem('/owner/inventory', FaBoxes, 'Inventory', inventoryBadge)}
                             {navItem('/owner/activity-logs', FaClipboardList, 'Activity Logs')}
                         </>
@@ -251,7 +248,6 @@ export default function Sidebar() {
                             {navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/admin/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
-                            {navItem('/admin/branches/analytics', FaChartBar, 'Branch Analytics')}
                             {navItem('/admin/audit-trail', FaClipboardList, 'Audit Trail')}
                             {navItem('/admin/activity-logs', FaClipboardList, 'Activity Logs')}
                         </>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaShieldAlt, FaSave, FaSearch, FaUserShield, FaLock } from 'react-icons/fa';
+import { FaSave, FaSearch, FaUserShield, FaLock } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
@@ -154,7 +154,6 @@ export default function RolesPermissions() {
     return (
         <div className={styles.container}>
             <div className={styles.pageHeader}>
-                <FaShieldAlt className={styles.headerIcon} />
                 <div>
                     <h1 className={styles.pageTitle}>Roles & Permissions</h1>
                     <p className={styles.pageSubtitle}>

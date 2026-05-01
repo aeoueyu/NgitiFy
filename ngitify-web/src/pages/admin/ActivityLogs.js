@@ -186,7 +186,6 @@ export default function ActivityLogs() {
         <div className={styles.container}>
             {/* ── Page Header ── */}
             <div className={styles.pageHeader}>
-                <FaListUl className={styles.headerIcon} />
                 <div>
                     <h1 className={styles.pageTitle}>Activity Logs</h1>
                     <p className={styles.pageSubtitle}>

@@ -114,7 +114,6 @@ export default function DatabaseBackup() {
             {/* ── Page Header ─────────────────────────────────────────────── */}
             <div className={styles.pageHeader}>
                 <div className={styles.headerLeft}>
-                    <FaDatabase className={styles.headerIcon} />
                     <div>
                         <h1 className={styles.pageTitle}>Database Backup</h1>
                         <p className={styles.pageSubtitle}>

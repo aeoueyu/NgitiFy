@@ -207,7 +207,6 @@ export default function SecretaryActivityLogs() {
 
             {/* ── Page Header ── */}
             <div className={styles.pageHeader}>
-                <FaListUl className={styles.headerIcon} />
                 <div>
                     <h1 className={styles.pageTitle}>My Activity Logs</h1>
                     <p className={styles.pageSubtitle}>

@@ -1,29 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import styles from '../../styles/admin/ManagePatients.module.css'; 
+import styles from '../../styles/admin/ManagePatients.module.css';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
-import { usePermissions } from '../../hooks/usePermissions'; 
+import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
-import { authFetch } from '../../utils/api'; 
-import UserAvatar from '../../components/common/UserAvatar'; 
+import { authFetch } from '../../utils/api';
+import UserAvatar from '../../components/common/UserAvatar';
 
-import UserTabs from './UserTabs'; 
-import AddPatient from './AddPatient'; 
+import UserTabs from './UserTabs';
+import AddPatient from './AddPatient';
 import EditPatient from './EditPatient';
-import PatientProfile from './PatientProfile'; 
+import PatientProfile from './PatientProfile';
 import PatientEMR from './PatientEMR';
-import ConfirmModal from '../../components/common/ConfirmModal'; 
-import { useToast } from '../../context/ToastContext'; 
+import ConfirmModal from '../../components/common/ConfirmModal';
+import { useToast } from '../../context/ToastContext';
 
 export default function ManagePatients() {
     const { user } = useAuth();
-    const { canReadPatients, canEditPatients } = usePermissions(); 
-    
+    const { canReadPatients, canEditPatients } = usePermissions();
+
     const location = useLocation();
     const navigate = useNavigate();
-    
-    const { addToast } = useToast(); 
-    
+
+    const { addToast } = useToast();
+
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [verifiedFilter, setVerifiedFilter] = useState('All');
@@ -35,7 +35,7 @@ export default function ManagePatients() {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false); 
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isEMRModalOpen, setIsEMRModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
 
@@ -43,6 +43,7 @@ export default function ManagePatients() {
 
     const isSecretary = user?.role === 'secretary';
     const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'owner';
+    const showBranchColumn = !isSecretary;
 
     useEffect(() => {
         if (location.state?.openAddModal && canEditPatients && !isSecretary) {
@@ -51,16 +52,15 @@ export default function ManagePatients() {
         }
     }, [location, navigate, canEditPatients, isSecretary]);
 
-    // Fetch branches from API so the filter always reflects admin-created branches
     const fetchBranches = useCallback(async () => {
         try {
             const res = await authFetch('/branches');
             if (res.ok) {
                 const data = await res.json();
-                setBranchOptions(data.map(b => b.name));
+                setBranchOptions(data.map((branch) => branch.name));
             }
-        } catch (e) {
-            console.error('Failed to fetch branches:', e);
+        } catch (error) {
+            console.error('Failed to fetch branches:', error);
         }
     }, []);
 
@@ -72,31 +72,31 @@ export default function ManagePatients() {
             if (response.ok) {
                 const data = await response.json();
                 const rawList = Array.isArray(data) ? data : (data.patients || []);
-                const mappedPatients = rawList.map(p => {
+                const mappedPatients = rawList.map((patient) => {
                     let parsedName = 'Unknown Patient';
-                    if (typeof p.name === 'object' && p.name !== null) {
-                        parsedName = `${p.name.first || ''} ${p.name.last || ''}`.trim();
-                    } else if (p.firstName) {
-                        parsedName = `${p.firstName} ${p.lastName || ''}`.trim();
-                    } else if (typeof p.name === 'string') {
-                        parsedName = p.name;
+                    if (typeof patient.name === 'object' && patient.name !== null) {
+                        parsedName = `${patient.name.first || ''} ${patient.name.last || ''}`.trim();
+                    } else if (patient.firstName) {
+                        parsedName = `${patient.firstName} ${patient.lastName || ''}`.trim();
+                    } else if (typeof patient.name === 'string') {
+                        parsedName = patient.name;
                     }
 
                     return {
-                        id: p._id,
+                        id: patient._id,
                         name: parsedName || 'Unknown',
-                        email: p.email || 'N/A',
-                        status: p.status === 'active' ? 'Active' : 'Inactive',
-                        isVerified: p.isVerified,
-                        profileImage: p.profileImage,
-                        assignedBranch: p.assignedBranch || p.assignedBranches?.[0] || '',
+                        email: patient.email || 'N/A',
+                        status: patient.status === 'active' ? 'Active' : 'Inactive',
+                        isVerified: patient.isVerified,
+                        profileImage: patient.profileImage,
+                        assignedBranch: patient.assignedBranch || patient.assignedBranches?.[0] || '',
                     };
                 });
-                    
+
                 setPatientsList(mappedPatients);
             }
         } catch (error) {
-            console.error("Failed to fetch patients:", error);
+            console.error('Failed to fetch patients:', error);
         } finally {
             setIsLoading(false);
         }
@@ -109,20 +109,20 @@ export default function ManagePatients() {
         }
     }, [fetchPatients, fetchBranches, canReadPatients]);
 
-    const filteredPatients = patientsList.filter(patient => {
+    const filteredPatients = patientsList.filter((patient) => {
         const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              patient.email.toLowerCase().includes(searchQuery.toLowerCase());
+            patient.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || patient.status === statusFilter;
         const matchesVerified = verifiedFilter === 'All' ||
-                                (verifiedFilter === 'Verified' && patient.isVerified) ||
-                                (verifiedFilter === 'Unverified' && !patient.isVerified);
+            (verifiedFilter === 'Verified' && patient.isVerified) ||
+            (verifiedFilter === 'Unverified' && !patient.isVerified);
         const matchesBranch = branchFilter === 'All' || patient.assignedBranch === branchFilter;
         return matchesSearch && matchesStatus && matchesVerified && matchesBranch;
     });
 
     const handleToggleStatus = (patient) => {
         const newStatus = patient.status === 'Active' ? 'inactive' : 'active';
-        
+
         if (newStatus === 'active' && !patient.isVerified) {
             addToast(`Cannot activate ${patient.name}. Their email is not yet verified.`, 'error');
             return;
@@ -130,13 +130,13 @@ export default function ManagePatients() {
 
         setConfirmConfig({
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
-            message: newStatus === 'active' 
-                ? `Are you sure you want to ACTIVATE patient account for: ${patient.name}?` 
+            message: newStatus === 'active'
+                ? `Are you sure you want to ACTIVATE patient account for: ${patient.name}?`
                 : `Are you sure you want to DEACTIVATE patient account for: ${patient.name}?`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
             onConfirm: () => executeToggleStatus(patient.id, newStatus, patient.name),
-            onCancel: () => setConfirmConfig(null)
+            onCancel: () => setConfirmConfig(null),
         });
     };
 
@@ -144,21 +144,21 @@ export default function ManagePatients() {
         try {
             const res = await authFetch(`/patient/toggle-status/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus }),
             });
 
             if (res.ok) {
-                setPatientsList(prevList => prevList.map(p => 
-                    p.id === id ? { ...p, status: newStatus === 'active' ? 'Active' : 'Inactive' } : p
-                ));
+                setPatientsList((prevList) => prevList.map((patient) => (
+                    patient.id === id ? { ...patient, status: newStatus === 'active' ? 'Active' : 'Inactive' } : patient
+                )));
                 addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} ${name}'s account.`, 'success');
             } else {
                 const data = await res.json();
-                addToast(data.message || "Failed to update status.", 'error');
+                addToast(data.message || 'Failed to update status.', 'error');
             }
-        } catch (error) { 
-            console.error("Error toggling status:", error); 
-            addToast("Cannot connect to server.", 'error'); 
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            addToast('Cannot connect to server.', 'error');
         } finally {
             setConfirmConfig(null);
         }
@@ -184,6 +184,7 @@ export default function ManagePatients() {
         setSelectedPatientId(id);
         setIsEditModalOpen(true);
     };
+
     const handleViewClick = (id) => {
         if (isSecretary) {
             navigate(`/secretary/patients/${id}`);
@@ -193,9 +194,10 @@ export default function ManagePatients() {
         setSelectedPatientId(id);
         setIsEMRModalOpen(true);
     };
+
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedPatientId(null); };
     const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedPatientId(null); };
-    const handleCloseEMRModal  = () => { setIsEMRModalOpen(false); setSelectedPatientId(null); };
+    const handleCloseEMRModal = () => { setIsEMRModalOpen(false); setSelectedPatientId(null); };
 
     if (!canReadPatients) {
         return (
@@ -228,19 +230,19 @@ export default function ManagePatients() {
                 <div className={styles.searchFilterGroup}>
                     <div className={styles.searchWrapper}>
                         <FaSearch className={styles.searchIcon} />
-                        <input 
-                            type="text" 
-                            placeholder="Search patients by name or email..." 
-                            className={styles.searchInput} 
-                            value={searchQuery} 
-                            onChange={(e) => setSearchQuery(e.target.value)} 
+                        <input
+                            type="text"
+                            placeholder="Search patients by name or email..."
+                            className={styles.searchInput}
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
                         />
                     </div>
-                    
-                    <select 
+
+                    <select
                         className={styles.filterSelect}
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
+                        onChange={(event) => setStatusFilter(event.target.value)}
                     >
                         <option value="All">All Statuses</option>
                         <option value="Active">Active</option>
@@ -253,15 +255,14 @@ export default function ManagePatients() {
                         <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
                     </div>
 
-                    {/* Branch filter populated from admin-added branches */}
                     {!isSecretary && (
                         <select
                             className={styles.filterSelect}
                             value={branchFilter}
-                            onChange={(e) => setBranchFilter(e.target.value)}
+                            onChange={(event) => setBranchFilter(event.target.value)}
                         >
                             <option value="All">All Branches</option>
-                            {branchOptions.map(branch => (
+                            {branchOptions.map((branch) => (
                                 <option key={branch} value={branch}>{branch}</option>
                             ))}
                         </select>
@@ -278,14 +279,14 @@ export default function ManagePatients() {
                             <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
                             <th>Patient Name</th>
                             <th>Email Address</th>
-                            <th>Branch</th>
+                            {showBranchColumn && <th>Branch</th>}
                             <th style={{ width: '180px' }}>Account Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                            <tr><td colSpan={showBranchColumn ? 6 : 5} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredPatients.length > 0 ? (
                             filteredPatients.map((patient) => (
                                 <tr key={patient.id} style={{ opacity: patient.status === 'Inactive' ? 0.6 : 1 }}>
@@ -294,15 +295,17 @@ export default function ManagePatients() {
                                     </td>
                                     <td>
                                         <span className={styles.fwBold}>{patient.name}</span>
-                                        {!patient.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
+                                        {!patient.isVerified && <span style={{ fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px' }}>Unverified Email</span>}
                                     </td>
                                     <td>{patient.email}</td>
-                                    <td>
-                                        {patient.assignedBranch
-                                            ? <span style={{ fontSize: '13px', color: '#374151' }}>{patient.assignedBranch}</span>
-                                            : <span style={{ fontSize: '13px', color: '#94a3b8' }}>—</span>
-                                        }
-                                    </td>
+                                    {showBranchColumn && (
+                                        <td>
+                                            {patient.assignedBranch
+                                                ? <span style={{ fontSize: '13px', color: '#374151' }}>{patient.assignedBranch}</span>
+                                                : <span style={{ fontSize: '13px', color: '#94a3b8' }}>-</span>
+                                            }
+                                        </td>
+                                    )}
                                     <td>
                                         <span className={`${styles.statusDot} ${patient.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
                                         <span style={{ fontWeight: '500', color: patient.status === 'Active' ? '#15803d' : '#b91c1c' }}>{patient.status}</span>
@@ -322,10 +325,10 @@ export default function ManagePatients() {
                                                         <FaEnvelope />
                                                     </button>
                                                 )}
-                                                <button 
-                                                    className={`${styles.iconBtn}`} 
+                                                <button
+                                                    className={styles.iconBtn}
                                                     onClick={() => handleToggleStatus(patient)}
-                                                    title={patient.status === 'Active' ? "Deactivate Account" : "Activate Account"}
+                                                    title={patient.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
                                                     style={{ color: patient.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                                 >
                                                     {patient.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
@@ -336,7 +339,7 @@ export default function ManagePatients() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No patients found matching your filters.</td></tr>
+                            <tr><td colSpan={showBranchColumn ? 6 : 5} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No patients found matching your filters.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -358,7 +361,7 @@ export default function ManagePatients() {
             )}
             {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}
 
-            <ConfirmModal 
+            <ConfirmModal
                 isOpen={!!confirmConfig}
                 title={confirmConfig?.title}
                 message={confirmConfig?.message}

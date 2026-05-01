@@ -270,7 +270,6 @@ export default function IntegrityTools() {
             {/* ── Page Header ──────────────────────────────────────────── */}
             <div className={styles.pageHeader}>
                 <div className={styles.headerLeft}>
-                    <FaShieldAlt className={styles.headerIcon} />
                     <div>
                         <h1 className={styles.pageTitle}>Integrity Tools</h1>
                         <p className={styles.pageSubtitle}>

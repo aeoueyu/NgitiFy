@@ -79,10 +79,7 @@ export default function DentistEMRList() {
             {/* PAGE HEADER */}
             <header className={styles.pageHeader}>
                 <div>
-                    <h1 className={styles.pageTitle}>
-                        <FaFileMedical className={styles.pageTitleIcon} />
-                        Patient EMR
-                    </h1>
+                    <h1 className={styles.pageTitle}>Patient EMR</h1>
                     <p className={styles.pageSubtitle}>
                         Select a patient to view or edit their Electronic Medical Record.
                     </p>

@@ -1,18 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom'; // ✅ Add this line
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import styles from '../../styles/secretary/SecretaryAppointments.module.css';
+import modalStyles from '../../styles/admin/StaffModals.module.css';
+import { authFetch, publicFetch } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
-import styles from '../../styles/admin/AdminAppointments.module.css';
+import { formatDateShort, formatTime } from '../../utils/dateUtils';
+import UserAvatar from '../../components/common/UserAvatar';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import {
-    FaPlus, FaSearch, FaRobot, FaUserMd,
-    FaGlobe, FaPhoneAlt, FaWalking
+    FaSearch,
+    FaCalendarAlt,
+    FaUserMd,
+    FaPlus,
+    FaFileMedical,
+    FaTimes,
+    FaClock,
+    FaTrashAlt,
 } from 'react-icons/fa';
 
-// CRITICAL RULE IMPORTS
-import { authFetch } from '../../utils/api';
-import { useToast } from '../../context/ToastContext';
-import ConfirmModal from '../../components/common/ConfirmModal';
-
-// ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const PROCEDURE_OPTIONS = [
     'Consultation', 'Teeth Cleaning (Prophylaxis)', 'Tooth Extraction',
     'Dental Filling (Composite)', 'Root Canal Treatment', 'Braces / Orthodontic Adjustment',
@@ -20,312 +26,280 @@ const PROCEDURE_OPTIONS = [
     'Oral Surgery', 'X-Ray / Radiograph', 'Other',
 ];
 
-const SOURCE_OPTIONS = ['Walk-in', 'Phone Call', 'Smile Hub (Online)'];
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-
-/** Returns true if d is a real, non-NaN Date object */
-const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
-
-// ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
-// FIX: Hardened against null/undefined patient, dentist, or date fields.
-const normalizeSurgery = (s) => {
-    // Build a valid Date or null – never an Invalid Date object
-    const rawDate = s.date ? new Date(s.date) : null;
-    const date = isValidDate(rawDate) ? rawDate : null;
-
-    // Build patient name safely
-    let patientName = s.guestName || 'Unknown Patient';
-    if (s.patient?.name) {
-        const first = s.patient.name.first || '';
-        const last  = s.patient.name.last  || '';
-        const full  = `${first} ${last}`.trim();
-        if (full) patientName = full;
-    }
-
-    // Build dentist name safely
-    let dentist = 'Unassigned';
-    if (s.dentist?.name) {
-        const first = s.dentist.name.first || '';
-        const last  = s.dentist.name.last  || '';
-        const full  = `${first} ${last}`.trim();
-        if (full) dentist = `Dr. ${full}`;
-    }
-
-    return {
-        id:         s._id,
-        patientId:  s.patient?._id || s.patient,
-        patientName,
-        dentistId:  s.dentist?._id || s.dentist,
-        dentist,
-        procedure:  s.procedure || '—',
-        status:     s.status
-                        ? s.status.charAt(0).toUpperCase() + s.status.slice(1)
-                        : 'Pending',
-        time:   s.time   || '—',
-        source: s.source || 'Walk-in',
-        date,               // null | valid Date
-        notes:  s.notes  || '',
-    };
+const STATUS_DISPLAY_MAP = {
+    pending: 'Pending',
+    confirmed: 'Confirmed',
+    'in-clinic': 'In Clinic',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
 };
 
-export default function Appointments() {
+const STATUS_API_MAP = {
+    Pending: 'pending',
+    Confirmed: 'confirmed',
+    'In Clinic': 'in-clinic',
+    Completed: 'completed',
+    Cancelled: 'cancelled',
+};
+
+const initialBookingForm = {
+    patientId: '',
+    dentistId: '',
+    date: '',
+    time: '',
+    procedure: '',
+    branch: '',
+};
+
+const getTodayString = () => new Date().toISOString().split('T')[0];
+
+const isSlotPast = (slot24, dateStr) => {
+    if (!slot24 || !dateStr || dateStr !== getTodayString()) return false;
+    const now = new Date();
+    const [hour, minute] = slot24.split(':').map(Number);
+    const slotMinutes = hour * 60 + minute;
+    const bufferMinutes = now.getHours() * 60 + now.getMinutes() + 30;
+    return slotMinutes <= bufferMinutes;
+};
+
+const to12h = (time24) => {
+    if (!time24) return '';
+    const [hourText, minute] = time24.split(':');
+    const hour = Number(hourText);
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minute} ${suffix}`;
+};
+
+const normalizeSurgery = (surgery) => ({
+    id: surgery._id,
+    patientId: surgery.patient?._id || surgery.patient,
+    patientName: surgery.patient?.name
+        ? `${surgery.patient.name.first} ${surgery.patient.name.last}`.trim()
+        : (surgery.guestName || 'Unknown Patient'),
+    patientImage: surgery.patient?.profileImage || null,
+    dentistId: surgery.dentist?._id || surgery.dentist,
+    dentistName: surgery.dentist?.name
+        ? `Dr. ${surgery.dentist.name.first} ${surgery.dentist.name.last}`.trim()
+        : 'Unassigned',
+    procedure: surgery.procedure || '-',
+    status: STATUS_DISPLAY_MAP[surgery.status] || 'Pending',
+    rawStatus: surgery.status,
+    time: surgery.time || '',
+    duration: surgery.duration || '-',
+    source: surgery.source || 'Walk-in',
+    rawDate: new Date(surgery.date),
+    branch: surgery.branch || '',
+});
+
+const extractPatients = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.patients)) return payload.patients;
+    return [];
+};
+
+export default function AdminAppointments() {
     const navigate = useNavigate();
-    const { user } = useAuth();
-    const notifPath = user?.role === 'owner'
-        ? '/owner/notifications'
-        : user?.role === 'branch-manager'
-            ? '/branch-manager/notifications'
-            : '/admin/appointment-notifications';
     const { addToast } = useToast();
+    const { user } = useAuth();
 
-    // ─── DATA STATE ──────────────────────────────────────────────────────────
-    const [appointments, setAppointments] = useState([]);
-    const [patients, setPatients]         = useState([]);
-    const [dentists, setDentists]         = useState([]);
-    const [branches, setBranches]         = useState([]);
-    const [isLoading, setIsLoading]       = useState(true);
+    const role = user?.role || 'administrator';
+    const isBranchManager = role === 'branch-manager';
+    const isOwner = role === 'owner';
+    const assignedBranch = user?.assignedBranch || user?.assignedBranches?.[0] || '';
+    const bookingBranch = isBranchManager ? assignedBranch : '';
 
-    // ─── CALENDAR & FILTER STATE ─────────────────────────────────────────────
-    const [currentMonthView, setCurrentMonthView] = useState(new Date());
-    const [selectedDate, setSelectedDate]         = useState(new Date());
-    const [searchQuery, setSearchQuery]           = useState('');
-    const [currentPage, setCurrentPage]           = useState(1);
-    const ITEMS_PER_PAGE = 5;
+    const [allAppointments, setAllAppointments] = useState([]);
+    const [patients, setPatients] = useState([]);
+    const [dentists, setDentists] = useState([]);
+    const [branches, setBranches] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dentistFilter, setDentistFilter] = useState('All');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [branchFilter, setBranchFilter] = useState(isBranchManager ? assignedBranch : 'All');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [statusChangeTarget, setStatusChangeTarget] = useState(null);
+    const [cancelTarget, setCancelTarget] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
+    const [bookingForm, setBookingForm] = useState({ ...initialBookingForm, branch: bookingBranch });
+    const [bookingErrors, setBookingErrors] = useState({});
+    const [loadingSlots, setLoadingSlots] = useState(false);
+    const [allowedSlots, setAllowedSlots] = useState([]);
+    const [takenSlots, setTakenSlots] = useState([]);
+    const [slotsError, setSlotsError] = useState('');
 
-    // ─── MODAL STATE ─────────────────────────────────────────────────────────
-    const [isAddModalOpen, setIsAddModalOpen]         = useState(false);
-    const [selectedAppointment, setSelectedAppointment] = useState(null);
-    const [cancelTarget, setCancelTarget]             = useState(null);
-    const [isSubmitting, setIsSubmitting]             = useState(false);
-    const [timeError, setTimeError]                   = useState('');
-    const [formErrors, setFormErrors]                 = useState({});
+    const patientRouteBase = isBranchManager
+        ? '/branch-manager/patients'
+        : isOwner
+            ? '/owner/patients'
+            : '/admin/patients';
 
-    const [bookingForm, setBookingForm] = useState({
-        patientId: '', dentistId: '', date: '', time: '',
-        procedure: '', source: 'Walk-in', notes: '', branchId: '',
-    });
-
-    const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
-
-    useEffect(() => {
-        const checkAlerts = async () => {
-            try {
-                const response = await authFetch('/notifications');
-                if (response.ok) {
-                    const data = await response.json();
-                    const unreadAppointments = data.filter(n => !n.isRead && n.type === 'NEW_APPOINTMENT');
-                    setHasUnreadAlerts(unreadAppointments.length > 0);
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        checkAlerts();
-    }, []);
-
-    // ─── FETCH ───────────────────────────────────────────────────────────────
     const fetchAppointments = useCallback(async (silent = false) => {
         if (!silent) setIsLoading(true);
         try {
             const res = await authFetch('/surgeries');
             if (!res.ok) throw new Error();
             const data = await res.json();
-            setAppointments(data.map(normalizeSurgery));
+            setAllAppointments(data.map(normalizeSurgery).sort((a, b) => b.rawDate - a.rawDate));
         } catch {
-            addToast('Failed to load appointments.', 'error');
+            addToast('Failed to load clinic schedule.', 'error');
         } finally {
             setIsLoading(false);
         }
     }, [addToast]);
 
     useEffect(() => {
-        const loadAll = async () => {
+        const fetchAllData = async () => {
             setIsLoading(true);
             try {
-                const [aptsRes, patientsRes, dentistsRes, branchesRes] = await Promise.all([
+                const requests = [
                     authFetch('/surgeries'),
                     authFetch('/patients'),
                     authFetch('/users?role=dentist'),
-                    authFetch('/branches'),
-                ]);
-                if (aptsRes.ok)     setAppointments((await aptsRes.json()).map(normalizeSurgery));
-                if (patientsRes.ok) setPatients((await patientsRes.json()).filter(u => u.status === 'active'));
-                if (dentistsRes.ok) setDentists((await dentistsRes.json()).filter(u => u.status === 'active' && !u.isArchived));
-                if (branchesRes.ok) setBranches(await branchesRes.json());
+                ];
+
+                if (!isBranchManager) {
+                    requests.push(authFetch('/branches?all=true'));
+                }
+
+                const [aptsRes, patientsRes, dentistsRes, branchesRes] = await Promise.all(requests);
+
+                if (aptsRes.ok) {
+                    setAllAppointments((await aptsRes.json()).map(normalizeSurgery).sort((a, b) => b.rawDate - a.rawDate));
+                }
+                if (patientsRes.ok) {
+                    const patientPayload = await patientsRes.json();
+                    setPatients(extractPatients(patientPayload).filter((entry) => entry.status === 'active'));
+                }
+                if (dentistsRes.ok) {
+                    setDentists((await dentistsRes.json()).filter((entry) => entry.status === 'active' && !entry.isArchived));
+                }
+                if (branchesRes?.ok) {
+                    setBranches(await branchesRes.json());
+                } else if (isBranchManager && assignedBranch) {
+                    setBranches([{ _id: assignedBranch, name: assignedBranch }]);
+                }
             } catch {
-                addToast('Failed to connect to server.', 'error');
+                addToast('Failed to connect to the server.', 'error');
             } finally {
                 setIsLoading(false);
             }
         };
-        loadAll();
-    }, [addToast]);
 
-    useEffect(() => { setCurrentPage(1); }, [selectedDate, searchQuery]);
+        fetchAllData();
+    }, [addToast, assignedBranch, isBranchManager]);
 
-    // ─── FILTER & PAGINATION ─────────────────────────────────────────────────
-    // FIX: Skip any appointments with null/invalid dates entirely.
-    const filteredAppointments = appointments.filter(apt => {
-        if (!apt.date || !isValidDate(apt.date)) return false;
-        const matchesDate   = apt.date.toDateString() === selectedDate.toDateString();
+    useEffect(() => {
+        const selectedBranch = bookingForm.branch || assignedBranch;
+        if (!bookingForm.date || !selectedBranch) {
+            setAllowedSlots([]);
+            setTakenSlots([]);
+            setSlotsError('');
+            return;
+        }
+
+        const fetchSlots = async () => {
+            setLoadingSlots(true);
+            setSlotsError('');
+            try {
+                const response = await publicFetch(`/public/appointments/slots?date=${bookingForm.date}&branch=${encodeURIComponent(selectedBranch)}`);
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.message || 'Could not load appointment slots.');
+                }
+                const data = await response.json();
+                setAllowedSlots(Array.isArray(data.allowedSlots) ? data.allowedSlots : []);
+                setTakenSlots(Array.isArray(data.takenSlots) ? data.takenSlots : []);
+            } catch (error) {
+                setAllowedSlots([]);
+                setTakenSlots([]);
+                setSlotsError(error.message || 'Could not load appointment slots.');
+            } finally {
+                setLoadingSlots(false);
+            }
+        };
+
+        fetchSlots();
+    }, [assignedBranch, bookingForm.branch, bookingForm.date]);
+
+    const dynamicDentists = useMemo(() => {
+        const names = allAppointments.map((apt) => apt.dentistName).filter(Boolean);
+        return [...new Set(names)].sort();
+    }, [allAppointments]);
+
+    const displayedAppointments = allAppointments.filter((apt) => {
+        const searchLower = searchQuery.toLowerCase();
         const matchesSearch =
-            apt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            apt.procedure.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesDate && matchesSearch;
+            apt.patientName.toLowerCase().includes(searchLower) ||
+            apt.procedure.toLowerCase().includes(searchLower);
+        const matchesDentist = dentistFilter === 'All' || apt.dentistName === dentistFilter;
+        const matchesStatus = statusFilter === 'All' || apt.status === statusFilter;
+        const matchesBranch = branchFilter === 'All' || apt.branch === branchFilter;
+        let matchesDate = true;
+        if (startDate) matchesDate = matchesDate && new Date(apt.rawDate).setHours(0, 0, 0, 0) >= new Date(startDate).setHours(0, 0, 0, 0);
+        if (endDate) matchesDate = matchesDate && new Date(apt.rawDate).setHours(0, 0, 0, 0) <= new Date(endDate).setHours(0, 0, 0, 0);
+        return matchesSearch && matchesDentist && matchesStatus && matchesDate && matchesBranch;
     });
 
-    const totalPages           = Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE);
-    const startIndex           = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedAppointments = filteredAppointments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    const visibleSlots = useMemo(
+        () => allowedSlots.filter((slot) => !takenSlots.includes(slot) && !isSlotPast(slot, bookingForm.date)),
+        [allowedSlots, bookingForm.date, takenSlots]
+    );
 
-    // ─── CALENDAR LOGIC ───────────────────────────────────────────────────────
-    const getCalendarDays = () => {
-        const year           = currentMonthView.getFullYear();
-        const month          = currentMonthView.getMonth();
-        const firstDay       = new Date(year, month, 1).getDay();
-        const daysInMonth    = new Date(year, month + 1, 0).getDate();
-        const daysInPrevMonth = new Date(year, month, 0).getDate();
-        const days           = [];
+    const branchOptions = useMemo(() => {
+        if (isBranchManager && assignedBranch) return [assignedBranch];
+        return [...new Set(branches.map((branch) => branch.name).filter(Boolean))].sort();
+    }, [assignedBranch, branches, isBranchManager]);
 
-        for (let i = firstDay - 1; i >= 0; i--)
-            days.push({ num: daysInPrevMonth - i, faded: true, date: new Date(year, month - 1, daysInPrevMonth - i) });
-
-        for (let i = 1; i <= daysInMonth; i++) {
-            const currentDate = new Date(year, month, i);
-            days.push({
-                num:  i,
-                faded: false,
-                active:   currentDate.toDateString() === selectedDate.toDateString(),
-                isToday:  currentDate.toDateString() === new Date().toDateString(),
-                // FIX: Only compare appointments with valid dates
-                hasEvent: appointments.some(apt =>
-                    apt.date && isValidDate(apt.date) &&
-                    apt.date.toDateString() === currentDate.toDateString()
-                ),
-                date: currentDate,
-            });
-        }
-
-        const totalCells = days.length > 35 ? 42 : 35;
-        for (let i = 1; i <= totalCells - days.length; i++)
-            days.push({ num: i, faded: true, date: new Date(year, month + 1, i) });
-
-        return days;
-    };
-
-    const handlePrevMonth  = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1));
-    const handleNextMonth  = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1));
-    const handleDateClick  = (day) => {
-        setSelectedDate(day.date);
-        if (day.faded) setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
-    };
-
-    const calendarDays     = getCalendarDays();
-    const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const isTodaySelected  = selectedDate.toDateString() === new Date().toDateString();
-
-    // ─── RENDER HELPERS ───────────────────────────────────────────────────────
     const getStatusClass = (status) => {
-        switch ((status || '').toLowerCase()) {
-            case 'confirmed': return styles.statusConfirmed;
-            case 'pending':   return styles.statusPending;
-            case 'completed': return styles.statusCompleted;
-            case 'cancelled': return styles.statusCancelled;
-            default: return '';
+        switch (status) {
+            case 'Pending':
+                return styles.statusPending;
+            case 'Confirmed':
+                return styles.statusConfirmed;
+            case 'In Clinic':
+                return styles['status-in-clinic'];
+            case 'Completed':
+                return styles.statusCompleted;
+            case 'Cancelled':
+                return styles.statusCancelled;
+            default:
+                return styles.statusPending;
         }
     };
 
-    const getSourceIcon = (source = '') => {
-        if (source.includes('Smile Hub')) return <FaGlobe />;
-        if (source.includes('Phone'))     return <FaPhoneAlt />;
-        if (source.includes('Walk-in'))   return <FaWalking />;
-        if (source.includes('AI'))        return <FaRobot />;
-        return null;
+    const handleStatusSelectChange = (appointment, newStatus) => {
+        if (appointment.status === newStatus) return;
+        setStatusChangeTarget({ appointment, newStatus });
     };
 
-    // FIX: Fully hardened against empty, null, or single-character names.
-    const getInitials = (name = '') => {
-        if (!name || typeof name !== 'string') return '?';
-        const parts = name.trim().split(/\s+/).filter(Boolean);
-        if (parts.length === 0) return '?';
-        const first = parts[0][0] || '';
-        const last  = parts.length > 1 ? (parts[parts.length - 1][0] || '') : '';
-        return (first + last).toUpperCase() || '?';
-    };
-
-    const getPatientName = (p) => p.name?.first ? `${p.name.first} ${p.name.last}` : p.email || 'Unknown';
-
-    // ─── BOOKING HANDLERS ─────────────────────────────────────────────────────
-    const handleFormChange = (e) => {
-        const { name, value } = e.target;
-        setBookingForm(prev => ({ ...prev, [name]: value }));
-        if (name === 'time' || name === 'date') setTimeError('');
-        if (formErrors[name]) setFormErrors(prev => ({ ...prev, [name]: '' }));
-    };
-
-    const getTodayDateString = () => new Date().toISOString().split('T')[0];
-
-    const handleSaveAppointment = async (e) => {
-        e.preventDefault();
-        setTimeError('');
-
-        if (bookingForm.date && bookingForm.time) {
-            const dt = new Date(`${bookingForm.date}T${bookingForm.time}`);
-            if (dt < new Date()) {
-                setTimeError('Cannot book an appointment for a time that has already passed today.');
-                return;
-            }
-        }
-
-        const errs = {};
-        if (!bookingForm.patientId) errs.patientId = 'Required';
-        if (!bookingForm.dentistId) errs.dentistId = 'Required';
-        if (!bookingForm.procedure) errs.procedure = 'Required';
-        if (!bookingForm.date)      errs.date      = 'Required';
-        if (!bookingForm.time)      errs.time      = 'Required';
-        if (!bookingForm.branchId)  errs.branchId  = 'Required';
-        setFormErrors(errs);
-        if (Object.keys(errs).length > 0) return;
-
-        setIsSubmitting(true);
+    const confirmStatusChange = async () => {
+        if (!statusChangeTarget) return;
+        const { appointment, newStatus } = statusChangeTarget;
         try {
-            const res = await authFetch('/surgeries', {
-                method: 'POST',
-                body: JSON.stringify({
-                    patient:   bookingForm.patientId,
-                    dentist:   bookingForm.dentistId,
-                    date:      bookingForm.date,
-                    time:      bookingForm.time,
-                    procedure: bookingForm.procedure,
-                    source:    bookingForm.source,
-                    notes:     bookingForm.notes,
-                    status:    'confirmed',
-                    branch:    bookingForm.branchId,
-                }),
+            const res = await authFetch(`/surgeries/${appointment.id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: STATUS_API_MAP[newStatus] || newStatus.toLowerCase() }),
             });
-            if (!res.ok) throw new Error((await res.json()).message || 'Booking failed.');
-            addToast('Appointment booked successfully!', 'success');
-            setIsAddModalOpen(false);
-            resetForm();
-            await fetchAppointments(true);
-        } catch (err) {
-            addToast(err.message || 'Failed to book appointment.', 'error');
+            if (!res.ok) throw new Error();
+            setAllAppointments((prev) => prev.map((item) => (
+                item.id === appointment.id
+                    ? { ...item, status: newStatus, rawStatus: STATUS_API_MAP[newStatus] || item.rawStatus }
+                    : item
+            )));
+            addToast(`${appointment.patientName}'s appointment updated to ${newStatus}.`, 'success');
+        } catch {
+            addToast('Failed to update appointment status.', 'error');
         } finally {
-            setIsSubmitting(false);
+            setStatusChangeTarget(null);
         }
     };
 
-    const resetForm = () => {
-        setBookingForm({ patientId: '', dentistId: '', date: '', time: '', procedure: '', source: 'Walk-in', notes: '', branchId: '' });
-        setFormErrors({});
-        setTimeError('');
-    };
-
-    const handleOpenModal  = () => { resetForm(); setIsAddModalOpen(true); };
-    const handleCloseModal = () => { setIsAddModalOpen(false); resetForm(); };
-
-    const handleConfirmCancel = async () => {
+    const confirmCancelAppointment = async () => {
         if (!cancelTarget) return;
         try {
             const res = await authFetch(`/surgeries/${cancelTarget.id}/status`, {
@@ -333,8 +307,10 @@ export default function Appointments() {
                 body: JSON.stringify({ status: 'cancelled' }),
             });
             if (!res.ok) throw new Error();
-            setAppointments(prev => prev.map(a => a.id === cancelTarget.id ? { ...a, status: 'Cancelled' } : a));
-            addToast(`${cancelTarget.patientName}'s appointment cancelled.`, 'info');
+            setAllAppointments((prev) => prev.map((item) => (
+                item.id === cancelTarget.id ? { ...item, status: 'Cancelled', rawStatus: 'cancelled' } : item
+            )));
+            addToast(`${cancelTarget.patientName}'s appointment has been cancelled.`, 'info');
         } catch {
             addToast('Failed to cancel appointment.', 'error');
         } finally {
@@ -342,283 +318,437 @@ export default function Appointments() {
         }
     };
 
-    // ─── SAFE DATE FORMATTER ─────────────────────────────────────────────────
-    // FIX: Wraps toLocaleDateString so it never throws on an invalid date.
-    const formatDate = (date) => {
-        if (!date || !isValidDate(date)) return 'Unknown Date';
-        return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const confirmDeleteAppointment = async () => {
+        if (!deleteTarget) return;
+        try {
+            const res = await authFetch(`/surgeries/${deleteTarget.id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+            setAllAppointments((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+            addToast('Appointment archived successfully.', 'success');
+        } catch {
+            addToast('Failed to archive appointment.', 'error');
+        } finally {
+            setDeleteTarget(null);
+        }
     };
 
-    // ─── RENDER ───────────────────────────────────────────────────────────────
+    const handleBookingChange = (event) => {
+        const { name, value } = event.target;
+        setBookingForm((prev) => {
+            const next = { ...prev, [name]: value };
+            if (name === 'date' || name === 'branch') next.time = '';
+            return next;
+        });
+        if (bookingErrors[name]) {
+            setBookingErrors((prev) => ({ ...prev, [name]: '' }));
+        }
+        if (name === 'date' || name === 'branch') {
+            setBookingErrors((prev) => ({ ...prev, time: '', branch: name === 'branch' ? '' : prev.branch }));
+        }
+    };
+
+    const handleTimeSelect = (slot) => {
+        setBookingForm((prev) => ({ ...prev, time: slot }));
+        setBookingErrors((prev) => ({ ...prev, time: '' }));
+    };
+
+    const getPatientName = (patient) => (
+        patient.name?.first ? `${patient.name.first} ${patient.name.last}`.trim() : patient.email || 'Unknown'
+    );
+
+    const validateBookingForm = () => {
+        const nextErrors = {};
+
+        if (!bookingForm.patientId) nextErrors.patientId = 'Select a patient.';
+        if (!bookingForm.dentistId) nextErrors.dentistId = 'Select a dentist.';
+        if (!bookingForm.date) nextErrors.date = 'Choose an appointment date.';
+        if (!bookingForm.time) nextErrors.time = 'Choose an available time slot.';
+        else if (!visibleSlots.includes(bookingForm.time)) nextErrors.time = 'Choose an available time slot.';
+        if (!bookingForm.procedure) nextErrors.procedure = 'Select a procedure.';
+        if (!isBranchManager && !bookingForm.branch) nextErrors.branch = 'Select a branch.';
+
+        setBookingErrors(nextErrors);
+        return Object.keys(nextErrors).length === 0;
+    };
+
+    const handleBookAppointment = async (event) => {
+        event.preventDefault();
+        const finalBranch = isBranchManager ? assignedBranch : bookingForm.branch;
+        if (!finalBranch) {
+            addToast('Please select a branch before booking.', 'error');
+            return;
+        }
+        if (!validateBookingForm()) return;
+
+        setIsSubmittingBooking(true);
+        try {
+            const res = await authFetch('/surgeries', {
+                method: 'POST',
+                body: JSON.stringify({
+                    patient: bookingForm.patientId,
+                    dentist: bookingForm.dentistId,
+                    date: bookingForm.date,
+                    time: bookingForm.time,
+                    procedure: bookingForm.procedure,
+                    status: 'confirmed',
+                    source: 'Walk-in',
+                    branch: finalBranch,
+                }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.message || 'Booking failed.');
+            }
+
+            addToast('Appointment successfully booked!', 'success');
+            setIsBookingModalOpen(false);
+            setBookingForm({ ...initialBookingForm, branch: bookingBranch });
+            setBookingErrors({});
+            await fetchAppointments(true);
+        } catch (error) {
+            addToast(error.message || 'Failed to book appointment. Please try again.', 'error');
+        } finally {
+            setIsSubmittingBooking(false);
+        }
+    };
+
+    const handleOpenBooking = () => {
+        setBookingForm({ ...initialBookingForm, branch: bookingBranch });
+        setBookingErrors({});
+        setSlotsError('');
+        setAllowedSlots([]);
+        setTakenSlots([]);
+        setIsBookingModalOpen(true);
+    };
+
     return (
-        <div className={styles.container}>
-            {hasUnreadAlerts && (
-                <div style={{
-                    backgroundColor: '#fff3cd', 
-                    color: '#856404', 
-                    padding: '10px 15px', 
-                    borderRadius: '5px',
-                    marginBottom: '20px',
-                    borderLeft: '4px solid #ffeeba',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <span><strong>Notice:</strong> You have unread appointment notifications.</span>
-                    <button 
-                        onClick={() => navigate(notifPath)}
-                        style={{ background: 'none', border: 'none', color: '#856404', textDecoration: 'underline', cursor: 'pointer' }}
-                    >
-                        View Alerts
-                    </button>
-                </div>
-            )}
-
-            {/* PAGE HEADER */}
-            <div className={styles.headerWrapper}>
-                <div className={styles.header}>
-                    <h1 className={styles.title}>Appointments</h1>
-                    <p className={styles.subtitle}>Manage patient schedules and daily clinic appointments.</p>
-                </div>
-                <button className={styles.addBtn} onClick={handleOpenModal}>
-                    <FaPlus /> Add Appointment
-                </button>
-            </div>
-
-            {/* ── ORIGINAL LAYOUT: calendar+AI on left | list on right ─────── */}
-            <div className={styles.mainGrid}>
-
-                {/* LEFT COLUMN: Calendar + AI Panel */}
-                <div className={styles.leftColumn}>
-
-                    <div className={styles.calendarCard}>
-                        <div className={styles.calendarHeader}>
-                            <h3 className={styles.monthText}>{dynamicMonthYear}</h3>
-                            <div className={styles.calNav}>
-                                <button className={styles.calNavBtn} onClick={handlePrevMonth}>&lt;</button>
-                                <button className={styles.calNavBtn} onClick={handleNextMonth}>&gt;</button>
-                            </div>
-                        </div>
-
-                        <div className={styles.calendarGrid}>
-                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                                <div key={day} className={styles.dayName}>{day}</div>
-                            ))}
-                            {calendarDays.map((day, idx) => (
-                                <div
-                                    key={idx}
-                                    onClick={() => handleDateClick(day)}
-                                    className={`
-                                        ${styles.dateNum}
-                                        ${day.faded   ? styles.faded  : ''}
-                                        ${day.isToday && !day.faded ? styles.today : ''}
-                                        ${day.active  ? styles.active : ''}
-                                    `}
-                                >
-                                    {day.num}
-                                    {day.hasEvent && (
-                                        <div className={`${styles.eventDot} ${day.active ? styles.white : ''}`} />
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* AI Panel */}
-                    <div className={styles.aiPanel}>
-                        <div className={styles.aiHeader}>
-                            <div className={styles.aiIconWrapper}><FaRobot /></div>
-                            <h4 className={styles.aiTitle}>AI Predictive Insights</h4>
-                        </div>
-                        <p className={styles.aiMessage}>
-                            AI appointment insights will be available in a future update.
+        <>
+            <main className={styles['main-content']}>
+                <header className={styles.header}>
+                    <div className={styles['header-left']}>
+                        <h1 className={styles.title}>All Appointments</h1>
+                        <p className={styles.subtitle}>
+                            {isBranchManager
+                                ? 'Manage and monitor the clinic schedule for your assigned branch.'
+                                : 'Manage and monitor the clinic schedule across appointments.'}
                         </p>
-                        <button className={styles.aiActionBtn} disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                            Coming Soon
-                        </button>
                     </div>
-                </div>
+                    <button className={styles.bookBtn} onClick={handleOpenBooking}>
+                        <FaPlus /> Book Appointment
+                    </button>
+                </header>
 
-                {/* RIGHT COLUMN: Appointment List */}
-                <div className={styles.listCard}>
-
-                    <div className={styles.listHeaderSticky}>
-                        <div className={styles.listHeaderTop}>
-                            <h3 className={styles.listTitle}>
-                                {isTodaySelected
-                                    ? "Today's Schedule"
-                                    : `Schedule for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
-                            </h3>
-                        </div>
-                        <div className={styles.searchWrapperFull}>
+                <div className={styles.filterCard}>
+                    <div className={styles.controlsRow}>
+                        <div className={styles.searchWrapper}>
                             <FaSearch className={styles.searchIcon} />
                             <input
                                 type="text"
                                 placeholder="Search patient name or procedure..."
                                 className={styles.searchInput}
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(event) => setSearchQuery(event.target.value)}
                             />
                         </div>
-                    </div>
 
-                    <div className={styles.appointmentList}>
-                        {isLoading ? (
-                            <div className={styles.emptyState} style={{ color: '#01538b' }}>
-                                Loading appointments…
-                            </div>
-                        ) : paginatedAppointments.length > 0 ? (
-                            paginatedAppointments.map((apt) => (
-                                <div
-                                    key={apt.id}
-                                    className={styles.appointmentItem}
-                                    onClick={() => setSelectedAppointment(apt)}
-                                >
-                                    <div className={styles.itemTopRow}>
-                                        <div className={styles.patientInfo}>
-                                            <div className={styles.patientAvatar}>{getInitials(apt.patientName)}</div>
-                                            <div className={styles.patientDetails}>
-                                                <p className={styles.patientName}>{apt.patientName}</p>
-                                                <p className={styles.treatmentType}>{apt.procedure}</p>
-                                            </div>
-                                        </div>
-                                        <div className={styles.appointmentTimeInfo}>
-                                            <p className={styles.timeText}>{apt.time}</p>
-                                            <span className={`${styles.statusBadge} ${getStatusClass(apt.status)}`}>
-                                                {apt.status}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className={styles.itemBottomRow}>
-                                        <span className={styles.metaBadge} title="Assigned Dentist">
-                                            <FaUserMd className={styles.metaIcon} /> {apt.dentist}
-                                        </span>
-                                        <span className={styles.metaBadge} title="Booking Source">
-                                            <span className={styles.metaIcon}>{getSourceIcon(apt.source)}</span>
-                                            {apt.source}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className={styles.emptyState}>
-                                <p>No appointments found for this day.</p>
-                            </div>
+                        {!isBranchManager && (
+                            <select className={styles.filterSelect} value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}>
+                                <option value="All">All Branches</option>
+                                {branchOptions.map((branch) => (
+                                    <option key={branch} value={branch}>{branch}</option>
+                                ))}
+                            </select>
                         )}
-                    </div>
 
-                    <div className={styles.paginationContainer}>
-                        <span>
-                            Showing {filteredAppointments.length === 0 ? 0 : startIndex + 1} to{' '}
-                            {Math.min(startIndex + ITEMS_PER_PAGE, filteredAppointments.length)} of{' '}
-                            {filteredAppointments.length} entries
-                        </span>
-                        <div className={styles.pageControls}>
-                            <button
-                                className={styles.pageBtn}
-                                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                                disabled={currentPage === 1 || filteredAppointments.length === 0}
-                            >
-                                Previous
-                            </button>
-                            <button
-                                className={styles.pageBtn}
-                                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                                disabled={currentPage === totalPages || filteredAppointments.length === 0}
-                            >
-                                Next
-                            </button>
+                        <select className={styles.filterSelect} value={dentistFilter} onChange={(event) => setDentistFilter(event.target.value)}>
+                            <option value="All">All Dentists</option>
+                            {dynamicDentists.map((dentist) => (
+                                <option key={dentist} value={dentist}>{dentist}</option>
+                            ))}
+                        </select>
+
+                        <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                            <option value="All">All Statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="In Clinic">In Clinic</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+
+                        <div className={styles.dateFilterWrapper}>
+                            <FaCalendarAlt style={{ color: '#94a3b8' }} />
+                            <input type="date" className={styles.dateInput} value={startDate} onChange={(event) => setStartDate(event.target.value)} title="From Date" />
+                            <span className={styles.dateSeparator}>-</span>
+                            <input type="date" className={styles.dateInput} value={endDate} onChange={(event) => setEndDate(event.target.value)} title="To Date" />
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* ─── ADD APPOINTMENT MODAL (compact) ──────────────────────────── */}
-            {isAddModalOpen && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard} style={{ padding: '28px 32px', maxWidth: '500px' }}>
-                        <h3 className={styles.modalTitle} style={{ fontSize: '20px', paddingBottom: '14px' }}>
-                            Add Appointment
-                        </h3>
-                        <form onSubmit={handleSaveAppointment} noValidate>
+                <div className={styles.listContainer}>
+                    {isLoading ? (
+                        <div className={styles.emptyState} style={{ color: '#01538b' }}>
+                            Loading master schedule...
+                        </div>
+                    ) : displayedAppointments.length > 0 ? (
+                        displayedAppointments.map((appointment) => (
+                            <div key={appointment.id} className={styles.appointmentCard}>
+                                <div className={styles.timeBlock}>
+                                    <p className={styles.dateText}>{formatDateShort(appointment.rawDate)}</p>
+                                    <p className={styles.timeText}>
+                                        <FaClock style={{ fontSize: '11px', color: '#94a3b8' }} />
+                                        {appointment.time || formatTime(appointment.rawDate)} {appointment.duration !== '-' ? `• ${appointment.duration}` : ''}
+                                    </p>
+                                </div>
 
-                            {/* Patient */}
-                            <div className={styles.row} style={{ marginTop: '14px', marginBottom: '0' }}>
-                                <div className={styles.formGroup}>
-                                    <label>PATIENT <span style={{ color: 'red' }}>*</span></label>
-                                    <select name="patientId" className={styles.inputField} value={bookingForm.patientId} onChange={handleFormChange} disabled={isSubmitting}>
-                                        <option value="" hidden>Select Patient</option>
-                                        {patients.map(p => <option key={p._id} value={p._id}>{getPatientName(p)}</option>)}
+                                <div className={styles.patientBlock}>
+                                    <UserAvatar
+                                        user={{ name: appointment.patientName, profileImage: appointment.patientImage }}
+                                        size={45}
+                                        style={{ border: '2px solid #e0f2fe' }}
+                                    />
+                                    <div className={styles.patientDetails}>
+                                        <p className={styles.patientName}>{appointment.patientName}</p>
+                                        <p className={styles.treatmentType}>
+                                            {appointment.procedure}{appointment.branch ? ` • ${appointment.branch}` : ''}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className={styles.dentistBlock}>
+                                    <p className={styles.dentistLabel}>Attending Dentist</p>
+                                    <p className={styles.dentistName}>
+                                        <FaUserMd style={{ color: '#94a3b8' }} /> {appointment.dentistName}
+                                    </p>
+                                </div>
+
+                                <div className={styles.actionBlock}>
+                                    <select
+                                        className={`${styles.statusBadge} ${getStatusClass(appointment.status)}`}
+                                        value={appointment.status}
+                                        onChange={(event) => handleStatusSelectChange(appointment, event.target.value)}
+                                        title="Update Status"
+                                        disabled={appointment.status === 'Cancelled' || appointment.status === 'Completed'}
+                                    >
+                                        <option value="Pending">Pending</option>
+                                        <option value="Confirmed">Confirmed</option>
+                                        <option value="In Clinic">In Clinic</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Cancelled">Cancelled</option>
                                     </select>
-                                    {formErrors.patientId && <span className={styles.errorText}>{formErrors.patientId}</span>}
+
+                                    <button
+                                        className={styles.viewBtn}
+                                        onClick={() => navigate(`${patientRouteBase}/${appointment.patientId}/emr`)}
+                                        title="View Patient EMR"
+                                        disabled={!appointment.patientId}
+                                    >
+                                        <FaFileMedical /> View Patient
+                                    </button>
+
+                                    <button
+                                        className={`${styles.iconBtn} ${styles.cancelActionBtn}`}
+                                        onClick={() => setCancelTarget(appointment)}
+                                        title="Cancel Appointment"
+                                        disabled={appointment.status === 'Cancelled' || appointment.status === 'Completed'}
+                                        style={{
+                                            opacity: (appointment.status === 'Cancelled' || appointment.status === 'Completed') ? 0.4 : 1,
+                                            cursor: (appointment.status === 'Cancelled' || appointment.status === 'Completed') ? 'not-allowed' : 'pointer',
+                                        }}
+                                    >
+                                        <FaTimes />
+                                    </button>
+
+                                    <button
+                                        className={`${styles.iconBtn} ${styles.cancelActionBtn}`}
+                                        onClick={() => setDeleteTarget(appointment)}
+                                        title="Archive Appointment"
+                                    >
+                                        <FaTrashAlt />
+                                    </button>
                                 </div>
                             </div>
+                        ))
+                    ) : (
+                        <div className={styles.emptyState}>
+                            No appointments match your current filters.
+                        </div>
+                    )}
+                </div>
+            </main>
 
-                            {/* Procedure */}
-                            <div className={styles.row} style={{ marginBottom: '0' }}>
-                                <div className={styles.formGroup}>
-                                    <label>PROCEDURE <span style={{ color: 'red' }}>*</span></label>
-                                    <select name="procedure" className={styles.inputField} value={bookingForm.procedure} onChange={handleFormChange} disabled={isSubmitting}>
-                                        <option value="" hidden>Select Procedure</option>
-                                        {PROCEDURE_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                    {formErrors.procedure && <span className={styles.errorText}>{formErrors.procedure}</span>}
-                                </div>
-                            </div>
+            {isBookingModalOpen && (
+                <div className={modalStyles.modalOverlay}>
+                    <div className={modalStyles.modalContent} style={{ maxWidth: '560px' }}>
+                        <div className={modalStyles.modalHeader}>
+                            <h2 className={modalStyles.modalTitle}>Book New Appointment</h2>
+                            <button
+                                className={modalStyles.closeButton}
+                                onClick={() => {
+                                    setIsBookingModalOpen(false);
+                                    setBookingForm({ ...initialBookingForm, branch: bookingBranch });
+                                    setBookingErrors({});
+                                }}
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
 
-                            {/* Dentist + Source */}
-                            <div className={styles.row} style={{ marginBottom: '0' }}>
-                                <div className={styles.formGroup}>
-                                    <label>DENTIST <span style={{ color: 'red' }}>*</span></label>
-                                    <select name="dentistId" className={styles.inputField} value={bookingForm.dentistId} onChange={handleFormChange} disabled={isSubmitting}>
-                                        <option value="" hidden>Select Dentist</option>
-                                        {dentists.map(d => <option key={d._id} value={d._id}>Dr. {d.name?.first} {d.name?.last}</option>)}
+                        <form onSubmit={handleBookAppointment} className={modalStyles.modalBody}>
+                            {!isBranchManager && (
+                                <div className={modalStyles.formGroup}>
+                                    <label className={modalStyles.formLabel}>Branch <span style={{ color: 'red' }}>*</span></label>
+                                    <select
+                                        name="branch"
+                                        className={modalStyles.formInput}
+                                        required
+                                        value={bookingForm.branch}
+                                        onChange={handleBookingChange}
+                                        disabled={isSubmittingBooking}
+                                    >
+                                        <option value="" disabled hidden>-- Choose a Branch --</option>
+                                        {branchOptions.map((branch) => (
+                                            <option key={branch} value={branch}>{branch}</option>
+                                        ))}
                                     </select>
-                                    {formErrors.dentistId && <span className={styles.errorText}>{formErrors.dentistId}</span>}
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>SOURCE</label>
-                                    <select name="source" className={styles.inputField} value={bookingForm.source} onChange={handleFormChange} disabled={isSubmitting}>
-                                        {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            {/* Branch */}
-                            <div className={styles.row} style={{ marginBottom: '0' }}>
-                                <div className={styles.formGroup}>
-                                    <label>BRANCH <span style={{ color: 'red' }}>*</span></label>
-                                    <select name="branchId" className={styles.inputField} value={bookingForm.branchId} onChange={handleFormChange} disabled={isSubmitting}>
-                                        <option value="" hidden>Select Branch</option>
-                                        {branches.map(b => <option key={b._id} value={b.name}>{b.name}</option>)}
-                                    </select>
-                                    {formErrors.branchId && <span className={styles.errorText}>{formErrors.branchId}</span>}
-                                </div>
-                            </div>
-
-                            {/* Date + Time */}
-                            <div className={styles.row} style={{ marginBottom: '0' }}>
-                                <div className={styles.formGroup}>
-                                    <label>DATE <span style={{ color: 'red' }}>*</span></label>
-                                    <input type="date" name="date" className={styles.inputField} value={bookingForm.date} onChange={handleFormChange} min={getTodayDateString()} disabled={isSubmitting} />
-                                    {formErrors.date && <span className={styles.errorText}>{formErrors.date}</span>}
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>TIME <span style={{ color: 'red' }}>*</span></label>
-                                    <input type="time" name="time" className={`${styles.inputField} ${timeError ? styles.errorBorder : ''}`} value={bookingForm.time} onChange={handleFormChange} disabled={isSubmitting} />
-                                </div>
-                            </div>
-
-                            {timeError && (
-                                <div style={{ textAlign: 'right', marginTop: '-14px', marginBottom: '8px' }}>
-                                    <span className={styles.errorText} style={{ display: 'inline-block' }}>{timeError}</span>
+                                    {bookingErrors.branch && <span className={modalStyles.errorMessage}>{bookingErrors.branch}</span>}
                                 </div>
                             )}
 
-                            <div className={styles.modalButtonGroup} style={{ marginTop: '20px', paddingTop: '16px' }}>
-                                <button type="button" className={styles.cancelBtn} onClick={handleCloseModal} disabled={isSubmitting}>Cancel</button>
-                                <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
-                                    {isSubmitting ? 'Saving…' : 'Save Appointment'}
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Select Patient <span style={{ color: 'red' }}>*</span></label>
+                                <select
+                                    name="patientId"
+                                    className={modalStyles.formInput}
+                                    required
+                                    value={bookingForm.patientId}
+                                    onChange={handleBookingChange}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    <option value="" disabled hidden>-- Choose a Patient --</option>
+                                    {patients.map((patient) => (
+                                        <option key={patient._id} value={patient._id}>{getPatientName(patient)}</option>
+                                    ))}
+                                </select>
+                                {bookingErrors.patientId && <span className={modalStyles.errorMessage}>{bookingErrors.patientId}</span>}
+                            </div>
+
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Assigned Dentist <span style={{ color: 'red' }}>*</span></label>
+                                <select
+                                    name="dentistId"
+                                    className={modalStyles.formInput}
+                                    required
+                                    value={bookingForm.dentistId}
+                                    onChange={handleBookingChange}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    <option value="" disabled hidden>-- Choose a Dentist --</option>
+                                    {dentists.map((dentist) => (
+                                        <option key={dentist._id} value={dentist._id}>
+                                            Dr. {dentist.name?.first} {dentist.name?.last}
+                                        </option>
+                                    ))}
+                                </select>
+                                {bookingErrors.dentistId && <span className={modalStyles.errorMessage}>{bookingErrors.dentistId}</span>}
+                            </div>
+
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Date <span style={{ color: 'red' }}>*</span></label>
+                                <input
+                                    type="date"
+                                    name="date"
+                                    className={modalStyles.formInput}
+                                    required
+                                    value={bookingForm.date}
+                                    onChange={handleBookingChange}
+                                    min={getTodayString()}
+                                    disabled={isSubmittingBooking}
+                                />
+                                {bookingErrors.date && <span className={modalStyles.errorMessage}>{bookingErrors.date}</span>}
+                            </div>
+
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Preferred Time <span style={{ color: 'red' }}>*</span></label>
+                                {(!bookingForm.date || (!isBranchManager && !bookingForm.branch)) ? (
+                                    <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
+                                        {isBranchManager ? 'Select a date first to view available time slots.' : 'Select a branch and date first to view available time slots.'}
+                                    </p>
+                                ) : loadingSlots ? (
+                                    <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Loading available time slots...</p>
+                                ) : slotsError ? (
+                                    <p style={{ margin: 0, color: '#dc2626', fontSize: '13px' }}>{slotsError}</p>
+                                ) : visibleSlots.length === 0 ? (
+                                    <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>No available slots for the selected date.</p>
+                                ) : (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {visibleSlots.map((slot) => {
+                                            const isSelected = bookingForm.time === slot;
+                                            return (
+                                                <button
+                                                    key={slot}
+                                                    type="button"
+                                                    onClick={() => handleTimeSelect(slot)}
+                                                    style={{
+                                                        border: isSelected ? '1px solid #01538b' : '1px solid #cbd5e1',
+                                                        background: isSelected ? '#e0f2fe' : '#fff',
+                                                        color: isSelected ? '#01538b' : '#334155',
+                                                        borderRadius: '999px',
+                                                        padding: '8px 14px',
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    {to12h(slot)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {bookingErrors.time && <span className={modalStyles.errorMessage}>{bookingErrors.time}</span>}
+                            </div>
+
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Procedure <span style={{ color: 'red' }}>*</span></label>
+                                <select
+                                    name="procedure"
+                                    className={modalStyles.formInput}
+                                    required
+                                    value={bookingForm.procedure}
+                                    onChange={handleBookingChange}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    <option value="" disabled hidden>-- Select Procedure --</option>
+                                    {PROCEDURE_OPTIONS.map((procedure) => (
+                                        <option key={procedure} value={procedure}>{procedure}</option>
+                                    ))}
+                                </select>
+                                {bookingErrors.procedure && <span className={modalStyles.errorMessage}>{bookingErrors.procedure}</span>}
+                            </div>
+
+                            {isBranchManager && !assignedBranch && (
+                                <div className={modalStyles.errorMessage}>
+                                    This branch manager account does not have an assigned branch yet, so booking is unavailable.
+                                </div>
+                            )}
+
+                            <div className={modalStyles.formActions}>
+                                <button
+                                    type="button"
+                                    className={modalStyles.cancelBtn}
+                                    onClick={() => {
+                                        setIsBookingModalOpen(false);
+                                        setBookingForm({ ...initialBookingForm, branch: bookingBranch });
+                                        setBookingErrors({});
+                                    }}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" className={modalStyles.submitBtn} disabled={isSubmittingBooking || (isBranchManager && !assignedBranch)}>
+                                    {isSubmittingBooking ? 'Booking...' : 'Confirm Booking'}
                                 </button>
                             </div>
                         </form>
@@ -626,61 +756,35 @@ export default function Appointments() {
                 </div>
             )}
 
-            {/* ─── VIEW MODAL ────────────────────────────────────────────────── */}
-            {selectedAppointment && (
-                <div className={styles.modalOverlay} onClick={() => setSelectedAppointment(null)}>
-                    <div className={styles.modalCard} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', padding: '28px 32px' }}>
-                        <h3 className={styles.modalTitle} style={{ fontSize: '20px', paddingBottom: '14px' }}>
-                            Appointment Details
-                        </h3>
-                        <div style={{ marginTop: '16px', textAlign: 'left' }}>
-                            {[
-                                ['Patient Name',     selectedAppointment.patientName],
-                                ['Assigned Dentist', selectedAppointment.dentist],
-                                ['Procedure',        selectedAppointment.procedure],
-                                // FIX: Use safe formatDate() instead of calling toLocaleDateString() directly.
-                                ['Date',             formatDate(selectedAppointment.date)],
-                                ['Time',             selectedAppointment.time],
-                                ['Booking Source',   selectedAppointment.source],
-                            ].map(([label, value]) => (
-                                <div key={label} className={styles.viewDetailRow}>
-                                    <span className={styles.viewLabel}>{label}</span>
-                                    <p className={styles.viewValue}>{value}</p>
-                                </div>
-                            ))}
-                            <div className={styles.viewDetailRow} style={{ borderBottom: 'none' }}>
-                                <span className={styles.viewLabel}>Status</span>
-                                <span className={`${styles.statusBadge} ${getStatusClass(selectedAppointment.status)}`}>
-                                    {selectedAppointment.status}
-                                </span>
-                            </div>
-                        </div>
-                        <div className={styles.modalButtonGroup} style={{ marginTop: '16px', paddingTop: '16px' }}>
-                            {selectedAppointment.status !== 'Cancelled' && selectedAppointment.status !== 'Completed' && (
-                                <button
-                                    type="button"
-                                    className={styles.cancelBtn}
-                                    onClick={() => { setSelectedAppointment(null); setCancelTarget(selectedAppointment); }}
-                                >
-                                    Cancel Appointment
-                                </button>
-                            )}
-                            <button type="button" className={styles.submitBtn} onClick={() => setSelectedAppointment(null)}>Close</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmModal
+                isOpen={!!statusChangeTarget}
+                title="Update Appointment Status"
+                message={`Are you sure you want to change ${statusChangeTarget?.appointment?.patientName}'s appointment to "${statusChangeTarget?.newStatus}"?`}
+                confirmText="Update Status"
+                isDestructive={false}
+                onConfirm={confirmStatusChange}
+                onCancel={() => setStatusChangeTarget(null)}
+            />
 
-            {/* ─── CONFIRM CANCEL ───────────────────────────────────────────── */}
             <ConfirmModal
                 isOpen={!!cancelTarget}
                 title="Cancel Appointment"
-                message={`Are you sure you want to cancel the appointment for ${cancelTarget?.patientName}?`}
+                message={`Are you absolutely sure you want to cancel the appointment for ${cancelTarget?.patientName}? This action will free up the slot in the calendar.`}
                 confirmText="Yes, Cancel Appointment"
                 isDestructive={true}
-                onConfirm={handleConfirmCancel}
+                onConfirm={confirmCancelAppointment}
                 onCancel={() => setCancelTarget(null)}
             />
-        </div>
+
+            <ConfirmModal
+                isOpen={!!deleteTarget}
+                title="Archive Appointment"
+                message={`Are you sure you want to archive the appointment for ${deleteTarget?.patientName}?`}
+                confirmText="Yes, Archive"
+                isDestructive={true}
+                onConfirm={confirmDeleteAppointment}
+                onCancel={() => setDeleteTarget(null)}
+            />
+        </>
     );
 }

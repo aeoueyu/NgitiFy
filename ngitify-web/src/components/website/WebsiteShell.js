@@ -107,9 +107,6 @@ export default function WebsiteShell({ children }) {
                     </div>
 
                     <div className={styles.actions}>
-                        <a href={`tel:${clinicInfo.contactNumber}`} className={styles.contactChip}>
-                            {clinicInfo.contactNumber}
-                        </a>
                         <button className={styles.loginBtn} onClick={() => navigate('/login')} type="button">
                             LOGIN
                         </button>
