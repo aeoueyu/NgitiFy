@@ -65,7 +65,7 @@ const isSlotPast = (slot24, dateStr, todayStr) => {
 
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 function StepIndicator({ current }) {
-    const steps = ['Branch', 'Date', 'Time', 'Details', 'Confirm'];
+    const steps = ['Date', 'Time', 'Details', 'Confirm'];
     return (
         <View style={indicator.row}>
             {steps.map((label, i) => {
@@ -125,15 +125,13 @@ function SummaryRow({ label, value }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AppointmentBookingScreen({ navigation }) {
-    const { userToken, API_BASE_URL } = useContext(AuthContext);
+    const { userToken, userInfo, API_BASE_URL } = useContext(AuthContext);
 
     // ── Wizard state ──
     const [step, setStep] = useState(1);
 
     // Step 1 — Branch
-    const [branches,        setBranches]        = useState([]);
-    const [selectedBranch,  setSelectedBranch]  = useState('');
-    const [loadingBranches, setLoadingBranches] = useState(true);
+    const [selectedBranch, setSelectedBranch] = useState(userInfo?.assignedBranch || '');
 
     // Step 2 — Date
     const [selectedDate,   setSelectedDate]   = useState('');
@@ -161,9 +159,8 @@ export default function AppointmentBookingScreen({ navigation }) {
     // Duplicate booking guard
     const [duplicateAppt, setDuplicateAppt] = useState(null);
 
-    const fadeAnim        = useRef(new Animated.Value(0)).current;
-    const isInitialBranch = useRef(true);
-    const today           = getTodayString();
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const today    = getTodayString();
 
     // ── Animate on step change ──
     useEffect(() => {
@@ -173,23 +170,8 @@ export default function AppointmentBookingScreen({ navigation }) {
 
     // ── Fetch branches on mount ──
     useEffect(() => {
-        const fetchBranches = async () => {
-            try {
-                const res  = await fetch(`${API_BASE_URL}/api/branches`, {
-                    headers: { Authorization: `Bearer ${userToken}` },
-                });
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : [];
-                setBranches(list);
-                if (list.length === 1) setSelectedBranch(list[0].name);
-            } catch (err) {
-                console.warn('Could not fetch branches:', err);
-            } finally {
-                setLoadingBranches(false);
-            }
-        };
-        fetchBranches();
-    }, []);
+        setSelectedBranch(userInfo?.assignedBranch || '');
+    }, [userInfo?.assignedBranch]);
 
     // ── Duplicate booking guard: check for active appointment on mount ──
     useEffect(() => {
@@ -211,10 +193,6 @@ export default function AppointmentBookingScreen({ navigation }) {
     // ── Clear downstream selections when branch changes ──
     // Prevents stale date/time data from a previous branch carrying over.
     useEffect(() => {
-        if (isInitialBranch.current) {
-            isInitialBranch.current = false;
-            return;
-        }
         setSelectedDate('');
         setSelectedTime('');
         setAllowedSlots([]);
@@ -311,13 +289,21 @@ export default function AppointmentBookingScreen({ navigation }) {
     };
 
     const handleNext = () => {
+        if (!selectedBranch) {
+            Alert.alert(
+                'Assigned Branch Required',
+                'Your account does not have an assigned branch yet. Please contact the clinic before booking an appointment.'
+            );
+            return;
+        }
+
         // Safety net: re-fetch slots if advancing from Date step with empty slots
-        if (step === 2 && selectedDate && allowedSlots.length === 0 && !loadingSlots) {
+        if (step === 1 && selectedDate && allowedSlots.length === 0 && !loadingSlots) {
             fetchSlots(selectedDate);
         }
 
         // Duplicate booking guard: warn before the Confirm step
-        if (step === 4 && duplicateAppt) {
+        if (step === 3 && duplicateAppt) {
             const apptDateStr = duplicateAppt.date
                 ? new Date(duplicateAppt.date).toISOString().split('T')[0]
                 : '';
@@ -327,18 +313,18 @@ export default function AppointmentBookingScreen({ navigation }) {
                 `You already have a ${duplicateAppt.status} appointment for "${duplicateAppt.procedure}" on ${apptDate} at ${duplicateAppt.branch}.\n\nAre you sure you want to book another?`,
                 [
                     { text: 'Go Back', style: 'cancel' },
-                    { text: 'Continue Anyway', onPress: () => setStep(5) },
+                    { text: 'Continue Anyway', onPress: () => setStep(4) },
                 ]
             );
             return;
         }
 
-        if (step < 5) setStep(step + 1);
+        if (step < 4) setStep(step + 1);
     };
 
     const handleBack = () => {
         // Going back to Date step: clear time so stale selection isn't carried over
-        if (step === 3) setSelectedTime('');
+        if (step === 2) setSelectedTime('');
         if (step > 1) setStep(step - 1);
         else navigation.goBack();
     };
@@ -431,8 +417,11 @@ export default function AppointmentBookingScreen({ navigation }) {
                                 onPress={() => setSelectedBranch(b.name)}
                                 activeOpacity={0.7}
                             >
+                                <View style={[styles.branchRadioCircle, active && styles.branchRadioSelected]}>
+                                    {active && <View style={styles.branchRadioDot} />}
+                                </View>
                                 <Ionicons
-                                    name={active ? 'location' : 'location-outline'}
+                                    name="location-outline"
                                     size={20}
                                     color={active ? '#01538b' : '#888'}
                                     style={styles.branchCardIcon}
@@ -440,9 +429,6 @@ export default function AppointmentBookingScreen({ navigation }) {
                                 <Text style={[styles.branchCardText, active && styles.branchCardTextSelected]}>
                                     {b.name}
                                 </Text>
-                                {active && (
-                                    <Ionicons name="checkmark-circle" size={20} color="#01538b" />
-                                )}
                             </TouchableOpacity>
                         );
                     })}
@@ -805,11 +791,10 @@ export default function AppointmentBookingScreen({ navigation }) {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
             >
-                {step === 1 && renderStep1()}
-                {step === 2 && renderStep2()}
-                {step === 3 && renderStep3()}
-                {step === 4 && renderStep4()}
-                {step === 5 && renderStep5()}
+                {step === 1 && renderStep2()}
+                {step === 2 && renderStep3()}
+                {step === 3 && renderStep4()}
+                {step === 4 && renderStep5()}
             </ScrollView>
 
             <CustomModal
@@ -897,6 +882,9 @@ const styles = StyleSheet.create({
     branchListVertical:     { marginBottom: 16 },
     branchCard:             { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', padding: 16, borderRadius: 12, marginBottom: 10, elevation: 1, borderWidth: 1.5, borderColor: '#e0e0e0' },
     branchCardSelected:     { borderColor: '#01538b', backgroundColor: '#e8f1f8' },
+    branchRadioCircle:      { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#b0bec5', alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: 'white' },
+    branchRadioSelected:    { borderColor: '#01538b' },
+    branchRadioDot:         { width: 10, height: 10, borderRadius: 5, backgroundColor: '#01538b' },
     branchCardIcon:         { marginRight: 12 },
     branchCardText:         { flex: 1, fontSize: 14, color: '#444', fontWeight: '600' },
     branchCardTextSelected: { color: '#01538b' },

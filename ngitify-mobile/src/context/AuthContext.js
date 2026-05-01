@@ -68,6 +68,7 @@ export const AuthProvider = ({ children }) => {
                 fullName:     `${data.name?.first || ''} ${data.name?.last || ''}`.trim(),
                 email:        data.email || '',
                 profileImage: data.profileImage || null,
+                assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
             };
         } catch {
             return null;
