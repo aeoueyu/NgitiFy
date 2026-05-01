@@ -1792,7 +1792,7 @@ app.post('/api/logout', verifyToken, async (req, res) => {
 });
 
 app.get('/api/inventory', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1805,6 +1805,16 @@ app.get('/api/inventory', verifyToken, async (req, res) => {
                 return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
             }
             filter.branch = req.user.assignedBranch;
+        }
+
+        // Dentists only see inventory for their assigned branch
+        if (req.user.role === 'dentist') {
+            const dentistUser = await User.findById(req.user.id).select('assignedBranch assignedBranches');
+            const dentistBranch = dentistUser?.assignedBranch || dentistUser?.assignedBranches?.[0] || '';
+            if (!dentistBranch) {
+                return res.status(403).json({ message: 'Dentist has no assigned branch.' });
+            }
+            filter.branch = dentistBranch;
         }
 
         const items = await Inventory.find(filter).sort({ createdAt: -1 });
@@ -3609,6 +3619,50 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
 const MATERIAL_USAGE_ALLOWED = [
     'dentist', 'administrator', 'co-administrator', 'branch-manager', 'owner'
 ];
+
+// -------------------------------------------------------
+// MATERIAL USAGE — GET completed appointments for dentist
+// Returns Surgery records that are 'completed' and
+// assigned to this dentist's branch, for the current dentist.
+// -------------------------------------------------------
+app.get('/api/material-usage/appointments', verifyToken, async (req, res) => {
+    try {
+        if (!['dentist', 'owner'].includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const dentistUser = await User.findById(req.user.id).select('assignedBranch assignedBranches');
+        const dentistBranch = dentistUser?.assignedBranch || dentistUser?.assignedBranches?.[0] || '';
+
+        const filter = {
+            status: 'completed',
+            dentist: req.user.id,
+        };
+        if (dentistBranch) filter.branch = dentistBranch;
+
+        const appointments = await Surgery.find(filter)
+            .populate('patient', 'name')
+            .sort({ updatedAt: -1 })
+            .limit(200);
+
+        const result = appointments.map(appt => ({
+            _id: appt._id,
+            patientId: appt.patient?._id || null,
+            patientName: appt.patient
+                ? `${appt.patient.name?.first || ''} ${appt.patient.name?.last || ''}`.trim()
+                : (appt.guestName || 'Guest'),
+            procedure: appt.procedure,
+            completedAt: appt.updatedAt, // updatedAt reflects when status was last changed to 'completed'
+            branch: appt.branch,
+        }));
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error fetching appointments for material usage:', error);
+        res.status(500).json({ message: 'Server error fetching appointments.' });
+    }
+});
+
 app.post('/api/material-usage', verifyToken, async (req, res) => {
     try {
         if (!MATERIAL_USAGE_ALLOWED.includes(req.user.role)) {
@@ -3619,15 +3673,17 @@ app.post('/api/material-usage', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied. Dentist access required.' });
         }
 
-        const { patientId, procedureType, materials, notes, branch, usedAt } = req.body;
+        const { patientId, procedureType, materials, notes, usedAt } = req.body;
         if (!procedureType || !materials || !Array.isArray(materials) || materials.length === 0) {
             return res.status(400).json({ message: 'Procedure type and at least one material are required.' });
         }
 
-        const dentist = await User.findById(req.user.id);
+        const dentist = await User.findById(req.user.id).select('name assignedBranch assignedBranches');
         const dentistName = dentist
             ? `${dentist.name?.first || ''} ${dentist.name?.last || ''}`.trim()
             : '';
+        // Auto-resolve branch from dentist's profile — no branch input accepted from client
+        const resolvedBranch = dentist?.assignedBranch || dentist?.assignedBranches?.[0] || '';
 
         let patientName = '';
         if (patientId) {
@@ -3645,7 +3701,7 @@ app.post('/api/material-usage', verifyToken, async (req, res) => {
             procedureType,
             materials,
             notes: notes || '',
-            branch: branch || '',
+            branch: resolvedBranch,
             usedAt: usedAt ? new Date(usedAt) : new Date(),
         });
 
