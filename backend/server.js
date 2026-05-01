@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 // ── Fail fast: crash at startup if any required env var is missing ──
-const REQUIRED_ENV_VARS = ['JWT_SECRET', 'MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL', 'ANTHROPIC_API_KEY'];
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL'];
 REQUIRED_ENV_VARS.forEach(key => {
     if (!process.env[key]) {
         console.error(`❌ Missing required environment variable: ${key}`);
@@ -55,7 +55,17 @@ const integrityRoutes = require('./routes/integrity');
 // ADD this line with the other model imports (after the AuditLog import)
 const MaterialUsageLog = require('./models/MaterialUsageLog');
 const Anthropic = require('@anthropic-ai/sdk');
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = process.env.ANTHROPIC_API_KEY
+    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    : null;
+
+const ensureAiConfigured = (res) => {
+    if (anthropic) {
+        return true;
+    }
+    res.status(503).json({ message: 'AI features are not enabled.' });
+    return false;
+};
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -3726,6 +3736,7 @@ const ENHANCE_ALLOWED = [
 ];
 app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
     try {
+        if (!ensureAiConfigured(res)) return;
         if (!ENHANCE_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -3793,6 +3804,7 @@ const aiChatLimiter = rateLimit({
 
 app.post('/api/ai/chat', verifyToken, aiChatLimiter, async (req, res) => {
     try {
+        if (!ensureAiConfigured(res)) return;
         const { messages, systemPrompt } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ message: 'Messages array is required.' });
@@ -3820,6 +3832,7 @@ const STAFF_CHAT_ALLOWED = ['dentist', 'administrator', 'co-administrator', 'bra
 
 app.post('/api/ai/staff-chat', verifyToken, aiChatLimiter, async (req, res) => {
     try {
+        if (!ensureAiConfigured(res)) return;
         if (!STAFF_CHAT_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -3906,6 +3919,7 @@ Strict rules:
 // -------------------------------------------------------
 app.post('/api/ai/education', verifyToken, async (req, res) => {
     try {
+        if (!ensureAiConfigured(res)) return;
         const EDU_ALLOWED = ['dentist', 'administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
         if (!EDU_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
