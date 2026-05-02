@@ -2976,7 +2976,7 @@ app.delete(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (
 
 app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) => {
     try {
-        const { patientId, status, date } = req.query;
+        const { patientId, status, date, dateFrom, dateTo } = req.query;
         const query = { isArchived: { $ne: true } };
 
         if (req.user.role === 'dentist') {
@@ -2997,7 +2997,16 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
         if (patientId) query.patient = patientId;
         if (status) query.status = status;
 
-        if (date) {
+        if (dateFrom || dateTo) {
+            const start = new Date(dateFrom || dateTo);
+            const end = new Date(dateTo || dateFrom);
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+                return res.status(400).json({ message: 'Invalid appointment date range.' });
+            }
+            start.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 59, 999);
+            query.date = { $gte: start, $lte: end };
+        } else if (date) {
             const start = new Date(date);
             start.setHours(0, 0, 0, 0);
             const end = new Date(date);

@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    FaCalendarAlt,
     FaEdit,
     FaEye,
     FaFilter,
     FaPlus,
+    FaSearch,
     FaTimes,
     FaTrashAlt,
     FaUserClock,
@@ -68,7 +68,21 @@ const APPOINTMENT_SOURCE_OPTIONS = [
     { value: 'Smile Hub (Online)', label: 'Online Request' },
 ];
 
+const DATE_FILTER_OPTIONS = [
+    { value: 'today', label: 'Today' },
+    { value: '3days', label: '3 Days' },
+    { value: '7days', label: '7 Days' },
+    { value: 'custom', label: 'Custom' },
+];
+
 const getTodayString = () => new Date().toISOString().split('T')[0];
+
+const addDaysToDateString = (dateString, daysToAdd) => {
+    const baseDate = new Date(`${dateString}T12:00:00`);
+    if (Number.isNaN(baseDate.getTime())) return dateString;
+    baseDate.setDate(baseDate.getDate() + daysToAdd);
+    return baseDate.toISOString().split('T')[0];
+};
 
 const formatDateInput = (value) => {
     if (!value) return '';
@@ -246,7 +260,9 @@ export default function SchedulePage() {
     const [dentists, setDentists] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState(getTodayString());
+    const [dateFilter, setDateFilter] = useState('today');
+    const [customDateFrom, setCustomDateFrom] = useState(getTodayString());
+    const [customDateTo, setCustomDateTo] = useState(getTodayString());
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('all');
@@ -265,7 +281,23 @@ export default function SchedulePage() {
     const [cancelTarget, setCancelTarget] = useState(null);
 
     const todayString = getTodayString();
-    const isViewingToday = selectedDate === todayString;
+    const selectedDateRange = useMemo(() => {
+        if (dateFilter === '3days') {
+            return { from: todayString, to: addDaysToDateString(todayString, 2) };
+        }
+        if (dateFilter === '7days') {
+            return { from: todayString, to: addDaysToDateString(todayString, 6) };
+        }
+        if (dateFilter === 'custom') {
+            const normalizedFrom = customDateFrom || todayString;
+            const normalizedTo = customDateTo || normalizedFrom;
+            return normalizedFrom <= normalizedTo
+                ? { from: normalizedFrom, to: normalizedTo }
+                : { from: normalizedTo, to: normalizedFrom };
+        }
+        return { from: todayString, to: todayString };
+    }, [customDateFrom, customDateTo, dateFilter, todayString]);
+    const rangeIncludesToday = selectedDateRange.from <= todayString && selectedDateRange.to >= todayString;
 
     const resetFormState = useCallback(() => {
         setFormState(buildInitialForm({ assignedBranch, currentUserId, role }));
@@ -280,7 +312,7 @@ export default function SchedulePage() {
         setLoading(true);
         try {
             const requests = [
-                authFetch(`/appointments?date=${selectedDate}`),
+                authFetch(`/appointments?dateFrom=${selectedDateRange.from}&dateTo=${selectedDateRange.to}`),
                 authFetch('/patients'),
                 authFetch('/users?role=dentist'),
             ];
@@ -359,7 +391,7 @@ export default function SchedulePage() {
         } finally {
             setLoading(false);
         }
-    }, [addToast, assignedBranch, canChooseBranch, canManageQueue, selectedDate]);
+    }, [addToast, assignedBranch, canChooseBranch, canManageQueue, selectedDateRange.from, selectedDateRange.to]);
 
     useEffect(() => {
         fetchPageData();
@@ -450,7 +482,7 @@ export default function SchedulePage() {
         const normalizedQuery = searchQuery.trim().toLowerCase();
         const rows = [
             ...appointments,
-            ...(isViewingToday ? queueEntries : []),
+            ...(rangeIncludesToday ? queueEntries : []),
         ];
 
         return rows
@@ -477,6 +509,8 @@ export default function SchedulePage() {
                 if (left.prioritySort !== right.prioritySort) {
                     return left.prioritySort - right.prioritySort;
                 }
+                const dateCompare = (left.date || '').localeCompare(right.date || '');
+                if (dateCompare !== 0) return dateCompare;
                 if (left.type === 'appointment' && right.type === 'appointment') {
                     const timeCompare = compareTime(left.time, right.time);
                     if (timeCompare !== 0) return timeCompare;
@@ -487,7 +521,7 @@ export default function SchedulePage() {
                 }
                 return 0;
             });
-    }, [appointments, isViewingToday, queueEntries, searchQuery, statusFilter, typeFilter]);
+    }, [appointments, queueEntries, rangeIncludesToday, searchQuery, statusFilter, typeFilter]);
 
     const openCreateModal = () => {
         resetFormState();
@@ -1084,7 +1118,7 @@ export default function SchedulePage() {
                     <div>
                         <h1 className={styles.pageTitle}>Schedule Management</h1>
                         <p className={styles.pageSubtitle}>
-                            Today is applied by default. Appointments stay above walk-ins, and walk-ins always reflect the live queue.
+                            Appointments and walk-ins are shown in one schedule view, with quick date pills and a custom range when you need it.
                         </p>
                     </div>
                     {canCreateSchedule && (
@@ -1097,31 +1131,65 @@ export default function SchedulePage() {
 
                 <div className={styles.toolbar}>
                     <div className={styles.toolbarFilters}>
-                        <label className={styles.dateControl}>
-                            <FaCalendarAlt />
-                            <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
-                        </label>
-
-                        <label className={styles.searchControl}>
+                        <div className={styles.searchWrapper}>
+                            <FaSearch className={styles.searchIcon} />
                             <input
                                 type="search"
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder="Search patient, dentist, branch, or procedure"
+                                className={styles.searchInput}
                             />
-                        </label>
+                        </div>
 
-                        <label className={styles.inlineSelect}>
-                            <FaFilter />
-                            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                        <div className={styles.pillGroup}>
+                            {DATE_FILTER_OPTIONS.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={`${styles.filterPill} ${dateFilter === option.value ? styles.activePill : ''}`}
+                                    onClick={() => setDateFilter(option.value)}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {dateFilter === 'custom' && (
+                            <div className={styles.customDateRange}>
+                                <label className={styles.dateField}>
+                                    <span>From</span>
+                                    <input
+                                        type="date"
+                                        value={customDateFrom}
+                                        onChange={(event) => setCustomDateFrom(event.target.value)}
+                                        className={styles.filterSelect}
+                                    />
+                                </label>
+                                <label className={styles.dateField}>
+                                    <span>To</span>
+                                    <input
+                                        type="date"
+                                        value={customDateTo}
+                                        min={customDateFrom || undefined}
+                                        onChange={(event) => setCustomDateTo(event.target.value)}
+                                        className={styles.filterSelect}
+                                    />
+                                </label>
+                            </div>
+                        )}
+
+                        <label className={styles.filterSelectWrap}>
+                            <FaFilter className={styles.filterIcon} />
+                            <select className={styles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                                 <option value="all">All Types</option>
                                 <option value="appointment">Appointments</option>
                                 {canManageQueue && <option value="walkin">Walk-ins</option>}
                             </select>
                         </label>
 
-                        <label className={styles.inlineSelect}>
-                            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                        <label className={styles.filterSelectWrap}>
+                            <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
                                 <option value="all">All Statuses</option>
                                 {APPOINTMENT_STATUS_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -1133,15 +1201,15 @@ export default function SchedulePage() {
                         </label>
                     </div>
 
-                    {canManageQueue && !isViewingToday && (
+                    {canManageQueue && !rangeIncludesToday && (
                         <div className={styles.queueNote}>
                             <FaUserClock />
-                            Walk-ins always reflect today&apos;s queue.
+                            Walk-ins only appear when the selected range includes today.
                         </div>
                     )}
                 </div>
 
-                <div className={styles.tableCard}>
+                <div className={styles.tableContainer}>
                     {loading ? (
                         <div className={styles.stateBlock}>Loading schedule entries...</div>
                     ) : combinedRows.length === 0 ? (
