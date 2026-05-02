@@ -348,7 +348,7 @@ export default function ChatSupport() {
                                 <div className={styles.noMessages}>No messages yet.</div>
                             )}
                             {selected.messages?.map((msg, i) => {
-                                const isAdmin = ['administrator', 'co-administrator'].includes(msg.senderRole);
+                                const isAdmin = msg.senderRole === 'administrator';
                                 return (
                                     <div
                                         key={msg._id || i}

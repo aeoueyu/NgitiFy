@@ -33,7 +33,7 @@ const NotificationSchema = new mongoose.Schema({
     },
     recipientRole: { 
         type: String, 
-        enum: ['administrator', 'co-administrator', 'branch-manager', 'dentist', 'secretary', 'owner', 'patient']
+        enum: ['administrator', 'branch-manager', 'dentist', 'secretary', 'owner', 'patient']
     },
     recipientId: { 
         type: mongoose.Schema.Types.ObjectId, 

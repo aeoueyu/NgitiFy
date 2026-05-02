@@ -32,7 +32,7 @@ export class User {
   }
 
   get isAdmin() {
-    return this.role === 'administrator' || this.role === 'co-administrator';
+    return this.role === 'administrator';
   }
 
   get isBranchManager() {

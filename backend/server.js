@@ -44,7 +44,9 @@ const AuditLog = require('./models/AuditLog');
 // Patient model removed — patients use the User model (role: 'patient')
 const Appointment = require('./models/Appointment');
 const Surgery = Appointment;
-const Inventory = require('./models/Inventory');
+const LegacyInventory = require('./models/Inventory');
+const InventoryItem = require('./models/InventoryItem');
+const InventoryBatch = require('./models/InventoryBatch');
 const Notification = require('./models/Notification');
 const Branch = require('./models/Branch');
 const Queue = require('./models/Queue');
@@ -66,6 +68,209 @@ const ensureAiConfigured = (res) => {
     }
     res.status(503).json({ message: 'AI features are not enabled.' });
     return false;
+};
+
+const INVENTORY_READ_ROLES = ['administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
+const INVENTORY_EDIT_ROLES = ['administrator', 'branch-manager', 'secretary', 'owner'];
+const INVENTORY_USAGE_ROLES = ['administrator', 'branch-manager', 'dentist', 'owner'];
+
+let inventoryMigrationPromise = null;
+
+const getScopedInventoryBranch = async (reqUser) => {
+    if (reqUser.role === 'branch-manager') {
+        if (!reqUser.assignedBranch) {
+            throw Object.assign(new Error('Branch manager has no assigned branch.'), { statusCode: 403 });
+        }
+        return reqUser.assignedBranch;
+    }
+
+    if (reqUser.role === 'dentist') {
+        const dentistUser = await User.findById(reqUser.id).select('assignedBranch assignedBranches');
+        const dentistBranch = dentistUser?.assignedBranch || dentistUser?.assignedBranches?.[0] || '';
+        if (!dentistBranch) {
+            throw Object.assign(new Error('Dentist has no assigned branch.'), { statusCode: 403 });
+        }
+        return dentistBranch;
+    }
+
+    return '';
+};
+
+const computeBatchStatus = (batch) => {
+    if ((batch.quantityRemaining || 0) <= 0) return 'Depleted';
+    if (batch.expirationDate && new Date(batch.expirationDate) < new Date()) return 'Expired';
+    return 'Active';
+};
+
+const syncBatchStatus = (batch) => {
+    batch.status = computeBatchStatus(batch);
+    return batch.status;
+};
+
+const flattenBatch = (batchDoc) => {
+    const batch = batchDoc.toObject ? batchDoc.toObject() : batchDoc;
+    const item = batch.inventoryItem || {};
+    const threshold = Number(item.lowStockThreshold || 0);
+    const quantityRemaining = Number(batch.quantityRemaining || 0);
+    const expiryDate = batch.expirationDate ? new Date(batch.expirationDate) : null;
+    const msUntilExpiry = expiryDate ? expiryDate.getTime() - Date.now() : null;
+    const daysUntilExpiry = expiryDate ? Math.ceil(msUntilExpiry / (1000 * 60 * 60 * 24)) : null;
+
+    return {
+        _id: batch._id,
+        id: batch._id,
+        itemId: item._id || batch.inventoryItem,
+        itemName: item.name || 'Unknown Item',
+        name: item.name || 'Unknown Item',
+        category: item.category || 'Uncategorized',
+        brand: batch.brand || 'Unspecified',
+        quantity: quantityRemaining,
+        stock: quantityRemaining,
+        currentStock: quantityRemaining,
+        quantityReceived: Number(batch.quantityReceived || 0),
+        reorderLevel: threshold,
+        threshold,
+        unit: item.unit || 'pcs',
+        branch: batch.branch || item.branch || '',
+        status: computeBatchStatus(batch),
+        expirationDate: batch.expirationDate || null,
+        receivedDate: batch.receivedDate || null,
+        supplierName: batch.supplierName || '',
+        batchNumber: batch.batchNumber || '',
+        isLowStock: quantityRemaining <= threshold,
+        isExpired: Boolean(expiryDate && expiryDate < new Date()),
+        isExpiringSoon: Boolean(expiryDate && daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 30),
+        daysUntilExpiry,
+    };
+};
+
+const ensureInventoryMigration = async () => {
+    if (inventoryMigrationPromise) {
+        return inventoryMigrationPromise;
+    }
+
+    inventoryMigrationPromise = (async () => {
+        const legacyDocs = await LegacyInventory.find({}).lean();
+        if (legacyDocs.length === 0) {
+            return;
+        }
+
+        for (const legacy of legacyDocs) {
+            const item = await InventoryItem.findOneAndUpdate(
+                { name: legacy.itemName, branch: legacy.branch || '' },
+                {
+                    $setOnInsert: {
+                        name: legacy.itemName,
+                        category: legacy.category || 'Uncategorized',
+                        unit: legacy.unit || 'pcs',
+                        lowStockThreshold: Number(legacy.reorderLevel || 0),
+                        branch: legacy.branch || '',
+                        createdBy: null,
+                    },
+                    $set: {
+                        category: legacy.category || 'Uncategorized',
+                        unit: legacy.unit || 'pcs',
+                        lowStockThreshold: Number(legacy.reorderLevel || 0),
+                    }
+                },
+                { upsert: true, new: true }
+            );
+
+            const existingBatch = await InventoryBatch.findOne({ legacyInventoryId: legacy._id });
+            if (existingBatch) {
+                continue;
+            }
+
+            const batch = new InventoryBatch({
+                inventoryItem: item._id,
+                brand: 'Unspecified',
+                quantityReceived: Number(legacy.quantity || 0),
+                quantityRemaining: Number(legacy.quantity || 0),
+                expirationDate: null,
+                receivedDate: legacy.createdAt || new Date(),
+                supplierName: legacy.supplier || '',
+                batchNumber: '',
+                branch: legacy.branch || '',
+                receivedBy: null,
+                legacyInventoryId: legacy._id,
+            });
+
+            syncBatchStatus(batch);
+            await batch.save();
+        }
+    })().catch((error) => {
+        inventoryMigrationPromise = null;
+        throw error;
+    });
+
+    return inventoryMigrationPromise;
+};
+
+const upsertInventoryItemForBatch = async (reqUser, payload) => {
+    let inventoryItemId = payload.inventoryItem || payload.inventoryItemId || payload.itemId || '';
+    let item;
+
+    if (inventoryItemId) {
+        item = await InventoryItem.findById(inventoryItemId);
+    } else {
+        const branch = reqUser.role === 'branch-manager'
+            ? await getScopedInventoryBranch(reqUser)
+            : (payload.branch || '');
+
+        item = await InventoryItem.findOneAndUpdate(
+            { name: (payload.name || payload.itemName || '').trim(), branch },
+            {
+                $setOnInsert: {
+                    name: (payload.name || payload.itemName || '').trim(),
+                    category: (payload.category || 'Uncategorized').trim(),
+                    unit: (payload.unit || 'pcs').trim(),
+                    lowStockThreshold: Number(payload.lowStockThreshold ?? payload.reorderLevel ?? payload.threshold ?? 0),
+                    branch,
+                    createdBy: reqUser.id || null,
+                },
+                $set: {
+                    category: (payload.category || 'Uncategorized').trim(),
+                    unit: (payload.unit || 'pcs').trim(),
+                    lowStockThreshold: Number(payload.lowStockThreshold ?? payload.reorderLevel ?? payload.threshold ?? 0),
+                }
+            },
+            { new: true, upsert: true }
+        );
+    }
+
+    if (!item) {
+        throw Object.assign(new Error('Inventory item category not found.'), { statusCode: 404 });
+    }
+
+    const scopedBranch = await getScopedInventoryBranch(reqUser);
+    if (scopedBranch && item.branch !== scopedBranch) {
+        throw Object.assign(new Error('Access denied. This item belongs to a different branch.'), { statusCode: 403 });
+    }
+
+    return item;
+};
+
+const createInventoryBatchRecord = async (reqUser, payload) => {
+    const item = await upsertInventoryItemForBatch(reqUser, payload);
+
+    const batch = new InventoryBatch({
+        inventoryItem: item._id,
+        brand: (payload.brand || 'Unspecified').trim() || 'Unspecified',
+        quantityReceived: Number(payload.quantityReceived ?? payload.quantity ?? payload.currentStock ?? 0),
+        quantityRemaining: Number(payload.quantityRemaining ?? payload.quantity ?? payload.currentStock ?? 0),
+        expirationDate: payload.expirationDate || null,
+        receivedDate: payload.receivedDate || new Date(),
+        supplierName: (payload.supplierName || payload.supplier || '').trim(),
+        batchNumber: (payload.batchNumber || '').trim(),
+        branch: item.branch,
+        receivedBy: reqUser.id || null,
+    });
+
+    syncBatchStatus(batch);
+    await batch.save();
+    await batch.populate('inventoryItem');
+
+    return batch;
 };
 
 const app = express();
@@ -612,7 +817,7 @@ const notifyAppointmentManagers = async ({ appointmentId, patientName, procedure
             type: 'NEW_APPOINTMENT',
             title: 'New Appointment Request',
             message,
-            recipientRole: 'co-administrator',
+            recipientRole: 'administrator',
             relatedId: appointmentId,
         },
         {
@@ -799,7 +1004,7 @@ app.post('/api/check-email', async (req, res) => {
 
 app.post('/api/add-dentist', verifyToken, async (req, res) => {
     try {
-        const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'owner'];
+        const allowedRoles = ['administrator', 'branch-manager', 'owner'];
         if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({ message: "Access denied." });
         }
@@ -865,7 +1070,7 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
 
 app.post('/api/add-secretary', verifyToken, async (req, res) => {
     try {
-        const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'owner'];
+        const allowedRoles = ['administrator', 'branch-manager', 'owner'];
         if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({ message: "Access denied." });
         }
@@ -981,7 +1186,7 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
 
 app.post('/api/add-patient', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'].includes(req.user.role)) {
+        if (!['administrator', 'branch-manager', 'secretary', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: "Access denied." });
         }
         const { email, assignedBranch = '', assignedBranches = [], ...otherData } = req.body;
@@ -1048,63 +1253,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
 });
 
 app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
-    try {
-        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
-            return res.status(403).json({ message: "Access denied. Admin tier or owner only." });
-        }
-        const { email, licenseNumber, branch, ...otherData } = req.body;
-        
-        const existingEmail = await User.findOne({ email });
-        if (existingEmail) return res.status(409).json({ field: 'email', message: 'Email address is already registered.' });
-
-        if (licenseNumber) {
-            const existingLicense = await User.findOne({ licenseNumber });
-            if (existingLicense) return res.status(409).json({ field: 'licenseNumber', message: 'License Number is already registered.' });
-        }
-
-        const tempPassword = crypto.randomBytes(4).toString('hex'); 
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
-        const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
-
-        const newUser = new User({
-            ...otherData, 
-            email,
-            licenseNumber,
-            branch,
-            password: hashedPassword,
-            role: 'co-administrator',
-            isVerified: false,
-            status: 'inactive',
-            activationToken,
-            temporaryPasswordExpires
-        });
-        
-        await newUser.save();
-
-        await AuditLog.create({
-            action: "CREATE_USER",
-            user: req.user?.email || req.user?.id || "ADMIN",
-            role: req.user?.role || "administrator",
-            details: `Created new co-administrator: ${email}`
-        });
-
-        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-
-        try {
-            await sendActivationEmail(email, 'Co-Administrator', tempPassword, activationLink);
-            console.log(`✅ Co-Administrator Added & Email Sent: ${email}`);
-        } catch (emailError) {
-            console.error("⚠️ Activation email failed for co-administrator:", emailError.message);
-            return res.status(207).json({ message: 'Co-Administrator added, but activation email failed to send. Please resend manually.' });
-        }
-
-        res.status(201).json({ message: 'Co-Administrator added successfully. Activation email sent.' });
-
-    } catch (error) {
-        console.error("Error adding co-administrator:", error);
-        res.status(500).json({ message: "Server error while creating co-administrator account." });
-    }
+    return res.status(410).json({ message: 'Co-Administrator accounts have been removed in Phase 2.' });
 });
 
 // -------------------------------------------------------
@@ -1112,7 +1261,7 @@ app.post('/api/add-co-administrator', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 app.post('/api/add-owner', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
+        if (!['administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied. Admin tier or owner only.' });
         }
 
@@ -1220,7 +1369,7 @@ app.get('/api/users', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1262,7 +1411,7 @@ app.get('/api/patients', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients/:id', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1433,19 +1582,9 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: "User not found." });
 
-        // ── Co-Admin Security Guard ──────────────────────────────────────────
-        // Co-administrator cannot activate or deactivate an administrator account
-        if (user.role === 'administrator' && req.user.role === 'co-administrator') {
-            await AuditLog.create({
-                action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
-                user: req.user.email,
-                role: 'co-administrator',
-                actorId: req.user.id,
-                actorRole: 'co-administrator',
-                targetId: user._id,
-                targetModel: 'User',
-                details: `Unauthorized attempt to change status of administrator account (${user.email}) by co-administrator.`
-            });
+        // ── Administrator Account Guard ──────────────────────────────────────
+        // Only an administrator may activate or deactivate the administrator account.
+        if (user.role === 'administrator' && req.user.role !== 'administrator') {
             return res.status(403).json({ message: 'Access denied. Cannot modify the administrator account.' });
         }
         // ────────────────────────────────────────────────────────────────────
@@ -1622,18 +1761,8 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             updateData.assignedBranch = updateData.assignedBranches[0] || '';
         }
 
-        // Co-admin escalation guard
-        if (req.user.role === 'co-administrator') {
-            // Cannot modify an administrator account
-            if (currentUser.role === 'administrator') {
-                await AuditLog.create({
-                    action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
-                    user: req.user.email,
-                    role: 'co-administrator',
-                    details: 'Attempted to modify administrator account.'
-                });
-                return res.status(403).json({ message: 'Access denied. Cannot modify the administrator account.' });
-            }
+        if (currentUser.role === 'administrator' && req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Access denied. Cannot modify the administrator account.' });
         }
         // Nobody below administrator can escalate a role to administrator
         if (role === 'administrator' && req.user.role !== 'administrator') {
@@ -1694,7 +1823,7 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
 });
 
 app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
-    const isAdminTier = ['administrator', 'co-administrator'].includes(req.user.role);
+    const isAdminTier = req.user.role === 'administrator';
     if (req.params.id !== req.user.id && !isAdminTier) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1937,7 +2066,7 @@ app.post('/api/verify-password', verifyToken, async (req, res) => {
 });
 
 app.get('/api/audit-logs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'owner', 'dentist', 'secretary'];
+    const allowedRoles = ['administrator', 'branch-manager', 'owner', 'dentist', 'secretary'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -1975,7 +2104,7 @@ app.get('/api/audit-logs', verifyToken, async (req, res) => {
             filter.user = req.user.email;
         }
 
-        if (userId && ['administrator', 'co-administrator', 'owner', 'branch-manager'].includes(req.user.role)) {
+        if (userId && ['administrator', 'owner', 'branch-manager'].includes(req.user.role)) {
             const targetUser = await User.findById(userId).select('email assignedBranch assignedBranches');
             if (!targetUser?.email) {
                 return res.status(404).json({ message: 'User not found.' });
@@ -2043,161 +2172,297 @@ app.post('/api/logout', verifyToken, async (req, res) => {
 });
 
 app.get('/api/inventory', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!INVENTORY_READ_ROLES.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
+
     try {
-        const filter = {};
+        await ensureInventoryMigration();
+        const branch = await getScopedInventoryBranch(req.user);
+        const filter = branch ? { branch } : {};
 
-        // Branch managers only see inventory belonging to their assigned branch
-        if (req.user.role === 'branch-manager') {
-            if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
-            }
-            filter.branch = req.user.assignedBranch;
-        }
+        const batches = await InventoryBatch.find(filter)
+            .populate('inventoryItem')
+            .sort({ receivedDate: 1, createdAt: 1 });
 
-        // Dentists only see inventory for their assigned branch
-        if (req.user.role === 'dentist') {
-            const dentistUser = await User.findById(req.user.id).select('assignedBranch assignedBranches');
-            const dentistBranch = dentistUser?.assignedBranch || dentistUser?.assignedBranches?.[0] || '';
-            if (!dentistBranch) {
-                return res.status(403).json({ message: 'Dentist has no assigned branch.' });
-            }
-            filter.branch = dentistBranch;
-        }
-
-        const items = await Inventory.find(filter).sort({ createdAt: -1 });
-        res.status(200).json(items);
+        res.status(200).json(batches.map(flattenBatch));
     } catch (error) {
-        console.error("Error fetching inventory:", error);
-        res.status(500).json({ message: "Server error fetching inventory" });
+        console.error('Error fetching inventory:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error fetching inventory.' });
     }
 });
 
-app.post('/api/inventory', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
-    if (!allowedRoles.includes(req.user.role)) {
+app.get('/api/inventory/items', verifyToken, async (req, res) => {
+    if (!INVENTORY_READ_ROLES.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
+
     try {
-        const itemData = { ...req.body };
+        await ensureInventoryMigration();
+        const branch = await getScopedInventoryBranch(req.user);
+        const filter = branch ? { branch } : {};
+        const items = await InventoryItem.find(filter).sort({ name: 1 });
+        res.status(200).json(items);
+    } catch (error) {
+        console.error('Error fetching inventory items:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error fetching inventory items.' });
+    }
+});
 
-        // Branch managers can only add inventory to their own branch
-        if (req.user.role === 'branch-manager') {
-            if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
-            }
-            itemData.branch = req.user.assignedBranch;
-        }
+app.post('/api/inventory/items', verifyToken, async (req, res) => {
+    if (!INVENTORY_EDIT_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
 
-        const newItem = new Inventory(itemData);
-        await newItem.save();
+    try {
+        await ensureInventoryMigration();
+        const branch = req.user.role === 'branch-manager'
+            ? await getScopedInventoryBranch(req.user)
+            : (req.body.branch || '');
+
+        const item = await InventoryItem.create({
+            name: (req.body.name || req.body.itemName || '').trim(),
+            category: (req.body.category || '').trim(),
+            unit: (req.body.unit || 'pcs').trim(),
+            lowStockThreshold: Number(req.body.lowStockThreshold ?? req.body.reorderLevel ?? req.body.threshold ?? 0),
+            branch,
+            createdBy: req.user.id || null,
+        });
 
         await AuditLog.create({
             action: 'ADD_INVENTORY',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Added inventory item: ${newItem.itemName}${newItem.branch ? ` (branch: ${newItem.branch})` : ''}`
+            details: `Added inventory item category: ${item.name}${branch ? ` (branch: ${branch})` : ''}`
         });
-        res.status(201).json(newItem);
+
+        res.status(201).json(item);
     } catch (error) {
-        console.error("Error adding inventory item:", error);
+        console.error('Error adding inventory item category:', error);
         if (error.code === 11000) {
-            return res.status(409).json({ message: 'An item with this name already exists.' });
+            return res.status(409).json({ message: 'An item with this name already exists for this branch.' });
         }
-        res.status(500).json({ message: "Server error adding item" });
+        res.status(500).json({ message: 'Server error adding item category.' });
+    }
+});
+
+app.get('/api/inventory/items/:id/batches', verifyToken, async (req, res) => {
+    if (!INVENTORY_READ_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        await ensureInventoryMigration();
+        const item = await InventoryItem.findById(req.params.id);
+        if (!item) {
+            return res.status(404).json({ message: 'Inventory item not found.' });
+        }
+
+        const branch = await getScopedInventoryBranch(req.user);
+        if (branch && item.branch !== branch) {
+            return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
+        }
+
+        const batches = await InventoryBatch.find({ inventoryItem: item._id })
+            .populate('inventoryItem')
+            .sort({ receivedDate: 1, createdAt: 1 });
+
+        res.status(200).json(batches.map(flattenBatch));
+    } catch (error) {
+        console.error('Error fetching inventory batches:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error fetching inventory batches.' });
+    }
+});
+
+app.post('/api/inventory/batches', verifyToken, async (req, res) => {
+    if (!INVENTORY_EDIT_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        await ensureInventoryMigration();
+        const batch = await createInventoryBatchRecord(req.user, req.body);
+        const item = batch.inventoryItem;
+
+        await AuditLog.create({
+            action: 'ADD_INVENTORY',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Added inventory batch for ${item.name}${item.branch ? ` (branch: ${item.branch})` : ''}`
+        });
+
+        res.status(201).json(flattenBatch(batch));
+    } catch (error) {
+        console.error('Error adding inventory batch:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error adding inventory batch.' });
+    }
+});
+
+app.get('/api/inventory/alerts', verifyToken, async (req, res) => {
+    if (!INVENTORY_READ_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        await ensureInventoryMigration();
+        const branch = await getScopedInventoryBranch(req.user);
+        const filter = branch ? { branch } : {};
+        const batches = await InventoryBatch.find(filter).populate('inventoryItem');
+        const flattened = batches.map(flattenBatch);
+
+        res.status(200).json({
+            lowStock: flattened.filter((entry) => entry.isLowStock),
+            expiringSoon: flattened.filter((entry) => entry.isExpiringSoon),
+            expired: flattened.filter((entry) => entry.isExpired),
+        });
+    } catch (error) {
+        console.error('Error fetching inventory alerts:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error fetching inventory alerts.' });
     }
 });
 
 app.get('/api/inventory/:id', verifyToken, async (req, res) => {
+    if (!INVENTORY_READ_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
     try {
-        const item = await Inventory.findById(req.params.id);
-        if (!item) {
-            return res.status(404).json({ message: "Item not found" });
+        await ensureInventoryMigration();
+        const batch = await InventoryBatch.findById(req.params.id).populate('inventoryItem');
+        if (!batch) {
+            return res.status(404).json({ message: 'Item not found.' });
         }
 
-        // Branch managers can only view items belonging to their branch
-        if (req.user.role === 'branch-manager' && item.branch !== req.user.assignedBranch) {
+        const branch = await getScopedInventoryBranch(req.user);
+        if (branch && batch.branch !== branch) {
             return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
         }
 
-        res.status(200).json(item);
+        res.status(200).json(flattenBatch(batch));
     } catch (error) {
-        console.error("Error fetching single inventory item:", error);
-        if (error.name === 'CastError') {
-            return res.status(400).json({ message: "Invalid item ID format" });
-        }
-        res.status(500).json({ message: "Server error fetching item" });
+        console.error('Error fetching single inventory item:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error fetching inventory item.' });
+    }
+});
+
+app.post('/api/inventory', verifyToken, async (req, res) => {
+    if (!INVENTORY_EDIT_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        await ensureInventoryMigration();
+        const payload = {
+            ...req.body,
+            quantityReceived: req.body.quantityReceived ?? req.body.quantity ?? req.body.currentStock ?? 0,
+            quantityRemaining: req.body.quantityRemaining ?? req.body.quantity ?? req.body.currentStock ?? 0,
+            lowStockThreshold: req.body.lowStockThreshold ?? req.body.reorderLevel ?? req.body.threshold ?? 0,
+        };
+        const batch = await createInventoryBatchRecord(req.user, payload);
+        const item = batch.inventoryItem;
+
+        await AuditLog.create({
+            action: 'ADD_INVENTORY',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Added inventory batch for ${item.name}${item.branch ? ` (branch: ${item.branch})` : ''}`
+        });
+
+        res.status(201).json(flattenBatch(batch));
+    } catch (error) {
+        console.error('Error adding inventory item:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error adding inventory item.' });
     }
 });
 
 app.put('/api/inventory/:id', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!INVENTORY_EDIT_ROLES.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
+
     try {
-        // Branch managers can only edit items belonging to their branch
-        if (req.user.role === 'branch-manager') {
-            const existing = await Inventory.findById(req.params.id);
-            if (!existing) return res.status(404).json({ message: "Item not found" });
-            if (existing.branch !== req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
-            }
-            // Prevent branch-manager from changing the branch field
-            delete req.body.branch;
+        await ensureInventoryMigration();
+        const batch = await InventoryBatch.findById(req.params.id).populate('inventoryItem');
+        if (!batch) {
+            return res.status(404).json({ message: 'Item not found.' });
         }
 
-        const updatedItem = await Inventory.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { returnDocument: 'after', runValidators: true }
-        );
-        if (!updatedItem) return res.status(404).json({ message: "Item not found" });
+        const branch = req.user.role === 'branch-manager' ? await getScopedInventoryBranch(req.user) : '';
+        if (branch && batch.branch !== branch) {
+            return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
+        }
+
+        const item = await InventoryItem.findById(batch.inventoryItem._id);
+        if (!item) {
+            return res.status(404).json({ message: 'Inventory item category not found.' });
+        }
+
+        item.name = (req.body.itemName || req.body.name || item.name).trim();
+        item.category = (req.body.category || item.category).trim();
+        item.unit = (req.body.unit || item.unit).trim();
+        item.lowStockThreshold = Number(req.body.lowStockThreshold ?? req.body.reorderLevel ?? req.body.threshold ?? item.lowStockThreshold);
+        await item.save();
+
+        batch.brand = (req.body.brand || batch.brand || 'Unspecified').trim() || 'Unspecified';
+        batch.quantityRemaining = Number(req.body.quantity ?? req.body.currentStock ?? batch.quantityRemaining);
+        batch.quantityReceived = Number(req.body.quantityReceived ?? batch.quantityReceived);
+        batch.expirationDate = req.body.expirationDate === '' ? null : (req.body.expirationDate ?? batch.expirationDate);
+        batch.receivedDate = req.body.receivedDate || batch.receivedDate;
+        batch.supplierName = (req.body.supplierName ?? req.body.supplier ?? batch.supplierName ?? '').trim();
+        batch.batchNumber = (req.body.batchNumber ?? batch.batchNumber ?? '').trim();
+        syncBatchStatus(batch);
+        await batch.save();
+        await batch.populate('inventoryItem');
 
         await AuditLog.create({
             action: 'UPDATE_INVENTORY',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Updated inventory item: ${updatedItem.itemName}${updatedItem.branch ? ` (branch: ${updatedItem.branch})` : ''}`
+            details: `Updated inventory batch for ${item.name}${item.branch ? ` (branch: ${item.branch})` : ''}`
         });
-        res.status(200).json(updatedItem);
+
+        res.status(200).json(flattenBatch(batch));
     } catch (error) {
-        console.error("Error updating inventory item:", error);
-        res.status(500).json({ message: "Server error updating item" });
+        console.error('Error updating inventory item:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error updating inventory item.' });
     }
 });
 
 app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!INVENTORY_EDIT_ROLES.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
+
     try {
-        // Branch managers can only delete items belonging to their branch
-        if (req.user.role === 'branch-manager') {
-            const existing = await Inventory.findById(req.params.id);
-            if (!existing) return res.status(404).json({ message: "Item not found" });
-            if (existing.branch !== req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
-            }
+        await ensureInventoryMigration();
+        const batch = await InventoryBatch.findById(req.params.id).populate('inventoryItem');
+        if (!batch) {
+            return res.status(404).json({ message: 'Item not found.' });
         }
 
-        const deletedItem = await Inventory.findByIdAndDelete(req.params.id);
-        if (!deletedItem) return res.status(404).json({ message: "Item not found" });
+        const branch = req.user.role === 'branch-manager' ? await getScopedInventoryBranch(req.user) : '';
+        if (branch && batch.branch !== branch) {
+            return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
+        }
+
+        const item = batch.inventoryItem;
+        await InventoryBatch.findByIdAndDelete(req.params.id);
+        const remaining = await InventoryBatch.countDocuments({ inventoryItem: item._id });
+        if (remaining === 0) {
+            await InventoryItem.findByIdAndDelete(item._id);
+        }
 
         await AuditLog.create({
             action: 'DELETE_INVENTORY',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Deleted inventory item: ${deletedItem.itemName}${deletedItem.branch ? ` (branch: ${deletedItem.branch})` : ''}`
+            details: `Deleted inventory batch for ${item.name}${item.branch ? ` (branch: ${item.branch})` : ''}`
         });
-        res.status(200).json({ message: "Item deleted successfully" });
+
+        res.status(200).json({ message: 'Item deleted successfully' });
     } catch (error) {
-        console.error("Error deleting inventory item:", error);
-        res.status(500).json({ message: "Server error deleting item" });
+        console.error('Error deleting inventory item:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error deleting inventory item.' });
     }
 });
 
@@ -2205,7 +2470,7 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
 // CREATE SURGERY / APPOINTMENT
 // -------------------------------------------------------
 app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) => {
-    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
+    const staffRoles = ['administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
     if (!staffRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -2277,7 +2542,7 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
 });
 
 app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appointments/:appointmentId/register-guest'], verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -2501,7 +2766,7 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
 });
 
 app.delete(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req, res) => {
-    const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
+    const staffRoles = ['administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
     if (!staffRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -2577,7 +2842,7 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
             query.branch = scopedBranch;
             if (req.query.dentistId) query.dentist = req.query.dentistId;
         } else {
-            // Admin/co-admin roles can filter by dentistId via query param
+            // Admin-level viewers can filter by dentistId via query param
             if (req.query.dentistId) query.dentist = req.query.dentistId;
         }
 
@@ -2838,7 +3103,7 @@ app.post('/api/pre-register/:token', async (req, res) => {
 });
 
 app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/appointments/:appointmentId/resend-pre-register'], verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -3284,7 +3549,7 @@ app.get('/api/appointments/blocked-dates', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -3389,7 +3654,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'dentist', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -3510,7 +3775,7 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -3781,52 +4046,93 @@ app.patch('/api/my/settings', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'dentist', 'owner'];
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!INVENTORY_USAGE_ROLES.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const { itemsUsed, patientId, surgeryId } = req.body;
+        await ensureInventoryMigration();
+        const { itemsUsed, patientId } = req.body;
 
         if (!itemsUsed || !Array.isArray(itemsUsed) || itemsUsed.length === 0) {
             return res.status(400).json({ message: 'itemsUsed array is required.' });
         }
 
+        const branch = await getScopedInventoryBranch(req.user);
         const results = [];
         const errors = [];
 
         for (const item of itemsUsed) {
-            const { inventoryId, quantityUsed } = item;
-            if (!inventoryId || !quantityUsed || quantityUsed <= 0) {
-                errors.push({ inventoryId, error: 'Invalid item or quantity.' });
+            const { inventoryId, itemId, quantityUsed } = item;
+            const targetId = inventoryId || itemId;
+            const requiredQty = Number(quantityUsed || 0);
+
+            if (!targetId || requiredQty <= 0) {
+                errors.push({ inventoryId: targetId, error: 'Invalid item or quantity.' });
                 continue;
             }
 
-            const inventoryItem = await Inventory.findById(inventoryId);
+            let inventoryItem = await InventoryItem.findById(targetId);
+            let itemBranch = inventoryItem?.branch || '';
+
             if (!inventoryItem) {
-                errors.push({ inventoryId, error: 'Item not found.' });
+                const batchHit = await InventoryBatch.findById(targetId).populate('inventoryItem');
+                inventoryItem = batchHit?.inventoryItem || null;
+                itemBranch = batchHit?.branch || inventoryItem?.branch || '';
+            }
+
+            if (!inventoryItem) {
+                errors.push({ inventoryId: targetId, error: 'Item not found.' });
                 continue;
             }
 
-            if (inventoryItem.quantity < quantityUsed) {
+            if (branch && itemBranch !== branch) {
+                errors.push({ inventoryId: targetId, itemName: inventoryItem.name, error: 'Access denied for this branch inventory.' });
+                continue;
+            }
+
+            const activeBatches = await InventoryBatch.find({
+                inventoryItem: inventoryItem._id,
+                branch: inventoryItem.branch,
+                quantityRemaining: { $gt: 0 },
+            }).sort({ receivedDate: 1, createdAt: 1 });
+
+            const availableQty = activeBatches.reduce((sum, batch) => sum + Number(batch.quantityRemaining || 0), 0);
+            if (availableQty < requiredQty) {
                 errors.push({
-                    inventoryId,
-                    itemName: inventoryItem.itemName,
-                    error: `Insufficient stock. Available: ${inventoryItem.quantity} ${inventoryItem.unit}.`
+                    inventoryId: targetId,
+                    itemName: inventoryItem.name,
+                    error: `Insufficient stock. Available: ${availableQty} ${inventoryItem.unit}.`
                 });
                 continue;
             }
 
-            inventoryItem.quantity -= quantityUsed;
-            await inventoryItem.save();
+            let remainingToDeduct = requiredQty;
+            const consumedBatches = [];
+
+            for (const batch of activeBatches) {
+                if (remainingToDeduct <= 0) break;
+
+                const usableQty = Math.min(Number(batch.quantityRemaining || 0), remainingToDeduct);
+                batch.quantityRemaining -= usableQty;
+                syncBatchStatus(batch);
+                await batch.save();
+
+                remainingToDeduct -= usableQty;
+                consumedBatches.push({
+                    batchId: batch._id,
+                    brand: batch.brand || 'Unspecified',
+                    quantity: usableQty,
+                });
+            }
 
             results.push({
-                inventoryId,
-                itemName: inventoryItem.itemName,
-                previousQty: inventoryItem.quantity + quantityUsed,
-                deducted: quantityUsed,
-                remainingQty: inventoryItem.quantity,
-                isLowStock: inventoryItem.quantity <= inventoryItem.reorderLevel
+                inventoryId: inventoryItem._id,
+                itemName: inventoryItem.name,
+                previousQty: availableQty,
+                deducted: requiredQty,
+                remainingQty: availableQty - requiredQty,
+                isLowStock: (availableQty - requiredQty) <= Number(inventoryItem.lowStockThreshold || 0),
+                consumedBatches,
             });
         }
 
@@ -3859,7 +4165,7 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
 
 app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
     try {
-        const ARCHIVE_ALLOWED = ['administrator', 'co-administrator', 'owner'];
+        const ARCHIVE_ALLOWED = ['administrator', 'owner'];
         if (!ARCHIVE_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -3868,9 +4174,9 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: 'User not found.' });
 
-        const archivableRoles = ['dentist', 'secretary', 'co-administrator'];
+        const archivableRoles = ['dentist', 'secretary', 'branch-manager'];
         if (!archivableRoles.includes(user.role)) {
-            return res.status(403).json({ message: 'Only dentists, secretaries, and co-administrators can be archived.' });
+            return res.status(403).json({ message: 'Only dentists, secretaries, and branch managers can be archived.' });
         }
 
         user.isArchived = Boolean(isArchived);
@@ -3902,7 +4208,7 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
 
 app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
     try {
-        const STATS_ALLOWED = ['administrator', 'co-administrator', 'branch-manager', 'dentist', 'secretary', 'owner'];
+        const STATS_ALLOWED = ['administrator', 'branch-manager', 'dentist', 'secretary', 'owner'];
         if (!STATS_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -3923,7 +4229,30 @@ app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
             User.countDocuments({ role: 'dentist', status: 'active', isArchived: { $ne: true } }),
             Surgery.countDocuments({ date: { $gte: todayStart, $lte: todayEnd } }),
             Surgery.countDocuments({ status: 'pending' }),
-            Inventory.countDocuments({ $expr: { $lte: ['$quantity', '$reorderLevel'] } }),
+            InventoryBatch.aggregate([
+                {
+                    $lookup: {
+                        from: 'inventoryitems',
+                        localField: 'inventoryItem',
+                        foreignField: '_id',
+                        as: 'item',
+                    }
+                },
+                { $unwind: '$item' },
+                {
+                    $group: {
+                        _id: '$inventoryItem',
+                        quantityRemaining: { $sum: '$quantityRemaining' },
+                        lowStockThreshold: { $first: '$item.lowStockThreshold' },
+                    }
+                },
+                {
+                    $match: {
+                        $expr: { $lte: ['$quantityRemaining', '$lowStockThreshold'] }
+                    }
+                },
+                { $count: 'count' }
+            ]),
             User.countDocuments({ role: 'patient', createdAt: { $gte: todayStart, $lte: todayEnd } })
         ]);
 
@@ -3932,7 +4261,7 @@ app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
             activeDentists,
             todayAppointments,
             pendingAppointments,
-            lowStockItems,
+            lowStockItems: lowStockItems?.[0]?.count || 0,
             newRegistrations
         });
     } catch (error) {
@@ -4009,7 +4338,7 @@ app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
 
 app.get('/api/branches', verifyToken, async (req, res) => {
     try {
-        const BRANCH_ALLOWED = ['administrator', 'co-administrator', 'branch-manager', 'owner', 'secretary', 'dentist'];
+        const BRANCH_ALLOWED = ['administrator', 'branch-manager', 'owner', 'secretary', 'dentist'];
         if (!BRANCH_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -4034,7 +4363,7 @@ app.get('/api/branches', verifyToken, async (req, res) => {
  
 app.post('/api/branches', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
+        if (!['administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
         const { name, address, addressDetails, contactNumber } = req.body;
@@ -4070,7 +4399,7 @@ app.post('/api/branches', verifyToken, async (req, res) => {
  
 app.put('/api/branches/:id', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
+        if (!['administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
         const { name, address, addressDetails, contactNumber, isActive } = req.body;
@@ -4112,7 +4441,7 @@ app.put('/api/branches/:id', verifyToken, async (req, res) => {
  
 app.get('/api/system-config', verifyToken, async (req, res) => {
     try {
-        const CONFIG_ALLOWED = ['administrator', 'co-administrator', 'owner', 'branch-manager', 'secretary', 'dentist'];
+        const CONFIG_ALLOWED = ['administrator', 'owner', 'branch-manager', 'secretary', 'dentist'];
         if (!CONFIG_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -4130,7 +4459,7 @@ app.get('/api/system-config', verifyToken, async (req, res) => {
  
 app.put('/api/system-config', verifyToken, async (req, res) => {
     try {
-        if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
+        if (!['administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied. Admin only.' });
         }
  
@@ -4157,11 +4486,11 @@ app.put('/api/system-config', verifyToken, async (req, res) => {
 });
 
 // -------------------------------------------------------
-// DELETE USER (Admin only — for branch-managers, co-administrators)
+// DELETE USER (Administrator only)
 // -------------------------------------------------------
 app.delete('/api/users/:id', verifyToken, async (req, res) => {
     try {
-        const ALLOWED_ROLES = ['administrator', 'co-administrator'];
+        const ALLOWED_ROLES = ['administrator'];
         if (!ALLOWED_ROLES.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -4171,14 +4500,6 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
 
         // Co-admin cannot delete administrator accounts — log the attempt
         if (user.role === 'administrator') {
-            if (req.user.role === 'co-administrator') {
-                await AuditLog.create({
-                    action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
-                    user: req.user.email,
-                    role: 'co-administrator',
-                    details: 'Attempted to delete administrator account.'
-                });
-            }
             return res.status(403).json({ message: 'Cannot delete an administrator account.' });
         }
 
@@ -4202,7 +4523,7 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
 // MATERIAL USAGE LOG — POST (create)
 // -------------------------------------------------------
 const MATERIAL_USAGE_ALLOWED = [
-    'dentist', 'administrator', 'co-administrator', 'branch-manager', 'owner'
+    'dentist', 'administrator', 'branch-manager', 'owner'
 ];
 
 // -------------------------------------------------------
@@ -4373,7 +4694,7 @@ app.delete('/api/material-usage/:id', verifyToken, async (req, res) => {
 // AI RADIOGRAPH ENHANCER
 // -------------------------------------------------------
 const ENHANCE_ALLOWED = [
-    'dentist', 'administrator', 'co-administrator', 'branch-manager', 'owner'
+    'dentist', 'administrator', 'branch-manager', 'owner'
 ];
 app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
     try {
@@ -4469,7 +4790,7 @@ app.post('/api/ai/chat', verifyToken, aiChatLimiter, async (req, res) => {
 // -------------------------------------------------------
 // AI STAFF CHAT ASSISTANT — Streaming SSE (Phase 4)
 // -------------------------------------------------------
-const STAFF_CHAT_ALLOWED = ['dentist', 'administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+const STAFF_CHAT_ALLOWED = ['dentist', 'administrator', 'branch-manager', 'secretary', 'owner'];
 
 app.post('/api/ai/staff-chat', verifyToken, aiChatLimiter, async (req, res) => {
     try {
@@ -4561,7 +4882,7 @@ Strict rules:
 app.post('/api/ai/education', verifyToken, async (req, res) => {
     try {
         if (!ensureAiConfigured(res)) return;
-        const EDU_ALLOWED = ['dentist', 'administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+        const EDU_ALLOWED = ['dentist', 'administrator', 'branch-manager', 'secretary', 'owner'];
         if (!EDU_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -4638,7 +4959,7 @@ app.post('/api/activity-logs', verifyToken, async (req, res) => {
 
 app.post('/api/queue', verifyToken, async (req, res) => {
     try {
-        const allowed = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+        const allowed = ['administrator', 'branch-manager', 'secretary'];
         if (!allowed.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -4696,7 +5017,7 @@ app.post('/api/queue', verifyToken, async (req, res) => {
 // GET /api/queue — get all active queue entries, optionally filtered by branch
 app.get('/api/queue', verifyToken, async (req, res) => {
     try {
-        const allowed = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+        const allowed = ['administrator', 'branch-manager', 'secretary'];
         if (!allowed.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -4732,7 +5053,7 @@ app.get('/api/queue', verifyToken, async (req, res) => {
 // PATCH /api/queue/:id/status — update queue entry status (call, done, skip)
 app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
     try {
-        const allowed = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+        const allowed = ['administrator', 'branch-manager', 'secretary'];
         if (!allowed.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -4775,7 +5096,7 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
 // DELETE /api/queue/:id — remove a queue entry
 app.delete('/api/queue/:id', verifyToken, async (req, res) => {
     try {
-        const allowed = ['administrator', 'co-administrator', 'branch-manager', 'secretary'];
+        const allowed = ['administrator', 'branch-manager', 'secretary'];
         if (!allowed.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -4804,11 +5125,11 @@ app.delete('/api/queue/:id', verifyToken, async (req, res) => {
 // ROLE PERMISSIONS — GET all role configs
 // -------------------------------------------------------
 app.get('/api/role-permissions', verifyToken, async (req, res) => {
-    if (!['administrator', 'co-administrator', 'owner'].includes(req.user.role)) {
+    if (!['administrator', 'owner'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const CONFIGURABLE_ROLES = ['co-administrator', 'branch-manager', 'dentist', 'secretary'];
+        const CONFIGURABLE_ROLES = ['branch-manager', 'dentist', 'secretary'];
 
         // Ensure a doc exists for every configurable role
         await Promise.all(
@@ -4832,31 +5153,18 @@ app.get('/api/role-permissions', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 // ROLE PERMISSIONS — UPDATE permissions for a role
 // -------------------------------------------------------
-// AFTER (co-admin can edit non-admin role permissions)
 app.put('/api/role-permissions/:role', verifyToken, async (req, res) => {
     const isAdmin = req.user.role === 'administrator';
-    const isCoAdmin = req.user.role === 'co-administrator';
     const isOwner = req.user.role === 'owner';
 
-    if (!isAdmin && !isCoAdmin && !isOwner) {
+    if (!isAdmin && !isOwner) {
         return res.status(403).json({ message: 'Access denied.' });
-    }   
-
-    // Co-admin cannot modify administrator-level permission entries
-    if (isCoAdmin && req.params.role === 'administrator') {
-        await AuditLog.create({
-            action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
-            user: req.user.email,
-            role: 'co-administrator',
-            details: 'Attempted to modify administrator role permissions.'
-        });
-        return res.status(403).json({ message: 'Access denied. Cannot modify administrator permissions.' });
     }
     try {
         const { role } = req.params;
         const { permissions } = req.body;
 
-        const CONFIGURABLE_ROLES = ['co-administrator', 'branch-manager', 'dentist', 'secretary'];
+        const CONFIGURABLE_ROLES = ['branch-manager', 'dentist', 'secretary'];
         if (!CONFIGURABLE_ROLES.includes(role)) {
             return res.status(400).json({ message: 'Cannot configure permissions for this role.' });
         }
@@ -4886,14 +5194,6 @@ app.put('/api/role-permissions/:role', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 app.post('/api/users/:id/grant-admin', verifyToken, async (req, res) => {
     if (req.user.role !== 'administrator') {
-        if (req.user.role === 'co-administrator') {
-            await AuditLog.create({
-                action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
-                user: req.user.email,
-                role: 'co-administrator',
-                details: 'Attempted to use Grant Admin Access feature.'
-            });
-        }
         return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     try {
@@ -4923,7 +5223,7 @@ app.post('/api/users/:id/grant-admin', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 app.get('/api/analytics/branches', verifyToken, async (req, res) => {
     // ✅ PHASE 3: Owner has full cross-branch analytics access
-    const analyticsAllowed = ['administrator', 'co-administrator', 'branch-manager', 'owner'];
+    const analyticsAllowed = ['administrator', 'branch-manager', 'owner'];
     if (!analyticsAllowed.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -5065,7 +5365,7 @@ app.post('/api/support-tickets', verifyToken, async (req, res) => {
 
 // GET /api/support-tickets — Admin views all tickets with optional filters
 app.get('/api/support-tickets', verifyToken, async (req, res) => {
-    if (!['administrator', 'co-administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
+    if (!['administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -5099,7 +5399,7 @@ app.get('/api/support-tickets/:id', verifyToken, async (req, res) => {
         if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
 
         // Patients can only view their own tickets
-        const isAdmin = ['administrator', 'co-administrator'].includes(req.user.role);
+        const isAdmin = ['administrator'].includes(req.user.role);
         const isOwner = ticket.patientId?.toString() === req.user.id;
         if (!isAdmin && !isOwner) {
             return res.status(403).json({ message: 'Access denied.' });
@@ -5138,7 +5438,7 @@ app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
         });
 
         // Auto-set to in-progress when staff first replies
-        if (['administrator', 'co-administrator', 'branch-manager', 'secretary'].includes(req.user.role) && ticket.status === 'open') {
+        if (['administrator', 'branch-manager', 'secretary'].includes(req.user.role) && ticket.status === 'open') {
             ticket.status = 'in-progress';
             if (!ticket.assignedTo) {
                 ticket.assignedTo = req.user.id;
@@ -5156,7 +5456,7 @@ app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
 
 // PATCH /api/support-tickets/:id/status — Admin updates ticket status/priority/assignee
 app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
-    if (!['administrator', 'co-administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
+    if (!['administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -5190,127 +5490,11 @@ app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
 });
 
 // -------------------------------------------------------
-// TRANSFER SYSTEM OWNERSHIP (Administrator Only)
-// Co-Admin Plan — Phase 1, Section 5.2
+// TRANSFER SYSTEM OWNERSHIP
+// Disabled for Phase 2 role cleanup
 // -------------------------------------------------------
 app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
-    // Only a current administrator can initiate this action
-    if (req.user.role !== 'administrator') {
-        await AuditLog.create({
-            action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
-            user: req.user.email,
-            role: req.user.role,
-            actorId: req.user.id,
-            actorRole: req.user.role,
-            details: `Unauthorized attempt to initiate ownership transfer by non-administrator.`
-        });
-        return res.status(403).json({ message: 'Access denied. Only the Administrator can transfer system ownership.' });
-    }
-
-    const { targetCoAdminId, currentPassword } = req.body;
-
-    if (!targetCoAdminId || !currentPassword) {
-        return res.status(400).json({ message: 'Target Co-Administrator ID and current password are required.' });
-    }
-
-    let session;
-    try {
-        session = await mongoose.startSession();
-        let responsePayload = null;
-
-        await session.withTransaction(async () => {
-            const adminUser = await User.findById(req.user.id).session(session);
-            if (!adminUser) {
-                throw Object.assign(new Error('Administrator account not found.'), { statusCode: 404 });
-            }
-
-            const isPasswordValid = await bcrypt.compare(currentPassword, adminUser.password);
-            if (!isPasswordValid) {
-                throw Object.assign(new Error('Incorrect password. Ownership transfer cancelled.'), { statusCode: 401 });
-            }
-
-            const targetUser = await User.findById(targetCoAdminId).session(session);
-            if (!targetUser) {
-                throw Object.assign(new Error('Target user not found.'), { statusCode: 404 });
-            }
-            if (targetUser.role !== 'co-administrator') {
-                throw Object.assign(new Error('Target user must be a Co-Administrator.'), { statusCode: 400 });
-            }
-            if (targetUser.status !== 'active') {
-                throw Object.assign(new Error('Target Co-Administrator account must be active.'), { statusCode: 400 });
-            }
-
-            adminUser.role = 'co-administrator';
-            targetUser.role = 'administrator';
-
-            await adminUser.save({ session });
-            await targetUser.save({ session });
-
-            await AuditLog.create([{
-                action: 'OWNERSHIP_TRANSFER',
-                user: adminUser.email,
-                role: 'administrator',
-                actorId: adminUser._id,
-                actorRole: 'administrator',
-                targetId: targetUser._id,
-                targetModel: 'User',
-                details: `Ownership transferred from ${adminUser.email} (now Co-Administrator) to ${targetUser.email} (now Administrator).`
-            }], { session });
-
-            const newAdminName = `${targetUser.name?.first || ''} ${targetUser.name?.last || ''}`.trim();
-            const prevAdminName = `${adminUser.name?.first || ''} ${adminUser.name?.last || ''}`.trim();
-
-            try {
-                await resend.emails.send({
-                    from: 'NgitiFy Admin <noreply@ngitify.com>',
-                    to: targetUser.email,
-                    subject: 'NgitiFy: You are now the Administrator',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                            <h2 style="color: #005466;">Role Change Notification</h2>
-                            <p>Hello ${newAdminName},</p>
-                            <p>Your NgitiFy account role has been upgraded to <strong>Administrator</strong>.</p>
-                            <p>This change was initiated by <strong>${prevAdminName}</strong> (${adminUser.email}).</p>
-                            <p>You now hold full system ownership of NgitiFy for Dentime Dental Clinic.</p>
-                            <p style="color: #6b7280; font-size: 12px;">If you did not expect this change, please contact your clinic immediately.</p>
-                        </div>
-                    `
-                });
-
-                await resend.emails.send({
-                    from: 'NgitiFy Admin <noreply@ngitify.com>',
-                    to: adminUser.email,
-                    subject: 'NgitiFy: Your role has changed to Co-Administrator',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                            <h2 style="color: #005466;">Role Change Notification</h2>
-                            <p>Hello ${prevAdminName},</p>
-                            <p>You have successfully transferred Administrator ownership to <strong>${newAdminName}</strong> (${targetUser.email}).</p>
-                            <p>Your account role is now <strong>Co-Administrator</strong>.</p>
-                            <p style="color: #6b7280; font-size: 12px;">To reverse this change, the new Administrator must initiate a transfer back.</p>
-                        </div>
-                    `
-                });
-            } catch (emailError) {
-                console.error('⚠️ Ownership transfer email notification failed:', emailError.message);
-            }
-
-            responsePayload = {
-                message: `Ownership successfully transferred to ${newAdminName}. Your role is now Co-Administrator.`
-            };
-        });
-
-        res.json(responsePayload);
-
-    } catch (error) {
-        const statusCode = error.statusCode || 500;
-        console.error('Error during ownership transfer:', error);
-        res.status(statusCode).json({ message: error.message || 'Server error during ownership transfer. No changes were made.' });
-    } finally {
-        if (session) {
-            await session.endSession();
-        }
-    }
+    return res.status(410).json({ message: 'Ownership transfer is not available in Phase 2.' });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

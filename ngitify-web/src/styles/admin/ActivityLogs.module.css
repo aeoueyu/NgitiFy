@@ -326,8 +326,7 @@
     text-transform: capitalize;
 }
 
-.roleChip[data-role="administrator"],
-.roleChip[data-role="co-administrator"] {
+.roleChip[data-role="administrator"] {
     background: #dbeafe;
     color: #1d4ed8;
 }

@@ -36,7 +36,7 @@ export default function Sidebar() {
 
     const { canReadInventory } = usePermissions();
 
-    const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator';
+    const isAdmin = user?.role === 'administrator';
     const isBranchManager = user?.role === 'branch-manager';
     const isSecretary = user?.role === 'secretary';
     const isOwner = user?.role === 'owner';
@@ -89,7 +89,7 @@ export default function Sidebar() {
         if (user?.role === 'secretary') return '/secretary';
         if (user?.role === 'branch-manager') return '/branch-manager';
         if (user?.role === 'owner') return '/owner';
-        if (user?.role === 'administrator' || user?.role === 'co-administrator') return '/admin';
+        if (user?.role === 'administrator') return '/admin';
         return '/login';
     };
 
@@ -155,7 +155,6 @@ export default function Sidebar() {
 
     const roleLabel = {
         administrator: 'Administrator',
-        'co-administrator': 'Co-Administrator',
         'branch-manager': 'Branch Manager',
         dentist: 'Dentist',
         secretary: 'Secretary',
@@ -183,6 +182,10 @@ export default function Sidebar() {
             {isExpanded && <span className={styles['nav-text']}>{label}</span>}
             {badge}
         </div>
+    );
+
+    const sectionLabel = (label) => (
+        isExpanded ? <span className={styles.sectionLabel}>{label}</span> : null
     );
 
     const notifBadge = renderBadge(notifUnreadCount);
@@ -237,13 +240,18 @@ export default function Sidebar() {
                 )}
 
                 <div className={styles['nav-menu']}>
+                    {sectionLabel('Main')}
                     {navItem(dashboardPath, FaTachometerAlt, 'Dashboard')}
+
+                    {sectionLabel('Clinic')}
                     {navItem(schedulePath, FaCalendarAlt, 'Schedule')}
 
-                    {isAdmin && navItem('/admin/manage-users', FaUsers, 'User Management')}
+                    {sectionLabel('Patients')}
+                    {(isAdmin || isBranchManager || isSecretary) && navItem(`${basePath}/patient-emr`, FaFileMedical, 'Patient EMR')}
 
                     {isBranchManager && (
                         <>
+                            {sectionLabel('Management')}
                             {navItem('/branch-manager/manage-users', FaUsers, 'User Management')}
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
@@ -254,6 +262,7 @@ export default function Sidebar() {
 
                     {isOwner && (
                         <>
+                            {sectionLabel('Management')}
                             {navItem('/owner/manage-users', FaUsers, 'User Management')}
                             {navItem('/owner/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/owner/roles', FaShieldAlt, 'Roles & Permissions')}
@@ -265,6 +274,7 @@ export default function Sidebar() {
 
                     {isSecretary && (
                         <>
+                            {sectionLabel('Management')}
                             {navItem('/secretary/patients', FaUserInjured, 'Patients')}
                             {navItem('/secretary/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/secretary/chat-support', FaHeadset, 'Chat Support')}
@@ -277,9 +287,12 @@ export default function Sidebar() {
 
                     {isDentistUser && (
                         <>
-                            {navItem('/dentist/emr', FaFileMedical, 'Patient EMR')}
+                            {sectionLabel('Patients')}
+                            {navItem('/dentist/patient-emr', FaFileMedical, 'Patient EMR')}
+                            {sectionLabel('Clinic')}
                             {navItem('/dentist/odontogram', FaTooth, 'Odontogram')}
                             {navItem('/dentist/material-usage', FaBoxes, 'Material Usage')}
+                            {sectionLabel('System')}
                             {navItem('/dentist/notifications', FaBell, 'Notifications')}
                             {navItem('/dentist/activity-logs', FaClipboardList, 'Activity Logs')}
                         </>
@@ -287,7 +300,11 @@ export default function Sidebar() {
 
                     {isAdmin && (
                         <>
+                            {sectionLabel('Management')}
+                            {navItem('/admin/manage-users', FaUsers, 'User Management')}
+                            {navItem('/admin/patient-emr', FaFileMedical, 'Patient EMR')}
                             {navItem('/admin/notifications', FaBell, 'Notifications', notifBadge)}
+                            {sectionLabel('System')}
                             {navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/admin/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
@@ -298,6 +315,7 @@ export default function Sidebar() {
                 </div>
 
                 <div className={styles['footer-section']}>
+                    {sectionLabel('Account')}
                     {isAdmin && (
                         <>
                             <div

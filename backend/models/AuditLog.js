@@ -7,7 +7,7 @@ const auditLogSchema = new mongoose.Schema({
     role:    { type: String },                 // Role of the actor
     details: { type: String, required: true }, // Human-readable description
 
-    // ── New fields (Co-Administrator plan spec) ──
+    // ── New fields for richer audit trail context ──
     actorId:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // ObjectId of the actor
     actorRole:   { type: String },                                       // Explicit role string
     targetId:    { type: mongoose.Schema.Types.ObjectId },               // ObjectId of affected doc

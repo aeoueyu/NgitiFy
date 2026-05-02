@@ -1,3 +1,5 @@
-// Reuses admin PatientEMR — branch scoping enforced at API level
-import PatientEMR from '../admin/PatientEMR';
-export default PatientEMR;
+import SharedPatientEMR from '../admin/PatientEMR';
+
+export default function BranchManagerPatientEMR(props) {
+    return <SharedPatientEMR {...props} roleOverride="branch-manager" />;
+}

@@ -24,6 +24,7 @@ const ActivateAccountPage = lazy(() => import('./pages/auth/ActivateAccountPage'
 // Pages - Admin
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const SchedulePage = lazy(() => import('./pages/shared/SchedulePage'));
+const PatientEMRPage = lazy(() => import('./pages/shared/PatientEMRPage'));
 const ManageDentists = lazy(() => import('./pages/admin/ManageDentists'));
 const ManageSecretaries = lazy(() => import('./pages/admin/ManageSecretaries'));
 const ManagePatients = lazy(() => import('./pages/admin/ManagePatients'));
@@ -39,9 +40,8 @@ const AppointmentNotifications = lazy(() => import('./pages/admin/AppointmentNot
 // ✅ PHASE 2: New admin pages
 const ManageBranchManagers = lazy(() => import('./pages/admin/ManageBranchManagers'));
 const AddBranchManager = lazy(() => import('./pages/admin/AddBranchManager'));
-const ManageCoAdmins = lazy(() => import('./pages/admin/ManageCoAdmins'));
-const AddCoAdmin = lazy(() => import('./pages/admin/AddCoAdmin'));
 const AdminPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
+const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
 const SystemConfig = lazy(() => import('./pages/admin/SystemConfig'));
 const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const RolesPermissions = lazy(() => import('./pages/admin/RolesPermissions'));
@@ -51,12 +51,11 @@ const ChatSupport = lazy(() => import('./pages/admin/ChatSupport'));
 const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const IntegrityTools = lazy(() => import('./pages/admin/IntegrityTools'));
 const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
-const CoAdminAIAssistant = lazy(() => import('./pages/admin/CoAdminAIAssistant'));
+const AdminAIAssistant = lazy(() => import('./pages/admin/CoAdminAIAssistant'));
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
 const DentistPatientEMR = lazy(() => import('./pages/dentist/PatientEMR'));
-const DentistEMRList = lazy(() => import('./pages/dentist/DentistEMRList'));
 const DentistNotifications = lazy(() => import('./pages/dentist/Notifications'));
 const DentistActivityLogs  = lazy(() => import('./pages/dentist/ActivityLogs'));
 const DentistMaterialUsage = lazy(() => import('./pages/dentist/MaterialUsageLog'));
@@ -132,7 +131,8 @@ function App() {
                   <Route path="/dentist/dashboard"               element={<DentistDashboard />} />
                   <Route path="/dentist/appointments"            element={<Navigate to="/dentist/schedule" replace />} />
                   <Route path="/dentist/schedule"                element={<SchedulePage />} />
-                  <Route path="/dentist/emr"                     element={<DentistEMRList />} />
+                  <Route path="/dentist/emr"                     element={<Navigate to="/dentist/patient-emr" replace />} />
+                  <Route path="/dentist/patient-emr"             element={<PatientEMRPage />} />
                   <Route path="/dentist/patients/:patientId/emr" element={<DentistPatientEMR />} />
                   <Route path="/dentist/material-usage"          element={<DentistMaterialUsage />} />
                   <Route path="/dentist/odontogram"              element={<DentistOdontogram />} />
@@ -162,6 +162,7 @@ function App() {
                   <Route path="/branch-manager/inventory"    element={<InventoryTracker />} />
                   <Route path="/branch-manager/profile"      element={<AdminProfile />} />
                   <Route path="/branch-manager/settings"     element={<AdminSettings />} />
+                  <Route path="/branch-manager/patient-emr"  element={<PatientEMRPage />} />
                   <Route path="/branch-manager/patients/:patientId/emr" element={<BranchManagerPatientEMR />} />
                 </Route>
               </Route>
@@ -178,7 +179,6 @@ function App() {
                   <Route path="/owner/manage-users/secretaries"     element={<ManageSecretaries />} />
                   <Route path="/owner/manage-users/patients"        element={<ManagePatients />} />
                   <Route path="/owner/manage-users/branch-managers" element={<ManageBranchManagers />} />
-                  <Route path="/owner/manage-users/co-admins"       element={<ManageCoAdmins />} />
                   <Route path="/owner/manage-users/owners"          element={<ManageOwners />} />
                   <Route path="/owner/patients/:patientId/emr"      element={<AdminPatientEMR />} />
                   <Route path="/owner/branches"                     element={<BranchManagement />} />
@@ -203,6 +203,7 @@ function App() {
                   <Route path="/secretary/patients/add"                 element={<SecretaryAddPatient />} />
                   <Route path="/secretary/patients/:patientId/edit"     element={<SecretaryEditPatient />} />
                   <Route path="/secretary/patients/:patientId"          element={<SecretaryViewPatient />} />
+                  <Route path="/secretary/patient-emr"                 element={<PatientEMRPage />} />
                   <Route path="/secretary/patients/:patientId/emr"      element={<SecretaryPatientEMR />} />
                   <Route path="/secretary/queue"                        element={<Navigate to="/secretary/schedule" replace />} />
                   <Route path="/secretary/chat-support"                 element={<SecretaryChatSupport />} />
@@ -214,7 +215,7 @@ function App() {
               </Route>
 
               {/* Protected Routes - Administrator Area */}
-              <Route element={<ProtectedRoute allowedRoles={['administrator', 'co-administrator']} />}>
+              <Route element={<ProtectedRoute allowedRoles={['administrator']} />}>
                 <Route element={<DashboardLayout />}>
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
                   <Route path="/admin/profile" element={<AdminProfile />} />
@@ -226,12 +227,11 @@ function App() {
                   <Route path="/admin/inventory" element={<InventoryTracker />} />
 
                   {/* User Management */}
-                  <Route path="/admin/manage-users" element={<Navigate to="/admin/manage-users/patients" replace />} />
+                  <Route path="/admin/manage-users" element={<UserManagement />} />
                   <Route path="/admin/manage-users/dentists" element={<ManageDentists />} />
                   <Route path="/admin/manage-users/secretaries" element={<ManageSecretaries />} />
                   <Route path="/admin/manage-users/patients" element={<ManagePatients />} />
                   <Route path="/admin/manage-users/branch-managers" element={<ManageBranchManagers />} />
-                  <Route path="/admin/manage-users/co-admins" element={<ManageCoAdmins />} />
                   <Route path="/admin/manage-users/owners" element={<ManageOwners />} />   {/* ✅ PHASE 3 */}
 
                   {/* Add/Edit staff */}
@@ -239,9 +239,9 @@ function App() {
                   <Route path="/admin/add-secretary" element={<AddSecretary />} />
                   <Route path="/admin/add-patient" element={<AddPatient />} />
                   <Route path="/admin/add-branch-manager" element={<AddBranchManager />} />
-                  <Route path="/admin/add-co-admin" element={<AddCoAdmin />} />
 
                   {/* ✅ PHASE 2: Admin EMR */}
+                  <Route path="/admin/patient-emr" element={<PatientEMRPage />} />
                   <Route path="/admin/patients/:patientId/emr" element={<AdminPatientEMR />} />
 
                   {/* ✅ PHASE 2: System Config */}
@@ -257,7 +257,7 @@ function App() {
                   <Route path="/admin/chat-support" element={<ChatSupport />} />
                   <Route path="/admin/integrity" element={<IntegrityTools />} />
                   <Route path="/admin/activity-logs" element={<ActivityLogs />} />
-                  <Route path="/admin/ai-assistant" element={<CoAdminAIAssistant />} />
+                  <Route path="/admin/ai-assistant" element={<AdminAIAssistant />} />
                 </Route>
               </Route>
 

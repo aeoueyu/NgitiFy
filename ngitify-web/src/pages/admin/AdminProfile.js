@@ -364,17 +364,14 @@ export default function MyProfile() {
     // Role display mappings
     const roleMap = {
         'administrator':    'Clinic Administrator',
-        'co-administrator': 'Co-Administrator',
         'branch-manager':   'Branch Manager',
         'dentist':          'Dentist',
         'secretary':        'Front Desk Personnel',
         'owner':            'Clinic Owner',              // ✅ Owner role label
     };
     
-    const roleTagStyle = user?.role === 'co-administrator'
-        ? { backgroundColor: '#ccfbf1', color: '#0f766e', border: '1px solid #99f6e4' }
-        : user?.role === 'administrator'
-            ? { backgroundColor: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe' }
+    const roleTagStyle = user?.role === 'administrator'
+        ? { backgroundColor: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe' }
             : user?.role === 'owner'
                 ? { backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }  // ✅ Amber tag for owner
                 : {};

@@ -230,37 +230,42 @@ export default function ManageSecretaries() {
                                     </td>
                                     <td>{secretary.email}</td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
-                                    <td>
+                                    <td className={tblStyles.wrapCell}>
                                         {secretary.assignedBranches.length > 0
                                             ? secretary.assignedBranches.join(', ')
                                             : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>
                                         }
                                     </td>
                                     <td>
-                                        <span className={`${styles.statusDot} ${secretary.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
-                                        <span style={{ fontWeight: '500', color: secretary.status === 'Active' ? '#15803d' : '#b91c1c' }}>{secretary.status}</span>
+                                        <span className={`${tblStyles.statusBadge} ${secretary.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                            {secretary.status}
+                                        </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <button className={styles.iconBtn} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
-                                        <button className={styles.iconBtn} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
-                                        {!secretary.isVerified && (
+                                        <div className={tblStyles.iconActions}>
+                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
+                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
+                                            {!secretary.isVerified && (
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                    onClick={() => handleResendActivation(secretary)}
+                                                    title="Resend Activation Email"
+                                                    style={{ color: '#f59e0b' }}
+                                                >
+                                                    <FaEnvelope />
+                                                </button>
+                                            )}
                                             <button
-                                                className={styles.iconBtn}
-                                                onClick={() => handleResendActivation(secretary)}
-                                                title="Resend Activation Email"
-                                                style={{ color: '#f59e0b' }}
+                                                type="button"
+                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                onClick={() => handleToggleStatus(secretary)}
+                                                title={secretary.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                style={{ color: secretary.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                             >
-                                                <FaEnvelope />
+                                                {secretary.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
-                                        )}
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => handleToggleStatus(secretary)}
-                                            title={secretary.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                            style={{ color: secretary.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
-                                        >
-                                            {secretary.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
-                                        </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))

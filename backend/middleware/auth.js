@@ -18,8 +18,8 @@ const verifyToken = async (req, res, next) => {
 
         // ── Session Invalidation Guard ───────────────────────────────────────
         // Check the user's live status from the database on every request.
-        // This ensures that deactivating a Co-Admin (or any user) immediately
-        // invalidates their active session without needing a token blacklist.
+        // This ensures that deactivating any user immediately invalidates
+        // their active session without needing a token blacklist.
         const liveUser = await User.findById(decoded.id)
             .select('status role email assignedBranch assignedBranches isDentist')
             .lean();

@@ -43,7 +43,7 @@ export default function ManagePatients() {
     const [confirmConfig, setConfirmConfig] = useState(null);
 
     const isSecretary = user?.role === 'secretary';
-    const isAdmin = user?.role === 'administrator' || user?.role === 'co-administrator' || user?.role === 'owner';
+    const isAdmin = user?.role === 'administrator' || user?.role === 'owner';
     const showBranchColumn = !isSecretary;
 
     useEffect(() => {
@@ -302,34 +302,39 @@ export default function ManagePatients() {
                                         </td>
                                     )}
                                     <td>
-                                        <span className={`${styles.statusDot} ${patient.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
-                                        <span style={{ fontWeight: '500', color: patient.status === 'Active' ? '#15803d' : '#b91c1c' }}>{patient.status}</span>
+                                        <span className={`${tblStyles.statusBadge} ${patient.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                            {patient.status}
+                                        </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <button className={styles.iconBtn} onClick={() => handleViewClick(patient.id)} title="View Full EMR Profile"><FaEye /></button>
-                                        {canEditPatients && (
-                                            <>
-                                                <button className={styles.iconBtn} onClick={() => handleEditClick(patient.id)} title="Edit Quick Details"><FaEdit /></button>
-                                                {!patient.isVerified && (
+                                        <div className={tblStyles.iconActions}>
+                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleViewClick(patient.id)} title="View Full EMR Profile"><FaEye /></button>
+                                            {canEditPatients && (
+                                                <>
+                                                    <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleEditClick(patient.id)} title="Edit Quick Details"><FaEdit /></button>
+                                                    {!patient.isVerified && (
+                                                        <button
+                                                            type="button"
+                                                            className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                            onClick={() => handleResendActivation(patient)}
+                                                            title="Resend Activation Email"
+                                                            style={{ color: '#f59e0b' }}
+                                                        >
+                                                            <FaEnvelope />
+                                                        </button>
+                                                    )}
                                                     <button
-                                                        className={styles.iconBtn}
-                                                        onClick={() => handleResendActivation(patient)}
-                                                        title="Resend Activation Email"
-                                                        style={{ color: '#f59e0b' }}
+                                                        type="button"
+                                                        className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                        onClick={() => handleToggleStatus(patient)}
+                                                        title={patient.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                        style={{ color: patient.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                                     >
-                                                        <FaEnvelope />
+                                                        {patient.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                                     </button>
-                                                )}
-                                                <button
-                                                    className={styles.iconBtn}
-                                                    onClick={() => handleToggleStatus(patient)}
-                                                    title={patient.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                                    style={{ color: patient.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
-                                                >
-                                                    {patient.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
-                                                </button>
-                                            </>
-                                        )}
+                                                </>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))

@@ -188,44 +188,49 @@ export default function ManageOwners() {
                                     </td>
                                     <td>{owner.email}</td>
                                     <td>
-                                        <span className={`${styles.statusDot} ${owner.status === 'Active' ? styles.activeDot : styles.inactiveDot}`} />
-                                        <span style={{ fontWeight: '500', color: owner.status === 'Active' ? '#15803d' : '#b91c1c' }}>
+                                        <span className={`${tblStyles.statusBadge} ${owner.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
                                             {owner.status}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
-                                            title="View Owner"
-                                        >
-                                            <FaEye />
-                                        </button>
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
-                                            title="Edit Owner"
-                                        >
-                                            <FaEdit />
-                                        </button>
-                                        {!owner.isVerified && (
+                                        <div className={tblStyles.iconActions}>
                                             <button
-                                                className={styles.iconBtn}
-                                                onClick={() => handleResendActivation(owner)}
-                                                title="Resend Activation Email"
-                                                style={{ color: '#f59e0b' }}
+                                                type="button"
+                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
+                                                title="View Owner"
                                             >
-                                                <FaEnvelope />
+                                                <FaEye />
                                             </button>
-                                        )}
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => handleToggleStatus(owner)}
-                                            title={owner.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                            style={{ color: owner.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
-                                        >
-                                            {owner.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
-                                        </button>
+                                            <button
+                                                type="button"
+                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
+                                                title="Edit Owner"
+                                            >
+                                                <FaEdit />
+                                            </button>
+                                            {!owner.isVerified && (
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                    onClick={() => handleResendActivation(owner)}
+                                                    title="Resend Activation Email"
+                                                    style={{ color: '#f59e0b' }}
+                                                >
+                                                    <FaEnvelope />
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                onClick={() => handleToggleStatus(owner)}
+                                                title={owner.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                                style={{ color: owner.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
+                                            >
+                                                {owner.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))

@@ -159,7 +159,6 @@ export default function AuditTrail() {
     const getRoleBadgeClass = (role) => {
         switch(role) {
             case 'administrator': return styles.roleAdmin;
-            case 'co-administrator': return styles.roleAdmin;
             case 'branch-manager': return styles.roleAdmin;
             case 'dentist': return styles.roleDentist;
             case 'secretary': return styles.roleSecretary;
@@ -194,7 +193,6 @@ export default function AuditTrail() {
                     >
                         <option value="All">All Roles</option>
                         <option value="administrator">Administrator</option>
-                        <option value="co-administrator">Co-Administrator</option>
                         <option value="branch-manager">Branch Manager</option>
                         <option value="dentist">Dentists</option>
                         <option value="secretary">Secretaries</option>

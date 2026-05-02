@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaSave, FaSearch, FaUserShield, FaLock } from 'react-icons/fa';
+import { FaSave, FaSearch, FaUserShield } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
@@ -17,7 +17,6 @@ const MODULES = [
 ];
 
 const ALL_ROLES = [
-    { key: 'co-administrator', label: 'Co-Admin' },
     { key: 'branch-manager', label: 'Branch Manager' },
     { key: 'dentist', label: 'Dentist' },
     { key: 'secretary', label: 'Secretary' },
@@ -32,7 +31,6 @@ const ACCESS_OPTIONS = [
 export default function RolesPermissions() {
     const { addToast } = useToast();
     const { user } = useAuth();
-    const isCoAdmin = user?.role === 'co-administrator';
     const isOwner = user?.role === 'owner';
     const ROLES = ALL_ROLES;
 
@@ -66,7 +64,7 @@ export default function RolesPermissions() {
 
     const fetchUsers = useCallback(async () => {
         try {
-            const res = await authFetch('/users?role=dentist,secretary,branch-manager,co-administrator');
+            const res = await authFetch('/users?role=dentist,secretary,branch-manager');
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
@@ -78,8 +76,8 @@ export default function RolesPermissions() {
 
     useEffect(() => {
         fetchPermissions();
-        if (!isCoAdmin && !isOwner) fetchUsers();
-    }, [fetchPermissions, fetchUsers, isCoAdmin, isOwner]);
+        if (!isOwner) fetchUsers();
+    }, [fetchPermissions, fetchUsers, isOwner]);
 
     const handleChange = (role, module, value) => {
         setMatrix((prev) => ({
@@ -163,30 +161,6 @@ export default function RolesPermissions() {
                 </div>
             </div>
 
-            {isCoAdmin && (
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
-                        borderRadius: '10px',
-                        padding: '12px 18px',
-                        marginBottom: '20px',
-                        color: '#1e40af',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                    }}
-                >
-                    <FaLock style={{ flexShrink: 0 }} />
-                    <span>
-                        You can manage the permission matrix like the Administrator, but
-                        <strong> ownership transfer and administrator-only escalation still stay with the Administrator.</strong>
-                    </span>
-                </div>
-            )}
-
             <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Role Permission Matrix</h2>
                 <p className={styles.sectionNote}>
@@ -262,7 +236,7 @@ export default function RolesPermissions() {
                 </div>
             </div>
 
-            {!isCoAdmin && !isOwner && (
+            {!isOwner && (
                 <div className={styles.card}>
                     <div className={styles.grantHeader}>
                         <FaUserShield className={styles.grantIcon} />

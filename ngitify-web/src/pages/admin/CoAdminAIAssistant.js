@@ -6,16 +6,15 @@ import styles from '../../styles/admin/CoAdminAIAssistant.module.css';
 const SUGGESTED_PROMPTS = [
     "Summarize today's operational priorities and pending approvals.",
     'Show me where to manage staff, branches, appointments, and inventory.',
-    'Which notifications or activity logs need immediate co-admin attention?',
+    'Which notifications or activity logs need immediate administrator attention?',
     'Give me a quick guide for common NgitiFy admin workflows.',
 ];
 
-export default function CoAdminAIAssistant() {
-    const { user } = useAuth();
-    const isAdministrator = user?.role === 'administrator';
-    const title = isAdministrator ? 'Administrator AI workspace preview' : 'Co-administrator AI workspace preview';
-    const roleLabel = isAdministrator ? 'administrator' : 'co-administrator';
-    const helperScopeLabel = isAdministrator ? 'admin assistant' : 'co-admin assistant';
+export default function AdminAIAssistantPreview() {
+    useAuth();
+    const title = 'Administrator AI workspace preview';
+    const roleLabel = 'administrator';
+    const helperScopeLabel = 'admin assistant';
 
     return (
         <main className={styles.page}>

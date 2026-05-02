@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/PatientEMR.module.css';
 
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { formatDateLong, formatDateShort } from '../../utils/dateUtils';
 import { regions, provinces, cities } from '../../utils/addressData';
@@ -45,12 +46,17 @@ const formatAddressDisplay = (addr) => {
 const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
 const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
 
-export default function PatientEMR({ patientId: propPatientId, onClose }) {
+export default function PatientEMR({ patientId: propPatientId, onClose, embedded = false, roleOverride = '' }) {
     const urlParams = useParams();
     const activePatientId = propPatientId || urlParams.patientId;
     
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { addToast } = useToast();
+    const effectiveRole = roleOverride || user?.role || 'administrator';
+    const canEditMedical = effectiveRole !== 'secretary';
+    const canAddTreatmentLog = effectiveRole !== 'secretary';
+    const canUploadRadiograph = effectiveRole !== 'secretary';
     
     // Core States
     const [activeTab, setActiveTab] = useState('overview');
@@ -365,7 +371,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         <div className={styles.contentCard}>
             <div className={styles.sectionHeaderRow}>
                 <h3 className={styles.sectionTitle}>Medical History & Alerts</h3>
-                {!isEditingMedical && (
+                {canEditMedical && !isEditingMedical && (
                     <button className={styles.actionBtn} onClick={() => setIsEditingMedical(true)}>
                         Edit Medical History
                     </button>
@@ -596,12 +602,14 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
 
     const renderTreatmentLogs = () => (
         <div className={styles.contentCard}>
-            <div className={styles.sectionHeaderRow} style={{ marginBottom: '20px' }}>
-                <h3 className={styles.sectionTitle}>Treatment & Activity Timeline</h3>
-                <button className={styles.actionBtn} onClick={() => setIsAddLogOpen(true)}>
-                    <FaPlus /> Add Log
-                </button>
-            </div>
+                <div className={styles.sectionHeaderRow} style={{ marginBottom: '20px' }}>
+                    <h3 className={styles.sectionTitle}>Treatment & Activity Timeline</h3>
+                    {canAddTreatmentLog && (
+                        <button className={styles.actionBtn} onClick={() => setIsAddLogOpen(true)}>
+                            <FaPlus /> Add Log
+                        </button>
+                    )}
+                </div>
 
             <div className={styles.controlsRow}>
                 <div className={styles.searchFilterGroup}>
@@ -685,7 +693,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                 )}
             </div>
 
-            {isAddLogOpen && (
+            {canAddTreatmentLog && isAddLogOpen && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalCard} style={{ maxWidth: '500px' }}>
                         <h3 className={styles.modalTitle} style={{ textAlign: 'left', border: 'none', padding: 0, marginBottom: '20px' }}>Add Treatment Log</h3>
@@ -877,9 +885,11 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             <div className={styles.contentCard}>
                 <div className={styles.sectionHeaderRow}>
                     <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Dental Radiographs (X-Rays)</h3>
-                    <button className={styles.uploadBtn} onClick={() => setIsUploadModalOpen(true)}>
-                        <FaUpload /> Upload Radiograph
-                    </button>
+                    {canUploadRadiograph && (
+                        <button className={styles.uploadBtn} onClick={() => setIsUploadModalOpen(true)}>
+                            <FaUpload /> Upload Radiograph
+                        </button>
+                    )}
                 </div>
 
                 {radiographs.length > 0 ? (
@@ -915,7 +925,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     );
 
     const renderUploadModal = () => (
-        isUploadModalOpen && (
+        canUploadRadiograph && isUploadModalOpen && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
                 <div style={{ background: 'white', borderRadius: '16px', padding: '40px', width: '90%', maxWidth: '480px', boxShadow: '0 15px 40px rgba(0,0,0,0.2)', fontFamily: "'Lexend Deca', sans-serif" }}>
                     <h3 style={{ color: '#01538b', fontSize: '20px', fontWeight: '800', margin: '0 0 20px 0', borderLeft: '4px solid #2dccf6', paddingLeft: '12px' }}>Upload Radiograph</h3>
@@ -1004,17 +1014,19 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
 
     const innerContent = (
         <div className={onClose ? styles.formCard : ''} style={onClose ? { backgroundColor: '#f4f7fa' } : {}}>
-            <div className={styles.headerWrapper}>
-                <div className={styles.headerLeft}>
-                    <button className={styles.backIconButton} onClick={handleBack} title="Back">
-                        {onClose ? <FaTimes /> : <FaArrowLeft />}
-                    </button>
-                    <div className={styles.header}>
-                        <h1 className={styles.title}>Electronic Medical Record</h1>
-                        <p className={styles.subtitle}>Comprehensive clinical profile and treatment history</p>
+            {!embedded && (
+                <div className={styles.headerWrapper}>
+                    <div className={styles.headerLeft}>
+                        <button className={styles.backIconButton} onClick={handleBack} title="Back">
+                            {onClose ? <FaTimes /> : <FaArrowLeft />}
+                        </button>
+                        <div className={styles.header}>
+                            <h1 className={styles.title}>Electronic Medical Record</h1>
+                            <p className={styles.subtitle}>Comprehensive clinical profile and treatment history</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             <div className={styles.profileHeaderCard}>
                 <UserAvatar user={{ name: patient.name, profileImage: patient.profileImage }} size={90} style={{ border: '3px solid #e0f2fe', boxShadow: '0 4px 10px rgba(1,83,139,0.1)' }} />
@@ -1069,5 +1081,19 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
         );
     }
 
-    return <main className={styles['main-content']}>{innerContent}</main>;
+    if (embedded) {
+        return (
+            <>
+                {innerContent}
+                {renderUploadModal()}
+            </>
+        );
+    }
+
+    return (
+        <>
+            <main className={styles['main-content']}>{innerContent}</main>
+            {renderUploadModal()}
+        </>
+    );
 }

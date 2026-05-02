@@ -13,8 +13,7 @@ export default function DashboardLayout() {
     const [showWarning, setShowWarning] = useState(false);
 
     // ── Fetch session timeout duration from SystemConfig ──────────────────
-    // This ensures the configured value in System Config applies to ALL roles,
-    // including Co-Administrator (spec §Phase 3 — sessionTimeoutMinutes).
+    // This ensures the configured value in System Config applies to all dashboard roles.
     const [timeoutMinutes, setTimeoutMinutes] = useState(30); // safe default while loading
 
     useEffect(() => {

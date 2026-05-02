@@ -51,7 +51,6 @@ const userSchema = new mongoose.Schema({
         required: true,
         enum: [
             'administrator',
-            'co-administrator',
             'branch-manager',
             'dentist',
             'secretary',

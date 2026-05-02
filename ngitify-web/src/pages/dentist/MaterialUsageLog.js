@@ -6,6 +6,32 @@ import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatDateLong } from '../../utils/dateUtils';
 
+const groupInventoryItems = (rows = []) => {
+    const grouped = new Map();
+
+    rows.forEach((entry) => {
+        const itemId = entry.itemId || entry._id || entry.id;
+        if (!itemId) return;
+
+        const existing = grouped.get(itemId);
+        if (existing) {
+            existing.stock += Number(entry.quantity ?? entry.currentStock ?? entry.stock ?? 0);
+            return;
+        }
+
+        grouped.set(itemId, {
+            _id: itemId,
+            id: itemId,
+            name: entry.itemName || entry.name || 'Unknown Item',
+            itemName: entry.itemName || entry.name || 'Unknown Item',
+            unit: entry.unit || 'pcs',
+            stock: Number(entry.quantity ?? entry.currentStock ?? entry.stock ?? 0),
+        });
+    });
+
+    return Array.from(grouped.values()).sort((left, right) => left.name.localeCompare(right.name));
+};
+
 // ─── MODAL MODE (used from DentistAppointments) ──────────────────────────────
 // Rendered when `appointment` prop is provided.
 
@@ -21,7 +47,7 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
             try {
                 const res = await authFetch('/inventory');
                 if (!res.ok) throw new Error('Failed to load inventory.');
-                setInventoryList(await res.json());
+                setInventoryList(groupInventoryItems(await res.json()));
             } catch (error) {
                 addToast('Failed to load inventory data.', 'error');
             } finally {
@@ -57,7 +83,7 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
                     appointmentId: appointment.id || appointment._id,
                     patientId: appointment.patientId,
                     itemsUsed: usedMaterials.map(m => ({
-                        inventoryId: m.itemId,
+                        itemId: m.itemId,
                         quantityUsed: Number(m.quantity),
                     })),
                 }),
@@ -71,6 +97,7 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
                     name: inv ? inv.name || inv.itemName : 'Unknown',
                     quantity: Number(m.quantity),
                     unit: inv ? inv.unit || 'piece' : 'piece',
+                    inventoryItemId: inv ? (inv._id || inv.id) : null,
                 };
             });
             await authFetch('/material-usage', {
@@ -235,7 +262,7 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList }) {
                 body: JSON.stringify({
                     patientId: selectedAppt.patientId || null,
                     itemsUsed: usedMaterials.map(m => ({
-                        inventoryId: m.itemId,
+                        itemId: m.itemId,
                         quantityUsed: Number(m.quantity),
                     })),
                 }),
@@ -252,6 +279,7 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList }) {
                     name: inv ? (inv.name || inv.itemName) : 'Unknown',
                     quantity: Number(m.quantity),
                     unit: inv ? inv.unit || 'piece' : 'piece',
+                    inventoryItemId: inv ? (inv._id || inv.id) : null,
                 };
             });
 
@@ -452,7 +480,7 @@ function MaterialUsagePage() {
         fetchLogs();
         // Fetch branch-filtered inventory for the dentist
         authFetch('/inventory').then(res => {
-            if (res.ok) res.json().then(setInventoryList);
+            if (res.ok) res.json().then((rows) => setInventoryList(groupInventoryItems(rows)));
         }).catch(() => {});
     }, [fetchLogs]);
 

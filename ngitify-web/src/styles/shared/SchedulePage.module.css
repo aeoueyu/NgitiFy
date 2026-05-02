@@ -1,446 +1,350 @@
 .page {
-    width: min(100%, 1680px);
-    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+    gap: 18px;
     padding: 24px;
     box-sizing: border-box;
+    min-height: 100%;
+}
+
+.calendarPanel,
+.detailPanel {
+    background: #fff;
+    border: 1px solid #dde7f0;
+    border-radius: 20px;
+    box-shadow: 0 18px 36px rgba(15, 44, 68, 0.08);
+}
+
+.calendarPanel {
+    padding: 18px;
+    min-width: 0;
+}
+
+.detailPanel {
+    position: sticky;
+    top: 20px;
+    align-self: start;
+    padding: 24px;
+}
+
+.pageHeader,
+.navBar,
+.headerActions,
+.navGroup,
+.dayHeaderRow,
+.detailRow,
+.modalGrid,
+.slotList {
+    display: flex;
+}
+
+.pageHeader,
+.navBar {
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
 }
 
 .pageHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
 }
 
 .pageTitle {
     margin: 0;
-    color: #0f3d62;
+    color: #123e63;
     font-size: 30px;
     font-weight: 800;
 }
 
 .pageSubtitle {
     margin: 8px 0 0;
-    color: #5f7183;
+    color: #6b7f92;
     font-size: 14px;
 }
 
-.headerActions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-.primaryButton,
-.secondaryButton,
-.actionButton,
-.pageButton,
-.slotButton,
-.tabButton,
-.statusChip,
-.iconButton {
-    border: none;
-    cursor: pointer;
-    font: inherit;
-}
-
-.primaryButton,
-.secondaryButton {
-    display: inline-flex;
-    align-items: center;
+.headerActions,
+.navGroup,
+.slotList {
     gap: 8px;
-    border-radius: 999px;
-    padding: 12px 16px;
+    flex-wrap: wrap;
+}
+
+.viewButton,
+.primaryButton,
+.navButton,
+.todayButton,
+.slotButton,
+.emrLink {
+    border: none;
+    border-radius: 12px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.viewButton,
+.navButton,
+.todayButton {
+    background: #f1f5f9;
+    color: #3c5870;
+    padding: 10px 12px;
     font-weight: 700;
 }
 
+.viewButtonActive,
 .primaryButton {
     background: #0b5fa5;
     color: #fff;
 }
 
-.secondaryButton {
-    background: #e8f3fb;
-    color: #0f4b78;
-}
-
-.tabRow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 16px;
-}
-
-.tabButton {
+.primaryButton {
+    padding: 10px 14px;
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    background: #fff;
-    color: #4d6377;
-    border: 1px solid #dce6ef;
-    border-radius: 999px;
-    padding: 10px 14px;
+    gap: 8px;
+}
+
+.rangeLabel {
+    color: #123e63;
+    font-weight: 800;
+}
+
+.datePicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #526b83;
     font-weight: 700;
 }
 
-.tabButtonActive {
-    background: #0b5fa5;
-    border-color: #0b5fa5;
-    color: #fff;
+.datePicker input {
+    border: 1px solid #d4deea;
+    border-radius: 12px;
+    padding: 10px 12px;
 }
 
-.tabCount {
-    background: rgba(255, 255, 255, 0.18);
-    border-radius: 999px;
-    min-width: 24px;
-    padding: 2px 8px;
-    text-align: center;
+.calendarGrid {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 0;
+    border: 1px solid #e4edf5;
+    border-radius: 18px;
+    overflow: hidden;
 }
 
-.tabButton:not(.tabButtonActive) .tabCount {
-    background: #edf4f9;
-    color: #33546f;
-}
-
-.filterCard,
-.tableCard,
-.stateCard {
-    background: #fff;
-    border: 1px solid #dfe8f0;
-    border-radius: 20px;
-    box-shadow: 0 16px 40px rgba(15, 44, 68, 0.06);
-}
-
-.filterCard {
-    padding: 16px;
-}
-
-.filterRow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    align-items: end;
-}
-
-.searchWrapper {
-    position: relative;
-    flex: 1 1 320px;
-}
-
-.searchIcon {
-    position: absolute;
-    top: 50%;
-    left: 14px;
-    transform: translateY(-50%);
-    color: #8ca2b6;
-}
-
-.searchInput,
-.dateInput,
-.statusSelect {
-    width: 100%;
-    box-sizing: border-box;
-    border: 1px solid #d2dde8;
-    border-radius: 14px;
+.timeColumn {
     background: #f8fbfd;
-    padding: 12px 14px;
-    color: #18344f;
-    font-size: 14px;
+    border-right: 1px solid #e4edf5;
 }
 
-.searchInput {
-    padding-left: 40px;
-}
-
-.dateField {
-    min-width: 220px;
+.gridHeaderSpacer,
+.dayHeader {
+    height: 48px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    justify-content: center;
 }
 
-.fieldLabel {
-    font-size: 12px;
-    font-weight: 700;
-    color: #688096;
-    text-transform: uppercase;
-}
-
-.statusChips {
+.timeSlot {
+    height: 30px;
+    padding: 0 10px;
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 14px;
+    align-items: center;
+    font-size: 12px;
+    color: #75899b;
+    border-top: 1px solid #edf3f8;
 }
 
-.statusChip {
-    border-radius: 999px;
-    background: #eff5fa;
-    color: #4e667a;
-    padding: 9px 12px;
-    font-weight: 700;
+.dayColumns {
+    min-width: 0;
 }
 
-.statusChipActive {
-    background: #143f66;
-    color: #fff;
+.dayHeaderRow {
+    display: grid;
+    border-bottom: 1px solid #e4edf5;
 }
 
-.queueNote {
-    margin: 12px 0 0;
-    color: #6c5b16;
-    background: #fff8d9;
-    border: 1px solid #f0de8c;
-    border-radius: 14px;
-    padding: 10px 14px;
+.dayHeader {
+    padding: 0 12px;
+    background: #fbfdff;
+}
+
+.dayName {
+    color: #123e63;
+    font-weight: 800;
     font-size: 13px;
 }
 
-.tableCard,
-.stateCard {
-    margin-top: 16px;
-    padding: 18px;
-}
-
-.stateCard {
-    color: #527089;
-    text-align: center;
-    font-weight: 700;
-}
-
-.sectionBlock + .sectionBlock {
-    margin-top: 22px;
-}
-
-.sectionHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.sectionTitle {
-    margin: 0;
-    font-size: 18px;
-    color: #123e63;
-}
-
-.tableWrapper {
-    overflow-x: auto;
-}
-
-.table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table th,
-.table td {
-    padding: 14px 12px;
-    text-align: left;
-    border-bottom: 1px solid #e7eef5;
-    font-size: 14px;
-    vertical-align: middle;
-}
-
-.table th {
-    color: #6d8195;
-    text-transform: uppercase;
+.dayDate {
+    color: #7b8fa0;
     font-size: 12px;
-    letter-spacing: 0.03em;
 }
 
-.patientCell {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.dayBody {
+    display: grid;
 }
 
-.patientMeta {
+.dayColumn {
+    border-right: 1px solid #edf3f8;
+}
+
+.dayColumn:last-child {
+    border-right: none;
+}
+
+.slotCell {
+    height: 30px;
+    padding: 1px 4px;
+    border-top: 1px solid #edf3f8;
+    position: relative;
+}
+
+.appointmentBlock {
+    width: 100%;
+    min-height: 28px;
+    border: none;
+    border-radius: 10px;
+    padding: 4px 8px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    align-items: flex-start;
+    text-align: left;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(15, 44, 68, 0.08);
 }
 
-.patientName {
-    color: #16344d;
-    font-weight: 700;
+.appointmentBlockActive {
+    outline: 2px solid #123e63;
 }
 
-.metaBadge {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    border-radius: 999px;
-    padding: 4px 8px;
+.blockTitle,
+.blockMeta {
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.blockTitle {
     font-size: 11px;
     font-weight: 700;
 }
 
-.metaBadgeGuest {
-    background: #edf5ff;
-    color: #175589;
+.blockMeta {
+    font-size: 10px;
+    opacity: 0.9;
 }
 
-.metaBadgeSuccess {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.metaBadgeWarning {
+.statusPending {
     background: #fef3c7;
     color: #b45309;
 }
 
-.metaBadgeDanger {
-    background: #fee2e2;
-    color: #b91c1c;
-}
-
-.statusPill,
-.statusSelect {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    min-height: 36px;
-    padding: 8px 12px;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.statusPending,
-.statusWaiting {
-    background: #fff5cf;
-    color: #9f6a00;
-}
-
 .statusConfirmed {
-    background: #e0f2fe;
-    color: #0f5d92;
+    background: #dbeafe;
+    color: #1d4ed8;
 }
 
-.statusInClinic,
-.statusServing {
-    background: #ede9fe;
-    color: #6d28d9;
-}
-
-.statusCompleted,
-.statusDone {
+.statusCompleted {
     background: #dcfce7;
     color: #166534;
 }
 
-.statusCancelled,
-.statusSkipped {
+.statusCancelled {
     background: #fee2e2;
     color: #b91c1c;
 }
 
-.actionRow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+.detailHeader {
+    padding-bottom: 18px;
+    border-bottom: 1px solid #e4edf5;
+    margin-bottom: 18px;
 }
 
-.actionButton,
-.iconButton {
+.statusBadge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
     border-radius: 999px;
-    padding: 9px 12px;
-    background: #edf5fb;
-    color: #15486f;
-    font-size: 13px;
+    padding: 6px 10px;
+    font-size: 12px;
     font-weight: 700;
+    margin-bottom: 14px;
 }
 
-.iconButton {
-    width: 38px;
-    height: 38px;
-    padding: 0;
+.detailTitle {
+    margin: 0;
+    color: #123e63;
+    font-size: 24px;
+    font-weight: 800;
 }
 
-.primaryAction {
-    background: #0b5fa5;
-    color: #fff;
+.detailSubtitle {
+    margin: 8px 0 0;
+    color: #6b7f92;
 }
 
-.successAction {
-    background: #1e9f57;
-    color: #fff;
-}
-
-.warnIconButton {
-    background: #fff3e8;
-    color: #b45309;
-}
-
-.dangerIconButton {
-    background: #fee2e2;
-    color: #b91c1c;
-}
-
-.emptyCell {
-    text-align: center;
-    color: #5d7286;
-    padding: 26px 12px;
-}
-
-.pagination {
+.detailList {
     display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detailRow {
+    justify-content: space-between;
     align-items: center;
     gap: 10px;
-    margin-top: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eef3f7;
 }
 
-.pageButton {
-    border-radius: 12px;
-    background: #f0f6fb;
-    color: #163d60;
-    padding: 10px 14px;
+.detailLabel {
+    color: #7b8fa0;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.detailValue {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #16344d;
+    font-weight: 700;
+    text-align: right;
+}
+
+.emrLink {
+    margin-top: 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #edf5fb;
+    color: #0f5d92;
+    padding: 12px 14px;
+    text-decoration: none;
     font-weight: 700;
 }
 
-.pageButton:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.pageSummary {
-    color: #5f7183;
-    font-size: 14px;
-    font-weight: 700;
+.loadingState,
+.emptyDetail {
+    padding: 48px 20px;
+    text-align: center;
+    color: #64748b;
 }
 
 .modalGrid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
 }
 
-.slotList {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+.modalGrid > * {
+    flex: 1;
 }
 
 .slotButton {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border: 1px solid #c9d8e5;
-    border-radius: 999px;
-    padding: 8px 14px;
     background: #fff;
-    color: #2c4d67;
-    font-weight: 700;
+    border: 1px solid #d4deea;
+    padding: 8px 12px;
 }
 
 .slotButtonActive {
@@ -449,56 +353,28 @@
     color: #0b5fa5;
 }
 
-.inlineInfo,
-.inlineError {
-    margin: 0;
-    font-size: 13px;
-}
-
-.inlineInfo {
-    color: #64748b;
-}
-
-.inlineError {
-    color: #dc2626;
-}
-
-@media (max-width: 900px) {
+@media (max-width: 1120px) {
     .page {
-        padding: 18px;
-    }
-
-    .pageHeader {
-        flex-direction: column;
-    }
-
-    .headerActions {
-        width: 100%;
-        justify-content: flex-start;
-    }
-
-    .modalGrid {
         grid-template-columns: 1fr;
     }
+
+    .detailPanel {
+        position: static;
+    }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
     .page {
-        padding: 14px;
+        padding: 16px;
     }
 
-    .primaryButton,
-    .secondaryButton {
-        width: 100%;
-        justify-content: center;
+    .calendarGrid {
+        grid-template-columns: 72px minmax(0, 1fr);
     }
 
-    .headerActions {
+    .navBar,
+    .pageHeader {
         flex-direction: column;
-    }
-
-    .pagination {
-        justify-content: center;
-        flex-wrap: wrap;
+        align-items: stretch;
     }
 }

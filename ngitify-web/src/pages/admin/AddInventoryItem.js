@@ -11,7 +11,8 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
     const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
-        name: '', category: '', currentStock: '', threshold: '10', unit: 'pcs'
+        name: '', category: '', currentStock: '', threshold: '10', unit: 'pcs',
+        brand: '', expirationDate: '', batchNumber: '', supplierName: ''
     });
     
     const [customCategory, setCustomCategory] = useState('');
@@ -38,6 +39,7 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
 
         if (formData.currentStock === '') { newErrors.currentStock = "Required"; isValid = false; }
         if (formData.threshold === '') { newErrors.threshold = "Required"; isValid = false; }
+        if (!formData.brand.trim()) { newErrors.brand = "Required"; isValid = false; }
         
         setErrors(newErrors);
         return isValid;
@@ -60,7 +62,11 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
                     category: finalCategory,
                     quantity: Number(formData.currentStock),
                     reorderLevel: Number(formData.threshold),
-                    unit: finalUnit
+                    unit: finalUnit,
+                    brand: formData.brand.trim(),
+                    expirationDate: formData.expirationDate || null,
+                    batchNumber: formData.batchNumber.trim(),
+                    supplierName: formData.supplierName.trim(),
                 }),
             });
 
@@ -167,6 +173,29 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
                             <label>LOW STOCK THRESHOLD <span style={{color:'red'}}>*</span></label>
                             <input type="number" className={`${styles.inputField} ${errors.threshold ? styles.errorBorder : ''}`} name="threshold" value={formData.threshold} onChange={handleChange} placeholder="Alert when below..." min="0" disabled={isLoading} />
                             {errors.threshold && <span className={styles.errorText}>{errors.threshold}</span>}
+                        </div>
+                    </div>
+
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>BRAND <span style={{color:'red'}}>*</span></label>
+                            <input className={`${styles.inputField} ${errors.brand ? styles.errorBorder : ''}`} name="brand" value={formData.brand} onChange={handleChange} placeholder="e.g. Listerine" maxLength={80} disabled={isLoading} />
+                            {errors.brand && <span className={styles.errorText}>{errors.brand}</span>}
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>EXPIRATION DATE</label>
+                            <input type="date" className={styles.inputField} name="expirationDate" value={formData.expirationDate} onChange={handleChange} disabled={isLoading} />
+                        </div>
+                    </div>
+
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>BATCH NUMBER</label>
+                            <input className={styles.inputField} name="batchNumber" value={formData.batchNumber} onChange={handleChange} placeholder="Optional batch / lot number" maxLength={80} disabled={isLoading} />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>SUPPLIER</label>
+                            <input className={styles.inputField} name="supplierName" value={formData.supplierName} onChange={handleChange} placeholder="Optional supplier name" maxLength={100} disabled={isLoading} />
                         </div>
                     </div>
 

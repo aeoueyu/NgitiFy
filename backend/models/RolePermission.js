@@ -5,7 +5,7 @@ const rolePermissionSchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true,
-        enum: ['co-administrator', 'branch-manager', 'dentist', 'secretary']
+        enum: ['branch-manager', 'dentist', 'secretary']
     },
     permissions: {
         appointments:     { type: String, enum: ['full_access', 'read_only', 'no_access'], default: 'read_only' },

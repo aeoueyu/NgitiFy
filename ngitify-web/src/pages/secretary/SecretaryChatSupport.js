@@ -192,7 +192,7 @@ export default function SecretaryChatSupport() {
 
     // The secretary's own messages should appear on the right (blue bubble),
     // matching the same visual pattern used by admin/dentist roles.
-    const STAFF_ROLES = ['administrator', 'co-administrator', 'secretary', 'dentist', 'branch-manager'];
+    const STAFF_ROLES = ['administrator', 'secretary', 'dentist', 'branch-manager'];
     const isStaffMessage = (senderRole) => STAFF_ROLES.includes(senderRole);
 
     return (

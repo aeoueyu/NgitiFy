@@ -9,6 +9,7 @@ import AddInventoryItem from './AddInventoryItem';
 import EditInventoryItem from './EditInventoryItem'; 
 import ConfirmModal from '../../components/common/ConfirmModal'; 
 import { useToast } from '../../context/ToastContext';
+import { formatDateShort } from '../../utils/dateUtils';
 
 const BASE_CATEGORIES = [
     "Personal Protective Equipment (PPE)", "Consumables", "Restorative Materials", 
@@ -42,12 +43,21 @@ export default function InventoryTracker() {
                 const data = await response.json();
                 
                 const mappedInventory = data.map(item => ({
-                    id: item._id,
+                    id: item._id || item.id,
+                    itemId: item.itemId || '',
                     name: item.itemName || item.name || 'Unknown Item',
                     category: item.category || 'Uncategorized',
                     currentStock: item.quantity !== undefined ? item.quantity : (item.currentStock || 0),
                     threshold: item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0),
-                    unit: item.unit || 'pcs'
+                    unit: item.unit || 'pcs',
+                    brand: item.brand || 'Unspecified',
+                    expirationDate: item.expirationDate || null,
+                    receivedDate: item.receivedDate || null,
+                    supplierName: item.supplierName || '',
+                    batchNumber: item.batchNumber || '',
+                    status: item.status || 'Active',
+                    isExpired: Boolean(item.isExpired),
+                    isExpiringSoon: Boolean(item.isExpiringSoon),
                 }));
                 
                 setInventoryList(mappedInventory);
@@ -82,17 +92,21 @@ export default function InventoryTracker() {
     const inventoryStats = useMemo(() => {
         let total = inventoryList.length;
         let lowStock = 0;
-        let outOfStock = 0;
+        let expiringSoon = 0;
+        let expired = 0;
 
         inventoryList.forEach(item => {
-            if (item.currentStock <= 0) {
-                outOfStock++;
-            } else if (item.currentStock <= item.threshold) {
+            if (item.isExpired || item.status === 'Expired') {
+                expired++;
+            } else if (item.isExpiringSoon) {
+                expiringSoon++;
+            }
+            if (item.currentStock <= item.threshold) {
                 lowStock++;
             }
         });
 
-        return { total, lowStock, outOfStock };
+        return { total, lowStock, expiringSoon, expired };
     }, [inventoryList]);
 
     if (!canReadInventory) {
@@ -106,7 +120,11 @@ export default function InventoryTracker() {
     }
 
     const filteredInventory = inventoryList.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+            item.name.toLowerCase().includes(query) ||
+            item.brand.toLowerCase().includes(query) ||
+            item.batchNumber.toLowerCase().includes(query);
         const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
         return matchesSearch && matchesCategory;
     });
@@ -150,18 +168,24 @@ export default function InventoryTracker() {
         setSelectedItemId(null);
     };
 
-    const getStatusBadge = (current, threshold) => {
-        if (current <= 0) {
-            return <span style={{ backgroundColor: '#fef2f2', color: '#dc3545', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fecaca', whiteSpace: 'nowrap' }}>OUT OF STOCK</span>;
+    const getStatusBadge = (item) => {
+        if (item.isExpired || item.status === 'Expired') {
+            return <span style={{ backgroundColor: '#fef2f2', color: '#dc3545', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fecaca', whiteSpace: 'nowrap' }}>EXPIRED</span>;
         }
-        if (current <= threshold) {
+        if (item.currentStock <= 0) {
+            return <span style={{ backgroundColor: '#f3f4f6', color: '#475569', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>DEPLETED</span>;
+        }
+        if (item.isExpiringSoon) {
+            return <span style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fde68a', whiteSpace: 'nowrap' }}>EXPIRING SOON</span>;
+        }
+        if (item.currentStock <= item.threshold) {
             return (
                 <span style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                     <FaExclamationCircle /> LOW STOCK
                 </span>
             );
         }
-        return <span style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #bbf7d0', whiteSpace: 'nowrap' }}>IN STOCK</span>;
+        return <span style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #bbf7d0', whiteSpace: 'nowrap' }}>ACTIVE</span>;
     };
 
     return (
@@ -200,16 +224,16 @@ export default function InventoryTracker() {
 
                 <div className={styles.statCard}>
                     <div className={styles.statHeader}>
-                        <p className={styles.statTitle}>Out of Stock</p>
+                        <p className={styles.statTitle}>Expiring Soon</p>
                         <div className={`${styles.statIconWrapper} ${styles.bgRed}`}>
                             <FaTimesCircle className={styles.statIcon} />
                         </div>
                     </div>
-                    <h2 className={styles.statValue} style={{ color: inventoryStats.outOfStock > 0 ? '#dc2626' : '#01538b' }}>
-                        {inventoryStats.outOfStock}
+                    <h2 className={styles.statValue} style={{ color: inventoryStats.expiringSoon > 0 ? '#d97706' : '#01538b' }}>
+                        {inventoryStats.expiringSoon}
                     </h2>
-                    <p className={`${styles.statDesc} ${inventoryStats.outOfStock > 0 ? styles.dangerText : ''}`}>
-                        {inventoryStats.outOfStock > 0 ? 'Requires immediate restock' : 'No empty stocks'}
+                    <p className={`${styles.statDesc} ${inventoryStats.expiringSoon > 0 ? styles.warningText : ''}`}>
+                        {inventoryStats.expiringSoon > 0 ? 'Prioritize for use soon' : 'No near-expiry batches'}
                     </p>
                 </div>
             </div>
@@ -250,29 +274,32 @@ export default function InventoryTracker() {
                 <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
-                            <th style={{ width: '25%' }}>Item Name</th>
-                            <th style={{ width: '22%' }}>Category</th>
-                            <th style={{ width: '20%' }}>Stock Level</th>
-                            <th style={{ width: '13%' }}>Threshold</th>
+                            <th style={{ width: '20%' }}>Item</th>
+                            <th style={{ width: '14%' }}>Brand</th>
+                            <th style={{ width: '14%' }}>Category</th>
+                            <th style={{ width: '12%' }}>Qty</th>
+                            <th style={{ width: '12%' }}>Expiry</th>
+                            <th style={{ width: '12%' }}>Received</th>
                             <th style={{ width: '10%' }}>Status</th>
                             <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#01538b'}}>Loading inventory records...</td></tr>
+                            <tr><td colSpan="8" style={{textAlign: 'center', padding: '40px', color: '#01538b'}}>Loading inventory records...</td></tr>
                         ) : filteredInventory.length > 0 ? (
                             filteredInventory.map((item) => {
-                                const maxVisualCapacity = Math.max(item.currentStock, item.threshold * 2) || 1;
-                                const fillPercentage = Math.min(100, (item.currentStock / maxVisualCapacity) * 100);
-                                
-                                let fillClass = styles.fillGreen;
-                                if (item.currentStock <= 0) fillClass = styles.fillRed;
-                                else if (item.currentStock <= item.threshold) fillClass = styles.fillYellow;
-
                                 return (
                                     <tr key={item.id}>
-                                        <td className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>{item.name}</td>
+                                        <td className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>
+                                            {item.name}
+                                            {item.batchNumber && (
+                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginTop: '4px' }}>
+                                                    Batch {item.batchNumber}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td style={{ color: '#334155', fontWeight: 600 }}>{item.brand}</td>
                                         <td>
                                             <span style={{ backgroundColor: '#f1f5f9', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', color: '#475569', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                 {item.category}
@@ -282,17 +309,14 @@ export default function InventoryTracker() {
                                             <span style={{ fontWeight: '700', color: item.currentStock <= item.threshold ? '#dc3545' : '#334155', fontSize: '15px' }}>
                                                 {item.currentStock} <span style={{ fontSize: '12px', fontWeight: '500', color: '#64748b' }}>{item.unit}</span>
                                             </span>
-                                            <div className={styles.progressBarBg}>
-                                                <div 
-                                                    className={`${styles.progressBarFill} ${fillClass}`}
-                                                    style={{ width: `${fillPercentage}%` }}
-                                                ></div>
-                                            </div>
+                                        </td>
+                                        <td style={{ color: item.isExpired ? '#dc2626' : '#64748b', fontSize: '14px', fontWeight: '600' }}>
+                                            {item.expirationDate ? formatDateShort(item.expirationDate) : 'No expiry'}
                                         </td>
                                         <td style={{ color: '#64748b', fontSize: '14px', fontWeight: '500' }}>
-                                            {item.threshold} <span style={{ fontSize: '12px' }}>{item.unit}</span>
+                                            {item.receivedDate ? formatDateShort(item.receivedDate) : 'Unknown'}
                                         </td>
-                                        <td>{getStatusBadge(item.currentStock, item.threshold)}</td>
+                                        <td>{getStatusBadge(item)}</td>
                                         <td className={styles.actionsCell} style={{ textAlign: 'center' }}>
                                             {canEditInventory ? (
                                                 <>
@@ -307,7 +331,7 @@ export default function InventoryTracker() {
                                 );
                             })
                         ) : (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>No items found in inventory.</td></tr>
+                            <tr><td colSpan="8" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>No items found in inventory.</td></tr>
                         )}
                     </tbody>
                 </table>

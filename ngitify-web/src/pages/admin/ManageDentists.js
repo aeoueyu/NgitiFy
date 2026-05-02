@@ -230,37 +230,42 @@ export default function ManageDentists() {
                                     </td>
                                     <td>{dentist.email}</td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
-                                    <td>
+                                    <td className={tblStyles.wrapCell}>
                                         {dentist.assignedBranches.length > 0
                                             ? dentist.assignedBranches.join(', ')
                                             : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>
                                         }
                                     </td>
                                     <td>
-                                        <span className={`${styles.statusDot} ${dentist.status === 'Active' ? styles.activeDot : styles.inactiveDot}`}></span>
-                                        <span style={{ fontWeight: '500', color: dentist.status === 'Active' ? '#15803d' : '#b91c1c' }}>{dentist.status}</span>
+                                        <span className={`${tblStyles.statusBadge} ${dentist.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                            {dentist.status}
+                                        </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <button className={styles.iconBtn} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
-                                        <button className={styles.iconBtn} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
-                                        {!dentist.isVerified && (
+                                        <div className={tblStyles.iconActions}>
+                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
+                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
+                                            {!dentist.isVerified && (
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                    onClick={() => handleResendActivation(dentist)}
+                                                    title="Resend Activation Email"
+                                                    style={{ color: '#f59e0b' }}
+                                                >
+                                                    <FaEnvelope />
+                                                </button>
+                                            )}
                                             <button
-                                                className={styles.iconBtn}
-                                                onClick={() => handleResendActivation(dentist)}
-                                                title="Resend Activation Email"
-                                                style={{ color: '#f59e0b' }}
+                                                type="button"
+                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                onClick={() => handleToggleStatus(dentist)}
+                                                title={dentist.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                style={{ color: dentist.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                             >
-                                                <FaEnvelope />
+                                                {dentist.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
-                                        )}
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => handleToggleStatus(dentist)}
-                                            title={dentist.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                            style={{ color: dentist.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
-                                        >
-                                            {dentist.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
-                                        </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))

@@ -65,7 +65,7 @@ export default function LoginPage() {
                     isDentist:      data.isDentist || false,
                 });
 
-                if (data.role === 'administrator' || data.role === 'co-administrator') {
+                if (data.role === 'administrator') {
                     navigate('/admin/dashboard');
                 } else if (data.role === 'branch-manager') {
                     navigate('/branch-manager/dashboard');

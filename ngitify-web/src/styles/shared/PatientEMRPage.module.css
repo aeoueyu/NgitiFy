@@ -1,0 +1,145 @@
+.page {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: 18px;
+    padding: 24px;
+    min-height: 100%;
+    box-sizing: border-box;
+}
+
+.patientRail,
+.detailPanel {
+    background: #ffffff;
+    border: 1px solid #dce6ef;
+    border-radius: 20px;
+    box-shadow: 0 16px 36px rgba(15, 44, 68, 0.08);
+}
+
+.patientRail {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.railHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.pageTitle {
+    margin: 0;
+    color: #123e63;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.pageSubtitle {
+    margin: 8px 0 0;
+    color: #6b7f92;
+    font-size: 14px;
+}
+
+.countBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    padding: 8px 12px;
+    background: #edf5fb;
+    color: #0d5a91;
+    font-weight: 700;
+}
+
+.searchBox {
+    position: relative;
+    margin-bottom: 16px;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 12px 14px 12px 40px;
+    border-radius: 14px;
+    border: 1px solid #d3deea;
+    background: #f8fbfd;
+    box-sizing: border-box;
+}
+
+.patientList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.patientCard {
+    border: 1px solid #dce7f1;
+    background: #ffffff;
+    border-radius: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    text-align: left;
+    padding: 12px;
+    cursor: pointer;
+}
+
+.patientCardActive {
+    border-color: #0b5fa5;
+    background: #eef6fd;
+    box-shadow: 0 10px 24px rgba(11, 95, 165, 0.12);
+}
+
+.patientMeta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.patientName {
+    color: #153751;
+    font-weight: 700;
+}
+
+.patientSubtext {
+    color: #6b7f92;
+    font-size: 12px;
+}
+
+.detailPanel {
+    overflow: hidden;
+    min-width: 0;
+}
+
+.emptyState,
+.emptyDetail {
+    padding: 36px 20px;
+    color: #64748b;
+    text-align: center;
+}
+
+.emptyIcon {
+    font-size: 28px;
+    color: #cbd5e1;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 960px) {
+    .page {
+        grid-template-columns: 1fr;
+        padding: 18px;
+    }
+}

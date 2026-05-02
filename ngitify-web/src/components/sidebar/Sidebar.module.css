@@ -133,11 +133,6 @@
     color: #1d4ed8;
 }
 
-.role-co-administrator {
-    background-color: #ccfbf1;
-    color: #0f766e;
-}
-
 .role-branch-manager {
     background-color: #fef3c7;
     color: #92400e;
@@ -163,6 +158,16 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+.sectionLabel {
+    display: block;
+    padding: 10px 14px 4px;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .footer-section {

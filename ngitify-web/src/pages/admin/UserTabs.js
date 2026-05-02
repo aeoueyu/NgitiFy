@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import styles from '../../styles/admin/UserTabs.module.css';
 
-// Order: Patients → Secretaries → Dentists → Branch Managers → Owners (admin-only) → Co-Admins
+// Order: Patients → Secretaries → Dentists → Branch Managers → Owners
 const ADMIN_TABS = [
     { key: 'patients',       label: 'Patients',        path: '/admin/manage-users/patients' },
     { key: 'secretaries',    label: 'Secretaries',     path: '/admin/manage-users/secretaries' },
     { key: 'dentists',       label: 'Dentists',        path: '/admin/manage-users/dentists' },
     { key: 'branchManagers', label: 'Branch Managers', path: '/admin/manage-users/branch-managers' },
     { key: 'owners',         label: 'Owners',          path: '/admin/manage-users/owners', adminTierOnly: true },
-    { key: 'coAdmins',       label: 'Co-Admins',       path: '/admin/manage-users/co-admins' },
 ];
 
 const OWNER_TABS = [
@@ -19,7 +18,6 @@ const OWNER_TABS = [
     { key: 'dentists',    label: 'Dentists',    path: '/owner/manage-users/dentists' },
     { key: 'branchManagers', label: 'Branch Managers', path: '/owner/manage-users/branch-managers' },
     { key: 'owners', label: 'Owners', path: '/owner/manage-users/owners' },
-    { key: 'coAdmins', label: 'Co-Admins', path: '/owner/manage-users/co-admins' },
 ];
 
 const UserTabs = ({ activeTab }) => {
@@ -27,7 +25,7 @@ const UserTabs = ({ activeTab }) => {
     const { user } = useAuth();
 
     const isOwner = user?.role === 'owner';
-    const isAdminTier = user?.role === 'administrator' || user?.role === 'co-administrator';
+    const isAdminTier = user?.role === 'administrator';
 
     let tabs;
     if (isOwner) {

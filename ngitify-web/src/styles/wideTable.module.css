@@ -1,17 +1,112 @@
 .tableWrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    border: 1px solid #dbe6f1;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 14px 32px rgba(15, 44, 68, 0.06);
 }
 
 .table {
     min-width: max-content;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
 }
 
 .table th,
 .table td {
     white-space: nowrap;
+    padding: 12px 14px;
+    border-bottom: 1px solid #edf3f8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+.table th {
+    background: #f8fbfd;
+    color: #4b647b;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.table td {
+    color: #20384d;
+    font-size: 14px;
+}
+
+.table tbody tr:hover {
+    background: #f8fbfd;
 }
 
 .wrapCell {
     white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: initial !important;
+}
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.statusAmber {
+    background: #fff3d6;
+    color: #b66a12;
+}
+
+.statusGreen {
+    background: #dff7e8;
+    color: #20744f;
+}
+
+.statusRed {
+    background: #fee2e2;
+    color: #b42318;
+}
+
+.statusGray {
+    background: #eef2f6;
+    color: #5c7083;
+}
+
+.statusBlue {
+    background: #e0efff;
+    color: #1b5fa8;
+}
+
+.iconActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.iconAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #d7e3ef;
+    border-radius: 10px;
+    background: #fff;
+    color: #45627b;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.iconAction:hover {
+    background: #eef6fd;
+    border-color: #bfd5e8;
+    color: #0f5d92;
 }

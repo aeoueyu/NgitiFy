@@ -205,7 +205,7 @@ export default function OwnerDashboard() {
     const moduleCards = [
         {
             title: 'User Management',
-            description: 'Review and manage patients, dentists, secretaries, branch managers, co-administrators, and owners.',
+            description: 'Review and manage patients, dentists, secretaries, branch managers, and owners.',
             value: `${staffCount} staff accounts`,
             icon: <FaUsers className={styles.moduleIcon} />,
             actionLabel: 'Open Users',
@@ -481,9 +481,6 @@ export default function OwnerDashboard() {
                             </button>
                             <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/owner/manage-users/owners')}>
                                 Owner accounts
-                            </button>
-                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/owner/manage-users/co-admins')}>
-                                Co-administrator accounts
                             </button>
                             <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/owner/profile')}>
                                 My profile

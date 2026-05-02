@@ -214,50 +214,55 @@ const ManageBranchManagers = () => {
                                         )}
                                     </td>
                                     <td>{manager.email}</td>
-                                    <td>
+                                    <td className={tblStyles.wrapCell}>
                                         {manager.assignedBranch
                                             ? manager.assignedBranch
                                             : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>}
                                     </td>
                                     <td>
-                                        <span className={`${styles.statusDot} ${manager.status === 'Active' ? styles.activeDot : styles.inactiveDot}`} />
-                                        <span style={{ fontWeight: '500', color: manager.status === 'Active' ? '#15803d' : '#b91c1c' }}>
+                                        <span className={`${tblStyles.statusBadge} ${manager.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
                                             {manager.status}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => openManagerModal(manager.id)}
-                                            title="View Branch Manager"
-                                        >
-                                            <FaEye />
-                                        </button>
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => openManagerModal(manager.id)}
-                                            title="Edit Branch Manager"
-                                        >
-                                            <FaEdit />
-                                        </button>
-                                        {!manager.isVerified && (
+                                        <div className={tblStyles.iconActions}>
                                             <button
-                                                className={styles.iconBtn}
-                                                onClick={() => handleResendActivation(manager)}
-                                                title="Resend Activation Email"
-                                                style={{ color: '#f59e0b' }}
+                                                type="button"
+                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                onClick={() => openManagerModal(manager.id)}
+                                                title="View Branch Manager"
                                             >
-                                                <FaEnvelope />
+                                                <FaEye />
                                             </button>
-                                        )}
-                                        <button
-                                            className={styles.iconBtn}
-                                            onClick={() => handleToggleStatus(manager)}
-                                            title={manager.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                            style={{ color: manager.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
-                                        >
-                                            {manager.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
-                                        </button>
+                                            <button
+                                                type="button"
+                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                onClick={() => openManagerModal(manager.id)}
+                                                title="Edit Branch Manager"
+                                            >
+                                                <FaEdit />
+                                            </button>
+                                            {!manager.isVerified && (
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                    onClick={() => handleResendActivation(manager)}
+                                                    title="Resend Activation Email"
+                                                    style={{ color: '#f59e0b' }}
+                                                >
+                                                    <FaEnvelope />
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                onClick={() => handleToggleStatus(manager)}
+                                                title={manager.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                style={{ color: manager.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
+                                            >
+                                                {manager.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))

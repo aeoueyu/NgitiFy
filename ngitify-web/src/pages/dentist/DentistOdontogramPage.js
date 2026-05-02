@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { FaTooth, FaSearch, FaUserInjured } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
@@ -15,7 +14,6 @@ const normalizeName = (p) => {
 };
 
 export default function DentistOdontogramPage() {
-    const [searchParams, setSearchParams] = useSearchParams();
     const { addToast } = useToast();
 
     const [patients, setPatients] = useState([]);
@@ -58,12 +56,12 @@ export default function DentistOdontogramPage() {
 
     const handleSelectPatient = (patient) => {
         setSelectedPatient(patient);
-        setSearchParams({ patientId: patient.id });
+        window.history.replaceState({}, '', `?patientId=${patient.id}`);
     };
 
     const handleClearPatient = () => {
         setSelectedPatient(null);
-        setSearchParams({});
+        window.history.replaceState({}, '', window.location.pathname);
     };
 
     const filtered = patients.filter(p =>

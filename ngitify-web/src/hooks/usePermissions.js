@@ -59,7 +59,6 @@ export const usePermissions = () => {
 
     const canModifyRole = (targetRole) => {
         if (!activeUser) return false;
-        if (activeUser.role === 'co-administrator' && targetRole === 'administrator') return false;
         return true;
     };
 
@@ -72,6 +71,5 @@ export const usePermissions = () => {
         canEditAppointments: checkPermission('appointments', 'edit'),
         canReadInventory: checkPermission('inventory', 'read'),
         canEditInventory: checkPermission('inventory', 'edit'),
-        isCoAdmin: activeUser?.role === 'co-administrator',
     };
 };

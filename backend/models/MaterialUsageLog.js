@@ -5,6 +5,12 @@ const materialItemSchema = new mongoose.Schema({
     name:     { type: String, required: true },
     quantity: { type: Number, required: true, min: 0 },
     unit:     { type: String, required: true, default: 'piece' },
+    inventoryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryItem', default: null },
+    consumedBatches: [{
+        batchId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryBatch', required: true },
+        brand: { type: String, default: '' },
+        quantity: { type: Number, required: true, min: 0 },
+    }],
 }, { _id: false });
 
 const materialUsageLogSchema = new mongoose.Schema({
