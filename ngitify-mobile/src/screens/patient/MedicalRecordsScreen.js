@@ -454,7 +454,7 @@ export default function MedicalRecordsScreen({ navigation }) {
         setTabLoading('history', true);
         setTabError('history', '');
         try {
-            const res = await fetch(`${API_BASE_URL}/api/surgeries?patientId=${userId}`, { headers });
+            const res = await fetch(`${API_BASE_URL}/api/appointments?patientId=${userId}`, { headers });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
             setSurgeries(Array.isArray(data) ? data : []);

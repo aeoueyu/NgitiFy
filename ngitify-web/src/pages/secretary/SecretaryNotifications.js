@@ -92,7 +92,7 @@ export default function SecretaryNotifications() {
 
         setActionLoading(notification._id);
         try {
-            const res = await authFetch(`/surgeries/${appointmentId}/status`, {
+            const res = await authFetch(`/appointments/${appointmentId}/status`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: 'confirmed' }),
             });
@@ -119,7 +119,7 @@ export default function SecretaryNotifications() {
         setActionLoading(notification._id);
 
         try {
-            const res = await authFetch(`/surgeries/${appointmentId}/status`, {
+            const res = await authFetch(`/appointments/${appointmentId}/status`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: 'cancelled' }),
             });

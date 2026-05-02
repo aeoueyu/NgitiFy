@@ -80,7 +80,7 @@ export default function AdminDashboard() {
                 const [statsRes, invRes, surgRes, logsRes] = await Promise.all([
                     authFetch('/dashboard/stats'),
                     authFetch('/inventory'),
-                    authFetch('/surgeries'),
+                    authFetch('/appointments'),
                     authFetch('/audit-logs')
                 ]);
 

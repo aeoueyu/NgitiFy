@@ -80,7 +80,7 @@ export default function OwnerDashboard() {
                     usersRes,
                 ] = await Promise.all([
                     authFetch('/dashboard/stats'),
-                    authFetch('/surgeries'),
+                    authFetch('/appointments'),
                     authFetch('/notifications'),
                     authFetch('/branches'),
                     authFetch('/inventory'),

@@ -865,6 +865,43 @@
     gap: 8px;
 }
 
+.phoneInputGroup {
+    display: flex;
+    align-items: center;
+    border: 1px solid rgba(1, 83, 139, 0.14);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.phoneInputGroup:focus-within {
+    border-color: #2dccf6;
+    box-shadow: 0 0 0 4px rgba(45, 204, 246, 0.12);
+}
+
+.phonePrefix {
+    padding: 14px 0 14px 16px;
+    color: #5f7384;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.phoneField {
+    width: 100%;
+    padding: 14px 16px 14px 10px;
+    border: none;
+    background: transparent;
+    color: #22485f;
+    font: inherit;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.phoneField::placeholder {
+    color: #8ba0b0;
+}
+
 .captchaCard {
     min-height: 84px;
     padding: 14px 16px;

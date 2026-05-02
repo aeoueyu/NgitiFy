@@ -113,8 +113,8 @@ export default function DentistAppointments() {
         try {
             const dentistId = user?.id || user?._id;
             const endpoint = dentistId
-                ? `/surgeries?dentistId=${dentistId}`
-                : '/surgeries';
+                ? `/appointments?dentistId=${dentistId}`
+                : '/appointments';
             const res = await authFetch(endpoint);
             if (!res.ok) throw new Error('Failed to load appointments.');
             const data = await res.json();
@@ -258,7 +258,7 @@ export default function DentistAppointments() {
     const handleConfirmComplete = async () => {
         if (!completeTarget) return;
         try {
-            const res = await authFetch(`/surgeries/${completeTarget.id}/status`, {
+            const res = await authFetch(`/appointments/${completeTarget.id}/status`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: 'completed' }),
             });
@@ -289,7 +289,7 @@ export default function DentistAppointments() {
         e.preventDefault();
         setIsSubmittingBooking(true);
         try {
-            const res = await authFetch('/surgeries', {
+            const res = await authFetch('/appointments', {
                 method: 'POST',
                 body: JSON.stringify({
                     patient:   bookingForm.patientId,

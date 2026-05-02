@@ -42,7 +42,8 @@ const verifyToken = require('./middleware/auth');
 const User = require('./models/User'); 
 const AuditLog = require('./models/AuditLog'); 
 // Patient model removed — patients use the User model (role: 'patient')
-const Surgery = require('./models/Surgery');
+const Appointment = require('./models/Appointment');
+const Surgery = Appointment;
 const Inventory = require('./models/Inventory');
 const Notification = require('./models/Notification');
 const Branch = require('./models/Branch');
@@ -2203,7 +2204,7 @@ app.delete('/api/inventory/:id', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 // CREATE SURGERY / APPOINTMENT
 // -------------------------------------------------------
-app.post('/api/surgeries', verifyToken, async (req, res) => {
+app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) => {
     const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
     if (!staffRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
@@ -2275,14 +2276,15 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
     }
 });
 
-app.post('/api/admin/appointments/:surgeryId/register-guest', verifyToken, async (req, res) => {
+app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appointments/:appointmentId/register-guest'], verifyToken, async (req, res) => {
     const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
 
     try {
-        const surgery = await Surgery.findById(req.params.surgeryId).populate('dentist', 'name');
+        const appointmentId = req.params.appointmentId || req.params.surgeryId;
+        const surgery = await Surgery.findById(appointmentId).populate('dentist', 'name');
         if (!surgery || surgery.isArchived) {
             return res.status(404).json({ message: 'Guest appointment not found.' });
         }
@@ -2434,7 +2436,7 @@ app.post('/api/admin/appointments/:surgeryId/register-guest', verifyToken, async
     }
 });
 
-app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
+app.get(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req, res) => {
     try {
         const surgery = await Surgery.findById(req.params.id)
             .populate('patient')
@@ -2456,7 +2458,7 @@ app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
     }
 });
 
-app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
+app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req, res) => {
     try {
         if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);
@@ -2498,7 +2500,7 @@ app.put('/api/surgeries/:id', verifyToken, async (req, res) => {
     }
 });
 
-app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
+app.delete(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req, res) => {
     const staffRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
     if (!staffRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
@@ -2559,7 +2561,7 @@ app.delete('/api/surgeries/:id', verifyToken, async (req, res) => {
 // SURGERIES: FILTER BY QUERY PARAMS
 // -------------------------------------------------------
 
-app.get('/api/surgeries', verifyToken, async (req, res) => {
+app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) => {
     try {
         const { patientId, status, date } = req.query;
         const query = { isArchived: { $ne: true } };
@@ -2607,7 +2609,7 @@ app.get('/api/surgeries', verifyToken, async (req, res) => {
 // SURGERIES: UPDATE STATUS ONLY
 // -------------------------------------------------------
 
-app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
+app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyToken, async (req, res) => {
     try {
         const { status, remarks, preOpInstructions, date, time, dentistId } = req.body;
 
@@ -2835,14 +2837,15 @@ app.post('/api/pre-register/:token', async (req, res) => {
     }
 });
 
-app.post('/api/admin/appointments/:surgeryId/resend-pre-register', verifyToken, async (req, res) => {
+app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/appointments/:appointmentId/resend-pre-register'], verifyToken, async (req, res) => {
     const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
 
     try {
-        const surgery = await Surgery.findById(req.params.surgeryId);
+        const appointmentId = req.params.appointmentId || req.params.surgeryId;
+        const surgery = await Surgery.findById(appointmentId);
         if (!surgery || surgery.isArchived) return res.status(404).json({ message: 'Guest appointment not found.' });
         if (surgery.patient || surgery.source !== 'Smile Hub (Online)' || !surgery.guestEmail) {
             return res.status(400).json({ message: 'Only guest website appointments can receive a pre-registration link.' });

@@ -80,7 +80,7 @@ export default function DentistDashboard() {
 
                 const requests = [
                     userId ? authFetch(`/user/${userId}`) : Promise.resolve(null),
-                    authFetch('/surgeries'),
+                    authFetch('/appointments'),
                     authFetch('/patients?limit=200'),
                     authFetch('/notifications'),
                     authFetch('/material-usage'),

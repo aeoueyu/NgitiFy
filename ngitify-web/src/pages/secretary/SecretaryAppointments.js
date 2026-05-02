@@ -122,7 +122,7 @@ export default function SecretaryAppointments() {
     const fetchAppointments = useCallback(async (silent = false) => {
         if (!silent) setIsLoading(true);
         try {
-            const res = await authFetch('/surgeries');
+            const res = await authFetch('/appointments');
             if (!res.ok) throw new Error();
             const data = await res.json();
             setAllAppointments(data.map(normalizeSurgery).sort((a, b) => b.rawDate - a.rawDate));
@@ -138,7 +138,7 @@ export default function SecretaryAppointments() {
             setIsLoading(true);
             try {
                 const [aptsRes, patientsRes, dentistsRes] = await Promise.all([
-                    authFetch('/surgeries'),
+                    authFetch('/appointments'),
                     authFetch('/patients'),
                     authFetch('/users?role=dentist'),
                 ]);
@@ -243,7 +243,7 @@ export default function SecretaryAppointments() {
         if (!statusChangeTarget) return;
         const { appointment, newStatus } = statusChangeTarget;
         try {
-            const res = await authFetch(`/surgeries/${appointment.id}/status`, {
+            const res = await authFetch(`/appointments/${appointment.id}/status`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: STATUS_API_MAP[newStatus] || newStatus.toLowerCase() }),
             });
@@ -264,7 +264,7 @@ export default function SecretaryAppointments() {
     const confirmCancelAppointment = async () => {
         if (!cancelTarget) return;
         try {
-            const res = await authFetch(`/surgeries/${cancelTarget.id}/status`, {
+            const res = await authFetch(`/appointments/${cancelTarget.id}/status`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: 'cancelled' }),
             });
@@ -283,7 +283,7 @@ export default function SecretaryAppointments() {
     const confirmDeleteAppointment = async () => {
         if (!deleteTarget) return;
         try {
-            const res = await authFetch(`/surgeries/${deleteTarget.id}`, { method: 'DELETE' });
+            const res = await authFetch(`/appointments/${deleteTarget.id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error();
             setAllAppointments((prev) => prev.filter((item) => item.id !== deleteTarget.id));
             addToast('Appointment archived successfully.', 'success');
@@ -342,7 +342,7 @@ export default function SecretaryAppointments() {
 
         setIsSubmittingBooking(true);
         try {
-            const res = await authFetch('/surgeries', {
+            const res = await authFetch('/appointments', {
                 method: 'POST',
                 body: JSON.stringify({
                     patient: bookingForm.patientId,

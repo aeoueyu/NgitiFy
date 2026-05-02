@@ -243,7 +243,16 @@ export default function WebsiteAppointment() {
 
         setSubmittedMessage('');
         setSubmitState('idle');
-        if (errors[name]) {
+        if (name === 'phone') {
+            setErrors((prev) => {
+                const nextErrors = { ...prev };
+                if (!nextValue) nextErrors.phone = '';
+                else if (!nextValue.startsWith('9')) nextErrors.phone = 'Phone number must start with 9.';
+                else if (nextValue.length === 10 && !phoneRegex.test(nextValue)) nextErrors.phone = 'Use the same format as registration: 9xxxxxxxxx.';
+                else nextErrors.phone = '';
+                return nextErrors;
+            });
+        } else if (errors[name]) {
             setErrors((prev) => ({ ...prev, [name]: '' }));
         }
         if (name === 'branch' || name === 'preferredDate') {
@@ -383,17 +392,20 @@ export default function WebsiteAppointment() {
 
                             <div className={styles.fieldGroup}>
                                 <label className={styles.fieldLabel} htmlFor="phone">Phone</label>
-                                <input
-                                    id="phone"
-                                    name="phone"
-                                    className={`${styles.fieldInput} ${errors.phone ? styles.errorBorder : ''}`}
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    inputMode="numeric"
-                                    maxLength={10}
-                                    placeholder="9xxxxxxxxx"
-                                    required
-                                />
+                                <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
+                                    <span className={styles.phonePrefix}>+63</span>
+                                    <input
+                                        id="phone"
+                                        name="phone"
+                                        className={styles.phoneField}
+                                        value={formData.phone}
+                                        onChange={handleChange}
+                                        inputMode="numeric"
+                                        maxLength={10}
+                                        placeholder="9xxxxxxxxx"
+                                        required
+                                    />
+                                </div>
                                 {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                             </div>
 

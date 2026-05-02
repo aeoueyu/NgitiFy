@@ -5,7 +5,8 @@ const verifyToken = require('../middleware/auth');
 const isAdmin = require('../middleware/isAdmin');
 const AuditLog = require('../models/AuditLog');
 const User = require('../models/User');
-const Surgery = require('../models/Surgery');
+const Appointment = require('../models/Appointment');
+const Surgery = Appointment;
 
 // -------------------------------------------------------
 // Individual check functions
@@ -37,7 +38,7 @@ async function checkOrphanedSurgeries() {
 
     return {
         checkName: 'orphaned_surgeries',
-        label: 'Orphaned Surgeries',
+        label: 'Orphaned Appointments',
         description: 'Appointments whose linked patient or dentist account no longer exists.',
         count: orphaned.length,
         status: orphaned.length === 0 ? 'pass' : 'fail',
@@ -165,7 +166,7 @@ router.post('/integrity/fix/:checkName', verifyToken, isAdmin, async (req, res) 
                 );
             }
 
-            fixResult = { fixed: orphanedIds.length, action: 'Archived orphaned surgeries' };
+            fixResult = { fixed: orphanedIds.length, action: 'Archived orphaned appointments' };
 
         } else if (checkName === 'unverified_users') {
             // Deactivate stale unverified accounts

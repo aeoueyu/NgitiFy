@@ -70,7 +70,7 @@ export default function SecretaryDashboard() {
 
                 const [statsRes, surgeriesRes, queueRes, patientsRes, notificationsRes, ticketsRes, logsRes] = await Promise.all([
                     authFetch('/dashboard/stats'),
-                    authFetch('/surgeries'),
+                    authFetch('/appointments'),
                     authFetch('/queue'),
                     authFetch('/patients'),
                     authFetch('/notifications'),
@@ -224,7 +224,7 @@ export default function SecretaryDashboard() {
         if (!checkInTarget) return;
         setIsCheckingIn(true);
         try {
-            const res = await authFetch(`/surgeries/${checkInTarget.id}/status`, {
+            const res = await authFetch(`/appointments/${checkInTarget.id}/status`, {
                 method: 'PUT',
                 body: JSON.stringify({ status: 'in-clinic' }),
             });

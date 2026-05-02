@@ -77,7 +77,7 @@ export default function BranchManagerDashboard() {
                     dentistsRes,
                     secretariesRes,
                 ] = await Promise.all([
-                    authFetch('/surgeries'),
+                    authFetch('/appointments'),
                     authFetch('/patients'),
                     authFetch('/notifications'),
                     authFetch('/inventory'),

@@ -195,7 +195,7 @@ export default function PatientDashboard({ navigation }) {
 
         try {
             const [apptRes, notifRes, treatRes] = await Promise.allSettled([
-                fetch(`${API_BASE_URL}/api/surgeries?patientId=${userId}`, { headers: authHeader }),
+                fetch(`${API_BASE_URL}/api/appointments?patientId=${userId}`, { headers: authHeader }),
                 fetch(`${API_BASE_URL}/api/notifications`,                 { headers: authHeader }),
                 fetch(`${API_BASE_URL}/api/my/treatment-logs`,             { headers: authHeader }),
             ]);
