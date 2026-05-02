@@ -434,6 +434,7 @@ const GUEST_APPOINTMENT_PROCEDURES = [
 ];
 
 const GUEST_FULL_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
+const GUEST_PERSON_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{0,49}$/;
 const GUEST_PHONE_REGEX = /^9\d{9}$/;
 const GUEST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -3180,6 +3181,9 @@ app.post('/api/public/appointments/request', async (req, res) => {
     try {
         const {
             fullName,
+            firstName,
+            middleName,
+            lastName,
             phone,
             email,
             branch,
@@ -3192,20 +3196,41 @@ app.post('/api/public/appointments/request', async (req, res) => {
             turnstileToken,
         } = req.body;
 
-        if (!fullName || !phone || !email || !branch || !date || !time || !procedure || !notes || !birthdate || !gender) {
+        const normalizedFirstName = String(firstName || '').trim().replace(/\s+/g, ' ');
+        const normalizedMiddleName = String(middleName || '').trim().replace(/\s+/g, ' ');
+        const normalizedLastName = String(lastName || '').trim().replace(/\s+/g, ' ');
+        const fallbackFullName = String(fullName || '').trim().replace(/\s+/g, ' ');
+        const normalizedName = [normalizedFirstName, normalizedMiddleName, normalizedLastName].filter(Boolean).join(' ') || fallbackFullName;
+
+        if (!normalizedName || !phone || !email || !branch || !date || !time || !procedure || !notes || !birthdate || !gender) {
             return res.status(400).json({ message: 'All appointment request fields are required.' });
         }
         if (!turnstileToken) {
             return res.status(400).json({ message: 'Please complete the captcha before submitting.' });
         }
 
-        const normalizedName = String(fullName).trim().replace(/\s+/g, ' ');
         const normalizedPhone = String(phone).trim();
         const normalizedEmail = String(email).trim().toLowerCase();
         const normalizedBranch = String(branch).trim();
         const normalizedProcedure = String(procedure).trim();
         const normalizedNotes = String(notes).trim();
         const normalizedGender = String(gender).trim();
+
+        if ((normalizedFirstName || normalizedLastName || normalizedMiddleName) && (!normalizedFirstName || !normalizedLastName)) {
+            return res.status(400).json({ message: 'First name and last name are required.' });
+        }
+
+        if (normalizedFirstName && !GUEST_PERSON_NAME_REGEX.test(normalizedFirstName)) {
+            return res.status(400).json({ message: 'Please enter a valid first name.' });
+        }
+
+        if (normalizedMiddleName && !GUEST_PERSON_NAME_REGEX.test(normalizedMiddleName)) {
+            return res.status(400).json({ message: 'Please enter a valid middle name.' });
+        }
+
+        if (normalizedLastName && !GUEST_PERSON_NAME_REGEX.test(normalizedLastName)) {
+            return res.status(400).json({ message: 'Please enter a valid last name.' });
+        }
 
         if (!GUEST_FULL_NAME_REGEX.test(normalizedName)) {
             return res.status(400).json({ message: 'Please enter a valid full name.' });

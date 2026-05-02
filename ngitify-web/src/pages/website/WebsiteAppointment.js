@@ -10,7 +10,9 @@ import {
 import { publicFetch } from '../../utils/api';
 
 const initialForm = {
-    fullName: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
     phone: '',
     email: '',
     birthdate: '',
@@ -46,9 +48,17 @@ const isSlotPast = (slot24, dateStr) => {
     return slotMinutes <= bufferMinutes;
 };
 
-const fullNameRegex = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
+const personNameRegex = /^[A-Za-z][A-Za-z\s.'-]{0,49}$/;
 const phoneRegex = /^9\d{9}$/;
 const normalizePhone = (value) => value.replace(/[^0-9]/g, '').slice(0, 10);
+const toTitleCase = (value) => value.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
+const buildFullName = ({ firstName, middleName, lastName }) => (
+    [firstName, middleName, lastName]
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+);
 
 export default function WebsiteAppointment() {
     const turnstileContainerRef = useRef(null);
@@ -171,12 +181,19 @@ export default function WebsiteAppointment() {
 
     const validate = useCallback((data) => {
         const nextErrors = {};
-        const trimmedName = data.fullName.trim().replace(/\s+/g, ' ');
+        const trimmedFirstName = data.firstName.trim();
+        const trimmedMiddleName = data.middleName.trim();
+        const trimmedLastName = data.lastName.trim();
         const trimmedEmail = data.email.trim();
         const trimmedNotes = data.notes.trim();
 
-        if (!trimmedName) nextErrors.fullName = 'Full name is required.';
-        else if (!fullNameRegex.test(trimmedName)) nextErrors.fullName = 'Enter a valid full name.';
+        if (!trimmedFirstName) nextErrors.firstName = 'First name is required.';
+        else if (!personNameRegex.test(trimmedFirstName)) nextErrors.firstName = 'Enter a valid first name.';
+
+        if (trimmedMiddleName && !personNameRegex.test(trimmedMiddleName)) nextErrors.middleName = 'Enter a valid middle name.';
+
+        if (!trimmedLastName) nextErrors.lastName = 'Last name is required.';
+        else if (!personNameRegex.test(trimmedLastName)) nextErrors.lastName = 'Enter a valid last name.';
 
         if (!data.phone.trim()) nextErrors.phone = 'Phone number is required.';
         else if (!phoneRegex.test(data.phone.trim())) nextErrors.phone = 'Use the same format as registration: 9xxxxxxxxx.';
@@ -227,6 +244,8 @@ export default function WebsiteAppointment() {
         const { name, type, value, checked } = event.target;
         const nextValue = name === 'phone'
                 ? normalizePhone(value)
+                : ['firstName', 'middleName', 'lastName'].includes(name)
+                    ? (value === '' || /^[A-Za-z\s.'-]+$/.test(value) ? toTitleCase(value) : formData[name])
                 : type === 'checkbox'
                     ? checked
                     : value;
@@ -286,7 +305,10 @@ export default function WebsiteAppointment() {
             const response = await publicFetch('/public/appointments/request', {
                 method: 'POST',
                 body: JSON.stringify({
-                    fullName: formData.fullName.trim().replace(/\s+/g, ' '),
+                    fullName: buildFullName(formData),
+                    firstName: formData.firstName.trim(),
+                    middleName: formData.middleName.trim(),
+                    lastName: formData.lastName.trim(),
                     phone: formData.phone.trim(),
                     email: formData.email.trim().toLowerCase(),
                     birthdate: formData.birthdate,
@@ -366,7 +388,7 @@ export default function WebsiteAppointment() {
                             <p className={styles.eyebrow}>Request Form</p>
                             <h2 className={styles.sectionTitle}>Book with Dentime</h2>
                             <p className={styles.bodyText}>
-                                All fields are required. Time slots follow the same availability rules used in the patient booking flow.
+                                Required fields should match the same patient registration details used by the clinic.
                             </p>
                             {!TURNSTILE_SITE_KEY && (
                                 <p className={styles.errorText}>
@@ -383,17 +405,44 @@ export default function WebsiteAppointment() {
 
                         <div className={styles.formGrid}>
                             <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="fullName">Full Name</label>
+                                <label className={styles.fieldLabel} htmlFor="firstName">First Name</label>
                                 <input
-                                    id="fullName"
-                                    name="fullName"
-                                    className={`${styles.fieldInput} ${errors.fullName ? styles.errorBorder : ''}`}
-                                    value={formData.fullName}
+                                    id="firstName"
+                                    name="firstName"
+                                    className={`${styles.fieldInput} ${errors.firstName ? styles.errorBorder : ''}`}
+                                    value={formData.firstName}
                                     onChange={handleChange}
-                                    placeholder="Enter your full name"
+                                    placeholder="Enter your first name"
                                     required
                                 />
-                                {errors.fullName && <span className={styles.errorText}>{errors.fullName}</span>}
+                                {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
+                            </div>
+
+                            <div className={styles.fieldGroup}>
+                                <label className={styles.fieldLabel} htmlFor="middleName">Middle Name</label>
+                                <input
+                                    id="middleName"
+                                    name="middleName"
+                                    className={`${styles.fieldInput} ${errors.middleName ? styles.errorBorder : ''}`}
+                                    value={formData.middleName}
+                                    onChange={handleChange}
+                                    placeholder="Enter your middle name"
+                                />
+                                {errors.middleName && <span className={styles.errorText}>{errors.middleName}</span>}
+                            </div>
+
+                            <div className={styles.fieldGroup}>
+                                <label className={styles.fieldLabel} htmlFor="lastName">Last Name</label>
+                                <input
+                                    id="lastName"
+                                    name="lastName"
+                                    className={`${styles.fieldInput} ${errors.lastName ? styles.errorBorder : ''}`}
+                                    value={formData.lastName}
+                                    onChange={handleChange}
+                                    placeholder="Enter your last name"
+                                    required
+                                />
+                                {errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}
                             </div>
 
                             <div className={styles.fieldGroup}>
