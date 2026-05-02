@@ -274,14 +274,13 @@
 .actionRow {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    justify-content: center;
 }
 
 .primaryButton,
 .secondaryButton,
-.viewButton,
-.editButton,
-.cancelButton,
+.actionIconButton,
 .slotButton,
 .closeButton {
     border: none;
@@ -290,9 +289,7 @@
 
 .primaryButton,
 .secondaryButton,
-.viewButton,
-.editButton,
-.cancelButton,
+.actionIconButton,
 .slotButton,
 .closeButton {
     cursor: pointer;
@@ -332,30 +329,43 @@
     background-color: #e2e8f0;
 }
 
-.viewButton,
-.editButton,
-.cancelButton {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 700;
+.actionIconButton {
+    padding: 0;
 }
 
-.viewButton {
+.viewIconButton {
+    color: #1d4ed8;
     background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.viewIconButton:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
     color: #1d4ed8;
 }
 
-.editButton {
+.editIconButton {
+    color: #92400e;
     background: #fef3c7;
+    border-color: #fde68a;
+}
+
+.editIconButton:hover {
+    background: #fde68a;
+    border-color: #facc15;
     color: #92400e;
 }
 
-.cancelButton {
+.deleteIconButton {
+    color: #991b1b;
     background: #fee2e2;
+    border-color: #fecaca;
+}
+
+.deleteIconButton:hover {
+    background: #fecaca;
+    border-color: #fca5a5;
     color: #991b1b;
 }
 

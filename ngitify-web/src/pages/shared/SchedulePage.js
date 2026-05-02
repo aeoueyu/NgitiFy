@@ -1213,12 +1213,12 @@ export default function SchedulePage() {
                     <table className={`${styles.userTable} ${wideTable.table}`}>
                         <thead>
                             <tr>
-                                <th style={{ width: '56px', textAlign: 'center' }}>#</th>
+                                <th style={{ width: '42px', textAlign: 'center' }}>#</th>
                                 <th>Patient Name</th>
                                 <th style={{ width: '150px' }}>Type</th>
                                 <th>Dentist Assigned</th>
                                 <th style={{ width: '150px' }}>Status</th>
-                                <th style={{ width: '180px', textAlign: 'center' }}>Actions</th>
+                                <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1231,7 +1231,7 @@ export default function SchedulePage() {
                             ) : combinedRows.length > 0 ? (
                                 combinedRows.map((entry, index) => (
                                     <tr key={`${entry.type}-${entry.id}`}>
-                                        <td style={{ textAlign: 'center' }}>{index + 1}</td>
+                                        <td style={{ textAlign: 'center', width: '42px' }}>{index + 1}</td>
                                         <td className={wideTable.wrapCell}>
                                             <div className={styles.patientCell}>
                                                 <strong>{entry.patientName}</strong>
@@ -1250,18 +1250,36 @@ export default function SchedulePage() {
                                             </span>
                                         </td>
                                         <td style={{ textAlign: 'center' }}>
-                                            <div className={styles.actionRow}>
-                                                <button type="button" className={styles.viewButton} onClick={() => setViewEntry(entry)}>
-                                                    <FaEye /> View
+                                            <div className={`${styles.actionRow} ${wideTable.iconActions}`}>
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.viewIconButton}`}
+                                                    onClick={() => setViewEntry(entry)}
+                                                    title="View"
+                                                    aria-label="View"
+                                                >
+                                                    <FaEye />
                                                 </button>
                                                 {canCreateSchedule && (
-                                                    <button type="button" className={styles.editButton} onClick={() => openEditModal(entry)}>
-                                                        <FaEdit /> Edit
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.editIconButton}`}
+                                                        onClick={() => openEditModal(entry)}
+                                                        title="Edit"
+                                                        aria-label="Edit"
+                                                    >
+                                                        <FaEdit />
                                                     </button>
                                                 )}
                                                 {canCreateSchedule && (
-                                                    <button type="button" className={styles.cancelButton} onClick={() => setCancelTarget(entry)}>
-                                                        <FaTrashAlt /> {entry.type === 'appointment' ? 'Cancel' : 'Delete'}
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.deleteIconButton}`}
+                                                        onClick={() => setCancelTarget(entry)}
+                                                        title={entry.type === 'appointment' ? 'Cancel' : 'Delete'}
+                                                        aria-label={entry.type === 'appointment' ? 'Cancel' : 'Delete'}
+                                                    >
+                                                        <FaTrashAlt />
                                                     </button>
                                                 )}
                                             </div>
