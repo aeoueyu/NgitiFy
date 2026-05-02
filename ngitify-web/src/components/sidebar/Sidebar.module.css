@@ -8,11 +8,11 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 20px 10px 16px;
+    padding: 18px 10px 16px;
     z-index: 20;
     font-family: 'Lexend Deca', sans-serif;
     overflow-y: auto;
-    overflow-x: visible;
+    overflow-x: hidden;
     flex-shrink: 0;
     scrollbar-gutter: stable;
     transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
@@ -51,29 +51,32 @@
 
 .toggleButton {
     position: absolute;
-    top: 18px;
-    right: -18px;
-    width: 18px;
-    height: 44px;
+    top: 22px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
     border: none;
-    border-radius: 0 6px 6px 0;
-    background: #01538b;
-    color: white;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #475569;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 10px 18px rgba(1, 83, 139, 0.24);
-    transition: background 0.2s ease, transform 0.2s ease;
-    z-index: 2;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    z-index: 3;
 }
 
 .toggleButton:hover {
-    background: #013f6a;
+    background: #0b5fa5;
+    color: #ffffff;
+    box-shadow: 0 14px 28px rgba(11, 95, 165, 0.22);
 }
 
 .toggleIcon {
-    font-size: 12px;
+    font-size: 11px;
     transition: transform 0.25s ease;
 }
 
@@ -85,15 +88,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 36px 0 18px;
-    margin-bottom: 10px;
+    padding: 18px 0 18px;
+    margin-bottom: 14px;
     border-bottom: 1px solid rgba(1, 83, 139, 0.08);
 }
 
 .profile-expanded {
     justify-content: flex-start;
     gap: 12px;
-    padding: 36px 6px 20px;
+    padding: 18px 40px 20px 6px;
 }
 
 .profile-info {
