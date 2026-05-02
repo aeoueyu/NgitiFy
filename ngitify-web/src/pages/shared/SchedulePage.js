@@ -1209,74 +1209,74 @@ export default function SchedulePage() {
                     )}
                 </div>
 
-                <div className={styles.tableContainer}>
-                    {loading ? (
-                        <div className={styles.stateBlock}>Loading schedule entries...</div>
-                    ) : combinedRows.length === 0 ? (
-                        <div className={styles.stateBlock}>No records found for the selected filters.</div>
-                    ) : (
-                        <div className={wideTable.tableWrapper}>
-                            <table className={wideTable.table}>
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Patient Name</th>
-                                        <th>Appointment Date & Time</th>
-                                        <th>Type</th>
-                                        <th>Dentist Assigned</th>
-                                        <th>Status</th>
-                                        <th>Created At</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {combinedRows.map((entry, index) => (
-                                        <tr key={`${entry.type}-${entry.id}`}>
-                                            <td>{index + 1}</td>
-                                            <td className={wideTable.wrapCell}>
-                                                <div className={styles.patientCell}>
-                                                    <strong>{entry.patientName}</strong>
-                                                    <span>{entry.branch || 'No branch'}</span>
-                                                </div>
-                                            </td>
-                                            <td>{entry.type === 'appointment'
-                                                ? formatDateTimeLabel(entry.date, entry.time)
-                                                : `${formatDateLabel(todayString)} • Ticket ${entry.ticketNumber || '-'}`}</td>
-                                            <td>
-                                                <span className={`${wideTable.statusBadge} ${entry.type === 'appointment' ? wideTable.statusBlue : wideTable.statusGray}`}>
-                                                    {entry.type === 'appointment' ? 'Appointment' : 'Walk-in'}
-                                                </span>
-                                            </td>
-                                            <td>{entry.dentistName}</td>
-                                            <td>
-                                                <span className={`${wideTable.statusBadge} ${getBadgeClass(entry)}`}>
-                                                    {entry.statusLabel}
-                                                </span>
-                                            </td>
-                                            <td>{formatCreatedAt(entry.createdAt)}</td>
-                                            <td>
-                                                <div className={styles.actionRow}>
-                                                    <button type="button" className={styles.viewButton} onClick={() => setViewEntry(entry)}>
-                                                        <FaEye /> View
+                <div className={`${styles.tableContainer} ${wideTable.tableWrapper}`}>
+                    <table className={`${styles.userTable} ${wideTable.table}`}>
+                        <thead>
+                            <tr>
+                                <th style={{ width: '56px', textAlign: 'center' }}>#</th>
+                                <th>Patient Name</th>
+                                <th style={{ width: '150px' }}>Type</th>
+                                <th>Dentist Assigned</th>
+                                <th style={{ width: '150px' }}>Status</th>
+                                <th style={{ width: '180px', textAlign: 'center' }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                        Loading schedule entries...
+                                    </td>
+                                </tr>
+                            ) : combinedRows.length > 0 ? (
+                                combinedRows.map((entry, index) => (
+                                    <tr key={`${entry.type}-${entry.id}`}>
+                                        <td style={{ textAlign: 'center' }}>{index + 1}</td>
+                                        <td className={wideTable.wrapCell}>
+                                            <div className={styles.patientCell}>
+                                                <strong>{entry.patientName}</strong>
+                                                <span>{entry.branch || 'No branch'}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className={`${wideTable.statusBadge} ${entry.type === 'appointment' ? wideTable.statusBlue : wideTable.statusGray}`}>
+                                                {entry.type === 'appointment' ? 'Appointment' : 'Walk-in'}
+                                            </span>
+                                        </td>
+                                        <td>{entry.dentistName}</td>
+                                        <td>
+                                            <span className={`${wideTable.statusBadge} ${getBadgeClass(entry)}`}>
+                                                {entry.statusLabel}
+                                            </span>
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <div className={styles.actionRow}>
+                                                <button type="button" className={styles.viewButton} onClick={() => setViewEntry(entry)}>
+                                                    <FaEye /> View
+                                                </button>
+                                                {canCreateSchedule && (
+                                                    <button type="button" className={styles.editButton} onClick={() => openEditModal(entry)}>
+                                                        <FaEdit /> Edit
                                                     </button>
-                                                    {canCreateSchedule && (
-                                                        <button type="button" className={styles.editButton} onClick={() => openEditModal(entry)}>
-                                                            <FaEdit /> Edit
-                                                        </button>
-                                                    )}
-                                                    {canCreateSchedule && (
-                                                        <button type="button" className={styles.cancelButton} onClick={() => setCancelTarget(entry)}>
-                                                            <FaTrashAlt /> {entry.type === 'appointment' ? 'Cancel' : 'Delete'}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                                )}
+                                                {canCreateSchedule && (
+                                                    <button type="button" className={styles.cancelButton} onClick={() => setCancelTarget(entry)}>
+                                                        <FaTrashAlt /> {entry.type === 'appointment' ? 'Cancel' : 'Delete'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                        No schedule entries found for the selected filters.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
