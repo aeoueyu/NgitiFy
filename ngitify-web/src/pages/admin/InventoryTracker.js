@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from '../../styles/admin/InventoryTracker.module.css'; 
+import tblStyles from '../../styles/wideTable.module.css';
 import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle, FaBoxes, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { authFetch } from '../../utils/api';
@@ -245,8 +246,8 @@ export default function InventoryTracker() {
                 )}
             </div>
 
-            <div className={styles.tableContainer}>
-                <table className={styles.userTable}>
+            <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
+                <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
                             <th style={{ width: '25%' }}>Item Name</th>

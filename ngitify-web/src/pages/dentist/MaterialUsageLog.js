@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/dentist/MaterialUsageLog.module.css';
+import tblStyles from '../../styles/wideTable.module.css';
 import { FaBoxOpen, FaTrash, FaPlus, FaSearch, FaChevronDown, FaChevronUp, FaClipboardList, FaUserAlt, FaTooth, FaCalendarCheck } from 'react-icons/fa';
 import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
@@ -544,7 +545,8 @@ function MaterialUsagePage() {
                         <p>{logs.length === 0 ? 'No material usage logs recorded yet.' : 'No results match the current filters.'}</p>
                     </div>
                 ) : (
-                    <table className={styles.logTable}>
+                    <div className={tblStyles.tableWrapper}>
+                        <table className={`${styles.logTable} ${tblStyles.table}`}>
                         <thead>
                             <tr className={styles.tableHeader}>
                                 <th>Date Completed</th>
@@ -595,7 +597,8 @@ function MaterialUsagePage() {
                                 </React.Fragment>
                             ))}
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
                 )}
             </div>
 

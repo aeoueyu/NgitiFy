@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/ManagePatients.module.css';
+import tblStyles from '../../styles/wideTable.module.css';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
@@ -266,8 +267,8 @@ export default function ManagePatients() {
 
             {isAdmin && <UserTabs activeTab="patients" />}
 
-            <div className={styles.tableContainer} style={{ marginTop: !isAdmin ? '20px' : '0' }}>
-                <table className={styles.userTable}>
+            <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`} style={{ marginTop: !isAdmin ? '20px' : '0' }}>
+                <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
                             <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>

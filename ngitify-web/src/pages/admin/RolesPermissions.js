@@ -4,6 +4,7 @@ import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import styles from '../../styles/admin/RolesPermissions.module.css';
+import tblStyles from '../../styles/wideTable.module.css';
 
 const MODULES = [
     { key: 'appointments', label: 'Appointments' },
@@ -193,8 +194,8 @@ export default function RolesPermissions() {
                     Changes apply to all users of that role unless individually overridden.
                 </p>
 
-                <div className={styles.tableWrapper}>
-                    <table className={styles.matrix}>
+                <div className={`${styles.tableWrapper} ${tblStyles.tableWrapper}`}>
+                    <table className={`${styles.matrix} ${tblStyles.table}`}>
                         <thead>
                             <tr>
                                 <th className={styles.moduleHeader}>Module</th>

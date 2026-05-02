@@ -6,6 +6,7 @@ import {
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import styles from '../../styles/admin/IntegrityTools.module.css';
+import tblStyles from '../../styles/wideTable.module.css';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ function CheckCard({ check, onFix, fixing }) {
 
             {/* Expanded Records Table */}
             {expanded && hasIssues && (
-                <div className={styles.recordsWrapper}>
+                <div className={`${styles.recordsWrapper} ${tblStyles.tableWrapper}`}>
                     <RecordsTable checkName={check.checkName} records={check.records} />
                 </div>
             )}
@@ -116,7 +117,7 @@ function RecordsTable({ checkName, records }) {
 
     if (checkName === 'orphaned_surgeries') {
         return (
-            <table className={styles.recordTable}>
+            <table className={`${styles.recordTable} ${tblStyles.table}`}>
                 <thead>
                     <tr>
                         <th>Dental Treatment ID</th>
@@ -144,7 +145,7 @@ function RecordsTable({ checkName, records }) {
 
     if (checkName === 'duplicate_emails') {
         return (
-            <table className={styles.recordTable}>
+            <table className={`${styles.recordTable} ${tblStyles.table}`}>
                 <thead>
                     <tr>
                         <th>Email</th>
@@ -171,7 +172,7 @@ function RecordsTable({ checkName, records }) {
 
     // Default table for unverified_users / expired_temp_passwords
     return (
-        <table className={styles.recordTable}>
+        <table className={`${styles.recordTable} ${tblStyles.table}`}>
             <thead>
                 <tr>
                     <th>Email</th>

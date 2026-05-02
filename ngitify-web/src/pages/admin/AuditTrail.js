@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from '../../styles/admin/AuditTrail.module.css';
+import tblStyles from '../../styles/wideTable.module.css';
 import { FaSearch, FaHistory, FaDownload, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { authFetch } from '../../utils/api'; 
 import { formatDateShort, formatTime } from '../../utils/dateUtils'; // NEW: Imported Date Utilities
@@ -224,8 +225,8 @@ export default function AuditTrail() {
                 </button>
             </div>
 
-            <div className={styles.tableContainer}>
-                <table className={styles.userTable}>
+            <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
+                <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
                             <th>Date & Time</th>
@@ -252,7 +253,7 @@ export default function AuditTrail() {
                                             {log.role}
                                         </span>
                                     </td>
-                                    <td className={styles.actionText}>
+                                    <td className={`${styles.actionText} ${tblStyles.wrapCell}`}>
                                         {log.action}
                                     </td>
                                 </tr>

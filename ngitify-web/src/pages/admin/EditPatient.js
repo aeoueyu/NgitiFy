@@ -5,6 +5,7 @@ import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
+import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 const initialEmergencyContact = { name: '', relationship: '', contactNumber: '' };
@@ -61,6 +62,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     const [isSameAddress, setIsSameAddress] = useState(false);
     const [profileImage, setProfileImage] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -294,6 +296,17 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 [field]: formatter ? formatter(value) : value,
             },
         }));
+    };
+
+    const handleConsentAcknowledged = (acknowledged) => {
+        setFormData((prev) => ({
+            ...prev,
+            consentAcknowledgement: {
+                ...prev.consentAcknowledgement,
+                acknowledged,
+            }
+        }));
+        clearError('consentAcknowledgement_acknowledged');
     };
 
     const handleNestedPhoneChange = (section, field) => (e) => {
@@ -805,9 +818,18 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                         <input type="date" className={styles.inputField} value={formData.consentAcknowledgement.signedAt} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isSaving} />
                                     </div>
                                 </div>
-                                <div className={styles.checkboxContainer}>
-                                    <input type="checkbox" checked={formData.consentAcknowledgement.acknowledged} onChange={(e) => handleNestedChange('consentAcknowledgement', 'acknowledged', e.target.checked)} disabled={isSaving} />
-                                    <label>I acknowledge and record this consent digitally.</label>
+                                <div style={{ display: 'grid', gap: '10px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsConsentModalOpen(true)}
+                                        disabled={isSaving}
+                                        style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#01538b', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+                                    >
+                                        View full consent form
+                                    </button>
+                                    <span style={{ fontSize: '14px', color: formData.consentAcknowledgement.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
+                                        {formData.consentAcknowledgement.acknowledged ? 'Consent reviewed and acknowledged.' : 'Consent has not been acknowledged yet.'}
+                                    </span>
                                 </div>
                                 {errors.consentAcknowledgement_acknowledged && <span className={styles.errorText}>{errors.consentAcknowledgement_acknowledged}</span>}
                             </div>
@@ -831,6 +853,13 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                     </div>
                 </div>
             )}
+
+            <ConsentReviewModal
+                isOpen={isConsentModalOpen}
+                onClose={() => setIsConsentModalOpen(false)}
+                onConfirm={handleConsentAcknowledged}
+                initiallyAcknowledged={formData.consentAcknowledgement.acknowledged}
+            />
         </div>
     );
 }

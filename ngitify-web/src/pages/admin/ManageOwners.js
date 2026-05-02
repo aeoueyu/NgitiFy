@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
+import tblStyles from '../../styles/wideTable.module.css';
 import UserAvatar from '../../components/common/UserAvatar';
 import UserTabs from './UserTabs';
 import AddOwner from './AddOwner';
@@ -157,8 +158,8 @@ export default function ManageOwners() {
 
             <UserTabs activeTab="owners" />
 
-            <div className={styles.tableContainer}>
-                <table className={styles.userTable}>
+            <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
+                <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
                             <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>

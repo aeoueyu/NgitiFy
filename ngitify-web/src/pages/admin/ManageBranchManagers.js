@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaEdit, FaEye, FaEnvelope, FaSearch, FaToggleOn, FaToggleOff, FaUserPlus } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
+import tblStyles from '../../styles/wideTable.module.css';
 import EditBranchManager from './EditBranchManager';
 import AddBranchManager from './AddBranchManager';
 import UserTabs from './UserTabs';
@@ -183,8 +184,8 @@ const ManageBranchManagers = () => {
 
             <UserTabs activeTab="branchManagers" />
 
-            <div className={styles.tableContainer}>
-                <table className={styles.userTable}>
+            <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
+                <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
                             <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>

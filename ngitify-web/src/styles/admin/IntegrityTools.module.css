@@ -4,7 +4,9 @@
 
 .container {
     padding: 30px;
-    max-width: 1000px;
+    width: 100%;
+    max-width: 1480px;
+    box-sizing: border-box;
     margin: 0 auto;
     font-family: 'Lexend Deca', sans-serif;
 }

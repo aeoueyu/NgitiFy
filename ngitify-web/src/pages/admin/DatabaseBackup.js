@@ -6,6 +6,7 @@ import {
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import styles from '../../styles/admin/DatabaseBackup.module.css';
+import tblStyles from '../../styles/wideTable.module.css';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -193,8 +194,8 @@ export default function DatabaseBackup() {
                         <p>No backups yet. Click <strong>Create Backup Now</strong> to get started.</p>
                     </div>
                 ) : (
-                    <div className={styles.tableWrapper}>
-                        <table className={styles.table}>
+                    <div className={`${styles.tableWrapper} ${tblStyles.tableWrapper}`}>
+                        <table className={`${styles.table} ${tblStyles.table}`}>
                             <thead>
                                 <tr>
                                     <th>Filename</th>

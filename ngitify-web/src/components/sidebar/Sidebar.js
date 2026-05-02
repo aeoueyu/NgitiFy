@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
@@ -6,14 +6,14 @@ import { usePermissions } from '../../hooks/usePermissions';
 import {
     FaBell,
     FaBoxes,
-    FaCalendarCheck,
+    FaCalendarAlt,
+    FaChevronRight,
     FaClipboardList,
     FaCodeBranch,
     FaCog,
     FaDatabase,
     FaFileMedical,
     FaHeadset,
-    FaListUl,
     FaRobot,
     FaShieldAlt,
     FaSignOutAlt,
@@ -44,9 +44,11 @@ export default function Sidebar() {
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
     const [lowStockCount, setLowStockCount] = useState(0);
     const [notifUnreadCount, setNotifUnreadCount] = useState(0);
     const [sidebarProfile, setSidebarProfile] = useState(null);
+    const sidebarRef = useRef(null);
 
     useEffect(() => {
         const userId = user?.userId || user?.id || user?._id;
@@ -93,7 +95,7 @@ export default function Sidebar() {
 
     const basePath = getBasePath();
     const dashboardPath = `${basePath}/dashboard`;
-    const appointmentsPath = `${basePath}/appointments`;
+    const schedulePath = `${basePath}/schedule`;
     const settingsPath = `${basePath}/settings`;
     const inventoryPath = `${basePath}/inventory`;
     const profilePath = `${basePath}/profile`;
@@ -121,6 +123,19 @@ export default function Sidebar() {
         fetchInventoryAlerts();
     }, [canReadInventory, isOwner]);
 
+    useEffect(() => {
+        if (!isExpanded) return;
+
+        const handleClickOutside = (event) => {
+            if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+                setIsExpanded(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isExpanded]);
+
     const getNavClass = (path) =>
         location.pathname === path || location.pathname.startsWith(path + '/')
             ? `${styles['nav-item']} ${styles.active}`
@@ -147,21 +162,31 @@ export default function Sidebar() {
         owner: 'Owner',
     }[user?.role] || '';
 
+    const renderBadge = (count, extraClassName = '') => {
+        if (!count) return null;
+        if (!isExpanded) return <span className={styles['badge-dot']} />;
+        return <span className={`${styles['notification-badge']} ${extraClassName}`.trim()}>{count}</span>;
+    };
+
+    const handleNavigate = (path) => {
+        navigate(path);
+        setIsExpanded(false);
+    };
+
     const navItem = (path, Icon, label, badge = null) => (
-        <div className={getNavClass(path)} onClick={() => navigate(path)}>
+        <div
+            className={getNavClass(path)}
+            onClick={() => handleNavigate(path)}
+            data-tooltip={label}
+        >
             <Icon className={styles['nav-icon']} />
-            <span className={styles['nav-text']}>{label}</span>
+            {isExpanded && <span className={styles['nav-text']}>{label}</span>}
             {badge}
         </div>
     );
 
-    const notifBadge = notifUnreadCount > 0 ? (
-        <span className={styles['notification-badge']}>{notifUnreadCount}</span>
-    ) : null;
-
-    const inventoryBadge = lowStockCount > 0 ? (
-        <span className={styles['notification-badge']}>{lowStockCount}</span>
-    ) : null;
+    const notifBadge = renderBadge(notifUnreadCount);
+    const inventoryBadge = renderBadge(lowStockCount);
 
     const aiAssistantActive = isDentistUser
         ? location.pathname === '/dentist/ai-assistant'
@@ -175,24 +200,45 @@ export default function Sidebar() {
 
     return (
         <>
-            <aside className={styles.sidebar}>
+            {isExpanded && (
+                <div
+                    className={styles['sidebar-backdrop']}
+                    onClick={() => setIsExpanded(false)}
+                />
+            )}
+
+            <aside
+                ref={sidebarRef}
+                className={`${styles.sidebar} ${isExpanded ? styles.expanded : ''}`}
+            >
+                <button
+                    type="button"
+                    className={styles.toggleButton}
+                    onClick={() => setIsExpanded((prev) => !prev)}
+                    aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                >
+                    <FaChevronRight className={styles.toggleIcon} />
+                </button>
+
                 {user && (
-                    <div className={styles['profile-section']}>
+                    <div className={`${styles['profile-section']} ${isExpanded ? styles['profile-expanded'] : ''}`}>
                         <UserAvatar user={avatarUser} size={44} />
-                        <div className={styles['profile-info']}>
-                            <span className={styles['profile-name']}>{displayName}</span>
-                            {roleLabel && (
-                                <span className={`${styles['role-badge']} ${styles[`role-${user.role}`] || ''}`}>
-                                    {roleLabel}
-                                </span>
-                            )}
-                        </div>
+                        {isExpanded && (
+                            <div className={styles['profile-info']}>
+                                <span className={styles['profile-name']}>{displayName}</span>
+                                {roleLabel && (
+                                    <span className={`${styles['role-badge']} ${styles[`role-${user.role}`] || ''}`}>
+                                        {roleLabel}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 
                 <div className={styles['nav-menu']}>
                     {navItem(dashboardPath, FaTachometerAlt, 'Dashboard')}
-                    {navItem(appointmentsPath, FaCalendarCheck, 'Appointments')}
+                    {navItem(schedulePath, FaCalendarAlt, 'Schedule')}
 
                     {isAdmin && navItem('/admin/manage-users', FaUsers, 'User Management')}
 
@@ -200,7 +246,6 @@ export default function Sidebar() {
                         <>
                             {navItem('/branch-manager/manage-users', FaUsers, 'User Management')}
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
-                            {navItem('/branch-manager/queue', FaListUl, 'Queue')}
                             {navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/branch-manager/branches', FaCodeBranch, 'Branch')}
                             {navItem('/branch-manager/activity-logs', FaClipboardList, 'Activity Logs')}
@@ -222,7 +267,6 @@ export default function Sidebar() {
                         <>
                             {navItem('/secretary/patients', FaUserInjured, 'Patients')}
                             {navItem('/secretary/notifications', FaBell, 'Notifications', notifBadge)}
-                            {navItem('/secretary/queue', FaListUl, 'Queue')}
                             {navItem('/secretary/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/secretary/activity-logs', FaClipboardList, 'Activity Logs')}
                         </>
@@ -244,7 +288,6 @@ export default function Sidebar() {
                     {isAdmin && (
                         <>
                             {navItem('/admin/notifications', FaBell, 'Notifications', notifBadge)}
-                            {navItem('/admin/queue', FaListUl, 'Queue')}
                             {navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/admin/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
@@ -257,64 +300,92 @@ export default function Sidebar() {
                 <div className={styles['footer-section']}>
                     {isAdmin && (
                         <>
-                            <div className={getFooterNavClass('/admin/system-config')} onClick={() => navigate('/admin/system-config')}>
+                            <div
+                                className={getFooterNavClass('/admin/system-config')}
+                                onClick={() => handleNavigate('/admin/system-config')}
+                                data-tooltip="System Config"
+                            >
                                 <FaTools className={styles['nav-icon']} />
-                                <span className={styles['nav-text']}>System Config</span>
+                                {isExpanded && <span className={styles['nav-text']}>System Config</span>}
                             </div>
 
-                            <div className={getFooterNavClass('/admin/backup')} onClick={() => navigate('/admin/backup')}>
+                            <div
+                                className={getFooterNavClass('/admin/backup')}
+                                onClick={() => handleNavigate('/admin/backup')}
+                                data-tooltip="Database Backup"
+                            >
                                 <FaDatabase className={styles['nav-icon']} />
-                                <span className={styles['nav-text']}>Database Backup</span>
+                                {isExpanded && <span className={styles['nav-text']}>Database Backup</span>}
                             </div>
 
-                            <div className={getFooterNavClass('/admin/integrity')} onClick={() => navigate('/admin/integrity')}>
+                            <div
+                                className={getFooterNavClass('/admin/integrity')}
+                                onClick={() => handleNavigate('/admin/integrity')}
+                                data-tooltip="Integrity Tools"
+                            >
                                 <FaTools className={styles['nav-icon']} />
-                                <span className={styles['nav-text']}>Integrity Tools</span>
+                                {isExpanded && <span className={styles['nav-text']}>Integrity Tools</span>}
                             </div>
                         </>
                     )}
 
-                    <div className={getFooterNavClass(profilePath)} onClick={() => navigate(profilePath)}>
+                    <div
+                        className={getFooterNavClass(profilePath)}
+                        onClick={() => handleNavigate(profilePath)}
+                        data-tooltip="My Profile"
+                    >
                         <FaUserCircle className={styles['nav-icon']} />
-                        <span className={styles['nav-text']}>My Profile</span>
+                        {isExpanded && <span className={styles['nav-text']}>My Profile</span>}
                     </div>
 
-                    <div className={getFooterNavClass(settingsPath)} onClick={() => navigate(settingsPath)}>
+                    <div
+                        className={getFooterNavClass(settingsPath)}
+                        onClick={() => handleNavigate(settingsPath)}
+                        data-tooltip="Settings"
+                    >
                         <FaCog className={styles['nav-icon']} />
-                        <span className={styles['nav-text']}>Settings</span>
+                        {isExpanded && <span className={styles['nav-text']}>Settings</span>}
                     </div>
 
                     <div
                         className={`${styles['settings-link']} ${aiAssistantActive ? styles.active : ''}`}
                         onClick={() => {
                             if (isDentistUser) {
-                                navigate('/dentist/ai-assistant');
+                                handleNavigate('/dentist/ai-assistant');
                                 return;
                             }
                             if (isOwner) {
-                                navigate('/owner/ai-assistant');
+                                handleNavigate('/owner/ai-assistant');
                                 return;
                             }
                             if (isBranchManager) {
-                                navigate('/branch-manager/ai-assistant');
+                                handleNavigate('/branch-manager/ai-assistant');
                                 return;
                             }
                             if (isAdmin) {
-                                navigate('/admin/ai-assistant');
+                                handleNavigate('/admin/ai-assistant');
                                 return;
                             }
                             setIsChatOpen((prev) => !prev);
+                            setIsExpanded(false);
                         }}
-                        title="AI Staff Assistant"
+                        data-tooltip="AI Assistant"
                     >
                         <FaRobot className={styles['nav-icon']} />
-                        <span className={styles['nav-text']}>AI Assistant</span>
-                        <span className={styles['ai-badge']}>AI</span>
+                        {isExpanded && <span className={styles['nav-text']}>AI Assistant</span>}
+                        {isExpanded && <span className={styles['ai-badge']}>AI</span>}
                     </div>
 
-                    <div className={styles['logout-btn']} onClick={() => setShowLogoutModal(true)}>
+                    <div
+                        className={styles['logout-btn']}
+                        onClick={() => {
+                            setShowLogoutModal(true);
+                            setIsExpanded(false);
+                        }}
+                        data-tooltip="Logout"
+                    >
                         <FaSignOutAlt className={styles['nav-icon']} />
-                        <span className={styles['nav-text']}>Logout</span>
+                        {isExpanded && <span className={styles['nav-text']}>Logout</span>}
                     </div>
                 </div>
             </aside>

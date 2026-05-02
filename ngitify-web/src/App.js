@@ -23,7 +23,7 @@ const ActivateAccountPage = lazy(() => import('./pages/auth/ActivateAccountPage'
 
 // Pages - Admin
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
-const AdminAppointments = lazy(() => import('./pages/admin/AdminAppointments'));
+const SchedulePage = lazy(() => import('./pages/shared/SchedulePage'));
 const ManageDentists = lazy(() => import('./pages/admin/ManageDentists'));
 const ManageSecretaries = lazy(() => import('./pages/admin/ManageSecretaries'));
 const ManagePatients = lazy(() => import('./pages/admin/ManagePatients'));
@@ -43,7 +43,6 @@ const ManageCoAdmins = lazy(() => import('./pages/admin/ManageCoAdmins'));
 const AddCoAdmin = lazy(() => import('./pages/admin/AddCoAdmin'));
 const AdminPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
 const SystemConfig = lazy(() => import('./pages/admin/SystemConfig'));
-const QueueManagement = lazy(() => import('./pages/admin/QueueManagement'));
 const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const RolesPermissions = lazy(() => import('./pages/admin/RolesPermissions'));
 const BranchManagement = lazy(() => import('./pages/admin/BranchManagement'));
@@ -56,7 +55,6 @@ const CoAdminAIAssistant = lazy(() => import('./pages/admin/CoAdminAIAssistant')
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
-const DentistAppointments = lazy(() => import('./pages/dentist/DentistAppointments'));
 const DentistPatientEMR = lazy(() => import('./pages/dentist/PatientEMR'));
 const DentistEMRList = lazy(() => import('./pages/dentist/DentistEMRList'));
 const DentistNotifications = lazy(() => import('./pages/dentist/Notifications'));
@@ -68,13 +66,11 @@ const DentistAIAssistant   = lazy(() => import('./pages/dentist/DentistAIAssista
 
 // Pages - Secretary
 const SecretaryDashboard    = lazy(() => import('./pages/secretary/SecretaryDashboard'));
-const SecretaryAppointments = lazy(() => import('./pages/secretary/SecretaryAppointments'));
 const SecretaryPatients     = lazy(() => import('./pages/secretary/SecretaryPatients'));
 const SecretaryAddPatient   = lazy(() => import('./pages/secretary/SecretaryAddPatient'));
 const SecretaryEditPatient  = lazy(() => import('./pages/secretary/SecretaryEditPatient'));
 const SecretaryViewPatient  = lazy(() => import('./pages/secretary/SecretaryViewPatient'));
 const SecretaryPatientEMR   = lazy(() => import('./pages/secretary/SecretaryPatientEMR'));
-const SecretaryQueue        = lazy(() => import('./pages/secretary/SecretaryQueue'));
 const SecretaryChatSupport  = lazy(() => import('./pages/secretary/SecretaryChatSupport'));
 const SecretaryNotifications = lazy(() => import('./pages/secretary/SecretaryNotifications'));
 const SecretaryActivityLogs = lazy(() => import('./pages/secretary/SecretaryActivityLogs'));
@@ -82,9 +78,7 @@ const SecretarySettings     = lazy(() => import('./pages/secretary/SecretarySett
 
 // Pages - Branch Manager
 const BranchManagerDashboard = lazy(() => import('./pages/branch-manager/BranchManagerDashboard'));
-const BranchManagerAppointments = lazy(() => import('./pages/branch-manager/BranchManagerAppointments'));
 const BranchManagerManageUsers = lazy(() => import('./pages/branch-manager/BranchManagerManageUsers'));
-const BranchManagerQueue = lazy(() => import('./pages/branch-manager/BranchManagerQueue'));
 const BranchManagerChatSupport = lazy(() => import('./pages/branch-manager/BranchManagerChatSupport'));
 const BranchManagerAnalytics = lazy(() => import('./pages/branch-manager/BranchManagerAnalytics'));
 const BranchManagerPatientEMR = lazy(() => import('./pages/branch-manager/BranchManagerPatientEMR'));
@@ -136,7 +130,8 @@ function App() {
               <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>
                 <Route element={<DashboardLayout />}>
                   <Route path="/dentist/dashboard"               element={<DentistDashboard />} />
-                  <Route path="/dentist/appointments"            element={<DentistAppointments />} />
+                  <Route path="/dentist/appointments"            element={<Navigate to="/dentist/schedule" replace />} />
+                  <Route path="/dentist/schedule"                element={<SchedulePage />} />
                   <Route path="/dentist/emr"                     element={<DentistEMRList />} />
                   <Route path="/dentist/patients/:patientId/emr" element={<DentistPatientEMR />} />
                   <Route path="/dentist/material-usage"          element={<DentistMaterialUsage />} />
@@ -154,9 +149,10 @@ function App() {
               <Route element={<ProtectedRoute allowedRoles={['branch-manager']} />}>
                 <Route element={<DashboardLayout />}>
                   <Route path="/branch-manager/dashboard"   element={<BranchManagerDashboard />} />
-                  <Route path="/branch-manager/appointments" element={<BranchManagerAppointments />} />
+                  <Route path="/branch-manager/appointments" element={<Navigate to="/branch-manager/schedule" replace />} />
+                  <Route path="/branch-manager/schedule"     element={<SchedulePage />} />
                   <Route path="/branch-manager/manage-users" element={<BranchManagerManageUsers />} />
-                  <Route path="/branch-manager/queue"        element={<BranchManagerQueue />} />
+                  <Route path="/branch-manager/queue"        element={<Navigate to="/branch-manager/schedule" replace />} />
                   <Route path="/branch-manager/chat-support" element={<BranchManagerChatSupport />} />
                   <Route path="/branch-manager/branches"     element={<BranchManagement />} />
                   <Route path="/branch-manager/analytics"    element={<BranchManagerAnalytics />} />
@@ -175,7 +171,8 @@ function App() {
                 <Route element={<DashboardLayout />}>
                   <Route path="/owner"                              element={<Navigate to="/owner/dashboard" replace />} />
                   <Route path="/owner/dashboard"                    element={<OwnerDashboard />} />
-                  <Route path="/owner/appointments"                 element={<AdminAppointments />} />
+                  <Route path="/owner/appointments"                 element={<Navigate to="/owner/schedule" replace />} />
+                  <Route path="/owner/schedule"                     element={<SchedulePage />} />
                   <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-users/dentists" replace />} />
                   <Route path="/owner/manage-users/dentists"        element={<ManageDentists />} />
                   <Route path="/owner/manage-users/secretaries"     element={<ManageSecretaries />} />
@@ -200,13 +197,14 @@ function App() {
               <Route element={<ProtectedRoute allowedRoles={['secretary']}/>}>
                 <Route element={<DashboardLayout />}>
                   <Route path="/secretary/dashboard"                    element={<SecretaryDashboard />} />
-                  <Route path="/secretary/appointments"                 element={<SecretaryAppointments />} />
+                  <Route path="/secretary/appointments"                 element={<Navigate to="/secretary/schedule" replace />} />
+                  <Route path="/secretary/schedule"                     element={<SchedulePage />} />
                   <Route path="/secretary/patients"                     element={<SecretaryPatients />} />
                   <Route path="/secretary/patients/add"                 element={<SecretaryAddPatient />} />
                   <Route path="/secretary/patients/:patientId/edit"     element={<SecretaryEditPatient />} />
                   <Route path="/secretary/patients/:patientId"          element={<SecretaryViewPatient />} />
                   <Route path="/secretary/patients/:patientId/emr"      element={<SecretaryPatientEMR />} />
-                  <Route path="/secretary/queue"                        element={<SecretaryQueue />} />
+                  <Route path="/secretary/queue"                        element={<Navigate to="/secretary/schedule" replace />} />
                   <Route path="/secretary/chat-support"                 element={<SecretaryChatSupport />} />
                   <Route path="/secretary/notifications"                element={<SecretaryNotifications />} />
                   <Route path="/secretary/activity-logs"                element={<SecretaryActivityLogs />} />
@@ -221,7 +219,8 @@ function App() {
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
                   <Route path="/admin/profile" element={<AdminProfile />} />
                   <Route path="/admin/settings" element={<AdminSettings />} />
-                  <Route path="/admin/appointments" element={<AdminAppointments />} />
+                  <Route path="/admin/appointments" element={<Navigate to="/admin/schedule" replace />} />
+                  <Route path="/admin/schedule" element={<SchedulePage />} />
                   <Route path="/admin/appointment-notifications" element={<AppointmentNotifications />} />
                   <Route path="/admin/audit-trail" element={<AuditTrail />} />
                   <Route path="/admin/inventory" element={<InventoryTracker />} />
@@ -249,7 +248,7 @@ function App() {
                   <Route path="/admin/system-config" element={<SystemConfig />} />
 
                   {/* Stubs for Phase 3+ (uncomment as you build them) */}
-                  <Route path="/admin/queue" element={<QueueManagement />} />
+                  <Route path="/admin/queue" element={<Navigate to="/admin/schedule" replace />} />
                   <Route path="/admin/notifications" element={<Notifications />} />
                   <Route path="/admin/branches" element={<BranchManagement />} />
                   <Route path="/admin/branches/analytics" element={<BranchAnalytics />} />

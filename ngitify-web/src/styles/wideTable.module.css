@@ -1,0 +1,17 @@
+.tableWrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table {
+    min-width: max-content;
+}
+
+.table th,
+.table td {
+    white-space: nowrap;
+}
+
+.wrapCell {
+    white-space: normal !important;
+}
