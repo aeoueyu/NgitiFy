@@ -8,6 +8,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import UserAvatar from '../../components/common/UserAvatar';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import RegisterGuestPatient from './RegisterGuestPatient';
 import {
     FaSearch,
     FaCalendarAlt,
@@ -78,6 +79,9 @@ const normalizeSurgery = (surgery) => ({
         ? `${surgery.patient.name.first} ${surgery.patient.name.last}`.trim()
         : (surgery.guestName || 'Unknown Patient'),
     patientImage: surgery.patient?.profileImage || null,
+    guestName: surgery.guestName || '',
+    guestEmail: surgery.guestEmail || '',
+    guestPhone: surgery.guestPhone || '',
     dentistId: surgery.dentist?._id || surgery.dentist,
     dentistName: surgery.dentist?.name
         ? `Dr. ${surgery.dentist.name.first} ${surgery.dentist.name.last}`.trim()
@@ -90,6 +94,7 @@ const normalizeSurgery = (surgery) => ({
     source: surgery.source || 'Walk-in',
     rawDate: new Date(surgery.date),
     branch: surgery.branch || '',
+    isGuest: !surgery.patient && surgery.source === 'Smile Hub (Online)',
 });
 
 const extractPatients = (payload) => {
@@ -124,6 +129,7 @@ export default function AdminAppointments() {
     const [cancelTarget, setCancelTarget] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    const [guestRegistrationTarget, setGuestRegistrationTarget] = useState(null);
     const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
     const [bookingForm, setBookingForm] = useState({ ...initialBookingForm, branch: bookingBranch });
     const [bookingErrors, setBookingErrors] = useState({});
@@ -310,7 +316,12 @@ export default function AdminAppointments() {
             setAllAppointments((prev) => prev.map((item) => (
                 item.id === cancelTarget.id ? { ...item, status: 'Cancelled', rawStatus: 'cancelled' } : item
             )));
-            addToast(`${cancelTarget.patientName}'s appointment has been cancelled.`, 'info');
+            addToast(
+                cancelTarget.isGuest
+                    ? `${cancelTarget.patientName}'s guest request has been declined.`
+                    : `${cancelTarget.patientName}'s appointment has been cancelled.`,
+                'info'
+            );
         } catch {
             addToast('Failed to cancel appointment.', 'error');
         } finally {
@@ -422,6 +433,36 @@ export default function AdminAppointments() {
         setIsBookingModalOpen(true);
     };
 
+    const handleGuestRegistrationSuccess = async () => {
+        setGuestRegistrationTarget(null);
+        await fetchAppointments(true);
+    };
+
+    const handleConfirmGuestAppointment = async (appointment) => {
+        try {
+            const response = await authFetch(`/admin/appointments/${appointment.id}/register-guest`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (response.ok && data.linkedExisting) {
+                addToast('Guest appointment linked to the existing patient account.', 'success');
+                await fetchAppointments(true);
+                return;
+            }
+
+            if (response.status === 400) {
+                setGuestRegistrationTarget(appointment);
+                return;
+            }
+
+            addToast(data.message || 'Unable to process guest appointment.', 'error');
+        } catch (error) {
+            addToast('Failed to start guest registration.', 'error');
+        }
+    };
+
     return (
         <>
             <main className={styles['main-content']}>
@@ -510,6 +551,23 @@ export default function AdminAppointments() {
                                     />
                                     <div className={styles.patientDetails}>
                                         <p className={styles.patientName}>{appointment.patientName}</p>
+                                        {appointment.isGuest && (
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                marginTop: '6px',
+                                                padding: '4px 10px',
+                                                borderRadius: '999px',
+                                                background: '#fff7ed',
+                                                color: '#c2410c',
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                letterSpacing: '0.04em',
+                                                textTransform: 'uppercase',
+                                            }}>
+                                                Guest
+                                            </span>
+                                        )}
                                         <p className={styles.treatmentType}>
                                             {appointment.procedure}{appointment.branch ? ` • ${appointment.branch}` : ''}
                                         </p>
@@ -524,19 +582,25 @@ export default function AdminAppointments() {
                                 </div>
 
                                 <div className={styles.actionBlock}>
-                                    <select
-                                        className={`${styles.statusBadge} ${getStatusClass(appointment.status)}`}
-                                        value={appointment.status}
-                                        onChange={(event) => handleStatusSelectChange(appointment, event.target.value)}
-                                        title="Update Status"
-                                        disabled={appointment.status === 'Cancelled' || appointment.status === 'Completed'}
-                                    >
-                                        <option value="Pending">Pending</option>
-                                        <option value="Confirmed">Confirmed</option>
-                                        <option value="In Clinic">In Clinic</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Cancelled">Cancelled</option>
-                                    </select>
+                                    {appointment.isGuest ? (
+                                        <span className={`${styles.statusBadge} ${getStatusClass(appointment.status)}`} style={{ pointerEvents: 'none' }}>
+                                            {appointment.status}
+                                        </span>
+                                    ) : (
+                                        <select
+                                            className={`${styles.statusBadge} ${getStatusClass(appointment.status)}`}
+                                            value={appointment.status}
+                                            onChange={(event) => handleStatusSelectChange(appointment, event.target.value)}
+                                            title="Update Status"
+                                            disabled={appointment.status === 'Cancelled' || appointment.status === 'Completed'}
+                                        >
+                                            <option value="Pending">Pending</option>
+                                            <option value="Confirmed">Confirmed</option>
+                                            <option value="In Clinic">In Clinic</option>
+                                            <option value="Completed">Completed</option>
+                                            <option value="Cancelled">Cancelled</option>
+                                        </select>
+                                    )}
 
                                     <button
                                         className={styles.viewBtn}
@@ -547,10 +611,21 @@ export default function AdminAppointments() {
                                         <FaFileMedical /> View Patient
                                     </button>
 
+                                    {appointment.isGuest && appointment.rawStatus === 'pending' && (
+                                        <button
+                                            className={styles.viewBtn}
+                                            onClick={() => handleConfirmGuestAppointment(appointment)}
+                                            title="Confirm and register guest as patient"
+                                            style={{ background: '#01538b', color: '#fff' }}
+                                        >
+                                            Confirm & Register
+                                        </button>
+                                    )}
+
                                     <button
                                         className={`${styles.iconBtn} ${styles.cancelActionBtn}`}
                                         onClick={() => setCancelTarget(appointment)}
-                                        title="Cancel Appointment"
+                                        title={appointment.isGuest ? 'Decline Guest Request' : 'Cancel Appointment'}
                                         disabled={appointment.status === 'Cancelled' || appointment.status === 'Completed'}
                                         style={{
                                             opacity: (appointment.status === 'Cancelled' || appointment.status === 'Completed') ? 0.4 : 1,
@@ -756,6 +831,14 @@ export default function AdminAppointments() {
                 </div>
             )}
 
+            {guestRegistrationTarget && (
+                <RegisterGuestPatient
+                    appointment={guestRegistrationTarget}
+                    onClose={() => setGuestRegistrationTarget(null)}
+                    onSuccess={handleGuestRegistrationSuccess}
+                />
+            )}
+
             <ConfirmModal
                 isOpen={!!statusChangeTarget}
                 title="Update Appointment Status"
@@ -768,9 +851,13 @@ export default function AdminAppointments() {
 
             <ConfirmModal
                 isOpen={!!cancelTarget}
-                title="Cancel Appointment"
-                message={`Are you absolutely sure you want to cancel the appointment for ${cancelTarget?.patientName}? This action will free up the slot in the calendar.`}
-                confirmText="Yes, Cancel Appointment"
+                title={cancelTarget?.isGuest ? 'Decline Guest Request' : 'Cancel Appointment'}
+                message={
+                    cancelTarget?.isGuest
+                        ? `Are you sure you want to decline the guest appointment request for ${cancelTarget?.patientName}? A decline email will be sent automatically.`
+                        : `Are you absolutely sure you want to cancel the appointment for ${cancelTarget?.patientName}? This action will free up the slot in the calendar.`
+                }
+                confirmText={cancelTarget?.isGuest ? 'Yes, Decline Request' : 'Yes, Cancel Appointment'}
                 isDestructive={true}
                 onConfirm={confirmCancelAppointment}
                 onCancel={() => setCancelTarget(null)}

@@ -115,6 +115,9 @@ select.inputField { appearance: none; -webkit-appearance: none; background-image
 .phonePrefix { color: #555; padding: 0 15px; height: 100%; display: flex; align-items: center; font-size: 14px; font-weight: 600; border-right: 1px solid #e0e0e0; user-select: none; background-color: #f8f9fa; box-sizing: border-box; }
 .phoneField { flex: 1; height: 100%; border: none; padding: 0 15px; font-size: 14px; outline: none; font-family: 'Lexend Deca', sans-serif; color: #333; background-color: transparent !important; box-sizing: border-box; }
 .phoneField::placeholder { color: #ccc; }
+.textArea { width: 100%; min-height: 110px; padding: 14px 20px; border-radius: 20px; border: 1.5px solid #ddd; font-family: 'Lexend Deca', sans-serif; font-size: 14px; outline: none; transition: all 0.3s ease; background-color: #fcfcfc; box-sizing: border-box; resize: vertical; }
+.textArea:focus { border-color: #01538b; box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1); background-color: white; }
+.textArea:disabled { background-color: #f0f0f0; cursor: not-allowed; color: #888; }
 
 .errorBorder { border: 1.5px solid #dc3545 !important; background-color: #ffe6e6 !important; transition: all 0.2s ease; }
 .errorText { color: #dc3545; font-size: 11px; font-weight: 600; margin-top: 4px; margin-left: 10px; display: flex; align-items: center; gap: 4px; }
@@ -124,6 +127,9 @@ select.inputField { appearance: none; -webkit-appearance: none; background-image
 .permanentHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .checkboxContainer { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #555; cursor: pointer; }
 .checkboxContainer input { width: 16px; height: 16px; accent-color: #01538b; cursor: pointer; }
+.checkboxGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 16px; margin-top: 8px; }
+.checkboxOption { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; }
+.checkboxOption input { width: 16px; height: 16px; accent-color: #01538b; }
 .disabledOverlay { pointer-events: none; opacity: 0.6; }
 
 /* Buttons */

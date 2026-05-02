@@ -236,6 +236,10 @@ export default function MyProfileScreen({ navigation }) {
                     <InfoRow label="Age & Birthdate" value={ageLabel} />
                     <View style={styles.divider} />
                     <InfoRow label="Gender"          value={profile?.gender} />
+                    <View style={styles.divider} />
+                    <InfoRow label="Occupation"      value={profile?.occupation} />
+                    <View style={styles.divider} />
+                    <InfoRow label="Civil Status"    value={profile?.civilStatus} />
                 </SectionCard>
 
                 {/* Contact Details */}
@@ -259,13 +263,23 @@ export default function MyProfileScreen({ navigation }) {
                 </SectionCard>
 
                 {/* Physical Information */}
-                {(profile?.height || profile?.weight || profile?.bloodType) && (
+                {(profile?.height || profile?.weight || profile?.bloodType || profile?.medicalHistory?.bloodType) && (
                     <SectionCard title="💪  Physical Information">
                         <InfoRow label="Height"     value={profile?.height ? `${profile.height} cm` : null} />
                         {(profile?.height && profile?.weight) && <View style={styles.divider} />}
                         <InfoRow label="Weight"     value={profile?.weight ? `${profile.weight} kg` : null} />
-                        {(profile?.weight && profile?.bloodType) && <View style={styles.divider} />}
-                        <InfoRow label="Blood Type" value={profile?.bloodType} />
+                        {((profile?.height || profile?.weight) && (profile?.bloodType || profile?.medicalHistory?.bloodType)) && <View style={styles.divider} />}
+                        <InfoRow label="Blood Type" value={profile?.bloodType || profile?.medicalHistory?.bloodType} />
+                    </SectionCard>
+                )}
+
+                {(profile?.emergencyContact?.name || profile?.emergencyContact?.contactNumber) && (
+                    <SectionCard title="Emergency Contact">
+                        <InfoRow label="Contact Name" value={profile?.emergencyContact?.name} />
+                        <View style={styles.divider} />
+                        <InfoRow label="Relationship" value={profile?.emergencyContact?.relationship} />
+                        <View style={styles.divider} />
+                        <InfoRow label="Contact Number" value={profile?.emergencyContact?.contactNumber} />
                     </SectionCard>
                 )}
 
@@ -293,10 +307,13 @@ export default function MyProfileScreen({ navigation }) {
                             </>
                         )}
                         {profile.medicalHistory.medications?.length > 0 && (
-                            <InfoRow
-                                label="Medications"
-                                value={profile.medicalHistory.medications.join(', ')}
-                            />
+                            <>
+                                <InfoRow
+                                    label="Medications"
+                                    value={profile.medicalHistory.medications.join(', ')}
+                                />
+                                <View style={styles.divider} />
+                            </>
                         )}
                     </SectionCard>
                 )}

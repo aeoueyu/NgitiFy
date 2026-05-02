@@ -61,7 +61,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
     const [isEnhanced, setIsEnhanced] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [uploadForm, setUploadForm] = useState({ label: '', date: '', notes: '' });
-    const [uploadFile, setUploadFile] = useState(null);
     const [uploadPreview, setUploadPreview] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -143,7 +142,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         const file = e.target.files[0];
         if (!file) return;
         if (file.size > 3 * 1024 * 1024) { addToast('Image must be under 3MB.', 'error'); return; }
-        setUploadFile(file);
         const reader = new FileReader();
         reader.onloadend = () => setUploadPreview(reader.result);
         reader.readAsDataURL(file);
@@ -164,7 +162,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
             setRadiographs(prev => [{ ...saved, id: saved._id || saved.id, rawDate: new Date(saved.date || uploadForm.date), type: saved.label || uploadForm.label, url: saved.url || uploadPreview }, ...prev]);
             setIsUploadModalOpen(false);
             setUploadForm({ label: '', date: '', notes: '' });
-            setUploadFile(null);
             setUploadPreview(null);
             addToast('Radiograph uploaded successfully.', 'success');
         } catch (err) {
@@ -247,6 +244,11 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                     {infoItem('Email Address', patient.email, <FaEnvelope />)}
                     {infoItem('Contact Number', patient.contactNumber || '—', <FaPhoneAlt />)}
                     {infoItem('Patient ID', patient._id, <FaIdCard />)}
+                    {infoItem('Occupation', patient.occupation)}
+                    {infoItem('Civil Status', patient.civilStatus)}
+                    {infoItem('Blood Type', patient.bloodType || patient.medicalHistory?.bloodType)}
+                    {infoItem('Work Phone', patient.workPhone)}
+                    {infoItem('Referred By', patient.referredBy)}
                 </div>
 
                 {patient.guardian && (
@@ -256,6 +258,18 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                             {infoItem('Guardian Name', patient.guardian.name, <FaChild />)}
                             {infoItem('Relationship', patient.guardian.relationship)}
                             {infoItem('Guardian Contact', patient.guardian.contactNumber, <FaPhoneAlt />)}
+                            {infoItem('Guardian Occupation', patient.guardian.occupation)}
+                        </div>
+                    </>
+                )}
+
+                {(patient.emergencyContact?.name || patient.emergencyContact?.contactNumber) && (
+                    <>
+                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Emergency Contact</h3>
+                        <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                            {infoItem('Contact Name', patient.emergencyContact?.name)}
+                            {infoItem('Relationship', patient.emergencyContact?.relationship)}
+                            {infoItem('Contact Number', patient.emergencyContact?.contactNumber, <FaPhoneAlt />)}
                         </div>
                     </>
                 )}
@@ -293,6 +307,18 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         {formatAddressFull(patient.permanentAddress)}
                     </p>
                 </div>
+
+                {(patient.consentAcknowledgement?.acknowledged || patient.consentAcknowledgement?.signerName) && (
+                    <>
+                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Digital Consent</h3>
+                        <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                            {infoItem('Consent Recorded', patient.consentAcknowledgement?.acknowledged === true ? 'Yes' : patient.consentAcknowledgement?.acknowledged === false ? 'No' : '—')}
+                            {infoItem('Signer Name', patient.consentAcknowledgement?.signerName)}
+                            {infoItem('Signer Role', patient.consentAcknowledgement?.signerRole)}
+                            {infoItem('Date Signed', patient.consentAcknowledgement?.signedAt ? formatDateLong(patient.consentAcknowledgement.signedAt) : '—')}
+                        </div>
+                    </>
+                )}
             </div>
         );
     };
@@ -334,7 +360,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Blood Type</span>
-                    <p className={styles.infoValue}>{patient.medicalHistory?.bloodType || '—'}</p>
+                    <p className={styles.infoValue}>{patient.bloodType || patient.medicalHistory?.bloodType || '—'}</p>
                 </div>
 
                 <div className={styles.infoBlock}>
@@ -342,6 +368,38 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                     <p className={styles.infoValue}>
                         {patient.dentalHistory?.lastExamDate ? formatDateLong(patient.dentalHistory.lastExamDate) : '—'}
                     </p>
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Blood Pressure</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.bloodPressure || '—'}</p>
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Bleeding Time</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.bleedingTime || '—'}</p>
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>In Good Health?</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.inGoodHealth === true ? 'Yes' : patient.medicalHistory?.inGoodHealth === false ? 'No' : '—'}</p>
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Uses Tobacco?</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.usesTobacco === true ? 'Yes' : patient.medicalHistory?.usesTobacco === false ? 'No' : '—'}</p>
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Uses Alcohol / Drugs?</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.usesAlcoholOrDrugs === true ? 'Yes' : patient.medicalHistory?.usesAlcoholOrDrugs === false ? 'No' : '—'}</p>
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Pregnant?</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.isPregnant === true ? 'Yes' : patient.medicalHistory?.isPregnant === false ? 'No' : 'â€”'}</p>
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Nursing?</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.isNursing === true ? 'Yes' : patient.medicalHistory?.isNursing === false ? 'No' : 'â€”'}</p>
+                </div>
+                <div className={styles.infoBlock}>
+                    <span className={styles.infoLabel}>Taking Birth Control Pills?</span>
+                    <p className={styles.infoValue}>{patient.medicalHistory?.takingBirthControl === true ? 'Yes' : patient.medicalHistory?.takingBirthControl === false ? 'No' : 'â€”'}</p>
                 </div>
             </div>
 
@@ -594,7 +652,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                             <textarea placeholder="Any clinical notes about this image..." value={uploadForm.notes} onChange={(e) => setUploadForm(p => ({ ...p, notes: e.target.value }))} rows={3} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontFamily: "'Lexend Deca'", fontSize: '14px', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
                         </div>
                         <div className={styles.modalButtonGroup}>
-                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadFile(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
+                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
                             <button type="submit" className={styles.submitBtn} disabled={isUploading}>{isUploading ? 'Uploading...' : 'Upload'}</button>
                         </div>
                     </form>

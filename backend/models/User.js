@@ -93,7 +93,10 @@ const userSchema = new mongoose.Schema({
     height: { type: String },
     weight: { type: String },
     bloodType: { type: String },
+    homePhone: { type: String },
     occupation: { type: String },
+    workPhone: { type: String },
+    referredBy: { type: String },
     emergencyContact: {
         name: { type: String },
         relationship: { type: String },
@@ -109,13 +112,47 @@ const userSchema = new mongoose.Schema({
         allergies: [{ type: String }],
         conditions: [{ type: String }],
         medications: [{ type: String }],
-        notes: { type: String }
+        notes: { type: String },
+        inGoodHealth: { type: Boolean },
+        underMedicalTreatment: { type: Boolean },
+        medicalTreatmentDetails: { type: String },
+        hadSeriousIllnessOrSurgery: { type: Boolean },
+        seriousIllnessOrSurgeryDetails: { type: String },
+        hadHospitalization: { type: Boolean },
+        hospitalizationDetails: { type: String },
+        isTakingMedication: { type: Boolean },
+        usesTobacco: { type: Boolean },
+        usesAlcoholOrDrugs: { type: Boolean },
+        hasAllergies: { type: Boolean },
+        bleedingTime: { type: String },
+        bloodPressure: { type: String },
+        isPregnant: { type: Boolean },
+        isNursing: { type: Boolean },
+        takingBirthControl: { type: Boolean }
     },
 
     dentalHistory: {
         lastExamDate: { type: Date },
         chiefComplaint: { type: String },
-        notes: { type: String }
+        notes: { type: String },
+        hadTreatmentReaction: { type: Boolean },
+        reactionDetails: { type: String },
+        hasConfidentialInfo: { type: Boolean, default: false }
+    },
+
+    physician: {
+        name: { type: String },
+        specialty: { type: String },
+        officeAddress: { type: String },
+        officeNumber: { type: String }
+    },
+
+    consentAcknowledgement: {
+        acknowledged: { type: Boolean, default: false },
+        signerName: { type: String },
+        signerRole: { type: String },
+        signedAt: { type: Date },
+        version: { type: String, default: 'Dentime Patient Form v6.1' }
     },
 
     // 8. EMR DATA
@@ -142,7 +179,8 @@ const userSchema = new mongoose.Schema({
     guardian: {
         name: { type: String },
         relationship: { type: String },
-        contactNumber: { type: String }
+        contactNumber: { type: String },
+        occupation: { type: String }
     },
 
     // 11. LEAVE REQUESTS

@@ -1,10 +1,32 @@
-import React, { useState, useRef, useEffect } from 'react';
-import styles from '../../styles/admin/AddDentist.module.css';
-import { regions, provinces, cities, barangays } from '../../utils/addressData';
-import successIcon from '../../assets/alert/success.svg';
+import React, { useEffect, useMemo, useState } from 'react';
+import styles from '../../styles/admin/AddPatient.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
+import successIcon from '../../assets/alert/success.svg';
 import { authFetch } from '../../utils/api';
+import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { useAuth } from '../../hooks/useAuth';
+
+const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
+
+const splitFullName = (fullName = '') => {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return { firstName: '', middleName: '', lastName: '' };
+    if (parts.length === 1) return { firstName: parts[0], middleName: '', lastName: parts[0] };
+    if (parts.length === 2) return { firstName: parts[0], middleName: '', lastName: parts[1] };
+    return {
+        firstName: parts[0],
+        middleName: parts.slice(1, -1).join(' '),
+        lastName: parts[parts.length - 1],
+    };
+};
+
+const stripPhonePrefix = (phone = '') => {
+    const digits = String(phone).replace(/\D/g, '');
+    if (digits.startsWith('63') && digits.length >= 12) return digits.slice(2, 12);
+    if (digits.startsWith('0') && digits.length >= 11) return digits.slice(1, 11);
+    if (digits.startsWith('9')) return digits.slice(0, 10);
+    return digits.slice(-10);
+};
 
 const initialMedicalHistory = {
     inGoodHealth: '',
@@ -108,30 +130,42 @@ const selectToBool = (value) => {
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
-export default function AddPatient({ onClose, onSuccess }) {
+export default function RegisterGuestPatient({ appointment, onClose, onSuccess }) {
     const { user } = useAuth();
     const isBranchScopedStaff = user?.role === 'branch-manager' || user?.role === 'secretary';
     const isSecretary = user?.role === 'secretary';
-
-    const fileInputRef = useRef(null);
     const [isSameAddress, setIsSameAddress] = useState(false);
-    const [profileImage, setProfileImage] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
 
-    const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
+    const nameParts = useMemo(() => splitFullName(appointment?.patientName || appointment?.guestName || ''), [appointment]);
 
     const [formData, setFormData] = useState({
-        firstName: '', middleName: '', lastName: '',
-        birthdate: '', gender: '',
-        email: '', phone: '',
-        homePhone: '', occupation: '', civilStatus: '', bloodType: '',
-        nationality: 'Filipino', religion: '',
-        workPhone: '', referredBy: '',
-        emergencyContactName: '', emergencyContactRelationship: '', emergencyContactPhone: '',
-        guardianName: '', guardianRelationship: '', guardianContact: '', guardianOccupation: '',
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        birthdate: '',
+        gender: '',
+        email: '',
+        phone: '',
+        homePhone: '',
+        occupation: '',
+        civilStatus: '',
+        bloodType: '',
+        nationality: 'Filipino',
+        religion: '',
+        workPhone: '',
+        referredBy: '',
+        emergencyContactName: '',
+        emergencyContactRelationship: '',
+        emergencyContactPhone: '',
+        guardianName: '',
+        guardianRelationship: '',
+        guardianContact: '',
+        guardianOccupation: '',
         assignedBranch: '',
         dentalHistory: { ...initialDentalHistory },
         medicalHistory: { ...initialMedicalHistory },
@@ -146,6 +180,33 @@ export default function AddPatient({ onClose, onSuccess }) {
         permanentAddress: { ...initialAddressState },
     });
 
+    useEffect(() => {
+        setFormData((prev) => ({
+            ...prev,
+            firstName: nameParts.firstName,
+            middleName: nameParts.middleName,
+            lastName: nameParts.lastName,
+            email: appointment?.guestEmail || '',
+            phone: stripPhonePrefix(appointment?.guestPhone || ''),
+            assignedBranch: isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || '') : (appointment?.branch || ''),
+        }));
+    }, [appointment, isBranchScopedStaff, nameParts, user?.assignedBranch]);
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const res = await authFetch('/branches');
+                if (res.ok) {
+                    const data = await res.json();
+                    setBranchOptions(data.map((branch) => branch.name));
+                }
+            } catch (error) {
+                console.error('Failed to load branches:', error);
+            }
+        };
+        fetchBranches();
+    }, []);
+
     const validateEmail = (email) => {
         const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!formatRegex.test(email)) return false;
@@ -153,7 +214,7 @@ export default function AddPatient({ onClose, onSuccess }) {
         return allowedDomains.includes(email.split('@')[1].toLowerCase());
     };
 
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, c => c.toUpperCase());
+    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
     const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
     const getMaxDate = () => new Date().toISOString().split('T')[0];
     const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
@@ -161,44 +222,74 @@ export default function AddPatient({ onClose, onSuccess }) {
     const handleBlur = (e) => {
         const { name, value } = e.target;
         let newError = '';
-        if (name === 'email') { if (!value) newError = 'Required'; else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)'; }
-        else if (name === 'phone' || name === 'guardianContact') { if (!value) newError = 'Required'; else if (value.length !== 10 || value[0] !== '9') newError = 'Invalid format (9xxxxxxxxx)'; }
-        setErrors(prev => ({ ...prev, [name]: newError }));
+        if (name === 'email') {
+            if (!value) newError = 'Required';
+            else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)';
+        } else if (name === 'phone' || name === 'guardianContact') {
+            if (!value) newError = 'Required';
+            else if (value.length !== 10 || value[0] !== '9') newError = 'Invalid format (9xxxxxxxxx)';
+        }
+        setErrors((prev) => ({ ...prev, [name]: newError }));
     };
-
-    const handleImageChange = (e) => { const file = e.target.files[0]; if (file) { const r = new FileReader(); r.onloadend = () => setProfileImage(r.result); r.readAsDataURL(file); } };
-    const triggerFileInput = () => fileInputRef.current.click();
 
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
-        if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
+        if (errors[name]) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                delete next[name];
+                return next;
+            });
+        }
         if (['firstName', 'middleName', 'lastName', 'guardianName'].includes(name)) {
-            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) setFormData({ ...formData, [name]: toTitleCase(value) });
+            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) {
+                setFormData((prev) => ({ ...prev, [name]: toTitleCase(value) }));
+            }
             return;
         }
-        setFormData({ ...formData, [name]: value });
+        setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handlePhoneChange = (fieldName = 'phone') => (e) => {
+    const handlePhoneChange = (fieldName) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
-        if (errors[fieldName]) setErrors(prev => { const n = { ...prev }; delete n[fieldName]; return n; });
-        setFormData({ ...formData, [fieldName]: value });
+        if (errors[fieldName]) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                delete next[fieldName];
+                return next;
+            });
+        }
+        setFormData((prev) => ({ ...prev, [fieldName]: value }));
     };
 
-    const handleGuardianContactChange = (e) => {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        if (value.length > 10) return;
-        if (errors.guardianContact) setErrors(prev => { const n = { ...prev }; delete n.guardianContact; return n; });
-        setFormData({ ...formData, guardianContact: value });
+    const handleAddressChange = (type, field, value) => {
+        const errorKey = `${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`;
+        if (errors[errorKey]) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                delete next[errorKey];
+                return next;
+            });
+        }
+        setFormData((prev) => {
+            const updated = { ...prev[type], [field]: value };
+            if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
+            else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
+            else if (field === 'city') { updated.barangay = ''; }
+            if (type === 'currentAddress' && isSameAddress) {
+                return { ...prev, currentAddress: updated, permanentAddress: updated };
+            }
+            return { ...prev, [type]: updated };
+        });
     };
 
     const handleNestedChange = (section, field, value) => {
-        setFormData(prev => ({
+        setFormData((prev) => ({
             ...prev,
             [section]: {
                 ...prev[section],
-                [field]: value
+                [field]: value,
             }
         }));
     };
@@ -207,34 +298,27 @@ export default function AddPatient({ onClose, onSuccess }) {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
         const errorKey = `${section}_${field}`;
-        if (errors[errorKey]) setErrors(prev => { const n = { ...prev }; delete n[errorKey]; return n; });
+        if (errors[errorKey]) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                delete next[errorKey];
+                return next;
+            });
+        }
         handleNestedChange(section, field, value);
     };
 
     const handleNestedArrayToggle = (section, field, item) => {
-        setFormData(prev => {
+        setFormData((prev) => {
             const currentValues = prev[section][field] || [];
             const exists = currentValues.includes(item);
             return {
                 ...prev,
                 [section]: {
                     ...prev[section],
-                    [field]: exists ? currentValues.filter(value => value !== item) : [...currentValues, item]
+                    [field]: exists ? currentValues.filter((value) => value !== item) : [...currentValues, item],
                 }
             };
-        });
-    };
-
-    const handleAddressChange = (type, field, value) => {
-        const errorKey = `${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`;
-        if (errors[errorKey]) setErrors(prev => { const n = { ...prev }; delete n[errorKey]; return n; });
-        setFormData(prev => {
-            const updated = { ...prev[type], [field]: value };
-            if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
-            else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
-            else if (field === 'city') { updated.barangay = ''; }
-            if (type === 'currentAddress' && isSameAddress) return { ...prev, currentAddress: updated, permanentAddress: updated };
-            return { ...prev, [type]: updated };
         });
     };
 
@@ -242,53 +326,147 @@ export default function AddPatient({ onClose, onSuccess }) {
         const checked = e.target.checked;
         setIsSameAddress(checked);
         if (checked) {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
-            setErrors(prev => { const n = { ...prev }; Object.keys(n).forEach(k => { if (k.startsWith('permanent_')) delete n[k]; }); return n; });
+            setFormData((prev) => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
+            setErrors((prev) => {
+                const next = { ...prev };
+                Object.keys(next).forEach((key) => {
+                    if (key.startsWith('permanent_')) delete next[key];
+                });
+                return next;
+            });
         } else {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...initialAddressState } }));
+            setFormData((prev) => ({ ...prev, permanentAddress: { ...initialAddressState } }));
         }
     };
 
     const validateForm = () => {
-        let newErrors = {}; let isValid = true;
+        const nextErrors = {};
+        let isValid = true;
         const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
-        if (isMinor) {
-            required.push('guardianName', 'guardianRelationship');
-            if (!formData.guardianContact) { newErrors.guardianContact = 'Required'; isValid = false; }
-            else if (formData.guardianContact.length !== 10 || formData.guardianContact[0] !== '9') { newErrors.guardianContact = 'Invalid format'; isValid = false; }
+        required.forEach((field) => {
+            if (!formData[field]) {
+                nextErrors[field] = 'Required';
+                isValid = false;
+            }
+        });
+
+        if (!formData.phone) {
+            nextErrors.phone = 'Required';
+            isValid = false;
+        } else if (formData.phone.length !== 10 || formData.phone[0] !== '9') {
+            nextErrors.phone = 'Invalid format';
+            isValid = false;
         }
-        required.forEach(f => { if (!formData[f]) { newErrors[f] = 'Required'; isValid = false; } });
-        if (!formData.phone) { newErrors.phone = 'Required'; isValid = false; }
-        else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
-        if (formData.homePhone && (formData.homePhone.length !== 10 || formData.homePhone[0] !== '9')) { newErrors.homePhone = 'Invalid format'; isValid = false; }
-        if (formData.workPhone && (formData.workPhone.length !== 10 || formData.workPhone[0] !== '9')) { newErrors.workPhone = 'Invalid format'; isValid = false; }
-        if (formData.emergencyContactPhone && (formData.emergencyContactPhone.length !== 10 || formData.emergencyContactPhone[0] !== '9')) { newErrors.emergencyContactPhone = 'Invalid format'; isValid = false; }
-        if (formData.physician.officeNumber && (formData.physician.officeNumber.length !== 10 || formData.physician.officeNumber[0] !== '9')) { newErrors.physician_officeNumber = 'Invalid format'; isValid = false; }
-        if (formData.email && !validateEmail(formData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
-        if (!formData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = 'Required'; isValid = false; }
-        if (!formData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = 'Required'; isValid = false; }
-        // Branch is required unless branch manager (auto-assigned)
-        if (!isBranchScopedStaff && !formData.assignedBranch) { newErrors.assignedBranch = 'Required'; isValid = false; }
+        if (formData.homePhone && (formData.homePhone.length !== 10 || formData.homePhone[0] !== '9')) {
+            nextErrors.homePhone = 'Invalid format';
+            isValid = false;
+        }
+        if (formData.workPhone && (formData.workPhone.length !== 10 || formData.workPhone[0] !== '9')) {
+            nextErrors.workPhone = 'Invalid format';
+            isValid = false;
+        }
+        if (formData.emergencyContactPhone && (formData.emergencyContactPhone.length !== 10 || formData.emergencyContactPhone[0] !== '9')) {
+            nextErrors.emergencyContactPhone = 'Invalid format';
+            isValid = false;
+        }
+        if (formData.physician.officeNumber && (formData.physician.officeNumber.length !== 10 || formData.physician.officeNumber[0] !== '9')) {
+            nextErrors.physician_officeNumber = 'Invalid format';
+            isValid = false;
+        }
+
+        if (formData.email && !validateEmail(formData.email)) {
+            nextErrors.email = 'Invalid domain';
+            isValid = false;
+        }
+        if (!formData.consentAcknowledgement.acknowledged) {
+            nextErrors.consentAcknowledgement_acknowledged = 'Required';
+            isValid = false;
+        }
+        if (!formData.consentAcknowledgement.signerName.trim()) {
+            nextErrors.consentAcknowledgement_signerName = 'Required';
+            isValid = false;
+        }
+
+        if (!isBranchScopedStaff && !formData.assignedBranch) {
+            nextErrors.assignedBranch = 'Required';
+            isValid = false;
+        }
+
+        if (isMinor) {
+            ['guardianName', 'guardianRelationship'].forEach((field) => {
+                if (!formData[field]) {
+                    nextErrors[field] = 'Required';
+                    isValid = false;
+                }
+            });
+            if (!formData.guardianContact) {
+                nextErrors.guardianContact = 'Required';
+                isValid = false;
+            } else if (formData.guardianContact.length !== 10 || formData.guardianContact[0] !== '9') {
+                nextErrors.guardianContact = 'Invalid format';
+                isValid = false;
+            }
+        }
+
         const validateAddr = (addr, prefix) => {
-            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
-                if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
+            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
+                if (!addr[field]) {
+                    nextErrors[`${prefix}_${field}`] = 'Required';
+                    isValid = false;
+                }
             });
         };
+
         validateAddr(formData.currentAddress, 'current');
         if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
-        setErrors(newErrors);
-        if (!isValid) { const el = document.getElementsByName(Object.keys(newErrors)[0])[0]; if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); } }
+
+        setErrors(nextErrors);
         return isValid;
+    };
+
+    const renderAddressFields = (type, title, isDisabled = false) => {
+        const address = formData[type];
+        const prefix = type === 'currentAddress' ? 'current' : 'permanent';
+        const availableProvinces = address.region ? provinces[address.region] || [] : [];
+        const availableCities = address.province ? cities[address.province] || [] : [];
+        const availableBarangays = address.city ? barangays[address.city] || [] : [];
+        const getError = (field) => errors[`${prefix}_${field}`];
+        const getErrorClass = (field) => getError(field) ? styles.errorBorder : '';
+
+        return (
+            <div className={styles.addressSection}>
+                {title ? <h3 className={styles.sectionTitle}>{title}</h3> : null}
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={(e) => handleAddressChange(type, 'region', e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map((region) => <option key={region.code} value={region.code}>{region.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
+                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={(e) => handleAddressChange(type, 'province', e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map((province) => <option key={province.code} value={province.code}>{province.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
+                </div>
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={(e) => handleAddressChange(type, 'city', e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map((city) => <option key={city.code} value={city.code}>{city.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
+                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={(e) => handleAddressChange(type, 'barangay', e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
+                </div>
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={(e) => handleAddressChange(type, 'street', e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
+                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={(e) => handleAddressChange(type, 'houseNumber', e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
+                </div>
+            </div>
+        );
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
+
         setIsLoading(true);
-        const finalData = {
-            name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
-            email: formData.email, contactNumber: `+63${formData.phone}`,
-            birthdate: formData.birthdate, gender: formData.gender,
+        const payload = {
+            name: {
+                first: formData.firstName,
+                middle: formData.middleName,
+                last: formData.lastName,
+            },
+            email: formData.email.trim(),
+            contactNumber: `+63${formData.phone}`,
+            birthdate: formData.birthdate,
+            gender: formData.gender,
             homePhone: formData.homePhone ? `+63${formData.homePhone}` : undefined,
             occupation: formData.occupation || undefined,
             civilStatus: formData.civilStatus || undefined,
@@ -297,15 +475,19 @@ export default function AddPatient({ onClose, onSuccess }) {
             religion: formData.religion || undefined,
             workPhone: formData.workPhone ? `+63${formData.workPhone}` : undefined,
             referredBy: formData.referredBy || undefined,
-            profileImage: profileImage,
-            assignedBranch: isBranchScopedStaff ? (user.assignedBranch || undefined) : (formData.assignedBranch || undefined),
-            assignedBranches: isBranchScopedStaff ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
+            assignedBranch: isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || undefined) : (formData.assignedBranch || undefined),
+            assignedBranches: [isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || '') : (formData.assignedBranch || '')].filter(Boolean),
             emergencyContact: {
                 name: formData.emergencyContactName || undefined,
                 relationship: formData.emergencyContactRelationship || undefined,
                 contactNumber: formData.emergencyContactPhone ? `+63${formData.emergencyContactPhone}` : undefined,
             },
-            guardian: isMinor ? { name: formData.guardianName, relationship: formData.guardianRelationship, contactNumber: `+63${formData.guardianContact}`, occupation: formData.guardianOccupation || undefined } : null,
+            guardian: isMinor ? {
+                name: formData.guardianName,
+                relationship: formData.guardianRelationship,
+                contactNumber: `+63${formData.guardianContact}`,
+                occupation: formData.guardianOccupation || undefined,
+            } : null,
             dentalHistory: {
                 chiefComplaint: formData.dentalHistory.chiefComplaint || undefined,
                 lastExamDate: formData.dentalHistory.lastExamDate || undefined,
@@ -323,7 +505,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                 hadHospitalization: selectToBool(formData.medicalHistory.hadHospitalization),
                 hospitalizationDetails: formData.medicalHistory.hospitalizationDetails || undefined,
                 isTakingMedication: selectToBool(formData.medicalHistory.isTakingMedication),
-                medications: formData.medicalHistory.medications ? formData.medicalHistory.medications.split(',').map(item => item.trim()).filter(Boolean) : undefined,
+                medications: formData.medicalHistory.medications ? formData.medicalHistory.medications.split(',').map((item) => item.trim()).filter(Boolean) : undefined,
                 usesTobacco: selectToBool(formData.medicalHistory.usesTobacco),
                 usesAlcoholOrDrugs: selectToBool(formData.medicalHistory.usesAlcoholOrDrugs),
                 hasAllergies: selectToBool(formData.medicalHistory.hasAllergies),
@@ -352,57 +534,34 @@ export default function AddPatient({ onClose, onSuccess }) {
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
         };
+
         try {
-            const response = await authFetch('/add-patient', { method: 'POST', body: JSON.stringify(finalData) });
+            const response = await authFetch(`/admin/appointments/${appointment.id}/register-guest`, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
             const data = await response.json();
-            if (response.ok) { setShowSuccessModal(true); }
-            else if (response.status === 409) {
-                setErrors(prev => ({ ...prev, [data.field]: data.message }));
-                const el = document.getElementsByName(data.field)[0];
-                if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-            } else alert(data.message || 'Failed to add patient');
-        } catch (error) { console.error(error); alert('Cannot connect to server.'); }
-        finally { setIsLoading(false); }
+            if (response.ok) {
+                setSuccessMessage(data.message || 'Guest appointment registered successfully.');
+                setShowSuccessModal(true);
+            } else if (response.status === 409) {
+                setErrors((prev) => ({ ...prev, email: data.message || 'Email already exists.' }));
+            } else {
+                alert(data.message || 'Failed to register guest patient.');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Cannot connect to server.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleSuccessClose = () => { setShowSuccessModal(false); onSuccess(); onClose(); };
-
-    const renderAddressFields = (type, title, isDisabled = false) => {
-        const address = formData[type]; const prefix = type === 'currentAddress' ? 'current' : 'permanent';
-        const availableProvinces = address.region ? provinces[address.region] || [] : [];
-        const availableCities = address.province ? cities[address.province] || [] : [];
-        const availableBarangays = address.city ? barangays[address.city] || [] : [];
-        const getError = (field) => errors[`${prefix}_${field}`];
-        const getErrorClass = (field) => getError(field) ? styles.errorBorder : '';
-
-        return (
-            <div className={styles.addressSection}>
-                <h3 className={styles.sectionTitle}>{title}</h3>
-                <div className={styles.row}>
-                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={e => handleAddressChange(type, 'region', e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
-                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={e => handleAddressChange(type, 'province', e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
-                </div>
-                <div className={styles.row}>
-                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={e => handleAddressChange(type, 'city', e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
-                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={e => handleAddressChange(type, 'barangay', e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b => <option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
-                </div>
-                <div className={styles.row}>
-                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={e => handleAddressChange(type, 'street', e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
-                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={e => handleAddressChange(type, 'houseNumber', e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
-                </div>
-            </div>
-        );
+    const handleSuccessClose = () => {
+        setShowSuccessModal(false);
+        onSuccess?.();
+        onClose?.();
     };
-
-    useEffect(() => {
-        const fetchBranches = async () => {
-            try {
-                const res = await authFetch('/branches');
-                if (res.ok) { const data = await res.json(); setBranchOptions(data.map(b => b.name)); }
-            } catch (e) { console.error('Failed to load branches:', e); }
-        };
-        fetchBranches();
-    }, []);
 
     return (
         <div className={styles.mainOverlay}>
@@ -414,37 +573,26 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <img src={BackIcon} alt="Back" />
                     </button>
                     <div className={styles.header}>
-                        <h2>Add New <span className={styles.highlight}>Patient</span></h2>
-                        <p>Enter the patient's personal records below.</p>
+                        <h2>Register <span className={styles.highlight}>Guest Patient</span></h2>
+                        <p>Complete the missing details to convert this guest appointment into a patient account.</p>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} noValidate>
-                    <div className={styles.uploadSection}>
-                        <div className={styles.imageWrapper} onClick={triggerFileInput}>
-                            {profileImage ? <img src={profileImage} alt="Profile" className={styles.previewImage} /> : <div className={styles.uploadPlaceholder}><span>Upload Photo</span></div>}
-                        </div>
-                        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} disabled={isLoading} />
-                    </div>
-
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>
-
-                    {/* Row 1: Names */}
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} />{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
-                        <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>LAST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading} />{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
+                        <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>LAST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} disabled={isLoading} /></div>
                     </div>
 
-                    {/* Row 2: Birthdate / Gender */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
                         <div className={styles.formGroup}><label>GENDER <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                     </div>
 
-                    {/* Row 3: Email / Phone */}
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
+                        <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} disabled={isLoading} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                         <div className={styles.formGroup}>
                             <label>PHONE NUMBER <span style={{ color: 'red' }}>*</span></label>
                             <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
@@ -456,7 +604,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
 
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>CIVIL STATUS</label><select className={styles.inputField} name="civilStatus" value={formData.civilStatus} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option><option value="Divorced">Divorced</option></select></div>
                     </div>
 
@@ -474,27 +622,39 @@ export default function AddPatient({ onClose, onSuccess }) {
                             </div>
                             {errors.homePhone && <span className={styles.errorText}>{errors.homePhone}</span>}
                         </div>
-                        <div className={styles.formGroup}><label>WORK PHONE</label><div className={`${styles.phoneInputGroup} ${errors.workPhone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="workPhone" value={formData.workPhone} onChange={handlePhoneChange('workPhone')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} /></div>{errors.workPhone && <span className={styles.errorText}>{errors.workPhone}</span>}</div>
+                        <div className={styles.formGroup}>
+                            <label>WORK PHONE</label>
+                            <div className={`${styles.phoneInputGroup} ${errors.workPhone ? styles.errorBorder : ''}`}>
+                                <span className={styles.phonePrefix}>+63</span>
+                                <input className={styles.phoneField} name="workPhone" value={formData.workPhone} onChange={handlePhoneChange('workPhone')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
+                            </div>
+                            {errors.workPhone && <span className={styles.errorText}>{errors.workPhone}</span>}
+                        </div>
                     </div>
 
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>NATIONALITY</label><input className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>RELIGION</label><input className={styles.inputField} name="religion" value={formData.religion} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>NATIONALITY</label><input className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>RELIGION</label><input className={styles.inputField} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isLoading} /></div>
+                    </div>
+
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}><label>REASON FOR CONSULTATION</label><input className={styles.inputField} value={formData.dentalHistory.chiefComplaint} onChange={(e) => handleNestedChange('dentalHistory', 'chiefComplaint', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} disabled={isLoading} /></div>
                     </div>
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
-                            <label>REASON FOR CONSULTATION</label>
-                            <input className={styles.inputField} value={formData.dentalHistory.chiefComplaint} onChange={(e) => handleNestedChange('dentalHistory', 'chiefComplaint', e.target.value)} maxLength={150} disabled={isLoading} />
+                            <label>BLOOD TYPE</label>
+                            <select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Blood Type</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select>
                         </div>
-                        <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} maxLength={80} disabled={isLoading} /></div>
+                        <div className={styles.formGroup} />
                     </div>
 
                     <hr className={styles.divider} style={{ marginTop: '10px' }} />
                     <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>CONTACT NAME</label><input className={styles.inputField} name="emergencyContactName" value={formData.emergencyContactName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>RELATIONSHIP</label><input className={styles.inputField} name="emergencyContactRelationship" value={formData.emergencyContactRelationship} onChange={handlePersonalChange} maxLength={40} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>CONTACT NAME</label><input className={styles.inputField} name="emergencyContactName" value={formData.emergencyContactName} onChange={handlePersonalChange} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>RELATIONSHIP</label><input className={styles.inputField} name="emergencyContactRelationship" value={formData.emergencyContactRelationship} onChange={handlePersonalChange} disabled={isLoading} /></div>
                     </div>
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
@@ -508,72 +668,60 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup} />
                     </div>
 
-                    {/* Guardian Info (minors only) */}
                     {isMinor && (
                         <>
                             <hr className={styles.divider} style={{ marginTop: '10px' }} />
                             <h3 className={styles.mainSectionTitle}>Guardian Information</h3>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>GUARDIAN NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardianName ? styles.errorBorder : ''}`} name="guardianName" value={formData.guardianName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} placeholder="Full Name" />{errors.guardianName && <span className={styles.errorText}>{errors.guardianName}</span>}</div>
-                                <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardianRelationship ? styles.errorBorder : ''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} maxLength={30} disabled={isLoading} placeholder="e.g. Mother, Father" />{errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}</div>
+                                <div className={styles.formGroup}><label>GUARDIAN NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardianName ? styles.errorBorder : ''}`} name="guardianName" value={formData.guardianName} onChange={handlePersonalChange} disabled={isLoading} />{errors.guardianName && <span className={styles.errorText}>{errors.guardianName}</span>}</div>
+                                <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardianRelationship ? styles.errorBorder : ''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} disabled={isLoading} />{errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}</div>
                             </div>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}>
                                     <label>GUARDIAN PHONE <span style={{ color: 'red' }}>*</span></label>
-                            <div className={`${styles.phoneInputGroup} ${errors.guardianContact ? styles.errorBorder : ''}`}>
-                                <span className={styles.phonePrefix}>+63</span>
-                                <input className={styles.phoneField} name="guardianContact" value={formData.guardianContact} onChange={handleGuardianContactChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
+                                    <div className={`${styles.phoneInputGroup} ${errors.guardianContact ? styles.errorBorder : ''}`}>
+                                        <span className={styles.phonePrefix}>+63</span>
+                                        <input className={styles.phoneField} name="guardianContact" value={formData.guardianContact} onChange={handlePhoneChange('guardianContact')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
+                                    </div>
+                                    {errors.guardianContact && <span className={styles.errorText}>{errors.guardianContact}</span>}
+                                </div>
+                                <div className={styles.formGroup}><label>GUARDIAN OCCUPATION</label><input className={styles.inputField} name="guardianOccupation" value={formData.guardianOccupation} onChange={handlePersonalChange} disabled={isLoading} /></div>
                             </div>
-                            {errors.guardianContact && <span className={styles.errorText}>{errors.guardianContact}</span>}
-                        </div>
-                        <div className={styles.formGroup}><label>GUARDIAN OCCUPATION</label><input className={styles.inputField} name="guardianOccupation" value={formData.guardianOccupation} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} /></div>
-                    </div>
-                </>
-            )}
+                        </>
+                    )}
 
-                    {/* Branch Assignment — required, shown before address */}
                     {!isSecretary && (
                         <>
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
                             {isBranchScopedStaff ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                    <span className={styles.branchLockedBadge}>🏢 {user.assignedBranch}</span>
+                                    <span className={styles.branchLockedBadge}>Branch: {user?.assignedBranch}</span>
                                     <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
                                 </div>
                             ) : (
-                                <>
-                                    <p className={styles.sectionSubtitle}>Select the branch this patient is registered under.</p>
-                                    <div className={styles.row}>
-                                        <div className={styles.formGroup}>
-                                            <label>BRANCH <span style={{ color: 'red' }}>*</span></label>
-                                            <select
-                                                className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`}
-                                                name="assignedBranch"
-                                                value={formData.assignedBranch}
-                                                onChange={handlePersonalChange}
-                                                disabled={isLoading}
-                                            >
-                                                <option value="" hidden>Select a branch</option>
-                                                {branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
-                                            </select>
-                                            {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
-                                        </div>
-                                        <div className={styles.formGroup} />
+                                <div className={styles.row}>
+                                    <div className={styles.formGroup}>
+                                        <label>BRANCH <span style={{ color: 'red' }}>*</span></label>
+                                        <select className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`} name="assignedBranch" value={formData.assignedBranch} onChange={handlePersonalChange} disabled={isLoading}>
+                                            <option value="" hidden>Select a branch</option>
+                                            {branchOptions.map((branch) => <option key={branch} value={branch}>{branch}</option>)}
+                                        </select>
+                                        {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
                                     </div>
-                                </>
+                                    <div className={styles.formGroup} />
+                                </div>
                             )}
                         </>
                     )}
 
-                    {/* Address */}
                     <hr className={styles.divider} />
                     {renderAddressFields('currentAddress', 'Current Address')}
                     <div className={styles.permanentHeader}>
                         <h3 className={styles.sectionTitle}>Permanent Address</h3>
                         <div className={styles.checkboxContainer}>
-                            <input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} />
-                            <label htmlFor="sameAddress">Same as Current Address</label>
+                            <input type="checkbox" id="guestSameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} />
+                            <label htmlFor="guestSameAddress">Same as Current Address</label>
                         </div>
                     </div>
                     {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
@@ -629,7 +777,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup}>
                             <label>ALLERGIES</label>
                             <div className={styles.checkboxGrid}>
-                                {allergyOptions.map(option => (
+                                {allergyOptions.map((option) => (
                                     <label key={option} className={styles.checkboxOption}>
                                         <input type="checkbox" checked={formData.medicalHistory.allergies.includes(option)} onChange={() => handleNestedArrayToggle('medicalHistory', 'allergies', option)} disabled={isLoading} />
                                         <span>{option}</span>
@@ -655,7 +803,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup}>
                             <label>MEDICAL CONDITIONS</label>
                             <div className={styles.checkboxGrid}>
-                                {medicalConditionOptions.map(option => (
+                                {medicalConditionOptions.map((option) => (
                                     <label key={option} className={styles.checkboxOption}>
                                         <input type="checkbox" checked={formData.medicalHistory.conditions.includes(option)} onChange={() => handleNestedArrayToggle('medicalHistory', 'conditions', option)} disabled={isLoading} />
                                         <span>{option}</span>
@@ -725,7 +873,7 @@ export default function AddPatient({ onClose, onSuccess }) {
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
-                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'ADDING PATIENT...' : 'ADD PATIENT'}</button>
+                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'REGISTERING...' : 'REGISTER PATIENT'}</button>
                     </div>
                 </form>
             </div>
@@ -735,7 +883,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
                         <h3 className={styles.modalTitle}>Success!</h3>
-                        <p className={styles.modalMessage}>New patient has been successfully added to the system.</p>
+                        <p className={styles.modalMessage}>{successMessage}</p>
                         <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
                     </div>
                 </div>

@@ -22,7 +22,15 @@ const INITIAL_MEDICAL_HISTORY = {
     allergies: '',
     conditions: '',
     medications: '',
-    notes: ''
+    notes: '',
+    inGoodHealth: '',
+    usesTobacco: '',
+    usesAlcoholOrDrugs: '',
+    bleedingTime: '',
+    bloodPressure: '',
+    isPregnant: '',
+    isNursing: '',
+    takingBirthControl: ''
 };
 
 const formatAddressDisplay = (addr) => {
@@ -33,6 +41,9 @@ const formatAddressDisplay = (addr) => {
     const parts = [addr.houseNumber, addr.street, addr.barangay, cName, pName, rName].filter(Boolean);
     return parts.length ? parts.join(', ') : '—';
 };
+
+const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
+const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
 
 export default function PatientEMR({ patientId: propPatientId, onClose }) {
     const urlParams = useParams();
@@ -72,7 +83,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
     const [isEnhanced, setIsEnhanced] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [uploadForm, setUploadForm] = useState({ label: '', date: '', notes: '' });
-    const [uploadFile, setUploadFile] = useState(null);
     const [uploadPreview, setUploadPreview] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -109,8 +119,16 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                             allergies:   toCSV(patientData.medicalHistory.allergies),
                             conditions:  toCSV(patientData.medicalHistory.conditions),
                             medications: toCSV(patientData.medicalHistory.medications),
-                            bloodType:   patientData.medicalHistory.bloodType || '',
+                            bloodType:   patientData.bloodType || patientData.medicalHistory.bloodType || '',
                             notes:       patientData.medicalHistory.notes || '',
+                            inGoodHealth: boolToSelect(patientData.medicalHistory.inGoodHealth),
+                            usesTobacco: boolToSelect(patientData.medicalHistory.usesTobacco),
+                            usesAlcoholOrDrugs: boolToSelect(patientData.medicalHistory.usesAlcoholOrDrugs),
+                            bleedingTime: patientData.medicalHistory.bleedingTime || '',
+                            bloodPressure: patientData.medicalHistory.bloodPressure || '',
+                            isPregnant: boolToSelect(patientData.medicalHistory.isPregnant),
+                            isNursing: boolToSelect(patientData.medicalHistory.isNursing),
+                            takingBirthControl: boolToSelect(patientData.medicalHistory.takingBirthControl),
                             lastExam:    patientData.dentalHistory?.lastExamDate
                                             || patientData.medicalHistory.lastExam
                                             || '',
@@ -197,6 +215,11 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                     {infoItem('Email Address', patient?.email, <FaEnvelope />)}
                     {infoItem('Contact Number', patient?.contactNumber || '—', <FaPhoneAlt />)}
                     {infoItem('Patient ID', patient?._id || patient?.id, <FaIdCard />)}
+                    {infoItem('Occupation', patient?.occupation)}
+                    {infoItem('Civil Status', patient?.civilStatus)}
+                    {infoItem('Blood Type', patient?.bloodType || patient?.medicalHistory?.bloodType)}
+                    {infoItem('Work Phone', patient?.workPhone)}
+                    {infoItem('Referred By', patient?.referredBy)}
                 </div>
 
                 {patient?.guardian && (
@@ -206,6 +229,18 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                             {infoItem('Guardian Name', patient.guardian.name, <FaChild />)}
                             {infoItem('Relationship', patient.guardian.relationship)}
                             {infoItem('Guardian Contact', patient.guardian.contactNumber, <FaPhoneAlt />)}
+                            {infoItem('Guardian Occupation', patient.guardian.occupation)}
+                        </div>
+                    </>
+                )}
+
+                {(patient?.emergencyContact?.name || patient?.emergencyContact?.contactNumber) && (
+                    <>
+                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Emergency Contact</h3>
+                        <div className={styles.infoGrid}>
+                            {infoItem('Contact Name', patient.emergencyContact?.name)}
+                            {infoItem('Relationship', patient.emergencyContact?.relationship)}
+                            {infoItem('Contact Number', patient.emergencyContact?.contactNumber, <FaPhoneAlt />)}
                         </div>
                     </>
                 )}
@@ -261,6 +296,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             const res = await authFetch(`/patients/${activePatientId}`, {
                 method: 'PUT',
                 body: JSON.stringify({
+                    bloodType: medicalForm.bloodType,
                     medicalHistory: {
                         bloodType:   medicalForm.bloodType,
                         allergies:   medicalForm.allergies
@@ -273,6 +309,14 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                             ? medicalForm.medications.split(',').map(s => s.trim()).filter(Boolean)
                             : [],
                         notes: medicalForm.notes,
+                        inGoodHealth: selectToBool(medicalForm.inGoodHealth),
+                        usesTobacco: selectToBool(medicalForm.usesTobacco),
+                        usesAlcoholOrDrugs: selectToBool(medicalForm.usesAlcoholOrDrugs),
+                        bleedingTime: medicalForm.bleedingTime || undefined,
+                        bloodPressure: medicalForm.bloodPressure || undefined,
+                        isPregnant: selectToBool(medicalForm.isPregnant),
+                        isNursing: selectToBool(medicalForm.isNursing),
+                        takingBirthControl: selectToBool(medicalForm.takingBirthControl),
                     },
                     dentalHistory: {
                         lastExamDate: medicalForm.lastExam || undefined,
@@ -357,6 +401,62 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                             <label>Last Medical/Dental Exam</label>
                             <input type="date" name="lastExam" value={medicalForm.lastExam} onChange={handleMedicalFormChange} className={styles.inputField} />
                         </div>
+                        <div className={styles.formGroup}>
+                            <label>Blood Pressure</label>
+                            <input type="text" name="bloodPressure" value={medicalForm.bloodPressure} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="e.g., 120/80" />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Bleeding Time</label>
+                            <input type="text" name="bleedingTime" value={medicalForm.bleedingTime} onChange={handleMedicalFormChange} className={styles.inputField} />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>In Good Health?</label>
+                            <select name="inGoodHealth" value={medicalForm.inGoodHealth} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Uses Tobacco?</label>
+                            <select name="usesTobacco" value={medicalForm.usesTobacco} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Uses Alcohol / Drugs?</label>
+                            <select name="usesAlcoholOrDrugs" value={medicalForm.usesAlcoholOrDrugs} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Pregnant?</label>
+                            <select name="isPregnant" value={medicalForm.isPregnant} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Nursing?</label>
+                            <select name="isNursing" value={medicalForm.isNursing} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Taking Birth Control Pills?</label>
+                            <select name="takingBirthControl" value={medicalForm.takingBirthControl} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
                     </div>
                     <div className={styles.formGroup}>
                         <label>Clinical Notes & Remarks</label>
@@ -392,6 +492,38 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                         <div className={styles.infoBlock}>
                             <span className={styles.infoLabel}>Last Exam</span>
                             <p className={styles.infoValue}>{medicalHistory.lastExam ? formatDateLong(medicalHistory.lastExam) : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Blood Pressure</span>
+                            <p className={styles.infoValue}>{medicalHistory.bloodPressure || 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Bleeding Time</span>
+                            <p className={styles.infoValue}>{medicalHistory.bleedingTime || 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>In Good Health?</span>
+                            <p className={styles.infoValue}>{medicalHistory.inGoodHealth === 'yes' ? 'Yes' : medicalHistory.inGoodHealth === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Uses Tobacco?</span>
+                            <p className={styles.infoValue}>{medicalHistory.usesTobacco === 'yes' ? 'Yes' : medicalHistory.usesTobacco === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Uses Alcohol / Drugs?</span>
+                            <p className={styles.infoValue}>{medicalHistory.usesAlcoholOrDrugs === 'yes' ? 'Yes' : medicalHistory.usesAlcoholOrDrugs === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Pregnant?</span>
+                            <p className={styles.infoValue}>{medicalHistory.isPregnant === 'yes' ? 'Yes' : medicalHistory.isPregnant === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Nursing?</span>
+                            <p className={styles.infoValue}>{medicalHistory.isNursing === 'yes' ? 'Yes' : medicalHistory.isNursing === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Taking Birth Control Pills?</span>
+                            <p className={styles.infoValue}>{medicalHistory.takingBirthControl === 'yes' ? 'Yes' : medicalHistory.takingBirthControl === 'no' ? 'No' : 'Not specified'}</p>
                         </div>
                     </div>
                     {medicalHistory.notes && (
@@ -633,7 +765,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             addToast('Image must be under 3MB.', 'error');
             return;
         }
-        setUploadFile(file);
         const reader = new FileReader();
         reader.onloadend = () => setUploadPreview(reader.result);
         reader.readAsDataURL(file);
@@ -672,7 +803,6 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
             }, ...prev]);
             setIsUploadModalOpen(false);
             setUploadForm({ label: '', date: '', notes: '' });
-            setUploadFile(null);
             setUploadPreview(null);
             addToast('Radiograph uploaded successfully.', 'success');
         } catch (err) {
@@ -810,7 +940,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose }) {
                             <textarea className={styles.textareaField} placeholder="Any clinical notes about this image..." value={uploadForm.notes} onChange={(e) => setUploadForm(p => ({ ...p, notes: e.target.value }))} rows={3} />
                         </div>
                         <div className={styles.modalButtonGroup}>
-                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadFile(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
+                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
                             <button type="submit" className={styles.saveBtn} disabled={isUploading}>
                                 {isUploading ? 'Uploading...' : 'Upload'}
                             </button>

@@ -1,8 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { authFetch } from '../../utils/api';
-import styles from '../../styles/admin/StaffModals.module.css'; // Utilizing unified UI
-import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import styles from '../../styles/admin/StaffModals.module.css';
+import { regions, provinces, cities } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
+
+const formatDateLong = (value) => {
+    if (!value) return 'Not provided';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? 'Not provided'
+        : date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+};
+
+const formatAddress = (addr) => {
+    if (!addr || !addr.region) return 'Not provided';
+    const regionName = regions.find((region) => region.code === addr.region)?.name || addr.region;
+    const provinceName = provinces[addr.region]?.find((province) => province.code === addr.province)?.name || addr.province;
+    const cityName = cities[addr.province]?.find((city) => city.code === addr.city)?.name || addr.city;
+    return [
+        addr.houseNumber,
+        addr.street,
+        addr.barangay,
+        cityName,
+        provinceName,
+        regionName,
+    ].filter(Boolean).join(', ') || 'Not provided';
+};
+
+const formatYesNo = (value) => {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    return 'Not provided';
+};
+
+const renderArray = (value) => Array.isArray(value) && value.length > 0 ? value.join(', ') : 'None reported';
 
 export default function ViewPatient({ patientId, onClose, onEdit }) {
     const [patient, setPatient] = useState(null);
@@ -13,50 +44,46 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
             try {
                 const response = await authFetch(`/user/${patientId}`);
                 if (response.ok) {
-                    const data = await response.json();
-                    setPatient(data);
+                    setPatient(await response.json());
                 } else {
-                    alert("Failed to load patient data");
+                    alert('Failed to load patient data');
                     onClose();
                 }
             } catch (error) {
-                console.error("Error:", error);
-                alert("Cannot connect to server");
+                console.error('Error:', error);
+                alert('Cannot connect to server');
                 onClose();
             } finally {
                 setIsLoading(false);
             }
         };
+
         if (patientId) fetchPatient();
     }, [patientId, onClose]);
 
-    const getInitials = (first, last) => {
-        return `${first?.charAt(0) || ''}${last?.charAt(0) || ''}`.toUpperCase() || '?';
-    };
+    const getInitials = (first, last) => `${first?.charAt(0) || ''}${last?.charAt(0) || ''}`.toUpperCase() || '?';
 
     const getAge = (birthDateString) => {
         if (!birthDateString) return null;
         const today = new Date();
         const birthDate = new Date(birthDateString);
         let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+        const monthDelta = today.getMonth() - birthDate.getMonth();
+        if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birthDate.getDate())) age--;
         return age;
     };
 
-    const formatAddress = (addr) => {
-        if (!addr || !addr.region) return "Not provided";
-        const rName = regions.find(r => r.code === addr.region)?.name || addr.region;
-        const pName = provinces[addr.region]?.find(p => p.code === addr.province)?.name || addr.province;
-        const cName = cities[addr.province]?.find(c => c.code === addr.city)?.name || addr.city;
-        
-        return `${addr.houseNumber ? addr.houseNumber + ' ' : ''}${addr.street ? addr.street + ', ' : ''}${addr.barangay || ''}, ${cName}, ${pName}, ${rName}`;
-    };
-
-    // Calculate core data safely
     const birthRaw = patient?.birthdate || patient?.dob || patient?.dateOfBirth;
     const age = getAge(birthRaw);
     const isMinor = age !== null && age < 18;
+    const bloodType = patient?.bloodType || patient?.medicalHistory?.bloodType || 'Not provided';
+
+    const infoBox = (label, value, extraClass = '') => (
+        <div className={`${styles.infoBox} ${extraClass}`.trim()}>
+            <span className={styles.infoLabel}>{label}</span>
+            <p className={styles.infoValue}>{value || 'Not provided'}</p>
+        </div>
+    );
 
     return (
         <div className={styles.mainOverlay}>
@@ -92,87 +119,78 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
 
                         <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Core Information</h3>
                         <div className={styles.infoGrid}>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Email Address</span>
-                                <p className={styles.infoValue}>{patient.email}</p>
-                            </div>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Contact Number</span>
-                                <p className={styles.infoValue}>{patient.contactNumber || patient.phoneNumber || 'Not provided'}</p>
-                            </div>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Date of Birth</span>
-                                <p className={styles.infoValue}>
-                                    {birthRaw ? new Date(birthRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not provided'}
-                                </p>
-                            </div>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Age</span>
-                                <p className={styles.infoValue}>{age !== null ? `${age} years old` : 'Unknown'}</p>
-                            </div>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Gender</span>
-                                <p className={styles.infoValue}>{patient.gender || 'Not provided'}</p>
-                            </div>
+                            {infoBox('Email Address', patient.email)}
+                            {infoBox('Contact Number', patient.contactNumber || patient.phoneNumber || 'Not provided')}
+                            {infoBox('Date of Birth', formatDateLong(birthRaw))}
+                            {infoBox('Age', age !== null ? `${age} years old` : 'Unknown')}
+                            {infoBox('Gender', patient.gender || 'Not provided')}
+                            {infoBox('Occupation', patient.occupation)}
+                            {infoBox('Civil Status', patient.civilStatus)}
+                            {infoBox('Blood Type', bloodType)}
+                            {infoBox('Work Phone', patient.workPhone)}
+                            {infoBox('Referred By', patient.referredBy)}
                         </div>
 
-                        {/* CONDITIONAL GUARDIAN SECTION */}
-                        {isMinor && (
+                        {(patient.emergencyContact?.name || patient.emergencyContact?.contactNumber) && (
                             <>
-                                <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>
-                                    Guardian Information (Minor)
-                                </h3>
+                                <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Emergency Contact</h3>
                                 <div className={styles.infoGrid}>
-                                    <div className={`${styles.infoBox} ${styles.infoBoxWarning}`}>
-                                        <span className={styles.infoLabel}>Guardian Name</span>
-                                        <p className={styles.infoValue}>{patient.guardian?.name || 'Not provided'}</p>
-                                    </div>
-                                    <div className={`${styles.infoBox} ${styles.infoBoxWarning}`}>
-                                        <span className={styles.infoLabel}>Relationship</span>
-                                        <p className={styles.infoValue}>{patient.guardian?.relationship || 'Not provided'}</p>
-                                    </div>
-                                    <div className={`${styles.infoBox} ${styles.infoBoxWarning}`}>
-                                        <span className={styles.infoLabel}>Guardian Contact</span>
-                                        <p className={styles.infoValue}>{patient.guardian?.contactNumber || 'Not provided'}</p>
-                                    </div>
+                                    {infoBox('Contact Name', patient.emergencyContact?.name)}
+                                    {infoBox('Relationship', patient.emergencyContact?.relationship)}
+                                    {infoBox('Contact Number', patient.emergencyContact?.contactNumber)}
                                 </div>
                             </>
                         )}
 
-                        {/* MEDICAL HISTORY SECTION (Non-Financial Ops) */}
-                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>
-                            Medical History Summary
-                        </h3>
+                        {isMinor && (
+                            <>
+                                <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Guardian Information (Minor)</h3>
+                                <div className={styles.infoGrid}>
+                                    {infoBox('Guardian Name', patient.guardian?.name, `${styles.infoBoxWarning}`)}
+                                    {infoBox('Relationship', patient.guardian?.relationship, `${styles.infoBoxWarning}`)}
+                                    {infoBox('Guardian Contact', patient.guardian?.contactNumber, `${styles.infoBoxWarning}`)}
+                                    {infoBox('Guardian Occupation', patient.guardian?.occupation, `${styles.infoBoxWarning}`)}
+                                </div>
+                            </>
+                        )}
+
+                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Medical History Summary</h3>
                         <div className={styles.infoGrid}>
-                            <div className={`${styles.infoBox} ${styles.infoBoxDanger}`}>
-                                <span className={`${styles.infoLabel} ${styles.infoLabelDanger}`}>Known Allergies</span>
-                                <p className={styles.infoValue}>
-                                    {patient.medicalHistory?.allergies?.length > 0 
-                                        ? patient.medicalHistory.allergies.join(', ') 
-                                        : 'None reported'}
-                                </p>
-                            </div>
-                            <div className={`${styles.infoBox} ${styles.infoBoxDanger}`}>
-                                <span className={`${styles.infoLabel} ${styles.infoLabelDanger}`}>Medical Conditions</span>
-                                <p className={styles.infoValue}>
-                                    {patient.medicalHistory?.conditions?.length > 0 
-                                        ? patient.medicalHistory.conditions.join(', ') 
-                                        : 'None reported'}
-                                </p>
-                            </div>
+                            {infoBox('Known Allergies', renderArray(patient.medicalHistory?.allergies), `${styles.infoBoxDanger}`)}
+                            {infoBox('Medical Conditions', renderArray(patient.medicalHistory?.conditions), `${styles.infoBoxDanger}`)}
+                            {infoBox('Current Medications', renderArray(patient.medicalHistory?.medications))}
+                            {infoBox('Last Physical / Dental Exam', formatDateLong(patient.dentalHistory?.lastExamDate))}
+                            {infoBox('Blood Pressure', patient.medicalHistory?.bloodPressure)}
+                            {infoBox('Bleeding Time', patient.medicalHistory?.bleedingTime)}
+                            {infoBox('In Good Health?', formatYesNo(patient.medicalHistory?.inGoodHealth))}
+                            {infoBox('Uses Tobacco?', formatYesNo(patient.medicalHistory?.usesTobacco))}
+                            {infoBox('Uses Alcohol / Drugs?', formatYesNo(patient.medicalHistory?.usesAlcoholOrDrugs))}
+                            {infoBox('Pregnant?', formatYesNo(patient.medicalHistory?.isPregnant))}
+                            {infoBox('Nursing?', formatYesNo(patient.medicalHistory?.isNursing))}
+                            {infoBox('Taking Birth Control Pills?', formatYesNo(patient.medicalHistory?.takingBirthControl))}
+                        </div>
+
+                        <div className={styles.infoGrid}>
+                            {infoBox('Clinical Notes', patient.medicalHistory?.notes || 'No clinical notes on record.')}
                         </div>
 
                         <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Address Details</h3>
                         <div className={styles.infoGrid}>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Current Address</span>
-                                <p className={styles.infoValue}>{formatAddress(patient.currentAddress)}</p>
-                            </div>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Permanent Address</span>
-                                <p className={styles.infoValue}>{formatAddress(patient.permanentAddress)}</p>
-                            </div>
+                            {infoBox('Current Address', formatAddress(patient.currentAddress))}
+                            {infoBox('Permanent Address', formatAddress(patient.permanentAddress))}
                         </div>
+
+                        {(patient.consentAcknowledgement?.acknowledged || patient.consentAcknowledgement?.signerName) && (
+                            <>
+                                <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Digital Consent</h3>
+                                <div className={styles.infoGrid}>
+                                    {infoBox('Consent Recorded', formatYesNo(patient.consentAcknowledgement?.acknowledged))}
+                                    {infoBox('Signer Name', patient.consentAcknowledgement?.signerName)}
+                                    {infoBox('Signer Role', patient.consentAcknowledgement?.signerRole)}
+                                    {infoBox('Date Signed', formatDateLong(patient.consentAcknowledgement?.signedAt))}
+                                </div>
+                            </>
+                        )}
                     </>
                 ) : (
                     <div className={styles.errorState}>Profile not found.</div>

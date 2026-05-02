@@ -407,6 +407,108 @@ const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, 
     });
 };
 
+const sendAppointmentDeclinedEmail = async ({ email, name, branch, date, time, procedure }) => {
+    if (!email) return;
+
+    const appointmentDate = new Date(date);
+    const safeName = name || 'Patient';
+    const clinic = await getClinicContactDetails();
+
+    await resend.emails.send({
+        from: 'NgitiFy Appointments <noreply@ngitify.com>',
+        to: email,
+        subject: 'Your Dentime appointment request was declined',
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #8b1e1e;">Appointment Request Declined</h2>
+                <p>Hello ${safeName},</p>
+                <p>Thank you for your interest in Dentime Dental Clinic. At this time, we were unable to confirm the appointment request below.</p>
+                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
+                    <p><strong>Branch:</strong> ${branch}</p>
+                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
+                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p><strong>Procedure:</strong> ${procedure}</p>
+                </div>
+                <p>You may contact the clinic directly if you would like help booking another schedule.</p>
+                <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
+                <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
+                <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
+            </div>
+        `,
+    });
+};
+
+const normalizeEmail = (email = '') => email.trim().toLowerCase();
+
+const normalizePhoneNumber = (phone = '') => {
+    const digits = String(phone).replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('63') && digits.length === 12) return `+${digits}`;
+    if (digits.startsWith('0') && digits.length === 11) return `+63${digits.slice(1)}`;
+    if (digits.startsWith('9') && digits.length === 10) return `+63${digits}`;
+    return phone.trim();
+};
+
+const splitGuestFullName = (fullName = '') => {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return { first: '', middle: '', last: '' };
+    if (parts.length === 1) return { first: parts[0], middle: '', last: parts[0] };
+    if (parts.length === 2) return { first: parts[0], middle: '', last: parts[1] };
+    return {
+        first: parts[0],
+        middle: parts.slice(1, -1).join(' '),
+        last: parts[parts.length - 1],
+    };
+};
+
+const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOverride = '' }) => {
+    const fallbackName = splitGuestFullName(fallbackGuest?.guestName || '');
+    const email = normalizeEmail(body.email || fallbackGuest?.guestEmail || '');
+    const contactNumber = normalizePhoneNumber(body.contactNumber || body.phone || fallbackGuest?.guestPhone || '');
+
+    const name = {
+        first: body.name?.first?.trim() || body.firstName?.trim() || fallbackName.first,
+        middle: body.name?.middle?.trim() || body.middleName?.trim() || fallbackName.middle || '',
+        last: body.name?.last?.trim() || body.lastName?.trim() || fallbackName.last,
+    };
+
+    const assignedBranch = assignedBranchOverride || body.assignedBranch || '';
+    const assignedBranches = assignedBranch ? [assignedBranch] : (
+        Array.isArray(body.assignedBranches) ? body.assignedBranches.filter(Boolean) : []
+    );
+
+    return {
+        name,
+        email,
+        contactNumber,
+        birthdate: body.birthdate || undefined,
+        gender: body.gender || undefined,
+        profileImage: body.profileImage || undefined,
+        assignedBranch,
+        assignedBranches,
+        currentAddress: body.currentAddress || undefined,
+        permanentAddress: body.permanentAddress || undefined,
+        guardian: body.guardian || undefined,
+        emergencyContact: body.emergencyContact || undefined,
+        homePhone: body.homePhone || undefined,
+        workPhone: body.workPhone || undefined,
+        referredBy: body.referredBy || undefined,
+        nationality: body.nationality || undefined,
+        religion: body.religion || undefined,
+        occupation: body.occupation || undefined,
+        civilStatus: body.civilStatus || undefined,
+        bloodType: body.bloodType || undefined,
+        medicalHistory: body.medicalHistory || undefined,
+        dentalHistory: body.dentalHistory || undefined,
+        physician: body.physician || undefined,
+        consentAcknowledgement: body.consentAcknowledgement || undefined,
+        role: 'patient',
+        isVerified: false,
+        status: 'inactive',
+    };
+};
+
 const notifyAppointmentManagers = async ({ appointmentId, patientName, procedure, date, branch }) => {
     const message = `${patientName} requested an appointment for: ${procedure} on ${new Date(date).toDateString()} at ${branch}.`;
     const notifications = [
@@ -1143,26 +1245,51 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             contactNumber,
             birthdate,
             gender,
+            emergencyContact,
             currentAddress,
             permanentAddress,
             medicalHistory,
-            guardian,
-            profileImage,
-            assignedBranch,
-            assignedBranches
-        } = req.body;
+            dentalHistory,
+             guardian,
+             physician,
+             homePhone,
+             workPhone,
+             referredBy,
+            nationality,
+            religion,
+            occupation,
+            civilStatus,
+             bloodType,
+             profileImage,
+             consentAcknowledgement,
+             assignedBranch,
+             assignedBranches
+         } = req.body;
 
         const updateData = {
             name,
             contactNumber,
             birthdate,
             gender,
+            emergencyContact,
             currentAddress,
             permanentAddress,
             medicalHistory,
-            guardian,
-            profileImage
-        };
+            dentalHistory,
+             guardian,
+             physician,
+             homePhone,
+             workPhone,
+             referredBy,
+            nationality,
+            religion,
+            occupation,
+             civilStatus,
+             bloodType,
+             profileImage
+             ,
+             consentAcknowledgement
+          };
 
         if (req.user.role === 'secretary' && req.user.assignedBranch) {
             updateData.assignedBranch = req.user.assignedBranch;
@@ -1489,6 +1616,11 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             contactNumber, 
             birthdate, 
             gender, 
+            occupation,
+            civilStatus,
+            bloodType,
+            emergencyContact,
+            medicalHistory,
             currentAddress,
             permanentAddress,
             profileImage 
@@ -1506,8 +1638,12 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         }
 
         if (contactNumber !== undefined) user.contactNumber = contactNumber;
-        if (birthdate !== undefined) user.birthdate = birthdate;
-        if (gender !== undefined) user.gender = gender;
+          if (birthdate !== undefined) user.birthdate = birthdate;
+          if (gender !== undefined) user.gender = gender;
+          if (homePhone !== undefined) user.homePhone = homePhone;
+          if (occupation !== undefined) user.occupation = occupation;
+        if (civilStatus !== undefined) user.civilStatus = civilStatus;
+        if (bloodType !== undefined) user.bloodType = bloodType;
         if (profileImage !== undefined) {
             if (profileImage && profileImage.length > 1.5 * 1024 * 1024) {
                 return res.status(413).json({ message: 'Profile image must be under 1.5MB.' });
@@ -1515,16 +1651,42 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             user.profileImage = profileImage;
         }
 
+        if (emergencyContact) {
+            user.emergencyContact = {
+                ...user.emergencyContact?.toObject?.(),
+                ...user.emergencyContact,
+                ...emergencyContact
+            };
+        }
+
+          if (medicalHistory) {
+              user.medicalHistory = {
+                  ...user.medicalHistory?.toObject?.(),
+                  ...user.medicalHistory,
+                  ...medicalHistory
+              };
+          }
+
+          if (consentAcknowledgement) {
+              user.consentAcknowledgement = {
+                  ...user.consentAcknowledgement?.toObject?.(),
+                  ...user.consentAcknowledgement,
+                  ...consentAcknowledgement
+              };
+          }
+
         if (currentAddress) {
             user.currentAddress = {
-                ...user.currentAddress?.toObject(),
+                ...user.currentAddress?.toObject?.(),
+                ...user.currentAddress,
                 ...currentAddress
             };
         }
 
         if (permanentAddress) {
             user.permanentAddress = {
-                ...user.permanentAddress?.toObject(),
+                ...user.permanentAddress?.toObject?.(),
+                ...user.permanentAddress,
                 ...permanentAddress
             };
         }
@@ -2025,6 +2187,151 @@ app.post('/api/surgeries', verifyToken, async (req, res) => {
     }
 });
 
+app.post('/api/admin/appointments/:surgeryId/register-guest', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        const surgery = await Surgery.findById(req.params.surgeryId).populate('dentist', 'name');
+        if (!surgery || surgery.isArchived) {
+            return res.status(404).json({ message: 'Guest appointment not found.' });
+        }
+
+        if (surgery.patient) {
+            return res.status(400).json({ message: 'This appointment is already linked to a patient account.' });
+        }
+
+        if (surgery.source !== 'Smile Hub (Online)') {
+            return res.status(400).json({ message: 'Only website guest appointments can be registered through this flow.' });
+        }
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch || surgery.branch !== scopedBranch) {
+                return res.status(403).json({ message: 'Access denied. This appointment belongs to a different branch.' });
+            }
+        }
+
+        const duplicateCheckEmail = normalizeEmail(req.body.email || surgery.guestEmail || '');
+        const existingUser = duplicateCheckEmail ? await User.findOne({ email: duplicateCheckEmail }) : null;
+        if (existingUser) {
+            if (existingUser.role !== 'patient') {
+                return res.status(409).json({ message: 'This email is already used by a non-patient account.' });
+            }
+
+            surgery.patient = existingUser._id;
+            surgery.guestName = undefined;
+            surgery.guestEmail = undefined;
+            surgery.guestPhone = undefined;
+            surgery.status = 'confirmed';
+            await surgery.save();
+
+            await AuditLog.create({
+                action: 'LINK_GUEST_APPOINTMENT',
+                user: req.user?.email || req.user?.id || 'SYSTEM',
+                role: req.user?.role || 'SYSTEM',
+                details: `Linked guest appointment ${surgery._id} to existing patient ${existingUser.email}`,
+            });
+
+            await sendAppointmentConfirmedEmail({
+                email: existingUser.email,
+                name: `${existingUser.name?.first || ''} ${existingUser.name?.last || ''}`.trim(),
+                branch: surgery.branch,
+                date: surgery.date,
+                time: surgery.time,
+                procedure: surgery.procedure,
+                dentistName: getDentistDisplayName(surgery.dentist),
+            });
+
+            const linkedPatient = await User.findById(existingUser._id).select('-password');
+            return res.status(200).json({
+                message: 'Guest appointment linked to existing patient.',
+                patient: linkedPatient,
+                surgery,
+                linkedExisting: true,
+            });
+        }
+
+        const assignedBranchOverride = isBranchScopedStaff(req.user.role)
+            ? getScopedBranchForUser(req.user)
+            : (req.body.assignedBranch || surgery.branch);
+
+        const patientPayload = buildPatientPayload({
+            body: req.body,
+            fallbackGuest: surgery,
+            assignedBranchOverride,
+        });
+
+        if (!patientPayload.name.first || !patientPayload.name.last) {
+            return res.status(400).json({ message: 'Patient first and last name are required.' });
+        }
+        if (!patientPayload.email) {
+            return res.status(400).json({ message: 'Patient email is required.' });
+        }
+        if (!patientPayload.contactNumber) {
+            return res.status(400).json({ message: 'Patient contact number is required.' });
+        }
+        if (!patientPayload.birthdate || !patientPayload.gender) {
+            return res.status(400).json({ message: 'Birthdate and gender are required.' });
+        }
+        if (!patientPayload.assignedBranch) {
+            return res.status(400).json({ message: 'Assigned branch is required.' });
+        }
+
+        const tempPassword = crypto.randomBytes(4).toString('hex');
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const activationToken = crypto.randomBytes(32).toString('hex');
+        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        const newUser = new User({
+            ...patientPayload,
+            password: hashedPassword,
+            activationToken,
+            temporaryPasswordExpires,
+        });
+        await newUser.save();
+
+        surgery.patient = newUser._id;
+        surgery.guestName = undefined;
+        surgery.guestEmail = undefined;
+        surgery.guestPhone = undefined;
+        surgery.status = 'confirmed';
+        await surgery.save();
+
+        await AuditLog.create({
+            action: 'REGISTER_GUEST_PATIENT',
+            user: req.user?.email || req.user?.id || 'SYSTEM',
+            role: req.user?.role || 'SYSTEM',
+            details: `Registered guest appointment ${surgery._id} as patient ${newUser.email}`,
+        });
+
+        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+        let message = 'Guest registered as patient and activation email sent.';
+        let statusCode = 201;
+
+        try {
+            await sendActivationEmail(newUser.email, 'Patient', tempPassword, activationLink);
+        } catch (emailError) {
+            console.error('Activation email failed for registered guest patient:', emailError.message);
+            message = 'Guest registered as patient, but activation email failed to send.';
+            statusCode = 207;
+        }
+
+        const createdPatient = await User.findById(newUser._id).select('-password');
+        return res.status(statusCode).json({
+            message,
+            patient: createdPatient,
+            surgery,
+            linkedExisting: false,
+        });
+    } catch (error) {
+        console.error('Error registering guest appointment as patient:', error);
+        return res.status(500).json({ message: 'Server error registering guest appointment.' });
+    }
+});
+
 app.get('/api/surgeries/:id', verifyToken, async (req, res) => {
     try {
         const surgery = await Surgery.findById(req.params.id)
@@ -2210,6 +2517,12 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
         const TERMINAL_STATUSES = ['completed', 'cancelled'];
         const currentSurgery = await Surgery.findById(req.params.id);
         if (!currentSurgery) return res.status(404).json({ message: 'Dental treatment not found.' });
+        const shouldSendGuestDeclineEmail = (
+            status === 'cancelled' &&
+            currentSurgery.source === 'Smile Hub (Online)' &&
+            !currentSurgery.patient &&
+            !!currentSurgery.guestEmail
+        );
 
         if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);
@@ -2323,6 +2636,21 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
             role: req.user?.role,
             details: `Dental treatment ID ${updatedSurgery._id} status changed to '${status}'.`
         });
+
+        if (shouldSendGuestDeclineEmail) {
+            try {
+                await sendAppointmentDeclinedEmail({
+                    email: currentSurgery.guestEmail,
+                    name: currentSurgery.guestName,
+                    branch: currentSurgery.branch,
+                    date: currentSurgery.date,
+                    time: currentSurgery.time,
+                    procedure: currentSurgery.procedure,
+                });
+            } catch (emailError) {
+                console.error('Failed to send guest decline email:', emailError.message);
+            }
+        }
 
         res.json(updatedSurgery);
     } catch (error) {

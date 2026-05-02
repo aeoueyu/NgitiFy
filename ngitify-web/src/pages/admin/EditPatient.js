@@ -1,106 +1,223 @@
-import React, { useState, useEffect, useRef } from 'react';
-import styles from '../../styles/admin/AddPatient.module.css'; 
-import { regions, provinces, cities, barangays } from '../../utils/addressData'; 
-import successIcon from '../../assets/alert/success.svg'; 
-import BackIcon from '../../assets/icons/Back.svg'; 
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import styles from '../../styles/admin/AddPatient.module.css';
+import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import successIcon from '../../assets/alert/success.svg';
+import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
+const initialEmergencyContact = { name: '', relationship: '', contactNumber: '' };
+const initialGuardian = { name: '', relationship: '', contactNumber: '', occupation: '' };
+const initialPhysician = { name: '', specialty: '', officeAddress: '', officeNumber: '' };
+const initialMedicalHistory = {
+    allergies: '',
+    conditions: '',
+    medications: '',
+    notes: '',
+    inGoodHealth: '',
+    underMedicalTreatment: '',
+    medicalTreatmentDetails: '',
+    hadSeriousIllnessOrSurgery: '',
+    seriousIllnessOrSurgeryDetails: '',
+    hadHospitalization: '',
+    hospitalizationDetails: '',
+    isTakingMedication: '',
+    hasAllergies: '',
+    usesTobacco: '',
+    usesAlcoholOrDrugs: '',
+    bleedingTime: '',
+    bloodPressure: '',
+    isPregnant: '',
+    isNursing: '',
+    takingBirthControl: '',
+};
+const initialDentalHistory = {
+    chiefComplaint: '',
+    lastExamDate: '',
+    notes: '',
+    hadTreatmentReaction: '',
+    reactionDetails: '',
+    hasConfidentialInfo: false,
+};
+
+const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
+const stripPhonePrefix = (value = '') => {
+    if (!value) return '';
+    if (value.startsWith('+63')) return value.slice(3);
+    return value;
+};
+const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
+const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
+const csvToString = (value) => Array.isArray(value) ? value.join(', ') : '';
+const stringToArray = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
+const getTodayDate = () => new Date().toISOString().split('T')[0];
 
 export default function EditPatient({ patientId, onClose, onSuccess }) {
     const fileInputRef = useRef(null);
-    const [isSameAddress, setIsSameAddress] = useState(false);
-    const [profileImage, setProfileImage] = useState(null);
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [errors, setErrors] = useState({}); 
-    const [isLoading, setIsLoading] = useState(true); 
-    const [isSaving, setIsSaving] = useState(false);
-    const [branchOptions, setBranchOptions] = useState([]);
-
     const { user } = useAuth();
     const isBranchManager = user?.role === 'branch-manager';
 
-    const [formData, setFormData] = useState({
-        firstName: '', middleName: '', lastName: '', birthdate: '',
-        gender: '', email: '', phone: '', 
-        guardianName: '', guardianRelationship: '', guardianContact: '',
-        assignedBranch: '',
-        currentAddress: { ...initialAddressState }, permanentAddress: { ...initialAddressState }
-    });
-
+    const [isSameAddress, setIsSameAddress] = useState(false);
+    const [profileImage, setProfileImage] = useState(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [branchOptions, setBranchOptions] = useState([]);
     const [initialData, setInitialData] = useState(null);
     const [initialProfileImage, setInitialProfileImage] = useState(null);
 
-    // --- FETCH EXISTING DATA ---
+    const [formData, setFormData] = useState({
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        birthdate: '',
+        gender: '',
+        email: '',
+        phone: '',
+        assignedBranch: '',
+        nationality: 'Filipino',
+        religion: '',
+        homePhone: '',
+        occupation: '',
+        civilStatus: '',
+        bloodType: '',
+        workPhone: '',
+        referredBy: '',
+        currentAddress: { ...initialAddressState },
+        permanentAddress: { ...initialAddressState },
+        emergencyContact: { ...initialEmergencyContact },
+        guardian: { ...initialGuardian },
+        physician: { ...initialPhysician },
+        medicalHistory: { ...initialMedicalHistory },
+        dentalHistory: { ...initialDentalHistory },
+        consentAcknowledgement: { acknowledged: false, signerName: '', signerRole: 'Patient', signedAt: getTodayDate() },
+    });
+
+    const validateEmail = (email) => {
+        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formatRegex.test(email)) return false;
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
+        return allowedDomains.includes(email.split('@')[1].toLowerCase());
+    };
+
+    const getAge = (dateValue) => {
+        const today = new Date();
+        const birth = new Date(dateValue);
+        let age = today.getFullYear() - birth.getFullYear();
+        const monthDelta = today.getMonth() - birth.getMonth();
+        if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birth.getDate())) age--;
+        return age;
+    };
+
+    const getMaxDate = () => new Date().toISOString().split('T')[0];
+    const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
+
     useEffect(() => {
         const fetchPatientData = async () => {
             try {
-                // FIXED: Using authFetch and pointing to /patients/:id instead of /user/:id
                 const response = await authFetch(`/patients/${patientId}`);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    const fName = data.name?.first || data.firstName || '';
-                    const mName = data.name?.middle || data.middleName || '';
-                    const lName = data.name?.last || data.lastName || '';
-                    
-                    let phoneNum = data.contactNumber || data.phoneNumber || '';
-                    if (phoneNum.startsWith('+63')) phoneNum = phoneNum.substring(3);
-
-                    let guardianPhone = data.guardian?.contactNumber || '';
-                    if (guardianPhone.startsWith('+63')) guardianPhone = guardianPhone.substring(3);
-
-                    let formattedDob = '';
-                    if (data.birthdate || data.dob || data.dateOfBirth) {
-                        formattedDob = new Date(data.birthdate || data.dob || data.dateOfBirth).toISOString().split('T')[0];
-                    }
-
-                    const fetchedCurrent = data?.currentAddress || { ...initialAddressState };
-                    const fetchedPermanent = data?.permanentAddress || { ...initialAddressState };
-
-                    const hasAnyAddress = !!(fetchedCurrent.region || fetchedCurrent.city || fetchedCurrent.street);
-                    const isAddressSame = hasAnyAddress && (
-                        fetchedCurrent.region === fetchedPermanent.region &&
-                        fetchedCurrent.province === fetchedPermanent.province &&
-                        fetchedCurrent.city === fetchedPermanent.city &&
-                        fetchedCurrent.barangay === fetchedPermanent.barangay &&
-                        fetchedCurrent.street === fetchedPermanent.street &&
-                        fetchedCurrent.houseNumber === fetchedPermanent.houseNumber
-                    );
-                    setIsSameAddress(isAddressSame);
-
-                    const fetchedFormData = {
-                        firstName: fName,
-                        middleName: mName,
-                        lastName: lName,
-                        birthdate: formattedDob,
-                        gender: data.gender || '',        
-                        email: data.email || '',
-                        phone: phoneNum,
-                        guardianName: data.guardian?.name || '',
-                        guardianRelationship: data.guardian?.relationship || '',
-                        guardianContact: guardianPhone,
-                        assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
-                        currentAddress: { ...initialAddressState, ...fetchedCurrent },
-                        permanentAddress: { ...initialAddressState, ...fetchedPermanent }
-                    };
-
-                    setFormData(fetchedFormData);
-                    setInitialData(fetchedFormData);
-
-                    if (data.profileImage) {
-                        setProfileImage(data.profileImage);
-                        setInitialProfileImage(data.profileImage);
-                    }
-                } else {
-                    alert("Failed to load patient data.");
+                if (!response.ok) {
+                    alert('Failed to load patient data.');
                     onClose();
+                    return;
                 }
+
+                const data = await response.json();
+                const currentAddress = { ...initialAddressState, ...(data.currentAddress || {}) };
+                const permanentAddress = { ...initialAddressState, ...(data.permanentAddress || {}) };
+                const sameAddress = (
+                    currentAddress.region === permanentAddress.region &&
+                    currentAddress.province === permanentAddress.province &&
+                    currentAddress.city === permanentAddress.city &&
+                    currentAddress.barangay === permanentAddress.barangay &&
+                    currentAddress.street === permanentAddress.street &&
+                    currentAddress.houseNumber === permanentAddress.houseNumber
+                );
+                setIsSameAddress(sameAddress);
+
+                const mapped = {
+                    firstName: data.name?.first || '',
+                    middleName: data.name?.middle || '',
+                    lastName: data.name?.last || '',
+                    birthdate: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0] : '',
+                    gender: data.gender || '',
+                    email: data.email || '',
+                    phone: stripPhonePrefix(data.contactNumber || ''),
+                    assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
+                    nationality: data.nationality || 'Filipino',
+                    religion: data.religion || '',
+                    homePhone: stripPhonePrefix(data.homePhone || ''),
+                    occupation: data.occupation || '',
+                    civilStatus: data.civilStatus || '',
+                    bloodType: data.bloodType || '',
+                    workPhone: stripPhonePrefix(data.workPhone || ''),
+                    referredBy: data.referredBy || '',
+                    currentAddress,
+                    permanentAddress,
+                    emergencyContact: {
+                        name: data.emergencyContact?.name || '',
+                        relationship: data.emergencyContact?.relationship || '',
+                        contactNumber: stripPhonePrefix(data.emergencyContact?.contactNumber || ''),
+                    },
+                    guardian: {
+                        name: data.guardian?.name || '',
+                        relationship: data.guardian?.relationship || '',
+                        contactNumber: stripPhonePrefix(data.guardian?.contactNumber || ''),
+                        occupation: data.guardian?.occupation || '',
+                    },
+                    physician: {
+                        name: data.physician?.name || '',
+                        specialty: data.physician?.specialty || '',
+                        officeAddress: data.physician?.officeAddress || '',
+                        officeNumber: stripPhonePrefix(data.physician?.officeNumber || ''),
+                    },
+                    medicalHistory: {
+                        allergies: csvToString(data.medicalHistory?.allergies),
+                        conditions: csvToString(data.medicalHistory?.conditions),
+                        medications: csvToString(data.medicalHistory?.medications),
+                        notes: data.medicalHistory?.notes || '',
+                        inGoodHealth: boolToSelect(data.medicalHistory?.inGoodHealth),
+                        underMedicalTreatment: boolToSelect(data.medicalHistory?.underMedicalTreatment),
+                        medicalTreatmentDetails: data.medicalHistory?.medicalTreatmentDetails || '',
+                        hadSeriousIllnessOrSurgery: boolToSelect(data.medicalHistory?.hadSeriousIllnessOrSurgery),
+                        seriousIllnessOrSurgeryDetails: data.medicalHistory?.seriousIllnessOrSurgeryDetails || '',
+                        hadHospitalization: boolToSelect(data.medicalHistory?.hadHospitalization),
+                        hospitalizationDetails: data.medicalHistory?.hospitalizationDetails || '',
+                        isTakingMedication: boolToSelect(data.medicalHistory?.isTakingMedication),
+                        hasAllergies: boolToSelect(data.medicalHistory?.hasAllergies),
+                        usesTobacco: boolToSelect(data.medicalHistory?.usesTobacco),
+                        usesAlcoholOrDrugs: boolToSelect(data.medicalHistory?.usesAlcoholOrDrugs),
+                        bleedingTime: data.medicalHistory?.bleedingTime || '',
+                        bloodPressure: data.medicalHistory?.bloodPressure || '',
+                        isPregnant: boolToSelect(data.medicalHistory?.isPregnant),
+                        isNursing: boolToSelect(data.medicalHistory?.isNursing),
+                        takingBirthControl: boolToSelect(data.medicalHistory?.takingBirthControl),
+                    },
+                    dentalHistory: {
+                        chiefComplaint: data.dentalHistory?.chiefComplaint || '',
+                        lastExamDate: data.dentalHistory?.lastExamDate ? new Date(data.dentalHistory.lastExamDate).toISOString().split('T')[0] : '',
+                        notes: data.dentalHistory?.notes || '',
+                        hadTreatmentReaction: boolToSelect(data.dentalHistory?.hadTreatmentReaction),
+                        reactionDetails: data.dentalHistory?.reactionDetails || '',
+                        hasConfidentialInfo: Boolean(data.dentalHistory?.hasConfidentialInfo),
+                    },
+                    consentAcknowledgement: {
+                        acknowledged: Boolean(data.consentAcknowledgement?.acknowledged),
+                        signerName: data.consentAcknowledgement?.signerName || '',
+                        signerRole: data.consentAcknowledgement?.signerRole || 'Patient',
+                        signedAt: data.consentAcknowledgement?.signedAt ? new Date(data.consentAcknowledgement.signedAt).toISOString().split('T')[0] : getTodayDate(),
+                    },
+                };
+
+                setFormData(mapped);
+                setInitialData(mapped);
+                setProfileImage(data.profileImage || null);
+                setInitialProfileImage(data.profileImage || null);
             } catch (error) {
-                console.error("Error fetching patient:", error);
-                alert("Cannot connect to server.");
+                console.error('Error fetching patient:', error);
+                alert('Cannot connect to server.');
                 onClose();
             } finally {
                 setIsLoading(false);
@@ -110,115 +227,238 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         if (patientId) fetchPatientData();
     }, [patientId, onClose]);
 
-    const hasChanges = initialData ? (JSON.stringify(formData) !== JSON.stringify(initialData)) || (profileImage !== initialProfileImage) : false;
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const response = await authFetch('/branches');
+                if (response.ok) {
+                    const data = await response.json();
+                    setBranchOptions(data.map((branch) => branch.name));
+                }
+            } catch (error) {
+                console.error('Failed to load branches:', error);
+            }
+        };
+        fetchBranches();
+    }, []);
 
-    // --- HELPER FUNCTIONS ---
-    const validateEmail = (email) => {
-        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formatRegex.test(email)) return false;
-        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
-        return allowedDomains.includes(email.split('@')[1].toLowerCase());
+    const hasChanges = useMemo(
+        () => (initialData ? JSON.stringify(formData) !== JSON.stringify(initialData) : false) || profileImage !== initialProfileImage,
+        [formData, initialData, initialProfileImage, profileImage]
+    );
+
+    const clearError = (key) => {
+        if (!errors[key]) return;
+        setErrors((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
     };
 
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
-    const getAge = (d) => { const today=new Date(); const birth=new Date(d); let age=today.getFullYear()-birth.getFullYear(); const m=today.getMonth()-birth.getMonth(); if(m<0||(m===0&&today.getDate()<birth.getDate()))age--; return age; };
-    const getMaxDate = () => { return new Date().toISOString().split('T')[0]; }; 
-
-    const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
-
-    const handleBlur = (e) => {
-        const { name, value } = e.target;
-        let newError = "";
-        if (name === 'email') {
-            if (!value) newError = "Required";
-            else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
-        } else if (name === 'phone' || name === 'guardianContact') {
-            if (!value) newError = "Required";
-            else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
-        }
-        setErrors(prev => ({ ...prev, [name]: newError }));
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onloadend = () => setProfileImage(reader.result);
+        reader.readAsDataURL(file);
     };
 
-    const handleImageChange = (e) => { const file=e.target.files[0]; if(file){ const r=new FileReader(); r.onloadend=()=>setProfileImage(r.result); r.readAsDataURL(file); }};
-    const triggerFileInput = () => fileInputRef.current.click();
-    
+    const triggerFileInput = () => fileInputRef.current?.click();
+
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
-        if (errors[name]) setErrors(prev => { const n={...prev}; delete n[name]; return n; });
-        if (['firstName', 'middleName', 'lastName', 'guardianName'].includes(name)) {
-            if (value===''||/^[a-zA-Z\s.-]+$/.test(value)) setFormData({...formData, [name]: toTitleCase(value)});
+        clearError(name);
+        if (['firstName', 'middleName', 'lastName'].includes(name)) {
+            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) {
+                setFormData((prev) => ({ ...prev, [name]: toTitleCase(value) }));
+            }
             return;
         }
-        setFormData({ ...formData, [name]: value });
+        setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handlePhoneChange = (e) => {
+    const handlePhoneChange = (name) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
-        if (errors.phone) setErrors(prev => { const n={...prev}; delete n.phone; return n; });
-        setFormData({ ...formData, phone: value });
+        clearError(name);
+        setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleGuardianContactChange = (e) => {
+    const handleNestedChange = (section, field, value, formatter) => {
+        clearError(`${section}_${field}`);
+        setFormData((prev) => ({
+            ...prev,
+            [section]: {
+                ...prev[section],
+                [field]: formatter ? formatter(value) : value,
+            },
+        }));
+    };
+
+    const handleNestedPhoneChange = (section, field) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
-        if (errors.guardianContact) setErrors(prev => { const n={...prev}; delete n.guardianContact; return n; });
-        setFormData({ ...formData, guardianContact: value });
+        clearError(`${section}_${field}`);
+        setFormData((prev) => ({
+            ...prev,
+            [section]: {
+                ...prev[section],
+                [field]: value,
+            },
+        }));
     };
 
     const handleAddressChange = (type, field, value) => {
-        const errorKey = `${type==='currentAddress'?'current':'permanent'}_${field}`;
-        if(errors[errorKey]) setErrors(prev=>{const n={...prev};delete n[errorKey];return n;});
-        setFormData(prev => {
+        clearError(`${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`);
+        setFormData((prev) => {
             const updated = { ...prev[type], [field]: value };
-            if(field==='region'){updated.province='';updated.city='';updated.barangay='';}
-            else if(field==='province'){updated.city='';updated.barangay='';}
-            else if(field==='city'){updated.barangay='';}
-            if(type==='currentAddress'&&isSameAddress) return {...prev, currentAddress: updated, permanentAddress: updated};
-            return {...prev, [type]: updated};
+            if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
+            else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
+            else if (field === 'city') { updated.barangay = ''; }
+            if (type === 'currentAddress' && isSameAddress) {
+                return { ...prev, currentAddress: updated, permanentAddress: updated };
+            }
+            return { ...prev, [type]: updated };
         });
     };
 
     const handleSameAddressToggle = (e) => {
-        const checked = e.target.checked; setIsSameAddress(checked);
-        if(checked) {
-            setFormData(prev => ({...prev, permanentAddress: {...prev.currentAddress}}));
-            setErrors(prev=>{const n={...prev}; Object.keys(n).forEach(k=>{if(k.startsWith('permanent_'))delete n[k];}); return n;});
+        const checked = e.target.checked;
+        setIsSameAddress(checked);
+        if (checked) {
+            setFormData((prev) => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
         } else {
-            setFormData(prev => ({...prev, permanentAddress: {...initialAddressState}}));
+            setFormData((prev) => ({ ...prev, permanentAddress: { ...initialAddressState } }));
         }
     };
 
+    const handleBlur = (e) => {
+        const { name, value } = e.target;
+        let newError = '';
+        if (name === 'email') {
+            if (!value) newError = 'Required';
+            else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)';
+        } else if (['phone', 'homePhone', 'workPhone'].includes(name) && value && (value.length !== 10 || value[0] !== '9')) {
+            newError = 'Invalid format (9xxxxxxxxx)';
+        }
+        setErrors((prev) => ({ ...prev, [name]: newError }));
+    };
+
     const validateForm = () => {
-        let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
-        
-        if (isMinor) {
-            required.push('guardianName', 'guardianRelationship');
-            if(!formData.guardianContact) { newErrors.guardianContact="Required"; isValid=false; }
-            else if(formData.guardianContact.length!==10 || formData.guardianContact[0]!=='9') { newErrors.guardianContact="Invalid format"; isValid=false; }
+        const nextErrors = {};
+        let isValid = true;
+
+        ['firstName', 'lastName', 'birthdate', 'gender', 'email'].forEach((field) => {
+            if (!formData[field]) {
+                nextErrors[field] = 'Required';
+                isValid = false;
+            }
+        });
+
+        if (!formData.phone) {
+            nextErrors.phone = 'Required';
+            isValid = false;
+        } else if (formData.phone.length !== 10 || formData.phone[0] !== '9') {
+            nextErrors.phone = 'Invalid format';
+            isValid = false;
         }
 
-        required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
-        if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
-        else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
-        if(formData.email && !validateEmail(formData.email)) { newErrors.email = "Invalid domain"; isValid=false; }
-        if (!isBranchManager && !formData.assignedBranch) { newErrors.assignedBranch = "Required"; isValid = false; }
+        if (formData.email && !validateEmail(formData.email)) {
+            nextErrors.email = 'Invalid domain';
+            isValid = false;
+        }
 
-        const validateAddr = (addr, prefix) => {
-            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
-                if(!addr[f]) { newErrors[`${prefix}_${f}`]="Required"; isValid=false; }
+        if (formData.homePhone && (formData.homePhone.length !== 10 || formData.homePhone[0] !== '9')) {
+            nextErrors.homePhone = 'Invalid format';
+            isValid = false;
+        }
+
+        if (formData.workPhone && (formData.workPhone.length !== 10 || formData.workPhone[0] !== '9')) {
+            nextErrors.workPhone = 'Invalid format';
+            isValid = false;
+        }
+
+        if (!isBranchManager && !formData.assignedBranch) {
+            nextErrors.assignedBranch = 'Required';
+            isValid = false;
+        }
+
+        const validateAddr = (address, prefix) => {
+            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
+                if (!address[field]) {
+                    nextErrors[`${prefix}_${field}`] = 'Required';
+                    isValid = false;
+                }
             });
         };
         validateAddr(formData.currentAddress, 'current');
-        if(!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
+        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
 
-        setErrors(newErrors);
-        if (!isValid) {
-            const el = document.getElementsByName(Object.keys(newErrors)[0])[0];
-            if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+        if (formData.emergencyContact.contactNumber && (formData.emergencyContact.contactNumber.length !== 10 || formData.emergencyContact.contactNumber[0] !== '9')) {
+            nextErrors.emergencyContact_contactNumber = 'Invalid format';
+            isValid = false;
         }
+
+        if (isMinor) {
+            ['name', 'relationship'].forEach((field) => {
+                if (!formData.guardian[field]) {
+                    nextErrors[`guardian_${field}`] = 'Required';
+                    isValid = false;
+                }
+            });
+            if (!formData.guardian.contactNumber) {
+                nextErrors.guardian_contactNumber = 'Required';
+                isValid = false;
+            } else if (formData.guardian.contactNumber.length !== 10 || formData.guardian.contactNumber[0] !== '9') {
+                nextErrors.guardian_contactNumber = 'Invalid format';
+                isValid = false;
+            }
+        }
+
+        if (formData.physician.officeNumber && (formData.physician.officeNumber.length !== 10 || formData.physician.officeNumber[0] !== '9')) {
+            nextErrors.physician_officeNumber = 'Invalid format';
+            isValid = false;
+        }
+        if (!formData.consentAcknowledgement.acknowledged) {
+            nextErrors.consentAcknowledgement_acknowledged = 'Required';
+            isValid = false;
+        }
+        if (!formData.consentAcknowledgement.signerName.trim()) {
+            nextErrors.consentAcknowledgement_signerName = 'Required';
+            isValid = false;
+        }
+
+        setErrors(nextErrors);
         return isValid;
+    };
+
+    const renderAddressFields = (type, title, disabled = false) => {
+        const address = formData[type];
+        const prefix = type === 'currentAddress' ? 'current' : 'permanent';
+        const availableProvinces = address.region ? provinces[address.region] || [] : [];
+        const availableCities = address.province ? cities[address.province] || [] : [];
+        const availableBarangays = address.city ? barangays[address.city] || [] : [];
+        const errorFor = (field) => errors[`${prefix}_${field}`];
+        const errorClass = (field) => errorFor(field) ? styles.errorBorder : '';
+
+        return (
+            <div className={styles.addressSection}>
+                {title ? <h3 className={styles.sectionTitle}>{title}</h3> : null}
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${errorClass('region')}`} value={address.region} onChange={(e) => handleAddressChange(type, 'region', e.target.value)} disabled={disabled || isSaving}><option value="" hidden>Select Region</option>{regions.map((region) => <option key={region.code} value={region.code}>{region.name}</option>)}</select>{errorFor('region') && <span className={styles.errorText}>{errorFor('region')}</span>}</div>
+                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${errorClass('province')}`} value={address.province} onChange={(e) => handleAddressChange(type, 'province', e.target.value)} disabled={disabled || !address.region || isSaving}><option value="" hidden>Select Province</option>{availableProvinces.map((province) => <option key={province.code} value={province.code}>{province.name}</option>)}</select>{errorFor('province') && <span className={styles.errorText}>{errorFor('province')}</span>}</div>
+                </div>
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${errorClass('city')}`} value={address.city} onChange={(e) => handleAddressChange(type, 'city', e.target.value)} disabled={disabled || !address.province || isSaving}><option value="" hidden>Select City</option>{availableCities.map((city) => <option key={city.code} value={city.code}>{city.name}</option>)}</select>{errorFor('city') && <span className={styles.errorText}>{errorFor('city')}</span>}</div>
+                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${errorClass('barangay')}`} value={address.barangay} onChange={(e) => handleAddressChange(type, 'barangay', e.target.value)} disabled={disabled || !address.city || isSaving}><option value="" hidden>Select Barangay</option>{availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}</select>{errorFor('barangay') && <span className={styles.errorText}>{errorFor('barangay')}</span>}</div>
+                </div>
+                <div className={styles.row}>
+                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${errorClass('street')}`} value={address.street} onChange={(e) => handleAddressChange(type, 'street', e.target.value)} disabled={disabled || isSaving} maxLength={100} placeholder="e.g. Mabini St." />{errorFor('street') && <span className={styles.errorText}>{errorFor('street')}</span>}</div>
+                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${errorClass('houseNumber')}`} value={address.houseNumber} onChange={(e) => handleAddressChange(type, 'houseNumber', e.target.value)} disabled={disabled || isSaving} maxLength={20} placeholder="e.g. Unit 123" />{errorFor('houseNumber') && <span className={styles.errorText}>{errorFor('houseNumber')}</span>}</div>
+                </div>
+            </div>
+        );
     };
 
     const handleSubmit = async (e) => {
@@ -228,83 +468,125 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
-            email: formData.email, contactNumber: `+63${formData.phone}`, 
+            email: formData.email,
+            contactNumber: `+63${formData.phone}`,
             birthdate: formData.birthdate,
             gender: formData.gender,
-            profileImage: profileImage,
+            profileImage,
             assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : (formData.assignedBranch || undefined),
             assignedBranches: isBranchManager ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
+            nationality: formData.nationality || undefined,
+            religion: formData.religion || undefined,
+            homePhone: formData.homePhone ? `+63${formData.homePhone}` : undefined,
+            occupation: formData.occupation || undefined,
+            civilStatus: formData.civilStatus || undefined,
+            bloodType: formData.bloodType || undefined,
+            workPhone: formData.workPhone ? `+63${formData.workPhone}` : undefined,
+            referredBy: formData.referredBy || undefined,
+            emergencyContact: {
+                name: formData.emergencyContact.name || undefined,
+                relationship: formData.emergencyContact.relationship || undefined,
+                contactNumber: formData.emergencyContact.contactNumber ? `+63${formData.emergencyContact.contactNumber}` : undefined,
+            },
             guardian: isMinor ? {
-                name: formData.guardianName,
-                relationship: formData.guardianRelationship,
-                contactNumber: `+63${formData.guardianContact}`
+                name: formData.guardian.name,
+                relationship: formData.guardian.relationship,
+                contactNumber: `+63${formData.guardian.contactNumber}`,
+                occupation: formData.guardian.occupation || undefined,
             } : null,
+            physician: {
+                name: formData.physician.name || undefined,
+                specialty: formData.physician.specialty || undefined,
+                officeAddress: formData.physician.officeAddress || undefined,
+                officeNumber: formData.physician.officeNumber ? `+63${formData.physician.officeNumber}` : undefined,
+            },
+            medicalHistory: {
+                allergies: stringToArray(formData.medicalHistory.allergies),
+                conditions: stringToArray(formData.medicalHistory.conditions),
+                medications: stringToArray(formData.medicalHistory.medications),
+                notes: formData.medicalHistory.notes || undefined,
+                inGoodHealth: selectToBool(formData.medicalHistory.inGoodHealth),
+                underMedicalTreatment: selectToBool(formData.medicalHistory.underMedicalTreatment),
+                medicalTreatmentDetails: formData.medicalHistory.medicalTreatmentDetails || undefined,
+                hadSeriousIllnessOrSurgery: selectToBool(formData.medicalHistory.hadSeriousIllnessOrSurgery),
+                seriousIllnessOrSurgeryDetails: formData.medicalHistory.seriousIllnessOrSurgeryDetails || undefined,
+                hadHospitalization: selectToBool(formData.medicalHistory.hadHospitalization),
+                hospitalizationDetails: formData.medicalHistory.hospitalizationDetails || undefined,
+                isTakingMedication: selectToBool(formData.medicalHistory.isTakingMedication),
+                hasAllergies: selectToBool(formData.medicalHistory.hasAllergies),
+                usesTobacco: selectToBool(formData.medicalHistory.usesTobacco),
+                usesAlcoholOrDrugs: selectToBool(formData.medicalHistory.usesAlcoholOrDrugs),
+                bleedingTime: formData.medicalHistory.bleedingTime || undefined,
+                bloodPressure: formData.medicalHistory.bloodPressure || undefined,
+                isPregnant: selectToBool(formData.medicalHistory.isPregnant),
+                isNursing: selectToBool(formData.medicalHistory.isNursing),
+                takingBirthControl: selectToBool(formData.medicalHistory.takingBirthControl),
+            },
+            dentalHistory: {
+                chiefComplaint: formData.dentalHistory.chiefComplaint || undefined,
+                lastExamDate: formData.dentalHistory.lastExamDate || undefined,
+                notes: formData.dentalHistory.notes || undefined,
+                hadTreatmentReaction: selectToBool(formData.dentalHistory.hadTreatmentReaction),
+                reactionDetails: formData.dentalHistory.reactionDetails || undefined,
+                hasConfidentialInfo: Boolean(formData.dentalHistory.hasConfidentialInfo),
+            },
+            consentAcknowledgement: {
+                acknowledged: Boolean(formData.consentAcknowledgement.acknowledged),
+                signerName: formData.consentAcknowledgement.signerName.trim() || undefined,
+                signerRole: formData.consentAcknowledgement.signerRole || (isMinor ? 'Parent/Guardian' : 'Patient'),
+                signedAt: formData.consentAcknowledgement.signedAt || new Date().toISOString(),
+                version: 'Dentime Patient Form v6.1',
+            },
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
         };
 
         try {
-            // FIXED: Using authFetch and pointing to /patients/:id instead of /user/:id
             const response = await authFetch(`/patients/${patientId}`, {
                 method: 'PUT',
                 body: JSON.stringify(finalData),
             });
-
             const data = await response.json();
-            if (response.ok) { setShowSuccessModal(true); } 
-            else {
-                if (response.status === 409) {
-                    setErrors(prev => ({ ...prev, [data.field]: data.message }));
-                    const el = document.getElementsByName(data.field)[0];
-                    if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-                } else alert(data.message || "Failed to update patient");
+            if (response.ok) {
+                setShowSuccessModal(true);
+            } else if (response.status === 409) {
+                setErrors((prev) => ({ ...prev, email: data.message || 'Email already exists.' }));
+            } else {
+                alert(data.message || 'Failed to update patient');
             }
-        } catch (error) { console.error(error); alert("Cannot connect to server."); } 
-        finally { setIsSaving(false); }
+        } catch (error) {
+            console.error(error);
+            alert('Cannot connect to server.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const handleSuccessClose = () => { setShowSuccessModal(false); onSuccess(); onClose(); };
+    const renderTextArea = (label, value, onChange, placeholder, name) => (
+        <div className={styles.formGroup}>
+            <label>{label}</label>
+            <textarea
+                name={name}
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+                disabled={isSaving}
+                className={styles.inputField}
+                style={{ minHeight: '120px', borderRadius: '20px', padding: '14px 20px', resize: 'vertical' }}
+            />
+        </div>
+    );
 
-    const renderAddressFields = (type, title, isDisabled = false) => {
-        const address = formData[type]; const prefix = type === 'currentAddress' ? 'current' : 'permanent';
-        const availableProvinces = address.region ? provinces[address.region] || [] : [];
-        const availableCities = address.province ? cities[address.province] || [] : [];
-        const availableBarangays = address.city ? barangays[address.city] || [] : [];
-        const getError = (field) => errors[`${prefix}_${field}`]; const getErrorClass = (field) => getError(field) ? styles.errorBorder : '';
-
-        return (
-            <div className={styles.addressSection}>
-                <h3 className={styles.sectionTitle}>{title}</h3>
-                <div className={styles.row}>
-                    <div className={styles.formGroup}><label>REGION <span style={{color:'red'}}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={(e)=>handleAddressChange(type,'region',e.target.value)} disabled={isDisabled || isSaving}><option value="" hidden>Select Region</option>{regions.map(r=><option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
-                    <div className={styles.formGroup}><label>PROVINCE <span style={{color:'red'}}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={(e)=>handleAddressChange(type,'province',e.target.value)} disabled={isDisabled || !address.region || isSaving}><option value="" hidden>Select Province</option>{availableProvinces.map(p=><option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
-                </div>
-                <div className={styles.row}>
-                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{color:'red'}}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={(e)=>handleAddressChange(type,'city',e.target.value)} disabled={isDisabled || !address.province || isSaving}><option value="" hidden>Select City</option>{availableCities.map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
-                    <div className={styles.formGroup}><label>BARANGAY <span style={{color:'red'}}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={(e)=>handleAddressChange(type,'barangay',e.target.value)} disabled={isDisabled || !address.city || isSaving}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b=><option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
-                </div>
-                <div className={styles.row}>
-                    <div className={styles.formGroup}><label>STREET <span style={{color:'red'}}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={(e)=>handleAddressChange(type,'street',e.target.value)} disabled={isDisabled || isSaving} maxLength={100} placeholder="e.g. Mabini St."/>{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
-                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{color:'red'}}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={(e)=>handleAddressChange(type,'houseNumber',e.target.value)} disabled={isDisabled || isSaving} maxLength={20} placeholder="e.g. Unit 123"/>{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
-                </div>
-            </div>
-        );
+    const handleSuccessClose = () => {
+        setShowSuccessModal(false);
+        onSuccess();
+        onClose();
     };
-
-    useEffect(() => {
-        const fetchBranches = async () => {
-            try {
-                const res = await authFetch('/branches');
-                if (res.ok) { const data = await res.json(); setBranchOptions(data.map(b => b.name)); }
-            } catch (e) { console.error('Failed to load branches:', e); }
-        };
-        fetchBranches();
-    }, []);
 
     return (
         <div className={styles.mainOverlay}>
-            <div className={styles.overlayBackground} onClick={!isSaving && !showSuccessModal ? onClose : undefined}></div>
-            
+            <div className={styles.overlayBackground} onClick={!isSaving && !showSuccessModal ? onClose : undefined} />
+
             <div className={styles.formCard}>
                 {isLoading ? (
                     <div style={{ textAlign: 'center', padding: '50px', color: '#01538b', fontWeight: 'bold' }}>
@@ -332,56 +614,61 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
                             <h3 className={styles.mainSectionTitle}>Personal Information</h3>
                             <div className={styles.row}>
-                            <div className={styles.formGroup}><label>FIRST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.firstName?styles.errorBorder:''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} maxLength={50} disabled={isSaving}/>{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
-                                <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} maxLength={20} disabled={isSaving}/></div>
-                                <div className={styles.formGroup}><label>LAST NAME <span style={{color:'red'}}>*</span></label><input className={`${styles.inputField} ${errors.lastName?styles.errorBorder:''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isSaving}/>{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
+                                <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} disabled={isSaving} />{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
+                                <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>LAST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} disabled={isSaving} />{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                            <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                            <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
+                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                                <div className={styles.formGroup}><label>GENDER <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                            <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{color:'red'}}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isSaving}/>{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
-                                <div className={styles.formGroup}><label>PHONE NUMBER <span style={{color:'red'}}>*</span></label>
-                                    <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
-                                        <span className={styles.phonePrefix}>+63</span>
-                                        <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading}/>
-                                    </div>
-                                    {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
-                                </div>
+                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} disabled={isSaving} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
+                                <div className={styles.formGroup}><label>PHONE NUMBER <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange('phone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.phone && <span className={styles.errorText}>{errors.phone}</span>}</div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>HOME PHONE</label><div className={`${styles.phoneInputGroup} ${errors.homePhone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="homePhone" value={formData.homePhone} onChange={handlePhoneChange('homePhone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.homePhone && <span className={styles.errorText}>{errors.homePhone}</span>}</div>
+                                <div className={styles.formGroup}><label>WORK PHONE</label><div className={`${styles.phoneInputGroup} ${errors.workPhone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="workPhone" value={formData.workPhone} onChange={handlePhoneChange('workPhone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.workPhone && <span className={styles.errorText}>{errors.workPhone}</span>}</div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                <div className={styles.formGroup} />
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>NATIONALITY</label><input className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>RELIGION</label><input className={styles.inputField} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>CIVIL STATUS</label><select className={styles.inputField} name="civilStatus" value={formData.civilStatus} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option><option value="Divorced">Divorced</option></select></div>
+                            </div>
+
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>CONTACT NAME</label><input className={styles.inputField} value={formData.emergencyContact.name} onChange={(e) => handleNestedChange('emergencyContact', 'name', e.target.value, toTitleCase)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>RELATIONSHIP</label><input className={styles.inputField} value={formData.emergencyContact.relationship} onChange={(e) => handleNestedChange('emergencyContact', 'relationship', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>CONTACT NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.emergencyContact_contactNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.emergencyContact.contactNumber} onChange={handleNestedPhoneChange('emergencyContact', 'contactNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.emergencyContact_contactNumber && <span className={styles.errorText}>{errors.emergencyContact_contactNumber}</span>}</div>
+                                <div className={styles.formGroup} />
                             </div>
 
                             {isMinor && (
                                 <>
-                                    <hr className={styles.divider} style={{ marginTop: '10px' }} />
+                                    <hr className={styles.divider} />
                                     <h3 className={styles.mainSectionTitle}>Guardian Information</h3>
                                     <div className={styles.row}>
-                                        <div className={styles.formGroup}>
-                                            <label>GUARDIAN NAME <span style={{color:'red'}}>*</span></label>
-                                            <input className={`${styles.inputField} ${errors.guardianName?styles.errorBorder:''}`} name="guardianName" value={formData.guardianName} onChange={handlePersonalChange} maxLength={70} disabled={isSaving} placeholder="Full Name"/>
-                                            {errors.guardianName && <span className={styles.errorText}>{errors.guardianName}</span>}
-                                        </div>
-                                        <div className={styles.formGroup}>
-                                            <label>RELATIONSHIP <span style={{color:'red'}}>*</span></label>
-                                            <input className={`${styles.inputField} ${errors.guardianRelationship?styles.errorBorder:''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} maxLength={30} disabled={isSaving} placeholder="e.g. Mother, Father"/>
-                                            {errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}
-                                        </div>
+                                        <div className={styles.formGroup}><label>GUARDIAN NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardian_name ? styles.errorBorder : ''}`} value={formData.guardian.name} onChange={(e) => handleNestedChange('guardian', 'name', e.target.value, toTitleCase)} disabled={isSaving} />{errors.guardian_name && <span className={styles.errorText}>{errors.guardian_name}</span>}</div>
+                                        <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={formData.guardian.relationship} onChange={(e) => handleNestedChange('guardian', 'relationship', e.target.value)} disabled={isSaving} />{errors.guardian_relationship && <span className={styles.errorText}>{errors.guardian_relationship}</span>}</div>
                                     </div>
                                     <div className={styles.row}>
-                                        <div className={styles.formGroup}>
-                                            <label>GUARDIAN PHONE <span style={{color:'red'}}>*</span></label>
-                                            <div className={`${styles.phoneInputGroup} ${errors.guardianContact ? styles.errorBorder : ''}`}>
-                                                <span className={styles.phonePrefix}>+63</span>
-                                                <input className={styles.phoneField} name="guardianContact" value={formData.guardianContact} onChange={handleGuardianContactChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving}/>
-                                            </div>
-                                            {errors.guardianContact && <span className={styles.errorText}>{errors.guardianContact}</span>}
-                                        </div>
-                                        <div className={styles.formGroup}></div>
+                                        <div className={styles.formGroup}><label>GUARDIAN PHONE <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.guardian_contactNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.guardian.contactNumber} onChange={handleNestedPhoneChange('guardian', 'contactNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.guardian_contactNumber && <span className={styles.errorText}>{errors.guardian_contactNumber}</span>}</div>
+                                        <div className={styles.formGroup}><label>GUARDIAN OCCUPATION</label><input className={styles.inputField} value={formData.guardian.occupation} onChange={(e) => handleNestedChange('guardian', 'occupation', e.target.value)} disabled={isSaving} /></div>
                                     </div>
                                 </>
                             )}
 
-                            {/* Branch Assignment */}
                             {(isBranchManager || branchOptions.length > 0) && (
                                 <>
                                     <hr className={styles.divider} />
@@ -389,33 +676,15 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                     {isBranchManager ? (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
                                             <span style={{ background: '#e0f0ff', color: '#01538b', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '13px' }}>
-                                                🏢 {user.assignedBranch}
+                                                Branch: {user.assignedBranch}
                                             </span>
                                             <span style={{ color: '#64748b', fontSize: '13px' }}>Auto-assigned to your branch</span>
                                         </div>
                                     ) : (
-                                        <>
-                                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '16px', marginTop: '-8px' }}>
-                                                Transfer this patient to a different branch.
-                                            </p>
-                                            <div className={styles.row}>
-                                                <div className={styles.formGroup}>
-                                                    <label>BRANCH <span style={{color:'red'}}>*</span></label>
-                                                    <select
-                                                        className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`}
-                                                        name="assignedBranch"
-                                                        value={formData.assignedBranch}
-                                                        onChange={handlePersonalChange}
-                                                        disabled={isSaving}
-                                                    >
-                                                        <option value="" hidden>Select a branch</option>
-                                                        {branchOptions.map(b => <option key={b} value={b}>{b}</option>)}
-                                                    </select>
-                                                    {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
-                                                </div>
-                                                <div className={styles.formGroup} />
-                                            </div>
-                                        </>
+                                        <div className={styles.row}>
+                                            <div className={styles.formGroup}><label>BRANCH <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`} name="assignedBranch" value={formData.assignedBranch} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select a branch</option>{branchOptions.map((branch) => <option key={branch} value={branch}>{branch}</option>)}</select>{errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}</div>
+                                            <div className={styles.formGroup} />
+                                        </div>
                                     )}
                                 </>
                             )}
@@ -424,6 +693,124 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             {renderAddressFields('currentAddress', 'Current Address')}
                             <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isSaving} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
                             {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
+
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Dental History</h3>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>CHIEF COMPLAINT</label><input className={styles.inputField} value={formData.dentalHistory.chiefComplaint} onChange={(e) => handleNestedChange('dentalHistory', 'chiefComplaint', e.target.value)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={styles.inputField} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>REACTION OR COMPLICATION AFTER DENTAL TREATMENT?</label><select className={styles.inputField} value={formData.dentalHistory.hadTreatmentReaction} onChange={(e) => handleNestedChange('dentalHistory', 'hadTreatmentReaction', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                <div className={styles.formGroup}><label>REACTION DETAILS</label><input className={styles.inputField} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                {renderTextArea('DENTAL HISTORY NOTES', formData.dentalHistory.notes, (e) => handleNestedChange('dentalHistory', 'notes', e.target.value), 'Reaction, complications, or other dental notes', 'dentalNotes')}
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}>
+                                    <label>CONFIDENTIAL INFORMATION FLAG</label>
+                                    <div className={styles.checkboxContainer} style={{ marginTop: '8px' }}>
+                                        <input type="checkbox" checked={formData.dentalHistory.hasConfidentialInfo} onChange={(e) => handleNestedChange('dentalHistory', 'hasConfidentialInfo', e.target.checked)} disabled={isSaving} />
+                                        <label>Patient wants to discuss private information verbally with the dentist</label>
+                                    </div>
+                                </div>
+                                <div className={styles.formGroup} />
+                            </div>
+
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Medical History</h3>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>BLOOD TYPE</label><select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Blood Type</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select></div>
+                                <div className={styles.formGroup}><label>BLEEDING TIME</label><input className={styles.inputField} value={formData.medicalHistory.bleedingTime} onChange={(e) => handleNestedChange('medicalHistory', 'bleedingTime', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>BLOOD PRESSURE</label><input className={styles.inputField} value={formData.medicalHistory.bloodPressure} onChange={(e) => handleNestedChange('medicalHistory', 'bloodPressure', e.target.value)} placeholder="e.g. 120/80" disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>IN GOOD HEALTH?</label><select className={styles.inputField} value={formData.medicalHistory.inGoodHealth} onChange={(e) => handleNestedChange('medicalHistory', 'inGoodHealth', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>UNDER MEDICAL TREATMENT NOW?</label><select className={styles.inputField} value={formData.medicalHistory.underMedicalTreatment} onChange={(e) => handleNestedChange('medicalHistory', 'underMedicalTreatment', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                <div className={styles.formGroup}><label>CONDITION TREATED</label><input className={styles.inputField} value={formData.medicalHistory.medicalTreatmentDetails} onChange={(e) => handleNestedChange('medicalHistory', 'medicalTreatmentDetails', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>SERIOUS ILLNESS OR SURGICAL OPERATION?</label><select className={styles.inputField} value={formData.medicalHistory.hadSeriousIllnessOrSurgery} onChange={(e) => handleNestedChange('medicalHistory', 'hadSeriousIllnessOrSurgery', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                <div className={styles.formGroup}><label>ILLNESS OR OPERATION DETAILS</label><input className={styles.inputField} value={formData.medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleNestedChange('medicalHistory', 'seriousIllnessOrSurgeryDetails', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>EVER BEEN HOSPITALIZED?</label><select className={styles.inputField} value={formData.medicalHistory.hadHospitalization} onChange={(e) => handleNestedChange('medicalHistory', 'hadHospitalization', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                <div className={styles.formGroup}><label>HOSPITALIZATION DETAILS</label><input className={styles.inputField} value={formData.medicalHistory.hospitalizationDetails} onChange={(e) => handleNestedChange('medicalHistory', 'hospitalizationDetails', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>TAKING PRESCRIPTION / NON-PRESCRIPTION MEDICATION?</label><select className={styles.inputField} value={formData.medicalHistory.isTakingMedication} onChange={(e) => handleNestedChange('medicalHistory', 'isTakingMedication', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                <div className={styles.formGroup}><label>HAS ALLERGIES?</label><select className={styles.inputField} value={formData.medicalHistory.hasAllergies} onChange={(e) => handleNestedChange('medicalHistory', 'hasAllergies', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>USES TOBACCO?</label><select className={styles.inputField} value={formData.medicalHistory.usesTobacco} onChange={(e) => handleNestedChange('medicalHistory', 'usesTobacco', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                <div className={styles.formGroup}><label>USES ALCOHOL / DRUGS?</label><select className={styles.inputField} value={formData.medicalHistory.usesAlcoholOrDrugs} onChange={(e) => handleNestedChange('medicalHistory', 'usesAlcoholOrDrugs', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>PREGNANT?</label><select className={styles.inputField} value={formData.medicalHistory.isPregnant} onChange={(e) => handleNestedChange('medicalHistory', 'isPregnant', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                <div className={styles.formGroup}><label>NURSING?</label><select className={styles.inputField} value={formData.medicalHistory.isNursing} onChange={(e) => handleNestedChange('medicalHistory', 'isNursing', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>TAKING BIRTH CONTROL PILLS?</label><select className={styles.inputField} value={formData.medicalHistory.takingBirthControl} onChange={(e) => handleNestedChange('medicalHistory', 'takingBirthControl', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                <div className={styles.formGroup} />
+                            </div>
+                            <div className={styles.row}>
+                                {renderTextArea('ALLERGIES', formData.medicalHistory.allergies, (e) => handleNestedChange('medicalHistory', 'allergies', e.target.value), 'Comma-separated values', 'allergies')}
+                            </div>
+                            <div className={styles.row}>
+                                {renderTextArea('MEDICAL CONDITIONS', formData.medicalHistory.conditions, (e) => handleNestedChange('medicalHistory', 'conditions', e.target.value), 'Comma-separated values', 'conditions')}
+                            </div>
+                            <div className={styles.row}>
+                                {renderTextArea('MEDICATIONS', formData.medicalHistory.medications, (e) => handleNestedChange('medicalHistory', 'medications', e.target.value), 'Comma-separated values', 'medications')}
+                            </div>
+                            <div className={styles.row}>
+                                {renderTextArea('MEDICAL NOTES', formData.medicalHistory.notes, (e) => handleNestedChange('medicalHistory', 'notes', e.target.value), 'Hospitalization, illness history, treatment notes, etc.', 'medicalNotes')}
+                            </div>
+
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value, toTitleCase)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>SPECIALTY</label><input className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                            <div className={styles.row}>
+                                <div className={styles.formGroup}><label>OFFICE ADDRESS</label><input className={styles.inputField} value={formData.physician.officeAddress} onChange={(e) => handleNestedChange('physician', 'officeAddress', e.target.value)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>OFFICE NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.physician.officeNumber} onChange={handleNestedPhoneChange('physician', 'officeNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}</div>
+                            </div>
+
+                            <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Digital Consent</h3>
+                            <div className={styles.addressSection}>
+                                <p style={{ margin: '0 0 16px 0', color: '#475569', lineHeight: 1.6, fontSize: '14px' }}>
+                                    I confirm that the patient or authorized representative has reviewed the intake information, understands that treatment outcomes cannot be guaranteed, and accepts responsibility for the patient&apos;s dental treatment charges.
+                                </p>
+                                <div className={styles.row}>
+                                    <div className={styles.formGroup}>
+                                        <label>SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
+                                        <input className={`${styles.inputField} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`} value={formData.consentAcknowledgement.signerName} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerName', e.target.value)} disabled={isSaving} />
+                                        {errors.consentAcknowledgement_signerName && <span className={styles.errorText}>{errors.consentAcknowledgement_signerName}</span>}
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label>SIGNER ROLE</label>
+                                        <select className={styles.inputField} value={formData.consentAcknowledgement.signerRole} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerRole', e.target.value)} disabled={isSaving}>
+                                            <option value="Patient">Patient</option>
+                                            <option value="Parent">Parent</option>
+                                            <option value="Guardian">Guardian</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label>DATE SIGNED</label>
+                                        <input type="date" className={styles.inputField} value={formData.consentAcknowledgement.signedAt} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isSaving} />
+                                    </div>
+                                </div>
+                                <div className={styles.checkboxContainer}>
+                                    <input type="checkbox" checked={formData.consentAcknowledgement.acknowledged} onChange={(e) => handleNestedChange('consentAcknowledgement', 'acknowledged', e.target.checked)} disabled={isSaving} />
+                                    <label>I acknowledge and record this consent digitally.</label>
+                                </div>
+                                {errors.consentAcknowledgement_acknowledged && <span className={styles.errorText}>{errors.consentAcknowledgement_acknowledged}</span>}
+                            </div>
 
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
