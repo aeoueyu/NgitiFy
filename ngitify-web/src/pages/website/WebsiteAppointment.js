@@ -11,7 +11,6 @@ import { publicFetch } from '../../utils/api';
 
 const initialForm = {
     firstName: '',
-    middleName: '',
     lastName: '',
     phone: '',
     email: '',
@@ -52,8 +51,8 @@ const personNameRegex = /^[A-Za-z][A-Za-z\s.'-]{0,49}$/;
 const phoneRegex = /^9\d{9}$/;
 const normalizePhone = (value) => value.replace(/[^0-9]/g, '').slice(0, 10);
 const toTitleCase = (value) => value.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
-const buildFullName = ({ firstName, middleName, lastName }) => (
-    [firstName, middleName, lastName]
+const buildFullName = ({ firstName, lastName }) => (
+    [firstName, lastName]
         .map((part) => part.trim())
         .filter(Boolean)
         .join(' ')
@@ -182,15 +181,12 @@ export default function WebsiteAppointment() {
     const validate = useCallback((data) => {
         const nextErrors = {};
         const trimmedFirstName = data.firstName.trim();
-        const trimmedMiddleName = data.middleName.trim();
         const trimmedLastName = data.lastName.trim();
         const trimmedEmail = data.email.trim();
         const trimmedNotes = data.notes.trim();
 
         if (!trimmedFirstName) nextErrors.firstName = 'First name is required.';
         else if (!personNameRegex.test(trimmedFirstName)) nextErrors.firstName = 'Enter a valid first name.';
-
-        if (trimmedMiddleName && !personNameRegex.test(trimmedMiddleName)) nextErrors.middleName = 'Enter a valid middle name.';
 
         if (!trimmedLastName) nextErrors.lastName = 'Last name is required.';
         else if (!personNameRegex.test(trimmedLastName)) nextErrors.lastName = 'Enter a valid last name.';
@@ -244,7 +240,7 @@ export default function WebsiteAppointment() {
         const { name, type, value, checked } = event.target;
         const nextValue = name === 'phone'
                 ? normalizePhone(value)
-                : ['firstName', 'middleName', 'lastName'].includes(name)
+                : ['firstName', 'lastName'].includes(name)
                     ? (value === '' || /^[A-Za-z\s.'-]+$/.test(value) ? toTitleCase(value) : formData[name])
                 : type === 'checkbox'
                     ? checked
@@ -307,7 +303,6 @@ export default function WebsiteAppointment() {
                 body: JSON.stringify({
                     fullName: buildFullName(formData),
                     firstName: formData.firstName.trim(),
-                    middleName: formData.middleName.trim(),
                     lastName: formData.lastName.trim(),
                     phone: formData.phone.trim(),
                     email: formData.email.trim().toLowerCase(),
@@ -416,19 +411,6 @@ export default function WebsiteAppointment() {
                                     required
                                 />
                                 {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
-                            </div>
-
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="middleName">Middle Name</label>
-                                <input
-                                    id="middleName"
-                                    name="middleName"
-                                    className={`${styles.fieldInput} ${errors.middleName ? styles.errorBorder : ''}`}
-                                    value={formData.middleName}
-                                    onChange={handleChange}
-                                    placeholder="Enter your middle name"
-                                />
-                                {errors.middleName && <span className={styles.errorText}>{errors.middleName}</span>}
                             </div>
 
                             <div className={styles.fieldGroup}>
