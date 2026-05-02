@@ -15,6 +15,7 @@ const initialForm = {
     email: '',
     birthdate: '',
     gender: '',
+    privacyConsent: false,
     turnstileToken: '',
     branch: locationCards[0]?.name || '',
     preferredDate: '',
@@ -192,6 +193,8 @@ export default function WebsiteAppointment() {
 
         if (!data.gender) nextErrors.gender = 'Gender is required.';
 
+        if (!data.privacyConsent) nextErrors.privacyConsent = 'Please agree to the data privacy notice before submitting.';
+
         if (!TURNSTILE_SITE_KEY) nextErrors.turnstileToken = 'Captcha is not configured yet. Please contact the clinic.';
         else if (!data.turnstileToken) nextErrors.turnstileToken = 'Please complete the captcha before submitting.';
 
@@ -221,10 +224,12 @@ export default function WebsiteAppointment() {
     }, [blockedDates, visibleSlots]);
 
     const handleChange = (event) => {
-        const { name, value } = event.target;
+        const { name, type, value, checked } = event.target;
         const nextValue = name === 'phone'
                 ? normalizePhone(value)
-                : value;
+                : type === 'checkbox'
+                    ? checked
+                    : value;
 
         setFormData((prev) => {
             const nextState = { ...prev, [name]: nextValue };
@@ -286,6 +291,7 @@ export default function WebsiteAppointment() {
                     email: formData.email.trim().toLowerCase(),
                     birthdate: formData.birthdate,
                     gender: formData.gender,
+                    privacyConsent: formData.privacyConsent,
                     turnstileToken: formData.turnstileToken,
                     branch: formData.branch,
                     date: formData.preferredDate,
@@ -551,6 +557,31 @@ export default function WebsiteAppointment() {
                                     required
                                 />
                                 {errors.notes && <span className={styles.errorText}>{errors.notes}</span>}
+                            </div>
+
+                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
+                                <label
+                                    className={`${styles.consentCard} ${errors.privacyConsent ? styles.errorBorder : ''}`}
+                                    htmlFor="privacyConsent"
+                                >
+                                    <input
+                                        id="privacyConsent"
+                                        type="checkbox"
+                                        name="privacyConsent"
+                                        className={styles.consentCheckbox}
+                                        checked={formData.privacyConsent}
+                                        onChange={handleChange}
+                                        required
+                                    />
+                                    <span className={styles.consentText}>
+                                        I agree to the collection and processing of my personal information for appointment scheduling,
+                                        patient coordination, and clinic follow-up related to this request.
+                                    </span>
+                                </label>
+                                <p className={styles.helperText}>
+                                    This consent only covers the information needed to review and manage your appointment request.
+                                </p>
+                                {errors.privacyConsent && <span className={styles.errorText}>{errors.privacyConsent}</span>}
                             </div>
 
                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>

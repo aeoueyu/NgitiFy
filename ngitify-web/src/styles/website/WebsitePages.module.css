@@ -911,6 +911,37 @@
     box-sizing: border-box;
 }
 
+.consentCard {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid rgba(1, 83, 139, 0.14);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.consentCard:focus-within {
+    border-color: #2dccf6;
+    box-shadow: 0 0 0 4px rgba(45, 204, 246, 0.12);
+}
+
+.consentCheckbox {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: #01538b;
+    flex: 0 0 auto;
+}
+
+.consentText {
+    color: #22485f;
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
 .fieldLabel {
     color: #0b3958;
     font-size: 12px;
