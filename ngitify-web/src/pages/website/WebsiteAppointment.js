@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
 import {
@@ -15,13 +15,15 @@ const initialForm = {
     email: '',
     birthdate: '',
     gender: '',
-    captchaConfirmed: false,
+    turnstileToken: '',
     branch: locationCards[0]?.name || '',
     preferredDate: '',
     preferredTime: '',
     procedure: '',
     notes: '',
 };
+
+const TURNSTILE_SITE_KEY = process.env.REACT_APP_TURNSTILE_SITE_KEY || '';
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
 const toMonthString = (dateString) => (dateString ? dateString.slice(0, 7) : new Date().toISOString().slice(0, 7));
@@ -48,6 +50,8 @@ const phoneRegex = /^9\d{9}$/;
 const normalizePhone = (value) => value.replace(/[^0-9]/g, '').slice(0, 10);
 
 export default function WebsiteAppointment() {
+    const turnstileContainerRef = useRef(null);
+    const turnstileWidgetIdRef = useRef(null);
     const [formData, setFormData] = useState(initialForm);
     const [errors, setErrors] = useState({});
     const [submittedMessage, setSubmittedMessage] = useState('');
@@ -58,6 +62,52 @@ export default function WebsiteAppointment() {
     const [takenSlots, setTakenSlots] = useState([]);
     const [blockedDates, setBlockedDates] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [captchaReady, setCaptchaReady] = useState(false);
+
+    const renderTurnstile = useCallback(() => {
+        if (!TURNSTILE_SITE_KEY || !turnstileContainerRef.current || !window.turnstile) return;
+        if (turnstileWidgetIdRef.current !== null) return;
+
+        turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+            sitekey: TURNSTILE_SITE_KEY,
+            callback: (token) => {
+                setFormData((prev) => ({ ...prev, turnstileToken: token }));
+                setErrors((prev) => ({ ...prev, turnstileToken: '' }));
+            },
+            'expired-callback': () => {
+                setFormData((prev) => ({ ...prev, turnstileToken: '' }));
+            },
+            'error-callback': () => {
+                setFormData((prev) => ({ ...prev, turnstileToken: '' }));
+            },
+        });
+        setCaptchaReady(true);
+    }, []);
+
+    useEffect(() => {
+        if (!TURNSTILE_SITE_KEY) return;
+
+        if (window.turnstile) {
+            renderTurnstile();
+            return;
+        }
+
+        const existingScript = document.querySelector('script[data-turnstile-script="true"]');
+        if (existingScript) {
+            existingScript.addEventListener('load', renderTurnstile);
+            return () => existingScript.removeEventListener('load', renderTurnstile);
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.async = true;
+        script.defer = true;
+        script.dataset.turnstileScript = 'true';
+        script.addEventListener('load', renderTurnstile);
+        document.body.appendChild(script);
+
+        return () => script.removeEventListener('load', renderTurnstile);
+    }, [renderTurnstile]);
 
     const fetchBlockedDates = useCallback(async (branch, month) => {
         if (!branch) return;
@@ -142,7 +192,8 @@ export default function WebsiteAppointment() {
 
         if (!data.gender) nextErrors.gender = 'Gender is required.';
 
-        if (!data.captchaConfirmed) nextErrors.captchaConfirmed = 'Please confirm that you are not a robot.';
+        if (!TURNSTILE_SITE_KEY) nextErrors.turnstileToken = 'Captcha is not configured yet. Please contact the clinic.';
+        else if (!data.turnstileToken) nextErrors.turnstileToken = 'Please complete the captcha before submitting.';
 
         if (!data.branch) nextErrors.branch = 'Branch is required.';
 
@@ -170,10 +221,8 @@ export default function WebsiteAppointment() {
     }, [blockedDates, visibleSlots]);
 
     const handleChange = (event) => {
-        const { name, value, type, checked } = event.target;
-        const nextValue = type === 'checkbox'
-            ? checked
-            : name === 'phone'
+        const { name, value } = event.target;
+        const nextValue = name === 'phone'
                 ? normalizePhone(value)
                 : value;
 
@@ -228,7 +277,7 @@ export default function WebsiteAppointment() {
                     email: formData.email.trim().toLowerCase(),
                     birthdate: formData.birthdate,
                     gender: formData.gender,
-                    captchaConfirmed: formData.captchaConfirmed,
+                    turnstileToken: formData.turnstileToken,
                     branch: formData.branch,
                     date: formData.preferredDate,
                     time: formData.preferredTime,
@@ -257,6 +306,9 @@ export default function WebsiteAppointment() {
             setErrors({});
             setAllowedSlots([]);
             setTakenSlots([]);
+            if (window.turnstile && turnstileWidgetIdRef.current !== null) {
+                window.turnstile.reset(turnstileWidgetIdRef.current);
+            }
         } catch {
             setSubmittedMessage('Unable to connect to the server. Please try again.');
             setSubmitState('error');
@@ -301,6 +353,11 @@ export default function WebsiteAppointment() {
                             <p className={styles.bodyText}>
                                 All fields are required. Time slots follow the same availability rules used in the patient booking flow.
                             </p>
+                            {!TURNSTILE_SITE_KEY && (
+                                <p className={styles.errorText}>
+                                    Captcha is not configured yet. Add `REACT_APP_TURNSTILE_SITE_KEY` before using the public booking form.
+                                </p>
+                            )}
                         </div>
 
                         {submittedMessage && (
@@ -485,27 +542,18 @@ export default function WebsiteAppointment() {
                             </div>
 
                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                <label
-                                    htmlFor="captchaConfirmed"
-                                    className={`${styles.checkboxCard} ${errors.captchaConfirmed ? styles.errorBorder : ''}`}
-                                >
-                                    <input
-                                        id="captchaConfirmed"
-                                        type="checkbox"
-                                        name="captchaConfirmed"
-                                        className={styles.checkboxInput}
-                                        checked={formData.captchaConfirmed}
-                                        onChange={handleChange}
-                                    />
-                                    <span className={styles.checkboxText}>
-                                        I confirm that I am not a robot.
-                                    </span>
-                                </label>
-                                {errors.captchaConfirmed && <span className={styles.errorText}>{errors.captchaConfirmed}</span>}
+                                <label className={styles.fieldLabel}>Captcha Verification</label>
+                                <div className={`${styles.captchaCard} ${errors.turnstileToken ? styles.errorBorder : ''}`}>
+                                    <div ref={turnstileContainerRef} />
+                                    {!captchaReady && TURNSTILE_SITE_KEY && (
+                                        <p className={styles.helperText}>Loading captcha verification...</p>
+                                    )}
+                                </div>
+                                {errors.turnstileToken && <span className={styles.errorText}>{errors.turnstileToken}</span>}
                             </div>
                         </div>
 
-                        <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
+                        <button type="submit" className={styles.primaryBtn} disabled={isSubmitting || (!TURNSTILE_SITE_KEY)}>
                             {isSubmitting ? 'Sending Request...' : 'Send Appointment Request'}
                         </button>
                     </form>

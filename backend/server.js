@@ -450,6 +450,29 @@ const normalizePhoneNumber = (phone = '') => {
     return phone.trim();
 };
 
+const verifyTurnstileToken = async ({ token, remoteIp }) => {
+    if (!process.env.TURNSTILE_SECRET_KEY) {
+        return { success: false, 'error-codes': ['missing-input-secret'] };
+    }
+
+    const formData = new FormData();
+    formData.append('secret', process.env.TURNSTILE_SECRET_KEY);
+    formData.append('response', token);
+    if (remoteIp) formData.append('remoteip', remoteIp);
+
+    try {
+        const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            body: formData,
+        });
+
+        return await response.json();
+    } catch (error) {
+        console.error('Turnstile validation error:', error);
+        return { success: false, 'error-codes': ['internal-error'] };
+    }
+};
+
 const normalizeGuestAddress = (address = {}) => {
     if (!address || typeof address !== 'object') return undefined;
     return {
@@ -2898,14 +2921,14 @@ app.post('/api/public/appointments/request', async (req, res) => {
             notes,
             birthdate,
             gender,
-            captchaConfirmed,
+            turnstileToken,
         } = req.body;
 
         if (!fullName || !phone || !email || !branch || !date || !time || !procedure || !notes || !birthdate || !gender) {
             return res.status(400).json({ message: 'All appointment request fields are required.' });
         }
-        if (captchaConfirmed !== true) {
-            return res.status(400).json({ message: 'Please confirm that you are not a robot before submitting.' });
+        if (!turnstileToken) {
+            return res.status(400).json({ message: 'Please complete the captcha before submitting.' });
         }
 
         const normalizedName = String(fullName).trim().replace(/\s+/g, ' ');
@@ -2934,6 +2957,19 @@ app.post('/api/public/appointments/request', async (req, res) => {
 
         if (!['Male', 'Female', 'Other', 'Prefer not to say'].includes(normalizedGender)) {
             return res.status(400).json({ message: 'Please select a valid gender.' });
+        }
+
+        const remoteIpHeader = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'];
+        const remoteIp = Array.isArray(remoteIpHeader)
+            ? remoteIpHeader[0]
+            : String(remoteIpHeader || req.socket?.remoteAddress || '').split(',')[0].trim();
+        const turnstileResult = await verifyTurnstileToken({ token: String(turnstileToken).trim(), remoteIp });
+        if (!turnstileResult.success) {
+            console.warn('Turnstile verification failed:', turnstileResult['error-codes'] || []);
+            if ((turnstileResult['error-codes'] || []).includes('missing-input-secret')) {
+                return res.status(500).json({ message: 'Captcha verification is not configured on the server.' });
+            }
+            return res.status(400).json({ message: 'Captcha verification failed. Please try again.' });
         }
 
         const branchRecord = await Branch.findOne({ name: normalizedBranch, isActive: true }).select('name');
