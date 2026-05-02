@@ -32,6 +32,18 @@ const groupInventoryItems = (rows = []) => {
     return Array.from(grouped.values()).sort((left, right) => left.name.localeCompare(right.name));
 };
 
+const buildDeductionLookup = (deducted = []) => {
+    const lookup = new Map();
+
+    deducted.forEach((entry) => {
+        if (entry?.inventoryId) {
+            lookup.set(String(entry.inventoryId), entry);
+        }
+    });
+
+    return lookup;
+};
+
 // ─── MODAL MODE (used from DentistAppointments) ──────────────────────────────
 // Rendered when `appointment` prop is provided.
 
@@ -89,15 +101,19 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
                 }),
             });
             if (!deductRes.ok) throw new Error((await deductRes.json()).message || 'Failed to deduct inventory.');
+            const deductData = await deductRes.json();
+            const deductionLookup = buildDeductionLookup(deductData.deducted);
 
             // Step 2: Save usage log record
             const itemsWithNames = usedMaterials.map(m => {
                 const inv = inventoryList.find(i => (i._id || i.id) === m.itemId);
+                const deduction = deductionLookup.get(String(m.itemId));
                 return {
                     name: inv ? inv.name || inv.itemName : 'Unknown',
                     quantity: Number(m.quantity),
                     unit: inv ? inv.unit || 'piece' : 'piece',
                     inventoryItemId: inv ? (inv._id || inv.id) : null,
+                    consumedBatches: Array.isArray(deduction?.consumedBatches) ? deduction.consumedBatches : [],
                 };
             });
             await authFetch('/material-usage', {
@@ -271,15 +287,19 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList }) {
                 const errData = await deductRes.json();
                 throw new Error(errData.message || 'Failed to deduct inventory.');
             }
+            const deductData = await deductRes.json();
+            const deductionLookup = buildDeductionLookup(deductData.deducted);
 
             // Step 2: Create usage log
             const itemsWithNames = usedMaterials.map(m => {
                 const inv = inventoryList.find(i => (i._id || i.id) === m.itemId);
+                const deduction = deductionLookup.get(String(m.itemId));
                 return {
                     name: inv ? (inv.name || inv.itemName) : 'Unknown',
                     quantity: Number(m.quantity),
                     unit: inv ? inv.unit || 'piece' : 'piece',
                     inventoryItemId: inv ? (inv._id || inv.id) : null,
+                    consumedBatches: Array.isArray(deduction?.consumedBatches) ? deduction.consumedBatches : [],
                 };
             });
 

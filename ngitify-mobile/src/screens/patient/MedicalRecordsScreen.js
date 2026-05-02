@@ -305,6 +305,12 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
                     <View style={styles.xrayInfo}>
                         <Text style={styles.xrayLabel} numberOfLines={2}>{item.label}</Text>
                         <Text style={styles.xrayDate}>{fmtDate(item.date)}</Text>
+                        {item.radiographNumber ? (
+                            <Text style={styles.xrayMeta} numberOfLines={1}>Radiograph No. {item.radiographNumber}</Text>
+                        ) : null}
+                        {item.findings ? (
+                            <Text style={styles.xrayMeta} numberOfLines={2}>{item.findings}</Text>
+                        ) : null}
                         {item.notes ? (
                             <Text style={styles.xrayNotes} numberOfLines={1}>{item.notes}</Text>
                         ) : null}
@@ -649,6 +655,7 @@ const styles = StyleSheet.create({
     xrayInfo:          { padding: 10 },
     xrayLabel:         { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 3 },
     xrayDate:          { fontSize: 11, color: '#888', marginBottom: 2 },
+    xrayMeta:          { fontSize: 11, color: '#64748b', marginBottom: 2 },
     xrayNotes:         { fontSize: 11, color: '#aaa', marginBottom: 4 },
     xrayTapHint:       { fontSize: 10, color: '#01538b', fontWeight: '700' },
 

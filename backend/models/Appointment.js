@@ -10,6 +10,70 @@ const addressSchema = new mongoose.Schema({
     street: { type: String }
 }, { _id: false });
 
+const guestEmergencyContactSchema = new mongoose.Schema({
+    name: { type: String, trim: true, default: '' },
+    relationship: { type: String, trim: true, default: '' },
+    contactNumber: { type: String, trim: true, default: '' },
+}, { _id: false });
+
+const guestGuardianSchema = new mongoose.Schema({
+    name: { type: String, trim: true, default: '' },
+    relationship: { type: String, trim: true, default: '' },
+    contactNumber: { type: String, trim: true, default: '' },
+    occupation: { type: String, trim: true, default: '' },
+}, { _id: false });
+
+const guestPhysicianSchema = new mongoose.Schema({
+    name: { type: String, trim: true, default: '' },
+    specialty: { type: String, trim: true, default: '' },
+    officeAddress: { type: String, trim: true, default: '' },
+    officeNumber: { type: String, trim: true, default: '' },
+}, { _id: false });
+
+const guestMedicalHistorySchema = new mongoose.Schema({
+    allergies: [{ type: String, trim: true }],
+    conditions: [{ type: String, trim: true }],
+    medications: [{ type: String, trim: true }],
+    notes: { type: String, trim: true, default: '' },
+    inGoodHealth: { type: Boolean, default: undefined },
+    underMedicalTreatment: { type: Boolean, default: undefined },
+    medicalTreatmentDetails: { type: String, trim: true, default: '' },
+    hadSeriousIllnessOrSurgery: { type: Boolean, default: undefined },
+    seriousIllnessOrSurgeryDetails: { type: String, trim: true, default: '' },
+    hadHospitalization: { type: Boolean, default: undefined },
+    hospitalizationDetails: { type: String, trim: true, default: '' },
+    isTakingMedication: { type: Boolean, default: undefined },
+    usesTobacco: { type: Boolean, default: undefined },
+    usesAlcoholOrDrugs: { type: Boolean, default: undefined },
+    hasAllergies: { type: Boolean, default: undefined },
+    bleedingTime: { type: String, trim: true, default: '' },
+    bloodPressure: { type: String, trim: true, default: '' },
+    isPregnant: { type: Boolean, default: undefined },
+    isNursing: { type: Boolean, default: undefined },
+    takingBirthControl: { type: Boolean, default: undefined },
+}, { _id: false });
+
+const guestDentalHistorySchema = new mongoose.Schema({
+    lastExamDate: { type: Date, default: null },
+    chiefComplaint: { type: String, trim: true, default: '' },
+    notes: { type: String, trim: true, default: '' },
+    hadTreatmentReaction: { type: Boolean, default: undefined },
+    reactionDetails: { type: String, trim: true, default: '' },
+    hasConfidentialInfo: { type: Boolean, default: false },
+}, { _id: false });
+
+const guestProfileSchema = new mongoose.Schema({
+    homePhone: { type: String, trim: true, default: '' },
+    workPhone: { type: String, trim: true, default: '' },
+    occupation: { type: String, trim: true, default: '' },
+    civilStatus: { type: String, trim: true, default: '' },
+    bloodType: { type: String, trim: true, default: '' },
+    nationality: { type: String, trim: true, default: 'Filipino' },
+    religion: { type: String, trim: true, default: '' },
+    referredBy: { type: String, trim: true, default: '' },
+    reasonForConsultation: { type: String, trim: true, default: '' },
+}, { _id: false });
+
 const appointmentSchema = new mongoose.Schema({
     patient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     dentist: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -21,6 +85,12 @@ const appointmentSchema = new mongoose.Schema({
     guestGender: { type: String },
     guestCurrentAddress: addressSchema,
     guestPermanentAddress: addressSchema,
+    guestProfile: guestProfileSchema,
+    guestEmergencyContact: guestEmergencyContactSchema,
+    guestGuardian: guestGuardianSchema,
+    guestPhysician: guestPhysicianSchema,
+    guestMedicalHistory: guestMedicalHistorySchema,
+    guestDentalHistory: guestDentalHistorySchema,
     preRegistrationToken: { type: String },
     preRegistrationTokenExpiry: { type: Date },
     preRegistrationCompleted: { type: Boolean, default: false },

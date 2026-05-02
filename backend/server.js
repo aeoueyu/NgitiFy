@@ -693,16 +693,144 @@ const normalizeGuestAddress = (address = {}) => {
     };
 };
 
+const normalizeGuestText = (value = '') => String(value || '').trim();
+
+const normalizeGuestPhoneMaybe = (value = '') => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return '';
+    return normalizePhoneNumber(trimmed);
+};
+
+const normalizeGuestBoolean = (value) => {
+    if (value === true || value === false) return value;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'yes' || normalized === 'true') return true;
+        if (normalized === 'no' || normalized === 'false') return false;
+    }
+    return undefined;
+};
+
+const normalizeGuestStringArray = (value) => {
+    if (Array.isArray(value)) {
+        return value.map((entry) => String(entry || '').trim()).filter(Boolean);
+    }
+    if (typeof value === 'string') {
+        return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+    }
+    return [];
+};
+
+const normalizeGuestProfile = (profile = {}) => {
+    if (!profile || typeof profile !== 'object') return undefined;
+    return {
+        homePhone: normalizeGuestPhoneMaybe(profile.homePhone),
+        workPhone: normalizeGuestPhoneMaybe(profile.workPhone),
+        occupation: normalizeGuestText(profile.occupation),
+        civilStatus: normalizeGuestText(profile.civilStatus),
+        bloodType: normalizeGuestText(profile.bloodType),
+        nationality: normalizeGuestText(profile.nationality) || 'Filipino',
+        religion: normalizeGuestText(profile.religion),
+        referredBy: normalizeGuestText(profile.referredBy),
+        reasonForConsultation: normalizeGuestText(profile.reasonForConsultation),
+    };
+};
+
+const normalizeGuestEmergencyContact = (contact = {}) => {
+    if (!contact || typeof contact !== 'object') return undefined;
+    return {
+        name: normalizeGuestText(contact.name),
+        relationship: normalizeGuestText(contact.relationship),
+        contactNumber: normalizeGuestPhoneMaybe(contact.contactNumber),
+    };
+};
+
+const normalizeGuestGuardian = (guardian = {}) => {
+    if (!guardian || typeof guardian !== 'object') return undefined;
+    return {
+        name: normalizeGuestText(guardian.name),
+        relationship: normalizeGuestText(guardian.relationship),
+        contactNumber: normalizeGuestPhoneMaybe(guardian.contactNumber),
+        occupation: normalizeGuestText(guardian.occupation),
+    };
+};
+
+const normalizeGuestPhysician = (physician = {}) => {
+    if (!physician || typeof physician !== 'object') return undefined;
+    return {
+        name: normalizeGuestText(physician.name),
+        specialty: normalizeGuestText(physician.specialty),
+        officeAddress: normalizeGuestText(physician.officeAddress),
+        officeNumber: normalizeGuestPhoneMaybe(physician.officeNumber),
+    };
+};
+
+const normalizeGuestMedicalHistory = (history = {}) => {
+    if (!history || typeof history !== 'object') return undefined;
+    return {
+        allergies: normalizeGuestStringArray(history.allergies),
+        conditions: normalizeGuestStringArray(history.conditions),
+        medications: normalizeGuestStringArray(history.medications),
+        notes: normalizeGuestText(history.notes),
+        inGoodHealth: normalizeGuestBoolean(history.inGoodHealth),
+        underMedicalTreatment: normalizeGuestBoolean(history.underMedicalTreatment),
+        medicalTreatmentDetails: normalizeGuestText(history.medicalTreatmentDetails),
+        hadSeriousIllnessOrSurgery: normalizeGuestBoolean(history.hadSeriousIllnessOrSurgery),
+        seriousIllnessOrSurgeryDetails: normalizeGuestText(history.seriousIllnessOrSurgeryDetails),
+        hadHospitalization: normalizeGuestBoolean(history.hadHospitalization),
+        hospitalizationDetails: normalizeGuestText(history.hospitalizationDetails),
+        isTakingMedication: normalizeGuestBoolean(history.isTakingMedication),
+        usesTobacco: normalizeGuestBoolean(history.usesTobacco),
+        usesAlcoholOrDrugs: normalizeGuestBoolean(history.usesAlcoholOrDrugs),
+        hasAllergies: normalizeGuestBoolean(history.hasAllergies),
+        bleedingTime: normalizeGuestText(history.bleedingTime),
+        bloodPressure: normalizeGuestText(history.bloodPressure),
+        isPregnant: normalizeGuestBoolean(history.isPregnant),
+        isNursing: normalizeGuestBoolean(history.isNursing),
+        takingBirthControl: normalizeGuestBoolean(history.takingBirthControl),
+    };
+};
+
+const normalizeGuestDentalHistory = (history = {}) => {
+    if (!history || typeof history !== 'object') return undefined;
+    const lastExamDateText = normalizeGuestText(history.lastExamDate);
+    const lastExamDate = lastExamDateText ? new Date(`${lastExamDateText}T12:00:00`) : null;
+    return {
+        lastExamDate: lastExamDate && !Number.isNaN(lastExamDate.getTime()) ? lastExamDate : null,
+        chiefComplaint: normalizeGuestText(history.chiefComplaint),
+        notes: normalizeGuestText(history.notes),
+        hadTreatmentReaction: normalizeGuestBoolean(history.hadTreatmentReaction),
+        reactionDetails: normalizeGuestText(history.reactionDetails),
+        hasConfidentialInfo: Boolean(history.hasConfidentialInfo),
+    };
+};
+
+const isGuestIntakeComplete = (appointment) => {
+    const profile = appointment?.guestProfile || {};
+    const emergencyContact = appointment?.guestEmergencyContact || {};
+    const dentalHistory = appointment?.guestDentalHistory || {};
+    const medicalHistory = appointment?.guestMedicalHistory || {};
+
+    return Boolean(appointment?.guestBirthdate) &&
+        Boolean(appointment?.guestGender) &&
+        isAddressComplete(appointment?.guestCurrentAddress) &&
+        isAddressComplete(appointment?.guestPermanentAddress) &&
+        Boolean(profile?.nationality || 'Filipino') &&
+        Boolean(profile?.occupation) &&
+        Boolean(emergencyContact?.name) &&
+        Boolean(emergencyContact?.relationship) &&
+        Boolean(emergencyContact?.contactNumber) &&
+        Boolean(dentalHistory?.chiefComplaint) &&
+        medicalHistory?.inGoodHealth !== undefined;
+};
+
 const isAddressComplete = (address = {}) => (
     ['region', 'province', 'city', 'barangay', 'street', 'houseNumber']
         .every((field) => Boolean(String(address?.[field] || '').trim()))
 );
 
 const hasGuestRegistrationData = (appointment) => (
-    Boolean(appointment?.guestBirthdate) &&
-    Boolean(appointment?.guestGender) &&
-    isAddressComplete(appointment?.guestCurrentAddress) &&
-    isAddressComplete(appointment?.guestPermanentAddress)
+    isGuestIntakeComplete(appointment)
 );
 
 const buildPreRegistrationUrl = (token) => `${process.env.FRONTEND_URL}/pre-register?token=${token}`;
@@ -773,6 +901,13 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         Array.isArray(body.assignedBranches) ? body.assignedBranches.filter(Boolean) : []
     );
 
+    const fallbackGuestProfile = fallbackGuest?.guestProfile || {};
+    const fallbackEmergencyContact = fallbackGuest?.guestEmergencyContact || {};
+    const fallbackGuardian = fallbackGuest?.guestGuardian || {};
+    const fallbackPhysician = fallbackGuest?.guestPhysician || {};
+    const fallbackMedicalHistory = fallbackGuest?.guestMedicalHistory || {};
+    const fallbackDentalHistory = fallbackGuest?.guestDentalHistory || {};
+
     return {
         name,
         email,
@@ -784,19 +919,19 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         assignedBranches,
         currentAddress: body.currentAddress || fallbackGuest?.guestCurrentAddress || undefined,
         permanentAddress: body.permanentAddress || fallbackGuest?.guestPermanentAddress || undefined,
-        guardian: body.guardian || undefined,
-        emergencyContact: body.emergencyContact || undefined,
-        homePhone: body.homePhone || undefined,
-        workPhone: body.workPhone || undefined,
-        referredBy: body.referredBy || undefined,
-        nationality: body.nationality || undefined,
-        religion: body.religion || undefined,
-        occupation: body.occupation || undefined,
-        civilStatus: body.civilStatus || undefined,
-        bloodType: body.bloodType || undefined,
-        medicalHistory: body.medicalHistory || undefined,
-        dentalHistory: body.dentalHistory || undefined,
-        physician: body.physician || undefined,
+        guardian: body.guardian || fallbackGuardian || undefined,
+        emergencyContact: body.emergencyContact || fallbackEmergencyContact || undefined,
+        homePhone: body.homePhone || fallbackGuestProfile.homePhone || undefined,
+        workPhone: body.workPhone || fallbackGuestProfile.workPhone || undefined,
+        referredBy: body.referredBy || fallbackGuestProfile.referredBy || undefined,
+        nationality: body.nationality || fallbackGuestProfile.nationality || undefined,
+        religion: body.religion || fallbackGuestProfile.religion || undefined,
+        occupation: body.occupation || fallbackGuestProfile.occupation || undefined,
+        civilStatus: body.civilStatus || fallbackGuestProfile.civilStatus || undefined,
+        bloodType: body.bloodType || fallbackGuestProfile.bloodType || undefined,
+        medicalHistory: body.medicalHistory || fallbackMedicalHistory || undefined,
+        dentalHistory: body.dentalHistory || fallbackDentalHistory || undefined,
+        physician: body.physician || fallbackPhysician || undefined,
         consentAcknowledgement: body.consentAcknowledgement || undefined,
         role: 'patient',
         isVerified: false,
@@ -2585,6 +2720,12 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             surgery.guestGender = undefined;
             surgery.guestCurrentAddress = undefined;
             surgery.guestPermanentAddress = undefined;
+            surgery.guestProfile = undefined;
+            surgery.guestEmergencyContact = undefined;
+            surgery.guestGuardian = undefined;
+            surgery.guestPhysician = undefined;
+            surgery.guestMedicalHistory = undefined;
+            surgery.guestDentalHistory = undefined;
             surgery.preRegistrationToken = undefined;
             surgery.preRegistrationTokenExpiry = undefined;
             surgery.preRegistrationCompleted = false;
@@ -2664,6 +2805,12 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
         surgery.guestGender = undefined;
         surgery.guestCurrentAddress = undefined;
         surgery.guestPermanentAddress = undefined;
+        surgery.guestProfile = undefined;
+        surgery.guestEmergencyContact = undefined;
+        surgery.guestGuardian = undefined;
+        surgery.guestPhysician = undefined;
+        surgery.guestMedicalHistory = undefined;
+        surgery.guestDentalHistory = undefined;
         surgery.preRegistrationToken = undefined;
         surgery.preRegistrationTokenExpiry = undefined;
         surgery.preRegistrationCompleted = false;
@@ -3059,9 +3206,17 @@ app.get('/api/pre-register/:token', async (req, res) => {
 
         return res.json({
             guestName: surgery.guestName || 'Guest',
+            guestBirthdate: surgery.guestBirthdate || null,
+            guestGender: surgery.guestGender || '',
             appointmentDate: surgery.date,
             procedure: surgery.procedure,
             branch: surgery.branch,
+            guestProfile: surgery.guestProfile || null,
+            guestEmergencyContact: surgery.guestEmergencyContact || null,
+            guestGuardian: surgery.guestGuardian || null,
+            guestPhysician: surgery.guestPhysician || null,
+            guestMedicalHistory: surgery.guestMedicalHistory || null,
+            guestDentalHistory: surgery.guestDentalHistory || null,
             currentAddress: surgery.guestCurrentAddress || null,
             permanentAddress: surgery.guestPermanentAddress || null,
         });
@@ -3085,12 +3240,33 @@ app.post('/api/pre-register/:token', async (req, res) => {
 
         const currentAddress = normalizeGuestAddress(req.body.currentAddress);
         const permanentAddress = normalizeGuestAddress(req.body.permanentAddress);
+        const guestProfile = normalizeGuestProfile(req.body.guestProfile);
+        const guestEmergencyContact = normalizeGuestEmergencyContact(req.body.guestEmergencyContact);
+        const guestGuardian = normalizeGuestGuardian(req.body.guestGuardian);
+        const guestPhysician = normalizeGuestPhysician(req.body.guestPhysician);
+        const guestMedicalHistory = normalizeGuestMedicalHistory(req.body.guestMedicalHistory);
+        const guestDentalHistory = normalizeGuestDentalHistory(req.body.guestDentalHistory);
         if (!isAddressComplete(currentAddress) || !isAddressComplete(permanentAddress)) {
             return res.status(400).json({ message: 'Current and permanent addresses are required.' });
+        }
+        if (!guestProfile?.occupation || !guestEmergencyContact?.name || !guestEmergencyContact?.relationship || !guestEmergencyContact?.contactNumber) {
+            return res.status(400).json({ message: 'Occupation and emergency contact details are required.' });
+        }
+        if (!guestDentalHistory?.chiefComplaint) {
+            return res.status(400).json({ message: 'Reason for consultation is required.' });
+        }
+        if (guestMedicalHistory?.inGoodHealth === undefined) {
+            return res.status(400).json({ message: 'Please complete the basic medical history section.' });
         }
 
         surgery.guestCurrentAddress = currentAddress;
         surgery.guestPermanentAddress = permanentAddress;
+        surgery.guestProfile = guestProfile;
+        surgery.guestEmergencyContact = guestEmergencyContact;
+        surgery.guestGuardian = guestGuardian;
+        surgery.guestPhysician = guestPhysician;
+        surgery.guestMedicalHistory = guestMedicalHistory;
+        surgery.guestDentalHistory = guestDentalHistory;
         surgery.preRegistrationCompleted = true;
         surgery.preRegistrationToken = undefined;
         surgery.preRegistrationTokenExpiry = undefined;
@@ -3315,6 +3491,13 @@ app.post('/api/public/appointments/request', async (req, res) => {
             guestEmail: normalizedEmail,
             guestBirthdate,
             guestGender: normalizedGender,
+            guestProfile: {
+                nationality: 'Filipino',
+                reasonForConsultation: normalizedNotes,
+            },
+            guestDentalHistory: {
+                chiefComplaint: normalizedNotes,
+            },
             branch: normalizedBranch,
             date: new Date(date),
             time,
@@ -3823,7 +4006,7 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
         }
 
         const sorted = (patient.radiographs || []).sort(
-            (a, b) => new Date(b.date) - new Date(a.date)
+            (a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)
         );
 
         res.json(sorted);
@@ -3845,7 +4028,7 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied. Secretaries cannot upload radiographs.' });
     }
     try {
-        const { label, date, url, notes } = req.body;
+        const { label, date, url, notes, findings, radiographNumber } = req.body;
 
         if (!label || !date) {
             return res.status(400).json({ message: 'Label and date are required.' });
@@ -3866,7 +4049,9 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
         const newEntry = {
             label,
             date: new Date(date),
+            radiographNumber: String(radiographNumber || '').trim(),
             url: url || null,
+            findings: String(findings || '').trim(),
             notes: notes || '',
             uploadedBy: req.user?.id || null,
         };
@@ -4119,7 +4304,7 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
                 inventoryItem: inventoryItem._id,
                 branch: inventoryItem.branch,
                 quantityRemaining: { $gt: 0 },
-            }).sort({ receivedDate: 1, createdAt: 1 });
+            }).sort({ expirationDate: 1, receivedDate: 1, createdAt: 1 });
 
             const availableQty = activeBatches.reduce((sum, batch) => sum + Number(batch.quantityRemaining || 0), 0);
             if (availableQty < requiredQty) {
@@ -4146,7 +4331,10 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
                 consumedBatches.push({
                     batchId: batch._id,
                     brand: batch.brand || 'Unspecified',
+                    batchNumber: batch.batchNumber || '',
                     quantity: usableQty,
+                    expirationDate: batch.expirationDate || null,
+                    receivedDate: batch.receivedDate || null,
                 });
             }
 

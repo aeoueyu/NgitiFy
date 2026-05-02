@@ -269,7 +269,7 @@ export default function PatientDashboard({ navigation }) {
                     <Text style={styles.emptyTitle}>No upcoming appointment</Text>
                     <Text style={styles.emptySubtitle}>Tap to book your next dental visit.</Text>
                     <View style={styles.bookBtn}>
-                        <Text style={styles.bookBtnText}>Book Now</Text>
+                        <Text style={styles.bookBtnText}>Book Appointment</Text>
                     </View>
                 </TouchableOpacity>
             );

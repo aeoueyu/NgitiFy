@@ -88,7 +88,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [uploadForm, setUploadForm] = useState({ label: '', date: '', notes: '' });
+    const [uploadForm, setUploadForm] = useState({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
     const [uploadPreview, setUploadPreview] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -166,6 +166,8 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                         rawDate: new Date(r.date || r.uploadedAt || r.createdAt),
                         type: r.label || r.type || 'Radiograph',
                         url: r.url || r.imageUrl,
+                        radiographNumber: r.radiographNumber || '',
+                        findings: r.findings || '',
                     }));
                     setRadiographs(normalizedRads);
                 }
@@ -796,7 +798,9 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                 body: JSON.stringify({
                     label: uploadForm.label,
                     date: uploadForm.date,
+                    radiographNumber: uploadForm.radiographNumber,
                     url: uploadPreview,
+                    findings: uploadForm.findings,
                     notes: uploadForm.notes,
                 }),
             });
@@ -808,9 +812,11 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                 rawDate: new Date(saved.date || uploadForm.date),
                 type: saved.label || uploadForm.label,
                 url: saved.url || uploadPreview,
+                radiographNumber: saved.radiographNumber || uploadForm.radiographNumber,
+                findings: saved.findings || uploadForm.findings,
             }, ...prev]);
             setIsUploadModalOpen(false);
-            setUploadForm({ label: '', date: '', notes: '' });
+            setUploadForm({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
             setUploadPreview(null);
             addToast('Radiograph uploaded successfully.', 'success');
         } catch (err) {
@@ -844,6 +850,9 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                                     {selectedRadiograph.type}
                                 </h3>
                                 <p className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {formatDateShort(selectedRadiograph.rawDate)}</p>
+                                {selectedRadiograph.radiographNumber ? (
+                                    <p className={styles.radioDate}>Radiograph No.: {selectedRadiograph.radiographNumber}</p>
+                                ) : null}
                             </div>
                         </div>
 
@@ -876,6 +885,22 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                                 )}
                             </button>
                         </div>
+                        {(selectedRadiograph.findings || selectedRadiograph.notes) && (
+                            <div style={{ marginTop: '16px', display: 'grid', gap: '12px' }}>
+                                {selectedRadiograph.findings ? (
+                                    <div className={styles.contentCard}>
+                                        <h4 className={styles.sectionTitle} style={{ fontSize: '16px', marginBottom: '8px' }}>Findings / Impression</h4>
+                                        <p style={{ margin: 0, color: '#475569', lineHeight: 1.7 }}>{selectedRadiograph.findings}</p>
+                                    </div>
+                                ) : null}
+                                {selectedRadiograph.notes ? (
+                                    <div className={styles.contentCard}>
+                                        <h4 className={styles.sectionTitle} style={{ fontSize: '16px', marginBottom: '8px' }}>Notes</h4>
+                                        <p style={{ margin: 0, color: '#475569', lineHeight: 1.7 }}>{selectedRadiograph.notes}</p>
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
                     </div>
                 </div>
             );
@@ -902,6 +927,9 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                                 <div className={styles.radioMeta}>
                                     <h4 className={styles.radioType}>{img.type}</h4>
                                     <span className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {formatDateShort(img.rawDate)}</span>
+                                    {img.radiographNumber ? (
+                                        <span className={styles.radioDate}>No.: {img.radiographNumber}</span>
+                                    ) : null}
                                 </div>
                             </div>
                         ))}
@@ -939,18 +967,26 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                             <input type="date" className={styles.inputField} value={uploadForm.date} onChange={(e) => setUploadForm(p => ({ ...p, date: e.target.value }))} required />
                         </div>
                         <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Radiograph Number</label>
+                            <input type="text" className={styles.inputField} placeholder="Optional identifier" value={uploadForm.radiographNumber} onChange={(e) => setUploadForm(p => ({ ...p, radiographNumber: e.target.value }))} />
+                        </div>
+                        <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Image File <span style={{ color: 'red' }}>*</span></label>
                             <input type="file" accept="image/*" onChange={handleFileSelect} style={{ fontSize: '13px', fontFamily: "'Lexend Deca', sans-serif" }} />
                             {uploadPreview && (
                                 <img src={uploadPreview} alt="Preview" style={{ marginTop: '10px', width: '100%', maxHeight: '140px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f1f5f9' }} />
                             )}
                         </div>
+                        <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Findings / Impression</label>
+                            <textarea className={styles.textareaField} placeholder="Observed findings or impression..." value={uploadForm.findings} onChange={(e) => setUploadForm(p => ({ ...p, findings: e.target.value }))} rows={3} />
+                        </div>
                         <div className={styles.formGroup} style={{ marginBottom: '24px' }}>
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Notes (Optional)</label>
                             <textarea className={styles.textareaField} placeholder="Any clinical notes about this image..." value={uploadForm.notes} onChange={(e) => setUploadForm(p => ({ ...p, notes: e.target.value }))} rows={3} />
                         </div>
                         <div className={styles.modalButtonGroup}>
-                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
+                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadForm({ label: '', date: '', radiographNumber: '', findings: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
                             <button type="submit" className={styles.saveBtn} disabled={isUploading}>
                                 {isUploading ? 'Uploading...' : 'Upload'}
                             </button>

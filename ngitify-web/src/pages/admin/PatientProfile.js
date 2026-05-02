@@ -60,7 +60,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEnhanced, setIsEnhanced] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [uploadForm, setUploadForm] = useState({ label: '', date: '', notes: '' });
+    const [uploadForm, setUploadForm] = useState({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
     const [uploadPreview, setUploadPreview] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -83,7 +83,14 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
 
                 if (logsRes.ok) setTreatmentLogs(await logsRes.json());
                 if (odontogramRes.ok) setChartData((await odontogramRes.json()) || {});
-                if (radiographsRes.ok) setRadiographs(await radiographsRes.json());
+                if (radiographsRes.ok) {
+                    const radData = await radiographsRes.json();
+                    setRadiographs(radData.map((entry) => ({
+                        ...entry,
+                        radiographNumber: entry.radiographNumber || '',
+                        findings: entry.findings || '',
+                    })));
+                }
 
             } catch (err) {
                 setError(err.message || 'Could not load patient profile.');
@@ -155,13 +162,13 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         try {
             const res = await authFetch(`/patients/${patientId}/radiographs`, {
                 method: 'POST',
-                body: JSON.stringify({ label: uploadForm.label, date: uploadForm.date, url: uploadPreview, notes: uploadForm.notes }),
+                body: JSON.stringify({ label: uploadForm.label, date: uploadForm.date, radiographNumber: uploadForm.radiographNumber, url: uploadPreview, findings: uploadForm.findings, notes: uploadForm.notes }),
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Upload failed.');
             const saved = await res.json();
-            setRadiographs(prev => [{ ...saved, id: saved._id || saved.id, rawDate: new Date(saved.date || uploadForm.date), type: saved.label || uploadForm.label, url: saved.url || uploadPreview }, ...prev]);
+            setRadiographs(prev => [{ ...saved, id: saved._id || saved.id, rawDate: new Date(saved.date || uploadForm.date), type: saved.label || uploadForm.label, url: saved.url || uploadPreview, radiographNumber: saved.radiographNumber || uploadForm.radiographNumber, findings: saved.findings || uploadForm.findings }, ...prev]);
             setIsUploadModalOpen(false);
-            setUploadForm({ label: '', date: '', notes: '' });
+            setUploadForm({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
             setUploadPreview(null);
             addToast('Radiograph uploaded successfully.', 'success');
         } catch (err) {
@@ -594,6 +601,26 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                                 {isEnhancing ? <>Processing...</> : isEnhanced ? <><FaMagic /> Revert to Original</> : <><FaMagic /> AI Enhance Clarity</>}
                             </button>
                         </div>
+                        <div style={{ display: 'grid', gap: '12px', marginTop: '18px' }}>
+                            <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 16px' }}>
+                                    <p style={{ margin: '0 0 6px 0', color: '#64748b', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Radiograph No.</p>
+                                    <p style={{ margin: 0, color: '#0f172a', fontWeight: 600 }}>{selectedRadiograph.radiographNumber || 'Not specified'}</p>
+                                </div>
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 16px' }}>
+                                    <p style={{ margin: '0 0 6px 0', color: '#64748b', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Uploaded</p>
+                                    <p style={{ margin: 0, color: '#0f172a', fontWeight: 600 }}>{selectedRadiograph.createdAt ? formatDateLong(selectedRadiograph.createdAt) : 'Not available'}</p>
+                                </div>
+                            </div>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 16px' }}>
+                                <p style={{ margin: '0 0 8px 0', color: '#64748b', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Findings / Impression</p>
+                                <p style={{ margin: 0, color: '#334155', lineHeight: 1.6 }}>{selectedRadiograph.findings || 'No findings recorded.'}</p>
+                            </div>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 16px' }}>
+                                <p style={{ margin: '0 0 8px 0', color: '#64748b', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Notes</p>
+                                <p style={{ margin: 0, color: '#334155', lineHeight: 1.6 }}>{selectedRadiograph.notes || 'No notes recorded.'}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
@@ -616,7 +643,15 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                                 </div>
                                 <div className={styles.radioMeta}>
                                     <h4 className={styles.radioType}>{img.label}</h4>
+                                    {img.radiographNumber ? (
+                                        <span className={styles.radioDate} style={{ marginTop: '4px' }}>Radiograph No. {img.radiographNumber}</span>
+                                    ) : null}
                                     <span className={styles.radioDate}><FaCalendarAlt style={{color: '#94a3b8'}}/> {img.date ? formatDateLong(img.date) : '—'}</span>
+                                    {img.findings ? (
+                                        <p style={{ margin: '8px 0 0 0', color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>
+                                            {img.findings}
+                                        </p>
+                                    ) : null}
                                 </div>
                             </div>
                         ))}
@@ -643,16 +678,24 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                             <input type="date" value={uploadForm.date} onChange={(e) => setUploadForm(p => ({ ...p, date: e.target.value }))} required style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontFamily: "'Lexend Deca'", fontSize: '14px', boxSizing: 'border-box', outline: 'none' }} />
                         </div>
                         <div style={{ marginBottom: '16px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Radiograph Number (Optional)</label>
+                            <input type="text" placeholder="e.g. XR-2026-001" value={uploadForm.radiographNumber} onChange={(e) => setUploadForm(p => ({ ...p, radiographNumber: e.target.value }))} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontFamily: "'Lexend Deca'", fontSize: '14px', boxSizing: 'border-box', outline: 'none' }} />
+                        </div>
+                        <div style={{ marginBottom: '16px' }}>
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Image File <span style={{ color: 'red' }}>*</span></label>
                             <input type="file" accept="image/*" onChange={handleFileSelect} style={{ fontSize: '13px', fontFamily: "'Lexend Deca'" }} />
                             {uploadPreview && <img src={uploadPreview} alt="Preview" style={{ marginTop: '10px', width: '100%', maxHeight: '140px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f1f5f9' }} />}
+                        </div>
+                        <div style={{ marginBottom: '24px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Findings / Impression</label>
+                            <textarea placeholder="Summary of findings or impression..." value={uploadForm.findings} onChange={(e) => setUploadForm(p => ({ ...p, findings: e.target.value }))} rows={3} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontFamily: "'Lexend Deca'", fontSize: '14px', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
                         </div>
                         <div style={{ marginBottom: '24px' }}>
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Notes (Optional)</label>
                             <textarea placeholder="Any clinical notes about this image..." value={uploadForm.notes} onChange={(e) => setUploadForm(p => ({ ...p, notes: e.target.value }))} rows={3} style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontFamily: "'Lexend Deca'", fontSize: '14px', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
                         </div>
                         <div className={styles.modalButtonGroup}>
-                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadForm({ label: '', date: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
+                            <button type="button" className={styles.cancelBtn} onClick={() => { setIsUploadModalOpen(false); setUploadPreview(null); setUploadForm({ label: '', date: '', radiographNumber: '', findings: '', notes: '' }); }} disabled={isUploading}>Cancel</button>
                             <button type="submit" className={styles.submitBtn} disabled={isUploading}>{isUploading ? 'Uploading...' : 'Upload'}</button>
                         </div>
                     </form>

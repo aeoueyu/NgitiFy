@@ -9,7 +9,10 @@ const materialItemSchema = new mongoose.Schema({
     consumedBatches: [{
         batchId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryBatch', required: true },
         brand: { type: String, default: '' },
+        batchNumber: { type: String, default: '' },
         quantity: { type: Number, required: true, min: 0 },
+        expirationDate: { type: Date, default: null },
+        receivedDate: { type: Date, default: null },
     }],
 }, { _id: false });
 

@@ -107,6 +107,9 @@ export default function WebsiteShell({ children }) {
                     </div>
 
                     <div className={styles.actions}>
+                        <button className={styles.loginBtn} onClick={() => navigate('/appointment')} type="button">
+                            GET THE APP
+                        </button>
                         <button className={styles.loginBtn} onClick={() => navigate('/login')} type="button">
                             LOGIN
                         </button>

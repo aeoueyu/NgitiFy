@@ -63,6 +63,9 @@ export default function PatientXRayView({ navigation, route }) {
                         <Text style={[styles.xrayDate, { marginBottom: 0 }]}>Taken on: {dateStr}</Text>
                     </View>
                 ) : null}
+                {radiograph?.radiographNumber ? (
+                    <Text style={[styles.xrayDate, { marginBottom: 18 }]}>Radiograph No.: {radiograph.radiographNumber}</Text>
+                ) : null}
 
                 {/* Image Viewer Card */}
                 <View style={styles.viewerCard}>
@@ -104,6 +107,16 @@ export default function PatientXRayView({ navigation, route }) {
                 </View>
 
                 {/* Dentist Notes (if any) */}
+                {radiograph?.findings ? (
+                    <View style={styles.notesCard}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                            <Ionicons name="medkit-outline" size={14} color="#01538b" style={{ marginRight: 6 }} />
+                            <Text style={[styles.notesTitle, { marginBottom: 0 }]}>Findings / Impression</Text>
+                        </View>
+                        <Text style={styles.notesText}>{radiograph.findings}</Text>
+                    </View>
+                ) : null}
+
                 {radiograph?.notes ? (
                     <View style={styles.notesCard}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>

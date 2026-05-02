@@ -84,6 +84,12 @@ const normalizeSurgery = (surgery) => ({
     guestPhone: surgery.guestPhone || '',
     guestBirthdate: surgery.guestBirthdate || '',
     guestGender: surgery.guestGender || '',
+    guestProfile: surgery.guestProfile || null,
+    guestEmergencyContact: surgery.guestEmergencyContact || null,
+    guestGuardian: surgery.guestGuardian || null,
+    guestPhysician: surgery.guestPhysician || null,
+    guestMedicalHistory: surgery.guestMedicalHistory || null,
+    guestDentalHistory: surgery.guestDentalHistory || null,
     guestCurrentAddress: surgery.guestCurrentAddress || null,
     guestPermanentAddress: surgery.guestPermanentAddress || null,
     preRegistrationCompleted: Boolean(surgery.preRegistrationCompleted),
@@ -108,12 +114,25 @@ const isAddressComplete = (address) => (
         .every((field) => Boolean(address?.[field]))
 );
 
+const hasCompleteGuestIntake = (appointment) => (
+    Boolean(appointment.guestBirthdate) &&
+    Boolean(appointment.guestGender) &&
+    isAddressComplete(appointment.guestCurrentAddress) &&
+    isAddressComplete(appointment.guestPermanentAddress) &&
+    Boolean(appointment.guestProfile?.occupation) &&
+    Boolean(appointment.guestEmergencyContact?.name) &&
+    Boolean(appointment.guestEmergencyContact?.relationship) &&
+    Boolean(appointment.guestEmergencyContact?.contactNumber) &&
+    Boolean(appointment.guestDentalHistory?.chiefComplaint) &&
+    appointment.guestMedicalHistory?.inGoodHealth !== undefined
+);
+
 const getGuestPreRegistrationMeta = (appointment) => {
     if (!appointment.isGuest) return null;
     if (appointment.preRegistrationCompleted) {
         return { label: 'Ready to Register', background: '#dcfce7', color: '#166534' };
     }
-    if (appointment.guestBirthdate && appointment.guestGender && isAddressComplete(appointment.guestCurrentAddress) && isAddressComplete(appointment.guestPermanentAddress)) {
+    if (hasCompleteGuestIntake(appointment)) {
         return { label: 'Ready to Register', background: '#dcfce7', color: '#166534' };
     }
     if (appointment.preRegistrationTokenExpiry && new Date(appointment.preRegistrationTokenExpiry) < new Date()) {
@@ -170,6 +189,8 @@ export default function AdminAppointments() {
         ? '/branch-manager/patients'
         : isOwner
             ? '/owner/patients'
+            : role === 'secretary'
+                ? '/secretary/patients'
             : '/admin/patients';
 
     const fetchAppointments = useCallback(async (silent = false) => {

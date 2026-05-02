@@ -186,6 +186,12 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         const nextCurrentAddress = { ...initialAddressState, ...(appointment?.guestCurrentAddress || {}) };
         const nextPermanentAddress = { ...initialAddressState, ...(appointment?.guestPermanentAddress || {}) };
         const sameAddress = JSON.stringify(nextCurrentAddress) === JSON.stringify(nextPermanentAddress);
+        const guestProfile = appointment?.guestProfile || {};
+        const guestEmergencyContact = appointment?.guestEmergencyContact || {};
+        const guestGuardian = appointment?.guestGuardian || {};
+        const guestPhysician = appointment?.guestPhysician || {};
+        const guestDentalHistory = appointment?.guestDentalHistory || {};
+        const guestMedicalHistory = appointment?.guestMedicalHistory || {};
 
         setFormData((prev) => ({
             ...prev,
@@ -196,7 +202,65 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             gender: appointment?.guestGender || prev.gender,
             email: appointment?.guestEmail || '',
             phone: stripPhonePrefix(appointment?.guestPhone || ''),
+            homePhone: stripPhonePrefix(guestProfile.homePhone || ''),
+            occupation: guestProfile.occupation || prev.occupation,
+            civilStatus: guestProfile.civilStatus || prev.civilStatus,
+            bloodType: guestProfile.bloodType || prev.bloodType,
+            nationality: guestProfile.nationality || prev.nationality,
+            religion: guestProfile.religion || prev.religion,
+            workPhone: stripPhonePrefix(guestProfile.workPhone || ''),
+            referredBy: guestProfile.referredBy || prev.referredBy,
+            emergencyContactName: guestEmergencyContact.name || '',
+            emergencyContactRelationship: guestEmergencyContact.relationship || '',
+            emergencyContactPhone: stripPhonePrefix(guestEmergencyContact.contactNumber || ''),
+            guardianName: guestGuardian.name || '',
+            guardianRelationship: guestGuardian.relationship || '',
+            guardianContact: stripPhonePrefix(guestGuardian.contactNumber || ''),
+            guardianOccupation: guestGuardian.occupation || '',
             assignedBranch: isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || '') : (appointment?.branch || ''),
+            dentalHistory: {
+                ...prev.dentalHistory,
+                chiefComplaint: guestDentalHistory.chiefComplaint || prev.dentalHistory.chiefComplaint,
+                lastExamDate: guestDentalHistory.lastExamDate ? new Date(guestDentalHistory.lastExamDate).toISOString().split('T')[0] : prev.dentalHistory.lastExamDate,
+                notes: guestDentalHistory.notes || prev.dentalHistory.notes,
+                hadTreatmentReaction: guestDentalHistory.hadTreatmentReaction === undefined
+                    ? prev.dentalHistory.hadTreatmentReaction
+                    : (guestDentalHistory.hadTreatmentReaction ? 'yes' : 'no'),
+                reactionDetails: guestDentalHistory.reactionDetails || prev.dentalHistory.reactionDetails,
+                hasConfidentialInfo: Boolean(guestDentalHistory.hasConfidentialInfo),
+            },
+            medicalHistory: {
+                ...prev.medicalHistory,
+                inGoodHealth: guestMedicalHistory.inGoodHealth === undefined ? prev.medicalHistory.inGoodHealth : (guestMedicalHistory.inGoodHealth ? 'yes' : 'no'),
+                underMedicalTreatment: guestMedicalHistory.underMedicalTreatment === undefined ? prev.medicalHistory.underMedicalTreatment : (guestMedicalHistory.underMedicalTreatment ? 'yes' : 'no'),
+                medicalTreatmentDetails: guestMedicalHistory.medicalTreatmentDetails || prev.medicalHistory.medicalTreatmentDetails,
+                hadSeriousIllnessOrSurgery: guestMedicalHistory.hadSeriousIllnessOrSurgery === undefined ? prev.medicalHistory.hadSeriousIllnessOrSurgery : (guestMedicalHistory.hadSeriousIllnessOrSurgery ? 'yes' : 'no'),
+                seriousIllnessOrSurgeryDetails: guestMedicalHistory.seriousIllnessOrSurgeryDetails || prev.medicalHistory.seriousIllnessOrSurgeryDetails,
+                hadHospitalization: guestMedicalHistory.hadHospitalization === undefined ? prev.medicalHistory.hadHospitalization : (guestMedicalHistory.hadHospitalization ? 'yes' : 'no'),
+                hospitalizationDetails: guestMedicalHistory.hospitalizationDetails || prev.medicalHistory.hospitalizationDetails,
+                isTakingMedication: guestMedicalHistory.isTakingMedication === undefined ? prev.medicalHistory.isTakingMedication : (guestMedicalHistory.isTakingMedication ? 'yes' : 'no'),
+                medications: Array.isArray(guestMedicalHistory.medications) ? guestMedicalHistory.medications.join(', ') : (guestMedicalHistory.medications || prev.medicalHistory.medications),
+                usesTobacco: guestMedicalHistory.usesTobacco === undefined ? prev.medicalHistory.usesTobacco : (guestMedicalHistory.usesTobacco ? 'yes' : 'no'),
+                usesAlcoholOrDrugs: guestMedicalHistory.usesAlcoholOrDrugs === undefined ? prev.medicalHistory.usesAlcoholOrDrugs : (guestMedicalHistory.usesAlcoholOrDrugs ? 'yes' : 'no'),
+                hasAllergies: guestMedicalHistory.hasAllergies === undefined ? prev.medicalHistory.hasAllergies : (guestMedicalHistory.hasAllergies ? 'yes' : 'no'),
+                allergies: Array.isArray(guestMedicalHistory.allergies) ? guestMedicalHistory.allergies.filter((entry) => allergyOptions.includes(entry)) : prev.medicalHistory.allergies,
+                allergyOther: Array.isArray(guestMedicalHistory.allergies) ? guestMedicalHistory.allergies.filter((entry) => !allergyOptions.includes(entry)).join(', ') : prev.medicalHistory.allergyOther,
+                conditions: Array.isArray(guestMedicalHistory.conditions) ? guestMedicalHistory.conditions.filter((entry) => medicalConditionOptions.includes(entry)) : prev.medicalHistory.conditions,
+                conditionOther: Array.isArray(guestMedicalHistory.conditions) ? guestMedicalHistory.conditions.filter((entry) => !medicalConditionOptions.includes(entry)).join(', ') : prev.medicalHistory.conditionOther,
+                notes: guestMedicalHistory.notes || prev.medicalHistory.notes,
+                bleedingTime: guestMedicalHistory.bleedingTime || prev.medicalHistory.bleedingTime,
+                bloodPressure: guestMedicalHistory.bloodPressure || prev.medicalHistory.bloodPressure,
+                isPregnant: guestMedicalHistory.isPregnant === undefined ? prev.medicalHistory.isPregnant : (guestMedicalHistory.isPregnant ? 'yes' : 'no'),
+                isNursing: guestMedicalHistory.isNursing === undefined ? prev.medicalHistory.isNursing : (guestMedicalHistory.isNursing ? 'yes' : 'no'),
+                takingBirthControl: guestMedicalHistory.takingBirthControl === undefined ? prev.medicalHistory.takingBirthControl : (guestMedicalHistory.takingBirthControl ? 'yes' : 'no'),
+            },
+            physician: {
+                ...prev.physician,
+                name: guestPhysician.name || prev.physician.name,
+                specialty: guestPhysician.specialty || prev.physician.specialty,
+                officeAddress: guestPhysician.officeAddress || prev.physician.officeAddress,
+                officeNumber: stripPhonePrefix(guestPhysician.officeNumber || ''),
+            },
             currentAddress: nextCurrentAddress,
             permanentAddress: nextPermanentAddress,
         }));
