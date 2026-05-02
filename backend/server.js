@@ -5074,6 +5074,86 @@ app.get('/api/queue', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Server error fetching queue.' });
     }
 });
+
+app.put('/api/queue/:id', verifyToken, async (req, res) => {
+    try {
+        const allowed = ['administrator', 'branch-manager', 'secretary'];
+        if (!allowed.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const existingEntry = await Queue.findById(req.params.id);
+        if (!existingEntry) {
+            return res.status(404).json({ message: 'Queue entry not found.' });
+        }
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch || existingEntry.branch !== scopedBranch) {
+                return res.status(403).json({ message: 'Access denied. This queue entry belongs to a different branch.' });
+            }
+        }
+
+        const {
+            patientName,
+            patientId,
+            branch,
+            assignedDentist,
+            procedureType,
+            contactNumber,
+            status,
+        } = req.body;
+
+        const normalizedBranch = isBranchScopedStaff(req.user.role)
+            ? existingEntry.branch
+            : (branch || existingEntry.branch || '').trim();
+
+        if (!patientName || !normalizedBranch) {
+            return res.status(400).json({ message: 'Patient name and branch are required.' });
+        }
+
+        if (patientId) {
+            const patient = await User.findById(patientId).select('assignedBranch assignedBranches');
+            if (!patient || !patientBelongsToBranch(patient, normalizedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
+
+        const nextStatus = status || existingEntry.status;
+        if (!['waiting', 'serving', 'done', 'skipped'].includes(nextStatus)) {
+            return res.status(400).json({ message: 'Invalid status value.' });
+        }
+
+        const update = {
+            patientName: patientName.trim(),
+            patientId: patientId || null,
+            branch: normalizedBranch,
+            assignedDentist: assignedDentist || '',
+            procedureType: procedureType || '',
+            contactNumber: contactNumber || '',
+            status: nextStatus,
+        };
+
+        if (nextStatus === 'serving' && !existingEntry.calledAt) update.calledAt = new Date();
+        if ((nextStatus === 'done' || nextStatus === 'skipped') && !existingEntry.completedAt) {
+            update.completedAt = new Date();
+        }
+
+        const entry = await Queue.findByIdAndUpdate(req.params.id, update, { new: true });
+
+        await AuditLog.create({
+            action: 'QUEUE_UPDATE',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Queue ticket #${entry.ticketNumber} details updated for ${entry.patientName}.`
+        });
+
+        res.json(entry);
+    } catch (error) {
+        console.error('Error updating queue entry:', error);
+        res.status(500).json({ message: 'Server error updating queue entry.' });
+    }
+});
  
 // PATCH /api/queue/:id/status — update queue entry status (call, done, skip)
 app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {

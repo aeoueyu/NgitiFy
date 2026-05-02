@@ -29,7 +29,7 @@
 
 .formCard {
     background-color: #f4f7fa; border-radius: 20px;
-    width: 95%; max-width: 1000px; max-height: 90vh;
+    width: 90vw; min-width: 90vw; max-width: 1200px; max-height: 90vh;
     overflow-y: auto; position: relative; z-index: 1001;
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
     padding: 40px; box-sizing: border-box;

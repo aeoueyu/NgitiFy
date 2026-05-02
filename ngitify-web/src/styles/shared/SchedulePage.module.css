@@ -1,380 +1,488 @@
 .page {
-    display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
-    gap: 18px;
-    padding: 24px;
-    box-sizing: border-box;
     min-height: 100%;
-}
-
-.calendarPanel,
-.detailPanel {
-    background: #fff;
-    border: 1px solid #dde7f0;
-    border-radius: 20px;
-    box-shadow: 0 18px 36px rgba(15, 44, 68, 0.08);
-}
-
-.calendarPanel {
-    padding: 18px;
-    min-width: 0;
-}
-
-.detailPanel {
-    position: sticky;
-    top: 20px;
-    align-self: start;
     padding: 24px;
+    background: #f4f7fa;
+    box-sizing: border-box;
 }
 
-.pageHeader,
-.navBar,
-.headerActions,
-.navGroup,
-.dayHeaderRow,
-.detailRow,
-.modalGrid,
-.slotList {
+.headerRow,
+.toolbar,
+.toolbarFilters,
+.modalHeader,
+.modalActions,
+.actionRow,
+.detailItem,
+.emrHeader,
+.patientCell,
+.queueNote,
+.dateControl,
+.inlineSelect {
     display: flex;
 }
 
-.pageHeader,
-.navBar {
+.headerRow,
+.toolbar,
+.modalHeader,
+.emrHeader {
     justify-content: space-between;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
 }
 
-.pageHeader {
-    margin-bottom: 16px;
+.headerRow,
+.toolbar,
+.tableCard {
+    background: #fff;
+    border: 1px solid rgba(1, 83, 139, 0.08);
+    border-radius: 22px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+.headerRow,
+.toolbar {
+    padding: 20px 22px;
+}
+
+.headerRow {
+    margin-bottom: 18px;
 }
 
 .pageTitle {
     margin: 0;
-    color: #123e63;
+    color: #01538b;
     font-size: 30px;
     font-weight: 800;
 }
 
 .pageSubtitle {
     margin: 8px 0 0;
-    color: #6b7f92;
+    color: #64748b;
     font-size: 14px;
+    line-height: 1.6;
+    max-width: 780px;
 }
 
-.headerActions,
-.navGroup,
-.slotList {
+.toolbar {
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.toolbarFilters {
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: 1;
+}
+
+.searchControl {
+    flex: 1;
+    min-width: 240px;
+}
+
+.searchControl input,
+.dateControl input,
+.inlineSelect select,
+.formControl,
+.textareaControl {
+    width: 100%;
+    border: 1px solid #d6e2ec;
+    border-radius: 14px;
+    font: inherit;
+    color: #1f384d;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.searchControl input,
+.dateControl input,
+.inlineSelect select,
+.formControl {
+    min-height: 46px;
+    padding: 0 14px;
+}
+
+.dateControl,
+.inlineSelect {
+    gap: 10px;
+    align-items: center;
+    color: #5d7385;
+    font-weight: 700;
+}
+
+.dateControl {
+    min-width: 180px;
+}
+
+.inlineSelect {
+    min-width: 170px;
+}
+
+.queueNote {
+    align-items: center;
+    gap: 10px;
+    color: #7c5a16;
+    background: #fff8db;
+    padding: 10px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.tableCard {
+    padding: 18px;
+}
+
+.stateBlock,
+.emptyStateBox {
+    padding: 52px 20px;
+    text-align: center;
+    color: #64748b;
+    font-size: 15px;
+}
+
+.patientCell {
+    flex-direction: column;
+    gap: 4px;
+}
+
+.patientCell strong {
+    color: #173850;
+}
+
+.patientCell span {
+    color: #6b7f92;
+    font-size: 12px;
+}
+
+.actionRow {
     gap: 8px;
     flex-wrap: wrap;
 }
 
-.viewButton,
 .primaryButton,
-.navButton,
-.todayButton,
+.secondaryButton,
+.viewButton,
+.editButton,
+.cancelButton,
 .slotButton,
-.emrLink {
+.closeButton {
     border: none;
     border-radius: 12px;
     font: inherit;
+}
+
+.primaryButton,
+.secondaryButton,
+.viewButton,
+.editButton,
+.cancelButton,
+.slotButton {
     cursor: pointer;
+}
+
+.primaryButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #01538b;
+    color: #fff;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.secondaryButton {
+    background: #edf3f8;
+    color: #37546d;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 700;
 }
 
 .viewButton,
-.navButton,
-.todayButton {
-    background: #f1f5f9;
-    color: #3c5870;
-    padding: 10px 12px;
-    font-weight: 700;
-}
-
-.viewButtonActive,
-.primaryButton {
-    background: #0b5fa5;
-    color: #fff;
-}
-
-.primaryButton {
-    padding: 10px 14px;
+.editButton,
+.cancelButton {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-}
-
-.rangeLabel {
-    color: #123e63;
-    font-weight: 800;
-}
-
-.datePicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #526b83;
-    font-weight: 700;
-}
-
-.datePicker input {
-    border: 1px solid #d4deea;
-    border-radius: 12px;
-    padding: 10px 12px;
-}
-
-.calendarGrid {
-    display: grid;
-    grid-template-columns: 88px minmax(0, 1fr);
-    gap: 0;
-    border: 1px solid #e4edf5;
-    border-radius: 18px;
-    overflow: hidden;
-}
-
-.timeColumn {
-    background: #f8fbfd;
-    border-right: 1px solid #e4edf5;
-}
-
-.gridHeaderSpacer,
-.dayHeader {
-    height: 48px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.timeSlot {
-    height: 30px;
-    padding: 0 10px;
-    display: flex;
-    align-items: center;
-    font-size: 12px;
-    color: #75899b;
-    border-top: 1px solid #edf3f8;
-}
-
-.dayColumns {
-    min-width: 0;
-}
-
-.dayHeaderRow {
-    display: grid;
-    border-bottom: 1px solid #e4edf5;
-}
-
-.dayHeader {
-    padding: 0 12px;
-    background: #fbfdff;
-}
-
-.dayName {
-    color: #123e63;
-    font-weight: 800;
+    gap: 6px;
+    padding: 8px 12px;
     font-size: 13px;
-}
-
-.dayDate {
-    color: #7b8fa0;
-    font-size: 12px;
-}
-
-.dayBody {
-    display: grid;
-}
-
-.dayColumn {
-    border-right: 1px solid #edf3f8;
-}
-
-.dayColumn:last-child {
-    border-right: none;
-}
-
-.slotCell {
-    height: 30px;
-    padding: 1px 4px;
-    border-top: 1px solid #edf3f8;
-    position: relative;
-}
-
-.appointmentBlock {
-    width: 100%;
-    min-height: 28px;
-    border: none;
-    border-radius: 10px;
-    padding: 4px 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-    overflow: hidden;
-    cursor: pointer;
-    box-shadow: 0 10px 20px rgba(15, 44, 68, 0.08);
-}
-
-.appointmentBlockActive {
-    outline: 2px solid #123e63;
-}
-
-.blockTitle,
-.blockMeta {
-    width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.blockTitle {
-    font-size: 11px;
     font-weight: 700;
 }
 
-.blockMeta {
-    font-size: 10px;
-    opacity: 0.9;
-}
-
-.statusPending {
-    background: #fef3c7;
-    color: #b45309;
-}
-
-.statusConfirmed {
-    background: #dbeafe;
+.viewButton {
+    background: #eff6ff;
     color: #1d4ed8;
 }
 
-.statusCompleted {
-    background: #dcfce7;
-    color: #166534;
+.editButton {
+    background: #fef3c7;
+    color: #92400e;
 }
 
-.statusCancelled {
+.cancelButton {
     background: #fee2e2;
-    color: #b91c1c;
+    color: #991b1b;
 }
 
-.detailHeader {
-    padding-bottom: 18px;
-    border-bottom: 1px solid #e4edf5;
-    margin-bottom: 18px;
-}
-
-.statusBadge {
-    display: inline-flex;
-    align-items: center;
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
     justify-content: center;
-    border-radius: 999px;
-    padding: 6px 10px;
-    font-size: 12px;
-    font-weight: 700;
-    margin-bottom: 14px;
+    align-items: center;
+    z-index: 2200;
+    padding: 18px;
+    box-sizing: border-box;
 }
 
-.detailTitle {
+.wideModal,
+.viewerModal {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 22px 48px rgba(15, 23, 42, 0.22);
+    min-width: 90vw;
+    max-width: 1200px;
+    width: 90vw;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.viewerModal {
+    min-height: 70vh;
+}
+
+.modalHeader {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9eff5;
+}
+
+.modalTitle {
     margin: 0;
-    color: #123e63;
+    color: #01538b;
     font-size: 24px;
     font-weight: 800;
 }
 
-.detailSubtitle {
-    margin: 8px 0 0;
-    color: #6b7f92;
+.modalSubtitle {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 14px;
 }
 
-.detailList {
+.closeButton {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+}
+
+.modalBody,
+.viewerBody {
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.formGroup {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 }
 
-.detailRow {
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eef3f7;
+.formGroupFull {
+    grid-column: 1 / -1;
 }
 
-.detailLabel {
-    color: #7b8fa0;
+.formLabel {
+    color: #486173;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
 }
 
-.detailValue {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #16344d;
-    font-weight: 700;
-    text-align: right;
+.textareaControl {
+    min-height: 120px;
+    padding: 14px;
+    resize: vertical;
 }
 
-.emrLink {
-    margin-top: 18px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: #edf5fb;
-    color: #0f5d92;
-    padding: 12px 14px;
-    text-decoration: none;
-    font-weight: 700;
-}
-
-.loadingState,
-.emptyDetail {
-    padding: 48px 20px;
-    text-align: center;
-    color: #64748b;
-}
-
-.modalGrid {
-    gap: 14px;
-}
-
-.modalGrid > * {
-    flex: 1;
+.slotList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .slotButton {
+    padding: 10px 14px;
     background: #fff;
-    border: 1px solid #d4deea;
-    padding: 8px 12px;
+    border: 1px solid #d1dbe5;
+    color: #324e67;
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .slotButtonActive {
     background: #e0f2fe;
-    border-color: #0b5fa5;
-    color: #0b5fa5;
+    border-color: #01538b;
+    color: #01538b;
 }
 
-@media (max-width: 1120px) {
-    .page {
-        grid-template-columns: 1fr;
-    }
+.helperText,
+.helperError,
+.errorText,
+.inlineNote {
+    font-size: 13px;
+}
 
-    .detailPanel {
-        position: static;
+.helperText,
+.inlineNote {
+    color: #64748b;
+}
+
+.helperError,
+.errorText {
+    color: #dc2626;
+}
+
+.modalActions {
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.viewerBody {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.viewerSummary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.summaryCard,
+.notesPanel,
+.emrPanel {
+    border: 1px solid #e3ebf2;
+    border-radius: 18px;
+    background: #fff;
+}
+
+.summaryCard {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.summaryLabel {
+    color: #71879a;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.summaryValue {
+    color: #15344c;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.notesPanel,
+.emrPanel {
+    padding: 20px;
+}
+
+.panelTitle {
+    margin: 0 0 14px;
+    color: #123e63;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.detailList {
+    margin: 0;
+}
+
+.detailItem {
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #eef3f7;
+}
+
+.detailItem:last-child {
+    border-bottom: none;
+}
+
+.detailItem dt {
+    color: #7a8f9f;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.detailItem dd {
+    margin: 0;
+    color: #21384b;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: right;
+}
+
+@media (max-width: 1024px) {
+    .viewerSummary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
     .page {
         padding: 16px;
     }
 
-    .calendarGrid {
-        grid-template-columns: 72px minmax(0, 1fr);
-    }
-
-    .navBar,
-    .pageHeader {
+    .headerRow,
+    .toolbar,
+    .toolbarFilters,
+    .modalHeader,
+    .modalActions,
+    .actionRow,
+    .detailItem,
+    .emrHeader {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .formGrid,
+    .viewerSummary {
+        grid-template-columns: 1fr;
+    }
+
+    .wideModal,
+    .viewerModal {
+        width: 96vw;
+        min-width: 96vw;
+        min-height: auto;
+    }
+
+    .detailItem dd {
+        text-align: left;
     }
 }

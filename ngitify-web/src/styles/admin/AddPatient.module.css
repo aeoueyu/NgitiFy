@@ -21,8 +21,9 @@
 .formCard {
     position: relative;
     z-index: 1001;
-    width: 95%;
-    max-width: 750px; 
+    width: 90vw;
+    min-width: 90vw;
+    max-width: 1200px;
     background: white;
     padding: 30px 40px;
     border-radius: 16px;

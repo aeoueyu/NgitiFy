@@ -731,7 +731,7 @@ export default function AdminAppointments() {
 
             {isBookingModalOpen && (
                 <div className={modalStyles.modalOverlay}>
-                    <div className={modalStyles.modalContent} style={{ maxWidth: '560px' }}>
+                    <div className={modalStyles.modalContent}>
                         <div className={modalStyles.modalHeader}>
                             <h2 className={modalStyles.modalTitle}>Book New Appointment</h2>
                             <button

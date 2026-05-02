@@ -29,8 +29,9 @@
 .formCard {
     position: relative;
     z-index: 1001;
-    width: 95%;
-    max-width: 750px; 
+    width: 80vw;
+    min-width: 80vw;
+    max-width: 1000px; 
     background: white;
     padding: 30px 40px;
     border-radius: 16px;
@@ -154,3 +155,11 @@ select.inputField { appearance: none; -webkit-appearance: none; background-image
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes bounceIn { 0% { transform: scale(0); } 60% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+@media (max-width: 768px) {
+    .formCard {
+        width: 96vw;
+        min-width: 96vw;
+        padding: 24px 18px;
+    }
+}

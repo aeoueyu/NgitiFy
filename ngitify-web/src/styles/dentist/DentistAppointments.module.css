@@ -326,7 +326,7 @@
 .modalContent {
     background: white; border-radius: 16px;
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-    width: 95%; animation: scaleUp 0.2s ease;
+    width: 90vw; min-width: 90vw; max-width: 1000px; animation: scaleUp 0.2s ease;
     max-height: 90vh; overflow-y: auto;
 }
 

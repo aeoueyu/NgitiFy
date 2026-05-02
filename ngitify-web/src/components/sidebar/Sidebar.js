@@ -99,6 +99,13 @@ export default function Sidebar() {
     const settingsPath = `${basePath}/settings`;
     const inventoryPath = `${basePath}/inventory`;
     const profilePath = `${basePath}/profile`;
+    const userManagementPath = isAdmin
+        ? '/admin/manage-users/patients'
+        : isOwner
+            ? '/owner/manage-users/patients'
+            : isBranchManager
+                ? '/branch-manager/manage-users'
+                : `${basePath}/patients`;
 
     useEffect(() => {
         if (!canReadInventory && !isOwner) return;
@@ -252,7 +259,7 @@ export default function Sidebar() {
                     {isBranchManager && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem('/branch-manager/manage-users', FaUsers, 'User Management')}
+                            {navItem(userManagementPath, FaUsers, 'User Management')}
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/branch-manager/branches', FaCodeBranch, 'Branch')}
@@ -263,7 +270,7 @@ export default function Sidebar() {
                     {isOwner && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem('/owner/manage-users', FaUsers, 'User Management')}
+                            {navItem(userManagementPath, FaUsers, 'User Management')}
                             {navItem('/owner/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/owner/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/owner/branches', FaCodeBranch, 'Branches')}
@@ -301,8 +308,7 @@ export default function Sidebar() {
                     {isAdmin && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem('/admin/manage-users', FaUsers, 'User Management')}
-                            {navItem('/admin/patient-emr', FaFileMedical, 'Patient EMR')}
+                            {navItem(userManagementPath, FaUsers, 'User Management')}
                             {navItem('/admin/notifications', FaBell, 'Notifications', notifBadge)}
                             {sectionLabel('System')}
                             {navItem('/admin/chat-support', FaHeadset, 'Chat Support')}

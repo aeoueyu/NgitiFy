@@ -1,92 +1,186 @@
 .container {
-    padding: 30px;
+    padding: 24px;
     min-height: 100vh;
     background: #f4f7fa;
     font-family: 'Lexend Deca', sans-serif;
 }
 
-.pageHeader {
+.pageHeader,
+.filtersCard,
+.listCard,
+.detailModal {
+    background: #fff;
+    border: 1px solid rgba(1, 83, 139, 0.08);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+.pageHeader,
+.notificationTop,
+.notificationMeta,
+.notificationHeading,
+.rangeGroup,
+.filterGrid,
+.searchField,
+.actionRow,
+.modalHeader,
+.modalReadFlag {
     display: flex;
-    align-items: flex-start;
+}
+
+.pageHeader,
+.notificationTop,
+.modalHeader {
     justify-content: space-between;
+    align-items: center;
     gap: 16px;
-    margin-bottom: 24px;
+}
+
+.pageHeader,
+.filtersCard {
+    border-radius: 22px;
+    padding: 20px 22px;
+}
+
+.pageHeader {
+    margin-bottom: 18px;
     flex-wrap: wrap;
 }
 
 .pageTitle {
     margin: 0;
-    font-size: 26px;
-    font-weight: 800;
     color: #01538b;
+    font-size: 28px;
+    font-weight: 800;
 }
 
 .pageSubtitle {
-    margin: 6px 0 0;
+    margin: 8px 0 0;
     color: #64748b;
     font-size: 14px;
 }
 
 .primaryBtn,
 .secondaryBtn,
-.filterBtn {
+.filterPill,
+.closeBtn {
+    border: none;
     font-family: inherit;
 }
 
+.primaryBtn,
+.secondaryBtn,
+.filterPill,
+.closeBtn {
+    cursor: pointer;
+}
+
 .primaryBtn {
-    border: none;
+    border-radius: 999px;
     background: #01538b;
     color: #fff;
-    border-radius: 999px;
-    padding: 12px 20px;
+    padding: 12px 18px;
     font-size: 14px;
     font-weight: 700;
-    cursor: pointer;
 }
 
-.filterBar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.filterBtn {
-    border: 1px solid #d7e2ec;
-    background: #fff;
-    color: #466277;
+.secondaryBtn {
     border-radius: 999px;
-    padding: 9px 14px;
+    background: #fff;
+    color: #01538b;
+    padding: 10px 14px;
     font-size: 13px;
     font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
+    border: 1px solid #d6e2ec;
 }
 
-.activeFilter {
-    border-color: #01538b;
+.filtersCard {
+    margin-bottom: 18px;
+}
+
+.rangeGroup {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.filterPill {
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: #f8fbfd;
+    color: #486173;
+    font-size: 13px;
+    font-weight: 700;
+    border: 1px solid #d6e2ec;
+}
+
+.filterPillActive {
     background: #e9f4fb;
     color: #01538b;
+    border-color: #01538b;
 }
 
-.filterCount {
-    min-width: 22px;
-    height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    background: rgba(1, 83, 139, 0.08);
+.customRangeRow {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.customRangeRow input,
+.controlLabel select,
+.searchField input {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 14px;
+    border: 1px solid #d6e2ec;
+    font: inherit;
+    box-sizing: border-box;
+}
+
+.customRangeRow input,
+.controlLabel select {
+    padding: 0 12px;
+}
+
+.filterGrid {
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.controlLabel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 180px;
+    flex: 1;
+    color: #486173;
     font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.searchField {
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #d6e2ec;
+    border-radius: 14px;
+    padding: 0 14px;
+    background: #fff;
+}
+
+.searchField svg {
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.searchField input {
+    border: none;
+    outline: none;
+    padding: 0;
 }
 
 .listCard {
-    background: #fff;
-    border-radius: 20px;
-    border: 1px solid rgba(1, 83, 139, 0.06);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    border-radius: 22px;
     overflow: hidden;
 }
 
@@ -109,20 +203,27 @@
     background: #f5fbff;
 }
 
-.notificationTop {
-    display: flex;
+.notificationMeta {
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
+    gap: 10px;
 }
 
+.iconBadge,
 .typeBadge {
     display: inline-flex;
     align-items: center;
-    padding: 6px 10px;
+    justify-content: center;
     border-radius: 999px;
+}
+
+.iconBadge {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+}
+
+.typeBadge {
+    padding: 6px 10px;
     font-size: 12px;
     font-weight: 800;
 }
@@ -167,10 +268,10 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    margin-top: 12px;
 }
 
 .notificationHeading {
-    display: flex;
     align-items: center;
     gap: 10px;
 }
@@ -197,16 +298,15 @@
     line-height: 1.6;
 }
 
-.secondaryBtn {
+.actionRow {
+    gap: 10px;
     margin-top: 16px;
-    border: 1px solid #cfe0ec;
-    background: #fff;
-    color: #01538b;
-    border-radius: 999px;
+    flex-wrap: wrap;
+}
+
+.actionRowCompact .primaryBtn,
+.actionRowCompact .secondaryBtn {
     padding: 9px 14px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
 }
 
 .stateBlock {
@@ -216,12 +316,82 @@
     font-size: 15px;
 }
 
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2200;
+    padding: 18px;
+    box-sizing: border-box;
+}
+
+.detailModal {
+    width: min(560px, 100%);
+    border-radius: 20px;
+    padding: 20px 22px;
+}
+
+.modalHeader {
+    border-bottom: 1px solid #eef4f8;
+    padding-bottom: 16px;
+}
+
+.modalTitle {
+    margin: 0;
+    color: #01538b;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.modalMeta {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.modalContent {
+    padding-top: 18px;
+}
+
+.modalMessage {
+    margin: 0 0 18px;
+    color: #42586a;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.modalReadFlag {
+    align-items: center;
+    gap: 8px;
+    color: #15803d;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 18px;
+}
+
+.closeBtn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #475569;
+}
+
 @media (max-width: 768px) {
     .container {
-        padding: 20px;
+        padding: 16px;
     }
 
-    .notificationCard {
-        padding: 18px;
+    .customRangeRow,
+    .filterGrid,
+    .notificationTop,
+    .pageHeader,
+    .modalHeader {
+        flex-direction: column;
+        align-items: stretch;
     }
 }

@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FaFileMedical, FaSearch, FaUserInjured } from 'react-icons/fa';
-import { useAuth } from '../../hooks/useAuth';
+import { FaFileMedical, FaSearch } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { formatDateShort } from '../../utils/dateUtils';
-import UserAvatar from '../../components/common/UserAvatar';
+import { useAuth } from '../../hooks/useAuth';
 import PatientEMR from '../admin/PatientEMR';
+import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/shared/PatientEMRPage.module.css';
 
 const normalizePatientName = (patient) => {
@@ -15,54 +14,80 @@ const normalizePatientName = (patient) => {
     return 'Unknown Patient';
 };
 
-const getAge = (birthdate) => {
-    if (!birthdate) return null;
-    const birth = new Date(birthdate);
-    if (Number.isNaN(birth.getTime())) return null;
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age -= 1;
+const truncate = (value, limit = 40) => {
+    if (!value) return '-';
+    return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+};
+
+const formatDateLabel = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+};
+
+const getLatestTreatmentLog = (patient) => {
+    const logs = Array.isArray(patient.treatmentLogs) ? [...patient.treatmentLogs] : [];
+    if (!logs.length) return null;
+    return logs.sort((left, right) => new Date(right.date) - new Date(left.date))[0];
+};
+
+const getStatusClass = (status) => {
+    switch ((status || '').toLowerCase()) {
+        case 'completed':
+            return wideTable.statusBlue;
+        case 'follow-up':
+        case 'pending':
+        case 'ongoing':
+            return wideTable.statusAmber;
+        default:
+            return wideTable.statusGray;
     }
-    return age;
 };
 
 export default function PatientEMRPage() {
     const { addToast } = useToast();
     const { user } = useAuth();
+
     const [patients, setPatients] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPatientId, setSelectedPatientId] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
 
     const fetchPatients = useCallback(async () => {
-        setIsLoading(true);
+        setLoading(true);
         try {
             const response = await authFetch('/patients?limit=200');
-            if (!response.ok) throw new Error('Failed to load patients.');
-            const payload = await response.json();
-            const items = Array.isArray(payload) ? payload : (payload.patients || []);
-            const mapped = items.map((patient) => ({
-                id: patient._id,
-                name: normalizePatientName(patient),
-                profileImage: patient.profileImage || '',
-                age: getAge(patient.birthdate || patient.dateOfBirth || patient.dob),
-                lastVisit: patient.treatmentLogs?.[0]?.date || patient.updatedAt || patient.createdAt,
-                status: patient.status || 'inactive',
-                raw: patient,
-            }));
-            mapped.sort((left, right) => left.name.localeCompare(right.name));
-            setPatients(mapped);
-            if (!selectedPatientId && mapped.length > 0) {
-                setSelectedPatientId(mapped[0].id);
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.message || 'Failed to load patient records.');
             }
+
+            const items = Array.isArray(payload) ? payload : (payload.patients || []);
+            const mapped = items.map((patient) => {
+                const latestLog = getLatestTreatmentLog(patient);
+                return {
+                    id: patient._id || patient.id,
+                    patientId: patient._id || patient.id,
+                    patientName: normalizePatientName(patient),
+                    lastVisit: latestLog?.date || patient.updatedAt || patient.createdAt,
+                    dentistName: latestLog?.dentistName || latestLog?.dentist || 'Unassigned',
+                    chiefComplaint: latestLog?.procedure || patient.dentalHistory?.chiefComplaint || '',
+                    treatmentStatus: latestLog?.status || 'Follow-up',
+                };
+            });
+            mapped.sort((left, right) => left.patientName.localeCompare(right.patientName));
+            setPatients(mapped);
         } catch (error) {
-            addToast(error.message || 'Could not load patients.', 'error');
+            addToast(error.message || 'Could not load the EMR directory.', 'error');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
-    }, [addToast, selectedPatientId]);
+    }, [addToast]);
 
     useEffect(() => {
         fetchPatients();
@@ -71,80 +96,112 @@ export default function PatientEMRPage() {
     const filteredPatients = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
         if (!query) return patients;
-        return patients.filter((patient) => patient.name.toLowerCase().includes(query));
+        return patients.filter((patient) => (
+            [
+                patient.patientId,
+                patient.patientName,
+                patient.dentistName,
+                patient.chiefComplaint,
+                patient.treatmentStatus,
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+                .includes(query)
+        ));
     }, [patients, searchQuery]);
 
     return (
-        <div className={styles.page}>
-            <aside className={styles.patientRail}>
-                <div className={styles.railHeader}>
+        <>
+            <div className={styles.page}>
+                <div className={styles.headerCard}>
                     <div>
                         <h1 className={styles.pageTitle}>Patient EMR</h1>
-                        <p className={styles.pageSubtitle}>Browse patients and open their records instantly.</p>
+                        <p className={styles.pageSubtitle}>
+                            Table-based EMR access aligned with the clinic’s management pages.
+                        </p>
                     </div>
-                    <span className={styles.countBadge}>
-                        <FaUserInjured />
-                        {patients.length}
-                    </span>
+
+                    <label className={styles.searchBox}>
+                        <FaSearch className={styles.searchIcon} />
+                        <input
+                            type="search"
+                            className={styles.searchInput}
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Search by patient name, ID, dentist, or complaint"
+                        />
+                    </label>
                 </div>
 
-                <div className={styles.searchBox}>
-                    <FaSearch className={styles.searchIcon} />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(event) => setSearchQuery(event.target.value)}
-                        placeholder="Search patients..."
-                        className={styles.searchInput}
-                    />
-                </div>
-
-                <div className={styles.patientList}>
-                    {isLoading ? (
-                        <div className={styles.emptyState}>Loading patient list...</div>
-                    ) : filteredPatients.length > 0 ? (
-                        filteredPatients.map((patient) => (
-                            <button
-                                key={patient.id}
-                                type="button"
-                                className={`${styles.patientCard} ${selectedPatientId === patient.id ? styles.patientCardActive : ''}`}
-                                onClick={() => setSelectedPatientId(patient.id)}
-                            >
-                                <UserAvatar user={{ name: patient.name, profileImage: patient.profileImage }} size={44} />
-                                <div className={styles.patientMeta}>
-                                    <span className={styles.patientName}>{patient.name}</span>
-                                    <span className={styles.patientSubtext}>
-                                        {patient.age !== null ? `${patient.age} yrs` : 'Age unavailable'}
-                                    </span>
-                                    <span className={styles.patientSubtext}>
-                                        Last visit: {patient.lastVisit ? formatDateShort(patient.lastVisit) : 'No record yet'}
-                                    </span>
-                                </div>
-                            </button>
-                        ))
-                    ) : (
-                        <div className={styles.emptyState}>
+                <div className={styles.tableCard}>
+                    {loading ? (
+                        <div className={styles.stateBlock}>Loading patient records...</div>
+                    ) : filteredPatients.length === 0 ? (
+                        <div className={styles.stateBlock}>
                             <FaFileMedical className={styles.emptyIcon} />
-                            No patients match your search.
+                            No patient records match the current search.
+                        </div>
+                    ) : (
+                        <div className={wideTable.tableWrapper}>
+                            <table className={wideTable.table}>
+                                <thead>
+                                    <tr>
+                                        <th>Patient ID</th>
+                                        <th>Patient Name</th>
+                                        <th>Date of Last Visit</th>
+                                        <th>Dentist</th>
+                                        <th>Chief Complaint</th>
+                                        <th>Treatment Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredPatients.map((patient) => (
+                                        <tr key={patient.id}>
+                                            <td>{patient.patientId}</td>
+                                            <td className={wideTable.wrapCell}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.linkButton}
+                                                    onClick={() => setSelectedPatientId(patient.patientId)}
+                                                >
+                                                    {patient.patientName}
+                                                </button>
+                                            </td>
+                                            <td>{formatDateLabel(patient.lastVisit)}</td>
+                                            <td>{patient.dentistName}</td>
+                                            <td className={wideTable.wrapCell}>{truncate(patient.chiefComplaint)}</td>
+                                            <td>
+                                                <span className={`${wideTable.statusBadge} ${getStatusClass(patient.treatmentStatus)}`}>
+                                                    {patient.treatmentStatus}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button
+                                                    type="button"
+                                                    className={styles.viewButton}
+                                                    onClick={() => setSelectedPatientId(patient.patientId)}
+                                                >
+                                                    View EMR
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>
-            </aside>
+            </div>
 
-            <section className={styles.detailPanel}>
-                {selectedPatientId ? (
-                    <PatientEMR
-                        patientId={selectedPatientId}
-                        embedded
-                        roleOverride={user?.role || 'administrator'}
-                    />
-                ) : (
-                    <div className={styles.emptyDetail}>
-                        <FaFileMedical className={styles.emptyIcon} />
-                        Select a patient to view their EMR.
-                    </div>
-                )}
-            </section>
-        </div>
+            {selectedPatientId && (
+                <PatientEMR
+                    patientId={selectedPatientId}
+                    onClose={() => setSelectedPatientId('')}
+                    roleOverride={user?.role || 'administrator'}
+                />
+            )}
+        </>
     );
 }

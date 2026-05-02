@@ -6,11 +6,98 @@
 .overlayBackground { position: absolute; inset: 0; background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(3px); }
 
 .formCard {
-    position: relative; z-index: 1001; width: 95%; max-width: 800px; background: white; padding: 30px 40px;
+    position: relative; z-index: 1001; width: 90vw; min-width: 90vw; max-width: 1200px; background: white; padding: 30px 40px;
     border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; box-sizing: border-box;
 }
 .formCard::-webkit-scrollbar { width: 8px; }
 .formCard::-webkit-scrollbar-thumb { background-color: rgba(1, 83, 139, 0.2); border-radius: 10px; }
+
+.modalContent {
+    position: relative;
+    z-index: 1001;
+    width: 90vw;
+    min-width: 90vw;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.18);
+    box-sizing: border-box;
+}
+
+.modalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid #e9eff5;
+}
+
+.modalTitle {
+    color: #01538b;
+    font-size: 24px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.closeButton {
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modalBody {
+    padding: 24px 28px 28px;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.formLabel {
+    font-size: 12px;
+    font-weight: 800;
+    color: #486173;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.formInput {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 14px;
+    border: 1px solid #d6e2ec;
+    background: #fff;
+    font: inherit;
+    color: #1f384d;
+    box-sizing: border-box;
+}
+
+.errorMessage {
+    color: #dc2626;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
 
 .headerWrapper { display: flex; align-items: flex-start; margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; justify-content: space-between; }
 .headerLeft { display: flex; align-items: flex-start; }
@@ -93,9 +180,15 @@ select.inputField { appearance: none; background-image: url("data:image/svg+xml;
 
 @media (max-width: 900px) {
     .formCard {
-        width: min(96%, 760px);
+        width: 96vw;
+        min-width: 96vw;
         padding: 24px 20px;
         max-height: 88vh;
+    }
+
+    .modalContent {
+        width: 96vw;
+        min-width: 96vw;
     }
 
     .headerWrapper {
@@ -150,5 +243,15 @@ select.inputField { appearance: none; background-image: url("data:image/svg+xml;
 
     .modalCard {
         padding: 28px 24px;
+    }
+
+    .modalHeader,
+    .formActions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .modalBody {
+        padding: 20px;
     }
 }

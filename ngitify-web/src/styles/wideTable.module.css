@@ -31,11 +31,18 @@
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .table td {
     color: #20384d;
     font-size: 14px;
+}
+
+.table tbody tr:nth-child(even) {
+    background: #f8fafc;
 }
 
 .table tbody tr:hover {
