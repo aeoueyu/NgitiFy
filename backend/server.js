@@ -228,7 +228,7 @@ const GUEST_APPOINTMENT_PROCEDURES = [
 ];
 
 const GUEST_FULL_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
-const GUEST_PHONE_REGEX = /^(?:\+63|0)\d{10}$/;
+const GUEST_PHONE_REGEX = /^9\d{9}$/;
 const GUEST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const getClinicAllowedSlots = async () => {
@@ -450,6 +450,71 @@ const normalizePhoneNumber = (phone = '') => {
     return phone.trim();
 };
 
+const normalizeGuestAddress = (address = {}) => {
+    if (!address || typeof address !== 'object') return undefined;
+    return {
+        country: String(address.country || 'Philippines').trim() || 'Philippines',
+        region: String(address.region || '').trim(),
+        province: String(address.province || '').trim(),
+        city: String(address.city || '').trim(),
+        barangay: String(address.barangay || '').trim(),
+        houseNumber: String(address.houseNumber || '').trim(),
+        street: String(address.street || '').trim(),
+    };
+};
+
+const isAddressComplete = (address = {}) => (
+    ['region', 'province', 'city', 'barangay', 'street', 'houseNumber']
+        .every((field) => Boolean(String(address?.[field] || '').trim()))
+);
+
+const hasGuestRegistrationData = (appointment) => (
+    Boolean(appointment?.guestBirthdate) &&
+    Boolean(appointment?.guestGender) &&
+    isAddressComplete(appointment?.guestCurrentAddress) &&
+    isAddressComplete(appointment?.guestPermanentAddress)
+);
+
+const buildPreRegistrationUrl = (token) => `${process.env.FRONTEND_URL}/pre-register?token=${token}`;
+
+const sendPreRegistrationEmail = async ({ email, name, branch, date, time, procedure, token }) => {
+    if (!email || !token) return;
+
+    const appointmentDate = new Date(date);
+    const safeName = name || 'Patient';
+    const clinic = await getClinicContactDetails();
+    const preRegistrationUrl = buildPreRegistrationUrl(token);
+
+    await resend.emails.send({
+        from: 'NgitiFy Appointments <noreply@ngitify.com>',
+        to: email,
+        subject: `Complete Your Registration - ${clinic.clinicName} Appointment Confirmed`,
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #005466;">Appointment Confirmed</h2>
+                <p>Hello ${safeName},</p>
+                <p>Your appointment request has been accepted. Please complete your registration so the clinic can prepare your patient record in advance.</p>
+                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
+                    <p><strong>Branch:</strong> ${branch}</p>
+                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
+                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p><strong>Procedure:</strong> ${procedure}</p>
+                </div>
+                <p>
+                    <a href="${preRegistrationUrl}" style="display:inline-block;padding:12px 20px;background:#01538b;color:#fff;text-decoration:none;border-radius:999px;font-weight:700;">
+                        Complete Your Registration
+                    </a>
+                </p>
+                <p>This secure link will expire in 72 hours.</p>
+                <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
+                <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
+                <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
+            </div>
+        `,
+    });
+};
+
 const splitGuestFullName = (fullName = '') => {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return { first: '', middle: '', last: '' };
@@ -482,13 +547,13 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         name,
         email,
         contactNumber,
-        birthdate: body.birthdate || undefined,
-        gender: body.gender || undefined,
+        birthdate: body.birthdate || fallbackGuest?.guestBirthdate || undefined,
+        gender: body.gender || fallbackGuest?.guestGender || undefined,
         profileImage: body.profileImage || undefined,
         assignedBranch,
         assignedBranches,
-        currentAddress: body.currentAddress || undefined,
-        permanentAddress: body.permanentAddress || undefined,
+        currentAddress: body.currentAddress || fallbackGuest?.guestCurrentAddress || undefined,
+        permanentAddress: body.permanentAddress || fallbackGuest?.guestPermanentAddress || undefined,
         guardian: body.guardian || undefined,
         emergencyContact: body.emergencyContact || undefined,
         homePhone: body.homePhone || undefined,
@@ -2225,6 +2290,13 @@ app.post('/api/admin/appointments/:surgeryId/register-guest', verifyToken, async
             surgery.guestName = undefined;
             surgery.guestEmail = undefined;
             surgery.guestPhone = undefined;
+            surgery.guestBirthdate = undefined;
+            surgery.guestGender = undefined;
+            surgery.guestCurrentAddress = undefined;
+            surgery.guestPermanentAddress = undefined;
+            surgery.preRegistrationToken = undefined;
+            surgery.preRegistrationTokenExpiry = undefined;
+            surgery.preRegistrationCompleted = false;
             surgery.status = 'confirmed';
             await surgery.save();
 
@@ -2297,6 +2369,13 @@ app.post('/api/admin/appointments/:surgeryId/register-guest', verifyToken, async
         surgery.guestName = undefined;
         surgery.guestEmail = undefined;
         surgery.guestPhone = undefined;
+        surgery.guestBirthdate = undefined;
+        surgery.guestGender = undefined;
+        surgery.guestCurrentAddress = undefined;
+        surgery.guestPermanentAddress = undefined;
+        surgery.preRegistrationToken = undefined;
+        surgery.preRegistrationTokenExpiry = undefined;
+        surgery.preRegistrationCompleted = false;
         surgery.status = 'confirmed';
         await surgery.save();
 
@@ -2540,11 +2619,17 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
         }
 
         const updateFields = { status };
+        const isGuestWebsiteAppointment = currentSurgery.source === 'Smile Hub (Online)' && !currentSurgery.patient && !!currentSurgery.guestEmail;
         if (remarks !== undefined) updateFields.remarks = remarks;
         if (preOpInstructions !== undefined) updateFields.preOpInstructions = preOpInstructions;
         if (date) updateFields.date = new Date(date);
         if (time) updateFields.time = time;
         if (dentistId !== undefined && req.user.role !== 'dentist') updateFields.dentist = dentistId || null;
+        if (currentSurgery.status !== 'confirmed' && status === 'confirmed' && isGuestWebsiteAppointment && !currentSurgery.preRegistrationCompleted) {
+            updateFields.preRegistrationToken = crypto.randomBytes(32).toString('hex');
+            updateFields.preRegistrationTokenExpiry = new Date(Date.now() + (72 * 60 * 60 * 1000));
+            updateFields.preRegistrationCompleted = false;
+        }
 
         const updatedSurgery = await Surgery.findByIdAndUpdate(
             req.params.id,
@@ -2572,7 +2657,17 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
                 });
             }
 
-            if (patientEmail) {
+            if (isGuestWebsiteAppointment && updatedSurgery.preRegistrationToken) {
+                await sendPreRegistrationEmail({
+                    email: updatedSurgery.guestEmail,
+                    name: updatedSurgery.guestName,
+                    branch: updatedSurgery.branch,
+                    date: updatedSurgery.date,
+                    time: updatedSurgery.time,
+                    procedure: updatedSurgery.procedure,
+                    token: updatedSurgery.preRegistrationToken,
+                });
+            } else if (patientEmail) {
                 await sendAppointmentConfirmedEmail({
                     email: patientEmail,
                     name: patientName,
@@ -2659,6 +2754,108 @@ app.put('/api/surgeries/:id/status', verifyToken, async (req, res) => {
     }
 });
 
+app.get('/api/pre-register/:token', async (req, res) => {
+    try {
+        const token = String(req.params.token || '').trim();
+        if (!token) return res.status(400).json({ message: 'Pre-registration token is required.' });
+
+        const surgery = await Surgery.findOne({ preRegistrationToken: token, isArchived: false }).lean();
+        if (!surgery) return res.status(404).json({ message: 'This link is invalid.' });
+        if (surgery.preRegistrationCompleted) return res.status(409).json({ message: 'You have already completed your registration.' });
+        if (!surgery.preRegistrationTokenExpiry || new Date(surgery.preRegistrationTokenExpiry) < new Date()) {
+            return res.status(410).json({ message: 'This link has expired.' });
+        }
+
+        return res.json({
+            guestName: surgery.guestName || 'Guest',
+            appointmentDate: surgery.date,
+            procedure: surgery.procedure,
+            branch: surgery.branch,
+            currentAddress: surgery.guestCurrentAddress || null,
+            permanentAddress: surgery.guestPermanentAddress || null,
+        });
+    } catch (error) {
+        console.error('Error fetching pre-registration data:', error);
+        return res.status(500).json({ message: 'Server error fetching pre-registration data.' });
+    }
+});
+
+app.post('/api/pre-register/:token', async (req, res) => {
+    try {
+        const token = String(req.params.token || '').trim();
+        if (!token) return res.status(400).json({ message: 'Pre-registration token is required.' });
+
+        const surgery = await Surgery.findOne({ preRegistrationToken: token, isArchived: false });
+        if (!surgery) return res.status(404).json({ message: 'This link is invalid.' });
+        if (surgery.preRegistrationCompleted) return res.status(409).json({ message: 'You have already completed your registration.' });
+        if (!surgery.preRegistrationTokenExpiry || new Date(surgery.preRegistrationTokenExpiry) < new Date()) {
+            return res.status(410).json({ message: 'This link has expired.' });
+        }
+
+        const currentAddress = normalizeGuestAddress(req.body.currentAddress);
+        const permanentAddress = normalizeGuestAddress(req.body.permanentAddress);
+        if (!isAddressComplete(currentAddress) || !isAddressComplete(permanentAddress)) {
+            return res.status(400).json({ message: 'Current and permanent addresses are required.' });
+        }
+
+        surgery.guestCurrentAddress = currentAddress;
+        surgery.guestPermanentAddress = permanentAddress;
+        surgery.preRegistrationCompleted = true;
+        surgery.preRegistrationToken = undefined;
+        surgery.preRegistrationTokenExpiry = undefined;
+        await surgery.save();
+
+        return res.status(200).json({ message: 'Pre-registration completed successfully.' });
+    } catch (error) {
+        console.error('Error saving pre-registration data:', error);
+        return res.status(500).json({ message: 'Server error saving pre-registration data.' });
+    }
+});
+
+app.post('/api/admin/appointments/:surgeryId/resend-pre-register', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'co-administrator', 'branch-manager', 'secretary', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        const surgery = await Surgery.findById(req.params.surgeryId);
+        if (!surgery || surgery.isArchived) return res.status(404).json({ message: 'Guest appointment not found.' });
+        if (surgery.patient || surgery.source !== 'Smile Hub (Online)' || !surgery.guestEmail) {
+            return res.status(400).json({ message: 'Only guest website appointments can receive a pre-registration link.' });
+        }
+        if (surgery.preRegistrationCompleted) {
+            return res.status(409).json({ message: 'This guest has already completed pre-registration.' });
+        }
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch || surgery.branch !== scopedBranch) {
+                return res.status(403).json({ message: 'Access denied. This appointment belongs to a different branch.' });
+            }
+        }
+
+        surgery.preRegistrationToken = crypto.randomBytes(32).toString('hex');
+        surgery.preRegistrationTokenExpiry = new Date(Date.now() + (72 * 60 * 60 * 1000));
+        surgery.preRegistrationCompleted = false;
+        await surgery.save();
+
+        await sendPreRegistrationEmail({
+            email: surgery.guestEmail,
+            name: surgery.guestName,
+            branch: surgery.branch,
+            date: surgery.date,
+            time: surgery.time,
+            procedure: surgery.procedure,
+            token: surgery.preRegistrationToken,
+        });
+
+        return res.json({ message: 'Pre-registration email resent successfully.' });
+    } catch (error) {
+        console.error('Error resending pre-registration email:', error);
+        return res.status(500).json({ message: 'Server error resending pre-registration email.' });
+    }
+});
+
 app.get('/api/public/appointments/slots', async (req, res) => {
     try {
         const { date, branch } = req.query;
@@ -2699,10 +2896,16 @@ app.post('/api/public/appointments/request', async (req, res) => {
             time,
             procedure,
             notes,
+            birthdate,
+            gender,
+            captchaConfirmed,
         } = req.body;
 
-        if (!fullName || !phone || !email || !branch || !date || !time || !procedure || !notes) {
+        if (!fullName || !phone || !email || !branch || !date || !time || !procedure || !notes || !birthdate || !gender) {
             return res.status(400).json({ message: 'All appointment request fields are required.' });
+        }
+        if (captchaConfirmed !== true) {
+            return res.status(400).json({ message: 'Please confirm that you are not a robot before submitting.' });
         }
 
         const normalizedName = String(fullName).trim().replace(/\s+/g, ' ');
@@ -2711,13 +2914,14 @@ app.post('/api/public/appointments/request', async (req, res) => {
         const normalizedBranch = String(branch).trim();
         const normalizedProcedure = String(procedure).trim();
         const normalizedNotes = String(notes).trim();
+        const normalizedGender = String(gender).trim();
 
         if (!GUEST_FULL_NAME_REGEX.test(normalizedName)) {
             return res.status(400).json({ message: 'Please enter a valid full name.' });
         }
 
         if (!GUEST_PHONE_REGEX.test(normalizedPhone)) {
-            return res.status(400).json({ message: 'Please enter a valid Philippine contact number.' });
+            return res.status(400).json({ message: 'Please enter a valid contact number in 9xxxxxxxxx format.' });
         }
 
         if (!GUEST_EMAIL_REGEX.test(normalizedEmail)) {
@@ -2726,6 +2930,10 @@ app.post('/api/public/appointments/request', async (req, res) => {
 
         if (!GUEST_APPOINTMENT_PROCEDURES.includes(normalizedProcedure)) {
             return res.status(400).json({ message: 'Please select a valid procedure.' });
+        }
+
+        if (!['Male', 'Female', 'Other', 'Prefer not to say'].includes(normalizedGender)) {
+            return res.status(400).json({ message: 'Please select a valid gender.' });
         }
 
         const branchRecord = await Branch.findOne({ name: normalizedBranch, isActive: true }).select('name');
@@ -2748,6 +2956,14 @@ app.post('/api/public/appointments/request', async (req, res) => {
             return res.status(400).json({ message: 'Please select today or a future date.' });
         }
 
+        const guestBirthdate = new Date(`${birthdate}T12:00:00`);
+        if (Number.isNaN(guestBirthdate.getTime())) {
+            return res.status(400).json({ message: 'Please provide a valid birthdate.' });
+        }
+        if (guestBirthdate >= new Date()) {
+            return res.status(400).json({ message: 'Birthdate must be in the past.' });
+        }
+
         const allowedSlots = await getClinicAllowedSlots();
         if (!allowedSlots.includes(time)) {
             return res.status(400).json({ message: 'Please select a valid appointment time.' });
@@ -2766,8 +2982,10 @@ app.post('/api/public/appointments/request', async (req, res) => {
 
         const newSurgery = new Surgery({
             guestName: normalizedName,
-            guestPhone: normalizedPhone,
+            guestPhone: normalizePhoneNumber(normalizedPhone),
             guestEmail: normalizedEmail,
+            guestBirthdate,
+            guestGender: normalizedGender,
             branch: normalizedBranch,
             date: new Date(date),
             time,

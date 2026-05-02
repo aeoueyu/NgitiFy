@@ -865,6 +865,33 @@
     gap: 8px;
 }
 
+.checkboxCard {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid rgba(1, 83, 139, 0.14);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.checkboxInput {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #01538b;
+    flex-shrink: 0;
+}
+
+.checkboxText {
+    color: #22485f;
+    font-size: 0.96rem;
+    line-height: 1.6;
+    font-weight: 600;
+}
+
 .fieldLabel {
     color: #0b3958;
     font-size: 12px;

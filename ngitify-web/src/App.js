@@ -12,6 +12,7 @@ import WebsiteServices from './pages/website/WebsiteServices';
 import WebsiteLocations from './pages/website/WebsiteLocations';
 import WebsiteContact from './pages/website/WebsiteContact';
 import WebsiteAppointment from './pages/website/WebsiteAppointment';
+import PreRegisterPage from './pages/PreRegisterPage';
 import LoginPage from './pages/auth/LoginPage';
 
 const ForgotPassPage = lazy(() => import('./pages/auth/ForgotPassPage'));
@@ -123,6 +124,7 @@ function App() {
               <Route path="/locations" element={<WebsiteLocations />} />
               <Route path="/contact-us" element={<WebsiteContact />} />
               <Route path="/appointment" element={<WebsiteAppointment />} />
+              <Route path="/pre-register" element={<PreRegisterPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/forgot-password" element={<ForgotPassPage />} />
               <Route path="/verification-code" element={<VerificationCodePage />} />

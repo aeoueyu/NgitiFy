@@ -181,15 +181,24 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     });
 
     useEffect(() => {
+        const nextCurrentAddress = { ...initialAddressState, ...(appointment?.guestCurrentAddress || {}) };
+        const nextPermanentAddress = { ...initialAddressState, ...(appointment?.guestPermanentAddress || {}) };
+        const sameAddress = JSON.stringify(nextCurrentAddress) === JSON.stringify(nextPermanentAddress);
+
         setFormData((prev) => ({
             ...prev,
             firstName: nameParts.firstName,
             middleName: nameParts.middleName,
             lastName: nameParts.lastName,
+            birthdate: appointment?.guestBirthdate ? new Date(appointment.guestBirthdate).toISOString().split('T')[0] : prev.birthdate,
+            gender: appointment?.guestGender || prev.gender,
             email: appointment?.guestEmail || '',
             phone: stripPhonePrefix(appointment?.guestPhone || ''),
             assignedBranch: isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || '') : (appointment?.branch || ''),
+            currentAddress: nextCurrentAddress,
+            permanentAddress: nextPermanentAddress,
         }));
+        setIsSameAddress(sameAddress);
     }, [appointment, isBranchScopedStaff, nameParts, user?.assignedBranch]);
 
     useEffect(() => {

@@ -1,0 +1,392 @@
+
+NGITIFY
+Technical Change Document
+Guest-to-Patient Registration Flow Improvement
+Document Version
+1.0
+Date Prepared
+May 2, 2026
+Status
+Draft — For Review
+Affected System
+ngitify-web, ngitify-mobile (backend)
+
+1.  Executive Summary
+
+This document describes the required changes to the Ngitify dental clinic management system to improve the guest appointment booking and patient registration flow. The primary goal is to ensure that when an authorized staff member converts a guest appointment into a formal patient record, the registration form is fully pre-filled with data already supplied by the guest — eliminating the need for staff to manually key in information they do not have on hand.
+
+The current implementation pre-fills only three fields from the guest&apos;s booking entry: full name, email address, and phone number. However, the patient registration form requires additional fields — specifically birthdate, gender, current address, and permanent address — which are left blank. This forces staff to obtain and manually enter this information during or after the appointment, which defeats the system&apos;s core purpose of reducing staff workload.
+
+GOAL
+By the end of this change set, all required fields in the RegisterGuestPatient form will be pre-filled from data provided by the guest, and staff will only need to review the information, provide the consent acknowledgment signature, and submit.
+
+2.  Problem Statement
+
+2.1  Current Guest Booking Form Fields
+The public-facing website booking form (used by guests) currently collects only the following data:
+
+Field
+Stored As
+Saved To
+Full name
+guestName (String)
+Surgery model
+Email address
+guestEmail (String)
+Surgery model
+Phone number
+guestPhone (String)
+Surgery model
+Procedure
+procedure (String)
+Surgery model
+Preferred date
+date (Date)
+Surgery model
+Branch
+branch (String)
+Surgery model
+
+2.2  Fields Pre-filled in RegisterGuestPatient (Current State)
+When a staff member opens the RegisterGuestPatient form for a guest appointment, the following fields are pre-filled from the Surgery document:
+
+Form Field
+Source
+Pre-filled?
+First name
+Parsed from guestName
+Yes
+Middle name
+Parsed from guestName
+Yes (if present)
+Last name
+Parsed from guestName
+Yes
+Email address
+guestEmail
+Yes
+Phone number
+guestPhone (stripped)
+Yes
+Assigned branch
+appointment.branch
+Yes
+Birthdate
+Not collected
+NO — blank
+Gender
+Not collected
+NO — blank
+Current address
+Not collected
+NO — blank
+Permanent address
+Not collected
+NO — blank
+Consent acknowledgment
+Cannot be pre-filled
+NO — requires signature
+
+IMPACT
+Staff are required to contact the guest separately or wait until the appointment day to collect birthdate, gender, and full address before they can complete patient registration. This creates unnecessary back-and-forth and slows down clinic operations.
+
+3.  Proposed Solution
+
+The solution is composed of two coordinated changes that work together:
+
+3.1  Part A — Expand the Guest Booking Form
+Add two fields directly to the existing public booking form on the website: birthdate and gender. These two fields are short, non-intrusive, and already required by the patient registration form. Adding them to the booking form does not significantly increase guest friction and eliminates the need for staff to collect this data separately.
+
+3.2  Part B — Pre-registration Page for Address Completion
+When a staff member confirms a guest appointment (changing its status from pending to confirmed), the system will automatically send a transactional email to the guest&apos;s registered email address. This email contains a unique, time-limited tokenized link to a pre-registration page hosted on the Ngitify website.
+
+On this pre-registration page, the guest provides their current address and permanent address. Once submitted, this data is saved back to the guest&apos;s Surgery appointment record. The system then marks the appointment as having complete registration data.
+
+When staff subsequently open the RegisterGuestPatient form for that appointment, all required fields — name, email, phone, birthdate, gender, current address, and permanent address — will now be pre-filled. Staff only need to review the data, fill in the consent acknowledgment signature, and submit.
+
+NOTE
+Consent acknowledgment (the signerName field and the acknowledged checkbox) cannot and should not be pre-filled. It is a legal acknowledgment that requires deliberate action from the signing party. Staff will always need to complete this section manually.
+
+4.  Detailed Changes Required
+
+4.1  Backend — Surgery Model
+File: backend/models/Surgery.js (or equivalent appointment model)
+
+Add the following new fields to the Surgery schema to store the additional guest-provided data:
+
+Field Name
+Type
+Required
+Description
+guestBirthdate
+Date
+No
+Guest&apos;s date of birth, collected from the booking form.
+guestGender
+String
+No
+Guest&apos;s gender selection (Male, Female, Other, Prefer not to say).
+guestCurrentAddress
+Object
+No
+Full current address: region, province, city, barangay, street, houseNumber, country.
+guestPermanentAddress
+Object
+No
+Full permanent address. Same structure as guestCurrentAddress.
+preRegistrationToken
+String
+No
+Secure random token used to authenticate the pre-registration page link.
+preRegistrationTokenExpiry
+Date
+No
+Expiry timestamp for the pre-registration token. Recommended: 72 hours from confirmation.
+preRegistrationCompleted
+Boolean
+No
+Set to true once the guest has submitted their address on the pre-registration page. Defaults to false.
+
+4.2  Website — Guest Booking Form
+File: ngitify-web/src/pages/ (the public appointment booking page used by guests)
+
+Add the following two input fields to the existing guest booking form:
+
+Birthdate Field
+Input type: date
+Label: Date of Birth
+Validation: Must be a past date. Guest must be at least 1 day old (prevent future dates).
+Required: Yes
+On submit, include the value as guestBirthdate in the POST body sent to /api/appointments (or the equivalent guest booking endpoint).
+
+Gender Field
+Input type: select (dropdown)
+Label: Gender
+Options: Male, Female, Other, Prefer not to say
+Required: Yes
+On submit, include the value as guestGender in the POST body.
+
+4.3  Backend — Guest Booking Endpoint
+File: backend/server.js — the route handling POST /api/appointments (guest booking)
+
+Update the route handler to accept and save the two new fields from the booking form:
+
+Extract guestBirthdate from req.body and save to the Surgery document.
+Extract guestGender from req.body and save to the Surgery document.
+Apply the same normalization/validation already used for existing guest fields (e.g., trim whitespace, validate date format).
+
+4.4  Backend — Appointment Confirmation Logic
+File: backend/server.js — the route handling appointment status updates (PATCH or PUT /api/admin/appointments/:id)
+
+When a staff member sets an appointment&apos;s status to confirmed, extend the existing logic to perform the following additional steps:
+
+Generate a cryptographically secure random token (e.g., using crypto.randomBytes(32).toString(&apos;hex&apos;)).
+Set preRegistrationToken on the Surgery document to this token.
+Set preRegistrationTokenExpiry to 72 hours from the current timestamp (Date.now() + 72 * 60 * 60 * 1000).
+Set preRegistrationCompleted to false.
+Save the Surgery document.
+Send a pre-registration email to the guest&apos;s guestEmail address. See Section 4.5 for email content details.
+
+4.5  Backend — Pre-registration Email
+The email sent to the guest upon appointment confirmation should contain the following:
+
+Subject
+Complete Your Registration — [Clinic Name] Appointment Confirmed
+
+Body Content
+A confirmation message that their appointment has been accepted.
+A clear call-to-action button or link labeled Complete Your Registration.
+The link should point to: https://[your-domain]/pre-register?token={preRegistrationToken}
+A note that the link expires in 72 hours.
+Clinic contact information in case the guest has questions.
+
+SECURITY
+The pre-registration link must use a long, random token (minimum 32 bytes of entropy). Never expose the MongoDB _id or any internal IDs in the URL. The token is single-use: once the guest submits the form and preRegistrationCompleted is set to true, the token should be invalidated (cleared or ignored).
+
+4.6  Backend — New Pre-registration Endpoint
+Add two new API routes to handle the pre-registration page:
+
+GET /api/pre-register/:token
+This endpoint is called when the guest opens the pre-registration link. It should:
+Look up the Surgery document where preRegistrationToken matches the provided token.
+Check that preRegistrationTokenExpiry is in the future. If expired, return a 410 Gone response.
+Check that preRegistrationCompleted is false. If already completed, return a 409 Conflict response.
+If valid, return the appointment&apos;s basic details so the page can greet the guest by name: { guestName, appointmentDate, procedure, branch }.
+
+POST /api/pre-register/:token
+This endpoint receives the guest&apos;s submitted address data. It should:
+Repeat the same token validation checks as the GET route.
+Validate the submitted address fields (region, province, city, barangay, street, houseNumber are all required for both current and permanent addresses).
+Save guestCurrentAddress and guestPermanentAddress to the Surgery document.
+Set preRegistrationCompleted to true.
+Clear preRegistrationToken (set to null or undefined) to invalidate the link.
+Return a 200 success response.
+
+4.7  Website — Pre-registration Page (New Page)
+File: ngitify-web/src/pages/PreRegisterPage.js (new file)
+Route: /pre-register?token=:token
+
+This is a new public-facing page on the website (no login required). It is accessed only via the tokenized link sent to the guest&apos;s email.
+
+Page Behavior
+On mount, call GET /api/pre-register/:token using the token from the URL query parameter.
+If the token is invalid or expired, display an error state: &apos;This link has expired or is invalid. Please contact the clinic for assistance.&apos;
+If the token is already used (preRegistrationCompleted = true), display: &apos;You have already completed your registration. No further action is needed.&apos;
+If valid, display a greeting with the guest&apos;s name and appointment details (date, procedure, branch), followed by the address form.
+
+Address Form Fields
+Render the same address fields already used in RegisterGuestPatient — region, province, city, barangay, street, and house number — for both Current Address and Permanent Address. Include the same &apos;Same as current address&apos; checkbox to copy fields automatically.
+
+Reuse the address data utilities already present in the codebase:
+ngitify-web/src/utils/addressData.js (regions, provinces, cities, barangays)
+The same cascading dropdown logic already implemented in RegisterGuestPatient.js
+
+Submission
+On submit, call POST /api/pre-register/:token with the address data.
+On success, display a thank-you screen: &apos;Thank you! Your details have been saved. The clinic will be in touch with any further instructions.&apos;
+Do not redirect the guest to a login page or any authenticated area.
+
+4.8  Staff UI — Appointment List / Detail View
+File: ngitify-web/src/pages/admin/ (the appointment management pages used by staff)
+
+Add a visual indicator on guest appointments to communicate pre-registration status to staff at a glance:
+
+Condition
+Badge / Indicator
+Meaning
+preRegistrationCompleted = false and not expired
+Awaiting guest info (amber)
+Guest has been sent the link but has not yet completed it. Staff may need to follow up.
+preRegistrationCompleted = true
+Ready to register (green)
+Guest has submitted their address. All required fields are available for registration.
+preRegistrationTokenExpiry &lt; now and preRegistrationCompleted = false
+Link expired (red)
+The guest did not complete pre-registration in time. Staff should resend the link (see Section 4.9) or collect info manually.
+
+4.9  Backend — Resend Pre-registration Link (Optional but Recommended)
+File: backend/server.js — add a new route
+Route: POST /api/admin/appointments/:surgeryId/resend-pre-register
+
+This endpoint allows staff to resend the pre-registration email if the original link has expired or if the guest reports not having received it. It should:
+
+Verify the caller is an authenticated staff member (verifyToken middleware).
+Find the Surgery document by surgeryId.
+Confirm the appointment belongs to a guest (role: &apos;guest&apos;) and preRegistrationCompleted is still false.
+Generate a new token, set a new 72-hour expiry, and save.
+Resend the pre-registration email.
+Return a success response.
+
+4.10  Backend — Register Guest Endpoint Update
+File: backend/server.js — POST /api/admin/appointments/:surgeryId/register-guest
+
+Update the buildPatientPayload function and the register-guest route to include the new fields from the Surgery document when constructing the patient payload:
+
+Pass guestBirthdate as the birthdate field.
+Pass guestGender as the gender field.
+Pass guestCurrentAddress as the currentAddress field.
+Pass guestPermanentAddress as the permanentAddress field.
+
+These should be used as fallback values in the same way guestName and guestEmail are currently used — the staff member&apos;s form input takes precedence, but the guest-provided data is the default.
+
+4.11  Frontend — RegisterGuestPatient.js Update
+File: ngitify-web/src/pages/admin/RegisterGuestPatient.js
+
+Update the useEffect that populates formData from the appointment prop to also pre-fill the new fields:
+
+birthdate: appointment.guestBirthdate (formatted as YYYY-MM-DD for the date input)
+gender: appointment.guestGender
+currentAddress: appointment.guestCurrentAddress (mapped to the address state shape)
+permanentAddress: appointment.guestPermanentAddress (same mapping)
+
+If the appointment object does not contain these fields (e.g., for older appointments created before this change), the fields simply remain blank, preserving the existing behavior.
+
+5.  End-to-End Flow Summary
+
+#
+Actor
+Action
+Result
+1
+Guest
+Fills public booking form (name, email, phone, procedure, date, branch, birthdate, gender)
+Surgery document created with all guest fields
+2
+System
+Sends booking confirmation notification
+Staff sees new appointment in dashboard
+3
+Staff
+Reviews and confirms the appointment
+Appointment status set to confirmed
+4
+System
+Generates pre-registration token; sends email to guest
+Guest receives email with link valid for 72 hours
+5
+Guest
+Opens link, fills in current and permanent address, submits
+guestCurrentAddress and guestPermanentAddress saved; preRegistrationCompleted set to true
+6
+Staff
+Sees &apos;Ready to register&apos; badge on appointment
+Knows all data is available
+7
+Staff
+Opens RegisterGuestPatient form
+All required fields pre-filled from guest data
+8
+Staff
+Reviews data, fills in consent acknowledgment, submits
+Patient account created; activation email sent to guest
+9
+Guest
+Activates patient account via email
+Guest becomes a registered patient; can log in to mobile app
+
+6.  Summary of Files to be Modified or Created
+
+File / Path
+Action
+Change Description
+backend/models/Surgery.js
+MODIFY
+Add 7 new fields: guestBirthdate, guestGender, guestCurrentAddress, guestPermanentAddress, preRegistrationToken, preRegistrationTokenExpiry, preRegistrationCompleted
+backend/server.js
+MODIFY
+Update guest booking route, appointment confirmation route, and register-guest route. Add two new pre-register routes and one resend route.
+ngitify-web/src/pages/[booking page].js
+MODIFY
+Add birthdate and gender fields to the public guest booking form.
+ngitify-web/src/pages/PreRegisterPage.js
+CREATE
+New public page for guest address pre-registration, accessible via tokenized link.
+ngitify-web/src/App.js
+MODIFY
+Register the new /pre-register route.
+ngitify-web/src/pages/admin/RegisterGuestPatient.js
+MODIFY
+Update the useEffect to pre-fill birthdate, gender, currentAddress, and permanentAddress from appointment data.
+ngitify-web/src/pages/admin/[appointment list/detail].js
+MODIFY
+Add pre-registration status badges (Awaiting guest info, Ready to register, Link expired) and resend button.
+
+7.  Security Considerations
+
+Pre-registration tokens must be generated using a cryptographically secure random number generator (Node.js crypto.randomBytes). Do not use Math.random() or UUIDs for this purpose.
+Tokens must have an expiration time (72 hours recommended). Expired tokens must be rejected server-side regardless of whether the client presents them.
+Tokens are single-use. Once the guest submits the pre-registration form and preRegistrationCompleted is set to true, the token must be cleared to prevent reuse.
+The pre-register routes must not expose any sensitive patient data — only the minimum required to greet the guest (name, appointment date, procedure, branch).
+Rate-limit the GET and POST /api/pre-register/:token routes to prevent brute-force token guessing.
+Validate and sanitize all address fields on the server side before saving. Do not trust client-side validation alone.
+
+8.  Out of Scope
+
+The following items are explicitly excluded from this change document and should be addressed separately if needed:
+
+Changes to the mobile app (ngitify-mobile) patient-facing screens.
+Changes to the existing patient account activation email template.
+Integration with any third-party email delivery service configuration.
+Retroactive migration of existing guest appointment records to include the new fields.
+Any changes to the dentist or branch manager workflows beyond the visual badge described in Section 4.8.
+

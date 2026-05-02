@@ -82,6 +82,12 @@ const normalizeSurgery = (surgery) => ({
     guestName: surgery.guestName || '',
     guestEmail: surgery.guestEmail || '',
     guestPhone: surgery.guestPhone || '',
+    guestBirthdate: surgery.guestBirthdate || '',
+    guestGender: surgery.guestGender || '',
+    guestCurrentAddress: surgery.guestCurrentAddress || null,
+    guestPermanentAddress: surgery.guestPermanentAddress || null,
+    preRegistrationCompleted: Boolean(surgery.preRegistrationCompleted),
+    preRegistrationTokenExpiry: surgery.preRegistrationTokenExpiry || '',
     dentistId: surgery.dentist?._id || surgery.dentist,
     dentistName: surgery.dentist?.name
         ? `Dr. ${surgery.dentist.name.first} ${surgery.dentist.name.last}`.trim()
@@ -96,6 +102,28 @@ const normalizeSurgery = (surgery) => ({
     branch: surgery.branch || '',
     isGuest: !surgery.patient && surgery.source === 'Smile Hub (Online)',
 });
+
+const isAddressComplete = (address) => (
+    ['region', 'province', 'city', 'barangay', 'street', 'houseNumber']
+        .every((field) => Boolean(address?.[field]))
+);
+
+const getGuestPreRegistrationMeta = (appointment) => {
+    if (!appointment.isGuest) return null;
+    if (appointment.preRegistrationCompleted) {
+        return { label: 'Ready to Register', background: '#dcfce7', color: '#166534' };
+    }
+    if (appointment.guestBirthdate && appointment.guestGender && isAddressComplete(appointment.guestCurrentAddress) && isAddressComplete(appointment.guestPermanentAddress)) {
+        return { label: 'Ready to Register', background: '#dcfce7', color: '#166534' };
+    }
+    if (appointment.preRegistrationTokenExpiry && new Date(appointment.preRegistrationTokenExpiry) < new Date()) {
+        return { label: 'Link Expired', background: '#fee2e2', color: '#b91c1c' };
+    }
+    if (appointment.rawStatus === 'confirmed') {
+        return { label: 'Awaiting Guest Info', background: '#fef3c7', color: '#b45309' };
+    }
+    return null;
+};
 
 const extractPatients = (payload) => {
     if (Array.isArray(payload)) return payload;
@@ -440,26 +468,35 @@ export default function AdminAppointments() {
 
     const handleConfirmGuestAppointment = async (appointment) => {
         try {
-            const response = await authFetch(`/admin/appointments/${appointment.id}/register-guest`, {
+            const response = await authFetch(`/surgeries/${appointment.id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'confirmed' }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Unable to confirm guest appointment.');
+            addToast('Guest appointment confirmed. A pre-registration link was sent to the guest.', 'success');
+            await fetchAppointments(true);
+        } catch (error) {
+            addToast(error.message || 'Failed to confirm guest appointment.', 'error');
+        }
+    };
+
+    const handleOpenGuestRegistration = (appointment) => {
+        setGuestRegistrationTarget(appointment);
+    };
+
+    const handleResendPreRegistration = async (appointment) => {
+        try {
+            const response = await authFetch(`/admin/appointments/${appointment.id}/resend-pre-register`, {
                 method: 'POST',
                 body: JSON.stringify({}),
             });
             const data = await response.json().catch(() => ({}));
-
-            if (response.ok && data.linkedExisting) {
-                addToast('Guest appointment linked to the existing patient account.', 'success');
-                await fetchAppointments(true);
-                return;
-            }
-
-            if (response.status === 400) {
-                setGuestRegistrationTarget(appointment);
-                return;
-            }
-
-            addToast(data.message || 'Unable to process guest appointment.', 'error');
+            if (!response.ok) throw new Error(data.message || 'Unable to resend pre-registration link.');
+            addToast('Pre-registration link resent successfully.', 'success');
+            await fetchAppointments(true);
         } catch (error) {
-            addToast('Failed to start guest registration.', 'error');
+            addToast(error.message || 'Unable to process guest appointment.', 'error');
         }
     };
 
@@ -552,21 +589,38 @@ export default function AdminAppointments() {
                                     <div className={styles.patientDetails}>
                                         <p className={styles.patientName}>{appointment.patientName}</p>
                                         {appointment.isGuest && (
-                                            <span style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                marginTop: '6px',
-                                                padding: '4px 10px',
-                                                borderRadius: '999px',
-                                                background: '#fff7ed',
-                                                color: '#c2410c',
-                                                fontSize: '11px',
-                                                fontWeight: 700,
-                                                letterSpacing: '0.04em',
-                                                textTransform: 'uppercase',
-                                            }}>
-                                                Guest
-                                            </span>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                                                <span style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    padding: '4px 10px',
+                                                    borderRadius: '999px',
+                                                    background: '#fff7ed',
+                                                    color: '#c2410c',
+                                                    fontSize: '11px',
+                                                    fontWeight: 700,
+                                                    letterSpacing: '0.04em',
+                                                    textTransform: 'uppercase',
+                                                }}>
+                                                    Guest
+                                                </span>
+                                                {getGuestPreRegistrationMeta(appointment) && (
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        padding: '4px 10px',
+                                                        borderRadius: '999px',
+                                                        background: getGuestPreRegistrationMeta(appointment).background,
+                                                        color: getGuestPreRegistrationMeta(appointment).color,
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        letterSpacing: '0.04em',
+                                                        textTransform: 'uppercase',
+                                                    }}>
+                                                        {getGuestPreRegistrationMeta(appointment).label}
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
                                         <p className={styles.treatmentType}>
                                             {appointment.procedure}{appointment.branch ? ` • ${appointment.branch}` : ''}
@@ -615,10 +669,32 @@ export default function AdminAppointments() {
                                         <button
                                             className={styles.viewBtn}
                                             onClick={() => handleConfirmGuestAppointment(appointment)}
-                                            title="Confirm and register guest as patient"
+                                            title="Confirm guest request and send pre-registration email"
                                             style={{ background: '#01538b', color: '#fff' }}
                                         >
-                                            Confirm & Register
+                                            Confirm Request
+                                        </button>
+                                    )}
+
+                                    {appointment.isGuest && appointment.rawStatus === 'confirmed' && getGuestPreRegistrationMeta(appointment)?.label === 'Ready to Register' && (
+                                        <button
+                                            className={styles.viewBtn}
+                                            onClick={() => handleOpenGuestRegistration(appointment)}
+                                            title="Register guest as patient"
+                                            style={{ background: '#01538b', color: '#fff' }}
+                                        >
+                                            Register Guest
+                                        </button>
+                                    )}
+
+                                    {appointment.isGuest && appointment.rawStatus === 'confirmed' && getGuestPreRegistrationMeta(appointment)?.label !== 'Ready to Register' && (
+                                        <button
+                                            className={styles.viewBtn}
+                                            onClick={() => handleResendPreRegistration(appointment)}
+                                            title="Resend pre-registration link"
+                                            style={{ background: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74' }}
+                                        >
+                                            Resend Link
                                         </button>
                                     )}
 

@@ -2,6 +2,16 @@
 
 const mongoose = require('mongoose');
 
+const addressSchema = new mongoose.Schema({
+    country: { type: String, default: 'Philippines' },
+    region: { type: String },
+    province: { type: String },
+    city: { type: String },
+    barangay: { type: String },
+    houseNumber: { type: String },
+    street: { type: String }
+}, { _id: false });
+
 const surgerySchema = new mongoose.Schema({
     // ✅ FIX: Changed ref from 'Patient' to 'User' — patients are stored in the User collection
     patient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -10,6 +20,13 @@ const surgerySchema = new mongoose.Schema({
     guestName:  { type: String, trim: true },
     guestEmail: { type: String, trim: true, lowercase: true },
     guestPhone: { type: String, trim: true },
+    guestBirthdate: { type: Date },
+    guestGender: { type: String },
+    guestCurrentAddress: addressSchema,
+    guestPermanentAddress: addressSchema,
+    preRegistrationToken: { type: String },
+    preRegistrationTokenExpiry: { type: Date },
+    preRegistrationCompleted: { type: Boolean, default: false },
 
     branch: { type: String, required: true },
     date:   { type: Date,   required: true },

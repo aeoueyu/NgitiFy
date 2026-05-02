@@ -13,6 +13,9 @@ const initialForm = {
     fullName: '',
     phone: '',
     email: '',
+    birthdate: '',
+    gender: '',
+    captchaConfirmed: false,
     branch: locationCards[0]?.name || '',
     preferredDate: '',
     preferredTime: '',
@@ -41,8 +44,8 @@ const isSlotPast = (slot24, dateStr) => {
 };
 
 const fullNameRegex = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
-const phoneRegex = /^(?:\+63|0)\d{10}$/;
-const normalizePhone = (value) => value.replace(/[^\d+]/g, '');
+const phoneRegex = /^9\d{9}$/;
+const normalizePhone = (value) => value.replace(/[^0-9]/g, '').slice(0, 10);
 
 export default function WebsiteAppointment() {
     const [formData, setFormData] = useState(initialForm);
@@ -125,10 +128,21 @@ export default function WebsiteAppointment() {
         else if (!fullNameRegex.test(trimmedName)) nextErrors.fullName = 'Enter a valid full name.';
 
         if (!data.phone.trim()) nextErrors.phone = 'Phone number is required.';
-        else if (!phoneRegex.test(data.phone.trim())) nextErrors.phone = 'Enter a valid Philippine phone number.';
+        else if (!phoneRegex.test(data.phone.trim())) nextErrors.phone = 'Use the same format as registration: 9xxxxxxxxx.';
 
         if (!trimmedEmail) nextErrors.email = 'Email address is required.';
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) nextErrors.email = 'Enter a valid email address.';
+
+        if (!data.birthdate) nextErrors.birthdate = 'Birthdate is required.';
+        else {
+            const selectedBirthdate = new Date(`${data.birthdate}T12:00:00`);
+            if (Number.isNaN(selectedBirthdate.getTime())) nextErrors.birthdate = 'Choose a valid birthdate.';
+            else if (selectedBirthdate >= new Date()) nextErrors.birthdate = 'Birthdate must be in the past.';
+        }
+
+        if (!data.gender) nextErrors.gender = 'Gender is required.';
+
+        if (!data.captchaConfirmed) nextErrors.captchaConfirmed = 'Please confirm that you are not a robot.';
 
         if (!data.branch) nextErrors.branch = 'Branch is required.';
 
@@ -156,8 +170,12 @@ export default function WebsiteAppointment() {
     }, [blockedDates, visibleSlots]);
 
     const handleChange = (event) => {
-        const { name, value } = event.target;
-        const nextValue = name === 'phone' ? normalizePhone(value) : value;
+        const { name, value, type, checked } = event.target;
+        const nextValue = type === 'checkbox'
+            ? checked
+            : name === 'phone'
+                ? normalizePhone(value)
+                : value;
 
         setFormData((prev) => {
             const nextState = { ...prev, [name]: nextValue };
@@ -208,6 +226,9 @@ export default function WebsiteAppointment() {
                     fullName: formData.fullName.trim().replace(/\s+/g, ' '),
                     phone: formData.phone.trim(),
                     email: formData.email.trim().toLowerCase(),
+                    birthdate: formData.birthdate,
+                    gender: formData.gender,
+                    captchaConfirmed: formData.captchaConfirmed,
                     branch: formData.branch,
                     date: formData.preferredDate,
                     time: formData.preferredTime,
@@ -311,7 +332,9 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldInput} ${errors.phone ? styles.errorBorder : ''}`}
                                     value={formData.phone}
                                     onChange={handleChange}
-                                    placeholder="09XXXXXXXXX"
+                                    inputMode="numeric"
+                                    maxLength={10}
+                                    placeholder="9xxxxxxxxx"
                                     required
                                 />
                                 {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
@@ -330,6 +353,40 @@ export default function WebsiteAppointment() {
                                     required
                                 />
                                 {errors.email && <span className={styles.errorText}>{errors.email}</span>}
+                            </div>
+
+                            <div className={styles.fieldGroup}>
+                                <label className={styles.fieldLabel} htmlFor="birthdate">Date of Birth</label>
+                                <input
+                                    id="birthdate"
+                                    type="date"
+                                    name="birthdate"
+                                    className={`${styles.fieldInput} ${errors.birthdate ? styles.errorBorder : ''}`}
+                                    value={formData.birthdate}
+                                    onChange={handleChange}
+                                    max={getTodayString()}
+                                    required
+                                />
+                                {errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}
+                            </div>
+
+                            <div className={styles.fieldGroup}>
+                                <label className={styles.fieldLabel} htmlFor="gender">Gender</label>
+                                <select
+                                    id="gender"
+                                    name="gender"
+                                    className={`${styles.fieldSelect} ${errors.gender ? styles.errorBorder : ''}`}
+                                    value={formData.gender}
+                                    onChange={handleChange}
+                                    required
+                                >
+                                    <option value="" disabled>Select gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                    <option value="Prefer not to say">Prefer not to say</option>
+                                </select>
+                                {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
                             </div>
 
                             <div className={styles.fieldGroup}>
@@ -425,6 +482,26 @@ export default function WebsiteAppointment() {
                                     required
                                 />
                                 {errors.notes && <span className={styles.errorText}>{errors.notes}</span>}
+                            </div>
+
+                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
+                                <label
+                                    htmlFor="captchaConfirmed"
+                                    className={`${styles.checkboxCard} ${errors.captchaConfirmed ? styles.errorBorder : ''}`}
+                                >
+                                    <input
+                                        id="captchaConfirmed"
+                                        type="checkbox"
+                                        name="captchaConfirmed"
+                                        className={styles.checkboxInput}
+                                        checked={formData.captchaConfirmed}
+                                        onChange={handleChange}
+                                    />
+                                    <span className={styles.checkboxText}>
+                                        I confirm that I am not a robot.
+                                    </span>
+                                </label>
+                                {errors.captchaConfirmed && <span className={styles.errorText}>{errors.captchaConfirmed}</span>}
                             </div>
                         </div>
 
