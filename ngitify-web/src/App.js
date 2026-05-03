@@ -39,6 +39,7 @@ const AppointmentNotifications = lazy(() => import('./pages/admin/AppointmentNot
 
 // ✅ PHASE 2: New admin pages
 const ManageBranchManagers = lazy(() => import('./pages/admin/ManageBranchManagers'));
+const ManageOwners = lazy(() => import('./pages/admin/ManageOwners'));
 const AddBranchManager = lazy(() => import('./pages/admin/AddBranchManager'));
 const AdminPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
 const SystemConfig = lazy(() => import('./pages/admin/SystemConfig'));
@@ -232,7 +233,7 @@ function App() {
                   <Route path="/admin/manage-users/patients" element={<Navigate to="/admin/patients" replace />} />
                   <Route path="/admin/patients" element={<ManagePatients />} />
                   <Route path="/admin/manage-users/branch-managers" element={<ManageBranchManagers />} />
-                  <Route path="/admin/manage-users/owners" element={<Navigate to="/admin/manage-users/secretaries" replace />} />
+                  <Route path="/admin/manage-users/owners" element={<ManageOwners />} />
 
                   {/* Add/Edit staff */}
                   <Route path="/admin/add-dentist" element={<AddDentist />} />
