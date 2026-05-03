@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     FaEdit,
     FaEye,
@@ -46,13 +47,14 @@ const APPOINTMENT_STATUS_OPTIONS = [
     { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const APPOINTMENT_SOURCE_OPTIONS = [
-    { value: 'Walk-in', label: 'Walk-in' },
-    { value: 'Phone Call', label: 'Phone Call' },
-    { value: 'Smile Hub (Online)', label: 'Online Request' },
+const SCHEDULE_SOURCE_OPTIONS = [
+    { value: '', label: '--SELECT SOURCE--' },
+    { value: 'appointment', label: 'Appointment' },
+    { value: 'walkin', label: 'Walk-in' },
 ];
 
 const DATE_FILTER_OPTIONS = [
+    { value: 'all', label: 'All' },
     { value: 'today', label: 'Today' },
     { value: '3days', label: '3 Days' },
     { value: '7days', label: '7 Days' },
@@ -226,7 +228,7 @@ const buildInitialForm = ({ assignedBranch, currentUserId, role }) => ({
     procedure: '',
     notes: '',
     status: 'pending',
-    source: 'Walk-in',
+    source: '',
     contactNumber: '',
     assignedDentist: '',
 });
@@ -234,6 +236,7 @@ const buildInitialForm = ({ assignedBranch, currentUserId, role }) => ({
 export default function SchedulePage() {
     const { user } = useAuth();
     const { addToast } = useToast();
+    const navigate = useNavigate();
 
     const role = user?.role || '';
     const currentUserId = user?.userId || user?.id || user?._id || '';
@@ -256,7 +259,7 @@ export default function SchedulePage() {
     const [dentists, setDentists] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [dateFilter, setDateFilter] = useState('today');
+    const [dateFilter, setDateFilter] = useState('all');
     const [customDateFrom, setCustomDateFrom] = useState(getTodayString());
     const [customDateTo, setCustomDateTo] = useState(getTodayString());
     const [searchQuery, setSearchQuery] = useState('');
@@ -277,6 +280,9 @@ export default function SchedulePage() {
 
     const todayString = getTodayString();
     const selectedDateRange = useMemo(() => {
+        if (dateFilter === 'all') {
+            return { from: '', to: '' };
+        }
         if (dateFilter === '3days') {
             return { from: todayString, to: addDaysToDateString(todayString, 2) };
         }
@@ -292,7 +298,7 @@ export default function SchedulePage() {
         }
         return { from: todayString, to: todayString };
     }, [customDateFrom, customDateTo, dateFilter, todayString]);
-    const rangeIncludesToday = selectedDateRange.from <= todayString && selectedDateRange.to >= todayString;
+    const rangeIncludesToday = !selectedDateRange.from || (selectedDateRange.from <= todayString && selectedDateRange.to >= todayString);
 
     const resetFormState = useCallback(() => {
         setFormState(buildInitialForm({ assignedBranch, currentUserId, role }));
@@ -307,7 +313,9 @@ export default function SchedulePage() {
         setLoading(true);
         try {
             const requests = [
-                authFetch(`/appointments?dateFrom=${selectedDateRange.from}&dateTo=${selectedDateRange.to}`),
+                authFetch(selectedDateRange.from
+                    ? `/appointments?dateFrom=${selectedDateRange.from}&dateTo=${selectedDateRange.to}`
+                    : '/appointments'),
                 authFetch('/patients'),
                 authFetch('/users?role=dentist'),
             ];
@@ -450,6 +458,7 @@ export default function SchedulePage() {
         () => patients.map((patient) => ({
             id: patient._id,
             name: normalizePatientName(patient) || patient.email || 'Unknown Patient',
+            email: patient.email || '',
             contactNumber: patient.contactNumber || '',
         })),
         [patients]
@@ -468,10 +477,18 @@ export default function SchedulePage() {
             name: `Dr. ${dentist.name?.first || ''} ${dentist.name?.last || ''}`.trim(),
             branch: dentist.assignedBranch || dentist.assignedBranches?.[0] || '',
         }));
-        return isDentist
+        const baseList = isDentist
             ? activeList.filter((entry) => entry.id === currentUserId)
             : activeList;
-    }, [currentUserId, dentists, isDentist]);
+        return formState.branch
+            ? baseList.filter((entry) => !entry.branch || entry.branch === formState.branch)
+            : baseList;
+    }, [currentUserId, dentists, formState.branch, isDentist]);
+
+    const patientSearchOptions = useMemo(
+        () => patientOptions.map((patient) => `${patient.name}${patient.email ? ` (${patient.email})` : ''}`),
+        [patientOptions]
+    );
 
     const combinedRows = useMemo(() => {
         const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -538,7 +555,7 @@ export default function SchedulePage() {
             procedure: entry.procedure || '',
             notes: entry.notes || '',
             status: entry.status || 'pending',
-            source: entry.source || 'Walk-in',
+            source: entry.type === 'walkin' ? 'walkin' : 'appointment',
             contactNumber: entry.contactNumber || '',
             assignedDentist: entry.type === 'walkin' ? (entry.dentistName === 'Unassigned' ? '' : entry.dentistName) : '',
         };
@@ -557,17 +574,35 @@ export default function SchedulePage() {
         const { name, value } = event.target;
         setFormState((prev) => {
             const next = { ...prev, [name]: value };
-            if (name === 'formType') {
+            if (name === 'source') {
+                const nextType = value === 'walkin' ? 'walkin' : 'appointment';
+                next.formType = nextType;
                 next.status = 'pending';
-                next.date = value === 'walkin' ? todayString : prev.date || todayString;
+                next.date = nextType === 'walkin' ? todayString : prev.date || todayString;
                 next.time = '';
-                next.source = value === 'walkin' ? 'Walk-in' : prev.source || 'Walk-in';
+                if (nextType === 'walkin') {
+                    next.dentistId = '';
+                }
             }
             if (name === 'patientId') {
                 const matchedPatient = patientOptions.find((entry) => entry.id === value);
                 if (matchedPatient) {
                     next.patientName = matchedPatient.name;
                     next.contactNumber = matchedPatient.contactNumber;
+                }
+            }
+            if (name === 'patientName') {
+                const matchedPatient = patientOptions.find((entry) => (
+                    value === entry.name
+                    || value === entry.email
+                    || value === `${entry.name}${entry.email ? ` (${entry.email})` : ''}`
+                ));
+                if (matchedPatient) {
+                    next.patientId = matchedPatient.id;
+                    next.patientName = matchedPatient.name;
+                    next.contactNumber = matchedPatient.contactNumber;
+                } else if (prev.formType === 'walkin') {
+                    next.patientId = '';
                 }
             }
             if (name === 'date' || name === 'branch') {
@@ -580,16 +615,12 @@ export default function SchedulePage() {
         }
     };
 
-    const handleSelectSlot = (slot) => {
-        setFormState((prev) => ({ ...prev, time: slot }));
-        setFormErrors((prev) => ({ ...prev, time: '' }));
-    };
-
     const validateForm = () => {
         const nextErrors = {};
         const activeBranch = formState.branch || assignedBranch;
 
         if (!activeBranch) nextErrors.branch = 'Select a branch.';
+        if (!formState.source) nextErrors.source = 'Select a source.';
         if (formState.formType === 'appointment') {
             if (!formState.patientId) nextErrors.patientId = 'Select a patient.';
             if (!formState.dentistId && canChooseDentist) nextErrors.dentistId = 'Select a dentist.';
@@ -627,7 +658,7 @@ export default function SchedulePage() {
                     procedure: formState.procedure,
                     notes: formState.notes,
                     status: formState.status,
-                    source: formState.source,
+                    source: 'Appointment',
                 };
 
                 const response = await authFetch(
@@ -695,6 +726,12 @@ export default function SchedulePage() {
 
         const activeBranch = formState.branch || assignedBranch;
         const showWalkInFields = formState.formType === 'walkin';
+        const patientManagementPath = {
+            administrator: '/admin/patients',
+            owner: '/owner/patients',
+            'branch-manager': '/branch-manager/patients',
+            secretary: '/secretary/patients',
+        }[role];
 
         return (
             <div className={styles.modalOverlay}>
@@ -705,9 +742,7 @@ export default function SchedulePage() {
                                 {editingEntry ? 'Edit Schedule Entry' : 'Create Schedule Entry'}
                             </h2>
                             <p className={styles.modalSubtitle}>
-                                {showWalkInFields
-                                    ? 'Walk-ins are saved to today\'s branch queue.'
-                                    : 'Appointments are scheduled into the clinic calendar.'}
+                                Search an existing patient first, or add a new patient before saving this schedule entry.
                             </p>
                         </div>
                         <button type="button" className={styles.closeButton} onClick={closeFormModal}>
@@ -718,34 +753,19 @@ export default function SchedulePage() {
                     <form onSubmit={handleSubmitForm} className={styles.modalBody}>
                         <div className={styles.formGrid}>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Entry Type</label>
+                                <label className={styles.formLabel}>Source</label>
                                 <select
-                                    name="formType"
+                                    name="source"
                                     className={styles.formControl}
-                                    value={formState.formType}
+                                    value={formState.source}
                                     onChange={handleFormFieldChange}
-                                    disabled={Boolean(editingEntry)}
                                 >
-                                    <option value="appointment">Appointment</option>
-                                    {canManageQueue && <option value="walkin">Walk-in</option>}
+                                    {SCHEDULE_SOURCE_OPTIONS.filter((option) => canManageQueue || option.value !== 'walkin').map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
                                 </select>
+                                {formErrors.source && <span className={styles.errorText}>{formErrors.source}</span>}
                             </div>
-
-                            {!showWalkInFields && (
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Source</label>
-                                    <select
-                                        name="source"
-                                        className={styles.formControl}
-                                        value={formState.source}
-                                        onChange={handleFormFieldChange}
-                                    >
-                                        {APPOINTMENT_SOURCE_OPTIONS.map((option) => (
-                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
 
                             {canChooseBranch && (
                                 <div className={styles.formGroup}>
@@ -756,7 +776,7 @@ export default function SchedulePage() {
                                         value={formState.branch}
                                         onChange={handleFormFieldChange}
                                     >
-                                        <option value="">Select branch</option>
+                                        <option value="">--SELECT BRANCH--</option>
                                         {branchOptions.map((branch) => (
                                             <option key={branch} value={branch}>{branch}</option>
                                         ))}
@@ -765,40 +785,47 @@ export default function SchedulePage() {
                                 </div>
                             )}
 
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Patient</label>
-                                <select
-                                    name="patientId"
-                                    className={styles.formControl}
-                                    value={formState.patientId}
-                                    onChange={handleFormFieldChange}
-                                >
-                                    <option value="">Select patient</option>
-                                    {patientOptions.map((patient) => (
-                                        <option key={patient.id} value={patient.id}>{patient.name}</option>
-                                    ))}
-                                </select>
-                                {formErrors.patientId && <span className={styles.errorText}>{formErrors.patientId}</span>}
-                            </div>
-
-                            {showWalkInFields && (
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Walk-in Name</label>
-                                    <input
-                                        type="text"
-                                        name="patientName"
-                                        className={styles.formControl}
-                                        value={formState.patientName}
-                                        onChange={handleFormFieldChange}
-                                        placeholder="Enter walk-in patient name"
-                                    />
-                                    {formErrors.patientName && <span className={styles.errorText}>{formErrors.patientName}</span>}
+                            <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                <label className={styles.formLabel}>Select Patient</label>
+                                <div className={styles.patientSearchRow}>
+                                    <div>
+                                        <input
+                                            list="schedule-patient-search"
+                                            type="text"
+                                            name="patientName"
+                                            className={styles.formControl}
+                                            value={showWalkInFields ? formState.patientName : (formState.patientId ? `${formState.patientName}${patientOptions.find((entry) => entry.id === formState.patientId)?.email ? ` (${patientOptions.find((entry) => entry.id === formState.patientId)?.email})` : ''}` : formState.patientName)}
+                                            onChange={handleFormFieldChange}
+                                            placeholder="Search patient name or email"
+                                        />
+                                        <datalist id="schedule-patient-search">
+                                            {patientSearchOptions.map((option) => (
+                                                <option key={option} value={option} />
+                                            ))}
+                                        </datalist>
+                                    </div>
+                                    {patientManagementPath && (
+                                        <button
+                                            type="button"
+                                            className={styles.secondaryButton}
+                                            onClick={() => {
+                                                closeFormModal();
+                                                navigate(patientManagementPath, { state: { openAddModal: true } });
+                                            }}
+                                        >
+                                            <FaPlus />
+                                            Add New Patient
+                                        </button>
+                                    )}
                                 </div>
-                            )}
+                                {(formErrors.patientId || formErrors.patientName) && (
+                                    <span className={styles.errorText}>{formErrors.patientId || formErrors.patientName}</span>
+                                )}
+                            </div>
 
                             {canChooseDentist ? (
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Dentist Assigned</label>
+                                    <label className={styles.formLabel}>Dentist</label>
                                     <select
                                         name="dentistId"
                                         className={styles.formControl}
@@ -815,7 +842,7 @@ export default function SchedulePage() {
                                 </div>
                             ) : (
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Dentist Assigned</label>
+                                    <label className={styles.formLabel}>Dentist</label>
                                     <input
                                         type="text"
                                         className={styles.formControl}
@@ -853,7 +880,7 @@ export default function SchedulePage() {
                                 </div>
                             ) : (
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Appointment Date</label>
+                                    <label className={styles.formLabel}>Date</label>
                                     <input
                                         type="date"
                                         name="date"
@@ -910,8 +937,8 @@ export default function SchedulePage() {
                             </div>
 
                             {!showWalkInFields && (
-                                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                    <label className={styles.formLabel}>Appointment Time</label>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Time</label>
                                     {!formState.date || !activeBranch ? (
                                         <div className={styles.helperText}>Select a branch and date first to load available time slots.</div>
                                     ) : loadingSlots ? (
@@ -921,25 +948,24 @@ export default function SchedulePage() {
                                     ) : availableSlots.length === 0 ? (
                                         <div className={styles.helperText}>No available slots for the selected date.</div>
                                     ) : (
-                                        <div className={styles.slotList}>
+                                        <select
+                                            name="time"
+                                            className={styles.formControl}
+                                            value={formState.time}
+                                            onChange={handleFormFieldChange}
+                                        >
+                                            <option value="">Select time</option>
                                             {availableSlots.map((slot) => (
-                                                <button
-                                                    key={slot}
-                                                    type="button"
-                                                    className={`${styles.slotButton} ${formState.time === slot ? styles.slotButtonActive : ''}`}
-                                                    onClick={() => handleSelectSlot(slot)}
-                                                >
-                                                    {to12h(slot)}
-                                                </button>
+                                                <option key={slot} value={slot}>{to12h(slot)}</option>
                                             ))}
-                                        </div>
+                                        </select>
                                     )}
                                     {formErrors.time && <span className={styles.errorText}>{formErrors.time}</span>}
                                 </div>
                             )}
 
                             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                <label className={styles.formLabel}>Notes / Chief Complaint</label>
+                                <label className={styles.formLabel}>Notes</label>
                                 <textarea
                                     name="notes"
                                     rows="4"
@@ -1078,7 +1104,7 @@ export default function SchedulePage() {
                     <div>
                         <h1 className={styles.pageTitle}>Schedule Management</h1>
                         <p className={styles.pageSubtitle}>
-                            Appointments and walk-ins are shown in one schedule view, with quick date pills and a custom range when you need it.
+                            Appointments and walk-ins are shown in one schedule view, with branch-aware dentist filtering and a patient search flow that matches registration.
                         </p>
                     </div>
                     {canCreateSchedule && (
@@ -1171,12 +1197,12 @@ export default function SchedulePage() {
                         <thead>
                             <tr>
                                 <th style={{ width: '42px', textAlign: 'center' }}>#</th>
-                                <th>Patient Name</th>
-                                <th style={{ width: '150px' }}>Date</th>
-                                <th style={{ width: '150px' }}>Type</th>
-                                <th>Dentist Assigned</th>
-                                <th style={{ width: '150px' }}>Status</th>
-                                <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                                <th>NAME</th>
+                                <th style={{ width: '170px' }}>DATE</th>
+                                <th style={{ width: '150px' }}>SOURCE</th>
+                                <th>DENTIST</th>
+                                <th style={{ width: '150px' }}>STATUS</th>
+                                <th style={{ width: '120px', textAlign: 'center' }}>ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -19,8 +19,7 @@ export default function ManageSecretaries() {
     const isBranchManager = user?.role === 'branch-manager';
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All');
-    const [verifiedFilter, setVerifiedFilter] = useState('All');
+    const [statusFilter, setStatusFilter] = useState('Active');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [secretariesList, setSecretariesList] = useState([]);
@@ -54,7 +53,7 @@ export default function ManageSecretaries() {
                             id: u._id,
                             name: parsedName,
                             email: u.email || 'N/A',
-                            status: u.status === 'active' ? 'Active' : 'Inactive',
+                            rawStatus: u.status || 'inactive',
                             isVerified: u.isVerified,
                             profileImage: u.profileImage,
                             // ✅ PHASE 2: Branch assignment
@@ -77,12 +76,10 @@ export default function ManageSecretaries() {
     const filteredSecretaries = secretariesList.filter(secretary => {
         const matchesSearch = secretary.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             secretary.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || secretary.status === statusFilter;
-        const matchesVerified = verifiedFilter === 'All' ||
-                                (verifiedFilter === 'Verified' && secretary.isVerified) ||
-                                (verifiedFilter === 'Unverified' && !secretary.isVerified);
+        const computedStatus = (!secretary.isVerified || secretary.rawStatus !== 'active') ? 'Inactive' : 'Active';
+        const matchesStatus = statusFilter === 'All' || computedStatus === statusFilter;
         const matchesBranch = branchFilter === 'All' || secretary.assignedBranches.includes(branchFilter);
-        return matchesSearch && matchesStatus && matchesVerified && matchesBranch;
+        return matchesSearch && matchesStatus && matchesBranch;
     });
 
     const handleToggleStatus = (secretary) => {
@@ -111,7 +108,7 @@ export default function ManageSecretaries() {
             });
             if (res.ok) {
                 setSecretariesList(prev => prev.map(s =>
-                    s.id === id ? { ...s, status: newStatus === 'active' ? 'Active' : 'Inactive' } : s
+                    s.id === id ? { ...s, rawStatus: newStatus } : s
                 ));
                 addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} ${name}'s account.`, 'success');
             } else {
@@ -170,20 +167,10 @@ export default function ManageSecretaries() {
                         />
                     </div>
 
-                    <select
-                        className={styles.filterSelect}
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                    >
-                        <option value="All">All Statuses</option>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                    </select>
-
                     <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'All' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('All')}>All</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'Active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'Inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Inactive')}>Inactive</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
                     </div>
 
                     <select
@@ -216,8 +203,10 @@ export default function ManageSecretaries() {
                         {isLoading ? (
                             <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredSecretaries.length > 0 ? (
-                            filteredSecretaries.map((secretary) => (
-                                <tr key={secretary.id} style={{ opacity: secretary.status === 'Inactive' ? 0.6 : 1 }}>
+                            filteredSecretaries.map((secretary) => {
+                                const computedStatus = (!secretary.isVerified || secretary.rawStatus !== 'active') ? 'Inactive' : 'Active';
+                                return (
+                                <tr key={secretary.id} style={{ opacity: computedStatus === 'Inactive' ? 0.6 : 1 }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>{secretary.name}</span>
@@ -227,11 +216,16 @@ export default function ManageSecretaries() {
                                         </div>
                                         {!secretary.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
-                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>{secretary.email}</td>
+                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span>{secretary.email}</span>
+                                            {!secretary.isVerified && <span style={{ color: '#01538b', fontSize: '12px', fontWeight: 600 }}>Resend Activation Link to email</span>}
+                                        </div>
+                                    </td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${secretary.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
-                                            {secretary.status}
+                                        <span className={`${tblStyles.statusBadge} ${computedStatus === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                            {computedStatus}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
@@ -250,16 +244,17 @@ export default function ManageSecretaries() {
                                             )}
                                             <button
                                                 type="button"
-                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${secretary.status === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
-                                                onClick={() => handleToggleStatus(secretary)}
-                                                title={secretary.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                onClick={() => handleToggleStatus({ ...secretary, status: computedStatus })}
+                                                title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
                                             >
-                                                {secretary.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))
+                            );
+                            })
                         ) : (
                             <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found matching filters.</td></tr>
                         )}

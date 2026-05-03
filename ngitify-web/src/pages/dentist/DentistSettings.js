@@ -188,7 +188,6 @@ export default function DentistSettings() {
     const renderSecurity = () => (
         <div>
             <h3 className={styles.mainSectionTitle}>Account Security</h3>
-            <p className={styles.sectionDescription}>Keep your account secure with a strong password.</p>
 
             {apiError && <div className={styles.apiErrorMessage}>{apiError}</div>}
 
@@ -278,13 +277,6 @@ export default function DentistSettings() {
                 </div>
             </form>
 
-            <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '30px 0' }} />
-            <div className={styles.toggleRow}>
-                <div className={styles.toggleLabel}>
-                    <span className={styles.toggleTitle}>Two-Factor Authentication (2FA)</span>
-                    <span className={styles.toggleDesc}>Coming in a future update.</span>
-                </div>
-            </div>
         </div>
     );
 

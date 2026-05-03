@@ -19,8 +19,7 @@ export default function ManageDentists() {
     const isBranchManager = user?.role === 'branch-manager';
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All');
-    const [verifiedFilter, setVerifiedFilter] = useState('All');
+    const [statusFilter, setStatusFilter] = useState('Active');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [dentistsList, setDentistsList] = useState([]);
@@ -54,7 +53,7 @@ export default function ManageDentists() {
                             id: u._id,
                             name: parsedName,
                             email: u.email || 'N/A',
-                            status: u.status === 'active' ? 'Active' : 'Inactive',
+                            rawStatus: u.status || 'inactive',
                             isVerified: u.isVerified,
                             profileImage: u.profileImage,
                             // ✅ PHASE 2: Branch assignment
@@ -77,12 +76,10 @@ export default function ManageDentists() {
     const filteredDentists = dentistsList.filter(dentist => {
         const matchesSearch = dentist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             dentist.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || dentist.status === statusFilter;
-        const matchesVerified = verifiedFilter === 'All' ||
-                                (verifiedFilter === 'Verified' && dentist.isVerified) ||
-                                (verifiedFilter === 'Unverified' && !dentist.isVerified);
+        const computedStatus = (!dentist.isVerified || dentist.rawStatus !== 'active') ? 'Inactive' : 'Active';
+        const matchesStatus = statusFilter === 'All' || computedStatus === statusFilter;
         const matchesBranch = branchFilter === 'All' || dentist.assignedBranches.includes(branchFilter);
-        return matchesSearch && matchesStatus && matchesVerified && matchesBranch;
+        return matchesSearch && matchesStatus && matchesBranch;
     });
 
     const handleToggleStatus = (dentist) => {
@@ -111,7 +108,7 @@ export default function ManageDentists() {
             });
             if (res.ok) {
                 setDentistsList(prev => prev.map(d =>
-                    d.id === id ? { ...d, status: newStatus === 'active' ? 'Active' : 'Inactive' } : d
+                    d.id === id ? { ...d, rawStatus: newStatus } : d
                 ));
                 addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} Dr. ${name}'s account.`, 'success');
             } else {
@@ -170,20 +167,10 @@ export default function ManageDentists() {
                         />
                     </div>
 
-                    <select
-                        className={styles.filterSelect}
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                    >
-                        <option value="All">All Statuses</option>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                    </select>
-
                     <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'All' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('All')}>All</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'Active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'Inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Inactive')}>Inactive</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
                     </div>
 
                     <select
@@ -216,8 +203,10 @@ export default function ManageDentists() {
                         {isLoading ? (
                             <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredDentists.length > 0 ? (
-                            filteredDentists.map((dentist) => (
-                                <tr key={dentist.id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
+                            filteredDentists.map((dentist) => {
+                                const computedStatus = (!dentist.isVerified || dentist.rawStatus !== 'active') ? 'Inactive' : 'Active';
+                                return (
+                                <tr key={dentist.id} style={{ opacity: computedStatus === 'Inactive' ? 0.6 : 1 }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>Dr. {dentist.name}</span>
@@ -227,11 +216,16 @@ export default function ManageDentists() {
                                         </div>
                                         {!dentist.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
-                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>{dentist.email}</td>
+                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span>{dentist.email}</span>
+                                            {!dentist.isVerified && <span style={{ color: '#01538b', fontSize: '12px', fontWeight: 600 }}>Resend Activation Link to email</span>}
+                                        </div>
+                                    </td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${dentist.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
-                                            {dentist.status}
+                                        <span className={`${tblStyles.statusBadge} ${computedStatus === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                            {computedStatus}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
@@ -250,16 +244,17 @@ export default function ManageDentists() {
                                             )}
                                             <button
                                                 type="button"
-                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${dentist.status === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
-                                                onClick={() => handleToggleStatus(dentist)}
-                                                title={dentist.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                onClick={() => handleToggleStatus({ ...dentist, status: computedStatus })}
+                                                title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
                                             >
-                                                {dentist.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))
+                            );
+                            })
                         ) : (
                             <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No dentists found matching filters.</td></tr>
                         )}

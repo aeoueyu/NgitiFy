@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/AdminDashboard.module.css';
 import { 
     Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
-    AreaChart, Area, XAxis, YAxis, CartesianGrid // TASK 4.1: Imported AreaChart components
+    LineChart, Line, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 import { 
     FaHistory, FaCheckCircle, FaUserClock, 
@@ -63,7 +63,8 @@ export default function AdminDashboard() {
     
     // TASK 4.1: Chart States
     const [treatmentData, setTreatmentData] = useState([{ name: 'Loading Data...', value: 1 }]);
-    const [patientVolumeData, setPatientVolumeData] = useState([]); 
+    const [patientVolumeData, setPatientVolumeData] = useState([]);
+    const [patientVolumeBranches, setPatientVolumeBranches] = useState([]);
 
     const [recentLogs, setRecentLogs] = useState([]);
 
@@ -77,20 +78,40 @@ export default function AdminDashboard() {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const [statsRes, invRes, surgRes, logsRes] = await Promise.all([
+                const [statsRes, invRes, surgRes, logsRes, dentistRes, secretaryRes, managerRes, analyticsRes] = await Promise.all([
                     authFetch('/dashboard/stats'),
                     authFetch('/inventory'),
                     authFetch('/appointments'),
-                    authFetch('/audit-logs')
+                    authFetch('/audit-logs'),
+                    authFetch('/users?role=dentist'),
+                    authFetch('/users?role=secretary'),
+                    authFetch('/users?role=branch-manager'),
+                    authFetch('/analytics/branches')
                 ]);
 
                 if (statsRes.ok) {
                     const statsData = await statsRes.json();
                     setActivePatients(statsData.totalPatients);
-                    setTotalStaff(statsData.activeDentists);
-                    setStaffBreakdown(`${statsData.activeDentists} Dentists`);
                     setLowStockAlerts(statsData.lowStockItems);
                 }
+
+                const toUsers = async (response) => {
+                    if (!response.ok) return [];
+                    const data = await response.json();
+                    return Array.isArray(data?.users) ? data.users : (Array.isArray(data) ? data : []);
+                };
+
+                const [dentistUsers, secretaryUsers, managerUsers] = await Promise.all([
+                    toUsers(dentistRes),
+                    toUsers(secretaryRes),
+                    toUsers(managerRes),
+                ]);
+
+                const activeDentistCount = dentistUsers.filter((entry) => entry.status === 'active' && entry.isVerified && !entry.isArchived).length;
+                const activeSecretaryCount = secretaryUsers.filter((entry) => entry.status === 'active' && entry.isVerified && !entry.isArchived).length;
+                const activeManagerCount = managerUsers.filter((entry) => entry.status === 'active' && entry.isVerified && !entry.isArchived).length;
+                setTotalStaff(activeDentistCount + activeSecretaryCount + activeManagerCount);
+                setStaffBreakdown(`${activeSecretaryCount} Secretaries • ${activeDentistCount} Dentists • ${activeManagerCount} Branch Managers`);
 
                 if (invRes.ok) {
                     const invData = await invRes.json();
@@ -139,30 +160,42 @@ export default function AdminDashboard() {
                             .sort((a, b) => b.value - a.value).slice(0, 4);
                         if (topTreatments.length > 0) setTreatmentData(topTreatments);
 
-                        const volumeDataMap = {};
-                        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                        const now = new Date();
-
-                        for (let i = 5; i >= 0; i--) {
-                            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                            const key = `${d.getFullYear()}-${monthNames[d.getMonth()]}`;
-                            volumeDataMap[key] = 0;
-                        }
-
-                        surgData.forEach(s => {
-                            const date = new Date(s.date || s.createdAt);
-                            const key = `${date.getFullYear()}-${monthNames[date.getMonth()]}`;
-                            if (volumeDataMap[key] !== undefined) {
-                                volumeDataMap[key]++;
-                            }
-                        });
-
-                        const volumeChartData = Object.keys(volumeDataMap).map(key => ({
-                            name: key.split('-')[1],   // display just "Jan", "Feb", etc. on the chart
-                            patients: volumeDataMap[key]
-                        }));
-                        setPatientVolumeData(volumeChartData);
                     }
+                }
+
+                if (analyticsRes.ok) {
+                    const analyticsData = await analyticsRes.json();
+                    const monthly = Array.isArray(analyticsData.monthly) ? analyticsData.monthly : [];
+                    const branches = [...new Set(monthly.map((entry) => entry._id?.branch).filter(Boolean))].sort();
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const now = new Date();
+                    const rows = [];
+
+                    for (let i = 5; i >= 0; i--) {
+                        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                        rows.push({
+                            key: `${d.getFullYear()}-${d.getMonth() + 1}`,
+                            name: monthNames[d.getMonth()],
+                        });
+                    }
+
+                    const rowMap = new Map(rows.map((row) => [row.key, { ...row }]));
+                    monthly.forEach((entry) => {
+                        const key = `${entry._id?.year}-${entry._id?.month}`;
+                        const branch = entry._id?.branch;
+                        if (!rowMap.has(key) || !branch) return;
+                        rowMap.get(key)[branch] = entry.count;
+                    });
+
+                    const chartRows = Array.from(rowMap.values()).map((row) => {
+                        branches.forEach((branch) => {
+                            if (row[branch] == null) row[branch] = 0;
+                        });
+                        return row;
+                    });
+
+                    setPatientVolumeBranches(branches);
+                    setPatientVolumeData(chartRows);
                 }
 
                 if (logsRes && logsRes.ok) {
@@ -372,13 +405,7 @@ export default function AdminDashboard() {
                             <div className={styles['chart-container']}>
                                 {patientVolumeData.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={patientVolumeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                            <defs>
-                                                <linearGradient id="colorPatients" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#2dccf6" stopOpacity={0.3}/>
-                                                    <stop offset="95%" stopColor="#2dccf6" stopOpacity={0}/>
-                                                </linearGradient>
-                                            </defs>
+                                        <LineChart data={patientVolumeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
                                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} />
@@ -386,8 +413,19 @@ export default function AdminDashboard() {
                                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.08)' }} 
                                                 itemStyle={{ color: '#01538b', fontWeight: 'bold' }}
                                             />
-                                            <Area type="monotone" dataKey="patients" name="Appointments" stroke="#01538b" strokeWidth={3} fillOpacity={1} fill="url(#colorPatients)" />
-                                        </AreaChart>
+                                            {patientVolumeBranches.map((branch, index) => (
+                                                <Line
+                                                    key={branch}
+                                                    type="monotone"
+                                                    dataKey={branch}
+                                                    name={branch}
+                                                    stroke={['#01538b', '#2dccf6', '#ea8b89', '#f3ca63'][index % 4]}
+                                                    strokeWidth={3}
+                                                    dot={{ r: 4 }}
+                                                    activeDot={{ r: 6 }}
+                                                />
+                                            ))}
+                                        </LineChart>
                                     </ResponsiveContainer>
                                 ) : (
                                     <div className={styles['empty-state']}><p>Gathering volume data...</p></div>

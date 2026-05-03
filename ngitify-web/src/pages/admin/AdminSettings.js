@@ -236,7 +236,6 @@ export default function Settings() {
     const renderSecuritySection = () => (
         <div>
             <h3 className={styles.mainSectionTitle}>Account Security</h3>
-            <p className={styles.sectionDescription}>Ensure your account is secure with a strong password and multi-factor authentication.</p>
             
             {apiError && <div className={styles.apiErrorMessage}>{apiError}</div>}
 
@@ -333,15 +332,6 @@ export default function Settings() {
                 </div>
             </form>
 
-            <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '30px 0' }} />
-
-            {/* Two-Factor Authentication — Not Yet Implemented */}
-            <div className={styles.toggleRow}>
-                <div className={styles.toggleLabel}>
-                    <span className={styles.toggleTitle}>Two-Factor Authentication (2FA)</span>
-                    <span className={styles.toggleDesc}>Two-factor authentication is not yet available. This feature is coming in a future update.</span>
-                </div>
-            </div>
         </div>
     );
 

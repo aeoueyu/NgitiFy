@@ -33,11 +33,14 @@ const TYPE_META = {
 };
 
 const RANGE_OPTIONS = [
+    { value: 'all', label: 'All' },
     { value: 'today', label: 'Today' },
     { value: '3days', label: '3 Days' },
     { value: '7days', label: '7 Days' },
     { value: 'custom', label: 'Custom' },
 ];
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
 
@@ -70,6 +73,7 @@ const getRelativeTime = (value) => {
 
 const getDateRange = (range, customFrom, customTo) => {
     const today = getTodayString();
+    if (range === 'all') return null;
     if (range === '3days') return { from: today, to: addDays(today, 2) };
     if (range === '7days') return { from: today, to: addDays(today, 6) };
     if (range === 'custom') {
@@ -89,15 +93,16 @@ export default function NotificationsCenter({
 
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedRange, setSelectedRange] = useState('today');
+    const [selectedRange, setSelectedRange] = useState('all');
     const [customFrom, setCustomFrom] = useState(getTodayString());
     const [customTo, setCustomTo] = useState(getTodayString());
     const [typeFilter, setTypeFilter] = useState('all');
     const [readFilter, setReadFilter] = useState('all');
+    const [pageSize, setPageSize] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedNotification, setSelectedNotification] = useState(null);
     const [declineTarget, setDeclineTarget] = useState(null);
-    const [actionLoading, setActionLoading] = useState('');
 
     const fetchNotifications = useCallback(async () => {
         setLoading(true);
@@ -148,7 +153,6 @@ export default function NotificationsCenter({
             return;
         }
 
-        setActionLoading(notification._id);
         try {
             const response = await authFetch(`/appointments/${notification.relatedId}/status`, {
                 method: 'PUT',
@@ -164,13 +168,11 @@ export default function NotificationsCenter({
         } catch (error) {
             addToast(error.message || 'Failed to confirm the appointment.', 'error');
         } finally {
-            setActionLoading('');
         }
     };
 
     const handleDeclineAppointment = async () => {
         if (!declineTarget?.relatedId) return;
-        setActionLoading(declineTarget._id);
         try {
             const response = await authFetch(`/appointments/${declineTarget.relatedId}/status`, {
                 method: 'PUT',
@@ -187,7 +189,6 @@ export default function NotificationsCenter({
         } catch (error) {
             addToast(error.message || 'Failed to decline the appointment.', 'error');
         } finally {
-            setActionLoading('');
         }
     };
 
@@ -197,7 +198,7 @@ export default function NotificationsCenter({
         [notifications]
     );
 
-    const { from: rangeFrom, to: rangeTo } = useMemo(
+    const dateRange = useMemo(
         () => getDateRange(selectedRange, customFrom, customTo),
         [customFrom, customTo, selectedRange]
     );
@@ -208,7 +209,7 @@ export default function NotificationsCenter({
         return notifications.filter((item) => {
             const createdAt = new Date(item.createdAt);
             const createdDateKey = createdAt.toISOString().split('T')[0];
-            const matchesRange = createdDateKey >= rangeFrom && createdDateKey <= rangeTo;
+            const matchesRange = !dateRange || (createdDateKey >= dateRange.from && createdDateKey <= dateRange.to);
             const matchesType = typeFilter === 'all' || item.type === typeFilter;
             const matchesRead = readFilter === 'all'
                 || (readFilter === 'unread' && !item.isRead)
@@ -225,62 +226,21 @@ export default function NotificationsCenter({
 
             return matchesRange && matchesType && matchesRead && matchesSearch;
         }).sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
-    }, [notifications, rangeFrom, rangeTo, readFilter, searchQuery, typeFilter]);
+    }, [dateRange, notifications, readFilter, searchQuery, typeFilter]);
 
-    const renderActionButtons = (notification) => {
-        const isLoadingAction = actionLoading === notification._id;
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [pageSize, searchQuery, selectedRange, typeFilter, readFilter, customFrom, customTo]);
 
-        if (enableAppointmentActions && notification.type === 'NEW_APPOINTMENT' && !notification.isRead) {
-            return (
-                <div className={wideTable.iconActions}>
-                    <button
-                        type="button"
-                        className={wideTable.iconAction}
-                        title={isLoadingAction ? 'Confirming...' : 'Confirm Appointment'}
-                        onClick={() => handleAcceptAppointment(notification)}
-                        disabled={isLoadingAction}
-                    >
-                        <FaCheck />
-                    </button>
-                    <button
-                        type="button"
-                        className={wideTable.iconAction}
-                        title="Decline Appointment"
-                        onClick={() => setDeclineTarget(notification)}
-                        disabled={isLoadingAction}
-                    >
-                        <FaTimes />
-                    </button>
-                </div>
-            );
-        }
+    const totalPages = Math.max(1, Math.ceil(filteredNotifications.length / pageSize));
+    const pagedNotifications = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredNotifications.slice(start, start + pageSize);
+    }, [currentPage, filteredNotifications, pageSize]);
 
-        if (notification.type === 'CHAT_TICKET_RAISED' && chatPath) {
-            return (
-                <button
-                    type="button"
-                    className={scheduleStyles.secondaryButton}
-                    onClick={() => navigate(chatPath)}
-                >
-                    View Chat
-                </button>
-            );
-        }
-
-        if (!notification.isRead) {
-            return (
-                <button
-                    type="button"
-                    className={scheduleStyles.secondaryButton}
-                    onClick={() => markAsRead(notification._id)}
-                >
-                    Mark Read
-                </button>
-            );
-        }
-
-        return null;
-    };
+    useEffect(() => {
+        setCurrentPage((prev) => Math.min(prev, totalPages));
+    }, [totalPages]);
 
     return (
         <>
@@ -341,18 +301,26 @@ export default function NotificationsCenter({
                             </div>
                         )}
 
-                        <select className={scheduleStyles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                            <option value="all">All Types</option>
-                            {typeOptions.filter((value) => value !== 'all').map((value) => (
-                                <option key={value} value={value}>{TYPE_META[value]?.label || value}</option>
-                            ))}
-                        </select>
+                        <div className={scheduleStyles.inlineFilterRow}>
+                            <select className={scheduleStyles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                                <option value="all">All Types</option>
+                                {typeOptions.filter((value) => value !== 'all').map((value) => (
+                                    <option key={value} value={value}>{TYPE_META[value]?.label || value}</option>
+                                ))}
+                            </select>
 
-                        <select className={scheduleStyles.filterSelect} value={readFilter} onChange={(event) => setReadFilter(event.target.value)}>
-                            <option value="all">All Read Status</option>
-                            <option value="unread">Unread Only</option>
-                            <option value="read">Read Only</option>
-                        </select>
+                            <select className={scheduleStyles.filterSelect} value={readFilter} onChange={(event) => setReadFilter(event.target.value)}>
+                                <option value="all">All Read Status</option>
+                                <option value="unread">Unread</option>
+                                <option value="read">Read</option>
+                            </select>
+
+                            <select className={scheduleStyles.filterSelect} value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                                {PAGE_SIZE_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>{option} per page</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -363,27 +331,34 @@ export default function NotificationsCenter({
                                 <th style={{ width: '14%' }}>Type</th>
                                 <th style={{ width: '20%' }}>Title</th>
                                 <th style={{ width: '34%' }}>Message</th>
-                                <th style={{ width: '16%' }}>Date</th>
-                                <th style={{ width: '8%' }}>Status</th>
-                                <th style={{ width: '8%', textAlign: 'center' }}>Actions</th>
+                                <th style={{ width: '18%' }}>Date</th>
+                                <th style={{ width: '10%' }}>Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="6" className={scheduleStyles.stateBlock}>Loading notifications...</td>
+                                    <td colSpan="5" className={scheduleStyles.stateBlock}>Loading notifications...</td>
                                 </tr>
                             ) : filteredNotifications.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className={scheduleStyles.emptyStateBox}>No notifications found for the current filters.</td>
+                                    <td colSpan="5" className={scheduleStyles.emptyStateBox}>No notifications found for the current filters.</td>
                                 </tr>
                             ) : (
-                                filteredNotifications.map((notification) => {
+                                pagedNotifications.map((notification) => {
                                     const meta = TYPE_META[notification.type] || { label: notification.type, tone: wideTable.statusGray, icon: FaBell };
                                     const Icon = meta.icon;
 
                                     return (
-                                        <tr key={notification._id} onClick={() => setSelectedNotification(notification)} style={{ cursor: 'pointer' }}>
+                                        <tr
+                                            key={notification._id}
+                                            onClick={() => setSelectedNotification(notification)}
+                                            style={{
+                                                cursor: 'pointer',
+                                                backgroundColor: notification.isRead ? undefined : '#eff8ff',
+                                                boxShadow: notification.isRead ? undefined : 'inset 4px 0 0 #01538b',
+                                            }}
+                                        >
                                             <td>
                                                 <span className={`${wideTable.statusBadge} ${meta.tone}`} title={meta.label}>
                                                     <Icon /> {meta.label}
@@ -402,9 +377,6 @@ export default function NotificationsCenter({
                                                     {notification.isRead ? 'Read' : 'Unread'}
                                                 </span>
                                             </td>
-                                            <td style={{ textAlign: 'center' }}>
-                                                {renderActionButtons(notification)}
-                                            </td>
                                         </tr>
                                     );
                                 })
@@ -412,6 +384,32 @@ export default function NotificationsCenter({
                         </tbody>
                     </table>
                 </div>
+
+                {!loading && filteredNotifications.length > 0 && (
+                    <div className={scheduleStyles.paginationRow}>
+                        <span className={scheduleStyles.helperText}>
+                            Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredNotifications.length)} of {filteredNotifications.length} notifications
+                        </span>
+                        <div className={scheduleStyles.actionRow}>
+                            <button
+                                type="button"
+                                className={scheduleStyles.secondaryButton}
+                                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                            >
+                                Previous
+                            </button>
+                            <button
+                                type="button"
+                                className={scheduleStyles.secondaryButton}
+                                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {selectedNotification && (
@@ -433,6 +431,17 @@ export default function NotificationsCenter({
 
                         <div className={scheduleStyles.modalBody}>
                             <p style={{ margin: 0, color: '#475569', lineHeight: 1.7 }}>{selectedNotification.message}</p>
+                            <div style={{ marginTop: '18px' }}>
+                                <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>
+                                    Notification Details
+                                </div>
+                                <div style={{ display: 'grid', gap: '8px', color: '#334155', fontSize: '14px' }}>
+                                    <div><strong>Type:</strong> {TYPE_META[selectedNotification.type]?.label || selectedNotification.type || '-'}</div>
+                                    <div><strong>Status:</strong> {selectedNotification.isRead ? 'Read' : 'Unread'}</div>
+                                    <div><strong>Received:</strong> {new Date(selectedNotification.createdAt).toLocaleString('en-PH')}</div>
+                                    <div><strong>Reference:</strong> {selectedNotification.relatedId || '-'}</div>
+                                </div>
+                            </div>
                             {!selectedNotification.isRead && (
                                 <div style={{ marginTop: '14px' }}>
                                     <button type="button" className={scheduleStyles.secondaryButton} onClick={() => markAsRead(selectedNotification._id)}>

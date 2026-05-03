@@ -279,7 +279,6 @@ export default function Sidebar() {
                             {sectionLabel('Management')}
                             {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/owner/notifications', FaBell, 'Notifications', notifBadge)}
-                            {navItem('/owner/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/owner/branches', FaCodeBranch, 'Branches')}
                             {navItem('/owner/inventory', FaBoxes, 'Inventory', inventoryBadge)}
                             {navItem('/owner/activity-logs', FaHistory, 'Activity Logs')}
@@ -319,7 +318,6 @@ export default function Sidebar() {
                             {navItem('/admin/notifications', FaBell, 'Notifications', notifBadge)}
                             {sectionLabel('System')}
                             {navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
-                            {navItem('/admin/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
                             {navItem('/admin/audit-trail', FaClipboardList, 'Audit Trail')}
                             {navItem('/admin/activity-logs', FaHistory, 'Activity Logs')}

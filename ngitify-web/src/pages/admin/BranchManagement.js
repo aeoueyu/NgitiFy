@@ -319,10 +319,9 @@ export default function BranchManagement() {
                         <tr>
                             <th style={{ width: '20%' }}>Name</th>
                             <th style={{ width: '14%' }}>Contact</th>
-                            <th style={{ width: '36%' }}>Address</th>
-                            <th style={{ width: '16%' }}>Manager</th>
+                            <th style={{ width: '52%' }}>Manager</th>
                             <th style={{ width: '8%' }}>Status</th>
-                            <th style={{ width: '12%', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '16%', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -342,9 +341,6 @@ export default function BranchManagement() {
                                         </div>
                                     </td>
                                     <td>{branch.contactNumber || '-'}</td>
-                                    <td title={formatBranchAddress(branch.addressDetails, branch.address || '-')}>
-                                        {formatBranchAddress(branch.addressDetails, branch.address || '-') || '-'}
-                                    </td>
                                     <td>{getManagerName(branch.managerIds)}</td>
                                     <td>
                                         <span className={`${wideTable.statusBadge} ${getStatusClassName(branch.isActive)}`}>
@@ -527,7 +523,7 @@ export default function BranchManagement() {
                         <div className={styles.analyticsHeader}>
                             <div>
                                 <h2 className={styles.modalTitle}>{analyticsTarget.name}</h2>
-                                <p className={styles.analyticsSubtitle}>Branch analytics overview</p>
+                                <p className={styles.analyticsSubtitle}>Branch information followed by analytics</p>
                             </div>
                             <button className={styles.cancelBtn} onClick={() => setAnalyticsTarget(null)} type="button">
                                 Close
@@ -538,6 +534,28 @@ export default function BranchManagement() {
                             <div className={styles.emptyState}>Loading analytics...</div>
                         ) : analyticsData ? (
                             <>
+                                <div className={styles.analyticsSection}>
+                                    <h3 className={styles.analyticsSectionTitle}>Branch Information</h3>
+                                    <div className={styles.analyticsList}>
+                                        <div className={styles.analyticsListItem}>
+                                            <span>Contact Number</span>
+                                            <strong>{analyticsTarget.contactNumber || '-'}</strong>
+                                        </div>
+                                        <div className={styles.analyticsListItem}>
+                                            <span>Address</span>
+                                            <strong>{formatBranchAddress(analyticsTarget.addressDetails, analyticsTarget.address || '-') || '-'}</strong>
+                                        </div>
+                                        <div className={styles.analyticsListItem}>
+                                            <span>Manager</span>
+                                            <strong>{getManagerName(analyticsTarget.managerIds)}</strong>
+                                        </div>
+                                        <div className={styles.analyticsListItem}>
+                                            <span>Status</span>
+                                            <strong>{analyticsTarget.isActive ? 'Active' : 'Inactive'}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className={styles.analyticsStats}>
                                     <div className={styles.analyticsStatCard}>
                                         <span className={styles.analyticsStatLabel}>Appointments</span>

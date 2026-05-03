@@ -15,8 +15,7 @@ const ManageBranchManagers = () => {
     const [managers, setManagers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All');
-    const [verifiedFilter, setVerifiedFilter] = useState('All');
+    const [statusFilter, setStatusFilter] = useState('Active');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -34,7 +33,7 @@ const ManageBranchManagers = () => {
                     id: u._id,
                     name: `${u.name?.first || ''} ${u.name?.last || ''}`.trim() || 'Unknown',
                     email: u.email || 'N/A',
-                    status: u.status === 'active' ? 'Active' : 'Inactive',
+                    rawStatus: u.status || 'inactive',
                     isVerified: u.isVerified,
                     profileImage: u.profileImage,
                     assignedBranch: u.assignedBranch || u.assignedBranches?.[0] || '',
@@ -56,12 +55,10 @@ const ManageBranchManagers = () => {
     const filteredManagers = managers.filter((m) => {
         const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             m.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || m.status === statusFilter;
-        const matchesVerified = verifiedFilter === 'All' ||
-            (verifiedFilter === 'Verified' && m.isVerified) ||
-            (verifiedFilter === 'Unverified' && !m.isVerified);
+        const computedStatus = (!m.isVerified || m.rawStatus !== 'active') ? 'Inactive' : 'Active';
+        const matchesStatus = statusFilter === 'All' || computedStatus === statusFilter;
         const matchesBranch = branchFilter === 'All' || m.assignedBranch === branchFilter;
-        return matchesSearch && matchesStatus && matchesVerified && matchesBranch;
+        return matchesSearch && matchesStatus && matchesBranch;
     });
 
     const openManagerModal = (id) => {
@@ -98,7 +95,7 @@ const ManageBranchManagers = () => {
             if (res.ok) {
                 setManagers((prev) => prev.map((manager) =>
                     manager.id === id
-                        ? { ...manager, status: newStatus === 'active' ? 'Active' : 'Inactive' }
+                        ? { ...manager, rawStatus: newStatus }
                         : manager
                 ));
                 addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} ${name}'s account.`, 'success');
@@ -152,20 +149,10 @@ const ManageBranchManagers = () => {
                         />
                     </div>
 
-                    <select
-                        className={styles.filterSelect}
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                    >
-                        <option value="All">All Statuses</option>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                    </select>
-
                     <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'All' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('All')}>All</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'Active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'Inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Inactive')}>Inactive</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
                     </div>
 
                     <select
@@ -197,8 +184,10 @@ const ManageBranchManagers = () => {
                         {isLoading ? (
                             <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredManagers.length > 0 ? (
-                            filteredManagers.map((manager) => (
-                                <tr key={manager.id} style={{ opacity: manager.status === 'Inactive' ? 0.6 : 1 }}>
+                            filteredManagers.map((manager) => {
+                                const computedStatus = (!manager.isVerified || manager.rawStatus !== 'active') ? 'Inactive' : 'Active';
+                                return (
+                                <tr key={manager.id} style={{ opacity: computedStatus === 'Inactive' ? 0.6 : 1 }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>{manager.name}</span>
@@ -212,10 +201,15 @@ const ManageBranchManagers = () => {
                                             </span>
                                         )}
                                     </td>
-                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>{manager.email}</td>
+                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span>{manager.email}</span>
+                                            {!manager.isVerified && <span style={{ color: '#01538b', fontSize: '12px', fontWeight: 600 }}>Resend Activation Link to email</span>}
+                                        </div>
+                                    </td>
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${manager.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
-                                            {manager.status}
+                                        <span className={`${tblStyles.statusBadge} ${computedStatus === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                            {computedStatus}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
@@ -248,16 +242,17 @@ const ManageBranchManagers = () => {
                                             )}
                                             <button
                                                 type="button"
-                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${manager.status === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
-                                                onClick={() => handleToggleStatus(manager)}
-                                                title={manager.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                onClick={() => handleToggleStatus({ ...manager, status: computedStatus })}
+                                                title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
                                             >
-                                                {manager.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))
+                            );
+                            })
                         ) : (
                             <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No branch managers found matching filters.</td></tr>
                         )}

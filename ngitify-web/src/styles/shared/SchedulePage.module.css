@@ -49,6 +49,13 @@
     flex: 1;
 }
 
+.inlineFilterRow {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 .searchWrapper {
     position: relative;
     flex: 2;
@@ -213,6 +220,23 @@
     border: 1px solid rgba(1, 83, 139, 0.05);
     overflow: hidden;
     margin-top: 20px;
+}
+
+.paginationRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px 20px;
+    background: white;
+    border-top: 1px solid #eef3f7;
+}
+
+.patientSearchRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: end;
 }
 
 .userTable {

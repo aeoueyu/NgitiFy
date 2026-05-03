@@ -15,8 +15,7 @@ export default function ManageOwners() {
     const [ownersList, setOwnersList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All');
-    const [verifiedFilter, setVerifiedFilter] = useState('All');
+    const [statusFilter, setStatusFilter] = useState('Active');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -36,7 +35,7 @@ export default function ManageOwners() {
                             id: u._id,
                             name: `${u.name?.first || ''} ${u.name?.last || ''}`.trim() || 'Unknown',
                             email: u.email || 'N/A',
-                            status: u.status === 'active' ? 'Active' : 'Inactive',
+                            rawStatus: u.status || 'inactive',
                             isVerified: u.isVerified,
                             profileImage: u.profileImage,
                         }))
@@ -55,11 +54,9 @@ export default function ManageOwners() {
         const matchesSearch =
             o.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             o.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || o.status === statusFilter;
-        const matchesVerified = verifiedFilter === 'All' ||
-                                (verifiedFilter === 'Verified' && o.isVerified) ||
-                                (verifiedFilter === 'Unverified' && !o.isVerified);
-        return matchesSearch && matchesStatus && matchesVerified;
+        const computedStatus = (!o.isVerified || o.rawStatus !== 'active') ? 'Inactive' : 'Active';
+        const matchesStatus = statusFilter === 'All' || computedStatus === statusFilter;
+        return matchesSearch && matchesStatus;
     });
 
     const handleToggleStatus = (owner) => {
@@ -88,7 +85,7 @@ export default function ManageOwners() {
             });
             if (res.ok) {
                 setOwnersList(prev => prev.map(o =>
-                    o.id === id ? { ...o, status: newStatus === 'active' ? 'Active' : 'Inactive' } : o
+                    o.id === id ? { ...o, rawStatus: newStatus } : o
                 ));
                 addToast(`Successfully ${newStatus === 'active' ? 'activated' : 'deactivated'} ${name}'s account.`, 'success');
             } else {
@@ -137,20 +134,10 @@ export default function ManageOwners() {
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <select
-                        className={styles.filterSelect}
-                        value={statusFilter}
-                        onChange={e => setStatusFilter(e.target.value)}
-                    >
-                        <option value="All">All Statuses</option>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                    </select>
-
                     <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'All' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('All')}>All</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Verified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Verified')}>Verified</button>
-                        <button className={`${styles.filterPill} ${verifiedFilter === 'Unverified' ? styles.activePill : ''}`} onClick={() => setVerifiedFilter('Unverified')}>Unverified</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'Active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'Inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Inactive')}>Inactive</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
                     </div>
                 </div>
             </div>
@@ -171,8 +158,10 @@ export default function ManageOwners() {
                         {isLoading ? (
                             <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredOwners.length > 0 ? (
-                            filteredOwners.map(owner => (
-                                <tr key={owner.id} style={{ opacity: owner.status === 'Inactive' ? 0.6 : 1 }}>
+                            filteredOwners.map((owner) => {
+                                const computedStatus = (!owner.isVerified || owner.rawStatus !== 'active') ? 'Inactive' : 'Active';
+                                return (
+                                <tr key={owner.id} style={{ opacity: computedStatus === 'Inactive' ? 0.6 : 1 }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>{owner.name}</span>
@@ -184,10 +173,15 @@ export default function ManageOwners() {
                                             </span>
                                         )}
                                     </td>
-                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>{owner.email}</td>
+                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span>{owner.email}</span>
+                                            {!owner.isVerified && <span style={{ color: '#01538b', fontSize: '12px', fontWeight: 600 }}>Resend Activation Link to email</span>}
+                                        </div>
+                                    </td>
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${owner.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
-                                            {owner.status}
+                                        <span className={`${tblStyles.statusBadge} ${computedStatus === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                            {computedStatus}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
@@ -220,16 +214,17 @@ export default function ManageOwners() {
                                             )}
                                             <button
                                                 type="button"
-                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${owner.status === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
-                                                onClick={() => handleToggleStatus(owner)}
-                                                title={owner.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                onClick={() => handleToggleStatus({ ...owner, status: computedStatus })}
+                                                title={computedStatus === 'Active' ? 'Deactivate' : 'Activate'}
                                             >
-                                                {owner.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))
+                            );
+                            })
                         ) : (
                             <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No owners found.</td></tr>
                         )}
