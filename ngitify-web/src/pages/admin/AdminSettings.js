@@ -3,14 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AdminSettings.module.css';
-import BackIcon from '../../assets/icons/Back.svg';
 
 export default function Settings() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const basePath = (user?.role === 'owner') ? '/owner' : '/admin';
 
-    const [activeTab, setActiveTab] = useState('clinic');
+    const [activeTab, setActiveTab] = useState('security');
 
     // --- State: Security ---
     const [isCurrentPasswordVerified, setIsCurrentPasswordVerified] = useState(false);
@@ -235,21 +233,6 @@ export default function Settings() {
     // ==========================================
     // RENDER HELPERS
     // ==========================================
-    const renderClinicSection = () => (
-        <div>
-            <h3 className={styles.mainSectionTitle}>Clinic Information</h3>
-            <p className={styles.sectionDescription}>
-                Clinic information is managed in System Configuration.
-            </p>
-            <button
-                className={styles.submitBtn}
-                onClick={() => navigate(`${basePath}/system-config`)}
-            >
-                GO TO SYSTEM CONFIGURATION
-            </button>
-        </div>
-    );
-
     const renderSecuritySection = () => (
         <div>
             <h3 className={styles.mainSectionTitle}>Account Security</h3>
@@ -443,12 +426,9 @@ export default function Settings() {
     return (
         <div className={styles.container}>
             <div className={styles.headerWrapper}>
-                <button className={styles.backIconButton} onClick={() => navigate(`${basePath}/dashboard`)}>
-                    <img src={BackIcon} alt="Back" />
-                </button>
                 <div className={styles.header}>
                     <h1 className={styles.title}>Settings</h1>
-                    <p className={styles.subtitle}>Manage your clinic info, security, preferences, and notifications.</p>
+                    <p className={styles.subtitle}>Manage your account security, preferences, and notifications.</p>
                 </div>
             </div>
 
@@ -456,12 +436,6 @@ export default function Settings() {
                 {/* Left Sidebar Menu */}
                 <div className={styles.sidebar}>
                     <ul className={styles.tabList}>
-                        <li 
-                            className={`${styles.tabItem} ${activeTab === 'clinic' ? styles.activeTab : ''}`}
-                            onClick={() => setActiveTab('clinic')}
-                        >
-                            Clinic Information
-                        </li>
                         <li 
                             className={`${styles.tabItem} ${activeTab === 'security' ? styles.activeTab : ''}`}
                             onClick={() => setActiveTab('security')}
@@ -485,7 +459,6 @@ export default function Settings() {
 
                 {/* Main Content Area */}
                 <div className={styles.contentArea}>
-                    {activeTab === 'clinic' && renderClinicSection()}
                     {activeTab === 'security' && renderSecuritySection()}
                     {activeTab === 'preferences' && renderPreferencesSection()}
                     {activeTab === 'notifications' && renderNotificationsSection()}

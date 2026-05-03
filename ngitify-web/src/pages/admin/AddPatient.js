@@ -144,6 +144,12 @@ export default function AddPatient({ onClose, onSuccess }) {
             signerRole: 'Patient',
             signedAt: getTodayDate(),
         },
+        dataPrivacyConsent: {
+            acknowledged: false,
+            signerName: '',
+            signerRole: 'Patient',
+            signedAt: getTodayDate(),
+        },
         currentAddress: { ...initialAddressState },
         permanentAddress: { ...initialAddressState },
     });
@@ -220,6 +226,21 @@ export default function AddPatient({ onClose, onSuccess }) {
         });
     };
 
+    const handlePrivacyAcknowledged = (acknowledged) => {
+        setFormData((prev) => ({
+            ...prev,
+            dataPrivacyConsent: {
+                ...prev.dataPrivacyConsent,
+                acknowledged,
+            }
+        }));
+        setErrors((prev) => {
+            const next = { ...prev };
+            delete next.dataPrivacyConsent_acknowledged;
+            return next;
+        });
+    };
+
     const handleNestedPhoneChange = (section, field) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
@@ -284,6 +305,18 @@ export default function AddPatient({ onClose, onSuccess }) {
         if (formData.email && !validateEmail(formData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
         if (!formData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = 'Required'; isValid = false; }
         if (!formData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = 'Required'; isValid = false; }
+        if (!formData.dataPrivacyConsent.acknowledged) { newErrors.dataPrivacyConsent_acknowledged = 'Required'; isValid = false; }
+        if (!formData.dataPrivacyConsent.signerName.trim()) { newErrors.dataPrivacyConsent_signerName = 'Required'; isValid = false; }
+        if (formData.birthdate && new Date(formData.birthdate) > new Date()) { newErrors.birthdate = 'Birthdate cannot be in the future'; isValid = false; }
+        if (formData.dentalHistory.lastExamDate && new Date(formData.dentalHistory.lastExamDate) > new Date()) { newErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future'; isValid = false; }
+        if (formData.consentAcknowledgement.signedAt && new Date(formData.consentAcknowledgement.signedAt) > new Date()) { newErrors.consentAcknowledgement_signedAt = 'Invalid signed date'; isValid = false; }
+        if (formData.dataPrivacyConsent.signedAt && new Date(formData.dataPrivacyConsent.signedAt) > new Date()) { newErrors.dataPrivacyConsent_signedAt = 'Invalid signed date'; isValid = false; }
+        if (formData.dentalHistory.hadTreatmentReaction === 'yes' && !formData.dentalHistory.reactionDetails.trim()) { newErrors.dentalHistory_reactionDetails = 'Required when answer is Yes'; isValid = false; }
+        if (formData.medicalHistory.underMedicalTreatment === 'yes' && !formData.medicalHistory.medicalTreatmentDetails.trim()) { newErrors.medicalHistory_medicalTreatmentDetails = 'Required when answer is Yes'; isValid = false; }
+        if (formData.medicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !formData.medicalHistory.seriousIllnessOrSurgeryDetails.trim()) { newErrors.medicalHistory_seriousIllnessOrSurgeryDetails = 'Required when answer is Yes'; isValid = false; }
+        if (formData.medicalHistory.hadHospitalization === 'yes' && !formData.medicalHistory.hospitalizationDetails.trim()) { newErrors.medicalHistory_hospitalizationDetails = 'Required when answer is Yes'; isValid = false; }
+        if (formData.medicalHistory.isTakingMedication === 'yes' && !formData.medicalHistory.medications.trim()) { newErrors.medicalHistory_medications = 'Required when answer is Yes'; isValid = false; }
+        if (formData.medicalHistory.hasAllergies === 'yes' && formData.medicalHistory.allergies.length === 0 && !formData.medicalHistory.allergyOther.trim()) { newErrors.medicalHistory_allergies = 'Select or enter at least one allergy'; isValid = false; }
         // Branch is required unless branch manager (auto-assigned)
         if (!isBranchScopedStaff && !formData.assignedBranch) { newErrors.assignedBranch = 'Required'; isValid = false; }
         const validateAddr = (addr, prefix) => {
@@ -366,6 +399,13 @@ export default function AddPatient({ onClose, onSuccess }) {
                 signedAt: formData.consentAcknowledgement.signedAt || new Date().toISOString(),
                 version: 'Dentime Patient Form v6.1',
             },
+            dataPrivacyConsent: {
+                acknowledged: Boolean(formData.dataPrivacyConsent.acknowledged),
+                signerName: formData.dataPrivacyConsent.signerName.trim() || undefined,
+                signerRole: formData.dataPrivacyConsent.signerRole || (isMinor ? 'Parent/Guardian' : 'Patient'),
+                signedAt: formData.dataPrivacyConsent.signedAt || new Date().toISOString(),
+                version: 'Data Privacy Act of 2012',
+            },
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
         };
@@ -410,6 +450,36 @@ export default function AddPatient({ onClose, onSuccess }) {
             </div>
         );
     };
+
+    const renderYesNoField = (label, section, field, value, disabled = false) => (
+        <div className={styles.formGroup}>
+            <label>{label}</label>
+            <div className={styles.radioGroup}>
+                <label className={`${styles.radioOption} ${value === 'yes' ? styles.radioOptionActive : ''}`}>
+                    <input
+                        type="radio"
+                        name={`${section}_${field}`}
+                        value="yes"
+                        checked={value === 'yes'}
+                        onChange={(e) => handleNestedChange(section, field, e.target.value)}
+                        disabled={disabled}
+                    />
+                    <span>Yes</span>
+                </label>
+                <label className={`${styles.radioOption} ${value === 'no' ? styles.radioOptionActive : ''}`}>
+                    <input
+                        type="radio"
+                        name={`${section}_${field}`}
+                        value="no"
+                        checked={value === 'no'}
+                        onChange={(e) => handleNestedChange(section, field, e.target.value)}
+                        disabled={disabled}
+                    />
+                    <span>No</span>
+                </label>
+            </div>
+        </div>
+    );
 
     useEffect(() => {
         const fetchBranches = async () => {
@@ -598,11 +668,11 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Dental History</h3>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={styles.inputField} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>REACTION OR COMPLICATION AFTER DENTAL TREATMENT?</label><select className={styles.inputField} value={formData.dentalHistory.hadTreatmentReaction} onChange={(e) => handleNestedChange('dentalHistory', 'hadTreatmentReaction', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={`${styles.inputField} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} max={getTodayDate()} disabled={isLoading} />{errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}</div>
+                        {renderYesNoField('REACTION OR COMPLICATION AFTER DENTAL TREATMENT?', 'dentalHistory', 'hadTreatmentReaction', formData.dentalHistory.hadTreatmentReaction, isLoading)}
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>IF YES, PLEASE DETAIL</label><textarea className={styles.textArea} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} rows={3} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>IF YES, PLEASE DETAIL</label><textarea className={`${styles.textArea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}</div>
                         <div className={styles.formGroup}><label>DENTAL HISTORY NOTES</label><textarea className={styles.textArea} value={formData.dentalHistory.notes} onChange={(e) => handleNestedChange('dentalHistory', 'notes', e.target.value)} rows={3} disabled={isLoading} /></div>
                     </div>
                     <div className={styles.row}>
@@ -619,28 +689,28 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Medical History</h3>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>IN GOOD HEALTH?</label><select className={styles.inputField} value={formData.medicalHistory.inGoodHealth} onChange={(e) => handleNestedChange('medicalHistory', 'inGoodHealth', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                        <div className={styles.formGroup}><label>UNDER MEDICAL TREATMENT NOW?</label><select className={styles.inputField} value={formData.medicalHistory.underMedicalTreatment} onChange={(e) => handleNestedChange('medicalHistory', 'underMedicalTreatment', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        {renderYesNoField('IN GOOD HEALTH?', 'medicalHistory', 'inGoodHealth', formData.medicalHistory.inGoodHealth, isLoading)}
+                        {renderYesNoField('UNDER MEDICAL TREATMENT NOW?', 'medicalHistory', 'underMedicalTreatment', formData.medicalHistory.underMedicalTreatment, isLoading)}
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>CONDITION TREATED</label><textarea className={styles.textArea} value={formData.medicalHistory.medicalTreatmentDetails} onChange={(e) => handleNestedChange('medicalHistory', 'medicalTreatmentDetails', e.target.value)} rows={3} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>SERIOUS ILLNESS OR SURGICAL OPERATION?</label><select className={styles.inputField} value={formData.medicalHistory.hadSeriousIllnessOrSurgery} onChange={(e) => handleNestedChange('medicalHistory', 'hadSeriousIllnessOrSurgery', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        <div className={styles.formGroup}><label>CONDITION TREATED</label><textarea className={`${styles.textArea} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.medicalTreatmentDetails} onChange={(e) => handleNestedChange('medicalHistory', 'medicalTreatmentDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.medicalHistory_medicalTreatmentDetails && <span className={styles.errorText}>{errors.medicalHistory_medicalTreatmentDetails}</span>}</div>
+                        {renderYesNoField('SERIOUS ILLNESS OR SURGICAL OPERATION?', 'medicalHistory', 'hadSeriousIllnessOrSurgery', formData.medicalHistory.hadSeriousIllnessOrSurgery, isLoading)}
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>ILLNESS OR OPERATION DETAILS</label><textarea className={styles.textArea} value={formData.medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleNestedChange('medicalHistory', 'seriousIllnessOrSurgeryDetails', e.target.value)} rows={3} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>EVER BEEN HOSPITALIZED?</label><select className={styles.inputField} value={formData.medicalHistory.hadHospitalization} onChange={(e) => handleNestedChange('medicalHistory', 'hadHospitalization', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        <div className={styles.formGroup}><label>ILLNESS OR OPERATION DETAILS</label><textarea className={`${styles.textArea} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleNestedChange('medicalHistory', 'seriousIllnessOrSurgeryDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.medicalHistory_seriousIllnessOrSurgeryDetails && <span className={styles.errorText}>{errors.medicalHistory_seriousIllnessOrSurgeryDetails}</span>}</div>
+                        {renderYesNoField('EVER BEEN HOSPITALIZED?', 'medicalHistory', 'hadHospitalization', formData.medicalHistory.hadHospitalization, isLoading)}
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>HOSPITALIZATION DETAILS</label><textarea className={styles.textArea} value={formData.medicalHistory.hospitalizationDetails} onChange={(e) => handleNestedChange('medicalHistory', 'hospitalizationDetails', e.target.value)} rows={3} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>TAKING PRESCRIPTION / NON-PRESCRIPTION MEDICATION?</label><select className={styles.inputField} value={formData.medicalHistory.isTakingMedication} onChange={(e) => handleNestedChange('medicalHistory', 'isTakingMedication', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        <div className={styles.formGroup}><label>HOSPITALIZATION DETAILS</label><textarea className={`${styles.textArea} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.hospitalizationDetails} onChange={(e) => handleNestedChange('medicalHistory', 'hospitalizationDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.medicalHistory_hospitalizationDetails && <span className={styles.errorText}>{errors.medicalHistory_hospitalizationDetails}</span>}</div>
+                        {renderYesNoField('TAKING PRESCRIPTION / NON-PRESCRIPTION MEDICATION?', 'medicalHistory', 'isTakingMedication', formData.medicalHistory.isTakingMedication, isLoading)}
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>MEDICATIONS</label><textarea className={styles.textArea} value={formData.medicalHistory.medications} onChange={(e) => handleNestedChange('medicalHistory', 'medications', e.target.value)} placeholder="Comma-separated values" rows={3} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>USES TOBACCO PRODUCTS?</label><select className={styles.inputField} value={formData.medicalHistory.usesTobacco} onChange={(e) => handleNestedChange('medicalHistory', 'usesTobacco', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        <div className={styles.formGroup}><label>MEDICATIONS</label><textarea className={`${styles.textArea} ${errors.medicalHistory_medications ? styles.errorBorder : ''}`} value={formData.medicalHistory.medications} onChange={(e) => handleNestedChange('medicalHistory', 'medications', e.target.value)} placeholder="Comma-separated values" rows={3} disabled={isLoading} />{errors.medicalHistory_medications && <span className={styles.errorText}>{errors.medicalHistory_medications}</span>}</div>
+                        {renderYesNoField('USES TOBACCO PRODUCTS?', 'medicalHistory', 'usesTobacco', formData.medicalHistory.usesTobacco, isLoading)}
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>USES ALCOHOL / COCAINE / DANGEROUS DRUGS?</label><select className={styles.inputField} value={formData.medicalHistory.usesAlcoholOrDrugs} onChange={(e) => handleNestedChange('medicalHistory', 'usesAlcoholOrDrugs', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                        <div className={styles.formGroup}><label>HAS ALLERGIES?</label><select className={styles.inputField} value={formData.medicalHistory.hasAllergies} onChange={(e) => handleNestedChange('medicalHistory', 'hasAllergies', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        {renderYesNoField('USES ALCOHOL / COCAINE / DANGEROUS DRUGS?', 'medicalHistory', 'usesAlcoholOrDrugs', formData.medicalHistory.usesAlcoholOrDrugs, isLoading)}
+                        {renderYesNoField('HAS ALLERGIES?', 'medicalHistory', 'hasAllergies', formData.medicalHistory.hasAllergies, isLoading)}
                     </div>
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
@@ -653,7 +723,8 @@ export default function AddPatient({ onClose, onSuccess }) {
                                     </label>
                                 ))}
                             </div>
-                            <input className={styles.inputField} style={{ marginTop: '12px' }} value={formData.medicalHistory.allergyOther} onChange={(e) => handleNestedChange('medicalHistory', 'allergyOther', e.target.value)} placeholder="Other allergy" disabled={isLoading} />
+                            <input className={`${styles.inputField} ${errors.medicalHistory_allergies ? styles.errorBorder : ''}`} style={{ marginTop: '12px' }} value={formData.medicalHistory.allergyOther} onChange={(e) => handleNestedChange('medicalHistory', 'allergyOther', e.target.value)} placeholder="Other allergy" disabled={isLoading} />
+                            {errors.medicalHistory_allergies && <span className={styles.errorText}>{errors.medicalHistory_allergies}</span>}
                         </div>
                     </div>
                     <div className={styles.row}>
@@ -661,11 +732,11 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup}><label>BLOOD PRESSURE</label><input className={styles.inputField} value={formData.medicalHistory.bloodPressure} onChange={(e) => handleNestedChange('medicalHistory', 'bloodPressure', e.target.value)} placeholder="e.g. 120/80" disabled={isLoading} /></div>
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>PREGNANT?</label><select className={styles.inputField} value={formData.medicalHistory.isPregnant} onChange={(e) => handleNestedChange('medicalHistory', 'isPregnant', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                        <div className={styles.formGroup}><label>NURSING?</label><select className={styles.inputField} value={formData.medicalHistory.isNursing} onChange={(e) => handleNestedChange('medicalHistory', 'isNursing', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        {renderYesNoField('PREGNANT?', 'medicalHistory', 'isPregnant', formData.medicalHistory.isPregnant, isLoading)}
+                        {renderYesNoField('NURSING?', 'medicalHistory', 'isNursing', formData.medicalHistory.isNursing, isLoading)}
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>TAKING BIRTH CONTROL PILLS?</label><select className={styles.inputField} value={formData.medicalHistory.takingBirthControl} onChange={(e) => handleNestedChange('medicalHistory', 'takingBirthControl', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        {renderYesNoField('TAKING BIRTH CONTROL PILLS?', 'medicalHistory', 'takingBirthControl', formData.medicalHistory.takingBirthControl, isLoading)}
                         <div className={styles.formGroup} />
                     </div>
                     <div className={styles.row}>
@@ -699,6 +770,53 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
 
                     <hr className={styles.divider} />
+                    <h3 className={styles.mainSectionTitle}>Data Privacy Act</h3>
+                    <div className={styles.addressSection}>
+                        <p style={{ margin: '0 0 16px 0', color: '#475569', lineHeight: 1.6, fontSize: '14px' }}>
+                            I authorize Dentime to collect, store, and process the patient&apos;s personal and health information for appointment handling, treatment documentation, follow-up care, and clinic operations in compliance with the Data Privacy Act of 2012.
+                        </p>
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}>
+                                <label>PRIVACY SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
+                                <input
+                                    className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`}
+                                    value={formData.dataPrivacyConsent.signerName}
+                                    onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerName', e.target.value)}
+                                    disabled={isLoading}
+                                />
+                                {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>PRIVACY SIGNER ROLE</label>
+                                <select className={styles.inputField} value={formData.dataPrivacyConsent.signerRole} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerRole', e.target.value)} disabled={isLoading}>
+                                    <option value="Patient">Patient</option>
+                                    <option value="Parent">Parent</option>
+                                    <option value="Guardian">Guardian</option>
+                                </select>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>DATE SIGNED</label>
+                                <input type="date" className={`${styles.inputField} ${errors.dataPrivacyConsent_signedAt ? styles.errorBorder : ''}`} value={formData.dataPrivacyConsent.signedAt} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isLoading} />
+                                {errors.dataPrivacyConsent_signedAt && <span className={styles.errorText}>{errors.dataPrivacyConsent_signedAt}</span>}
+                            </div>
+                        </div>
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                            <button
+                                type="button"
+                                onClick={() => handlePrivacyAcknowledged(!formData.dataPrivacyConsent.acknowledged)}
+                                disabled={isLoading}
+                                style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#01538b', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                                {formData.dataPrivacyConsent.acknowledged ? 'Undo privacy acknowledgement' : 'Acknowledge data privacy consent'}
+                            </button>
+                            <span style={{ fontSize: '14px', color: formData.dataPrivacyConsent.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
+                                {formData.dataPrivacyConsent.acknowledged ? 'Data privacy consent acknowledged.' : 'Data privacy consent has not been acknowledged yet.'}
+                            </span>
+                        </div>
+                        {errors.dataPrivacyConsent_acknowledged && <span className={styles.errorText}>{errors.dataPrivacyConsent_acknowledged}</span>}
+                    </div>
+
+                    <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Digital Consent</h3>
                     <div className={styles.addressSection}>
                         <p style={{ margin: '0 0 16px 0', color: '#475569', lineHeight: 1.6, fontSize: '14px' }}>
@@ -725,7 +843,8 @@ export default function AddPatient({ onClose, onSuccess }) {
                             </div>
                             <div className={styles.formGroup}>
                                 <label>DATE SIGNED</label>
-                                <input type="date" className={styles.inputField} value={formData.consentAcknowledgement.signedAt} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isLoading} />
+                                <input type="date" className={`${styles.inputField} ${errors.consentAcknowledgement_signedAt ? styles.errorBorder : ''}`} value={formData.consentAcknowledgement.signedAt} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isLoading} />
+                                {errors.consentAcknowledgement_signedAt && <span className={styles.errorText}>{errors.consentAcknowledgement_signedAt}</span>}
                             </div>
                         </div>
                         <div style={{ display: 'grid', gap: '10px' }}>

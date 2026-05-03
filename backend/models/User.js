@@ -156,6 +156,14 @@ const userSchema = new mongoose.Schema({
         version: { type: String, default: 'Dentime Patient Form v6.1' }
     },
 
+    dataPrivacyConsent: {
+        acknowledged: { type: Boolean, default: false },
+        signerName: { type: String },
+        signerRole: { type: String },
+        signedAt: { type: Date },
+        version: { type: String, default: 'Data Privacy Act of 2012' }
+    },
+
     // 8. EMR DATA
     treatmentLogs: [treatmentLogSchema],
 

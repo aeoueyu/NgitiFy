@@ -6,7 +6,6 @@ import tblStyles from '../../styles/wideTable.module.css';
 import EditBranchManager from './EditBranchManager';
 import AddBranchManager from './AddBranchManager';
 import UserTabs from './UserTabs';
-import UserAvatar from '../../components/common/UserAvatar';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
 
@@ -188,47 +187,42 @@ const ManageBranchManagers = () => {
                 <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
-                            <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
-                            <th>Branch Manager Name</th>
+                            <th style={{ width: '34%' }}>Name</th>
                             <th>Email Address</th>
-                            <th>Assigned Branch</th>
-                            <th style={{ width: '180px' }}>Account Status</th>
+                            <th style={{ width: '110px' }}>Status</th>
                             <th style={{ width: '160px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredManagers.length > 0 ? (
                             filteredManagers.map((manager) => (
                                 <tr key={manager.id} style={{ opacity: manager.status === 'Inactive' ? 0.6 : 1 }}>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <UserAvatar user={{ name: manager.name, profileImage: manager.profileImage }} size={40} />
-                                    </td>
-                                    <td>
-                                        <span className={styles.fwBold}>{manager.name}</span>
+                                    <td className={tblStyles.wrapCell}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span className={styles.fwBold}>{manager.name}</span>
+                                            <span style={{ color: '#6b7f92', fontSize: '12px' }}>
+                                                {manager.assignedBranch || 'No branch'}
+                                            </span>
+                                        </div>
                                         {!manager.isVerified && (
                                             <span style={{ fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px' }}>
                                                 Unverified Email
                                             </span>
                                         )}
                                     </td>
-                                    <td>{manager.email}</td>
-                                    <td className={tblStyles.wrapCell}>
-                                        {manager.assignedBranch
-                                            ? manager.assignedBranch
-                                            : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>}
-                                    </td>
+                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>{manager.email}</td>
                                     <td>
                                         <span className={`${tblStyles.statusBadge} ${manager.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
                                             {manager.status}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <div className={tblStyles.iconActions}>
+                                        <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
                                             <button
                                                 type="button"
-                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`}
                                                 onClick={() => openManagerModal(manager.id)}
                                                 title="View Branch Manager"
                                             >
@@ -236,7 +230,7 @@ const ManageBranchManagers = () => {
                                             </button>
                                             <button
                                                 type="button"
-                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`}
                                                 onClick={() => openManagerModal(manager.id)}
                                                 title="Edit Branch Manager"
                                             >
@@ -245,20 +239,18 @@ const ManageBranchManagers = () => {
                                             {!manager.isVerified && (
                                                 <button
                                                     type="button"
-                                                    className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                    className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.warningIconButton}`}
                                                     onClick={() => handleResendActivation(manager)}
                                                     title="Resend Activation Email"
-                                                    style={{ color: '#f59e0b' }}
                                                 >
                                                     <FaEnvelope />
                                                 </button>
                                             )}
                                             <button
                                                 type="button"
-                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${manager.status === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
                                                 onClick={() => handleToggleStatus(manager)}
                                                 title={manager.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                                style={{ color: manager.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                             >
                                                 {manager.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
@@ -267,7 +259,7 @@ const ManageBranchManagers = () => {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No branch managers found matching filters.</td></tr>
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No branch managers found matching filters.</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -1,13 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FaDownload, FaFilter, FaSearch, FaTimes } from 'react-icons/fa';
-import UserAvatar from '../common/UserAvatar';
+import { FaDownload, FaFilter, FaSearch } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { formatDateShort, formatTime } from '../../utils/dateUtils';
-import styles from '../../styles/admin/ActivityLogs.module.css';
-import tblStyles from '../../styles/wideTable.module.css';
+import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
+import wideTable from '../../styles/wideTable.module.css';
 
 const ITEMS_PER_PAGE = 20;
+const RANGE_OPTIONS = [
+    { value: 'today', label: 'Today' },
+    { value: '3days', label: '3 Days' },
+    { value: '7days', label: '7 Days' },
+    { value: 'custom', label: 'Custom' },
+];
 
 const ACTION_CATEGORIES = {
     'User Management': ['ADD_', 'CREATE_USER', 'DELETE_USER', 'ARCHIVE_USER', 'EDIT_USER', 'ROLE_', 'GRANT_'],
@@ -46,6 +51,26 @@ const getRoleOptions = (role) => {
     return ['All', 'administrator', 'owner', 'branch-manager', 'dentist', 'secretary', 'system'];
 };
 
+const getTodayString = () => new Date().toISOString().split('T')[0];
+
+const addDays = (dateString, count) => {
+    const date = new Date(`${dateString}T12:00:00`);
+    date.setDate(date.getDate() + count);
+    return date.toISOString().split('T')[0];
+};
+
+const getDateRange = (range, customFrom, customTo) => {
+    const today = getTodayString();
+    if (range === '3days') return { from: today, to: addDays(today, 2) };
+    if (range === '7days') return { from: today, to: addDays(today, 6) };
+    if (range === 'custom') {
+        const from = customFrom || today;
+        const to = customTo || from;
+        return from <= to ? { from, to } : { from: to, to: from };
+    }
+    return { from: today, to: today };
+};
+
 const buildCsv = (rows) => {
     const headers = ['Date', 'Time', 'User', 'Role', 'Category', 'Action', 'Details'];
     const csvRows = [headers.join(',')];
@@ -60,11 +85,27 @@ const buildCsv = (rows) => {
             row.action,
             row.details || '',
         ].map((value) => `"${String(value).replace(/"/g, '""')}"`);
-
         csvRows.push(safeColumns.join(','));
     });
 
     return csvRows.join('\n');
+};
+
+const getRoleBadgeClass = (role) => {
+    switch (role) {
+        case 'administrator':
+            return wideTable.statusBlue;
+        case 'owner':
+            return wideTable.statusGreen;
+        case 'branch-manager':
+            return wideTable.statusAmber;
+        case 'dentist':
+            return wideTable.statusGreen;
+        case 'secretary':
+            return wideTable.statusGray;
+        default:
+            return wideTable.statusGray;
+    }
 };
 
 export default function SharedActivityLogs() {
@@ -78,10 +119,10 @@ export default function SharedActivityLogs() {
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('All');
     const [categoryFilter, setCategoryFilter] = useState('All');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
+    const [rangeFilter, setRangeFilter] = useState('today');
+    const [customFrom, setCustomFrom] = useState(getTodayString());
+    const [customTo, setCustomTo] = useState(getTodayString());
     const [page, setPage] = useState(1);
-    const [selectedLog, setSelectedLog] = useState(null);
 
     const fetchLogs = useCallback(async () => {
         setLoading(true);
@@ -130,33 +171,27 @@ export default function SharedActivityLogs() {
 
     useEffect(() => {
         setPage(1);
-    }, [search, roleFilter, categoryFilter, dateFrom, dateTo]);
+    }, [search, roleFilter, categoryFilter, rangeFilter, customFrom, customTo]);
+
+    const { from: rangeFrom, to: rangeTo } = useMemo(
+        () => getDateRange(rangeFilter, customFrom, customTo),
+        [rangeFilter, customFrom, customTo]
+    );
 
     const filteredLogs = useMemo(() => logs.filter((log) => {
         const searchValue = search.trim().toLowerCase();
         if (searchValue) {
             const matchesSearch = [log.action, log.userName, log.details, log.category]
-                .some((value) => value.toLowerCase().includes(searchValue));
+                .some((value) => String(value || '').toLowerCase().includes(searchValue));
             if (!matchesSearch) return false;
         }
 
         if (roleFilter !== 'All' && log.role !== roleFilter) return false;
         if (categoryFilter !== 'All' && log.category !== categoryFilter) return false;
 
-        if (dateFrom) {
-            const fromDate = new Date(dateFrom);
-            fromDate.setHours(0, 0, 0, 0);
-            if (log.timestamp < fromDate) return false;
-        }
-
-        if (dateTo) {
-            const toDate = new Date(dateTo);
-            toDate.setHours(23, 59, 59, 999);
-            if (log.timestamp > toDate) return false;
-        }
-
-        return true;
-    }), [categoryFilter, dateFrom, dateTo, logs, roleFilter, search]);
+        const dateKey = log.timestamp.toISOString().split('T')[0];
+        return dateKey >= rangeFrom && dateKey <= rangeTo;
+    }), [categoryFilter, logs, rangeFrom, rangeTo, roleFilter, search]);
 
     const paginatedLogs = useMemo(() => (
         filteredLogs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
@@ -165,16 +200,13 @@ export default function SharedActivityLogs() {
     const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
     const roleOptions = getRoleOptions(role);
     const categories = ['All', ...Object.keys(ACTION_CATEGORIES)];
-    const hasActiveFilters = Boolean(search || dateFrom || dateTo || roleFilter !== 'All' || categoryFilter !== 'All');
-
     const title = isDentist || isSecretary ? 'My Activity Logs' : 'Activity Logs';
     const subtitle = isDentist || isSecretary
-        ? 'A compact audit trail of your recorded system actions.'
-        : 'Review user actions and system events in one shared log view.';
+        ? 'Review your recorded actions in a single shared audit table.'
+        : 'Review user actions and system events in one shared tabular log view.';
 
     const handleExportCsv = () => {
         if (filteredLogs.length === 0) return;
-
         const csvString = buildCsv(filteredLogs);
         const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -187,135 +219,134 @@ export default function SharedActivityLogs() {
         URL.revokeObjectURL(url);
     };
 
-    const clearFilters = () => {
-        setSearch('');
-        setRoleFilter('All');
-        setCategoryFilter('All');
-        setDateFrom('');
-        setDateTo('');
-    };
-
     return (
-        <div className={styles.container}>
-            <div className={styles.pageHeader}>
+        <div className={scheduleStyles.page}>
+            <div className={scheduleStyles.headerRow}>
                 <div>
-                    <h1 className={styles.pageTitle}>{title}</h1>
-                    <p className={styles.pageSubtitle}>{subtitle}</p>
+                    <h1 className={scheduleStyles.pageTitle}>{title}</h1>
+                    <p className={scheduleStyles.pageSubtitle}>{subtitle}</p>
                 </div>
+                <button type="button" className={scheduleStyles.secondaryButton} onClick={handleExportCsv} disabled={filteredLogs.length === 0}>
+                    <FaDownload /> Export CSV
+                </button>
             </div>
 
-            <div className={styles.filtersCard}>
-                <div className={styles.filtersRow}>
-                    <div className={styles.searchWrapper}>
-                        <FaSearch className={styles.searchIcon} />
+            <div className={scheduleStyles.toolbar}>
+                <div className={scheduleStyles.toolbarFilters}>
+                    <div className={scheduleStyles.searchWrapper}>
+                        <FaSearch className={scheduleStyles.searchIcon} />
                         <input
-                            className={styles.searchInput}
+                            className={scheduleStyles.searchInput}
                             type="text"
-                            placeholder="Search by action, user, detail, or category..."
+                            placeholder="Search action, user, detail, or category..."
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                         />
                     </div>
 
+                    <div className={scheduleStyles.pillGroup}>
+                        {RANGE_OPTIONS.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                className={`${scheduleStyles.filterPill} ${rangeFilter === option.value ? scheduleStyles.activePill : ''}`}
+                                onClick={() => setRangeFilter(option.value)}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {rangeFilter === 'custom' && (
+                        <div className={scheduleStyles.customDateRange}>
+                            <label className={scheduleStyles.dateField}>
+                                <span>From</span>
+                                <input
+                                    className={scheduleStyles.formControl}
+                                    type="date"
+                                    value={customFrom}
+                                    max={customTo || undefined}
+                                    onChange={(event) => setCustomFrom(event.target.value)}
+                                />
+                            </label>
+                            <label className={scheduleStyles.dateField}>
+                                <span>To</span>
+                                <input
+                                    className={scheduleStyles.formControl}
+                                    type="date"
+                                    value={customTo}
+                                    min={customFrom || undefined}
+                                    onChange={(event) => setCustomTo(event.target.value)}
+                                />
+                            </label>
+                        </div>
+                    )}
+
                     {roleOptions.length > 0 && (
-                        <select className={styles.select} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-                            {roleOptions.map((item) => (
+                        <div className={scheduleStyles.filterSelectWrap}>
+                            <FaFilter className={scheduleStyles.filterIcon} />
+                            <select className={scheduleStyles.filterSelect} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+                                {roleOptions.map((item) => (
+                                    <option key={item} value={item}>
+                                        {item === 'All' ? 'All Roles' : (ROLE_LABELS[item] || item)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    <div className={scheduleStyles.filterSelectWrap}>
+                        <FaFilter className={scheduleStyles.filterIcon} />
+                        <select className={scheduleStyles.filterSelect} value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                            {categories.map((item) => (
                                 <option key={item} value={item}>
-                                    {item === 'All' ? 'All Roles' : (ROLE_LABELS[item] || item)}
+                                    {item === 'All' ? 'All Categories' : item}
                                 </option>
                             ))}
                         </select>
-                    )}
-
-                    <select className={styles.select} value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-                        {categories.map((item) => (
-                            <option key={item} value={item}>
-                                {item === 'All' ? 'All Categories' : item}
-                            </option>
-                        ))}
-                    </select>
-
-                    <div className={styles.dateGroup}>
-                        <input className={styles.dateInput} type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-                        <span className={styles.dateSep}>-</span>
-                        <input className={styles.dateInput} type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
                     </div>
-
-                    {hasActiveFilters && (
-                        <button type="button" className={styles.clearBtn} onClick={clearFilters}>
-                            Clear
-                        </button>
-                    )}
-                </div>
-
-                <div className={styles.categoryTabs}>
-                    <span className={styles.filterTab}>
-                        <FaFilter />
-                    </span>
-                    {categories.map((item) => (
-                        <button
-                            key={item}
-                            type="button"
-                            className={`${styles.filterTab} ${categoryFilter === item ? styles.activeTab : ''}`}
-                            onClick={() => setCategoryFilter(item)}
-                        >
-                            {item}
-                        </button>
-                    ))}
-                    <button type="button" className={styles.filterTab} onClick={handleExportCsv} disabled={filteredLogs.length === 0}>
-                        <FaDownload /> Export CSV
-                    </button>
                 </div>
             </div>
 
-            <div className={tblStyles.tableWrapper} style={{ marginTop: '20px' }}>
-                <table className={tblStyles.table}>
+            <div className={scheduleStyles.tableContainer}>
+                <table className={wideTable.table}>
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>User</th>
-                            <th>Role</th>
-                            <th>Category</th>
-                            <th>Action</th>
-                            <th>Details</th>
+                            <th style={{ width: '16%' }}>Date</th>
+                            <th style={{ width: '18%' }}>User</th>
+                            <th style={{ width: '14%' }}>Role</th>
+                            <th style={{ width: '18%' }}>Action</th>
+                            <th style={{ width: '34%' }}>Details</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="6" style={{ textAlign: 'center', padding: '32px' }}>Loading activity logs...</td>
+                                <td colSpan="5" className={scheduleStyles.stateBlock}>Loading activity logs...</td>
                             </tr>
                         ) : paginatedLogs.length > 0 ? (
                             paginatedLogs.map((log) => (
-                                <tr key={log.id} onClick={() => setSelectedLog(log)} style={{ cursor: 'pointer' }}>
-                                    <td>
-                                        <div style={{ fontWeight: 700 }}>{log.formattedDate}</div>
-                                        <div style={{ color: '#5c7083', fontSize: '12px' }}>{log.formattedTime}</div>
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <UserAvatar user={{ name: log.userName }} size={34} />
-                                            <div style={{ fontWeight: 700 }}>{log.userName}</div>
+                                <tr key={log.id}>
+                                    <td title={`${log.formattedDate} ${log.formattedTime}`}>
+                                        <div className={scheduleStyles.patientCell}>
+                                            <strong>{log.formattedDate}</strong>
+                                            <span>{log.formattedTime}</span>
                                         </div>
                                     </td>
+                                    <td title={log.userName}>{log.userName}</td>
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${tblStyles.statusBlue}`}>
+                                        <span className={`${wideTable.statusBadge} ${getRoleBadgeClass(log.role)}`}>
                                             {ROLE_LABELS[log.role] || log.role}
                                         </span>
                                     </td>
-                                    <td>
-                                        <span className={`${tblStyles.statusBadge} ${tblStyles.statusGray}`}>
-                                            {log.category}
-                                        </span>
-                                    </td>
-                                    <td className={tblStyles.wrapCell}>{log.action}</td>
-                                    <td className={tblStyles.wrapCell}>{log.details || 'No extra details recorded.'}</td>
+                                    <td title={`${log.category} • ${log.action}`}>{log.action}</td>
+                                    <td title={log.details || 'No extra details recorded.'}>{log.details || 'No extra details recorded.'}</td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>
-                                    No activity logs match your current filters.
+                                <td colSpan="5" className={scheduleStyles.emptyStateBox}>
+                                    No activity logs match the current filters.
                                 </td>
                             </tr>
                         )}
@@ -324,74 +355,17 @@ export default function SharedActivityLogs() {
             </div>
 
             {!loading && filteredLogs.length > 0 && (
-                <div className={styles.pagination}>
-                    <button type="button" className={styles.filterTab} onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>
-                        Previous
-                    </button>
-                    <span style={{ color: '#4b647b', fontWeight: 700 }}>Page {page} of {totalPages}</span>
-                    <button type="button" className={styles.filterTab} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>
-                        Next
-                    </button>
-                </div>
-            )}
-
-            {selectedLog && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(15, 23, 42, 0.5)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 1100,
-                        padding: '24px',
-                    }}
-                    onClick={() => setSelectedLog(null)}
-                >
-                    <div
-                        style={{
-                            width: 'min(680px, 100%)',
-                            background: '#fff',
-                            borderRadius: '18px',
-                            padding: '24px',
-                            boxShadow: '0 20px 40px rgba(15, 23, 42, 0.24)',
-                        }}
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                            <div>
-                                <h3 style={{ margin: 0, color: '#0f2c44' }}>{selectedLog.action}</h3>
-                                <p style={{ margin: '6px 0 0', color: '#5c7083' }}>
-                                    {selectedLog.formattedDate} at {selectedLog.formattedTime}
-                                </p>
-                            </div>
-                            <button type="button" className={styles.clearBtn} onClick={() => setSelectedLog(null)}>
-                                <FaTimes />
-                            </button>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' }}>
-                            <div>
-                                <div style={{ fontSize: '12px', fontWeight: 800, color: '#4b647b', textTransform: 'uppercase' }}>User</div>
-                                <div style={{ marginTop: '6px', color: '#20384d', fontWeight: 700 }}>{selectedLog.userName}</div>
-                            </div>
-                            <div>
-                                <div style={{ fontSize: '12px', fontWeight: 800, color: '#4b647b', textTransform: 'uppercase' }}>Role</div>
-                                <div style={{ marginTop: '6px', color: '#20384d', fontWeight: 700 }}>{ROLE_LABELS[selectedLog.role] || selectedLog.role}</div>
-                            </div>
-                            <div>
-                                <div style={{ fontSize: '12px', fontWeight: 800, color: '#4b647b', textTransform: 'uppercase' }}>Category</div>
-                                <div style={{ marginTop: '6px', color: '#20384d', fontWeight: 700 }}>{selectedLog.category}</div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div style={{ fontSize: '12px', fontWeight: 800, color: '#4b647b', textTransform: 'uppercase', marginBottom: '8px' }}>Details</div>
-                            <div style={{ color: '#20384d', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                                {selectedLog.details || 'No extra details recorded.'}
-                            </div>
-                        </div>
+                <div className={scheduleStyles.toolbar} style={{ marginTop: '18px' }}>
+                    <div className={scheduleStyles.pageSubtitle}>
+                        Showing {(page - 1) * ITEMS_PER_PAGE + 1} to {Math.min(page * ITEMS_PER_PAGE, filteredLogs.length)} of {filteredLogs.length} logs
+                    </div>
+                    <div className={scheduleStyles.actionRow}>
+                        <button type="button" className={scheduleStyles.secondaryButton} onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>
+                            Previous
+                        </button>
+                        <button type="button" className={scheduleStyles.secondaryButton} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>
+                            Next
+                        </button>
                     </div>
                 </div>
             )}

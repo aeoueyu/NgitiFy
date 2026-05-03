@@ -131,6 +131,41 @@ select.inputField { appearance: none; -webkit-appearance: none; background-image
 .checkboxGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 16px; margin-top: 8px; }
 .checkboxOption { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; }
 .checkboxOption input { width: 16px; height: 16px; accent-color: #01538b; }
+.radioGroup {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.radioOption {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 16px;
+    border: 1.5px solid #dbe4ec;
+    border-radius: 999px;
+    background: #fff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.radioOption:hover {
+    border-color: #01538b;
+    background: #f5fbff;
+}
+.radioOption input {
+    width: 16px;
+    height: 16px;
+    accent-color: #01538b;
+    cursor: pointer;
+}
+.radioOptionActive {
+    border-color: #01538b;
+    background: #eaf6fd;
+    color: #01538b;
+}
 .disabledOverlay { pointer-events: none; opacity: 0.6; }
 
 /* Buttons */

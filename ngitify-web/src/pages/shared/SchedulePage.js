@@ -6,13 +6,11 @@ import {
     FaPlus,
     FaSearch,
     FaTimes,
-    FaTrashAlt,
     FaUserClock,
 } from 'react-icons/fa';
 import { authFetch, publicFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import PatientEMR from '../admin/PatientEMR';
 import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/shared/SchedulePage.module.css';
@@ -40,26 +38,12 @@ const APPOINTMENT_STATUS_LABELS = {
     cancelled: 'Cancelled',
 };
 
-const QUEUE_STATUS_LABELS = {
-    waiting: 'Waiting',
-    serving: 'Serving',
-    done: 'Done',
-    skipped: 'Skipped',
-};
-
 const APPOINTMENT_STATUS_OPTIONS = [
     { value: 'pending', label: 'Pending' },
     { value: 'confirmed', label: 'Confirmed' },
     { value: 'in-clinic', label: 'In Clinic' },
     { value: 'completed', label: 'Completed' },
     { value: 'cancelled', label: 'Cancelled' },
-];
-
-const QUEUE_STATUS_OPTIONS = [
-    { value: 'waiting', label: 'Waiting' },
-    { value: 'serving', label: 'Serving' },
-    { value: 'done', label: 'Done' },
-    { value: 'skipped', label: 'Skipped' },
 ];
 
 const APPOINTMENT_SOURCE_OPTIONS = [
@@ -151,6 +135,21 @@ const normalizePatientName = (patient) => {
     return '';
 };
 
+const normalizeScheduleStatus = (status) => {
+    switch ((status || '').toLowerCase()) {
+        case 'waiting':
+            return 'pending';
+        case 'serving':
+            return 'in-clinic';
+        case 'done':
+            return 'completed';
+        case 'skipped':
+            return 'cancelled';
+        default:
+            return status || 'pending';
+    }
+};
+
 const normalizeAppointment = (appointment) => ({
     id: appointment._id || appointment.id,
     type: 'appointment',
@@ -184,8 +183,8 @@ const normalizeQueueEntry = (entry) => ({
     branch: entry.branch || '',
     procedure: entry.procedureType || '',
     notes: '',
-    status: entry.status || 'waiting',
-    statusLabel: QUEUE_STATUS_LABELS[entry.status] || 'Waiting',
+    status: normalizeScheduleStatus(entry.status),
+    statusLabel: APPOINTMENT_STATUS_LABELS[normalizeScheduleStatus(entry.status)] || 'Pending',
     createdAt: entry.createdAt,
     contactNumber: entry.contactNumber || '',
     ticketNumber: entry.ticketNumber || '',
@@ -194,20 +193,17 @@ const normalizeQueueEntry = (entry) => ({
 });
 
 const getBadgeClass = (entry) => {
-    if (entry.type === 'walkin') return wideTable.statusGray;
     switch ((entry.status || '').toLowerCase()) {
         case 'confirmed':
-        case 'serving':
             return wideTable.statusGreen;
         case 'pending':
-        case 'waiting':
             return wideTable.statusAmber;
         case 'completed':
-        case 'done':
             return wideTable.statusBlue;
         case 'cancelled':
-        case 'skipped':
             return wideTable.statusRed;
+        case 'in-clinic':
+            return wideTable.statusGray;
         default:
             return wideTable.statusGray;
     }
@@ -278,7 +274,6 @@ export default function SchedulePage() {
     const [slotError, setSlotError] = useState('');
 
     const [viewEntry, setViewEntry] = useState(null);
-    const [cancelTarget, setCancelTarget] = useState(null);
 
     const todayString = getTodayString();
     const selectedDateRange = useMemo(() => {
@@ -542,7 +537,7 @@ export default function SchedulePage() {
             time: entry.time || '',
             procedure: entry.procedure || '',
             notes: entry.notes || '',
-            status: entry.status || (entry.type === 'appointment' ? 'pending' : 'waiting'),
+            status: entry.status || 'pending',
             source: entry.source || 'Walk-in',
             contactNumber: entry.contactNumber || '',
             assignedDentist: entry.type === 'walkin' ? (entry.dentistName === 'Unassigned' ? '' : entry.dentistName) : '',
@@ -563,7 +558,7 @@ export default function SchedulePage() {
         setFormState((prev) => {
             const next = { ...prev, [name]: value };
             if (name === 'formType') {
-                next.status = value === 'walkin' ? 'waiting' : 'pending';
+                next.status = 'pending';
                 next.date = value === 'walkin' ? todayString : prev.date || todayString;
                 next.time = '';
                 next.source = value === 'walkin' ? 'Walk-in' : prev.source || 'Walk-in';
@@ -692,39 +687,6 @@ export default function SchedulePage() {
             addToast(error.message || 'Could not save this schedule entry.', 'error');
         } finally {
             setIsSubmitting(false);
-        }
-    };
-
-    const handleCancelEntry = async () => {
-        if (!cancelTarget) return;
-        try {
-            if (cancelTarget.type === 'appointment') {
-                const response = await authFetch(`/appointments/${cancelTarget.id}/status`, {
-                    method: 'PUT',
-                    body: JSON.stringify({ status: 'cancelled' }),
-                });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(data.message || 'Failed to cancel the appointment.');
-                }
-            } else {
-                const response = await authFetch(`/queue/${cancelTarget.id}`, { method: 'DELETE' });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(data.message || 'Failed to remove the walk-in entry.');
-                }
-            }
-
-            addToast(
-                cancelTarget.type === 'appointment'
-                    ? 'Appointment cancelled successfully.'
-                    : 'Walk-in queue entry removed successfully.',
-                'success'
-            );
-            setCancelTarget(null);
-            await fetchPageData();
-        } catch (error) {
-            addToast(error.message || 'Unable to complete that action.', 'error');
         }
     };
 
@@ -905,16 +867,14 @@ export default function SchedulePage() {
                             )}
 
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>
-                                    {showWalkInFields ? 'Queue Status' : 'Appointment Status'}
-                                </label>
+                                <label className={styles.formLabel}>Status</label>
                                 <select
                                     name="status"
                                     className={styles.formControl}
                                     value={formState.status}
                                     onChange={handleFormFieldChange}
                                 >
-                                    {(showWalkInFields ? QUEUE_STATUS_OPTIONS : APPOINTMENT_STATUS_OPTIONS).map((option) => (
+                                    {APPOINTMENT_STATUS_OPTIONS.map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
                                     ))}
                                 </select>
@@ -1194,9 +1154,6 @@ export default function SchedulePage() {
                                 {APPOINTMENT_STATUS_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
-                                {canManageQueue && QUEUE_STATUS_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
                             </select>
                         </label>
                     </div>
@@ -1215,6 +1172,7 @@ export default function SchedulePage() {
                             <tr>
                                 <th style={{ width: '42px', textAlign: 'center' }}>#</th>
                                 <th>Patient Name</th>
+                                <th style={{ width: '150px' }}>Date</th>
                                 <th style={{ width: '150px' }}>Type</th>
                                 <th>Dentist Assigned</th>
                                 <th style={{ width: '150px' }}>Status</th>
@@ -1224,7 +1182,7 @@ export default function SchedulePage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                    <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
                                         Loading schedule entries...
                                     </td>
                                 </tr>
@@ -1236,6 +1194,12 @@ export default function SchedulePage() {
                                             <div className={styles.patientCell}>
                                                 <strong>{entry.patientName}</strong>
                                                 <span>{entry.branch || 'No branch'}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className={styles.patientCell}>
+                                                <strong>{formatDateLabel(entry.date)}</strong>
+                                                <span>{entry.time ? to12h(entry.time) : 'Walk-in entry'}</span>
                                             </div>
                                         </td>
                                         <td>
@@ -1271,24 +1235,13 @@ export default function SchedulePage() {
                                                         <FaEdit />
                                                     </button>
                                                 )}
-                                                {canCreateSchedule && (
-                                                    <button
-                                                        type="button"
-                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.deleteIconButton}`}
-                                                        onClick={() => setCancelTarget(entry)}
-                                                        title={entry.type === 'appointment' ? 'Cancel' : 'Delete'}
-                                                        aria-label={entry.type === 'appointment' ? 'Cancel' : 'Delete'}
-                                                    >
-                                                        <FaTrashAlt />
-                                                    </button>
-                                                )}
                                             </div>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                    <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
                                         No schedule entries found for the selected filters.
                                     </td>
                                 </tr>
@@ -1300,20 +1253,6 @@ export default function SchedulePage() {
 
             {renderFormModal()}
             {renderViewModal()}
-
-            <ConfirmModal
-                isOpen={Boolean(cancelTarget)}
-                title={cancelTarget?.type === 'appointment' ? 'Cancel Appointment' : 'Delete Walk-in Entry'}
-                message={
-                    cancelTarget?.type === 'appointment'
-                        ? `Cancel the appointment for ${cancelTarget?.patientName}? The record will stay visible with a cancelled badge.`
-                        : `Delete the walk-in queue entry for ${cancelTarget?.patientName}?`
-                }
-                confirmText={cancelTarget?.type === 'appointment' ? 'Yes, Cancel Appointment' : 'Yes, Delete Entry'}
-                isDestructive={true}
-                onConfirm={handleCancelEntry}
-                onCancel={() => setCancelTarget(null)}
-            />
         </>
     );
 }

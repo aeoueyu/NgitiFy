@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { FaPlus, FaEdit, FaPowerOff, FaPhone, FaMapMarkerAlt, FaUserTie } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaPowerOff, FaEye } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import styles from '../../styles/admin/BranchManagement.module.css';
+import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
+import wideTable from '../../styles/wideTable.module.css';
 
 const EMPTY_ADDRESS = { region: '', province: '', city: '', barangay: '', street: '', houseNumber: '' };
 const EMPTY_FORM = { name: '', phone: '', addressDetails: { ...EMPTY_ADDRESS } };
@@ -41,6 +43,10 @@ const normalizeBranchForEdit = (branch) => ({
         ...(branch?.addressDetails || {}),
     },
 });
+
+const getStatusClassName = (isActive) => (
+    isActive ? wideTable.statusGreen : wideTable.statusGray
+);
 
 export default function BranchManagement() {
     const { addToast } = useToast();
@@ -287,62 +293,102 @@ export default function BranchManagement() {
         return <div className={styles.container}><p className={styles.loading}>Loading branches...</p></div>;
     }
 
+    const orderedBranches = [...activeBranches, ...inactiveBranches];
+
     return (
-        <div className={styles.container}>
-            <div className={styles.pageHeader}>
+        <div className={scheduleStyles.page}>
+            <div className={scheduleStyles.headerRow}>
                 <div>
-                    <h1 className={styles.pageTitle}>Branch Management</h1>
-                    <p className={styles.pageSubtitle}>
+                    <h1 className={scheduleStyles.pageTitle}>Branch Management</h1>
+                    <p className={scheduleStyles.pageSubtitle}>
                         {isBranchManager
                             ? `Viewing ${assignedBranch || 'your assigned branch'} only`
-                            : `${activeBranches.length} active branch${activeBranches.length === 1 ? '' : 'es'}`}
+                            : `${activeBranches.length} active branch${activeBranches.length === 1 ? '' : 'es'} and ${inactiveBranches.length} inactive branch${inactiveBranches.length === 1 ? '' : 'es'}.`}
                     </p>
                 </div>
                 {!isBranchManager && (
-                    <button className={styles.addBtn} onClick={openAdd} type="button">
+                    <button className={scheduleStyles.primaryButton} onClick={openAdd} type="button">
                         <FaPlus /> Add Branch
                     </button>
                 )}
             </div>
 
-            <h2 className={styles.sectionLabel}>Active Branches</h2>
-            {activeBranches.length === 0 ? (
-                <div className={styles.emptyState}>No active branches yet. Click "Add Branch" to create one.</div>
-            ) : (
-                <div className={styles.grid}>
-                    {activeBranches.map((branch) => (
-                        <BranchCard
-                            key={branch._id}
-                            branch={branch}
-                            managerName={getManagerName(branch.managerIds)}
-                            onEdit={() => openEdit(branch)}
-                            onToggle={() => setConfirmTarget(branch)}
-                            onView={() => openAnalytics(branch)}
-                            readOnly={isBranchManager}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {inactiveBranches.length > 0 && (
-                <>
-                    <h2 className={`${styles.sectionLabel} ${styles.inactiveLabel}`}>Inactive Branches</h2>
-                    <div className={styles.grid}>
-                        {inactiveBranches.map((branch) => (
-                            <BranchCard
-                                key={branch._id}
-                                branch={branch}
-                                managerName={getManagerName(branch.managerIds)}
-                                onEdit={() => openEdit(branch)}
-                                onToggle={() => setConfirmTarget(branch)}
-                                onView={() => openAnalytics(branch)}
-                                inactive
-                                readOnly={isBranchManager}
-                            />
-                        ))}
-                    </div>
-                </>
-            )}
+            <div className={scheduleStyles.tableContainer}>
+                <table className={wideTable.table}>
+                    <thead>
+                        <tr>
+                            <th style={{ width: '20%' }}>Name</th>
+                            <th style={{ width: '14%' }}>Contact</th>
+                            <th style={{ width: '36%' }}>Address</th>
+                            <th style={{ width: '16%' }}>Manager</th>
+                            <th style={{ width: '8%' }}>Status</th>
+                            <th style={{ width: '12%', textAlign: 'center' }}>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {orderedBranches.length === 0 ? (
+                            <tr>
+                                <td colSpan="6" className={scheduleStyles.emptyStateBox}>
+                                    No branch records found.
+                                </td>
+                            </tr>
+                        ) : (
+                            orderedBranches.map((branch) => (
+                                <tr key={branch._id}>
+                                    <td>
+                                        <div className={scheduleStyles.patientCell}>
+                                            <strong>{branch.name}</strong>
+                                            <span>{branch.isActive ? 'Active branch' : 'Inactive branch'}</span>
+                                        </div>
+                                    </td>
+                                    <td>{branch.contactNumber || '-'}</td>
+                                    <td title={formatBranchAddress(branch.addressDetails, branch.address || '-')}>
+                                        {formatBranchAddress(branch.addressDetails, branch.address || '-') || '-'}
+                                    </td>
+                                    <td>{getManagerName(branch.managerIds)}</td>
+                                    <td>
+                                        <span className={`${wideTable.statusBadge} ${getStatusClassName(branch.isActive)}`}>
+                                            {branch.isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <div className={wideTable.iconActions}>
+                                            <button
+                                                type="button"
+                                                className={wideTable.iconAction}
+                                                title="View Analytics"
+                                                onClick={() => openAnalytics(branch)}
+                                            >
+                                                <FaEye />
+                                            </button>
+                                            {!isBranchManager && (
+                                                <button
+                                                    type="button"
+                                                    className={wideTable.iconAction}
+                                                    title="Edit Branch"
+                                                    onClick={() => openEdit(branch)}
+                                                >
+                                                    <FaEdit />
+                                                </button>
+                                            )}
+                                            {!isBranchManager && (
+                                                <button
+                                                    type="button"
+                                                    className={wideTable.iconAction}
+                                                    title={branch.isActive ? 'Deactivate Branch' : 'Activate Branch'}
+                                                    onClick={() => setConfirmTarget(branch)}
+                                                >
+                                                    <FaPowerOff />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
 
             {!isBranchManager && showModal && (
                 <div className={styles.overlay}>
@@ -575,62 +621,6 @@ export default function BranchManagement() {
                     onCancel={() => setConfirmTarget(null)}
                 />
             )}
-        </div>
-    );
-}
-
-function BranchCard({ branch, managerName, onEdit, onToggle, onView, inactive, readOnly = false }) {
-    const displayAddress = formatBranchAddress(branch.addressDetails, branch.address);
-
-    return (
-        <div className={`${styles.card} ${inactive ? styles.cardInactive : ''}`}>
-            <div className={styles.cardHeader}>
-                <span className={`${styles.statusBadge} ${branch.isActive ? styles.badgeActive : styles.badgeInactive}`}>
-                    {branch.isActive ? 'Active' : 'Inactive'}
-                </span>
-            </div>
-
-            <h3 className={styles.branchName}>{branch.name}</h3>
-
-            <div className={styles.branchMeta}>
-                {displayAddress && (
-                    <p className={styles.metaRow}>
-                        <FaMapMarkerAlt className={styles.metaIcon} />
-                        {displayAddress}
-                    </p>
-                )}
-                {branch.contactNumber && (
-                    <p className={styles.metaRow}>
-                        <FaPhone className={styles.metaIcon} />
-                        {branch.contactNumber}
-                    </p>
-                )}
-                <p className={styles.metaRow}>
-                    <FaUserTie className={styles.metaIcon} />
-                    {managerName}
-                </p>
-            </div>
-
-            <div className={styles.cardActions}>
-                <button className={styles.viewBtn} onClick={onView} type="button">
-                    View Branch
-                </button>
-                {!readOnly && (
-                    <>
-                        <button className={styles.editBtn} onClick={onEdit} type="button">
-                            <FaEdit /> Edit
-                        </button>
-                        <button
-                            className={`${styles.toggleBtn} ${branch.isActive ? styles.toggleDeactivate : styles.toggleActivate}`}
-                            onClick={onToggle}
-                            type="button"
-                        >
-                            <FaPowerOff />
-                            {branch.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                    </>
-                )}
-            </div>
         </div>
     );
 }

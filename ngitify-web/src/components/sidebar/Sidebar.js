@@ -13,13 +13,13 @@ import {
     FaCog,
     FaDatabase,
     FaFileMedical,
+    FaHistory,
     FaHeadset,
     FaRobot,
     FaShieldAlt,
     FaSignOutAlt,
     FaTachometerAlt,
     FaTooth,
-    FaTools,
     FaUserCircle,
     FaUserInjured,
     FaUsers,
@@ -100,12 +100,19 @@ export default function Sidebar() {
     const inventoryPath = `${basePath}/inventory`;
     const profilePath = `${basePath}/profile`;
     const userManagementPath = isAdmin
-        ? '/admin/manage-users/patients'
+        ? '/admin/manage-users/secretaries'
         : isOwner
-            ? '/owner/manage-users/patients'
+            ? '/owner/manage-users/secretaries'
             : isBranchManager
                 ? '/branch-manager/manage-users'
                 : `${basePath}/patients`;
+    const managePatientsPath = isAdmin
+        ? '/admin/patients'
+        : isOwner
+            ? '/owner/patients'
+            : isBranchManager
+                ? '/branch-manager/patients'
+                : '/secretary/patients';
 
     useEffect(() => {
         if (!canReadInventory && !isOwner) return;
@@ -254,28 +261,28 @@ export default function Sidebar() {
                     {navItem(schedulePath, FaCalendarAlt, 'Schedule')}
 
                     {sectionLabel('Patients')}
-                    {(isAdmin || isBranchManager || isSecretary) && navItem(`${basePath}/patient-emr`, FaFileMedical, 'Patient EMR')}
+                    {(isAdmin || isOwner || isBranchManager || isSecretary) && navItem(managePatientsPath, FaUserInjured, 'Manage Patients')}
 
                     {isBranchManager && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem(userManagementPath, FaUsers, 'User Management')}
+                            {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/branch-manager/branches', FaCodeBranch, 'Branch')}
-                            {navItem('/branch-manager/activity-logs', FaClipboardList, 'Activity Logs')}
+                            {navItem('/branch-manager/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
 
                     {isOwner && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem(userManagementPath, FaUsers, 'User Management')}
+                            {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/owner/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/owner/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/owner/branches', FaCodeBranch, 'Branches')}
                             {navItem('/owner/inventory', FaBoxes, 'Inventory', inventoryBadge)}
-                            {navItem('/owner/activity-logs', FaClipboardList, 'Activity Logs')}
+                            {navItem('/owner/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
 
@@ -285,7 +292,7 @@ export default function Sidebar() {
                             {navItem('/secretary/patients', FaUserInjured, 'Patients')}
                             {navItem('/secretary/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/secretary/chat-support', FaHeadset, 'Chat Support')}
-                            {navItem('/secretary/activity-logs', FaClipboardList, 'Activity Logs')}
+                            {navItem('/secretary/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
 
@@ -301,21 +308,21 @@ export default function Sidebar() {
                             {navItem('/dentist/material-usage', FaBoxes, 'Material Usage')}
                             {sectionLabel('System')}
                             {navItem('/dentist/notifications', FaBell, 'Notifications')}
-                            {navItem('/dentist/activity-logs', FaClipboardList, 'Activity Logs')}
+                            {navItem('/dentist/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
 
                     {isAdmin && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem(userManagementPath, FaUsers, 'User Management')}
+                            {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/admin/notifications', FaBell, 'Notifications', notifBadge)}
                             {sectionLabel('System')}
                             {navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/admin/roles', FaShieldAlt, 'Roles & Permissions')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
                             {navItem('/admin/audit-trail', FaClipboardList, 'Audit Trail')}
-                            {navItem('/admin/activity-logs', FaClipboardList, 'Activity Logs')}
+                            {navItem('/admin/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
                 </div>
@@ -329,7 +336,7 @@ export default function Sidebar() {
                                 onClick={() => handleNavigate('/admin/system-config')}
                                 data-tooltip="System Config"
                             >
-                                <FaTools className={styles['nav-icon']} />
+                                <FaCog className={styles['nav-icon']} />
                                 {isExpanded && <span className={styles['nav-text']}>System Config</span>}
                             </div>
 
@@ -347,7 +354,7 @@ export default function Sidebar() {
                                 onClick={() => handleNavigate('/admin/integrity')}
                                 data-tooltip="Integrity Tools"
                             >
-                                <FaTools className={styles['nav-icon']} />
+                                <FaShieldAlt className={styles['nav-icon']} />
                                 {isExpanded && <span className={styles['nav-text']}>Integrity Tools</span>}
                             </div>
                         </>

@@ -209,6 +209,20 @@
     text-align: left;
 }
 
+.inventoryTable {
+    width: 100%;
+    min-width: 1080px;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.inventoryTable th,
+.inventoryTable td {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: initial;
+}
+
 .userTable thead { background-color: #f8fafc; }
 
 .userTable th {

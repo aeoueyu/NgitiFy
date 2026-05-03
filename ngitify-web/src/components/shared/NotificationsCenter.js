@@ -12,42 +12,39 @@ import { useNavigate } from 'react-router-dom';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import ConfirmModal from '../common/ConfirmModal';
-import styles from '../../styles/admin/Notifications.module.css';
+import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
+import wideTable from '../../styles/wideTable.module.css';
 
 const TYPE_META = {
-    NEW_APPOINTMENT: { label: 'Appointment', tone: 'info', icon: FaCalendarAlt },
-    APPOINTMENT_CANCELLED: { label: 'Cancelled', tone: 'danger', icon: FaCalendarAlt },
-    APPOINTMENT_CONFIRMED: { label: 'Confirmed', tone: 'success', icon: FaCalendarAlt },
-    APPOINTMENT_DECLINED: { label: 'Declined', tone: 'danger', icon: FaCalendarAlt },
-    APPOINTMENT_REMINDER: { label: 'Reminder', tone: 'info', icon: FaCalendarAlt },
-    NEW_PATIENT_REGISTRATION: { label: 'Patient', tone: 'success', icon: FaFileMedical },
-    NEW_RADIOGRAPH: { label: 'Radiograph', tone: 'info', icon: FaFileMedical },
-    CHAT_TICKET_RAISED: { label: 'Support Ticket', tone: 'accent', icon: FaComments },
-    LOW_INVENTORY: { label: 'Inventory', tone: 'warning', icon: FaBell },
-    PREDICTIVE_VISIT_DUE: { label: 'Visit Due', tone: 'warning', icon: FaBell },
-    PREDICTIVE_VISIT_OVERDUE: { label: 'Visit Overdue', tone: 'danger', icon: FaBell },
-    DENTAL_HEALTH_TIP: { label: 'Health Tip', tone: 'accent', icon: FaBell },
-    INQUIRY_ESCALATED: { label: 'Escalated', tone: 'warning', icon: FaComments },
-    QUEUE_EVENT: { label: 'Queue', tone: 'success', icon: FaCalendarAlt },
+    NEW_APPOINTMENT: { label: 'Appointment', tone: wideTable.statusBlue, icon: FaCalendarAlt },
+    APPOINTMENT_CANCELLED: { label: 'Cancelled', tone: wideTable.statusRed, icon: FaCalendarAlt },
+    APPOINTMENT_CONFIRMED: { label: 'Confirmed', tone: wideTable.statusGreen, icon: FaCalendarAlt },
+    APPOINTMENT_DECLINED: { label: 'Declined', tone: wideTable.statusRed, icon: FaCalendarAlt },
+    APPOINTMENT_REMINDER: { label: 'Reminder', tone: wideTable.statusBlue, icon: FaCalendarAlt },
+    NEW_PATIENT_REGISTRATION: { label: 'Patient', tone: wideTable.statusGreen, icon: FaFileMedical },
+    NEW_RADIOGRAPH: { label: 'Radiograph', tone: wideTable.statusBlue, icon: FaFileMedical },
+    CHAT_TICKET_RAISED: { label: 'Support Ticket', tone: wideTable.statusAmber, icon: FaComments },
+    LOW_INVENTORY: { label: 'Inventory', tone: wideTable.statusAmber, icon: FaBell },
+    PREDICTIVE_VISIT_DUE: { label: 'Visit Due', tone: wideTable.statusAmber, icon: FaBell },
+    PREDICTIVE_VISIT_OVERDUE: { label: 'Visit Overdue', tone: wideTable.statusRed, icon: FaBell },
+    DENTAL_HEALTH_TIP: { label: 'Health Tip', tone: wideTable.statusGray, icon: FaBell },
+    INQUIRY_ESCALATED: { label: 'Escalated', tone: wideTable.statusAmber, icon: FaComments },
+    QUEUE_EVENT: { label: 'Queue', tone: wideTable.statusGreen, icon: FaCalendarAlt },
 };
 
 const RANGE_OPTIONS = [
     { value: 'today', label: 'Today' },
-    { value: 'last7', label: 'Last 7 Days' },
-    { value: 'last30', label: 'Last 1 Month' },
-    { value: 'custom', label: 'Custom Range' },
+    { value: '3days', label: '3 Days' },
+    { value: '7days', label: '7 Days' },
+    { value: 'custom', label: 'Custom' },
 ];
 
-const startOfDay = (value) => {
-    const date = new Date(value);
-    date.setHours(0, 0, 0, 0);
-    return date;
-};
+const getTodayString = () => new Date().toISOString().split('T')[0];
 
-const endOfDay = (value) => {
-    const date = new Date(value);
-    date.setHours(23, 59, 59, 999);
-    return date;
+const addDays = (dateString, count) => {
+    const date = new Date(`${dateString}T12:00:00`);
+    date.setDate(date.getDate() + count);
+    return date.toISOString().split('T')[0];
 };
 
 const getRelativeTime = (value) => {
@@ -71,6 +68,18 @@ const getRelativeTime = (value) => {
     });
 };
 
+const getDateRange = (range, customFrom, customTo) => {
+    const today = getTodayString();
+    if (range === '3days') return { from: today, to: addDays(today, 2) };
+    if (range === '7days') return { from: today, to: addDays(today, 6) };
+    if (range === 'custom') {
+        const from = customFrom || today;
+        const to = customTo || from;
+        return from <= to ? { from, to } : { from: to, to: from };
+    }
+    return { from: today, to: today };
+};
+
 export default function NotificationsCenter({
     enableAppointmentActions = false,
     chatPath = '',
@@ -81,8 +90,8 @@ export default function NotificationsCenter({
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedRange, setSelectedRange] = useState('today');
-    const [customFrom, setCustomFrom] = useState('');
-    const [customTo, setCustomTo] = useState('');
+    const [customFrom, setCustomFrom] = useState(getTodayString());
+    const [customTo, setCustomTo] = useState(getTodayString());
     const [typeFilter, setTypeFilter] = useState('all');
     const [readFilter, setReadFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -130,13 +139,6 @@ export default function NotificationsCenter({
             addToast('All notifications marked as read.', 'success');
         } catch {
             addToast('Failed to mark all notifications as read.', 'error');
-        }
-    };
-
-    const handleOpenDetail = async (notification) => {
-        setSelectedNotification(notification);
-        if (!notification.isRead) {
-            await markAsRead(notification._id);
         }
     };
 
@@ -195,33 +197,18 @@ export default function NotificationsCenter({
         [notifications]
     );
 
+    const { from: rangeFrom, to: rangeTo } = useMemo(
+        () => getDateRange(selectedRange, customFrom, customTo),
+        [customFrom, customTo, selectedRange]
+    );
+
     const filteredNotifications = useMemo(() => {
-        const now = new Date();
         const query = searchQuery.trim().toLowerCase();
 
         return notifications.filter((item) => {
             const createdAt = new Date(item.createdAt);
-            let matchesRange = true;
-
-            if (selectedRange === 'today') {
-                matchesRange = createdAt >= startOfDay(now) && createdAt <= endOfDay(now);
-            } else if (selectedRange === 'last7') {
-                const start = startOfDay(now);
-                start.setDate(start.getDate() - 6);
-                matchesRange = createdAt >= start && createdAt <= endOfDay(now);
-            } else if (selectedRange === 'last30') {
-                const start = startOfDay(now);
-                start.setDate(start.getDate() - 30);
-                matchesRange = createdAt >= start && createdAt <= endOfDay(now);
-            } else if (selectedRange === 'custom') {
-                if (customFrom) {
-                    matchesRange = matchesRange && createdAt >= startOfDay(customFrom);
-                }
-                if (customTo) {
-                    matchesRange = matchesRange && createdAt <= endOfDay(customTo);
-                }
-            }
-
+            const createdDateKey = createdAt.toISOString().split('T')[0];
+            const matchesRange = createdDateKey >= rangeFrom && createdDateKey <= rangeTo;
             const matchesType = typeFilter === 'all' || item.type === typeFilter;
             const matchesRead = readFilter === 'all'
                 || (readFilter === 'unread' && !item.isRead)
@@ -238,35 +225,31 @@ export default function NotificationsCenter({
 
             return matchesRange && matchesType && matchesRead && matchesSearch;
         }).sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
-    }, [customFrom, customTo, notifications, readFilter, searchQuery, selectedRange, typeFilter]);
+    }, [notifications, rangeFrom, rangeTo, readFilter, searchQuery, typeFilter]);
 
-    const renderActionButtons = (notification, compact = false) => {
-        const isLoading = actionLoading === notification._id;
+    const renderActionButtons = (notification) => {
+        const isLoadingAction = actionLoading === notification._id;
 
         if (enableAppointmentActions && notification.type === 'NEW_APPOINTMENT' && !notification.isRead) {
             return (
-                <div className={`${styles.actionRow} ${compact ? styles.actionRowCompact : ''}`}>
+                <div className={wideTable.iconActions}>
                     <button
                         type="button"
-                        className={styles.primaryBtn}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            handleAcceptAppointment(notification);
-                        }}
-                        disabled={isLoading}
+                        className={wideTable.iconAction}
+                        title={isLoadingAction ? 'Confirming...' : 'Confirm Appointment'}
+                        onClick={() => handleAcceptAppointment(notification)}
+                        disabled={isLoadingAction}
                     >
-                        {isLoading ? 'Confirming...' : 'Accept'}
+                        <FaCheck />
                     </button>
                     <button
                         type="button"
-                        className={styles.secondaryBtn}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            setDeclineTarget(notification);
-                        }}
-                        disabled={isLoading}
+                        className={wideTable.iconAction}
+                        title="Decline Appointment"
+                        onClick={() => setDeclineTarget(notification)}
+                        disabled={isLoadingAction}
                     >
-                        Decline
+                        <FaTimes />
                     </button>
                 </div>
             );
@@ -276,11 +259,8 @@ export default function NotificationsCenter({
             return (
                 <button
                     type="button"
-                    className={styles.secondaryBtn}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        navigate(chatPath);
-                    }}
+                    className={scheduleStyles.secondaryButton}
+                    onClick={() => navigate(chatPath)}
                 >
                     View Chat
                 </button>
@@ -291,11 +271,8 @@ export default function NotificationsCenter({
             return (
                 <button
                     type="button"
-                    className={styles.secondaryBtn}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        markAsRead(notification._id);
-                    }}
+                    className={scheduleStyles.secondaryButton}
+                    onClick={() => markAsRead(notification._id)}
                 >
                     Mark Read
                 </button>
@@ -307,11 +284,11 @@ export default function NotificationsCenter({
 
     return (
         <>
-            <div className={styles.container}>
-                <div className={styles.pageHeader}>
+            <div className={scheduleStyles.page}>
+                <div className={scheduleStyles.headerRow}>
                     <div>
-                        <h1 className={styles.pageTitle}>Notifications</h1>
-                        <p className={styles.pageSubtitle}>
+                        <h1 className={scheduleStyles.pageTitle}>Notifications</h1>
+                        <p className={scheduleStyles.pageSubtitle}>
                             {unreadCount > 0
                                 ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`
                                 : 'All caught up.'}
@@ -319,138 +296,173 @@ export default function NotificationsCenter({
                     </div>
 
                     {unreadCount > 0 && (
-                        <button type="button" className={styles.primaryBtn} onClick={markAllAsRead}>
+                        <button type="button" className={scheduleStyles.primaryButton} onClick={markAllAsRead}>
                             Mark All as Read
                         </button>
                     )}
                 </div>
 
-                <div className={styles.filtersCard}>
-                    <div className={styles.rangeGroup}>
-                        {RANGE_OPTIONS.map((option) => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                className={`${styles.filterPill} ${selectedRange === option.value ? styles.filterPillActive : ''}`}
-                                onClick={() => setSelectedRange(option.value)}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {selectedRange === 'custom' && (
-                        <div className={styles.customRangeRow}>
-                            <input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} />
-                            <input type="date" value={customTo} onChange={(event) => setCustomTo(event.target.value)} />
+                <div className={scheduleStyles.toolbar}>
+                    <div className={scheduleStyles.toolbarFilters}>
+                        <div className={scheduleStyles.searchWrapper}>
+                            <FaSearch className={scheduleStyles.searchIcon} />
+                            <input
+                                className={scheduleStyles.searchInput}
+                                type="search"
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                placeholder="Search title or message"
+                            />
                         </div>
-                    )}
 
-                    <div className={styles.filterGrid}>
-                        <label className={styles.controlLabel}>
-                            <span>Search</span>
-                            <div className={styles.searchField}>
-                                <FaSearch />
-                                <input
-                                    type="search"
-                                    value={searchQuery}
-                                    onChange={(event) => setSearchQuery(event.target.value)}
-                                    placeholder="Search title or message"
-                                />
+                        <div className={scheduleStyles.pillGroup}>
+                            {RANGE_OPTIONS.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={`${scheduleStyles.filterPill} ${selectedRange === option.value ? scheduleStyles.activePill : ''}`}
+                                    onClick={() => setSelectedRange(option.value)}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {selectedRange === 'custom' && (
+                            <div className={scheduleStyles.customDateRange}>
+                                <label className={scheduleStyles.dateField}>
+                                    <span>From</span>
+                                    <input className={scheduleStyles.formControl} type="date" value={customFrom} max={customTo || undefined} onChange={(event) => setCustomFrom(event.target.value)} />
+                                </label>
+                                <label className={scheduleStyles.dateField}>
+                                    <span>To</span>
+                                    <input className={scheduleStyles.formControl} type="date" value={customTo} min={customFrom || undefined} onChange={(event) => setCustomTo(event.target.value)} />
+                                </label>
                             </div>
-                        </label>
+                        )}
 
-                        <label className={styles.controlLabel}>
-                            <span>Notification Type</span>
-                            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                                <option value="all">All Types</option>
-                                {typeOptions.filter((value) => value !== 'all').map((value) => (
-                                    <option key={value} value={value}>{TYPE_META[value]?.label || value}</option>
-                                ))}
-                            </select>
-                        </label>
+                        <select className={scheduleStyles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                            <option value="all">All Types</option>
+                            {typeOptions.filter((value) => value !== 'all').map((value) => (
+                                <option key={value} value={value}>{TYPE_META[value]?.label || value}</option>
+                            ))}
+                        </select>
 
-                        <label className={styles.controlLabel}>
-                            <span>Read Status</span>
-                            <select value={readFilter} onChange={(event) => setReadFilter(event.target.value)}>
-                                <option value="all">All</option>
-                                <option value="unread">Unread Only</option>
-                                <option value="read">Read Only</option>
-                            </select>
-                        </label>
+                        <select className={scheduleStyles.filterSelect} value={readFilter} onChange={(event) => setReadFilter(event.target.value)}>
+                            <option value="all">All Read Status</option>
+                            <option value="unread">Unread Only</option>
+                            <option value="read">Read Only</option>
+                        </select>
                     </div>
                 </div>
 
-                <div className={styles.listCard}>
-                    {loading ? (
-                        <div className={styles.stateBlock}>Loading notifications...</div>
-                    ) : filteredNotifications.length === 0 ? (
-                        <div className={styles.stateBlock}>No notifications found for the current filters.</div>
-                    ) : (
-                        filteredNotifications.map((notification) => {
-                            const meta = TYPE_META[notification.type] || { label: notification.type, tone: 'muted', icon: FaBell };
-                            const Icon = meta.icon;
+                <div className={scheduleStyles.tableContainer}>
+                    <table className={wideTable.table}>
+                        <thead>
+                            <tr>
+                                <th style={{ width: '14%' }}>Type</th>
+                                <th style={{ width: '20%' }}>Title</th>
+                                <th style={{ width: '34%' }}>Message</th>
+                                <th style={{ width: '16%' }}>Date</th>
+                                <th style={{ width: '8%' }}>Status</th>
+                                <th style={{ width: '8%', textAlign: 'center' }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="6" className={scheduleStyles.stateBlock}>Loading notifications...</td>
+                                </tr>
+                            ) : filteredNotifications.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className={scheduleStyles.emptyStateBox}>No notifications found for the current filters.</td>
+                                </tr>
+                            ) : (
+                                filteredNotifications.map((notification) => {
+                                    const meta = TYPE_META[notification.type] || { label: notification.type, tone: wideTable.statusGray, icon: FaBell };
+                                    const Icon = meta.icon;
 
-                            return (
-                                <article
-                                    key={notification._id}
-                                    className={`${styles.notificationCard} ${!notification.isRead ? styles.unread : ''}`}
-                                    onClick={() => handleOpenDetail(notification)}
-                                >
-                                    <div className={styles.notificationTop}>
-                                        <div className={styles.notificationMeta}>
-                                            <span className={`${styles.iconBadge} ${styles[`tone-${meta.tone}`]}`}>
-                                                <Icon />
-                                            </span>
-                                            <span className={`${styles.typeBadge} ${styles[`tone-${meta.tone}`]}`}>
-                                                {meta.label}
-                                            </span>
-                                        </div>
-                                        <span className={styles.timeText}>{getRelativeTime(notification.createdAt)}</span>
-                                    </div>
-
-                                    <div className={styles.notificationBody}>
-                                        <div className={styles.notificationHeading}>
-                                            <h2 className={styles.notificationTitle}>{notification.title}</h2>
-                                            {!notification.isRead && <span className={styles.unreadDot} />}
-                                        </div>
-                                        <p className={styles.notificationMessage}>{notification.message}</p>
-                                    </div>
-
-                                    {renderActionButtons(notification, true)}
-                                </article>
-                            );
-                        })
-                    )}
+                                    return (
+                                        <tr key={notification._id} onClick={() => setSelectedNotification(notification)} style={{ cursor: 'pointer' }}>
+                                            <td>
+                                                <span className={`${wideTable.statusBadge} ${meta.tone}`} title={meta.label}>
+                                                    <Icon /> {meta.label}
+                                                </span>
+                                            </td>
+                                            <td title={notification.title}>{notification.title}</td>
+                                            <td title={notification.message}>{notification.message}</td>
+                                            <td>
+                                                <div className={scheduleStyles.patientCell}>
+                                                    <strong>{new Date(notification.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+                                                    <span>{getRelativeTime(notification.createdAt)}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className={`${wideTable.statusBadge} ${notification.isRead ? wideTable.statusGray : wideTable.statusBlue}`}>
+                                                    {notification.isRead ? 'Read' : 'Unread'}
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                {renderActionButtons(notification)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
             {selectedNotification && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.detailModal}>
-                        <div className={styles.modalHeader}>
+                <div className={scheduleStyles.modalOverlay}>
+                    <div className={scheduleStyles.wideModal} style={{ width: 'min(640px, 92vw)' }}>
+                        <div className={scheduleStyles.modalHeader}>
                             <div>
-                                <h2 className={styles.modalTitle}>{selectedNotification.title}</h2>
-                                <p className={styles.modalMeta}>
-                                    {TYPE_META[selectedNotification.type]?.label || selectedNotification.type}
+                                <h3 className={scheduleStyles.modalTitle}>{selectedNotification.title}</h3>
+                                <p className={scheduleStyles.modalSubtitle}>
+                                    {(TYPE_META[selectedNotification.type]?.label || selectedNotification.type)}
                                     {' • '}
                                     {new Date(selectedNotification.createdAt).toLocaleString('en-PH')}
                                 </p>
                             </div>
-                            <button type="button" className={styles.closeBtn} onClick={() => setSelectedNotification(null)}>
+                            <button type="button" className={scheduleStyles.closeButton} onClick={() => setSelectedNotification(null)}>
                                 <FaTimes />
                             </button>
                         </div>
 
-                        <div className={styles.modalContent}>
-                            <p className={styles.modalMessage}>{selectedNotification.message}</p>
+                        <div className={scheduleStyles.modalBody}>
+                            <p style={{ margin: 0, color: '#475569', lineHeight: 1.7 }}>{selectedNotification.message}</p>
                             {!selectedNotification.isRead && (
-                                <div className={styles.modalReadFlag}>
-                                    <FaCheck />
-                                    Marked as read when opened
+                                <div style={{ marginTop: '14px' }}>
+                                    <button type="button" className={scheduleStyles.secondaryButton} onClick={() => markAsRead(selectedNotification._id)}>
+                                        Mark as Read
+                                    </button>
                                 </div>
                             )}
-                            {renderActionButtons(selectedNotification)}
+                            {selectedNotification.type === 'CHAT_TICKET_RAISED' && chatPath && (
+                                <div style={{ marginTop: '14px' }}>
+                                    <button type="button" className={scheduleStyles.secondaryButton} onClick={() => navigate(chatPath)}>
+                                        View Chat
+                                    </button>
+                                </div>
+                            )}
+                            {enableAppointmentActions && selectedNotification.type === 'NEW_APPOINTMENT' && !selectedNotification.isRead && (
+                                <div style={{ marginTop: '14px' }}>
+                                    <button type="button" className={scheduleStyles.secondaryButton} onClick={() => handleAcceptAppointment(selectedNotification)}>
+                                        Confirm Appointment
+                                    </button>
+                                    <button type="button" className={scheduleStyles.secondaryButton} style={{ marginLeft: '8px' }} onClick={() => setDeclineTarget(selectedNotification)}>
+                                        Decline
+                                    </button>
+                                </div>
+                            )}
+                            {selectedNotification.isRead && (
+                                <div style={{ marginTop: '14px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>
+                                    <FaCheck style={{ marginRight: '6px' }} />
+                                    Notification already marked as read.
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

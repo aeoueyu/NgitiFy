@@ -549,6 +549,49 @@ const getPatientDisplayName = (appointment) => {
     return appointment?.guestName || 'Patient';
 };
 
+const appendAutomaticTreatmentLogIfMissing = async ({
+    patientId,
+    procedure,
+    branch,
+    dentistId = null,
+    dentistName = '',
+    date = new Date(),
+    notes = '',
+    sourceKey = '',
+}) => {
+    if (!patientId || !procedure || !branch) return;
+
+    const patient = await User.findById(patientId).select('treatmentLogs');
+    if (!patient) return;
+
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+
+    const duplicate = (patient.treatmentLogs || []).some((log) => {
+        const logDate = new Date(log.date);
+        logDate.setHours(0, 0, 0, 0);
+        return logDate.getTime() === normalizedDate.getTime()
+            && String(log.procedure || '').trim().toLowerCase() === String(procedure).trim().toLowerCase()
+            && String(log.branch || '').trim().toLowerCase() === String(branch).trim().toLowerCase()
+            && String(log.notes || '').includes(sourceKey);
+    });
+
+    if (duplicate) return;
+
+    patient.treatmentLogs.push({
+        date,
+        procedure,
+        tooth: '',
+        category: 'Other',
+        notes: [notes, sourceKey].filter(Boolean).join(' ').trim(),
+        dentistId: dentistId || undefined,
+        dentistName: dentistName || undefined,
+        branch,
+    });
+
+    await patient.save();
+};
+
 const sendAppointmentReceivedEmail = async ({ email, name, branch, date, time, procedure }) => {
     if (!email) return;
 
@@ -1636,6 +1679,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
              bloodType,
              profileImage,
              consentAcknowledgement,
+             dataPrivacyConsent,
              assignedBranch,
              assignedBranches
          } = req.body;
@@ -1662,7 +1706,8 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
              bloodType,
              profileImage
              ,
-             consentAcknowledgement
+             consentAcknowledgement,
+             dataPrivacyConsent
           };
 
         if (req.user.role === 'secretary' && req.user.assignedBranch) {
@@ -3178,6 +3223,19 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             role: req.user?.role,
             details: `Dental treatment ID ${updatedSurgery._id} status changed to '${status}'.`
         });
+
+        if (status === 'completed' && updatedSurgery.patient?._id) {
+            await appendAutomaticTreatmentLogIfMissing({
+                patientId: updatedSurgery.patient._id,
+                procedure: updatedSurgery.procedure,
+                branch: updatedSurgery.branch,
+                dentistId: updatedSurgery.dentist?._id || updatedSurgery.dentist || null,
+                dentistName: getDentistDisplayName(updatedSurgery.dentist),
+                date: updatedSurgery.date || new Date(),
+                notes: updatedSurgery.remarks || '',
+                sourceKey: `[AUTO-APPOINTMENT:${updatedSurgery._id}]`,
+            });
+        }
 
         if (shouldSendGuestDeclineEmail) {
             try {
@@ -5187,11 +5245,23 @@ app.post('/api/queue', verifyToken, async (req, res) => {
         }
  
         const scopedBranch = isBranchScopedStaff(req.user.role) ? getScopedBranchForUser(req.user) : null;
-        const { patientName, branch, assignedDentist, procedureType, contactNumber, patientId } = req.body;
+        const { patientName, branch, assignedDentist, procedureType, contactNumber, patientId, status } = req.body;
         const normalizedBranch = (scopedBranch || branch || '').trim();
+        const allowedQueueStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
+        const legacyStatusMap = {
+            waiting: 'pending',
+            serving: 'in-clinic',
+            done: 'completed',
+            skipped: 'cancelled',
+        };
+        const normalizedStatus = legacyStatusMap[status] || status || 'pending';
 
         if (!patientName || !normalizedBranch) {
             return res.status(400).json({ message: 'Patient name and branch are required.' });
+        }
+
+        if (!allowedQueueStatuses.includes(normalizedStatus)) {
+            return res.status(400).json({ message: 'Invalid status value.' });
         }
 
         if (patientId) {
@@ -5216,6 +5286,7 @@ app.post('/api/queue', verifyToken, async (req, res) => {
             patientName: patientName.trim(),
             branch: normalizedBranch,
             ticketNumber,
+            status: normalizedStatus,
             assignedDentist: assignedDentist || '',
             procedureType: procedureType || '',
             contactNumber: contactNumber || '',
@@ -5300,6 +5371,13 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             contactNumber,
             status,
         } = req.body;
+        const allowedQueueStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
+        const legacyStatusMap = {
+            waiting: 'pending',
+            serving: 'in-clinic',
+            done: 'completed',
+            skipped: 'cancelled',
+        };
 
         const normalizedBranch = isBranchScopedStaff(req.user.role)
             ? existingEntry.branch
@@ -5316,8 +5394,8 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             }
         }
 
-        const nextStatus = status || existingEntry.status;
-        if (!['waiting', 'serving', 'done', 'skipped'].includes(nextStatus)) {
+        const nextStatus = legacyStatusMap[status] || status || existingEntry.status;
+        if (!allowedQueueStatuses.includes(nextStatus)) {
             return res.status(400).json({ message: 'Invalid status value.' });
         }
 
@@ -5331,8 +5409,8 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             status: nextStatus,
         };
 
-        if (nextStatus === 'serving' && !existingEntry.calledAt) update.calledAt = new Date();
-        if ((nextStatus === 'done' || nextStatus === 'skipped') && !existingEntry.completedAt) {
+        if (nextStatus === 'in-clinic' && !existingEntry.calledAt) update.calledAt = new Date();
+        if ((nextStatus === 'completed' || nextStatus === 'cancelled') && !existingEntry.completedAt) {
             update.completedAt = new Date();
         }
 
@@ -5345,6 +5423,18 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             details: `Queue ticket #${entry.ticketNumber} details updated for ${entry.patientName}.`
         });
 
+        if (entry.status === 'completed' && entry.patientId) {
+            await appendAutomaticTreatmentLogIfMissing({
+                patientId: entry.patientId,
+                procedure: entry.procedureType || 'Walk-in Treatment',
+                branch: entry.branch,
+                dentistName: entry.assignedDentist || '',
+                date: entry.completedAt || new Date(),
+                notes: `Completed from queue ticket #${entry.ticketNumber}.`,
+                sourceKey: `[AUTO-QUEUE:${entry._id}]`,
+            });
+        }
+
         res.json(entry);
     } catch (error) {
         console.error('Error updating queue entry:', error);
@@ -5352,7 +5442,7 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
     }
 });
  
-// PATCH /api/queue/:id/status — update queue entry status (call, done, skip)
+// PATCH /api/queue/:id/status — update queue entry status
 app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
     try {
         const allowed = ['administrator', 'branch-manager', 'secretary'];
@@ -5361,7 +5451,15 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
         }
  
         const { status } = req.body;
-        if (!['waiting', 'serving', 'done', 'skipped'].includes(status)) {
+        const allowedQueueStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
+        const legacyStatusMap = {
+            waiting: 'pending',
+            serving: 'in-clinic',
+            done: 'completed',
+            skipped: 'cancelled',
+        };
+        const normalizedStatus = legacyStatusMap[status] || status;
+        if (!allowedQueueStatuses.includes(normalizedStatus)) {
             return res.status(400).json({ message: 'Invalid status value.' });
         }
  
@@ -5375,9 +5473,9 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
             }
         }
 
-        const update = { status };
-        if (status === 'serving') update.calledAt = new Date();
-        if (status === 'done' || status === 'skipped') update.completedAt = new Date();
+        const update = { status: normalizedStatus };
+        if (normalizedStatus === 'in-clinic') update.calledAt = new Date();
+        if (normalizedStatus === 'completed' || normalizedStatus === 'cancelled') update.completedAt = new Date();
  
         const entry = await Queue.findByIdAndUpdate(req.params.id, update, { new: true });
  
@@ -5385,8 +5483,20 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
             action: 'QUEUE_UPDATE',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Queue ticket #${entry.ticketNumber} status changed to ${status}.`
+            details: `Queue ticket #${entry.ticketNumber} status changed to ${normalizedStatus}.`
         });
+
+        if (entry.status === 'completed' && entry.patientId) {
+            await appendAutomaticTreatmentLogIfMissing({
+                patientId: entry.patientId,
+                procedure: entry.procedureType || 'Walk-in Treatment',
+                branch: entry.branch,
+                dentistName: entry.assignedDentist || '',
+                date: entry.completedAt || new Date(),
+                notes: `Completed from queue ticket #${entry.ticketNumber}.`,
+                sourceKey: `[AUTO-QUEUE:${entry._id}]`,
+            });
+        }
  
         res.json(entry);
     } catch (error) {

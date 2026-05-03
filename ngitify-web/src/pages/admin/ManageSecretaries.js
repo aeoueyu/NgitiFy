@@ -5,7 +5,6 @@ import tblStyles from '../../styles/wideTable.module.css';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
-import UserAvatar from '../../components/common/UserAvatar';
 
 import UserTabs from './UserTabs';
 import AddSecretary from './AddSecretary';
@@ -206,62 +205,54 @@ export default function ManageSecretaries() {
                 <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
-                            <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
-                            <th>Secretary Name</th>
+                            <th style={{ width: '34%' }}>Name</th>
                             <th>Email Address</th>
                             {/* ✅ PHASE 2: Branch column */}
-                            <th>Assigned Branch</th>
-                            <th style={{ width: '180px' }}>Account Status</th>
+                            <th style={{ width: '110px' }}>Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredSecretaries.length > 0 ? (
                             filteredSecretaries.map((secretary) => (
                                 <tr key={secretary.id} style={{ opacity: secretary.status === 'Inactive' ? 0.6 : 1 }}>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <UserAvatar user={{ name: secretary.name, profileImage: secretary.profileImage }} size={40} />
-                                    </td>
-                                    <td>
-                                        <span className={styles.fwBold}>{secretary.name}</span>
+                                    <td className={tblStyles.wrapCell}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span className={styles.fwBold}>{secretary.name}</span>
+                                            <span style={{ color: '#6b7f92', fontSize: '12px' }}>
+                                                {secretary.assignedBranches.length > 0 ? secretary.assignedBranches.join(', ') : 'No branch'}
+                                            </span>
+                                        </div>
                                         {!secretary.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
-                                    <td>{secretary.email}</td>
+                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>{secretary.email}</td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
-                                    <td className={tblStyles.wrapCell}>
-                                        {secretary.assignedBranches.length > 0
-                                            ? secretary.assignedBranches.join(', ')
-                                            : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>
-                                        }
-                                    </td>
                                     <td>
                                         <span className={`${tblStyles.statusBadge} ${secretary.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
                                             {secretary.status}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <div className={tblStyles.iconActions}>
-                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
-                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
+                                        <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
+                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
+                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
                                             {!secretary.isVerified && (
                                                 <button
                                                     type="button"
-                                                    className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                    className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.warningIconButton}`}
                                                     onClick={() => handleResendActivation(secretary)}
                                                     title="Resend Activation Email"
-                                                    style={{ color: '#f59e0b' }}
                                                 >
                                                     <FaEnvelope />
                                                 </button>
                                             )}
                                             <button
                                                 type="button"
-                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${secretary.status === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
                                                 onClick={() => handleToggleStatus(secretary)}
                                                 title={secretary.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                                style={{ color: secretary.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                             >
                                                 {secretary.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
@@ -270,7 +261,7 @@ export default function ManageSecretaries() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found matching filters.</td></tr>
+                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No secretaries found matching filters.</td></tr>
                         )}
                     </tbody>
                 </table>

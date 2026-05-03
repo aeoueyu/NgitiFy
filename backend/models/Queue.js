@@ -5,7 +5,7 @@ const queueSchema = new mongoose.Schema({
     patientId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     branch:         { type: String, required: true, trim: true },
     ticketNumber:   { type: Number, required: true },
-    status:         { type: String, enum: ['waiting', 'serving', 'done', 'skipped'], default: 'waiting' },
+    status:         { type: String, enum: ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'], default: 'pending' },
     assignedDentist:{ type: String, trim: true, default: '' },
     procedureType:  { type: String, trim: true, default: '' },
     contactNumber:  { type: String, trim: true, default: '' },

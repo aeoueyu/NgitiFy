@@ -95,6 +95,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         medicalHistory: { ...initialMedicalHistory },
         dentalHistory: { ...initialDentalHistory },
         consentAcknowledgement: { acknowledged: false, signerName: '', signerRole: 'Patient', signedAt: getTodayDate() },
+        dataPrivacyConsent: { acknowledged: false, signerName: '', signerRole: 'Patient', signedAt: getTodayDate() },
     });
 
     const validateEmail = (email) => {
@@ -211,6 +212,12 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                         signerRole: data.consentAcknowledgement?.signerRole || 'Patient',
                         signedAt: data.consentAcknowledgement?.signedAt ? new Date(data.consentAcknowledgement.signedAt).toISOString().split('T')[0] : getTodayDate(),
                     },
+                    dataPrivacyConsent: {
+                        acknowledged: Boolean(data.dataPrivacyConsent?.acknowledged),
+                        signerName: data.dataPrivacyConsent?.signerName || '',
+                        signerRole: data.dataPrivacyConsent?.signerRole || 'Patient',
+                        signedAt: data.dataPrivacyConsent?.signedAt ? new Date(data.dataPrivacyConsent.signedAt).toISOString().split('T')[0] : getTodayDate(),
+                    },
                 };
 
                 setFormData(mapped);
@@ -307,6 +314,17 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             }
         }));
         clearError('consentAcknowledgement_acknowledged');
+    };
+
+    const handlePrivacyAcknowledged = (acknowledged) => {
+        setFormData((prev) => ({
+            ...prev,
+            dataPrivacyConsent: {
+                ...prev.dataPrivacyConsent,
+                acknowledged,
+            }
+        }));
+        clearError('dataPrivacyConsent_acknowledged');
     };
 
     const handleNestedPhoneChange = (section, field) => (e) => {
@@ -441,6 +459,30 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             nextErrors.consentAcknowledgement_signerName = 'Required';
             isValid = false;
         }
+        if (!formData.dataPrivacyConsent.acknowledged) {
+            nextErrors.dataPrivacyConsent_acknowledged = 'Required';
+            isValid = false;
+        }
+        if (!formData.dataPrivacyConsent.signerName.trim()) {
+            nextErrors.dataPrivacyConsent_signerName = 'Required';
+            isValid = false;
+        }
+        if (formData.birthdate && new Date(formData.birthdate) > new Date()) {
+            nextErrors.birthdate = 'Birthdate cannot be in the future';
+            isValid = false;
+        }
+        if (formData.dentalHistory.lastExamDate && new Date(formData.dentalHistory.lastExamDate) > new Date()) {
+            nextErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future';
+            isValid = false;
+        }
+        if (formData.consentAcknowledgement.signedAt && new Date(formData.consentAcknowledgement.signedAt) > new Date()) {
+            nextErrors.consentAcknowledgement_signedAt = 'Invalid signed date';
+            isValid = false;
+        }
+        if (formData.dataPrivacyConsent.signedAt && new Date(formData.dataPrivacyConsent.signedAt) > new Date()) {
+            nextErrors.dataPrivacyConsent_signedAt = 'Invalid signed date';
+            isValid = false;
+        }
 
         setErrors(nextErrors);
         return isValid;
@@ -550,6 +592,13 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 signedAt: formData.consentAcknowledgement.signedAt || new Date().toISOString(),
                 version: 'Dentime Patient Form v6.1',
             },
+            dataPrivacyConsent: {
+                acknowledged: Boolean(formData.dataPrivacyConsent.acknowledged),
+                signerName: formData.dataPrivacyConsent.signerName.trim() || undefined,
+                signerRole: formData.dataPrivacyConsent.signerRole || (isMinor ? 'Parent/Guardian' : 'Patient'),
+                signedAt: formData.dataPrivacyConsent.signedAt || new Date().toISOString(),
+                version: 'Data Privacy Act of 2012',
+            },
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
         };
@@ -587,6 +636,36 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 className={styles.inputField}
                 style={{ minHeight: '120px', borderRadius: '20px', padding: '14px 20px', resize: 'vertical' }}
             />
+        </div>
+    );
+
+    const renderYesNoField = (label, section, field, value, disabled = false) => (
+        <div className={styles.formGroup}>
+            <label>{label}</label>
+            <div className={styles.radioGroup}>
+                <label className={`${styles.radioOption} ${value === 'yes' ? styles.radioOptionActive : ''}`}>
+                    <input
+                        type="radio"
+                        name={`${section}_${field}`}
+                        value="yes"
+                        checked={value === 'yes'}
+                        onChange={(e) => handleNestedChange(section, field, e.target.value)}
+                        disabled={disabled}
+                    />
+                    <span>Yes</span>
+                </label>
+                <label className={`${styles.radioOption} ${value === 'no' ? styles.radioOptionActive : ''}`}>
+                    <input
+                        type="radio"
+                        name={`${section}_${field}`}
+                        value="no"
+                        checked={value === 'no'}
+                        onChange={(e) => handleNestedChange(section, field, e.target.value)}
+                        disabled={disabled}
+                    />
+                    <span>No</span>
+                </label>
+            </div>
         </div>
     );
 
@@ -711,11 +790,11 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             <h3 className={styles.mainSectionTitle}>Dental History</h3>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>CHIEF COMPLAINT</label><input className={styles.inputField} value={formData.dentalHistory.chiefComplaint} onChange={(e) => handleNestedChange('dentalHistory', 'chiefComplaint', e.target.value)} disabled={isSaving} /></div>
-                                <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={styles.inputField} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={`${styles.inputField} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} max={getTodayDate()} disabled={isSaving} />{errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>REACTION OR COMPLICATION AFTER DENTAL TREATMENT?</label><select className={styles.inputField} value={formData.dentalHistory.hadTreatmentReaction} onChange={(e) => handleNestedChange('dentalHistory', 'hadTreatmentReaction', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                                <div className={styles.formGroup}><label>REACTION DETAILS</label><input className={styles.inputField} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} disabled={isSaving} /></div>
+                                {renderYesNoField('REACTION OR COMPLICATION AFTER DENTAL TREATMENT?', 'dentalHistory', 'hadTreatmentReaction', formData.dentalHistory.hadTreatmentReaction, isSaving)}
+                                <div className={styles.formGroup}><label>REACTION DETAILS</label><input className={`${styles.inputField} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} disabled={isSaving} />{errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}</div>
                             </div>
                             <div className={styles.row}>
                                 {renderTextArea('DENTAL HISTORY NOTES', formData.dentalHistory.notes, (e) => handleNestedChange('dentalHistory', 'notes', e.target.value), 'Reaction, complications, or other dental notes', 'dentalNotes')}
@@ -739,34 +818,34 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             </div>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>BLOOD PRESSURE</label><input className={styles.inputField} value={formData.medicalHistory.bloodPressure} onChange={(e) => handleNestedChange('medicalHistory', 'bloodPressure', e.target.value)} placeholder="e.g. 120/80" disabled={isSaving} /></div>
-                                <div className={styles.formGroup}><label>IN GOOD HEALTH?</label><select className={styles.inputField} value={formData.medicalHistory.inGoodHealth} onChange={(e) => handleNestedChange('medicalHistory', 'inGoodHealth', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                {renderYesNoField('IN GOOD HEALTH?', 'medicalHistory', 'inGoodHealth', formData.medicalHistory.inGoodHealth, isSaving)}
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>UNDER MEDICAL TREATMENT NOW?</label><select className={styles.inputField} value={formData.medicalHistory.underMedicalTreatment} onChange={(e) => handleNestedChange('medicalHistory', 'underMedicalTreatment', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                                <div className={styles.formGroup}><label>CONDITION TREATED</label><input className={styles.inputField} value={formData.medicalHistory.medicalTreatmentDetails} onChange={(e) => handleNestedChange('medicalHistory', 'medicalTreatmentDetails', e.target.value)} disabled={isSaving} /></div>
+                                {renderYesNoField('UNDER MEDICAL TREATMENT NOW?', 'medicalHistory', 'underMedicalTreatment', formData.medicalHistory.underMedicalTreatment, isSaving)}
+                                <div className={styles.formGroup}><label>CONDITION TREATED</label><input className={`${styles.inputField} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.medicalTreatmentDetails} onChange={(e) => handleNestedChange('medicalHistory', 'medicalTreatmentDetails', e.target.value)} disabled={isSaving} />{errors.medicalHistory_medicalTreatmentDetails && <span className={styles.errorText}>{errors.medicalHistory_medicalTreatmentDetails}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>SERIOUS ILLNESS OR SURGICAL OPERATION?</label><select className={styles.inputField} value={formData.medicalHistory.hadSeriousIllnessOrSurgery} onChange={(e) => handleNestedChange('medicalHistory', 'hadSeriousIllnessOrSurgery', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                                <div className={styles.formGroup}><label>ILLNESS OR OPERATION DETAILS</label><input className={styles.inputField} value={formData.medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleNestedChange('medicalHistory', 'seriousIllnessOrSurgeryDetails', e.target.value)} disabled={isSaving} /></div>
+                                {renderYesNoField('SERIOUS ILLNESS OR SURGICAL OPERATION?', 'medicalHistory', 'hadSeriousIllnessOrSurgery', formData.medicalHistory.hadSeriousIllnessOrSurgery, isSaving)}
+                                <div className={styles.formGroup}><label>ILLNESS OR OPERATION DETAILS</label><input className={`${styles.inputField} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleNestedChange('medicalHistory', 'seriousIllnessOrSurgeryDetails', e.target.value)} disabled={isSaving} />{errors.medicalHistory_seriousIllnessOrSurgeryDetails && <span className={styles.errorText}>{errors.medicalHistory_seriousIllnessOrSurgeryDetails}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>EVER BEEN HOSPITALIZED?</label><select className={styles.inputField} value={formData.medicalHistory.hadHospitalization} onChange={(e) => handleNestedChange('medicalHistory', 'hadHospitalization', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                                <div className={styles.formGroup}><label>HOSPITALIZATION DETAILS</label><input className={styles.inputField} value={formData.medicalHistory.hospitalizationDetails} onChange={(e) => handleNestedChange('medicalHistory', 'hospitalizationDetails', e.target.value)} disabled={isSaving} /></div>
+                                {renderYesNoField('EVER BEEN HOSPITALIZED?', 'medicalHistory', 'hadHospitalization', formData.medicalHistory.hadHospitalization, isSaving)}
+                                <div className={styles.formGroup}><label>HOSPITALIZATION DETAILS</label><input className={`${styles.inputField} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.hospitalizationDetails} onChange={(e) => handleNestedChange('medicalHistory', 'hospitalizationDetails', e.target.value)} disabled={isSaving} />{errors.medicalHistory_hospitalizationDetails && <span className={styles.errorText}>{errors.medicalHistory_hospitalizationDetails}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>TAKING PRESCRIPTION / NON-PRESCRIPTION MEDICATION?</label><select className={styles.inputField} value={formData.medicalHistory.isTakingMedication} onChange={(e) => handleNestedChange('medicalHistory', 'isTakingMedication', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                                <div className={styles.formGroup}><label>HAS ALLERGIES?</label><select className={styles.inputField} value={formData.medicalHistory.hasAllergies} onChange={(e) => handleNestedChange('medicalHistory', 'hasAllergies', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                {renderYesNoField('TAKING PRESCRIPTION / NON-PRESCRIPTION MEDICATION?', 'medicalHistory', 'isTakingMedication', formData.medicalHistory.isTakingMedication, isSaving)}
+                                {renderYesNoField('HAS ALLERGIES?', 'medicalHistory', 'hasAllergies', formData.medicalHistory.hasAllergies, isSaving)}
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>USES TOBACCO?</label><select className={styles.inputField} value={formData.medicalHistory.usesTobacco} onChange={(e) => handleNestedChange('medicalHistory', 'usesTobacco', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                                <div className={styles.formGroup}><label>USES ALCOHOL / DRUGS?</label><select className={styles.inputField} value={formData.medicalHistory.usesAlcoholOrDrugs} onChange={(e) => handleNestedChange('medicalHistory', 'usesAlcoholOrDrugs', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                {renderYesNoField('USES TOBACCO?', 'medicalHistory', 'usesTobacco', formData.medicalHistory.usesTobacco, isSaving)}
+                                {renderYesNoField('USES ALCOHOL / DRUGS?', 'medicalHistory', 'usesAlcoholOrDrugs', formData.medicalHistory.usesAlcoholOrDrugs, isSaving)}
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>PREGNANT?</label><select className={styles.inputField} value={formData.medicalHistory.isPregnant} onChange={(e) => handleNestedChange('medicalHistory', 'isPregnant', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
-                                <div className={styles.formGroup}><label>NURSING?</label><select className={styles.inputField} value={formData.medicalHistory.isNursing} onChange={(e) => handleNestedChange('medicalHistory', 'isNursing', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                {renderYesNoField('PREGNANT?', 'medicalHistory', 'isPregnant', formData.medicalHistory.isPregnant, isSaving)}
+                                {renderYesNoField('NURSING?', 'medicalHistory', 'isNursing', formData.medicalHistory.isNursing, isSaving)}
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>TAKING BIRTH CONTROL PILLS?</label><select className={styles.inputField} value={formData.medicalHistory.takingBirthControl} onChange={(e) => handleNestedChange('medicalHistory', 'takingBirthControl', e.target.value)} disabled={isSaving}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                                {renderYesNoField('TAKING BIRTH CONTROL PILLS?', 'medicalHistory', 'takingBirthControl', formData.medicalHistory.takingBirthControl, isSaving)}
                                 <div className={styles.formGroup} />
                             </div>
                             <div className={styles.row}>
@@ -794,6 +873,48 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             </div>
 
                             <hr className={styles.divider} />
+                            <h3 className={styles.mainSectionTitle}>Data Privacy Act</h3>
+                            <div className={styles.addressSection}>
+                                <p style={{ margin: '0 0 16px 0', color: '#475569', lineHeight: 1.6, fontSize: '14px' }}>
+                                    I authorize Dentime to collect, store, and process the patient&apos;s personal and health information for appointment handling, treatment documentation, follow-up care, and clinic operations in compliance with the Data Privacy Act of 2012.
+                                </p>
+                                <div className={styles.row}>
+                                    <div className={styles.formGroup}>
+                                        <label>PRIVACY SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
+                                        <input className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} value={formData.dataPrivacyConsent.signerName} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerName', e.target.value)} disabled={isSaving} />
+                                        {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label>PRIVACY SIGNER ROLE</label>
+                                        <select className={styles.inputField} value={formData.dataPrivacyConsent.signerRole} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerRole', e.target.value)} disabled={isSaving}>
+                                            <option value="Patient">Patient</option>
+                                            <option value="Parent">Parent</option>
+                                            <option value="Guardian">Guardian</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label>DATE SIGNED</label>
+                                        <input type="date" className={`${styles.inputField} ${errors.dataPrivacyConsent_signedAt ? styles.errorBorder : ''}`} value={formData.dataPrivacyConsent.signedAt} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isSaving} />
+                                        {errors.dataPrivacyConsent_signedAt && <span className={styles.errorText}>{errors.dataPrivacyConsent_signedAt}</span>}
+                                    </div>
+                                </div>
+                                <div style={{ display: 'grid', gap: '10px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePrivacyAcknowledged(!formData.dataPrivacyConsent.acknowledged)}
+                                        disabled={isSaving}
+                                        style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#01538b', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+                                    >
+                                        {formData.dataPrivacyConsent.acknowledged ? 'Undo privacy acknowledgement' : 'Acknowledge data privacy consent'}
+                                    </button>
+                                    <span style={{ fontSize: '14px', color: formData.dataPrivacyConsent.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
+                                        {formData.dataPrivacyConsent.acknowledged ? 'Data privacy consent acknowledged.' : 'Data privacy consent has not been acknowledged yet.'}
+                                    </span>
+                                </div>
+                                {errors.dataPrivacyConsent_acknowledged && <span className={styles.errorText}>{errors.dataPrivacyConsent_acknowledged}</span>}
+                            </div>
+
+                            <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Digital Consent</h3>
                             <div className={styles.addressSection}>
                                 <p style={{ margin: '0 0 16px 0', color: '#475569', lineHeight: 1.6, fontSize: '14px' }}>
@@ -815,7 +936,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                     </div>
                                     <div className={styles.formGroup}>
                                         <label>DATE SIGNED</label>
-                                        <input type="date" className={styles.inputField} value={formData.consentAcknowledgement.signedAt} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isSaving} />
+                                        <input type="date" className={`${styles.inputField} ${errors.consentAcknowledgement_signedAt ? styles.errorBorder : ''}`} value={formData.consentAcknowledgement.signedAt} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isSaving} />
+                                        {errors.consentAcknowledgement_signedAt && <span className={styles.errorText}>{errors.consentAcknowledgement_signedAt}</span>}
                                     </div>
                                 </div>
                                 <div style={{ display: 'grid', gap: '10px' }}>

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/AdminProfile.module.css';
 import { useAuth } from '../../hooks/useAuth';
-import BackIcon from '../../assets/icons/Back.svg';
 import successIcon from '../../assets/alert/success.svg';
 
 // Global Utilities
@@ -382,9 +381,6 @@ export default function MyProfile() {
     return (
         <div className={styles.container}>
             <div className={styles.headerWrapper}>
-                <button className={styles.backIconButton} onClick={() => navigate(-1)}>
-                    <img src={BackIcon} alt="Back" />
-                </button>
                 <div className={styles.header}>
                     <h1 className={styles.title}>My Profile</h1>
                     <p className={styles.subtitle}>Manage your personal information and account details.</p>

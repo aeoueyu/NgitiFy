@@ -3,7 +3,6 @@ import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelop
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import UserAvatar from '../../components/common/UserAvatar';
 import UserTabs from './UserTabs';
 import AddOwner from './AddOwner';
 import EditOwner from './EditOwner';
@@ -162,41 +161,40 @@ export default function ManageOwners() {
                 <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
-                            <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
-                            <th>Owner Name</th>
-                            <th>Email Address</th>
-                            <th style={{ width: '160px' }}>Account Status</th>
+                            <th style={{ width: '34%' }}>Name</th>
+                            <th style={{ width: '36%' }}>Email Address</th>
+                            <th style={{ width: '110px' }}>Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredOwners.length > 0 ? (
                             filteredOwners.map(owner => (
                                 <tr key={owner.id} style={{ opacity: owner.status === 'Inactive' ? 0.6 : 1 }}>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <UserAvatar user={{ name: owner.name, profileImage: owner.profileImage }} size={40} />
-                                    </td>
-                                    <td>
-                                        <span className={styles.fwBold}>{owner.name}</span>
+                                    <td className={tblStyles.wrapCell}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span className={styles.fwBold}>{owner.name}</span>
+                                            <span style={{ color: '#6b7f92', fontSize: '12px' }}>Owner account</span>
+                                        </div>
                                         {!owner.isVerified && (
                                             <span style={{ fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px' }}>
                                                 Unverified Email
                                             </span>
                                         )}
                                     </td>
-                                    <td>{owner.email}</td>
+                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>{owner.email}</td>
                                     <td>
                                         <span className={`${tblStyles.statusBadge} ${owner.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
                                             {owner.status}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <div className={tblStyles.iconActions}>
+                                        <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
                                             <button
                                                 type="button"
-                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`}
                                                 onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
                                                 title="View Owner"
                                             >
@@ -204,7 +202,7 @@ export default function ManageOwners() {
                                             </button>
                                             <button
                                                 type="button"
-                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`}
                                                 onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
                                                 title="Edit Owner"
                                             >
@@ -213,20 +211,18 @@ export default function ManageOwners() {
                                             {!owner.isVerified && (
                                                 <button
                                                     type="button"
-                                                    className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                    className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.warningIconButton}`}
                                                     onClick={() => handleResendActivation(owner)}
                                                     title="Resend Activation Email"
-                                                    style={{ color: '#f59e0b' }}
                                                 >
                                                     <FaEnvelope />
                                                 </button>
                                             )}
                                             <button
                                                 type="button"
-                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${owner.status === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
                                                 onClick={() => handleToggleStatus(owner)}
                                                 title={owner.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                                style={{ color: owner.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                             >
                                                 {owner.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
@@ -235,7 +231,7 @@ export default function ManageOwners() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No owners found.</td></tr>
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No owners found.</td></tr>
                         )}
                     </tbody>
                 </table>

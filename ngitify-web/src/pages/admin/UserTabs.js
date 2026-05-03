@@ -5,7 +5,6 @@ import styles from '../../styles/admin/UserTabs.module.css';
 
 // Order: Patients → Secretaries → Dentists → Branch Managers → Owners
 const ADMIN_TABS = [
-    { key: 'patients',       label: 'Patients',        path: '/admin/manage-users/patients' },
     { key: 'secretaries',    label: 'Secretaries',     path: '/admin/manage-users/secretaries' },
     { key: 'dentists',       label: 'Dentists',        path: '/admin/manage-users/dentists' },
     { key: 'branchManagers', label: 'Branch Managers', path: '/admin/manage-users/branch-managers' },
@@ -13,7 +12,6 @@ const ADMIN_TABS = [
 ];
 
 const OWNER_TABS = [
-    { key: 'patients',    label: 'Patients',    path: '/owner/manage-users/patients' },
     { key: 'secretaries', label: 'Secretaries', path: '/owner/manage-users/secretaries' },
     { key: 'dentists',    label: 'Dentists',    path: '/owner/manage-users/dentists' },
     { key: 'branchManagers', label: 'Branch Managers', path: '/owner/manage-users/branch-managers' },

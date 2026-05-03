@@ -1,122 +1,27 @@
-.page {
-    min-height: 100%;
-    padding: 24px;
-    background: #f4f7fa;
-    box-sizing: border-box;
-}
-
-.headerCard,
-.tableCard {
-    background: #fff;
-    border: 1px solid rgba(1, 83, 139, 0.08);
-    border-radius: 22px;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
-}
-
-.headerCard {
+.patientCell {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 18px;
-    margin-bottom: 18px;
-    padding: 22px 24px;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.pageTitle {
-    margin: 0;
-    color: #01538b;
-    font-size: 30px;
-    font-weight: 800;
+.patientCell strong {
+    color: #173850;
 }
 
-.pageSubtitle {
-    margin: 8px 0 0;
-    color: #64748b;
-    font-size: 14px;
-    line-height: 1.6;
+.patientCell span {
+    color: #6b7f92;
+    font-size: 12px;
 }
 
-.searchBox {
-    position: relative;
-    min-width: 300px;
-    max-width: 420px;
-    width: 100%;
-}
-
-.searchIcon {
-    position: absolute;
-    top: 50%;
-    left: 14px;
-    transform: translateY(-50%);
-    color: #94a3b8;
-}
-
-.searchInput {
-    width: 100%;
-    min-height: 48px;
-    padding: 0 14px 0 42px;
-    border: 1px solid #d6e2ec;
-    border-radius: 14px;
-    font: inherit;
-    box-sizing: border-box;
-}
-
-.tableCard {
-    padding: 18px;
-}
-
-.stateBlock {
-    padding: 56px 20px;
-    color: #64748b;
-    text-align: center;
-    font-size: 15px;
+.emptyState {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .emptyIcon {
-    display: block;
-    margin: 0 auto 14px;
-    font-size: 28px;
-    color: #cbd5e1;
-}
-
-.linkButton,
-.viewButton {
-    border: none;
-    cursor: pointer;
-    font: inherit;
-}
-
-.linkButton {
-    background: transparent;
-    padding: 0;
-    color: #01538b;
-    font-weight: 800;
-    text-align: left;
-}
-
-.viewButton {
-    background: #eff6ff;
-    color: #1d4ed8;
-    padding: 8px 12px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-@media (max-width: 900px) {
-    .headerCard {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .searchBox {
-        min-width: 0;
-        max-width: none;
-    }
-}
-
-@media (max-width: 768px) {
-    .page {
-        padding: 16px;
-    }
+    color: #94a3b8;
+    font-size: 18px;
 }

@@ -271,35 +271,38 @@ export default function InventoryTracker() {
             </div>
 
             <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
-                <table className={`${styles.userTable} ${tblStyles.table}`}>
+                <table className={`${styles.userTable} ${styles.inventoryTable}`}>
                     <thead>
                         <tr>
-                            <th style={{ width: '20%' }}>Item</th>
+                            <th style={{ width: '26%' }}>Item</th>
                             <th style={{ width: '14%' }}>Brand</th>
-                            <th style={{ width: '14%' }}>Category</th>
-                            <th style={{ width: '12%' }}>Qty</th>
-                            <th style={{ width: '12%' }}>Expiry</th>
-                            <th style={{ width: '12%' }}>Received</th>
-                            <th style={{ width: '10%' }}>Status</th>
-                            <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '18%' }}>Category</th>
+                            <th style={{ width: '14%' }}>Qty</th>
+                            <th style={{ width: '16%' }}>Expiry</th>
+                            <th style={{ width: '12%', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="8" style={{textAlign: 'center', padding: '40px', color: '#01538b'}}>Loading inventory records...</td></tr>
+                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#01538b'}}>Loading inventory records...</td></tr>
                         ) : filteredInventory.length > 0 ? (
                             filteredInventory.map((item) => {
                                 return (
                                     <tr key={item.id}>
-                                        <td className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>
-                                            {item.name}
-                                            {item.batchNumber && (
-                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginTop: '4px' }}>
-                                                    Batch {item.batchNumber}
+                                        <td className={tblStyles.wrapCell} style={{ color: '#01538b', fontSize: '15px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <span className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>{item.name}</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                    {getStatusBadge(item)}
+                                                    {item.batchNumber && (
+                                                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                                                            Batch {item.batchNumber}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </div>
                                         </td>
-                                        <td style={{ color: '#334155', fontWeight: 600 }}>{item.brand}</td>
+                                        <td style={{ color: '#334155', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.brand}</td>
                                         <td>
                                             <span style={{ backgroundColor: '#f1f5f9', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', color: '#475569', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                 {item.category}
@@ -313,10 +316,6 @@ export default function InventoryTracker() {
                                         <td style={{ color: item.isExpired ? '#dc2626' : '#64748b', fontSize: '14px', fontWeight: '600' }}>
                                             {item.expirationDate ? formatDateShort(item.expirationDate) : 'No expiry'}
                                         </td>
-                                        <td style={{ color: '#64748b', fontSize: '14px', fontWeight: '500' }}>
-                                            {item.receivedDate ? formatDateShort(item.receivedDate) : 'Unknown'}
-                                        </td>
-                                        <td>{getStatusBadge(item)}</td>
                                         <td className={styles.actionsCell} style={{ textAlign: 'center' }}>
                                             {canEditInventory ? (
                                                 <>
@@ -331,7 +330,7 @@ export default function InventoryTracker() {
                                 );
                             })
                         ) : (
-                            <tr><td colSpan="8" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>No items found in inventory.</td></tr>
+                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>No items found in inventory.</td></tr>
                         )}
                     </tbody>
                 </table>

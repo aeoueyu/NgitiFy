@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/PatientEMR.module.css';
+import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
+import wideTable from '../../styles/wideTable.module.css';
 
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
@@ -10,8 +12,7 @@ import UserAvatar from '../../components/common/UserAvatar';
 
 import { 
     FaUserMd, FaPhoneAlt, FaEnvelope, FaArrowLeft, FaMapMarkerAlt,
-    FaSyringe, FaNotesMedical, FaSearch, FaPlus, FaHospitalUser,
-    FaTooth, FaChevronDown, FaChevronUp, FaTimes,
+    FaSyringe, FaNotesMedical, FaSearch, FaPlus, FaTimes, FaFilter,
     FaUpload, FaMagic, FaRobot, FaCalendarAlt, FaIdCard,
     FaChild, FaVenusMars, FaBirthdayCake
 } from 'react-icons/fa';
@@ -25,13 +26,26 @@ const INITIAL_MEDICAL_HISTORY = {
     medications: '',
     notes: '',
     inGoodHealth: '',
+    underMedicalTreatment: '',
+    medicalTreatmentDetails: '',
+    hadSeriousIllnessOrSurgery: '',
+    seriousIllnessOrSurgeryDetails: '',
+    hadHospitalization: '',
+    hospitalizationDetails: '',
+    isTakingMedication: '',
+    hasAllergies: '',
     usesTobacco: '',
     usesAlcoholOrDrugs: '',
     bleedingTime: '',
     bloodPressure: '',
     isPregnant: '',
     isNursing: '',
-    takingBirthControl: ''
+    takingBirthControl: '',
+    chiefComplaint: '',
+    hadTreatmentReaction: '',
+    reactionDetails: '',
+    dentalNotes: '',
+    hasConfidentialInfo: '',
 };
 
 const formatAddressDisplay = (addr) => {
@@ -45,8 +59,26 @@ const formatAddressDisplay = (addr) => {
 
 const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
 const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
+const DATE_FILTER_OPTIONS = [
+    { value: 'today', label: 'Today' },
+    { value: '3days', label: '3 Days' },
+    { value: '7days', label: '7 Days' },
+    { value: 'custom', label: 'Custom' },
+];
+const getTodayString = () => new Date().toISOString().split('T')[0];
+const addDays = (dateString, count) => {
+    const date = new Date(`${dateString}T12:00:00`);
+    date.setDate(date.getDate() + count);
+    return date.toISOString().split('T')[0];
+};
 
-export default function PatientEMR({ patientId: propPatientId, onClose, embedded = false, roleOverride = '' }) {
+export default function PatientEMR({
+    patientId: propPatientId,
+    onClose,
+    embedded = false,
+    roleOverride = '',
+    forceReadOnly = false,
+}) {
     const urlParams = useParams();
     const activePatientId = propPatientId || urlParams.patientId;
     
@@ -54,9 +86,10 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
     const { user } = useAuth();
     const { addToast } = useToast();
     const effectiveRole = roleOverride || user?.role || 'administrator';
-    const canEditMedical = effectiveRole !== 'secretary';
-    const canAddTreatmentLog = effectiveRole !== 'secretary';
-    const canUploadRadiograph = effectiveRole !== 'secretary';
+    const isReadOnly = forceReadOnly || effectiveRole === 'secretary';
+    const canEditMedical = !isReadOnly;
+    const canAddTreatmentLog = !isReadOnly;
+    const canUploadRadiograph = !isReadOnly;
     
     // Core States
     const [activeTab, setActiveTab] = useState('overview');
@@ -72,10 +105,10 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
     // Tab: Treatment Logs States
     const [logs, setLogs] = useState([]);
     const [logsSearchQuery, setLogsSearchQuery] = useState('');
-    const [logsDateFrom, setLogsDateFrom] = useState('');
-    const [logsDateTo, setLogsDateTo] = useState('');
+    const [logsRangeFilter, setLogsRangeFilter] = useState('today');
+    const [logsDateFrom, setLogsDateFrom] = useState(getTodayString());
+    const [logsDateTo, setLogsDateTo] = useState(getTodayString());
     const [logsCategory, setLogsCategory] = useState('All');
-    const [expandedLogs, setExpandedLogs] = useState({});
     
     // Add Log Modal
     const [isAddLogOpen, setIsAddLogOpen] = useState(false);
@@ -128,6 +161,14 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                             bloodType:   patientData.bloodType || patientData.medicalHistory.bloodType || '',
                             notes:       patientData.medicalHistory.notes || '',
                             inGoodHealth: boolToSelect(patientData.medicalHistory.inGoodHealth),
+                            underMedicalTreatment: boolToSelect(patientData.medicalHistory.underMedicalTreatment),
+                            medicalTreatmentDetails: patientData.medicalHistory.medicalTreatmentDetails || '',
+                            hadSeriousIllnessOrSurgery: boolToSelect(patientData.medicalHistory.hadSeriousIllnessOrSurgery),
+                            seriousIllnessOrSurgeryDetails: patientData.medicalHistory.seriousIllnessOrSurgeryDetails || '',
+                            hadHospitalization: boolToSelect(patientData.medicalHistory.hadHospitalization),
+                            hospitalizationDetails: patientData.medicalHistory.hospitalizationDetails || '',
+                            isTakingMedication: boolToSelect(patientData.medicalHistory.isTakingMedication),
+                            hasAllergies: boolToSelect(patientData.medicalHistory.hasAllergies),
                             usesTobacco: boolToSelect(patientData.medicalHistory.usesTobacco),
                             usesAlcoholOrDrugs: boolToSelect(patientData.medicalHistory.usesAlcoholOrDrugs),
                             bleedingTime: patientData.medicalHistory.bleedingTime || '',
@@ -135,6 +176,11 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                             isPregnant: boolToSelect(patientData.medicalHistory.isPregnant),
                             isNursing: boolToSelect(patientData.medicalHistory.isNursing),
                             takingBirthControl: boolToSelect(patientData.medicalHistory.takingBirthControl),
+                            chiefComplaint: patientData.dentalHistory?.chiefComplaint || '',
+                            hadTreatmentReaction: boolToSelect(patientData.dentalHistory?.hadTreatmentReaction),
+                            reactionDetails: patientData.dentalHistory?.reactionDetails || '',
+                            dentalNotes: patientData.dentalHistory?.notes || '',
+                            hasConfidentialInfo: patientData.dentalHistory?.hasConfidentialInfo ? 'yes' : patientData.dentalHistory?.hasConfidentialInfo === false ? 'no' : '',
                             lastExam:    patientData.dentalHistory?.lastExamDate
                                             || patientData.medicalHistory.lastExam
                                             || '',
@@ -223,10 +269,13 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                     {infoItem('Email Address', patient?.email, <FaEnvelope />)}
                     {infoItem('Contact Number', patient?.contactNumber || '—', <FaPhoneAlt />)}
                     {infoItem('Patient ID', patient?._id || patient?.id, <FaIdCard />)}
+                    {infoItem('Home Phone', patient?.homePhone)}
                     {infoItem('Occupation', patient?.occupation)}
                     {infoItem('Civil Status', patient?.civilStatus)}
                     {infoItem('Blood Type', patient?.bloodType || patient?.medicalHistory?.bloodType)}
                     {infoItem('Work Phone', patient?.workPhone)}
+                    {infoItem('Nationality', patient?.nationality)}
+                    {infoItem('Religion', patient?.religion)}
                     {infoItem('Referred By', patient?.referredBy)}
                 </div>
 
@@ -249,6 +298,30 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                             {infoItem('Contact Name', patient.emergencyContact?.name)}
                             {infoItem('Relationship', patient.emergencyContact?.relationship)}
                             {infoItem('Contact Number', patient.emergencyContact?.contactNumber, <FaPhoneAlt />)}
+                        </div>
+                    </>
+                )}
+
+                {(patient?.physician?.name || patient?.physician?.officeNumber) && (
+                    <>
+                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Attending Physician</h3>
+                        <div className={styles.infoGrid}>
+                            {infoItem('Physician Name', patient?.physician?.name)}
+                            {infoItem('Specialty', patient?.physician?.specialty)}
+                            {infoItem('Office Address', patient?.physician?.officeAddress)}
+                            {infoItem('Office Number', patient?.physician?.officeNumber)}
+                        </div>
+                    </>
+                )}
+
+                {(patient?.dataPrivacyConsent?.signerName || patient?.consentAcknowledgement?.signerName) && (
+                    <>
+                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Consent Summary</h3>
+                        <div className={styles.infoGrid}>
+                            {infoItem('Data Privacy', patient?.dataPrivacyConsent?.acknowledged ? `Acknowledged by ${patient.dataPrivacyConsent.signerName || 'Signer'}` : 'Not acknowledged')}
+                            {infoItem('Privacy Signed At', patient?.dataPrivacyConsent?.signedAt ? formatDateLong(patient.dataPrivacyConsent.signedAt) : 'Not specified')}
+                            {infoItem('Treatment Consent', patient?.consentAcknowledgement?.acknowledged ? `Acknowledged by ${patient.consentAcknowledgement.signerName || 'Signer'}` : 'Not acknowledged')}
+                            {infoItem('Consent Signed At', patient?.consentAcknowledgement?.signedAt ? formatDateLong(patient.consentAcknowledgement.signedAt) : 'Not specified')}
                         </div>
                     </>
                 )}
@@ -318,6 +391,14 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                             : [],
                         notes: medicalForm.notes,
                         inGoodHealth: selectToBool(medicalForm.inGoodHealth),
+                        underMedicalTreatment: selectToBool(medicalForm.underMedicalTreatment),
+                        medicalTreatmentDetails: medicalForm.medicalTreatmentDetails || undefined,
+                        hadSeriousIllnessOrSurgery: selectToBool(medicalForm.hadSeriousIllnessOrSurgery),
+                        seriousIllnessOrSurgeryDetails: medicalForm.seriousIllnessOrSurgeryDetails || undefined,
+                        hadHospitalization: selectToBool(medicalForm.hadHospitalization),
+                        hospitalizationDetails: medicalForm.hospitalizationDetails || undefined,
+                        isTakingMedication: selectToBool(medicalForm.isTakingMedication),
+                        hasAllergies: selectToBool(medicalForm.hasAllergies),
                         usesTobacco: selectToBool(medicalForm.usesTobacco),
                         usesAlcoholOrDrugs: selectToBool(medicalForm.usesAlcoholOrDrugs),
                         bleedingTime: medicalForm.bleedingTime || undefined,
@@ -327,7 +408,12 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                         takingBirthControl: selectToBool(medicalForm.takingBirthControl),
                     },
                     dentalHistory: {
+                        chiefComplaint: medicalForm.chiefComplaint || undefined,
                         lastExamDate: medicalForm.lastExam || undefined,
+                        hadTreatmentReaction: selectToBool(medicalForm.hadTreatmentReaction),
+                        reactionDetails: medicalForm.reactionDetails || undefined,
+                        notes: medicalForm.dentalNotes || undefined,
+                        hasConfidentialInfo: selectToBool(medicalForm.hasConfidentialInfo),
                     },
                 }),
             });
@@ -372,7 +458,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
     const renderMedicalHistory = () => (
         <div className={styles.contentCard}>
             <div className={styles.sectionHeaderRow}>
-                <h3 className={styles.sectionTitle}>Medical History & Alerts</h3>
+                <h3 className={styles.sectionTitle}>Medical & Dental History</h3>
                 {canEditMedical && !isEditingMedical && (
                     <button className={styles.actionBtn} onClick={() => setIsEditingMedical(true)}>
                         Edit Medical History
@@ -426,6 +512,58 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                             </select>
                         </div>
                         <div className={styles.formGroup}>
+                            <label>Under Medical Treatment Now?</label>
+                            <select name="underMedicalTreatment" value={medicalForm.underMedicalTreatment} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Condition Treated</label>
+                            <input type="text" name="medicalTreatmentDetails" value={medicalForm.medicalTreatmentDetails} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="Describe the condition being treated" />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Serious Illness or Surgical Operation?</label>
+                            <select name="hadSeriousIllnessOrSurgery" value={medicalForm.hadSeriousIllnessOrSurgery} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Illness or Operation Details</label>
+                            <input type="text" name="seriousIllnessOrSurgeryDetails" value={medicalForm.seriousIllnessOrSurgeryDetails} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="Provide relevant details" />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Ever Been Hospitalized?</label>
+                            <select name="hadHospitalization" value={medicalForm.hadHospitalization} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Hospitalization Details</label>
+                            <input type="text" name="hospitalizationDetails" value={medicalForm.hospitalizationDetails} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="Provide relevant details" />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Taking Prescription / Non-Prescription Medication?</label>
+                            <select name="isTakingMedication" value={medicalForm.isTakingMedication} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Has Allergies?</label>
+                            <select name="hasAllergies" value={medicalForm.hasAllergies} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
                             <label>Uses Tobacco?</label>
                             <select name="usesTobacco" value={medicalForm.usesTobacco} onChange={handleMedicalFormChange} className={styles.inputField}>
                                 <option value="">Select</option>
@@ -465,10 +603,38 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                                 <option value="no">No</option>
                             </select>
                         </div>
+                        <div className={styles.formGroup}>
+                            <label>Chief Complaint</label>
+                            <input type="text" name="chiefComplaint" value={medicalForm.chiefComplaint} onChange={handleMedicalFormChange} className={styles.inputField} />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Reaction After Dental Treatment?</label>
+                            <select name="hadTreatmentReaction" value={medicalForm.hadTreatmentReaction} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Reaction Details</label>
+                            <input type="text" name="reactionDetails" value={medicalForm.reactionDetails} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="Describe the reaction or complication" />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Confidential Information Flag</label>
+                            <select name="hasConfidentialInfo" value={medicalForm.hasConfidentialInfo} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
                     </div>
                     <div className={styles.formGroup}>
                         <label>Clinical Notes & Remarks</label>
                         <textarea name="notes" value={medicalForm.notes} onChange={handleMedicalFormChange} className={styles.textareaField} placeholder="Add any special instructions or warnings here..." />
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label>Dental Notes</label>
+                        <textarea name="dentalNotes" value={medicalForm.dentalNotes} onChange={handleMedicalFormChange} className={styles.textareaField} placeholder="Add dental-specific history notes here..." />
                     </div>
                     
                     <div className={styles.formActions}>
@@ -514,6 +680,38 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                             <p className={styles.infoValue}>{medicalHistory.inGoodHealth === 'yes' ? 'Yes' : medicalHistory.inGoodHealth === 'no' ? 'No' : 'Not specified'}</p>
                         </div>
                         <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Under Medical Treatment?</span>
+                            <p className={styles.infoValue}>{medicalHistory.underMedicalTreatment === 'yes' ? 'Yes' : medicalHistory.underMedicalTreatment === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Condition Treated</span>
+                            <p className={styles.infoValue}>{medicalHistory.medicalTreatmentDetails || 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Serious Illness / Surgery?</span>
+                            <p className={styles.infoValue}>{medicalHistory.hadSeriousIllnessOrSurgery === 'yes' ? 'Yes' : medicalHistory.hadSeriousIllnessOrSurgery === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Illness / Surgery Details</span>
+                            <p className={styles.infoValue}>{medicalHistory.seriousIllnessOrSurgeryDetails || 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Ever Been Hospitalized?</span>
+                            <p className={styles.infoValue}>{medicalHistory.hadHospitalization === 'yes' ? 'Yes' : medicalHistory.hadHospitalization === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Hospitalization Details</span>
+                            <p className={styles.infoValue}>{medicalHistory.hospitalizationDetails || 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Taking Medication?</span>
+                            <p className={styles.infoValue}>{medicalHistory.isTakingMedication === 'yes' ? 'Yes' : medicalHistory.isTakingMedication === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Has Allergies?</span>
+                            <p className={styles.infoValue}>{medicalHistory.hasAllergies === 'yes' ? 'Yes' : medicalHistory.hasAllergies === 'no' ? 'No' : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
                             <span className={styles.infoLabel}>Uses Tobacco?</span>
                             <p className={styles.infoValue}>{medicalHistory.usesTobacco === 'yes' ? 'Yes' : medicalHistory.usesTobacco === 'no' ? 'No' : 'Not specified'}</p>
                         </div>
@@ -540,17 +738,46 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                             <p className={styles.infoValue} style={{ color: '#475569', fontStyle: 'italic' }}>"{medicalHistory.notes}"</p>
                         </div>
                     )}
+                    <div className={styles.infoGrid} style={{ marginTop: '28px' }}>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Chief Complaint</span>
+                            <p className={styles.infoValue}>{medicalHistory.chiefComplaint || 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Last Dental Visit</span>
+                            <p className={styles.infoValue}>{medicalHistory.lastExam ? formatDateLong(medicalHistory.lastExam) : 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Treatment Reaction</span>
+                            <p className={styles.infoValue}>
+                                {medicalHistory.hadTreatmentReaction === 'yes' ? 'Yes' : medicalHistory.hadTreatmentReaction === 'no' ? 'No' : 'Not specified'}
+                            </p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Confidential Information</span>
+                            <p className={styles.infoValue}>
+                                {medicalHistory.hasConfidentialInfo === 'yes'
+                                    ? 'Patient requested a private discussion.'
+                                    : medicalHistory.hasConfidentialInfo === 'no'
+                                        ? 'No confidential flag recorded.'
+                                        : 'Not specified'}
+                            </p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Reaction Details</span>
+                            <p className={styles.infoValue}>{medicalHistory.reactionDetails || 'Not specified'}</p>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Dental Notes</span>
+                            <p className={styles.infoValue}>{medicalHistory.dentalNotes || 'Not specified'}</p>
+                        </div>
+                    </div>
                 </>
             )}
         </div>
     );
 
     // ─── TREATMENT LOGS TAB ────────────────────────────────────────────────────
-    const toggleLogExpand = (id, e) => {
-        if (e) e.stopPropagation();
-        setExpandedLogs(prev => ({ ...prev, [id]: !prev[id] }));
-    };
-
     const handleAddLogSubmit = async (e) => {
         e.preventDefault();
         setIsSubmittingLog(true);
@@ -587,25 +814,34 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
         }
     };
 
+    const normalizedLogRange = (() => {
+        if (logsRangeFilter === '3days') {
+            return { from: getTodayString(), to: addDays(getTodayString(), 2) };
+        }
+        if (logsRangeFilter === '7days') {
+            return { from: getTodayString(), to: addDays(getTodayString(), 6) };
+        }
+        if (logsRangeFilter === 'custom') {
+            const from = logsDateFrom || getTodayString();
+            const to = logsDateTo || from;
+            return from <= to ? { from, to } : { from: to, to: from };
+        }
+        return { from: getTodayString(), to: getTodayString() };
+    })();
+
     const filteredLogs = logs.filter(log => {
         const searchLower = logsSearchQuery.toLowerCase();
         const matchesSearch = (log.procedure || '').toLowerCase().includes(searchLower) || (log.notes || '').toLowerCase().includes(searchLower);
         const matchesCategory = logsCategory === 'All' || log.category === logsCategory;
-        
-        let matchesDate = true;
-        if (logsDateFrom) matchesDate = matchesDate && log.rawDate >= new Date(logsDateFrom);
-        if (logsDateTo) {
-            const end = new Date(logsDateTo);
-            end.setHours(23, 59, 59, 999);
-            matchesDate = matchesDate && log.rawDate <= end;
-        }
+        const logDateKey = log.rawDate.toISOString().split('T')[0];
+        const matchesDate = logDateKey >= normalizedLogRange.from && logDateKey <= normalizedLogRange.to;
         return matchesSearch && matchesCategory && matchesDate;
     });
 
     const renderTreatmentLogs = () => (
         <div className={styles.contentCard}>
                 <div className={styles.sectionHeaderRow} style={{ marginBottom: '20px' }}>
-                    <h3 className={styles.sectionTitle}>Treatment & Activity Timeline</h3>
+                    <h3 className={styles.sectionTitle}>Treatment Logs</h3>
                     {canAddTreatmentLog && (
                         <button className={styles.actionBtn} onClick={() => setIsAddLogOpen(true)}>
                             <FaPlus /> Add Log
@@ -613,98 +849,121 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                     )}
                 </div>
 
-            <div className={styles.controlsRow}>
-                <div className={styles.searchFilterGroup}>
-                    <div className={styles.searchWrapper}>
-                        <FaSearch className={styles.searchIcon} />
-                        <input 
-                            type="text" placeholder="Search procedures or notes..." 
-                            className={styles.searchInput} value={logsSearchQuery} 
-                            onChange={(e) => setLogsSearchQuery(e.target.value)} 
+            <div className={scheduleStyles.toolbar}>
+                <div className={scheduleStyles.toolbarFilters}>
+                    <div className={scheduleStyles.searchWrapper}>
+                        <FaSearch className={scheduleStyles.searchIcon} />
+                        <input
+                            type="text"
+                            placeholder="Search procedures or notes..."
+                            className={scheduleStyles.searchInput}
+                            value={logsSearchQuery}
+                            onChange={(e) => setLogsSearchQuery(e.target.value)}
                         />
                     </div>
-                    
-                    <select className={styles.filterSelect} value={logsCategory} onChange={(e) => setLogsCategory(e.target.value)}>
+
+                    <div className={scheduleStyles.pillGroup}>
+                        {DATE_FILTER_OPTIONS.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                className={`${scheduleStyles.filterPill} ${logsRangeFilter === option.value ? scheduleStyles.activePill : ''}`}
+                                onClick={() => setLogsRangeFilter(option.value)}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {logsRangeFilter === 'custom' && (
+                        <div className={scheduleStyles.customDateRange}>
+                            <label className={scheduleStyles.dateField}>
+                                <span>From</span>
+                                <input className={scheduleStyles.formControl} type="date" value={logsDateFrom} max={logsDateTo || undefined} onChange={(e) => setLogsDateFrom(e.target.value)} />
+                            </label>
+                            <label className={scheduleStyles.dateField}>
+                                <span>To</span>
+                                <input className={scheduleStyles.formControl} type="date" value={logsDateTo} min={logsDateFrom || undefined} onChange={(e) => setLogsDateTo(e.target.value)} />
+                            </label>
+                        </div>
+                    )}
+
+                    <div className={scheduleStyles.filterSelectWrap}>
+                        <FaFilter className={scheduleStyles.filterIcon} />
+                        <select className={scheduleStyles.filterSelect} value={logsCategory} onChange={(e) => setLogsCategory(e.target.value)}>
                         <option value="All">All Categories</option>
                         <option value="Prophylaxis">Prophylaxis</option>
                         <option value="Restoration">Restoration</option>
                         <option value="Extraction">Extraction</option>
                         <option value="Orthodontics">Orthodontics</option>
-                        <option value="General">General</option>
-                    </select>
-
-                    <div className={styles.dateFilterWrapper}>
-                        <input type="date" className={styles.dateInput} value={logsDateFrom} onChange={(e) => setLogsDateFrom(e.target.value)} title="From Date" />
-                        <span className={styles.dateSeparator}>-</span>
-                        <input type="date" className={styles.dateInput} value={logsDateTo} onChange={(e) => setLogsDateTo(e.target.value)} title="To Date" />
+                        <option value="Consultation">Consultation</option>
+                        <option value="Other">Other</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
-            <div className={styles.timeline}>
-                {filteredLogs.length > 0 ? (
-                    filteredLogs.map(log => {
-                        const isExpanded = !!expandedLogs[log.id];
-                        return (
-                            <div key={log.id} className={styles.timelineItem}>
-                                <div className={styles.timelineDot}></div>
-                                <div className={styles.timelineCard}>
-                                    <div className={styles.timelineHeader} onClick={(e) => toggleLogExpand(log.id, e)}>
-                                        <div className={styles.timelineMain}>
-                                            <h4 className={styles.timelineDate}>{formatDateLong(log.rawDate.toISOString())}</h4>
-                                            <p className={styles.timelineProcedure}>{log.procedure}</p>
-                                            
-                                            <div className={styles.timelineMeta}>
-                                                <span className={styles.metaTag} title="Attending Dentist">
-                                                    <FaUserMd className={styles.metaIcon}/> {log.doctor || log.dentist || 'N/A'}
-                                                </span>
-                                                <span className={styles.metaTag} title="Branch">
-                                                    <FaHospitalUser className={styles.metaIcon}/> {log.branch} Branch
-                                                </span>
-                                            </div>
+            <div className={scheduleStyles.tableContainer}>
+                <table className={wideTable.table}>
+                    <thead>
+                        <tr>
+                            <th style={{ width: '16%' }}>Date</th>
+                            <th style={{ width: '20%' }}>Procedure</th>
+                            <th style={{ width: '14%' }}>Category</th>
+                            <th style={{ width: '14%' }}>Branch</th>
+                            <th style={{ width: '18%' }}>Dentist</th>
+                            <th style={{ width: '8%' }}>Tooth</th>
+                            <th style={{ width: '10%' }}>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredLogs.length > 0 ? (
+                            filteredLogs.map((log) => (
+                                <tr key={log.id}>
+                                    <td>
+                                        <div className={scheduleStyles.patientCell}>
+                                            <strong>{formatDateShort(log.rawDate)}</strong>
+                                            <span>{formatDateLong(log.rawDate)}</span>
                                         </div>
-
-                                        <button className={styles.expandBtn}>
-                                            {isExpanded ? 'Hide Details' : 'View Details'}
-                                            {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-                                        </button>
-                                    </div>
-
-                                    {isExpanded && (
-                                        <div className={styles.timelineDetails}>
-                                            <div className={styles.detailGrid}>
-                                                <div className={styles.detailBlock}>
-                                                    <span className={styles.detailLabel}>Treated Tooth #</span>
-                                                    <p className={styles.detailValue}>
-                                                        <FaTooth style={{ color: '#01538b', marginRight: '6px' }}/> {log.tooth}
-                                                    </p>
-                                                </div>
-                                                <div className={styles.detailBlock}>
-                                                    <span className={styles.detailLabel}>Clinical Notes & Remarks</span>
-                                                    <p className={styles.detailValue}>{log.notes}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })
-                ) : (
-                    <div className={styles.emptyState}>No treatment logs match the current filters.</div>
-                )}
+                                    </td>
+                                    <td title={log.procedure}>{log.procedure}</td>
+                                    <td title={log.category}>
+                                        <span className={`${wideTable.statusBadge} ${wideTable.statusBlue}`}>{log.category || 'Other'}</span>
+                                    </td>
+                                    <td title={log.branch}>{log.branch || '-'}</td>
+                                    <td title={log.dentistName || log.doctor || log.dentist || '-'}>
+                                        {log.dentistName || log.doctor || log.dentist || '-'}
+                                    </td>
+                                    <td title={log.tooth || '-'}>
+                                        {log.tooth || '-'}
+                                    </td>
+                                    <td title={log.notes || 'No notes'}>
+                                        {log.notes || 'No notes'}
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="7" className={scheduleStyles.emptyStateBox}>No treatment logs match the current filters.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
             </div>
 
             {canAddTreatmentLog && isAddLogOpen && (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard} style={{ maxWidth: '500px' }}>
-                        <h3 className={styles.modalTitle} style={{ textAlign: 'left', border: 'none', padding: 0, marginBottom: '20px' }}>Add Treatment Log</h3>
+                    <div className={styles.modalCard} style={{ maxWidth: '720px' }}>
+                        <h3 className={styles.modalTitle} style={{ textAlign: 'left', border: 'none', padding: 0, marginBottom: '12px' }}>Add Treatment Log</h3>
+                        <p style={{ margin: '0 0 18px 0', color: '#64748b', lineHeight: 1.6 }}>
+                            A cleaner layout works best here: keep the first row for appointment details, the second for branch and tooth references, and leave notes as one full-width field. This version follows that structure so it is faster to scan and encode.
+                        </p>
                         <form onSubmit={handleAddLogSubmit} style={{ textAlign: 'left' }}>
-                            <div className={styles.formGroup}>
-                                <label>Date of Procedure <span style={{color:'red'}}>*</span></label>
-                                <input type="date" required className={styles.inputField} value={newLogForm.date} onChange={(e) => setNewLogForm({...newLogForm, date: e.target.value})} />
-                            </div>
-                            <div className={styles.formGrid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div className={styles.formGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '15px' }}>
+                                <div className={styles.formGroup}>
+                                    <label>Date of Procedure <span style={{color:'red'}}>*</span></label>
+                                    <input type="date" required max={getTodayString()} className={styles.inputField} value={newLogForm.date} onChange={(e) => setNewLogForm({...newLogForm, date: e.target.value})} />
+                                </div>
                                 <div className={styles.formGroup}>
                                     <label>Procedure Name <span style={{color:'red'}}>*</span></label>
                                     <input type="text" required className={styles.inputField} value={newLogForm.procedure} onChange={(e) => setNewLogForm({...newLogForm, procedure: e.target.value})} placeholder="e.g. Extraction" />
@@ -717,30 +976,32 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
                                         <option value="Restoration">Restoration</option>
                                         <option value="Extraction">Extraction</option>
                                         <option value="Orthodontics">Orthodontics</option>
+                                        <option value="Consultation">Consultation</option>
+                                        <option value="Other">Other</option>
                                     </select>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>Branch <span style={{color:'red'}}>*</span></label>
+                                    <select
+                                        required
+                                        className={styles.inputField}
+                                        value={newLogForm.branchId}
+                                        onChange={(e) => setNewLogForm({...newLogForm, branchId: e.target.value})}
+                                    >
+                                        <option value="" disabled hidden>Select Branch</option>
+                                        {branches.map(b => (
+                                            <option key={b._id} value={b.name}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>Tooth Number(s)</label>
+                                    <input type="text" className={styles.inputField} value={newLogForm.tooth} onChange={(e) => setNewLogForm({...newLogForm, tooth: e.target.value})} placeholder="e.g. 45, 46 or All" />
                                 </div>
                             </div>
                             <div className={styles.formGroup}>
-                                <label>Tooth Number(s)</label>
-                                <input type="text" className={styles.inputField} value={newLogForm.tooth} onChange={(e) => setNewLogForm({...newLogForm, tooth: e.target.value})} placeholder="e.g. 45, 46 or All" />
-                            </div>
-                            <div className={styles.formGroup}>
                                 <label>Clinical Notes <span style={{color:'red'}}>*</span></label>
-                                <textarea required className={styles.textareaField} value={newLogForm.notes} onChange={(e) => setNewLogForm({...newLogForm, notes: e.target.value})} placeholder="Describe the procedure, patient condition, etc." />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Branch <span style={{color:'red'}}>*</span></label>
-                                <select
-                                    required
-                                    className={styles.inputField}
-                                    value={newLogForm.branchId}
-                                    onChange={(e) => setNewLogForm({...newLogForm, branchId: e.target.value})}
-                                >
-                                    <option value="" disabled hidden>Select Branch</option>
-                                    {branches.map(b => (
-                                        <option key={b._id} value={b.name}>{b.name}</option>
-                                    ))}
-                                </select>
+                                <textarea required className={styles.textareaField} value={newLogForm.notes} onChange={(e) => setNewLogForm({...newLogForm, notes: e.target.value})} placeholder="Describe the procedure, patient condition, dentist remarks, and any follow-up instructions." />
                             </div>
                             <div className={styles.modalButtonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={() => setIsAddLogOpen(false)} disabled={isSubmittingLog}>Cancel</button>
@@ -1091,7 +1352,7 @@ export default function PatientEMR({ patientId: propPatientId, onClose, embedded
             {/* Updated Tab Structure */}
             <div className={styles.tabContainer}>
                 <button className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.active : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
-                <button className={`${styles.tabBtn} ${activeTab === 'medicalHistory' ? styles.active : ''}`} onClick={() => setActiveTab('medicalHistory')}>Medical History & Alerts</button>
+                        <button className={`${styles.tabBtn} ${activeTab === 'medicalHistory' ? styles.active : ''}`} onClick={() => setActiveTab('medicalHistory')}>Medical & Dental History</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'treatmentLogs' ? styles.active : ''}`} onClick={() => setActiveTab('treatmentLogs')}>Treatment Logs</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Dental Chart</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'radiographs' ? styles.active : ''}`} onClick={() => setActiveTab('radiographs')}>Radiographs</button>

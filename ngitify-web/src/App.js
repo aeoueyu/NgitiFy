@@ -41,7 +41,6 @@ const AppointmentNotifications = lazy(() => import('./pages/admin/AppointmentNot
 const ManageBranchManagers = lazy(() => import('./pages/admin/ManageBranchManagers'));
 const AddBranchManager = lazy(() => import('./pages/admin/AddBranchManager'));
 const AdminPatientEMR = lazy(() => import('./pages/admin/PatientEMR'));
-const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
 const SystemConfig = lazy(() => import('./pages/admin/SystemConfig'));
 const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const RolesPermissions = lazy(() => import('./pages/admin/RolesPermissions'));
@@ -152,6 +151,7 @@ function App() {
                   <Route path="/branch-manager/appointments" element={<Navigate to="/branch-manager/schedule" replace />} />
                   <Route path="/branch-manager/schedule"     element={<SchedulePage />} />
                   <Route path="/branch-manager/manage-users" element={<BranchManagerManageUsers />} />
+                  <Route path="/branch-manager/patients"     element={<ManagePatients />} />
                   <Route path="/branch-manager/queue"        element={<Navigate to="/branch-manager/schedule" replace />} />
                   <Route path="/branch-manager/chat-support" element={<BranchManagerChatSupport />} />
                   <Route path="/branch-manager/branches"     element={<BranchManagement />} />
@@ -162,7 +162,7 @@ function App() {
                   <Route path="/branch-manager/inventory"    element={<InventoryTracker />} />
                   <Route path="/branch-manager/profile"      element={<AdminProfile />} />
                   <Route path="/branch-manager/settings"     element={<AdminSettings />} />
-                  <Route path="/branch-manager/patient-emr"  element={<PatientEMRPage />} />
+                  <Route path="/branch-manager/patient-emr"  element={<Navigate to="/branch-manager/patients" replace />} />
                   <Route path="/branch-manager/patients/:patientId/emr" element={<BranchManagerPatientEMR />} />
                 </Route>
               </Route>
@@ -174,10 +174,11 @@ function App() {
                   <Route path="/owner/dashboard"                    element={<OwnerDashboard />} />
                   <Route path="/owner/appointments"                 element={<Navigate to="/owner/schedule" replace />} />
                   <Route path="/owner/schedule"                     element={<SchedulePage />} />
-                  <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-users/dentists" replace />} />
+                  <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-users/secretaries" replace />} />
                   <Route path="/owner/manage-users/dentists"        element={<ManageDentists />} />
                   <Route path="/owner/manage-users/secretaries"     element={<ManageSecretaries />} />
-                  <Route path="/owner/manage-users/patients"        element={<ManagePatients />} />
+                  <Route path="/owner/manage-users/patients"        element={<Navigate to="/owner/patients" replace />} />
+                  <Route path="/owner/patients"                     element={<ManagePatients />} />
                   <Route path="/owner/manage-users/branch-managers" element={<ManageBranchManagers />} />
                   <Route path="/owner/manage-users/owners"          element={<ManageOwners />} />
                   <Route path="/owner/patients/:patientId/emr"      element={<AdminPatientEMR />} />
@@ -203,7 +204,7 @@ function App() {
                   <Route path="/secretary/patients/add"                 element={<SecretaryAddPatient />} />
                   <Route path="/secretary/patients/:patientId/edit"     element={<SecretaryEditPatient />} />
                   <Route path="/secretary/patients/:patientId"          element={<SecretaryViewPatient />} />
-                  <Route path="/secretary/patient-emr"                 element={<PatientEMRPage />} />
+                  <Route path="/secretary/patient-emr"                 element={<Navigate to="/secretary/patients" replace />} />
                   <Route path="/secretary/patients/:patientId/emr"      element={<SecretaryPatientEMR />} />
                   <Route path="/secretary/queue"                        element={<Navigate to="/secretary/schedule" replace />} />
                   <Route path="/secretary/chat-support"                 element={<SecretaryChatSupport />} />
@@ -227,10 +228,11 @@ function App() {
                   <Route path="/admin/inventory" element={<InventoryTracker />} />
 
                   {/* User Management */}
-                  <Route path="/admin/manage-users" element={<UserManagement />} />
+                  <Route path="/admin/manage-users" element={<Navigate to="/admin/manage-users/secretaries" replace />} />
                   <Route path="/admin/manage-users/dentists" element={<ManageDentists />} />
                   <Route path="/admin/manage-users/secretaries" element={<ManageSecretaries />} />
-                  <Route path="/admin/manage-users/patients" element={<ManagePatients />} />
+                  <Route path="/admin/manage-users/patients" element={<Navigate to="/admin/patients" replace />} />
+                  <Route path="/admin/patients" element={<ManagePatients />} />
                   <Route path="/admin/manage-users/branch-managers" element={<ManageBranchManagers />} />
                   <Route path="/admin/manage-users/owners" element={<ManageOwners />} />   {/* ✅ PHASE 3 */}
 
@@ -241,7 +243,7 @@ function App() {
                   <Route path="/admin/add-branch-manager" element={<AddBranchManager />} />
 
                   {/* ✅ PHASE 2: Admin EMR */}
-                  <Route path="/admin/patient-emr" element={<PatientEMRPage />} />
+                  <Route path="/admin/patient-emr" element={<Navigate to="/admin/patients" replace />} />
                   <Route path="/admin/patients/:patientId/emr" element={<AdminPatientEMR />} />
 
                   {/* ✅ PHASE 2: System Config */}

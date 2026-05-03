@@ -5,7 +5,6 @@ import tblStyles from '../../styles/wideTable.module.css';
 import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
-import UserAvatar from '../../components/common/UserAvatar';
 
 import UserTabs from './UserTabs';
 import AddDentist from './AddDentist';
@@ -206,62 +205,54 @@ export default function ManageDentists() {
                 <table className={`${styles.userTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
-                            <th style={{ width: '60px', textAlign: 'center' }}>Pic</th>
-                            <th>Dentist Name</th>
+                            <th style={{ width: '34%' }}>Name</th>
                             <th>Email Address</th>
                             {/* ✅ PHASE 2: Branch column */}
-                            <th>Assigned Branch</th>
-                            <th style={{ width: '180px' }}>Account Status</th>
+                            <th style={{ width: '110px' }}>Status</th>
                             <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
+                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredDentists.length > 0 ? (
                             filteredDentists.map((dentist) => (
                                 <tr key={dentist.id} style={{ opacity: dentist.status === 'Inactive' ? 0.6 : 1 }}>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <UserAvatar user={{ name: dentist.name, profileImage: dentist.profileImage }} size={40} />
-                                    </td>
-                                    <td>
-                                        <span className={styles.fwBold}>Dr. {dentist.name}</span>
+                                    <td className={tblStyles.wrapCell}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span className={styles.fwBold}>Dr. {dentist.name}</span>
+                                            <span style={{ color: '#6b7f92', fontSize: '12px' }}>
+                                                {dentist.assignedBranches.length > 0 ? dentist.assignedBranches.join(', ') : 'No branch'}
+                                            </span>
+                                        </div>
                                         {!dentist.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
                                     </td>
-                                    <td>{dentist.email}</td>
+                                    <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>{dentist.email}</td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
-                                    <td className={tblStyles.wrapCell}>
-                                        {dentist.assignedBranches.length > 0
-                                            ? dentist.assignedBranches.join(', ')
-                                            : <span style={{ color: '#94a3b8', fontSize: '13px' }}>Not assigned</span>
-                                        }
-                                    </td>
                                     <td>
                                         <span className={`${tblStyles.statusBadge} ${dentist.status === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
                                             {dentist.status}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <div className={tblStyles.iconActions}>
-                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
-                                            <button type="button" className={`${styles.iconBtn} ${tblStyles.iconAction}`} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
+                                        <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
+                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
+                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
                                             {!dentist.isVerified && (
                                                 <button
                                                     type="button"
-                                                    className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                    className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.warningIconButton}`}
                                                     onClick={() => handleResendActivation(dentist)}
                                                     title="Resend Activation Email"
-                                                    style={{ color: '#f59e0b' }}
                                                 >
                                                     <FaEnvelope />
                                                 </button>
                                             )}
                                             <button
                                                 type="button"
-                                                className={`${styles.iconBtn} ${tblStyles.iconAction}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${dentist.status === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
                                                 onClick={() => handleToggleStatus(dentist)}
                                                 title={dentist.status === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                                style={{ color: dentist.status === 'Inactive' ? '#22c55e' : '#94a3b8', fontSize: '20px' }}
                                             >
                                                 {dentist.status === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                             </button>
@@ -270,7 +261,7 @@ export default function ManageDentists() {
                                 </tr>
                             ))
                         ) : (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No dentists found matching filters.</td></tr>
+                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>No dentists found matching filters.</td></tr>
                         )}
                     </tbody>
                 </table>
