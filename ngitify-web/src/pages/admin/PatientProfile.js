@@ -261,7 +261,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                     {infoItem('Home Phone', patient.homePhone)}
                     {infoItem('Patient ID', patient._id, <FaIdCard />)}
                     {infoItem('Occupation', patient.occupation)}
-                    {infoItem('Civil Status', patient.civilStatus)}
                     {infoItem('Work Phone', patient.workPhone)}
                     {infoItem('Nationality', patient.nationality)}
                     {infoItem('Religion', patient.religion)}

@@ -92,10 +92,6 @@ export default function AddSecretary({ onClose, onSuccess }) {
         }
     };
 
-    const handlePermissionChange = (module, value) => {
-        setFormData(prev => ({ ...prev, permissions: { ...prev.permissions, [module]: value } }));
-    };
-
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
         const required = ['firstName', 'lastName', 'birthdate', 'email', 'assignedBranch'];
@@ -278,31 +274,6 @@ export default function AddSecretary({ onClose, onSuccess }) {
                         </div>
                     </div>
                     {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
-
-                    {/* Permissions */}
-                    <hr className={styles.divider} />
-                    <h3 className={styles.mainSectionTitle}>Module Permissions</h3>
-                    <p className={styles.sectionSubtitle}>Configure what this secretary can access.</p>
-                    {['patients', 'appointments', 'inventory'].map(module => (
-                        <div key={module} className={styles.permissionRow}>
-                            <span className={styles.permissionLabel}>{module.charAt(0).toUpperCase() + module.slice(1)}</span>
-                            <div className={styles.permissionOptions}>
-                                {['none', 'read', 'edit'].map(level => (
-                                    <label key={level} className={styles.permissionOption}>
-                                        <input
-                                            type="radio"
-                                            name={`perm_${module}`}
-                                            value={level}
-                                            checked={formData.permissions[module] === level}
-                                            onChange={() => handlePermissionChange(module, level)}
-                                            disabled={isLoading}
-                                        />
-                                        {level === 'none' ? 'No Access' : level === 'read' ? 'View Only' : 'Full Access'}
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>

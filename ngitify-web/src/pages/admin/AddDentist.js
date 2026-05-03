@@ -109,10 +109,6 @@ export default function AddDentist({ onClose, onSuccess }) {
         }
     };
 
-    const handlePermissionChange = (module, value) => {
-        setFormData(prev => ({ ...prev, permissions: { ...prev.permissions, [module]: value } }));
-    };
-
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
         const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email', 'assignedBranch'];
@@ -309,19 +305,6 @@ export default function AddDentist({ onClose, onSuccess }) {
                         </div>
                     </div>
                     {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
-
-                    {/* Permissions */}
-                    <hr className={styles.divider} />
-                    <h3 className={styles.mainSectionTitle}>System Permissions</h3>
-                    <p className={styles.sectionSubtitle}>Assign access levels for different system modules.</p>
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}><label>PATIENTS <span style={{ color: 'red' }}>*</span></label><select className={styles.inputField} value={formData.permissions.patients} onChange={e => handlePermissionChange('patients', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
-                        <div className={styles.formGroup}><label>APPOINTMENTS <span style={{ color: 'red' }}>*</span></label><select className={styles.inputField} value={formData.permissions.appointments} onChange={e => handlePermissionChange('appointments', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
-                    </div>
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}><label>INVENTORY <span style={{ color: 'red' }}>*</span></label><select className={styles.inputField} value={formData.permissions.inventory} onChange={e => handlePermissionChange('inventory', e.target.value)} disabled={isLoading}><option value="none">No Access</option><option value="read">Read-Only</option><option value="edit">Editor</option></select></div>
-                        <div className={styles.formGroup} />
-                    </div>
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>

@@ -203,13 +203,6 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         }
     };
 
-    const handlePermissionChange = (module, value) => {
-        setFormData(prev => ({
-            ...prev,
-            permissions: { ...prev.permissions, [module]: value }
-        }));
-    };
-
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
         // FIX 3: added 'gender' to required fields
@@ -387,43 +380,6 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                             {renderAddressFields('currentAddress', 'Current Address')}
                             <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isSaving} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
                             {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
-
-                            {/* SYSTEM PERMISSIONS SECTION */}
-                            <hr className={styles.divider} />
-                            <h3 className={styles.mainSectionTitle}>System Permissions</h3>
-                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', marginTop: '-15px' }}>Assign access levels for different system modules.</p>
-
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>PATIENTS <span style={{color:'red'}}>*</span></label>
-                                    <select className={styles.inputField} value={formData.permissions.patients} onChange={(e) => handlePermissionChange('patients', e.target.value)} disabled={isSaving}>
-                                        <option value="none">No Access</option>
-                                        <option value="read">Read-Only</option>
-                                        <option value="edit">Editor</option>
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>APPOINTMENTS <span style={{color:'red'}}>*</span></label>
-                                    <select className={styles.inputField} value={formData.permissions.appointments} onChange={(e) => handlePermissionChange('appointments', e.target.value)} disabled={isSaving}>
-                                        <option value="none">No Access</option>
-                                        <option value="read">Read-Only</option>
-                                        <option value="edit">Editor</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>INVENTORY <span style={{color:'red'}}>*</span></label>
-                                    <select className={styles.inputField} value={formData.permissions.inventory} onChange={(e) => handlePermissionChange('inventory', e.target.value)} disabled={isSaving}>
-                                        <option value="none">No Access</option>
-                                        <option value="read">Read-Only</option>
-                                        <option value="edit">Editor</option>
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup}>
-                                    {/* Empty flex placeholder to maintain layout grid */}
-                                </div>
-                            </div>
 
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>

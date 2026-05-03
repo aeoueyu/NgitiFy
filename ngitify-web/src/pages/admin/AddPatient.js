@@ -650,28 +650,32 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Medical History</h3>
                     <div className={styles.row}>
-                        {renderYesNoField('IN GOOD HEALTH?', 'medicalHistory', 'inGoodHealth', formData.medicalHistory.inGoodHealth, isLoading)}
-                        {renderYesNoField('UNDER MEDICAL TREATMENT NOW?', 'medicalHistory', 'underMedicalTreatment', formData.medicalHistory.underMedicalTreatment, isLoading)}
+                        {renderYesNoField('ARE YOU IN GOOD HEALTH?', 'medicalHistory', 'inGoodHealth', formData.medicalHistory.inGoodHealth, isLoading)}
+                        <div className={styles.formGroup} />
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>CONDITION TREATED</label><textarea className={`${styles.textArea} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.medicalTreatmentDetails} onChange={(e) => handleNestedChange('medicalHistory', 'medicalTreatmentDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.medicalHistory_medicalTreatmentDetails && <span className={styles.errorText}>{errors.medicalHistory_medicalTreatmentDetails}</span>}</div>
-                        {renderYesNoField('SERIOUS ILLNESS OR SURGICAL OPERATION?', 'medicalHistory', 'hadSeriousIllnessOrSurgery', formData.medicalHistory.hadSeriousIllnessOrSurgery, isLoading)}
+                        {renderYesNoField('ARE YOU UNDER MEDICAL TREATMENT NOW?', 'medicalHistory', 'underMedicalTreatment', formData.medicalHistory.underMedicalTreatment, isLoading)}
+                        <div className={styles.formGroup}><label>IF SO, WHAT IS THE CONDITION TREATED?</label><input className={`${styles.inputField} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.medicalTreatmentDetails} onChange={(e) => handleNestedChange('medicalHistory', 'medicalTreatmentDetails', e.target.value)} disabled={isLoading} />{errors.medicalHistory_medicalTreatmentDetails && <span className={styles.errorText}>{errors.medicalHistory_medicalTreatmentDetails}</span>}</div>
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>ILLNESS OR OPERATION DETAILS</label><textarea className={`${styles.textArea} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleNestedChange('medicalHistory', 'seriousIllnessOrSurgeryDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.medicalHistory_seriousIllnessOrSurgeryDetails && <span className={styles.errorText}>{errors.medicalHistory_seriousIllnessOrSurgeryDetails}</span>}</div>
-                        {renderYesNoField('EVER BEEN HOSPITALIZED?', 'medicalHistory', 'hadHospitalization', formData.medicalHistory.hadHospitalization, isLoading)}
+                        {renderYesNoField('HAVE YOU EVER HAD SERIOUS ILLNESS OR SURGICAL OPERATION?', 'medicalHistory', 'hadSeriousIllnessOrSurgery', formData.medicalHistory.hadSeriousIllnessOrSurgery, isLoading)}
+                        <div className={styles.formGroup}><label>IF SO, WHAT IS THE ILLNESS OR OPERATION?</label><input className={`${styles.inputField} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleNestedChange('medicalHistory', 'seriousIllnessOrSurgeryDetails', e.target.value)} disabled={isLoading} />{errors.medicalHistory_seriousIllnessOrSurgeryDetails && <span className={styles.errorText}>{errors.medicalHistory_seriousIllnessOrSurgeryDetails}</span>}</div>
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>HOSPITALIZATION DETAILS</label><textarea className={`${styles.textArea} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.hospitalizationDetails} onChange={(e) => handleNestedChange('medicalHistory', 'hospitalizationDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.medicalHistory_hospitalizationDetails && <span className={styles.errorText}>{errors.medicalHistory_hospitalizationDetails}</span>}</div>
-                        {renderYesNoField('TAKING PRESCRIPTION / NON-PRESCRIPTION MEDICATION?', 'medicalHistory', 'isTakingMedication', formData.medicalHistory.isTakingMedication, isLoading)}
+                        {renderYesNoField('HAVE YOU EVER BEEN HOSPITALIZED?', 'medicalHistory', 'hadHospitalization', formData.medicalHistory.hadHospitalization, isLoading)}
+                        <div className={styles.formGroup}><label>IF SO, WHEN AND WHY?</label><input className={`${styles.inputField} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={formData.medicalHistory.hospitalizationDetails} onChange={(e) => handleNestedChange('medicalHistory', 'hospitalizationDetails', e.target.value)} disabled={isLoading} />{errors.medicalHistory_hospitalizationDetails && <span className={styles.errorText}>{errors.medicalHistory_hospitalizationDetails}</span>}</div>
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>MEDICATIONS</label><textarea className={`${styles.textArea} ${errors.medicalHistory_medications ? styles.errorBorder : ''}`} value={formData.medicalHistory.medications} onChange={(e) => handleNestedChange('medicalHistory', 'medications', e.target.value)} placeholder="Comma-separated values" rows={3} disabled={isLoading} />{errors.medicalHistory_medications && <span className={styles.errorText}>{errors.medicalHistory_medications}</span>}</div>
-                        {renderYesNoField('USES TOBACCO PRODUCTS?', 'medicalHistory', 'usesTobacco', formData.medicalHistory.usesTobacco, isLoading)}
+                        {renderYesNoField('ARE YOU TAKING ANY PRESCRIPTION/NON-PRESCRIPTION MEDICATION?', 'medicalHistory', 'isTakingMedication', formData.medicalHistory.isTakingMedication, isLoading)}
+                        <div className={styles.formGroup}><label>IF SO, PLEASE SPECIFY</label><input className={`${styles.inputField} ${errors.medicalHistory_medications ? styles.errorBorder : ''}`} value={formData.medicalHistory.medications} onChange={(e) => handleNestedChange('medicalHistory', 'medications', e.target.value)} disabled={isLoading} />{errors.medicalHistory_medications && <span className={styles.errorText}>{errors.medicalHistory_medications}</span>}</div>
                     </div>
                     <div className={styles.row}>
-                        {renderYesNoField('USES ALCOHOL / COCAINE / DANGEROUS DRUGS?', 'medicalHistory', 'usesAlcoholOrDrugs', formData.medicalHistory.usesAlcoholOrDrugs, isLoading)}
-                        {renderYesNoField('HAS ALLERGIES?', 'medicalHistory', 'hasAllergies', formData.medicalHistory.hasAllergies, isLoading)}
+                        {renderYesNoField('DO YOU USE TOBACCO PRODUCTS?', 'medicalHistory', 'usesTobacco', formData.medicalHistory.usesTobacco, isLoading)}
+                        {renderYesNoField('DO YOU USE ALCOHOL, COCAINE, OR OTHER DANGEROUS DRUGS?', 'medicalHistory', 'usesAlcoholOrDrugs', formData.medicalHistory.usesAlcoholOrDrugs, isLoading)}
+                    </div>
+                    <div className={styles.row}>
+                        {renderYesNoField('ARE YOU ALLERGIC TO ANY OF THE FOLLOWING?', 'medicalHistory', 'hasAllergies', formData.medicalHistory.hasAllergies, isLoading)}
+                        <div className={styles.formGroup} />
                     </div>
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
@@ -690,19 +694,19 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>BLEEDING TIME</label><input className={styles.inputField} value={formData.medicalHistory.bleedingTime} onChange={(e) => handleNestedChange('medicalHistory', 'bleedingTime', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup} />
+                    </div>
+                    <div className={styles.row}>
+                        {renderYesNoField('ARE YOU PREGNANT?', 'medicalHistory', 'isPregnant', formData.medicalHistory.isPregnant, isLoading)}
+                        {renderYesNoField('ARE YOU NURSING?', 'medicalHistory', 'isNursing', formData.medicalHistory.isNursing, isLoading)}
+                    </div>
+                    <div className={styles.row}>
+                        {renderYesNoField('ARE YOU TAKING BIRTH CONTROL PILLS?', 'medicalHistory', 'takingBirthControl', formData.medicalHistory.takingBirthControl, isLoading)}
+                        <div className={styles.formGroup} />
+                    </div>
+                    <div className={styles.row}>
                         <div className={styles.formGroup}><label>BLOOD TYPE</label><select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Blood Type</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select></div>
-                    </div>
-                    <div className={styles.row}>
                         <div className={styles.formGroup}><label>BLOOD PRESSURE</label><input className={styles.inputField} value={formData.medicalHistory.bloodPressure} onChange={(e) => handleNestedChange('medicalHistory', 'bloodPressure', e.target.value)} placeholder="e.g. 120/80" disabled={isLoading} /></div>
-                        <div className={styles.formGroup} />
-                    </div>
-                    <div className={styles.row}>
-                        {renderYesNoField('PREGNANT?', 'medicalHistory', 'isPregnant', formData.medicalHistory.isPregnant, isLoading)}
-                        {renderYesNoField('NURSING?', 'medicalHistory', 'isNursing', formData.medicalHistory.isNursing, isLoading)}
-                    </div>
-                    <div className={styles.row}>
-                        {renderYesNoField('TAKING BIRTH CONTROL PILLS?', 'medicalHistory', 'takingBirthControl', formData.medicalHistory.takingBirthControl, isLoading)}
-                        <div className={styles.formGroup} />
                     </div>
                     <div className={styles.row}>
                         <div className={styles.formGroup}>

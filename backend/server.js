@@ -5361,12 +5361,36 @@ app.get('/api/queue', verifyToken, async (req, res) => {
             filter.branch = req.query.branch;
         }
  
-        // Only return today's queue entries
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        filter.createdAt = { $gte: startOfDay };
+        if (req.query.dateFrom || req.query.dateTo) {
+            const createdAtFilter = {};
+
+            if (req.query.dateFrom) {
+                const startDate = new Date(req.query.dateFrom);
+                startDate.setHours(0, 0, 0, 0);
+                if (!Number.isNaN(startDate.getTime())) {
+                    createdAtFilter.$gte = startDate;
+                }
+            }
+
+            if (req.query.dateTo) {
+                const endDate = new Date(req.query.dateTo);
+                endDate.setHours(23, 59, 59, 999);
+                if (!Number.isNaN(endDate.getTime())) {
+                    createdAtFilter.$lte = endDate;
+                }
+            }
+
+            if (Object.keys(createdAtFilter).length > 0) {
+                filter.createdAt = createdAtFilter;
+            }
+        } else {
+            // Keep today's queue as the default behavior for queue-only screens.
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+            filter.createdAt = { $gte: startOfDay };
+        }
  
-        const entries = await Queue.find(filter).sort({ ticketNumber: 1 });
+        const entries = await Queue.find(filter).sort({ createdAt: 1, ticketNumber: 1 });
         res.json(entries);
     } catch (error) {
         console.error('Error fetching queue:', error);
