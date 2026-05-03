@@ -175,9 +175,9 @@ const ManageBranchManagers = () => {
                     <thead>
                         <tr>
                             <th style={{ width: '34%' }}>Name</th>
-                            <th>Email Address</th>
+                            <th style={{ width: '36%' }}>Email Address</th>
                             <th style={{ width: '110px' }}>Status</th>
-                            <th style={{ width: '160px', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>

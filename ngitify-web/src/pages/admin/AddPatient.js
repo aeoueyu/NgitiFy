@@ -477,6 +477,9 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup}><label>LAST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} maxLength={20} disabled={isLoading} />{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                     </div>
 
+                    <hr className={styles.divider} />
+                    {renderAddressFields('currentAddress', 'Home Address')}
+
                     {/* Row 2: Birthdate / Gender */}
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
@@ -533,12 +536,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                         <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>BLOOD TYPE</label><select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Blood Type</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select></div>
-                    </div>
-
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} maxLength={80} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>REASON FOR CONSULTATION</label><input className={styles.inputField} name="reasonForConsultation" value={formData.reasonForConsultation} onChange={handlePersonalChange} maxLength={150} disabled={isLoading} /></div>
+                        <div className={styles.formGroup} />
                     </div>
 
                     <hr className={styles.divider} style={{ marginTop: '10px' }} />
@@ -580,6 +578,12 @@ export default function AddPatient({ onClose, onSuccess }) {
                 </>
             )}
 
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} maxLength={80} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>REASON FOR CONSULTATION</label><input className={styles.inputField} name="reasonForConsultation" value={formData.reasonForConsultation} onChange={handlePersonalChange} maxLength={150} disabled={isLoading} /></div>
+                        <div className={styles.formGroup} />
+                    </div>
+
                     {/* Branch Assignment — required, shown before address */}
                     {!isSecretary && (
                         <>
@@ -616,9 +620,6 @@ export default function AddPatient({ onClose, onSuccess }) {
                     )}
 
                     <hr className={styles.divider} />
-                    {renderAddressFields('currentAddress', 'Home Address')}
-
-                    <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Dental History</h3>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={`${styles.inputField} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} max={getTodayDate()} disabled={isLoading} />{errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}</div>
@@ -627,6 +628,23 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>IF YES, PLEASE DETAIL</label><textarea className={`${styles.textArea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}</div>
                         {renderYesNoField('PRIVATE OR CONFIDENTIAL INFORMATION TO DISCUSS IN PRIVATE?', 'dentalHistory', 'hasConfidentialInfo', formData.dentalHistory.hasConfidentialInfo, isLoading)}
+                    </div>
+
+                    <hr className={styles.divider} />
+                    <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isLoading}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}</select></div>
+                    </div>
+                    {formData.physician.specialty === 'Other' && (
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}><label>SPECIALTY, IF OTHER</label><input className={`${styles.inputField} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={formData.physician.specialtyOther} onChange={(e) => handleNestedChange('physician', 'specialtyOther', e.target.value)} disabled={isLoading} />{errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}</div>
+                            <div className={styles.formGroup} />
+                        </div>
+                    )}
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}><label>OFFICE ADDRESS</label><input className={styles.inputField} value={formData.physician.officeAddress} onChange={(e) => handleNestedChange('physician', 'officeAddress', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>OFFICE NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span><input className={styles.phoneField} value={formData.physician.officeNumber} onChange={handleNestedPhoneChange('physician', 'officeNumber')} maxLength={8} placeholder="1234567" disabled={isLoading} /></div>{errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}</div>
                     </div>
 
                     <hr className={styles.divider} />
@@ -672,7 +690,11 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>BLEEDING TIME</label><input className={styles.inputField} value={formData.medicalHistory.bleedingTime} onChange={(e) => handleNestedChange('medicalHistory', 'bleedingTime', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>BLOOD TYPE</label><select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Blood Type</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select></div>
+                    </div>
+                    <div className={styles.row}>
                         <div className={styles.formGroup}><label>BLOOD PRESSURE</label><input className={styles.inputField} value={formData.medicalHistory.bloodPressure} onChange={(e) => handleNestedChange('medicalHistory', 'bloodPressure', e.target.value)} placeholder="e.g. 120/80" disabled={isLoading} /></div>
+                        <div className={styles.formGroup} />
                     </div>
                     <div className={styles.row}>
                         {renderYesNoField('PREGNANT?', 'medicalHistory', 'isPregnant', formData.medicalHistory.isPregnant, isLoading)}
@@ -699,23 +721,6 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>MEDICAL NOTES</label><textarea className={styles.textArea} value={formData.medicalHistory.notes} onChange={(e) => handleNestedChange('medicalHistory', 'notes', e.target.value)} rows={3} disabled={isLoading} /></div>
                         <div className={styles.formGroup} />
-                    </div>
-
-                    <hr className={styles.divider} />
-                    <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value)} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isLoading}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}</select></div>
-                    </div>
-                    {formData.physician.specialty === 'Other' && (
-                        <div className={styles.row}>
-                            <div className={styles.formGroup}><label>SPECIALTY, IF OTHER</label><input className={`${styles.inputField} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={formData.physician.specialtyOther} onChange={(e) => handleNestedChange('physician', 'specialtyOther', e.target.value)} disabled={isLoading} />{errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}</div>
-                            <div className={styles.formGroup} />
-                        </div>
-                    )}
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}><label>OFFICE ADDRESS</label><input className={styles.inputField} value={formData.physician.officeAddress} onChange={(e) => handleNestedChange('physician', 'officeAddress', e.target.value)} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>OFFICE NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span><input className={styles.phoneField} value={formData.physician.officeNumber} onChange={handleNestedPhoneChange('physician', 'officeNumber')} maxLength={8} placeholder="1234567" disabled={isLoading} /></div>{errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}</div>
                     </div>
 
                     <hr className={styles.divider} />

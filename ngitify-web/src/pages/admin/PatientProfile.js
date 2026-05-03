@@ -262,7 +262,6 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                     {infoItem('Patient ID', patient._id, <FaIdCard />)}
                     {infoItem('Occupation', patient.occupation)}
                     {infoItem('Civil Status', patient.civilStatus)}
-                    {infoItem('Blood Type', patient.bloodType || patient.medicalHistory?.bloodType)}
                     {infoItem('Work Phone', patient.workPhone)}
                     {infoItem('Nationality', patient.nationality)}
                     {infoItem('Religion', patient.religion)}
@@ -270,13 +269,17 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                     {infoItem('Reason for Consultation', patient.reasonForConsultation || patient.dentalHistory?.chiefComplaint)}
                 </div>
 
-                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>For Minors</h3>
-                <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    {infoItem('Guardian Name', patient.guardian?.name, <FaChild />)}
-                    {infoItem('Guardian Occupation', patient.guardian?.occupation)}
-                    {infoItem('Relationship', patient.guardian?.relationship)}
-                    {infoItem('Guardian Phone', patient.guardian?.contactNumber, <FaPhoneAlt />)}
-                </div>
+                {Number(age) < 18 && (
+                    <>
+                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>For Minors</h3>
+                        <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                            {infoItem('Guardian Name', patient.guardian?.name, <FaChild />)}
+                            {infoItem('Guardian Occupation', patient.guardian?.occupation)}
+                            {infoItem('Relationship', patient.guardian?.relationship)}
+                            {infoItem('Guardian Phone', patient.guardian?.contactNumber, <FaPhoneAlt />)}
+                        </div>
+                    </>
+                )}
 
                 <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Emergency Contact</h3>
                 <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>

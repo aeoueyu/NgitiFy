@@ -17,6 +17,7 @@ const ACTION_OPTIONS = [
     { value: 'All', label: 'All Actions' },
     { value: 'entry', label: 'Entry Logs' },
 ];
+const ITEMS_PER_PAGE = 20;
 
 const ROLE_LABELS = {
     administrator: 'Administrator',
@@ -80,6 +81,7 @@ export default function AuditTrail() {
     const [rangeFilter, setRangeFilter] = useState('all');
     const [customFrom, setCustomFrom] = useState(getTodayString());
     const [customTo, setCustomTo] = useState(getTodayString());
+    const [page, setPage] = useState(1);
 
     const fetchAuditLogs = useCallback(async () => {
         try {
@@ -148,6 +150,20 @@ export default function AuditTrail() {
 
         return matchesSearch && matchesRole && matchesAction && matchesDate;
     }), [actionFilter, auditLogs, roleFilter, searchQuery, selectedRange]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [actionFilter, customFrom, customTo, rangeFilter, roleFilter, searchQuery]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
+    const paginatedLogs = useMemo(
+        () => filteredLogs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE),
+        [filteredLogs, page]
+    );
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, totalPages));
+    }, [totalPages]);
 
     const handleExportCSV = () => {
         if (filteredLogs.length === 0) return;
@@ -289,8 +305,8 @@ export default function AuditTrail() {
                             <tr>
                                 <td colSpan="5" className={scheduleStyles.stateBlock}>Fetching system logs...</td>
                             </tr>
-                        ) : filteredLogs.length > 0 ? (
-                            filteredLogs.map((log) => (
+                        ) : paginatedLogs.length > 0 ? (
+                            paginatedLogs.map((log) => (
                                 <tr key={log.id}>
                                     <td>
                                         <div className={scheduleStyles.patientCell}>
@@ -318,6 +334,22 @@ export default function AuditTrail() {
                     </tbody>
                 </table>
             </div>
+
+            {!isLoading && filteredLogs.length > 0 && (
+                <div className={scheduleStyles.toolbar} style={{ marginTop: '18px' }}>
+                    <div className={scheduleStyles.pageSubtitle}>
+                        Showing {(page - 1) * ITEMS_PER_PAGE + 1} to {Math.min(page * ITEMS_PER_PAGE, filteredLogs.length)} of {filteredLogs.length} logs
+                    </div>
+                    <div className={scheduleStyles.actionRow}>
+                        <button type="button" className={scheduleStyles.secondaryButton} onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>
+                            Previous
+                        </button>
+                        <button type="button" className={scheduleStyles.secondaryButton} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

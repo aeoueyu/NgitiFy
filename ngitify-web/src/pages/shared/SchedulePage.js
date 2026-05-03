@@ -1152,6 +1152,28 @@ export default function SchedulePage() {
                             ))}
                         </div>
 
+                        <label className={styles.filterSelectWrap}>
+                            <FaFilter className={styles.filterIcon} />
+                            <select className={styles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                                <option value="all">All Types</option>
+                                <option value="appointment">Appointments</option>
+                                {canManageQueue && <option value="walkin">Walk-ins</option>}
+                            </select>
+                        </label>
+
+                        <label className={styles.filterSelectWrap}>
+                            <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                                <option value="all">All Statuses</option>
+                                {APPOINTMENT_STATUS_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+                </div>
+
+                {(dateFilter === 'custom' || (canManageQueue && !rangeIncludesToday)) && (
+                    <div style={{ display: 'grid', gap: '14px', marginBottom: '18px' }}>
                         {dateFilter === 'custom' && (
                             <div className={styles.customDateRange}>
                                 <label className={styles.dateField}>
@@ -1176,32 +1198,14 @@ export default function SchedulePage() {
                             </div>
                         )}
 
-                        <label className={styles.filterSelectWrap}>
-                            <FaFilter className={styles.filterIcon} />
-                            <select className={styles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                                <option value="all">All Types</option>
-                                <option value="appointment">Appointments</option>
-                                {canManageQueue && <option value="walkin">Walk-ins</option>}
-                            </select>
-                        </label>
-
-                        <label className={styles.filterSelectWrap}>
-                            <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                                <option value="all">All Statuses</option>
-                                {APPOINTMENT_STATUS_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-                        </label>
+                        {canManageQueue && !rangeIncludesToday && (
+                            <div className={styles.queueNote}>
+                                <FaUserClock />
+                                Walk-ins only appear when the selected range includes today.
+                            </div>
+                        )}
                     </div>
-
-                    {canManageQueue && !rangeIncludesToday && (
-                        <div className={styles.queueNote}>
-                            <FaUserClock />
-                            Walk-ins only appear when the selected range includes today.
-                        </div>
-                    )}
-                </div>
+                )}
 
                 <div className={`${styles.tableContainer} ${wideTable.tableWrapper}`}>
                     <table className={`${styles.userTable} ${wideTable.table}`}>

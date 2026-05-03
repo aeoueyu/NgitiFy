@@ -40,7 +40,7 @@ const RANGE_OPTIONS = [
     { value: 'custom', label: 'Custom' },
 ];
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50];
+const PAGE_SIZE = 20;
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
 
@@ -74,8 +74,8 @@ const getRelativeTime = (value) => {
 const getDateRange = (range, customFrom, customTo) => {
     const today = getTodayString();
     if (range === 'all') return null;
-    if (range === '3days') return { from: today, to: addDays(today, 2) };
-    if (range === '7days') return { from: today, to: addDays(today, 6) };
+    if (range === '3days') return { from: addDays(today, -2), to: today };
+    if (range === '7days') return { from: addDays(today, -6), to: today };
     if (range === 'custom') {
         const from = customFrom || today;
         const to = customTo || from;
@@ -98,7 +98,6 @@ export default function NotificationsCenter({
     const [customTo, setCustomTo] = useState(getTodayString());
     const [typeFilter, setTypeFilter] = useState('all');
     const [readFilter, setReadFilter] = useState('all');
-    const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedNotification, setSelectedNotification] = useState(null);
@@ -248,17 +247,24 @@ export default function NotificationsCenter({
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [pageSize, searchQuery, selectedRange, typeFilter, readFilter, customFrom, customTo]);
+    }, [searchQuery, selectedRange, typeFilter, readFilter, customFrom, customTo]);
 
-    const totalPages = Math.max(1, Math.ceil(filteredNotifications.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(filteredNotifications.length / PAGE_SIZE));
     const pagedNotifications = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
-        return filteredNotifications.slice(start, start + pageSize);
-    }, [currentPage, filteredNotifications, pageSize]);
+        const start = (currentPage - 1) * PAGE_SIZE;
+        return filteredNotifications.slice(start, start + PAGE_SIZE);
+    }, [currentPage, filteredNotifications]);
 
     useEffect(() => {
         setCurrentPage((prev) => Math.min(prev, totalPages));
     }, [totalPages]);
+
+    const openNotification = useCallback((notification) => {
+        setSelectedNotification(notification);
+        if (!notification.isRead) {
+            markAsRead(notification._id);
+        }
+    }, [markAsRead]);
 
     return (
         <>
@@ -293,33 +299,13 @@ export default function NotificationsCenter({
                             />
                         </div>
 
-                        <div className={scheduleStyles.pillGroup}>
-                            {RANGE_OPTIONS.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    className={`${scheduleStyles.filterPill} ${selectedRange === option.value ? scheduleStyles.activePill : ''}`}
-                                    onClick={() => setSelectedRange(option.value)}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {selectedRange === 'custom' && (
-                            <div className={scheduleStyles.customDateRange}>
-                                <label className={scheduleStyles.dateField}>
-                                    <span>From</span>
-                                    <input className={scheduleStyles.formControl} type="date" value={customFrom} max={customTo || undefined} onChange={(event) => setCustomFrom(event.target.value)} />
-                                </label>
-                                <label className={scheduleStyles.dateField}>
-                                    <span>To</span>
-                                    <input className={scheduleStyles.formControl} type="date" value={customTo} min={customFrom || undefined} onChange={(event) => setCustomTo(event.target.value)} />
-                                </label>
-                            </div>
-                        )}
-
                         <div className={scheduleStyles.inlineFilterRow}>
+                            <select className={scheduleStyles.filterSelect} value={selectedRange} onChange={(event) => setSelectedRange(event.target.value)}>
+                                {RANGE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+
                             <select className={scheduleStyles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                                 <option value="all">All Types</option>
                                 {typeOptions.filter((value) => value !== 'all').map((value) => (
@@ -332,15 +318,22 @@ export default function NotificationsCenter({
                                 <option value="unread">Unread</option>
                                 <option value="read">Read</option>
                             </select>
-
-                            <select className={scheduleStyles.filterSelect} value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
-                                {PAGE_SIZE_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>{option} per page</option>
-                                ))}
-                            </select>
                         </div>
                     </div>
                 </div>
+
+                {selectedRange === 'custom' && (
+                    <div className={scheduleStyles.customDateRange} style={{ marginBottom: '18px' }}>
+                        <label className={scheduleStyles.dateField}>
+                            <span>From</span>
+                            <input className={scheduleStyles.formControl} type="date" value={customFrom} max={customTo || undefined} onChange={(event) => setCustomFrom(event.target.value)} />
+                        </label>
+                        <label className={scheduleStyles.dateField}>
+                            <span>To</span>
+                            <input className={scheduleStyles.formControl} type="date" value={customTo} min={customFrom || undefined} onChange={(event) => setCustomTo(event.target.value)} />
+                        </label>
+                    </div>
+                )}
 
                 <div className={scheduleStyles.tableContainer}>
                     <table className={wideTable.table}>
@@ -370,7 +363,7 @@ export default function NotificationsCenter({
                                     return (
                                         <tr
                                             key={notification._id}
-                                            onClick={() => setSelectedNotification(notification)}
+                                            onClick={() => openNotification(notification)}
                                             style={{
                                                 cursor: 'pointer',
                                                 backgroundColor: notification.isRead ? undefined : '#eff8ff',
@@ -406,7 +399,7 @@ export default function NotificationsCenter({
                 {!loading && filteredNotifications.length > 0 && (
                     <div className={scheduleStyles.paginationRow}>
                         <span className={scheduleStyles.helperText}>
-                            Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredNotifications.length)} of {filteredNotifications.length} notifications
+                            Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, filteredNotifications.length)} of {filteredNotifications.length} logs
                         </span>
                         <div className={scheduleStyles.actionRow}>
                             <button
