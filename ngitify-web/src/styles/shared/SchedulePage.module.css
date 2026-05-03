@@ -53,7 +53,7 @@
     display: flex;
     gap: 12px;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .searchWrapper {
@@ -664,6 +664,11 @@
     .filterSelectWrap,
     .dateField {
         min-width: 100%;
+    }
+
+    .inlineFilterRow {
+        width: 100%;
+        flex-wrap: wrap;
     }
 
     .customDateRange,

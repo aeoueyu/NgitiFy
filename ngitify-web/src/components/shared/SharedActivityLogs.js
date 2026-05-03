@@ -8,6 +8,7 @@ import wideTable from '../../styles/wideTable.module.css';
 
 const ITEMS_PER_PAGE = 20;
 const RANGE_OPTIONS = [
+    { value: 'all', label: 'All' },
     { value: 'today', label: 'Today' },
     { value: '3days', label: '3 Days' },
     { value: '7days', label: '7 Days' },
@@ -61,8 +62,9 @@ const addDays = (dateString, count) => {
 
 const getDateRange = (range, customFrom, customTo) => {
     const today = getTodayString();
-    if (range === '3days') return { from: today, to: addDays(today, 2) };
-    if (range === '7days') return { from: today, to: addDays(today, 6) };
+    if (range === 'all') return null;
+    if (range === '3days') return { from: addDays(today, -2), to: today };
+    if (range === '7days') return { from: addDays(today, -6), to: today };
     if (range === 'custom') {
         const from = customFrom || today;
         const to = customTo || from;
@@ -119,7 +121,7 @@ export default function SharedActivityLogs() {
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('All');
     const [categoryFilter, setCategoryFilter] = useState('All');
-    const [rangeFilter, setRangeFilter] = useState('today');
+    const [rangeFilter, setRangeFilter] = useState('all');
     const [customFrom, setCustomFrom] = useState(getTodayString());
     const [customTo, setCustomTo] = useState(getTodayString());
     const [page, setPage] = useState(1);
@@ -173,7 +175,7 @@ export default function SharedActivityLogs() {
         setPage(1);
     }, [search, roleFilter, categoryFilter, rangeFilter, customFrom, customTo]);
 
-    const { from: rangeFrom, to: rangeTo } = useMemo(
+    const selectedRange = useMemo(
         () => getDateRange(rangeFilter, customFrom, customTo),
         [rangeFilter, customFrom, customTo]
     );
@@ -190,8 +192,8 @@ export default function SharedActivityLogs() {
         if (categoryFilter !== 'All' && log.category !== categoryFilter) return false;
 
         const dateKey = log.timestamp.toISOString().split('T')[0];
-        return dateKey >= rangeFrom && dateKey <= rangeTo;
-    }), [categoryFilter, logs, rangeFrom, rangeTo, roleFilter, search]);
+        return !selectedRange || (dateKey >= selectedRange.from && dateKey <= selectedRange.to);
+    }), [categoryFilter, logs, roleFilter, search, selectedRange]);
 
     const paginatedLogs = useMemo(() => (
         filteredLogs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
@@ -312,11 +314,11 @@ export default function SharedActivityLogs() {
                 <table className={wideTable.table}>
                     <thead>
                         <tr>
-                            <th style={{ width: '16%' }}>Date</th>
+                            <th style={{ width: '18%' }}>Date</th>
                             <th style={{ width: '18%' }}>User</th>
                             <th style={{ width: '14%' }}>Role</th>
                             <th style={{ width: '18%' }}>Action</th>
-                            <th style={{ width: '34%' }}>Details</th>
+                            <th style={{ width: '32%' }}>Details</th>
                         </tr>
                     </thead>
                     <tbody>

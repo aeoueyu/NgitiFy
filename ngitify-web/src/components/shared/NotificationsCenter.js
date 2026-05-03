@@ -131,8 +131,26 @@ export default function NotificationsCenter({
             setNotifications((prev) => prev.map((item) => (
                 item._id === id ? { ...item, isRead: true } : item
             )));
+            setSelectedNotification((prev) => (
+                prev?._id === id ? { ...prev, isRead: true } : prev
+            ));
         } catch {
             addToast('Failed to mark the notification as read.', 'error');
+        }
+    }, [addToast]);
+
+    const markAsUnread = useCallback(async (id) => {
+        try {
+            const response = await authFetch(`/notifications/${id}/unread`, { method: 'PATCH' });
+            if (!response.ok) throw new Error();
+            setNotifications((prev) => prev.map((item) => (
+                item._id === id ? { ...item, isRead: false } : item
+            )));
+            setSelectedNotification((prev) => (
+                prev?._id === id ? { ...prev, isRead: false } : prev
+            ));
+        } catch {
+            addToast('Failed to mark the notification as unread.', 'error');
         }
     }, [addToast]);
 
@@ -442,10 +460,16 @@ export default function NotificationsCenter({
                                     <div><strong>Reference:</strong> {selectedNotification.relatedId || '-'}</div>
                                 </div>
                             </div>
-                            {!selectedNotification.isRead && (
+                            {!selectedNotification.isRead ? (
                                 <div style={{ marginTop: '14px' }}>
                                     <button type="button" className={scheduleStyles.secondaryButton} onClick={() => markAsRead(selectedNotification._id)}>
                                         Mark as Read
+                                    </button>
+                                </div>
+                            ) : (
+                                <div style={{ marginTop: '14px' }}>
+                                    <button type="button" className={scheduleStyles.secondaryButton} onClick={() => markAsUnread(selectedNotification._id)}>
+                                        Mark as Unread
                                     </button>
                                 </div>
                             )}

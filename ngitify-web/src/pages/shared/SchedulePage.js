@@ -56,6 +56,7 @@ const SCHEDULE_SOURCE_OPTIONS = [
 const DATE_FILTER_OPTIONS = [
     { value: 'all', label: 'All' },
     { value: 'today', label: 'Today' },
+    { value: 'past', label: 'Past' },
     { value: '3days', label: '3 Days' },
     { value: '7days', label: '7 Days' },
     { value: 'custom', label: 'Custom' },
@@ -69,6 +70,10 @@ const addDaysToDateString = (dateString, daysToAdd) => {
     baseDate.setDate(baseDate.getDate() + daysToAdd);
     return baseDate.toISOString().split('T')[0];
 };
+
+const subtractDaysFromDateString = (dateString, daysToSubtract) => (
+    addDaysToDateString(dateString, daysToSubtract * -1)
+);
 
 const formatDateInput = (value) => {
     if (!value) return '';
@@ -283,6 +288,9 @@ export default function SchedulePage() {
         if (dateFilter === 'all') {
             return { from: '', to: '' };
         }
+        if (dateFilter === 'past') {
+            return { from: subtractDaysFromDateString(todayString, 3650), to: addDaysToDateString(todayString, -1) };
+        }
         if (dateFilter === '3days') {
             return { from: todayString, to: addDaysToDateString(todayString, 2) };
         }
@@ -312,9 +320,12 @@ export default function SchedulePage() {
     const fetchPageData = useCallback(async () => {
         setLoading(true);
         try {
+            const appointmentParams = new URLSearchParams();
+            if (selectedDateRange.from) appointmentParams.set('dateFrom', selectedDateRange.from);
+            if (selectedDateRange.to) appointmentParams.set('dateTo', selectedDateRange.to);
             const requests = [
-                authFetch(selectedDateRange.from
-                    ? `/appointments?dateFrom=${selectedDateRange.from}&dateTo=${selectedDateRange.to}`
+                authFetch(appointmentParams.toString()
+                    ? `/appointments?${appointmentParams.toString()}`
                     : '/appointments'),
                 authFetch('/patients'),
                 authFetch('/users?role=dentist'),

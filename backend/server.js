@@ -4621,6 +4621,32 @@ app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
     }
 });
 
+app.patch('/api/notifications/:id/unread', verifyToken, async (req, res) => {
+    try {
+        const notification = await Notification.findById(req.params.id);
+        if (!notification) {
+            return res.status(404).json({ message: 'Notification not found.' });
+        }
+
+        const recipientId = notification.recipientId?.toString?.();
+        const roleMatches = notification.recipientRole === req.user.role;
+        const userMatches = recipientId === req.user.id;
+        if (recipientId && !userMatches) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        if (notification.recipientRole && !roleMatches) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        notification.isRead = false;
+        await notification.save();
+        res.json(notification);
+    } catch (error) {
+        console.error('Error marking notification unread:', error);
+        res.status(500).json({ message: "Server error." });
+    }
+});
+
 app.get('/api/branches', verifyToken, async (req, res) => {
     try {
         const BRANCH_ALLOWED = ['administrator', 'branch-manager', 'owner', 'secretary', 'dentist'];

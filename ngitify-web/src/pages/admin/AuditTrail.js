@@ -6,10 +6,16 @@ import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
 import wideTable from '../../styles/wideTable.module.css';
 
 const RANGE_OPTIONS = [
+    { value: 'all', label: 'All' },
     { value: 'today', label: 'Today' },
     { value: '3days', label: '3 Days' },
     { value: '7days', label: '7 Days' },
     { value: 'custom', label: 'Custom' },
+];
+
+const ACTION_OPTIONS = [
+    { value: 'All', label: 'All Actions' },
+    { value: 'entry', label: 'Entry Logs' },
 ];
 
 const ROLE_LABELS = {
@@ -37,8 +43,9 @@ const addDays = (dateString, count) => {
 
 const getDateRange = (range, customFrom, customTo) => {
     const today = getTodayString();
-    if (range === '3days') return { from: today, to: addDays(today, 2) };
-    if (range === '7days') return { from: today, to: addDays(today, 6) };
+    if (range === 'all') return null;
+    if (range === '3days') return { from: addDays(today, -2), to: today };
+    if (range === '7days') return { from: addDays(today, -6), to: today };
     if (range === 'custom') {
         const from = customFrom || today;
         const to = customTo || from;
@@ -67,9 +74,10 @@ const getRoleBadgeClass = (role) => {
 export default function AuditTrail() {
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('All');
+    const [actionFilter, setActionFilter] = useState('All');
     const [auditLogs, setAuditLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [rangeFilter, setRangeFilter] = useState('today');
+    const [rangeFilter, setRangeFilter] = useState('all');
     const [customFrom, setCustomFrom] = useState(getTodayString());
     const [customTo, setCustomTo] = useState(getTodayString());
 
@@ -121,7 +129,7 @@ export default function AuditTrail() {
         fetchAuditLogs();
     }, [fetchAuditLogs]);
 
-    const { from: rangeFrom, to: rangeTo } = useMemo(
+    const selectedRange = useMemo(
         () => getDateRange(rangeFilter, customFrom, customTo),
         [rangeFilter, customFrom, customTo]
     );
@@ -133,16 +141,18 @@ export default function AuditTrail() {
             || String(log.details || '').toLowerCase().includes(searchQuery.toLowerCase());
 
         const matchesRole = roleFilter === 'All' || log.role === roleFilter.toLowerCase();
+        const matchesAction = actionFilter === 'All'
+            || (actionFilter === 'entry' && ['LOGIN', 'LOGOUT', 'SESSION_TIMEOUT'].includes(String(log.action || '').toUpperCase()));
         const dateKey = log.rawDate.toISOString().split('T')[0];
-        const matchesDate = dateKey >= rangeFrom && dateKey <= rangeTo;
+        const matchesDate = !selectedRange || (dateKey >= selectedRange.from && dateKey <= selectedRange.to);
 
-        return matchesSearch && matchesRole && matchesDate;
-    }), [auditLogs, rangeFrom, rangeTo, roleFilter, searchQuery]);
+        return matchesSearch && matchesRole && matchesAction && matchesDate;
+    }), [actionFilter, auditLogs, roleFilter, searchQuery, selectedRange]);
 
     const handleExportCSV = () => {
         if (filteredLogs.length === 0) return;
 
-        const headers = ['Date', 'Time', 'User', 'Role', 'Action Performed', 'Details'];
+        const headers = ['Date', 'Time', 'User', 'Role', 'Action', 'Details'];
         const csvRows = [headers.join(',')];
         filteredLogs.forEach((log) => {
             const row = [
@@ -247,6 +257,19 @@ export default function AuditTrail() {
                             <option value="system">System</option>
                         </select>
                     </div>
+
+                    <div className={scheduleStyles.filterSelectWrap}>
+                        <FaFilter className={scheduleStyles.filterIcon} />
+                        <select
+                            className={scheduleStyles.filterSelect}
+                            value={actionFilter}
+                            onChange={(e) => setActionFilter(e.target.value)}
+                        >
+                            {ACTION_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -254,11 +277,11 @@ export default function AuditTrail() {
                 <table className={wideTable.table}>
                     <thead>
                         <tr>
-                            <th style={{ width: '16%' }}>Date</th>
-                            <th style={{ width: '20%' }}>User</th>
+                            <th style={{ width: '18%' }}>Date</th>
+                            <th style={{ width: '18%' }}>User</th>
                             <th style={{ width: '14%' }}>Role</th>
-                            <th style={{ width: '24%' }}>Action Performed</th>
-                            <th style={{ width: '26%' }}>Details</th>
+                            <th style={{ width: '18%' }}>Action</th>
+                            <th style={{ width: '32%' }}>Details</th>
                         </tr>
                     </thead>
                     <tbody>

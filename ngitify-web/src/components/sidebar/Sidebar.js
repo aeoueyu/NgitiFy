@@ -100,9 +100,9 @@ export default function Sidebar() {
     const inventoryPath = `${basePath}/inventory`;
     const profilePath = `${basePath}/profile`;
     const userManagementPath = isAdmin
-        ? '/admin/manage-users/secretaries'
+        ? '/admin/manage-users'
         : isOwner
-            ? '/owner/manage-users/secretaries'
+            ? '/owner/manage-users'
             : isBranchManager
                 ? '/branch-manager/manage-users'
                 : `${basePath}/patients`;
@@ -150,10 +150,21 @@ export default function Sidebar() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isExpanded]);
 
-    const getNavClass = (path) =>
-        location.pathname === path || location.pathname.startsWith(path + '/')
+    const isManageUsersActive = (
+        (isAdmin && location.pathname.startsWith('/admin/manage-users'))
+        || (isOwner && location.pathname.startsWith('/owner/manage-users'))
+        || (isBranchManager && location.pathname.startsWith('/branch-manager/manage-users'))
+    );
+
+    const getNavClass = (path) => {
+        if (path === userManagementPath && isManageUsersActive) {
+            return `${styles['nav-item']} ${styles.active}`;
+        }
+
+        return location.pathname === path || location.pathname.startsWith(path + '/')
             ? `${styles['nav-item']} ${styles.active}`
             : styles['nav-item'];
+    };
 
     const getFooterNavClass = (path) =>
         location.pathname === path ? `${styles['settings-link']} ${styles.active}` : styles['settings-link'];
@@ -319,8 +330,8 @@ export default function Sidebar() {
                             {sectionLabel('System')}
                             {navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
-                            {navItem('/admin/audit-trail', FaClipboardList, 'Audit Trail')}
                             {navItem('/admin/activity-logs', FaHistory, 'Activity Logs')}
+                            {navItem('/admin/audit-trail', FaClipboardList, 'Audit Trail')}
                         </>
                     )}
                 </div>
