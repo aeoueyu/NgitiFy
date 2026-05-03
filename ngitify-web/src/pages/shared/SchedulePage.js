@@ -128,6 +128,13 @@ const compareTime = (left = '', right = '') => {
     return left.localeCompare(right);
 };
 
+const isScheduledInPast = (dateValue, timeValue) => {
+    if (!dateValue) return false;
+    const base = new Date(`${dateValue}T${timeValue || '23:59'}:00`);
+    if (Number.isNaN(base.getTime())) return false;
+    return base < new Date();
+};
+
 const normalizePatientName = (patient) => {
     if (patient?.name?.first) {
         return `${patient.name.first} ${patient.name.last || ''}`.trim();
@@ -314,8 +321,10 @@ export default function SchedulePage() {
         setEditingEntry(null);
     }, [assignedBranch, currentUserId, role]);
 
-    const fetchPageData = useCallback(async () => {
-        setLoading(true);
+    const fetchPageData = useCallback(async ({ silent = false, suppressErrorToast = false } = {}) => {
+        if (!silent) {
+            setLoading(true);
+        }
         try {
             const appointmentParams = new URLSearchParams();
             if (selectedDateRange.from) appointmentParams.set('dateFrom', selectedDateRange.from);
@@ -401,14 +410,41 @@ export default function SchedulePage() {
                 setBranches([]);
             }
         } catch (error) {
-            addToast(error.message || 'Failed to load the schedule.', 'error');
+            if (!suppressErrorToast) {
+                addToast(error.message || 'Failed to load the schedule.', 'error');
+            }
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     }, [addToast, assignedBranch, canChooseBranch, canManageQueue, selectedDateRange.from, selectedDateRange.to]);
 
     useEffect(() => {
         fetchPageData();
+    }, [fetchPageData]);
+
+    useEffect(() => {
+        const refreshData = () => {
+            fetchPageData({ silent: true, suppressErrorToast: true });
+        };
+
+        const intervalId = window.setInterval(refreshData, 30000);
+        const handleFocus = () => refreshData();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                refreshData();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [fetchPageData]);
 
     useEffect(() => {
@@ -615,6 +651,10 @@ export default function SchedulePage() {
                 } else if (prev.formType === 'walkin') {
                     next.patientId = '';
                 }
+            }
+            if (name === 'dentistId') {
+                const matchedDentist = dentistOptions.find((entry) => entry.id === value);
+                next.assignedDentist = matchedDentist?.name || '';
             }
             if (name === 'date' || name === 'branch') {
                 next.time = '';
@@ -842,7 +882,7 @@ export default function SchedulePage() {
                                         className={styles.formControl}
                                         value={formState.dentistId}
                                         onChange={handleFormFieldChange}
-                                        disabled={showWalkInFields}
+                                        disabled={false}
                                     >
                                         <option value="">{showWalkInFields ? 'Optional for walk-ins' : 'Select dentist'}</option>
                                         {dentistOptions.map((dentist) => (
@@ -913,9 +953,14 @@ export default function SchedulePage() {
                                     onChange={handleFormFieldChange}
                                     disabled={showWalkInFields}
                                 >
-                                    {APPOINTMENT_STATUS_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
+                                    {APPOINTMENT_STATUS_OPTIONS.map((option) => {
+                                        const disableCompleted = option.value === 'completed' && !isScheduledInPast(formState.date, formState.time);
+                                        return (
+                                            <option key={option.value} value={option.value} disabled={disableCompleted}>
+                                                {option.label}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
                             </div>
 

@@ -58,7 +58,6 @@ const DentistPatientEMR = lazy(() => import('./pages/dentist/PatientEMR'));
 const DentistNotifications = lazy(() => import('./pages/dentist/Notifications'));
 const DentistActivityLogs  = lazy(() => import('./pages/dentist/ActivityLogs'));
 const DentistMaterialUsage = lazy(() => import('./pages/dentist/MaterialUsageLog'));
-const DentistOdontogram    = lazy(() => import('./pages/dentist/DentistOdontogramPage'));
 const DentistSettings      = lazy(() => import('./pages/dentist/DentistSettings'));
 const DentistAIAssistant   = lazy(() => import('./pages/dentist/DentistAIAssistant'));
 
@@ -87,7 +86,6 @@ const BranchManagerAIAssistant = lazy(() => import('./pages/branch-manager/Branc
 // ✅ PHASE 3: Owner pages
 const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
 const OwnerAIAssistant = lazy(() => import('./pages/owner/OwnerAIAssistant'));
-const ManageOwners = lazy(() => import('./pages/admin/ManageOwners'));
 
 
 const PageLoader = () => (
@@ -134,7 +132,7 @@ function App() {
                   <Route path="/dentist/patient-emr"             element={<PatientEMRPage />} />
                   <Route path="/dentist/patients/:patientId/emr" element={<DentistPatientEMR />} />
                   <Route path="/dentist/material-usage"          element={<DentistMaterialUsage />} />
-                  <Route path="/dentist/odontogram"              element={<DentistOdontogram />} />
+                  <Route path="/dentist/odontogram"              element={<Navigate to="/dentist/patient-emr" replace />} />
                   <Route path="/dentist/notifications"           element={<DentistNotifications />} />
                   <Route path="/dentist/activity-logs"           element={<DentistActivityLogs />} />
                   <Route path="/dentist/ai-assistant"            element={<DentistAIAssistant />} />
@@ -154,7 +152,7 @@ function App() {
                   <Route path="/branch-manager/patients"     element={<ManagePatients />} />
                   <Route path="/branch-manager/queue"        element={<Navigate to="/branch-manager/schedule" replace />} />
                   <Route path="/branch-manager/chat-support" element={<BranchManagerChatSupport />} />
-                  <Route path="/branch-manager/branches"     element={<BranchManagement />} />
+                  <Route path="/branch-manager/branches"     element={<Navigate to="/branch-manager/dashboard" replace />} />
                   <Route path="/branch-manager/analytics"    element={<BranchManagerAnalytics />} />
                   <Route path="/branch-manager/activity-logs" element={<BranchManagerActivityLogs />} />
                   <Route path="/branch-manager/notifications" element={<BranchManagerNotifications />} />
@@ -180,7 +178,7 @@ function App() {
                   <Route path="/owner/manage-users/patients"        element={<Navigate to="/owner/patients" replace />} />
                   <Route path="/owner/patients"                     element={<ManagePatients />} />
                   <Route path="/owner/manage-users/branch-managers" element={<ManageBranchManagers />} />
-                  <Route path="/owner/manage-users/owners"          element={<ManageOwners />} />
+                  <Route path="/owner/manage-users/owners"          element={<Navigate to="/owner/manage-users/secretaries" replace />} />
                   <Route path="/owner/patients/:patientId/emr"      element={<AdminPatientEMR />} />
                   <Route path="/owner/branches"                     element={<BranchManagement />} />
                   <Route path="/owner/branches/analytics"           element={<BranchAnalytics />} />
@@ -234,7 +232,7 @@ function App() {
                   <Route path="/admin/manage-users/patients" element={<Navigate to="/admin/patients" replace />} />
                   <Route path="/admin/patients" element={<ManagePatients />} />
                   <Route path="/admin/manage-users/branch-managers" element={<ManageBranchManagers />} />
-                  <Route path="/admin/manage-users/owners" element={<ManageOwners />} />   {/* ✅ PHASE 3 */}
+                  <Route path="/admin/manage-users/owners" element={<Navigate to="/admin/manage-users/secretaries" replace />} />
 
                   {/* Add/Edit staff */}
                   <Route path="/admin/add-dentist" element={<AddDentist />} />
@@ -273,3 +271,4 @@ function App() {
 }
 
 export default App;
+

@@ -11,7 +11,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import ConfirmModal from '../common/ConfirmModal';
 import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
 import wideTable from '../../styles/wideTable.module.css';
 
@@ -20,6 +19,7 @@ const TYPE_META = {
     APPOINTMENT_CANCELLED: { label: 'Cancelled', tone: wideTable.statusRed, icon: FaCalendarAlt },
     APPOINTMENT_CONFIRMED: { label: 'Confirmed', tone: wideTable.statusGreen, icon: FaCalendarAlt },
     APPOINTMENT_DECLINED: { label: 'Declined', tone: wideTable.statusRed, icon: FaCalendarAlt },
+    APPOINTMENT_STATUS_UPDATED: { label: 'Status Updated', tone: wideTable.statusBlue, icon: FaCalendarAlt },
     APPOINTMENT_REMINDER: { label: 'Reminder', tone: wideTable.statusBlue, icon: FaCalendarAlt },
     NEW_PATIENT_REGISTRATION: { label: 'Patient', tone: wideTable.statusGreen, icon: FaFileMedical },
     NEW_RADIOGRAPH: { label: 'Radiograph', tone: wideTable.statusBlue, icon: FaFileMedical },
@@ -85,7 +85,6 @@ const getDateRange = (range, customFrom, customTo) => {
 };
 
 export default function NotificationsCenter({
-    enableAppointmentActions = false,
     chatPath = '',
 }) {
     const navigate = useNavigate();
@@ -101,10 +100,11 @@ export default function NotificationsCenter({
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedNotification, setSelectedNotification] = useState(null);
-    const [declineTarget, setDeclineTarget] = useState(null);
 
-    const fetchNotifications = useCallback(async () => {
-        setLoading(true);
+    const fetchNotifications = useCallback(async ({ silent = false, suppressErrorToast = false } = {}) => {
+        if (!silent) {
+            setLoading(true);
+        }
         try {
             const response = await authFetch('/notifications');
             const data = await response.json().catch(() => ([]));
@@ -113,14 +113,41 @@ export default function NotificationsCenter({
             }
             setNotifications(Array.isArray(data) ? data : []);
         } catch (error) {
-            addToast(error.message || 'Failed to load notifications.', 'error');
+            if (!suppressErrorToast) {
+                addToast(error.message || 'Failed to load notifications.', 'error');
+            }
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     }, [addToast]);
 
     useEffect(() => {
         fetchNotifications();
+    }, [fetchNotifications]);
+
+    useEffect(() => {
+        const refreshNotifications = () => {
+            fetchNotifications({ silent: true, suppressErrorToast: true });
+        };
+
+        const intervalId = window.setInterval(refreshNotifications, 30000);
+        const handleFocus = () => refreshNotifications();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                refreshNotifications();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [fetchNotifications]);
 
     const markAsRead = useCallback(async (id) => {
@@ -161,51 +188,6 @@ export default function NotificationsCenter({
             addToast('All notifications marked as read.', 'success');
         } catch {
             addToast('Failed to mark all notifications as read.', 'error');
-        }
-    };
-
-    const handleAcceptAppointment = async (notification) => {
-        if (!notification.relatedId) {
-            addToast('Cannot find the appointment reference.', 'error');
-            return;
-        }
-
-        try {
-            const response = await authFetch(`/appointments/${notification.relatedId}/status`, {
-                method: 'PUT',
-                body: JSON.stringify({ status: 'confirmed' }),
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to confirm the appointment.');
-            }
-            await markAsRead(notification._id);
-            addToast('Appointment confirmed successfully.', 'success');
-            await fetchNotifications();
-        } catch (error) {
-            addToast(error.message || 'Failed to confirm the appointment.', 'error');
-        } finally {
-        }
-    };
-
-    const handleDeclineAppointment = async () => {
-        if (!declineTarget?.relatedId) return;
-        try {
-            const response = await authFetch(`/appointments/${declineTarget.relatedId}/status`, {
-                method: 'PUT',
-                body: JSON.stringify({ status: 'cancelled' }),
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to decline the appointment.');
-            }
-            await markAsRead(declineTarget._id);
-            addToast('Appointment declined.', 'info');
-            setDeclineTarget(null);
-            await fetchNotifications();
-        } catch (error) {
-            addToast(error.message || 'Failed to decline the appointment.', 'error');
-        } finally {
         }
     };
 
@@ -455,13 +437,13 @@ export default function NotificationsCenter({
                             </div>
                             {!selectedNotification.isRead ? (
                                 <div style={{ marginTop: '14px' }}>
-                                    <button type="button" className={scheduleStyles.secondaryButton} onClick={() => markAsRead(selectedNotification._id)}>
+                                    <button type="button" className={scheduleStyles.secondaryButton} style={{ padding: '8px 12px', fontSize: '12px' }} onClick={() => markAsRead(selectedNotification._id)}>
                                         Mark as Read
                                     </button>
                                 </div>
                             ) : (
                                 <div style={{ marginTop: '14px' }}>
-                                    <button type="button" className={scheduleStyles.secondaryButton} onClick={() => markAsUnread(selectedNotification._id)}>
+                                    <button type="button" className={scheduleStyles.secondaryButton} style={{ padding: '8px 12px', fontSize: '12px' }} onClick={() => markAsUnread(selectedNotification._id)}>
                                         Mark as Unread
                                     </button>
                                 </div>
@@ -470,16 +452,6 @@ export default function NotificationsCenter({
                                 <div style={{ marginTop: '14px' }}>
                                     <button type="button" className={scheduleStyles.secondaryButton} onClick={() => navigate(chatPath)}>
                                         View Chat
-                                    </button>
-                                </div>
-                            )}
-                            {enableAppointmentActions && selectedNotification.type === 'NEW_APPOINTMENT' && !selectedNotification.isRead && (
-                                <div style={{ marginTop: '14px' }}>
-                                    <button type="button" className={scheduleStyles.secondaryButton} onClick={() => handleAcceptAppointment(selectedNotification)}>
-                                        Confirm Appointment
-                                    </button>
-                                    <button type="button" className={scheduleStyles.secondaryButton} style={{ marginLeft: '8px' }} onClick={() => setDeclineTarget(selectedNotification)}>
-                                        Decline
                                     </button>
                                 </div>
                             )}
@@ -494,15 +466,6 @@ export default function NotificationsCenter({
                 </div>
             )}
 
-            <ConfirmModal
-                isOpen={Boolean(declineTarget)}
-                title="Decline Appointment"
-                message="Are you sure you want to decline this appointment request? The time slot will be released."
-                confirmText="Yes, Decline"
-                isDestructive={true}
-                onConfirm={handleDeclineAppointment}
-                onCancel={() => setDeclineTarget(null)}
-            />
         </>
     );
 }

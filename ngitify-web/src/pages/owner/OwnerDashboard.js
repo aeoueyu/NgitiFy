@@ -12,6 +12,7 @@ import {
     FaUserFriends,
     FaUsers,
 } from 'react-icons/fa';
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
@@ -44,6 +45,7 @@ const normalizeAppointment = (entry) => ({
 export default function OwnerDashboard() {
     const navigate = useNavigate();
     const { addToast } = useToast();
+    const { user } = useAuth();
 
     const [currentTime, setCurrentTime] = useState(new Date());
     const [stats, setStats] = useState({
@@ -70,6 +72,7 @@ export default function OwnerDashboard() {
         const fetchDashboardData = async () => {
             setIsLoading(true);
             try {
+                const userId = user?.userId || user?.id || user?._id;
                 const [
                     statsRes,
                     surgeriesRes,
@@ -84,7 +87,7 @@ export default function OwnerDashboard() {
                     authFetch('/notifications'),
                     authFetch('/branches'),
                     authFetch('/inventory'),
-                    authFetch('/audit-logs'),
+                    userId ? authFetch(`/audit-logs?userId=${userId}`) : Promise.resolve(null),
                     authFetch('/users'),
                 ]);
 
@@ -116,7 +119,7 @@ export default function OwnerDashboard() {
                     setInventory(await inventoryRes.json());
                 }
 
-                if (activityRes.ok) {
+                if (activityRes?.ok) {
                     setActivityLogs(await activityRes.json());
                 }
 
@@ -132,7 +135,23 @@ export default function OwnerDashboard() {
         };
 
         fetchDashboardData();
-    }, [addToast]);
+        const intervalId = window.setInterval(fetchDashboardData, 30000);
+        const handleFocus = () => fetchDashboardData();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchDashboardData();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [addToast, user]);
 
     const todayKey = startOfDay(new Date()).getTime();
 
@@ -205,7 +224,7 @@ export default function OwnerDashboard() {
     const moduleCards = [
         {
             title: 'User Management',
-            description: 'Review and manage patients, dentists, secretaries, branch managers, and owners.',
+            description: 'Manage secretary, dentist, and branch manager accounts from one place.',
             value: `${staffCount} staff accounts`,
             icon: <FaUsers className={styles.moduleIcon} />,
             actionLabel: 'Open Users',
@@ -349,7 +368,7 @@ export default function OwnerDashboard() {
                         <div className={styles.panelHeader}>
                             <div>
                                 <p className={styles.panelEyebrow}>Activity Logs</p>
-                                <h2 className={styles.panelTitle}>Recent owner-visible activity</h2>
+                                <h2 className={styles.panelTitle}>Recent account activity</h2>
                             </div>
                             <button type="button" className={styles.linkBtn} onClick={() => navigate('/owner/activity-logs')}>
                                 Open logs
@@ -479,8 +498,8 @@ export default function OwnerDashboard() {
                             <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/owner/branches/analytics')}>
                                 Branch analytics
                             </button>
-                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/owner/manage-users/owners')}>
-                                Owner accounts
+                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/owner/manage-users/branch-managers')}>
+                                Branch managers
                             </button>
                             <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/owner/profile')}>
                                 My profile

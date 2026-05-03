@@ -113,9 +113,6 @@ const getRoleBadgeClass = (role) => {
 export default function SharedActivityLogs() {
     const { user } = useAuth();
     const role = user?.role || '';
-    const isDentist = role === 'dentist';
-    const isSecretary = role === 'secretary';
-
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -131,7 +128,7 @@ export default function SharedActivityLogs() {
         try {
             const userId = user?.userId || user?.id || user?._id;
             const params = new URLSearchParams({ limit: '500' });
-            if ((isDentist || isSecretary) && userId) {
+            if (userId) {
                 params.set('userId', userId);
             }
 
@@ -165,7 +162,7 @@ export default function SharedActivityLogs() {
         } finally {
             setLoading(false);
         }
-    }, [isDentist, isSecretary, user]);
+    }, [user]);
 
     useEffect(() => {
         fetchLogs();
@@ -202,10 +199,8 @@ export default function SharedActivityLogs() {
     const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
     const roleOptions = getRoleOptions(role);
     const categories = ['All', ...Object.keys(ACTION_CATEGORIES)];
-    const title = isDentist || isSecretary ? 'My Activity Logs' : 'Activity Logs';
-    const subtitle = isDentist || isSecretary
-        ? 'Review your recorded actions in a single shared audit table.'
-        : 'Review user actions and system events in one shared tabular log view.';
+    const title = 'My Activity Logs';
+    const subtitle = 'Review only the actions recorded under your own account.';
 
     const handleExportCsv = () => {
         if (filteredLogs.length === 0) return;
@@ -374,3 +369,4 @@ export default function SharedActivityLogs() {
         </div>
     );
 }
+

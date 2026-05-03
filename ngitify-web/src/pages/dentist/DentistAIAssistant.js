@@ -60,7 +60,7 @@ export default function DentistAIAssistant() {
 
                     <ul className={styles.scopeList}>
                         <li>finding patient-related actions inside NgitiFy without manual screen hunting</li>
-                        <li>surfacing documentation steps for treatment logs, radiographs, and odontogram updates</li>
+                        <li>surfacing documentation steps for treatment logs, radiographs, and EMR updates</li>
                         <li>suggesting workflow reminders for procedures, scheduling, and material usage recording</li>
                         <li>turning plain-language questions into clearer system guidance for front-desk and clinical tasks</li>
                     </ul>

@@ -385,6 +385,12 @@ app.post('/api/activate-account', async (req, res) => {
 
         account.isVerified = true;
         account.status = 'active';
+        if (account.assignedBranch && (!Array.isArray(account.assignedBranches) || account.assignedBranches.length === 0)) {
+            account.assignedBranches = [account.assignedBranch];
+        }
+        if (!account.assignedBranch && Array.isArray(account.assignedBranches) && account.assignedBranches.length > 0) {
+            account.assignedBranch = account.assignedBranches[0];
+        }
         account.activationToken = undefined;
         await account.save();
 
@@ -3324,8 +3330,12 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
 
         const nextDate = date ? new Date(date) : currentSurgery.date;
         const nextTime = time !== undefined ? time : currentSurgery.time;
+        const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
         const updateFields = { status };
         const isGuestWebsiteAppointment = currentSurgery.source === 'Smile Hub (Online)' && !currentSurgery.patient && !!currentSurgery.guestEmail;
+        if (status === 'completed' && nextDateTime && nextDateTime > new Date()) {
+            return res.status(400).json({ message: 'Appointments can only be marked completed after their scheduled date and time.' });
+        }
         if (remarks !== undefined) updateFields.remarks = remarks;
         if (preOpInstructions !== undefined) updateFields.preOpInstructions = preOpInstructions;
         if (date) updateFields.date = nextDate;
@@ -3473,6 +3483,15 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             user: req.user?.email || req.user?.id,
             role: req.user?.role,
             details: `Dental treatment ID ${updatedSurgery._id} status changed to '${status}'.`
+        });
+
+        await createBranchScopedNotifications({
+            type: 'APPOINTMENT_STATUS_UPDATED',
+            title: 'Appointment Status Updated',
+            message: `${getPatientDisplayName(updatedSurgery)}'s appointment for ${updatedSurgery.procedure} is now ${updatedSurgery.status}.`,
+            branch: updatedSurgery.branch,
+            relatedId: updatedSurgery._id,
+            includeOwners: true,
         });
 
         await syncQueueEntryForAppointment(updatedSurgery);

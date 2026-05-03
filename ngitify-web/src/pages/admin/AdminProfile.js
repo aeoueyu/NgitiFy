@@ -569,8 +569,8 @@ export default function MyProfile() {
                         </>
                     )}
 
-                    {/* --- COMPLETE ADDRESS --- */}
-                    <h3 className={styles.mainSectionTitle}>Complete Address</h3>
+                    {/* --- Home Address --- */}
+                    <h3 className={styles.mainSectionTitle}>Home Address</h3>
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>REGION <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
@@ -755,3 +755,4 @@ export default function MyProfile() {
         </div>
     );
 }
+

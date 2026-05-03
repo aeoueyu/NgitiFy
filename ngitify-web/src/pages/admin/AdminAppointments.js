@@ -79,6 +79,13 @@ const to12h = (time24) => {
     return `${hour12}:${minute} ${suffix}`;
 };
 
+const isAppointmentPast = (dateValue, timeValue) => {
+    if (!dateValue) return false;
+    const base = new Date(`${new Date(dateValue).toISOString().split('T')[0]}T${timeValue || '23:59'}:00`);
+    if (Number.isNaN(base.getTime())) return false;
+    return base < new Date();
+};
+
 const normalizeSurgery = (surgery) => ({
     id: surgery._id,
     patientId: surgery.patient?._id || surgery.patient,
@@ -793,7 +800,7 @@ export default function AdminAppointments() {
                                             <option value="Pending">Pending</option>
                                             <option value="Confirmed">Confirmed</option>
                                             <option value="In Clinic">In Clinic</option>
-                                            <option value="Completed">Completed</option>
+                                            <option value="Completed" disabled={!isAppointmentPast(appointment.rawDate, appointment.time)}>Completed</option>
                                             <option value="Cancelled">Cancelled</option>
                                         </select>
                                     )}

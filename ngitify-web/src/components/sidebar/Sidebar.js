@@ -19,7 +19,6 @@ import {
     FaShieldAlt,
     FaSignOutAlt,
     FaTachometerAlt,
-    FaTooth,
     FaUserCircle,
     FaUserInjured,
     FaUsers,
@@ -280,7 +279,6 @@ export default function Sidebar() {
                             {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
-                            {navItem('/branch-manager/branches', FaCodeBranch, 'Branch')}
                             {navItem('/branch-manager/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
@@ -299,7 +297,6 @@ export default function Sidebar() {
                     {isSecretary && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem('/secretary/patients', FaUserInjured, 'Patients')}
                             {navItem('/secretary/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/secretary/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/secretary/activity-logs', FaHistory, 'Activity Logs')}
@@ -314,7 +311,6 @@ export default function Sidebar() {
                             {sectionLabel('Patients')}
                             {navItem('/dentist/patient-emr', FaFileMedical, 'Patient EMR')}
                             {sectionLabel('Clinic')}
-                            {navItem('/dentist/odontogram', FaTooth, 'Odontogram')}
                             {navItem('/dentist/material-usage', FaBoxes, 'Material Usage')}
                             {sectionLabel('System')}
                             {navItem('/dentist/notifications', FaBell, 'Notifications')}

@@ -225,6 +225,22 @@ export default function AdminDashboard() {
         };
 
         fetchDashboardData();
+        const intervalId = window.setInterval(fetchDashboardData, 30000);
+        const handleFocus = () => fetchDashboardData();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchDashboardData();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [user?.userId, user?.id, user?._id]);
 
     useEffect(() => {

@@ -251,6 +251,13 @@ export default function PatientDashboard({ navigation }) {
         return unsub;
     }, [navigation, fetchAll]);
 
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            fetchAll();
+        }, 30000);
+        return () => clearInterval(intervalId);
+    }, [fetchAll]);
+
     // ─── Render helpers ───────────────────────────────────────────────────────
 
     const renderAppointmentCard = () => {

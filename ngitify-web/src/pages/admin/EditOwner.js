@@ -16,7 +16,7 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
     const [errors, setErrors] = useState({});
     const [profileImage, setProfileImage] = useState(null);
     const [initialProfileImage, setInitialProfileImage] = useState(null);
-    const [isSameAddress, setIsSameAddress] = useState(false);
+    const [isSameAddress, setIsSameAddress] = useState(true);
     const specializationOptions = [
         'General Dentist', 'Orthodontist', 'Pediatric Dentist (Pedodontist)',
         'Periodontist', 'Endodontist', 'Oral & Maxillofacial Surgeon',
@@ -368,15 +368,8 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
                     )}
 
                     <hr className={styles.divider} />
-                    {renderAddressFields('currentAddress', 'Current Address')}
-                    <div className={styles.permanentHeader}>
-                        <h3 className={styles.sectionTitle}>Permanent Address</h3>
-                        <div className={styles.checkboxContainer}>
-                            <input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isSaving} />
-                            <label htmlFor="sameAddress">Same as Current Address</label>
-                        </div>
-                    </div>
-                    {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
+                    {renderAddressFields('currentAddress', 'Home Address')}
+                    
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
@@ -398,3 +391,4 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
         </div>
     );
 }
+

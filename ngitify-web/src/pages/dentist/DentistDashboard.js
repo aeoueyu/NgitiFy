@@ -84,7 +84,7 @@ export default function DentistDashboard() {
                     authFetch('/patients?limit=200'),
                     authFetch('/notifications'),
                     authFetch('/material-usage'),
-                    authFetch('/audit-logs'),
+                    userId ? authFetch(`/audit-logs?userId=${userId}`) : Promise.resolve(null),
                 ];
 
                 const [profileRes, surgeriesRes, patientsRes, notificationsRes, materialsRes, auditRes] = await Promise.all(requests);
@@ -124,6 +124,22 @@ export default function DentistDashboard() {
         };
 
         fetchDashboardData();
+        const intervalId = window.setInterval(fetchDashboardData, 30000);
+        const handleFocus = () => fetchDashboardData();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchDashboardData();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [addToast]);
 
     const todayAppointments = useMemo(() => {
@@ -165,7 +181,7 @@ export default function DentistDashboard() {
     const moduleCards = [
         {
             title: 'Patient EMR',
-            description: 'Open and update treatment notes, radiographs, odontogram, and patient history.',
+            description: 'Open and update treatment notes, radiographs, and patient history.',
             value: `${patients.length} assigned patients`,
             action: () => navigate('/dentist/emr'),
             actionLabel: 'Open EMR',
@@ -440,7 +456,7 @@ export default function DentistDashboard() {
                             <div className={styles.filterHeader}>
                                 <h2 className={styles['widget-title']}>
                                     <FaTooth className={styles.widgetIcon} />
-                                    Recent Clinical Activity
+                                    Recent Account Activity
                                 </h2>
                             </div>
 

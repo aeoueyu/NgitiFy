@@ -5,7 +5,6 @@ import {
     FaBoxes,
     FaCalendarCheck,
     FaChartBar,
-    FaCodeBranch,
     FaListUl,
     FaRobot,
     FaUserFriends,
@@ -67,6 +66,7 @@ export default function BranchManagerDashboard() {
         const fetchDashboardData = async () => {
             setIsLoading(true);
             try {
+                const userId = user?.userId || user?.id || user?._id;
                 const [
                     surgeriesRes,
                     patientsRes,
@@ -81,7 +81,7 @@ export default function BranchManagerDashboard() {
                     authFetch('/patients'),
                     authFetch('/notifications'),
                     authFetch('/inventory'),
-                    authFetch('/audit-logs'),
+                    userId ? authFetch(`/audit-logs?userId=${userId}`) : Promise.resolve(null),
                     authFetch('/queue'),
                     authFetch('/users?role=dentist'),
                     authFetch('/users?role=secretary'),
@@ -106,7 +106,7 @@ export default function BranchManagerDashboard() {
                     setInventory(await inventoryRes.json());
                 }
 
-                if (activityRes.ok) {
+                if (activityRes?.ok) {
                     setActivityLogs(await activityRes.json());
                 }
 
@@ -133,7 +133,23 @@ export default function BranchManagerDashboard() {
         };
 
         fetchDashboardData();
-    }, [addToast, assignedBranch]);
+        const intervalId = window.setInterval(fetchDashboardData, 30000);
+        const handleFocus = () => fetchDashboardData();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchDashboardData();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [addToast, assignedBranch, user?.userId, user?.id, user?._id]);
 
     const todayKey = startOfDay(new Date()).getTime();
 
@@ -197,19 +213,19 @@ export default function BranchManagerDashboard() {
     const moduleCards = [
         {
             title: 'User Management',
-            description: 'Manage patients, dentists, and secretaries assigned to your branch.',
+            description: 'Manage only the dentists and secretaries assigned to your branch.',
             value: `${staffUsers.length} branch staff accounts`,
             icon: <FaUsers className={styles.moduleIcon} />,
             actionLabel: 'Open Users',
             action: () => navigate('/branch-manager/manage-users'),
         },
         {
-            title: 'Branch Profile',
-            description: 'Review your assigned branch details without crossing into other branches.',
-            value: assignedBranch || 'Assigned branch',
-            icon: <FaCodeBranch className={styles.moduleIcon} />,
-            actionLabel: 'Open Branch',
-            action: () => navigate('/branch-manager/branches'),
+            title: 'Schedule Management',
+            description: 'Review branch appointments, queue flow, and patient arrivals in one place.',
+            value: `${todayAppointments.length} appointments today`,
+            icon: <FaCalendarCheck className={styles.moduleIcon} />,
+            actionLabel: 'Open Schedule',
+            action: () => navigate('/branch-manager/appointments'),
         },
         {
             title: 'Inventory',
@@ -335,7 +351,7 @@ export default function BranchManagerDashboard() {
                         <div className={styles.panelHeader}>
                             <div>
                                 <p className={styles.panelEyebrow}>Activity Logs</p>
-                                <h2 className={styles.panelTitle}>Recent branch-visible activity</h2>
+                                <h2 className={styles.panelTitle}>Recent account activity</h2>
                             </div>
                             <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/activity-logs')}>
                                 Open logs
@@ -481,3 +497,4 @@ export default function BranchManagerDashboard() {
         </main>
     );
 }
+

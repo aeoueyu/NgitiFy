@@ -15,7 +15,6 @@ const OWNER_TABS = [
     { key: 'secretaries', label: 'Secretaries', path: '/owner/manage-users/secretaries' },
     { key: 'dentists',    label: 'Dentists',    path: '/owner/manage-users/dentists' },
     { key: 'branchManagers', label: 'Branch Managers', path: '/owner/manage-users/branch-managers' },
-    { key: 'owners', label: 'Owners', path: '/owner/manage-users/owners' },
 ];
 
 const UserTabs = ({ activeTab }) => {

@@ -122,45 +122,49 @@ export default function AppointmentBookingScreen({ navigation }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const today = getTodayString();
 
+    const fetchDuplicateAppointment = useCallback(async () => {
+        if (!userToken) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/appointments/my-active`, {
+                headers: { Authorization: `Bearer ${userToken}` },
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            setDuplicateAppt(data.hasActive ? data.appointment : null);
+        } catch {
+            // Keep booking available even if the duplicate check fails.
+        }
+    }, [API_BASE_URL, userToken]);
+
+    const fetchEligibility = useCallback(async () => {
+        if (!userToken) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/my/treatment-logs`, {
+                headers: { Authorization: `Bearer ${userToken}` },
+            });
+            if (!res.ok) return;
+            const logs = await res.json();
+            const hasCompleted = (Array.isArray(logs) ? logs : []).some((log) => (
+                ['General Check-up / Initial Consultation', 'Consultation', 'Other / General Check-up'].includes(log.procedure)
+            ));
+            setHasCompletedConsultation(hasCompleted);
+        } catch {
+            setHasCompletedConsultation(false);
+        }
+    }, [API_BASE_URL, userToken]);
+
     useEffect(() => {
         fadeAnim.setValue(0);
         Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
     }, [fadeAnim, step]);
 
     useEffect(() => {
-        const checkDuplicate = async () => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/appointments/my-active`, {
-                    headers: { Authorization: `Bearer ${userToken}` },
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data.hasActive) setDuplicateAppt(data.appointment);
-            } catch {
-                // Keep booking available even if the duplicate check fails.
-            }
-        };
-        if (userToken) checkDuplicate();
-    }, [API_BASE_URL, userToken]);
+        fetchDuplicateAppointment();
+    }, [fetchDuplicateAppointment]);
 
     useEffect(() => {
-        const fetchEligibility = async () => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/my/treatment-logs`, {
-                    headers: { Authorization: `Bearer ${userToken}` },
-                });
-                if (!res.ok) return;
-                const logs = await res.json();
-                const hasCompleted = (Array.isArray(logs) ? logs : []).some((log) => (
-                    ['General Check-up / Initial Consultation', 'Consultation', 'Other / General Check-up'].includes(log.procedure)
-                ));
-                setHasCompletedConsultation(hasCompleted);
-            } catch {
-                setHasCompletedConsultation(false);
-            }
-        };
-        if (userToken) fetchEligibility();
-    }, [API_BASE_URL, userToken]);
+        fetchEligibility();
+    }, [fetchEligibility]);
 
     const availableProcedures = hasCompletedConsultation ? EXTENDED_PROCEDURES : DIRECT_BOOKING_PROCEDURES;
 
@@ -186,11 +190,13 @@ export default function AppointmentBookingScreen({ navigation }) {
         fetchBlockedDates(currentMonth);
     }, [currentMonth, fetchBlockedDates]);
 
-    const fetchSlots = useCallback(async (date) => {
+    const fetchSlots = useCallback(async (date, { preserveSelection = false } = {}) => {
         if (!assignedBranch) return;
         setLoadingSlots(true);
         setSlotsError('');
-        setSelectedTime('');
+        if (!preserveSelection) {
+            setSelectedTime('');
+        }
         try {
             const res = await fetch(
                 `${API_BASE_URL}/api/appointments/slots?date=${date}&branch=${encodeURIComponent(assignedBranch)}`,
@@ -198,8 +204,16 @@ export default function AppointmentBookingScreen({ navigation }) {
             );
             if (!res.ok) throw new Error('Failed to fetch slots');
             const data = await res.json();
-            setAllowedSlots(Array.isArray(data.allowedSlots) ? data.allowedSlots : []);
-            setTakenSlots(Array.isArray(data.takenSlots) ? data.takenSlots : []);
+            const nextAllowedSlots = Array.isArray(data.allowedSlots) ? data.allowedSlots : [];
+            const nextTakenSlots = Array.isArray(data.takenSlots) ? data.takenSlots : [];
+            setAllowedSlots(nextAllowedSlots);
+            setTakenSlots(nextTakenSlots);
+            if (preserveSelection && selectedTime) {
+                const stillAvailable = nextAllowedSlots.includes(selectedTime) && !nextTakenSlots.includes(selectedTime);
+                if (!stillAvailable) {
+                    setSelectedTime('');
+                }
+            }
         } catch {
             setSlotsError('Could not load time slots. Please try again.');
             setAllowedSlots([]);
@@ -207,7 +221,37 @@ export default function AppointmentBookingScreen({ navigation }) {
         } finally {
             setLoadingSlots(false);
         }
-    }, [API_BASE_URL, assignedBranch, userToken]);
+    }, [API_BASE_URL, assignedBranch, selectedTime, userToken]);
+
+    useEffect(() => {
+        if (!userToken) return undefined;
+
+        const refreshBookingState = () => {
+            fetchDuplicateAppointment();
+            fetchEligibility();
+            fetchBlockedDates(currentMonth);
+            if (selectedDate) {
+                fetchSlots(selectedDate, { preserveSelection: true });
+            }
+        };
+
+        const intervalId = setInterval(refreshBookingState, 30000);
+        const unsubscribe = navigation.addListener('focus', refreshBookingState);
+
+        return () => {
+            clearInterval(intervalId);
+            unsubscribe();
+        };
+    }, [
+        currentMonth,
+        fetchBlockedDates,
+        fetchDuplicateAppointment,
+        fetchEligibility,
+        fetchSlots,
+        navigation,
+        selectedDate,
+        userToken,
+    ]);
 
     const buildMarkedDates = () => {
         const marked = {};

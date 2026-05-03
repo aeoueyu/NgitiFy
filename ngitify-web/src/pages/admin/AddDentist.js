@@ -11,7 +11,7 @@ export default function AddDentist({ onClose, onSuccess }) {
     const isBranchManager = user?.role === 'branch-manager';
 
     const fileInputRef = useRef(null);
-    const [isSameAddress, setIsSameAddress] = useState(false);
+    const [isSameAddress] = useState(true);
     const [branchOptions, setBranchOptions] = useState([]);
     const [profileImage, setProfileImage] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -96,17 +96,6 @@ export default function AddDentist({ onClose, onSuccess }) {
             if (type === 'currentAddress' && isSameAddress) return { ...prev, currentAddress: updated, permanentAddress: updated };
             return { ...prev, [type]: updated };
         });
-    };
-
-    const handleSameAddressToggle = (e) => {
-        const checked = e.target.checked;
-        setIsSameAddress(checked);
-        if (checked) {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
-            setErrors(prev => { const n = { ...prev }; Object.keys(n).forEach(k => { if (k.startsWith('permanent_')) delete n[k]; }); return n; });
-        } else {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...initialAddressState } }));
-        }
     };
 
     const validateForm = () => {
@@ -296,15 +285,7 @@ export default function AddDentist({ onClose, onSuccess }) {
 
                     {/* Address */}
                     <hr className={styles.divider} />
-                    {renderAddressFields('currentAddress', 'Current Address')}
-                    <div className={styles.permanentHeader}>
-                        <h3 className={styles.sectionTitle}>Permanent Address</h3>
-                        <div className={styles.checkboxContainer}>
-                            <input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} />
-                            <label htmlFor="sameAddress">Same as Current Address</label>
-                        </div>
-                    </div>
-                    {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
+                    {renderAddressFields('currentAddress', 'Home Address')}
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
@@ -326,3 +307,7 @@ export default function AddDentist({ onClose, onSuccess }) {
         </div>
     );
 }
+
+
+
+
