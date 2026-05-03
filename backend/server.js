@@ -967,6 +967,7 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         homePhone: body.homePhone || fallbackGuestProfile.homePhone || undefined,
         workPhone: body.workPhone || fallbackGuestProfile.workPhone || undefined,
         referredBy: body.referredBy || fallbackGuestProfile.referredBy || undefined,
+        reasonForConsultation: body.reasonForConsultation || fallbackGuestProfile.reasonForConsultation || body.dentalHistory?.chiefComplaint || fallbackDentalHistory?.chiefComplaint || undefined,
         nationality: body.nationality || fallbackGuestProfile.nationality || undefined,
         religion: body.religion || fallbackGuestProfile.religion || undefined,
         occupation: body.occupation || fallbackGuestProfile.occupation || undefined,
@@ -1672,6 +1673,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
              homePhone,
              workPhone,
              referredBy,
+             reasonForConsultation,
             nationality,
             religion,
             occupation,
@@ -1699,6 +1701,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
              homePhone,
              workPhone,
              referredBy,
+             reasonForConsultation,
             nationality,
             religion,
             occupation,
@@ -2018,6 +2021,7 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             occupation,
             civilStatus,
             bloodType,
+            reasonForConsultation,
             emergencyContact,
             medicalHistory,
             currentAddress,
@@ -2043,6 +2047,7 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
           if (occupation !== undefined) user.occupation = occupation;
         if (civilStatus !== undefined) user.civilStatus = civilStatus;
         if (bloodType !== undefined) user.bloodType = bloodType;
+        if (reasonForConsultation !== undefined) user.reasonForConsultation = reasonForConsultation;
         if (profileImage !== undefined) {
             if (profileImage && profileImage.length > 1.5 * 1024 * 1024) {
                 return res.status(413).json({ message: 'Profile image must be under 1.5MB.' });

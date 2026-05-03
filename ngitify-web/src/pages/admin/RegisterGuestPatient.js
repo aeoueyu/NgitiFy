@@ -6,6 +6,22 @@ import { authFetch } from '../../utils/api';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
+import {
+    ALLERGY_OPTIONS,
+    MEDICAL_CONDITION_OPTIONS,
+    NATIONALITY_OPTIONS,
+    RELIGION_OPTIONS,
+    PHYSICIAN_SPECIALTY_OPTIONS,
+    LANDLINE_PREFIX,
+    isValidLandlineNumber,
+    isValidMobileNumber,
+    stripLandlinePrefix,
+    stripMobilePrefix,
+    toLandlinePayload,
+    toMobilePayload,
+    getSelectValueWithOther,
+    getOtherTextValue,
+} from '../../utils/patientIntake';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -19,14 +35,6 @@ const splitFullName = (fullName = '') => {
         middleName: parts.slice(1, -1).join(' '),
         lastName: parts[parts.length - 1],
     };
-};
-
-const stripPhonePrefix = (phone = '') => {
-    const digits = String(phone).replace(/\D/g, '');
-    if (digits.startsWith('63') && digits.length >= 12) return digits.slice(2, 12);
-    if (digits.startsWith('0') && digits.length >= 11) return digits.slice(1, 11);
-    if (digits.startsWith('9')) return digits.slice(0, 10);
-    return digits.slice(-10);
 };
 
 const initialMedicalHistory = {
@@ -55,73 +63,19 @@ const initialMedicalHistory = {
 };
 
 const initialDentalHistory = {
-    chiefComplaint: '',
     lastExamDate: '',
     hadTreatmentReaction: '',
     reactionDetails: '',
-    notes: '',
-    hasConfidentialInfo: false,
+    hasConfidentialInfo: '',
 };
 
 const initialPhysician = {
     name: '',
     specialty: '',
+    specialtyOther: '',
     officeAddress: '',
     officeNumber: '',
 };
-
-const allergyOptions = [
-    'Local Anesthetic (ex. Lidocaine)',
-    'Penicillin',
-    'Aspirin',
-    'Antibiotics',
-    'Adrenaline',
-    'Steroids',
-    'Hormones',
-    'Antacids',
-    'Sulfa Drugs',
-    'Alcohol',
-    'Latex',
-];
-
-const medicalConditionOptions = [
-    'High Blood Pressure',
-    'Low Blood Pressure',
-    'Epilepsy/Convulsions',
-    'AIDS or HIV Infection',
-    'Hay Fever/Allergies',
-    'Respiratory Problems',
-    'Fainting Seizure',
-    'Rapid Weight Loss',
-    'Swollen Ankles',
-    'Kidney Disease',
-    'Heart Surgery',
-    'Heart Attack',
-    'Stroke',
-    'Heart Disease',
-    'Heart Murmur',
-    'Hepatitis/Liver Disease',
-    'Rheumatic Fever',
-    'Asthma',
-    'Emphysema',
-    'Bleeding Problems',
-    'Hepatitis/Jaundice',
-    'Tuberculosis',
-    'Arthritis/Rheumatism',
-    'Diabetes',
-    'Chest Pain',
-    'Cancer/Tumors',
-    'Anemia',
-    'Angina',
-    'Sexually Transmitted Disease',
-    'Stomach Troubles/Ulcers',
-    'Blood Diseases',
-    'Head Injuries',
-    'Radiation Therapy',
-    'Joint Replacement/Implant',
-    'Thyroid Problem',
-    'Other',
-];
 
 const selectToBool = (value) => {
     if (value === 'yes') return true;
@@ -135,7 +89,6 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     const { user } = useAuth();
     const isBranchScopedStaff = user?.role === 'branch-manager' || user?.role === 'secretary';
     const isSecretary = user?.role === 'secretary';
-    const [isSameAddress, setIsSameAddress] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
@@ -159,8 +112,10 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         bloodType: '',
         nationality: 'Filipino',
         religion: '',
+        religionOther: '',
         workPhone: '',
         referredBy: '',
+        reasonForConsultation: '',
         emergencyContactName: '',
         emergencyContactRelationship: '',
         emergencyContactPhone: '',
@@ -180,12 +135,17 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         },
         currentAddress: { ...initialAddressState },
         permanentAddress: { ...initialAddressState },
+        dataPrivacyConsent: {
+            acknowledged: false,
+            signerName: '',
+            signerRole: 'Patient',
+            signedAt: getTodayDate(),
+        },
     });
 
     useEffect(() => {
         const nextCurrentAddress = { ...initialAddressState, ...(appointment?.guestCurrentAddress || {}) };
         const nextPermanentAddress = { ...initialAddressState, ...(appointment?.guestPermanentAddress || {}) };
-        const sameAddress = JSON.stringify(nextCurrentAddress) === JSON.stringify(nextPermanentAddress);
         const guestProfile = appointment?.guestProfile || {};
         const guestEmergencyContact = appointment?.guestEmergencyContact || {};
         const guestGuardian = appointment?.guestGuardian || {};
@@ -201,33 +161,35 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             birthdate: appointment?.guestBirthdate ? new Date(appointment.guestBirthdate).toISOString().split('T')[0] : prev.birthdate,
             gender: appointment?.guestGender || prev.gender,
             email: appointment?.guestEmail || '',
-            phone: stripPhonePrefix(appointment?.guestPhone || ''),
-            homePhone: stripPhonePrefix(guestProfile.homePhone || ''),
+            phone: stripMobilePrefix(appointment?.guestPhone || ''),
+            homePhone: stripLandlinePrefix(guestProfile.homePhone || ''),
             occupation: guestProfile.occupation || prev.occupation,
             civilStatus: guestProfile.civilStatus || prev.civilStatus,
             bloodType: guestProfile.bloodType || prev.bloodType,
             nationality: guestProfile.nationality || prev.nationality,
-            religion: guestProfile.religion || prev.religion,
-            workPhone: stripPhonePrefix(guestProfile.workPhone || ''),
+            religion: getSelectValueWithOther(guestProfile.religion || prev.religion, RELIGION_OPTIONS),
+            religionOther: getOtherTextValue(guestProfile.religion || prev.religion, RELIGION_OPTIONS),
+            workPhone: stripLandlinePrefix(guestProfile.workPhone || ''),
             referredBy: guestProfile.referredBy || prev.referredBy,
+            reasonForConsultation: guestProfile.reasonForConsultation || guestDentalHistory.chiefComplaint || prev.reasonForConsultation,
             emergencyContactName: guestEmergencyContact.name || '',
             emergencyContactRelationship: guestEmergencyContact.relationship || '',
-            emergencyContactPhone: stripPhonePrefix(guestEmergencyContact.contactNumber || ''),
+            emergencyContactPhone: stripMobilePrefix(guestEmergencyContact.contactNumber || ''),
             guardianName: guestGuardian.name || '',
             guardianRelationship: guestGuardian.relationship || '',
-            guardianContact: stripPhonePrefix(guestGuardian.contactNumber || ''),
+            guardianContact: stripMobilePrefix(guestGuardian.contactNumber || ''),
             guardianOccupation: guestGuardian.occupation || '',
             assignedBranch: isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || '') : (appointment?.branch || ''),
             dentalHistory: {
                 ...prev.dentalHistory,
-                chiefComplaint: guestDentalHistory.chiefComplaint || prev.dentalHistory.chiefComplaint,
                 lastExamDate: guestDentalHistory.lastExamDate ? new Date(guestDentalHistory.lastExamDate).toISOString().split('T')[0] : prev.dentalHistory.lastExamDate,
-                notes: guestDentalHistory.notes || prev.dentalHistory.notes,
                 hadTreatmentReaction: guestDentalHistory.hadTreatmentReaction === undefined
                     ? prev.dentalHistory.hadTreatmentReaction
                     : (guestDentalHistory.hadTreatmentReaction ? 'yes' : 'no'),
                 reactionDetails: guestDentalHistory.reactionDetails || prev.dentalHistory.reactionDetails,
-                hasConfidentialInfo: Boolean(guestDentalHistory.hasConfidentialInfo),
+                hasConfidentialInfo: guestDentalHistory.hasConfidentialInfo === undefined
+                    ? prev.dentalHistory.hasConfidentialInfo
+                    : (guestDentalHistory.hasConfidentialInfo ? 'yes' : 'no'),
             },
             medicalHistory: {
                 ...prev.medicalHistory,
@@ -243,10 +205,10 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 usesTobacco: guestMedicalHistory.usesTobacco === undefined ? prev.medicalHistory.usesTobacco : (guestMedicalHistory.usesTobacco ? 'yes' : 'no'),
                 usesAlcoholOrDrugs: guestMedicalHistory.usesAlcoholOrDrugs === undefined ? prev.medicalHistory.usesAlcoholOrDrugs : (guestMedicalHistory.usesAlcoholOrDrugs ? 'yes' : 'no'),
                 hasAllergies: guestMedicalHistory.hasAllergies === undefined ? prev.medicalHistory.hasAllergies : (guestMedicalHistory.hasAllergies ? 'yes' : 'no'),
-                allergies: Array.isArray(guestMedicalHistory.allergies) ? guestMedicalHistory.allergies.filter((entry) => allergyOptions.includes(entry)) : prev.medicalHistory.allergies,
-                allergyOther: Array.isArray(guestMedicalHistory.allergies) ? guestMedicalHistory.allergies.filter((entry) => !allergyOptions.includes(entry)).join(', ') : prev.medicalHistory.allergyOther,
-                conditions: Array.isArray(guestMedicalHistory.conditions) ? guestMedicalHistory.conditions.filter((entry) => medicalConditionOptions.includes(entry)) : prev.medicalHistory.conditions,
-                conditionOther: Array.isArray(guestMedicalHistory.conditions) ? guestMedicalHistory.conditions.filter((entry) => !medicalConditionOptions.includes(entry)).join(', ') : prev.medicalHistory.conditionOther,
+                allergies: Array.isArray(guestMedicalHistory.allergies) ? guestMedicalHistory.allergies.filter((entry) => ALLERGY_OPTIONS.includes(entry)) : prev.medicalHistory.allergies,
+                allergyOther: Array.isArray(guestMedicalHistory.allergies) ? guestMedicalHistory.allergies.filter((entry) => !ALLERGY_OPTIONS.includes(entry)).join(', ') : prev.medicalHistory.allergyOther,
+                conditions: Array.isArray(guestMedicalHistory.conditions) ? guestMedicalHistory.conditions.filter((entry) => MEDICAL_CONDITION_OPTIONS.includes(entry)) : prev.medicalHistory.conditions,
+                conditionOther: Array.isArray(guestMedicalHistory.conditions) ? guestMedicalHistory.conditions.filter((entry) => !MEDICAL_CONDITION_OPTIONS.includes(entry)).join(', ') : prev.medicalHistory.conditionOther,
                 notes: guestMedicalHistory.notes || prev.medicalHistory.notes,
                 bleedingTime: guestMedicalHistory.bleedingTime || prev.medicalHistory.bleedingTime,
                 bloodPressure: guestMedicalHistory.bloodPressure || prev.medicalHistory.bloodPressure,
@@ -257,14 +219,14 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             physician: {
                 ...prev.physician,
                 name: guestPhysician.name || prev.physician.name,
-                specialty: guestPhysician.specialty || prev.physician.specialty,
+                specialty: getSelectValueWithOther(guestPhysician.specialty || prev.physician.specialty, PHYSICIAN_SPECIALTY_OPTIONS),
+                specialtyOther: getOtherTextValue(guestPhysician.specialty || prev.physician.specialty, PHYSICIAN_SPECIALTY_OPTIONS),
                 officeAddress: guestPhysician.officeAddress || prev.physician.officeAddress,
-                officeNumber: stripPhonePrefix(guestPhysician.officeNumber || ''),
+                officeNumber: stripLandlinePrefix(guestPhysician.officeNumber || ''),
             },
             currentAddress: nextCurrentAddress,
             permanentAddress: nextPermanentAddress,
         }));
-        setIsSameAddress(sameAddress);
     }, [appointment, isBranchScopedStaff, nameParts, user?.assignedBranch]);
 
     useEffect(() => {
@@ -302,7 +264,9 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)';
         } else if (name === 'phone' || name === 'guardianContact') {
             if (!value) newError = 'Required';
-            else if (value.length !== 10 || value[0] !== '9') newError = 'Invalid format (9xxxxxxxxx)';
+            else if (!isValidMobileNumber(value)) newError = 'Invalid format (9xxxxxxxxx)';
+        } else if (['homePhone', 'workPhone'].includes(name) && value && !isValidLandlineNumber(value)) {
+            newError = 'Invalid landline format';
         }
         setErrors((prev) => ({ ...prev, [name]: newError }));
     };
@@ -338,6 +302,19 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         setFormData((prev) => ({ ...prev, [fieldName]: value }));
     };
 
+    const handleLandlineChange = (fieldName) => (e) => {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        if (value.length > 8) return;
+        if (errors[fieldName]) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                delete next[fieldName];
+                return next;
+            });
+        }
+        setFormData((prev) => ({ ...prev, [fieldName]: value }));
+    };
+
     const handleAddressChange = (type, field, value) => {
         const errorKey = `${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`;
         if (errors[errorKey]) {
@@ -352,9 +329,6 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
             else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
             else if (field === 'city') { updated.barangay = ''; }
-            if (type === 'currentAddress' && isSameAddress) {
-                return { ...prev, currentAddress: updated, permanentAddress: updated };
-            }
             return { ...prev, [type]: updated };
         });
     };
@@ -384,9 +358,38 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         });
     };
 
+    const handlePrivacyAcknowledged = (acknowledged) => {
+        setFormData((prev) => ({
+            ...prev,
+            dataPrivacyConsent: {
+                ...prev.dataPrivacyConsent,
+                acknowledged,
+            }
+        }));
+        setErrors((prev) => {
+            const next = { ...prev };
+            delete next.dataPrivacyConsent_acknowledged;
+            return next;
+        });
+    };
+
     const handleNestedPhoneChange = (section, field) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
+        const errorKey = `${section}_${field}`;
+        if (errors[errorKey]) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                delete next[errorKey];
+                return next;
+            });
+        }
+        handleNestedChange(section, field, value);
+    };
+
+    const handleNestedLandlineChange = (section, field) => (e) => {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        if (value.length > 8) return;
         const errorKey = `${section}_${field}`;
         if (errors[errorKey]) {
             setErrors((prev) => {
@@ -412,23 +415,6 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         });
     };
 
-    const handleSameAddressToggle = (e) => {
-        const checked = e.target.checked;
-        setIsSameAddress(checked);
-        if (checked) {
-            setFormData((prev) => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
-            setErrors((prev) => {
-                const next = { ...prev };
-                Object.keys(next).forEach((key) => {
-                    if (key.startsWith('permanent_')) delete next[key];
-                });
-                return next;
-            });
-        } else {
-            setFormData((prev) => ({ ...prev, permanentAddress: { ...initialAddressState } }));
-        }
-    };
-
     const validateForm = () => {
         const nextErrors = {};
         let isValid = true;
@@ -443,24 +429,24 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         if (!formData.phone) {
             nextErrors.phone = 'Required';
             isValid = false;
-        } else if (formData.phone.length !== 10 || formData.phone[0] !== '9') {
+        } else if (!isValidMobileNumber(formData.phone)) {
             nextErrors.phone = 'Invalid format';
             isValid = false;
         }
-        if (formData.homePhone && (formData.homePhone.length !== 10 || formData.homePhone[0] !== '9')) {
-            nextErrors.homePhone = 'Invalid format';
+        if (formData.homePhone && !isValidLandlineNumber(formData.homePhone)) {
+            nextErrors.homePhone = 'Invalid landline format';
             isValid = false;
         }
-        if (formData.workPhone && (formData.workPhone.length !== 10 || formData.workPhone[0] !== '9')) {
-            nextErrors.workPhone = 'Invalid format';
+        if (formData.workPhone && !isValidLandlineNumber(formData.workPhone)) {
+            nextErrors.workPhone = 'Invalid landline format';
             isValid = false;
         }
-        if (formData.emergencyContactPhone && (formData.emergencyContactPhone.length !== 10 || formData.emergencyContactPhone[0] !== '9')) {
+        if (formData.emergencyContactPhone && !isValidMobileNumber(formData.emergencyContactPhone)) {
             nextErrors.emergencyContactPhone = 'Invalid format';
             isValid = false;
         }
-        if (formData.physician.officeNumber && (formData.physician.officeNumber.length !== 10 || formData.physician.officeNumber[0] !== '9')) {
-            nextErrors.physician_officeNumber = 'Invalid format';
+        if (formData.physician.officeNumber && !isValidLandlineNumber(formData.physician.officeNumber)) {
+            nextErrors.physician_officeNumber = 'Invalid landline format';
             isValid = false;
         }
 
@@ -474,6 +460,14 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         }
         if (!formData.consentAcknowledgement.signerName.trim()) {
             nextErrors.consentAcknowledgement_signerName = 'Required';
+            isValid = false;
+        }
+        if (!formData.dataPrivacyConsent.acknowledged) {
+            nextErrors.dataPrivacyConsent_acknowledged = 'Required';
+            isValid = false;
+        }
+        if (!formData.dataPrivacyConsent.signerName.trim()) {
+            nextErrors.dataPrivacyConsent_signerName = 'Required';
             isValid = false;
         }
 
@@ -492,10 +486,19 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             if (!formData.guardianContact) {
                 nextErrors.guardianContact = 'Required';
                 isValid = false;
-            } else if (formData.guardianContact.length !== 10 || formData.guardianContact[0] !== '9') {
+            } else if (!isValidMobileNumber(formData.guardianContact)) {
                 nextErrors.guardianContact = 'Invalid format';
                 isValid = false;
             }
+        }
+
+        if (formData.religion === 'Other' && !formData.religionOther.trim()) {
+            nextErrors.religionOther = 'Required';
+            isValid = false;
+        }
+        if (formData.physician.specialty === 'Other' && !formData.physician.specialtyOther.trim()) {
+            nextErrors.physician_specialtyOther = 'Required';
+            isValid = false;
         }
 
         const validateAddr = (addr, prefix) => {
@@ -508,8 +511,6 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         };
 
         validateAddr(formData.currentAddress, 'current');
-        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
-
         setErrors(nextErrors);
         return isValid;
     };
@@ -554,37 +555,37 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 last: formData.lastName,
             },
             email: formData.email.trim(),
-            contactNumber: `+63${formData.phone}`,
+            contactNumber: toMobilePayload(formData.phone),
             birthdate: formData.birthdate,
             gender: formData.gender,
-            homePhone: formData.homePhone ? `+63${formData.homePhone}` : undefined,
+            homePhone: toLandlinePayload(formData.homePhone),
             occupation: formData.occupation || undefined,
             civilStatus: formData.civilStatus || undefined,
             bloodType: formData.bloodType || undefined,
             nationality: formData.nationality || undefined,
-            religion: formData.religion || undefined,
-            workPhone: formData.workPhone ? `+63${formData.workPhone}` : undefined,
+            religion: (formData.religion === 'Other' ? formData.religionOther.trim() : formData.religion) || undefined,
+            workPhone: toLandlinePayload(formData.workPhone),
             referredBy: formData.referredBy || undefined,
+            reasonForConsultation: formData.reasonForConsultation || undefined,
             assignedBranch: isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || undefined) : (formData.assignedBranch || undefined),
             assignedBranches: [isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || '') : (formData.assignedBranch || '')].filter(Boolean),
             emergencyContact: {
                 name: formData.emergencyContactName || undefined,
                 relationship: formData.emergencyContactRelationship || undefined,
-                contactNumber: formData.emergencyContactPhone ? `+63${formData.emergencyContactPhone}` : undefined,
+                contactNumber: toMobilePayload(formData.emergencyContactPhone),
             },
             guardian: isMinor ? {
                 name: formData.guardianName,
                 relationship: formData.guardianRelationship,
-                contactNumber: `+63${formData.guardianContact}`,
+                contactNumber: toMobilePayload(formData.guardianContact),
                 occupation: formData.guardianOccupation || undefined,
             } : null,
             dentalHistory: {
-                chiefComplaint: formData.dentalHistory.chiefComplaint || undefined,
+                chiefComplaint: formData.reasonForConsultation || undefined,
                 lastExamDate: formData.dentalHistory.lastExamDate || undefined,
-                notes: formData.dentalHistory.notes || undefined,
                 hadTreatmentReaction: selectToBool(formData.dentalHistory.hadTreatmentReaction),
                 reactionDetails: formData.dentalHistory.reactionDetails || undefined,
-                hasConfidentialInfo: Boolean(formData.dentalHistory.hasConfidentialInfo),
+                hasConfidentialInfo: selectToBool(formData.dentalHistory.hasConfidentialInfo),
             },
             medicalHistory: {
                 inGoodHealth: selectToBool(formData.medicalHistory.inGoodHealth),
@@ -610,9 +611,9 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             },
             physician: {
                 name: formData.physician.name || undefined,
-                specialty: formData.physician.specialty || undefined,
+                specialty: (formData.physician.specialty === 'Other' ? formData.physician.specialtyOther.trim() : formData.physician.specialty) || undefined,
                 officeAddress: formData.physician.officeAddress || undefined,
-                officeNumber: formData.physician.officeNumber ? `+63${formData.physician.officeNumber}` : undefined,
+                officeNumber: toLandlinePayload(formData.physician.officeNumber),
             },
             consentAcknowledgement: {
                 acknowledged: Boolean(formData.consentAcknowledgement.acknowledged),
@@ -621,8 +622,15 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 signedAt: formData.consentAcknowledgement.signedAt || new Date().toISOString(),
                 version: 'Dentime Patient Form v6.1',
             },
+            dataPrivacyConsent: {
+                acknowledged: Boolean(formData.dataPrivacyConsent.acknowledged),
+                signerName: formData.dataPrivacyConsent.signerName.trim() || undefined,
+                signerRole: formData.dataPrivacyConsent.signerRole || (isMinor ? 'Parent/Guardian' : 'Patient'),
+                signedAt: formData.dataPrivacyConsent.signedAt || new Date().toISOString(),
+                version: 'Data Privacy Act of 2012',
+            },
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
-            permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
+            permanentAddress: { country: 'Philippines', ...formData.currentAddress },
         };
 
         try {
@@ -669,7 +677,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 </div>
 
                 <form onSubmit={handleSubmit} noValidate>
-                    <h3 className={styles.mainSectionTitle}>Personal Information</h3>
+                    <h3 className={styles.mainSectionTitle}>Patient Details</h3>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} disabled={isLoading} /></div>
@@ -684,7 +692,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} disabled={isLoading} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                         <div className={styles.formGroup}>
-                            <label>PHONE NUMBER <span style={{ color: 'red' }}>*</span></label>
+                            <label>MOBILE <span style={{ color: 'red' }}>*</span></label>
                             <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
                                 <span className={styles.phonePrefix}>+63</span>
                                 <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange('phone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
@@ -707,28 +715,34 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         <div className={styles.formGroup}>
                             <label>HOME PHONE</label>
                             <div className={`${styles.phoneInputGroup} ${errors.homePhone ? styles.errorBorder : ''}`}>
-                                <span className={styles.phonePrefix}>+63</span>
-                                <input className={styles.phoneField} name="homePhone" value={formData.homePhone} onChange={handlePhoneChange('homePhone')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
+                                <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
+                                <input className={styles.phoneField} name="homePhone" value={formData.homePhone} onChange={handleLandlineChange('homePhone')} onBlur={handleBlur} maxLength={8} placeholder="1234567" disabled={isLoading} />
                             </div>
                             {errors.homePhone && <span className={styles.errorText}>{errors.homePhone}</span>}
                         </div>
                         <div className={styles.formGroup}>
                             <label>WORK PHONE</label>
                             <div className={`${styles.phoneInputGroup} ${errors.workPhone ? styles.errorBorder : ''}`}>
-                                <span className={styles.phonePrefix}>+63</span>
-                                <input className={styles.phoneField} name="workPhone" value={formData.workPhone} onChange={handlePhoneChange('workPhone')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
+                                <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
+                                <input className={styles.phoneField} name="workPhone" value={formData.workPhone} onChange={handleLandlineChange('workPhone')} onBlur={handleBlur} maxLength={8} placeholder="1234567" disabled={isLoading} />
                             </div>
                             {errors.workPhone && <span className={styles.errorText}>{errors.workPhone}</span>}
                         </div>
                     </div>
 
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>NATIONALITY</label><input className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>RELIGION</label><input className={styles.inputField} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>NATIONALITY</label><select className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Nationality</option>{NATIONALITY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
+                        <div className={styles.formGroup}><label>RELIGION</label><select className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Religion</option>{RELIGION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}</div>
                     </div>
+                    {formData.religion === 'Other' && (
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}><label>RELIGION, IF OTHER</label><input className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religionOther" value={formData.religionOther} onChange={handlePersonalChange} disabled={isLoading} />{errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}</div>
+                            <div className={styles.formGroup} />
+                        </div>
+                    )}
 
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>REASON FOR CONSULTATION</label><input className={styles.inputField} value={formData.dentalHistory.chiefComplaint} onChange={(e) => handleNestedChange('dentalHistory', 'chiefComplaint', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>REASON FOR CONSULTATION</label><input className={styles.inputField} name="reasonForConsultation" value={formData.reasonForConsultation} onChange={handlePersonalChange} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} disabled={isLoading} /></div>
                     </div>
 
@@ -806,15 +820,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                     )}
 
                     <hr className={styles.divider} />
-                    {renderAddressFields('currentAddress', 'Current Address')}
-                    <div className={styles.permanentHeader}>
-                        <h3 className={styles.sectionTitle}>Permanent Address</h3>
-                        <div className={styles.checkboxContainer}>
-                            <input type="checkbox" id="guestSameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} />
-                            <label htmlFor="guestSameAddress">Same as Current Address</label>
-                        </div>
-                    </div>
-                    {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
+                    {renderAddressFields('currentAddress', 'Home Address')}
 
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Dental History</h3>
@@ -824,17 +830,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                     </div>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>IF YES, PLEASE DETAIL</label><textarea className={styles.textArea} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} rows={3} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>DENTAL HISTORY NOTES</label><textarea className={styles.textArea} value={formData.dentalHistory.notes} onChange={(e) => handleNestedChange('dentalHistory', 'notes', e.target.value)} rows={3} disabled={isLoading} /></div>
-                    </div>
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}>
-                            <label>CONFIDENTIAL INFORMATION</label>
-                            <div className={styles.checkboxContainer} style={{ marginTop: '8px' }}>
-                                <input type="checkbox" checked={formData.dentalHistory.hasConfidentialInfo} onChange={(e) => handleNestedChange('dentalHistory', 'hasConfidentialInfo', e.target.checked)} disabled={isLoading} />
-                                <label>Patient wants to discuss private information verbally</label>
-                            </div>
-                        </div>
-                        <div className={styles.formGroup} />
+                        <div className={styles.formGroup}><label>DO YOU HAVE ANY PRIVATE OR CONFIDENTIAL INFORMATION YOU WISH TO DISCUSS IN PRIVATE AND NOT WRITE DOWN?</label><select className={styles.inputField} value={formData.dentalHistory.hasConfidentialInfo} onChange={(e) => handleNestedChange('dentalHistory', 'hasConfidentialInfo', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
                     </div>
 
                     <hr className={styles.divider} />
@@ -867,7 +863,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         <div className={styles.formGroup}>
                             <label>ALLERGIES</label>
                             <div className={styles.checkboxGrid}>
-                                {allergyOptions.map((option) => (
+                                {ALLERGY_OPTIONS.map((option) => (
                                     <label key={option} className={styles.checkboxOption}>
                                         <input type="checkbox" checked={formData.medicalHistory.allergies.includes(option)} onChange={() => handleNestedArrayToggle('medicalHistory', 'allergies', option)} disabled={isLoading} />
                                         <span>{option}</span>
@@ -893,7 +889,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         <div className={styles.formGroup}>
                             <label>MEDICAL CONDITIONS</label>
                             <div className={styles.checkboxGrid}>
-                                {medicalConditionOptions.map((option) => (
+                                {MEDICAL_CONDITION_OPTIONS.map((option) => (
                                     <label key={option} className={styles.checkboxOption}>
                                         <input type="checkbox" checked={formData.medicalHistory.conditions.includes(option)} onChange={() => handleNestedArrayToggle('medicalHistory', 'conditions', option)} disabled={isLoading} />
                                         <span>{option}</span>
@@ -912,11 +908,58 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                     <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value)} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>SPECIALTY</label><input className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isLoading}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
                     </div>
+                    {formData.physician.specialty === 'Other' && (
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}><label>SPECIALTY, IF OTHER</label><input className={`${styles.inputField} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={formData.physician.specialtyOther} onChange={(e) => handleNestedChange('physician', 'specialtyOther', e.target.value)} disabled={isLoading} />{errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}</div>
+                            <div className={styles.formGroup} />
+                        </div>
+                    )}
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>OFFICE ADDRESS</label><input className={styles.inputField} value={formData.physician.officeAddress} onChange={(e) => handleNestedChange('physician', 'officeAddress', e.target.value)} disabled={isLoading} /></div>
-                        <div className={styles.formGroup}><label>OFFICE NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.physician.officeNumber} onChange={handleNestedPhoneChange('physician', 'officeNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} /></div>{errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}</div>
+                        <div className={styles.formGroup}><label>OFFICE NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span><input className={styles.phoneField} value={formData.physician.officeNumber} onChange={handleNestedLandlineChange('physician', 'officeNumber')} maxLength={8} placeholder="1234567" disabled={isLoading} /></div>{errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}</div>
+                    </div>
+
+                    <hr className={styles.divider} />
+                    <h3 className={styles.mainSectionTitle}>Data Privacy Act</h3>
+                    <div className={styles.addressSection}>
+                        <p style={{ margin: '0 0 16px 0', color: '#475569', lineHeight: 1.6, fontSize: '14px' }}>
+                            I authorize Dentime to collect, store, and process the patient&apos;s personal and health information for appointment handling, treatment documentation, follow-up care, and clinic operations in compliance with the Data Privacy Act of 2012.
+                        </p>
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}>
+                                <label>PRIVACY SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
+                                <input className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} value={formData.dataPrivacyConsent.signerName} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerName', e.target.value)} disabled={isLoading} />
+                                {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>PRIVACY SIGNER ROLE</label>
+                                <select className={styles.inputField} value={formData.dataPrivacyConsent.signerRole} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerRole', e.target.value)} disabled={isLoading}>
+                                    <option value="Patient">Patient</option>
+                                    <option value="Parent">Parent</option>
+                                    <option value="Guardian">Guardian</option>
+                                </select>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>DATE SIGNED</label>
+                                <input type="date" className={styles.inputField} value={formData.dataPrivacyConsent.signedAt} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isLoading} />
+                            </div>
+                        </div>
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                            <button
+                                type="button"
+                                onClick={() => handlePrivacyAcknowledged(!formData.dataPrivacyConsent.acknowledged)}
+                                disabled={isLoading}
+                                style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#01538b', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                                {formData.dataPrivacyConsent.acknowledged ? 'Undo privacy acknowledgement' : 'Acknowledge data privacy consent'}
+                            </button>
+                            <span style={{ fontSize: '14px', color: formData.dataPrivacyConsent.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
+                                {formData.dataPrivacyConsent.acknowledged ? 'Data privacy consent acknowledged.' : 'Data privacy consent has not been acknowledged yet.'}
+                            </span>
+                        </div>
+                        {errors.dataPrivacyConsent_acknowledged && <span className={styles.errorText}>{errors.dataPrivacyConsent_acknowledged}</span>}
                     </div>
 
                     <hr className={styles.divider} />

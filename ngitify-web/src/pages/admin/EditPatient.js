@@ -6,14 +6,32 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
+import {
+    ALLERGY_OPTIONS,
+    MEDICAL_CONDITION_OPTIONS,
+    NATIONALITY_OPTIONS,
+    RELIGION_OPTIONS,
+    PHYSICIAN_SPECIALTY_OPTIONS,
+    LANDLINE_PREFIX,
+    isValidLandlineNumber,
+    isValidMobileNumber,
+    stripLandlinePrefix,
+    stripMobilePrefix,
+    toLandlinePayload,
+    toMobilePayload,
+    getSelectValueWithOther,
+    getOtherTextValue,
+} from '../../utils/patientIntake';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 const initialEmergencyContact = { name: '', relationship: '', contactNumber: '' };
 const initialGuardian = { name: '', relationship: '', contactNumber: '', occupation: '' };
-const initialPhysician = { name: '', specialty: '', officeAddress: '', officeNumber: '' };
+const initialPhysician = { name: '', specialty: '', specialtyOther: '', officeAddress: '', officeNumber: '' };
 const initialMedicalHistory = {
-    allergies: '',
-    conditions: '',
+    allergies: [],
+    allergyOther: '',
+    conditions: [],
+    conditionOther: '',
     medications: '',
     notes: '',
     inGoodHealth: '',
@@ -34,24 +52,15 @@ const initialMedicalHistory = {
     takingBirthControl: '',
 };
 const initialDentalHistory = {
-    chiefComplaint: '',
     lastExamDate: '',
-    notes: '',
     hadTreatmentReaction: '',
     reactionDetails: '',
-    hasConfidentialInfo: false,
+    hasConfidentialInfo: '',
 };
 
 const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
-const stripPhonePrefix = (value = '') => {
-    if (!value) return '';
-    if (value.startsWith('+63')) return value.slice(3);
-    return value;
-};
 const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
 const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
-const csvToString = (value) => Array.isArray(value) ? value.join(', ') : '';
-const stringToArray = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
 export default function EditPatient({ patientId, onClose, onSuccess }) {
@@ -59,7 +68,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     const { user } = useAuth();
     const isBranchManager = user?.role === 'branch-manager';
 
-    const [isSameAddress, setIsSameAddress] = useState(false);
     const [profileImage, setProfileImage] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
@@ -81,12 +89,14 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         assignedBranch: '',
         nationality: 'Filipino',
         religion: '',
+        religionOther: '',
         homePhone: '',
         occupation: '',
         civilStatus: '',
         bloodType: '',
         workPhone: '',
         referredBy: '',
+        reasonForConsultation: '',
         currentAddress: { ...initialAddressState },
         permanentAddress: { ...initialAddressState },
         emergencyContact: { ...initialEmergencyContact },
@@ -130,16 +140,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 const data = await response.json();
                 const currentAddress = { ...initialAddressState, ...(data.currentAddress || {}) };
                 const permanentAddress = { ...initialAddressState, ...(data.permanentAddress || {}) };
-                const sameAddress = (
-                    currentAddress.region === permanentAddress.region &&
-                    currentAddress.province === permanentAddress.province &&
-                    currentAddress.city === permanentAddress.city &&
-                    currentAddress.barangay === permanentAddress.barangay &&
-                    currentAddress.street === permanentAddress.street &&
-                    currentAddress.houseNumber === permanentAddress.houseNumber
-                );
-                setIsSameAddress(sameAddress);
-
                 const mapped = {
                     firstName: data.name?.first || '',
                     middleName: data.name?.middle || '',
@@ -147,39 +147,44 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                     birthdate: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0] : '',
                     gender: data.gender || '',
                     email: data.email || '',
-                    phone: stripPhonePrefix(data.contactNumber || ''),
+                    phone: stripMobilePrefix(data.contactNumber || ''),
                     assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
                     nationality: data.nationality || 'Filipino',
-                    religion: data.religion || '',
-                    homePhone: stripPhonePrefix(data.homePhone || ''),
+                    religion: getSelectValueWithOther(data.religion || '', RELIGION_OPTIONS),
+                    religionOther: getOtherTextValue(data.religion || '', RELIGION_OPTIONS),
+                    homePhone: stripLandlinePrefix(data.homePhone || ''),
                     occupation: data.occupation || '',
                     civilStatus: data.civilStatus || '',
                     bloodType: data.bloodType || '',
-                    workPhone: stripPhonePrefix(data.workPhone || ''),
+                    workPhone: stripLandlinePrefix(data.workPhone || ''),
                     referredBy: data.referredBy || '',
+                    reasonForConsultation: data.reasonForConsultation || data.dentalHistory?.chiefComplaint || '',
                     currentAddress,
                     permanentAddress,
                     emergencyContact: {
                         name: data.emergencyContact?.name || '',
                         relationship: data.emergencyContact?.relationship || '',
-                        contactNumber: stripPhonePrefix(data.emergencyContact?.contactNumber || ''),
+                        contactNumber: stripMobilePrefix(data.emergencyContact?.contactNumber || ''),
                     },
                     guardian: {
                         name: data.guardian?.name || '',
                         relationship: data.guardian?.relationship || '',
-                        contactNumber: stripPhonePrefix(data.guardian?.contactNumber || ''),
+                        contactNumber: stripMobilePrefix(data.guardian?.contactNumber || ''),
                         occupation: data.guardian?.occupation || '',
                     },
                     physician: {
                         name: data.physician?.name || '',
-                        specialty: data.physician?.specialty || '',
+                        specialty: getSelectValueWithOther(data.physician?.specialty || '', PHYSICIAN_SPECIALTY_OPTIONS),
+                        specialtyOther: getOtherTextValue(data.physician?.specialty || '', PHYSICIAN_SPECIALTY_OPTIONS),
                         officeAddress: data.physician?.officeAddress || '',
-                        officeNumber: stripPhonePrefix(data.physician?.officeNumber || ''),
+                        officeNumber: stripLandlinePrefix(data.physician?.officeNumber || ''),
                     },
                     medicalHistory: {
-                        allergies: csvToString(data.medicalHistory?.allergies),
-                        conditions: csvToString(data.medicalHistory?.conditions),
-                        medications: csvToString(data.medicalHistory?.medications),
+                        allergies: Array.isArray(data.medicalHistory?.allergies) ? data.medicalHistory.allergies.filter((entry) => ALLERGY_OPTIONS.includes(entry)) : [],
+                        allergyOther: Array.isArray(data.medicalHistory?.allergies) ? data.medicalHistory.allergies.filter((entry) => !ALLERGY_OPTIONS.includes(entry)).join(', ') : '',
+                        conditions: Array.isArray(data.medicalHistory?.conditions) ? data.medicalHistory.conditions.filter((entry) => MEDICAL_CONDITION_OPTIONS.includes(entry)) : [],
+                        conditionOther: Array.isArray(data.medicalHistory?.conditions) ? data.medicalHistory.conditions.filter((entry) => !MEDICAL_CONDITION_OPTIONS.includes(entry)).join(', ') : '',
+                        medications: Array.isArray(data.medicalHistory?.medications) ? data.medicalHistory.medications.join(', ') : '',
                         notes: data.medicalHistory?.notes || '',
                         inGoodHealth: boolToSelect(data.medicalHistory?.inGoodHealth),
                         underMedicalTreatment: boolToSelect(data.medicalHistory?.underMedicalTreatment),
@@ -199,12 +204,10 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                         takingBirthControl: boolToSelect(data.medicalHistory?.takingBirthControl),
                     },
                     dentalHistory: {
-                        chiefComplaint: data.dentalHistory?.chiefComplaint || '',
                         lastExamDate: data.dentalHistory?.lastExamDate ? new Date(data.dentalHistory.lastExamDate).toISOString().split('T')[0] : '',
-                        notes: data.dentalHistory?.notes || '',
                         hadTreatmentReaction: boolToSelect(data.dentalHistory?.hadTreatmentReaction),
                         reactionDetails: data.dentalHistory?.reactionDetails || '',
-                        hasConfidentialInfo: Boolean(data.dentalHistory?.hasConfidentialInfo),
+                        hasConfidentialInfo: boolToSelect(data.dentalHistory?.hasConfidentialInfo),
                     },
                     consentAcknowledgement: {
                         acknowledged: Boolean(data.consentAcknowledgement?.acknowledged),
@@ -294,6 +297,13 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
+    const handleLandlineChange = (name) => (e) => {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        if (value.length > 8) return;
+        clearError(name);
+        setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
     const handleNestedChange = (section, field, value, formatter) => {
         clearError(`${section}_${field}`);
         setFormData((prev) => ({
@@ -340,6 +350,33 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         }));
     };
 
+    const handleNestedLandlineChange = (section, field) => (e) => {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        if (value.length > 8) return;
+        clearError(`${section}_${field}`);
+        setFormData((prev) => ({
+            ...prev,
+            [section]: {
+                ...prev[section],
+                [field]: value,
+            },
+        }));
+    };
+
+    const handleNestedArrayToggle = (section, field, item) => {
+        setFormData((prev) => {
+            const currentValues = prev[section][field] || [];
+            const exists = currentValues.includes(item);
+            return {
+                ...prev,
+                [section]: {
+                    ...prev[section],
+                    [field]: exists ? currentValues.filter((value) => value !== item) : [...currentValues, item],
+                },
+            };
+        });
+    };
+
     const handleAddressChange = (type, field, value) => {
         clearError(`${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`);
         setFormData((prev) => {
@@ -347,21 +384,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
             else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
             else if (field === 'city') { updated.barangay = ''; }
-            if (type === 'currentAddress' && isSameAddress) {
-                return { ...prev, currentAddress: updated, permanentAddress: updated };
-            }
             return { ...prev, [type]: updated };
         });
-    };
-
-    const handleSameAddressToggle = (e) => {
-        const checked = e.target.checked;
-        setIsSameAddress(checked);
-        if (checked) {
-            setFormData((prev) => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
-        } else {
-            setFormData((prev) => ({ ...prev, permanentAddress: { ...initialAddressState } }));
-        }
     };
 
     const handleBlur = (e) => {
@@ -370,8 +394,10 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         if (name === 'email') {
             if (!value) newError = 'Required';
             else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)';
-        } else if (['phone', 'homePhone', 'workPhone'].includes(name) && value && (value.length !== 10 || value[0] !== '9')) {
+        } else if (name === 'phone' && value && !isValidMobileNumber(value)) {
             newError = 'Invalid format (9xxxxxxxxx)';
+        } else if (['homePhone', 'workPhone'].includes(name) && value && !isValidLandlineNumber(value)) {
+            newError = 'Invalid landline format';
         }
         setErrors((prev) => ({ ...prev, [name]: newError }));
     };
@@ -400,13 +426,13 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             isValid = false;
         }
 
-        if (formData.homePhone && (formData.homePhone.length !== 10 || formData.homePhone[0] !== '9')) {
-            nextErrors.homePhone = 'Invalid format';
+        if (formData.homePhone && !isValidLandlineNumber(formData.homePhone)) {
+            nextErrors.homePhone = 'Invalid landline format';
             isValid = false;
         }
 
-        if (formData.workPhone && (formData.workPhone.length !== 10 || formData.workPhone[0] !== '9')) {
-            nextErrors.workPhone = 'Invalid format';
+        if (formData.workPhone && !isValidLandlineNumber(formData.workPhone)) {
+            nextErrors.workPhone = 'Invalid landline format';
             isValid = false;
         }
 
@@ -424,9 +450,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             });
         };
         validateAddr(formData.currentAddress, 'current');
-        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
 
-        if (formData.emergencyContact.contactNumber && (formData.emergencyContact.contactNumber.length !== 10 || formData.emergencyContact.contactNumber[0] !== '9')) {
+        if (formData.emergencyContact.contactNumber && !isValidMobileNumber(formData.emergencyContact.contactNumber)) {
             nextErrors.emergencyContact_contactNumber = 'Invalid format';
             isValid = false;
         }
@@ -441,14 +466,22 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             if (!formData.guardian.contactNumber) {
                 nextErrors.guardian_contactNumber = 'Required';
                 isValid = false;
-            } else if (formData.guardian.contactNumber.length !== 10 || formData.guardian.contactNumber[0] !== '9') {
+            } else if (!isValidMobileNumber(formData.guardian.contactNumber)) {
                 nextErrors.guardian_contactNumber = 'Invalid format';
                 isValid = false;
             }
         }
 
-        if (formData.physician.officeNumber && (formData.physician.officeNumber.length !== 10 || formData.physician.officeNumber[0] !== '9')) {
-            nextErrors.physician_officeNumber = 'Invalid format';
+        if (formData.physician.officeNumber && !isValidLandlineNumber(formData.physician.officeNumber)) {
+            nextErrors.physician_officeNumber = 'Invalid landline format';
+            isValid = false;
+        }
+        if (formData.religion === 'Other' && !formData.religionOther.trim()) {
+            nextErrors.religionOther = 'Required';
+            isValid = false;
+        }
+        if (formData.physician.specialty === 'Other' && !formData.physician.specialtyOther.trim()) {
+            nextErrors.physician_specialtyOther = 'Required';
             isValid = false;
         }
         if (!formData.consentAcknowledgement.acknowledged) {
@@ -524,41 +557,42 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email: formData.email,
-            contactNumber: `+63${formData.phone}`,
+            contactNumber: toMobilePayload(formData.phone),
             birthdate: formData.birthdate,
             gender: formData.gender,
             profileImage,
             assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : (formData.assignedBranch || undefined),
             assignedBranches: isBranchManager ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
             nationality: formData.nationality || undefined,
-            religion: formData.religion || undefined,
-            homePhone: formData.homePhone ? `+63${formData.homePhone}` : undefined,
+            religion: (formData.religion === 'Other' ? formData.religionOther.trim() : formData.religion) || undefined,
+            homePhone: toLandlinePayload(formData.homePhone),
             occupation: formData.occupation || undefined,
             civilStatus: formData.civilStatus || undefined,
             bloodType: formData.bloodType || undefined,
-            workPhone: formData.workPhone ? `+63${formData.workPhone}` : undefined,
+            workPhone: toLandlinePayload(formData.workPhone),
             referredBy: formData.referredBy || undefined,
+            reasonForConsultation: formData.reasonForConsultation || undefined,
             emergencyContact: {
                 name: formData.emergencyContact.name || undefined,
                 relationship: formData.emergencyContact.relationship || undefined,
-                contactNumber: formData.emergencyContact.contactNumber ? `+63${formData.emergencyContact.contactNumber}` : undefined,
+                contactNumber: toMobilePayload(formData.emergencyContact.contactNumber),
             },
             guardian: isMinor ? {
                 name: formData.guardian.name,
                 relationship: formData.guardian.relationship,
-                contactNumber: `+63${formData.guardian.contactNumber}`,
+                contactNumber: toMobilePayload(formData.guardian.contactNumber),
                 occupation: formData.guardian.occupation || undefined,
             } : null,
             physician: {
                 name: formData.physician.name || undefined,
-                specialty: formData.physician.specialty || undefined,
+                specialty: (formData.physician.specialty === 'Other' ? formData.physician.specialtyOther.trim() : formData.physician.specialty) || undefined,
                 officeAddress: formData.physician.officeAddress || undefined,
-                officeNumber: formData.physician.officeNumber ? `+63${formData.physician.officeNumber}` : undefined,
+                officeNumber: toLandlinePayload(formData.physician.officeNumber),
             },
             medicalHistory: {
-                allergies: stringToArray(formData.medicalHistory.allergies),
-                conditions: stringToArray(formData.medicalHistory.conditions),
-                medications: stringToArray(formData.medicalHistory.medications),
+                allergies: [...formData.medicalHistory.allergies, ...(formData.medicalHistory.allergyOther ? [formData.medicalHistory.allergyOther.trim()] : [])].filter(Boolean),
+                conditions: [...formData.medicalHistory.conditions, ...(formData.medicalHistory.conditionOther ? [formData.medicalHistory.conditionOther.trim()] : [])].filter(Boolean),
+                medications: formData.medicalHistory.medications ? formData.medicalHistory.medications.split(',').map((item) => item.trim()).filter(Boolean) : undefined,
                 notes: formData.medicalHistory.notes || undefined,
                 inGoodHealth: selectToBool(formData.medicalHistory.inGoodHealth),
                 underMedicalTreatment: selectToBool(formData.medicalHistory.underMedicalTreatment),
@@ -578,12 +612,11 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 takingBirthControl: selectToBool(formData.medicalHistory.takingBirthControl),
             },
             dentalHistory: {
-                chiefComplaint: formData.dentalHistory.chiefComplaint || undefined,
+                chiefComplaint: formData.reasonForConsultation || undefined,
                 lastExamDate: formData.dentalHistory.lastExamDate || undefined,
-                notes: formData.dentalHistory.notes || undefined,
                 hadTreatmentReaction: selectToBool(formData.dentalHistory.hadTreatmentReaction),
                 reactionDetails: formData.dentalHistory.reactionDetails || undefined,
-                hasConfidentialInfo: Boolean(formData.dentalHistory.hasConfidentialInfo),
+                hasConfidentialInfo: selectToBool(formData.dentalHistory.hasConfidentialInfo),
             },
             consentAcknowledgement: {
                 acknowledged: Boolean(formData.consentAcknowledgement.acknowledged),
@@ -600,7 +633,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 version: 'Data Privacy Act of 2012',
             },
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
-            permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
+            permanentAddress: { country: 'Philippines', ...formData.currentAddress },
         };
 
         try {
@@ -704,59 +737,57 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} disabled={isSaving} />
                             </div>
 
-                            <h3 className={styles.mainSectionTitle}>Personal Information</h3>
+                            <h3 className={styles.mainSectionTitle}>Patient Details</h3>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} disabled={isSaving} />{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
                                 <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} disabled={isSaving} /></div>
                                 <div className={styles.formGroup}><label>LAST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.lastName ? styles.errorBorder : ''}`} name="lastName" value={formData.lastName} onChange={handlePersonalChange} disabled={isSaving} />{errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                                <div className={styles.formGroup}><label>BIRTHDAY <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                                <div className={styles.formGroup}><label>AGE</label><input className={styles.inputField} value={formData.birthdate ? getAge(formData.birthdate) : ''} readOnly disabled /></div>
                                 <div className={styles.formGroup}><label>GENDER <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} disabled={isSaving} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
-                                <div className={styles.formGroup}><label>PHONE NUMBER <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange('phone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.phone && <span className={styles.errorText}>{errors.phone}</span>}</div>
+                                <div className={styles.formGroup}><label>NATIONALITY</label><select className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Nationality</option>{NATIONALITY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
+                                <div className={styles.formGroup}><label>RELIGION</label><select className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Religion</option>{RELIGION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>HOME PHONE</label><div className={`${styles.phoneInputGroup} ${errors.homePhone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="homePhone" value={formData.homePhone} onChange={handlePhoneChange('homePhone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.homePhone && <span className={styles.errorText}>{errors.homePhone}</span>}</div>
-                                <div className={styles.formGroup}><label>WORK PHONE</label><div className={`${styles.phoneInputGroup} ${errors.workPhone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="workPhone" value={formData.workPhone} onChange={handlePhoneChange('workPhone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.workPhone && <span className={styles.errorText}>{errors.workPhone}</span>}</div>
-                            </div>
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                {formData.religion === 'Other' ? <div className={styles.formGroup}><label>RELIGION, IF OTHER</label><input className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religionOther" value={formData.religionOther} onChange={handlePersonalChange} disabled={isSaving} />{errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}</div> : <div className={styles.formGroup} />}
                                 <div className={styles.formGroup} />
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>NATIONALITY</label><input className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isSaving} /></div>
-                                <div className={styles.formGroup}><label>RELIGION</label><input className={styles.inputField} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>HOME PHONE</label><div className={`${styles.phoneInputGroup} ${errors.homePhone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span><input className={styles.phoneField} name="homePhone" value={formData.homePhone} onChange={handleLandlineChange('homePhone')} onBlur={handleBlur} maxLength={8} placeholder="1234567" disabled={isSaving} /></div>{errors.homePhone && <span className={styles.errorText}>{errors.homePhone}</span>}</div>
+                                <div className={styles.formGroup}><label>WORK PHONE</label><div className={`${styles.phoneInputGroup} ${errors.workPhone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span><input className={styles.phoneField} name="workPhone" value={formData.workPhone} onChange={handleLandlineChange('workPhone')} onBlur={handleBlur} maxLength={8} placeholder="1234567" disabled={isSaving} /></div>{errors.workPhone && <span className={styles.errorText}>{errors.workPhone}</span>}</div>
+                                <div className={styles.formGroup}><label>MOBILE <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange('phone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.phone && <span className={styles.errorText}>{errors.phone}</span>}</div>
                             </div>
                             <div className={styles.row}>
+                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} disabled={isSaving} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                                 <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} disabled={isSaving} /></div>
                                 <div className={styles.formGroup}><label>CIVIL STATUS</label><select className={styles.inputField} name="civilStatus" value={formData.civilStatus} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option><option value="Divorced">Divorced</option></select></div>
                             </div>
-
-                            <hr className={styles.divider} />
-                            <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>CONTACT NAME</label><input className={styles.inputField} value={formData.emergencyContact.name} onChange={(e) => handleNestedChange('emergencyContact', 'name', e.target.value, toTitleCase)} disabled={isSaving} /></div>
-                                <div className={styles.formGroup}><label>RELATIONSHIP</label><input className={styles.inputField} value={formData.emergencyContact.relationship} onChange={(e) => handleNestedChange('emergencyContact', 'relationship', e.target.value)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>EMERGENCY CONTACT</label><input className={styles.inputField} value={formData.emergencyContact.name} onChange={(e) => handleNestedChange('emergencyContact', 'name', e.target.value, toTitleCase)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>MOBILE</label><div className={`${styles.phoneInputGroup} ${errors.emergencyContact_contactNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.emergencyContact.contactNumber} onChange={handleNestedPhoneChange('emergencyContact', 'contactNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.emergencyContact_contactNumber && <span className={styles.errorText}>{errors.emergencyContact_contactNumber}</span>}</div>
+                                <div className={styles.formGroup}><label>RELATION</label><input className={styles.inputField} value={formData.emergencyContact.relationship} onChange={(e) => handleNestedChange('emergencyContact', 'relationship', e.target.value)} disabled={isSaving} /></div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>CONTACT NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.emergencyContact_contactNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.emergencyContact.contactNumber} onChange={handleNestedPhoneChange('emergencyContact', 'contactNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.emergencyContact_contactNumber && <span className={styles.errorText}>{errors.emergencyContact_contactNumber}</span>}</div>
-                                <div className={styles.formGroup} />
+                                <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>REASON FOR CONSULTATION</label><input className={styles.inputField} name="reasonForConsultation" value={formData.reasonForConsultation} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>BLOOD TYPE</label><select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Blood Type</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select></div>
                             </div>
 
                             {isMinor && (
                                 <>
                                     <hr className={styles.divider} />
-                                    <h3 className={styles.mainSectionTitle}>Guardian Information</h3>
+                                    <h3 className={styles.mainSectionTitle}>For Minors</h3>
                                     <div className={styles.row}>
                                         <div className={styles.formGroup}><label>GUARDIAN NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardian_name ? styles.errorBorder : ''}`} value={formData.guardian.name} onChange={(e) => handleNestedChange('guardian', 'name', e.target.value, toTitleCase)} disabled={isSaving} />{errors.guardian_name && <span className={styles.errorText}>{errors.guardian_name}</span>}</div>
-                                        <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={formData.guardian.relationship} onChange={(e) => handleNestedChange('guardian', 'relationship', e.target.value)} disabled={isSaving} />{errors.guardian_relationship && <span className={styles.errorText}>{errors.guardian_relationship}</span>}</div>
+                                        <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} value={formData.guardian.occupation} onChange={(e) => handleNestedChange('guardian', 'occupation', e.target.value)} disabled={isSaving} /></div>
                                     </div>
                                     <div className={styles.row}>
+                                        <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={formData.guardian.relationship} onChange={(e) => handleNestedChange('guardian', 'relationship', e.target.value)} disabled={isSaving} />{errors.guardian_relationship && <span className={styles.errorText}>{errors.guardian_relationship}</span>}</div>
                                         <div className={styles.formGroup}><label>GUARDIAN PHONE <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.guardian_contactNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.guardian.contactNumber} onChange={handleNestedPhoneChange('guardian', 'contactNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.guardian_contactNumber && <span className={styles.errorText}>{errors.guardian_contactNumber}</span>}</div>
-                                        <div className={styles.formGroup}><label>GUARDIAN OCCUPATION</label><input className={styles.inputField} value={formData.guardian.occupation} onChange={(e) => handleNestedChange('guardian', 'occupation', e.target.value)} disabled={isSaving} /></div>
                                     </div>
                                 </>
                             )}
@@ -782,31 +813,20 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             )}
 
                             <hr className={styles.divider} />
-                            {renderAddressFields('currentAddress', 'Current Address')}
-                            <div className={styles.permanentHeader}><h3 className={styles.sectionTitle}>Permanent Address</h3><div className={styles.checkboxContainer}><input type="checkbox" id="sameAddress" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isSaving} /><label htmlFor="sameAddress">Same as Current Address</label></div></div>
-                            {isSameAddress ? <div className={styles.disabledOverlay}>{renderAddressFields('permanentAddress', '', true)}</div> : renderAddressFields('permanentAddress', '')}
+                            {renderAddressFields('currentAddress', 'Home Address')}
 
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Dental History</h3>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>CHIEF COMPLAINT</label><input className={styles.inputField} value={formData.dentalHistory.chiefComplaint} onChange={(e) => handleNestedChange('dentalHistory', 'chiefComplaint', e.target.value)} disabled={isSaving} /></div>
                                 <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={`${styles.inputField} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} max={getTodayDate()} disabled={isSaving} />{errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}</div>
+                                <div className={styles.formGroup} />
                             </div>
                             <div className={styles.row}>
                                 {renderYesNoField('REACTION OR COMPLICATION AFTER DENTAL TREATMENT?', 'dentalHistory', 'hadTreatmentReaction', formData.dentalHistory.hadTreatmentReaction, isSaving)}
-                                <div className={styles.formGroup}><label>REACTION DETAILS</label><input className={`${styles.inputField} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} disabled={isSaving} />{errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}</div>
+                                <div className={styles.formGroup}><label>IF YES, PLEASE DETAIL</label><input className={`${styles.inputField} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} disabled={isSaving} />{errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                {renderTextArea('DENTAL HISTORY NOTES', formData.dentalHistory.notes, (e) => handleNestedChange('dentalHistory', 'notes', e.target.value), 'Reaction, complications, or other dental notes', 'dentalNotes')}
-                            </div>
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>CONFIDENTIAL INFORMATION FLAG</label>
-                                    <div className={styles.checkboxContainer} style={{ marginTop: '8px' }}>
-                                        <input type="checkbox" checked={formData.dentalHistory.hasConfidentialInfo} onChange={(e) => handleNestedChange('dentalHistory', 'hasConfidentialInfo', e.target.checked)} disabled={isSaving} />
-                                        <label>Patient wants to discuss private information verbally with the dentist</label>
-                                    </div>
-                                </div>
+                                {renderYesNoField('DO YOU HAVE ANY PRIVATE OR CONFIDENTIAL INFORMATION YOU WISH TO DISCUSS IN PRIVATE AND NOT WRITE DOWN?', 'dentalHistory', 'hasConfidentialInfo', formData.dentalHistory.hasConfidentialInfo, isSaving)}
                                 <div className={styles.formGroup} />
                             </div>
 
@@ -849,10 +869,33 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 <div className={styles.formGroup} />
                             </div>
                             <div className={styles.row}>
-                                {renderTextArea('ALLERGIES', formData.medicalHistory.allergies, (e) => handleNestedChange('medicalHistory', 'allergies', e.target.value), 'Comma-separated values', 'allergies')}
+                                <div className={styles.formGroup}>
+                                    <label>ALLERGIES</label>
+                                    <div className={styles.checkboxGrid}>
+                                        {ALLERGY_OPTIONS.map((option) => (
+                                            <label key={option} className={styles.checkboxOption}>
+                                                <input type="checkbox" checked={formData.medicalHistory.allergies.includes(option)} onChange={() => handleNestedArrayToggle('medicalHistory', 'allergies', option)} disabled={isSaving} />
+                                                <span>{option}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <input className={`${styles.inputField} ${errors.medicalHistory_allergies ? styles.errorBorder : ''}`} style={{ marginTop: '12px' }} value={formData.medicalHistory.allergyOther} onChange={(e) => handleNestedChange('medicalHistory', 'allergyOther', e.target.value)} placeholder="Other allergy" disabled={isSaving} />
+                                    {errors.medicalHistory_allergies && <span className={styles.errorText}>{errors.medicalHistory_allergies}</span>}
+                                </div>
                             </div>
                             <div className={styles.row}>
-                                {renderTextArea('MEDICAL CONDITIONS', formData.medicalHistory.conditions, (e) => handleNestedChange('medicalHistory', 'conditions', e.target.value), 'Comma-separated values', 'conditions')}
+                                <div className={styles.formGroup}>
+                                    <label>MEDICAL CONDITIONS</label>
+                                    <div className={styles.checkboxGrid}>
+                                        {MEDICAL_CONDITION_OPTIONS.map((option) => (
+                                            <label key={option} className={styles.checkboxOption}>
+                                                <input type="checkbox" checked={formData.medicalHistory.conditions.includes(option)} onChange={() => handleNestedArrayToggle('medicalHistory', 'conditions', option)} disabled={isSaving} />
+                                                <span>{option}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <input className={styles.inputField} style={{ marginTop: '12px' }} value={formData.medicalHistory.conditionOther} onChange={(e) => handleNestedChange('medicalHistory', 'conditionOther', e.target.value)} placeholder="Other condition" disabled={isSaving} />
+                                </div>
                             </div>
                             <div className={styles.row}>
                                 {renderTextArea('MEDICATIONS', formData.medicalHistory.medications, (e) => handleNestedChange('medicalHistory', 'medications', e.target.value), 'Comma-separated values', 'medications')}
@@ -865,11 +908,17 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value, toTitleCase)} disabled={isSaving} /></div>
-                                <div className={styles.formGroup}><label>SPECIALTY</label><input className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isSaving}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
                             </div>
+                            {formData.physician.specialty === 'Other' && (
+                                <div className={styles.row}>
+                                    <div className={styles.formGroup}><label>SPECIALTY, IF OTHER</label><input className={`${styles.inputField} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={formData.physician.specialtyOther} onChange={(e) => handleNestedChange('physician', 'specialtyOther', e.target.value)} disabled={isSaving} />{errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}</div>
+                                    <div className={styles.formGroup} />
+                                </div>
+                            )}
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>OFFICE ADDRESS</label><input className={styles.inputField} value={formData.physician.officeAddress} onChange={(e) => handleNestedChange('physician', 'officeAddress', e.target.value)} disabled={isSaving} /></div>
-                                <div className={styles.formGroup}><label>OFFICE NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.physician.officeNumber} onChange={handleNestedPhoneChange('physician', 'officeNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}</div>
+                                <div className={styles.formGroup}><label>OFFICE NUMBER</label><div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span><input className={styles.phoneField} value={formData.physician.officeNumber} onChange={handleNestedLandlineChange('physician', 'officeNumber')} maxLength={8} placeholder="1234567" disabled={isSaving} /></div>{errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}</div>
                             </div>
 
                             <hr className={styles.divider} />

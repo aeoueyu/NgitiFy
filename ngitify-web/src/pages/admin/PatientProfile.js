@@ -11,6 +11,10 @@ import {
 } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import {
+    ALLERGY_OPTIONS,
+    MEDICAL_CONDITION_OPTIONS,
+} from '../../utils/patientIntake';
 
 // FDI Tooth Numbering (Adults)
 const UPPER_RIGHT = [18,17,16,15,14,13,12,11];
@@ -33,6 +37,10 @@ const formatAddressFull = (addr) => {
     return [addr.houseNumber, addr.street, addr.barangay, addr.city, addr.province, addr.region]
         .filter(Boolean).join(', ') || '—';
 };
+
+const yesNoText = (value) => value === true ? 'Yes' : value === false ? 'No' : 'Not answered';
+const textValue = (value) => value || 'Not specified';
+const listIncludes = (list, item) => Array.isArray(list) && list.includes(item);
 
 export default function PatientProfile({ patientId, onClose, onEdit }) {
     const { addToast } = useToast();
@@ -249,88 +257,68 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         <FaBirthdayCake />
                     )}
                     {infoItem('Email Address', patient.email, <FaEnvelope />)}
-                    {infoItem('Contact Number', patient.contactNumber || '—', <FaPhoneAlt />)}
+                    {infoItem('Mobile', patient.contactNumber || '—', <FaPhoneAlt />)}
+                    {infoItem('Home Phone', patient.homePhone)}
                     {infoItem('Patient ID', patient._id, <FaIdCard />)}
                     {infoItem('Occupation', patient.occupation)}
                     {infoItem('Civil Status', patient.civilStatus)}
                     {infoItem('Blood Type', patient.bloodType || patient.medicalHistory?.bloodType)}
                     {infoItem('Work Phone', patient.workPhone)}
+                    {infoItem('Nationality', patient.nationality)}
+                    {infoItem('Religion', patient.religion)}
                     {infoItem('Referred By', patient.referredBy)}
+                    {infoItem('Reason for Consultation', patient.reasonForConsultation || patient.dentalHistory?.chiefComplaint)}
                 </div>
 
-                {patient.guardian && (
-                    <>
-                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Guardian Information</h3>
-                        <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                            {infoItem('Guardian Name', patient.guardian.name, <FaChild />)}
-                            {infoItem('Relationship', patient.guardian.relationship)}
-                            {infoItem('Guardian Contact', patient.guardian.contactNumber, <FaPhoneAlt />)}
-                            {infoItem('Guardian Occupation', patient.guardian.occupation)}
-                        </div>
-                    </>
-                )}
+                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>For Minors</h3>
+                <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    {infoItem('Guardian Name', patient.guardian?.name, <FaChild />)}
+                    {infoItem('Guardian Occupation', patient.guardian?.occupation)}
+                    {infoItem('Relationship', patient.guardian?.relationship)}
+                    {infoItem('Guardian Phone', patient.guardian?.contactNumber, <FaPhoneAlt />)}
+                </div>
 
-                {(patient.emergencyContact?.name || patient.emergencyContact?.contactNumber) && (
-                    <>
-                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Emergency Contact</h3>
-                        <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                            {infoItem('Contact Name', patient.emergencyContact?.name)}
-                            {infoItem('Relationship', patient.emergencyContact?.relationship)}
-                            {infoItem('Contact Number', patient.emergencyContact?.contactNumber, <FaPhoneAlt />)}
-                        </div>
-                    </>
-                )}
+                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Emergency Contact</h3>
+                <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    {infoItem('Emergency Contact', patient.emergencyContact?.name)}
+                    {infoItem('Mobile', patient.emergencyContact?.contactNumber, <FaPhoneAlt />)}
+                    {infoItem('Relation', patient.emergencyContact?.relationship)}
+                </div>
 
-                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Current Address</h3>
+                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Home Address</h3>
                 <div className={styles.infoGrid}>
-                    {infoItem('House No.', patient.currentAddress?.houseNumber)}
-                    {infoItem('Street', patient.currentAddress?.street)}
-                    {infoItem('Barangay', patient.currentAddress?.barangay)}
-                    {infoItem('City / Municipality', patient.currentAddress?.city)}
-                    {infoItem('Province', patient.currentAddress?.province)}
-                    {infoItem('Region', patient.currentAddress?.region)}
+                    {infoItem('House No.', patient.currentAddress?.houseNumber || patient.permanentAddress?.houseNumber)}
+                    {infoItem('Street', patient.currentAddress?.street || patient.permanentAddress?.street)}
+                    {infoItem('Barangay', patient.currentAddress?.barangay || patient.permanentAddress?.barangay)}
+                    {infoItem('City / Municipality', patient.currentAddress?.city || patient.permanentAddress?.city)}
+                    {infoItem('Province', patient.currentAddress?.province || patient.permanentAddress?.province)}
+                    {infoItem('Region', patient.currentAddress?.region || patient.permanentAddress?.region)}
                 </div>
                 <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Full Current Address</span>
+                    <span className={styles.infoLabel}>Full Home Address</span>
                     <p className={styles.infoValue}>
                         <FaMapMarkerAlt style={{ color: '#94a3b8', marginRight: '6px' }} />
-                        {formatAddressFull(patient.currentAddress)}
+                        {formatAddressFull(patient.currentAddress?.region ? patient.currentAddress : patient.permanentAddress)}
                     </p>
                 </div>
 
-                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Permanent Address</h3>
-                <div className={styles.infoGrid}>
-                    {infoItem('House No.', patient.permanentAddress?.houseNumber)}
-                    {infoItem('Street', patient.permanentAddress?.street)}
-                    {infoItem('Barangay', patient.permanentAddress?.barangay)}
-                    {infoItem('City / Municipality', patient.permanentAddress?.city)}
-                    {infoItem('Province', patient.permanentAddress?.province)}
-                    {infoItem('Region', patient.permanentAddress?.region)}
+                <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Consent Summary</h3>
+                <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    {infoItem('Digital Consent Agreed', patient.consentAcknowledgement?.acknowledged === true ? 'Yes' : patient.consentAcknowledgement?.acknowledged === false ? 'No' : 'Not answered')}
+                    {infoItem('Digital Consent Signer', patient.consentAcknowledgement?.signerName)}
+                    {infoItem('Digital Consent Role', patient.consentAcknowledgement?.signerRole)}
+                    {infoItem('Digital Consent Date', patient.consentAcknowledgement?.signedAt ? formatDateLong(patient.consentAcknowledgement.signedAt) : 'Not specified')}
+                    {infoItem('Data Privacy Agreed', patient.dataPrivacyConsent?.acknowledged === true ? 'Yes' : patient.dataPrivacyConsent?.acknowledged === false ? 'No' : 'Not answered')}
+                    {infoItem('Privacy Signer', patient.dataPrivacyConsent?.signerName)}
+                    {infoItem('Privacy Role', patient.dataPrivacyConsent?.signerRole)}
+                    {infoItem('Privacy Date', patient.dataPrivacyConsent?.signedAt ? formatDateLong(patient.dataPrivacyConsent.signedAt) : 'Not specified')}
                 </div>
-                <div className={styles.infoBlock}>
-                    <span className={styles.infoLabel}>Full Permanent Address</span>
-                    <p className={styles.infoValue}>
-                        <FaMapMarkerAlt style={{ color: '#94a3b8', marginRight: '6px' }} />
-                        {formatAddressFull(patient.permanentAddress)}
-                    </p>
-                </div>
-
-                {(patient.consentAcknowledgement?.acknowledged || patient.consentAcknowledgement?.signerName) && (
-                    <>
-                        <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Digital Consent</h3>
-                        <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                            {infoItem('Consent Recorded', patient.consentAcknowledgement?.acknowledged === true ? 'Yes' : patient.consentAcknowledgement?.acknowledged === false ? 'No' : '—')}
-                            {infoItem('Signer Name', patient.consentAcknowledgement?.signerName)}
-                            {infoItem('Signer Role', patient.consentAcknowledgement?.signerRole)}
-                            {infoItem('Date Signed', patient.consentAcknowledgement?.signedAt ? formatDateLong(patient.consentAcknowledgement.signedAt) : '—')}
-                        </div>
-                    </>
-                )}
             </div>
         );
     };
 
     // ─── MEDICAL HISTORY & ALERTS TAB ─────────────────────────────────────────
+    // eslint-disable-next-line no-unused-vars
     const renderMedicalHistory = () => (
         <div className={styles.contentCard}>
             <h3 className={styles.sectionTitle}>Medical History & Alerts</h3>
@@ -418,6 +406,74 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
             </div>
         </div>
     );
+
+    const renderMedicalHistoryAligned = () => {
+        const medical = patient?.medicalHistory || {};
+        const dental = patient?.dentalHistory || {};
+        const renderChecklist = (options, selected, warning = false) => (
+            <div className={styles.tagList}>
+                {options.map((option) => (
+                    <span key={option} className={`${styles.tag} ${listIncludes(selected, option) && warning ? styles.warning : ''}`}>
+                        {listIncludes(selected, option) ? '[x]' : '[ ]'} {option}
+                    </span>
+                ))}
+            </div>
+        );
+
+        return (
+            <div className={styles.contentCard}>
+                <h3 className={styles.sectionTitle}>Medical & Dental History</h3>
+
+                <div className={styles.infoGrid}>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Last Dental Visit</span><p className={styles.infoValue}>{dental.lastExamDate ? formatDateLong(dental.lastExamDate) : 'Not specified'}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Reaction or Complication After Dental Treatment?</span><p className={styles.infoValue}>{yesNoText(dental.hadTreatmentReaction)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>If Yes, Please Detail</span><p className={styles.infoValue}>{textValue(dental.reactionDetails)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Private or Confidential Information to Discuss in Private?</span><p className={styles.infoValue}>{yesNoText(dental.hasConfidentialInfo)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Physician's Name</span><p className={styles.infoValue}>{textValue(patient?.physician?.name)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Specialty, If Applicable</span><p className={styles.infoValue}>{textValue(patient?.physician?.specialty)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Office Address</span><p className={styles.infoValue}>{textValue(patient?.physician?.officeAddress)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Office Number</span><p className={styles.infoValue}>{textValue(patient?.physician?.officeNumber)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You in Good Health?</span><p className={styles.infoValue}>{yesNoText(medical.inGoodHealth)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Under Medical Treatment Now?</span><p className={styles.infoValue}>{yesNoText(medical.underMedicalTreatment)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Condition Treated</span><p className={styles.infoValue}>{textValue(medical.medicalTreatmentDetails)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Serious Illness or Surgical Operation?</span><p className={styles.infoValue}>{yesNoText(medical.hadSeriousIllnessOrSurgery)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Illness or Operation Details</span><p className={styles.infoValue}>{textValue(medical.seriousIllnessOrSurgeryDetails)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Ever Been Hospitalized?</span><p className={styles.infoValue}>{yesNoText(medical.hadHospitalization)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Hospitalization Details</span><p className={styles.infoValue}>{textValue(medical.hospitalizationDetails)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Taking Prescription / Non-Prescription Medication?</span><p className={styles.infoValue}>{yesNoText(medical.isTakingMedication)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Medications</span><p className={styles.infoValue}>{Array.isArray(medical.medications) && medical.medications.length > 0 ? medical.medications.join(', ') : 'Not specified'}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Use Tobacco Products?</span><p className={styles.infoValue}>{yesNoText(medical.usesTobacco)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Use Alcohol, Cocaine, or Other Dangerous Drugs?</span><p className={styles.infoValue}>{yesNoText(medical.usesAlcoholOrDrugs)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Has Allergies?</span><p className={styles.infoValue}>{yesNoText(medical.hasAllergies)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Bleeding Time</span><p className={styles.infoValue}>{textValue(medical.bleedingTime)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Blood Type</span><p className={styles.infoValue}>{textValue(patient?.bloodType || medical.bloodType)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Blood Pressure</span><p className={styles.infoValue}>{textValue(medical.bloodPressure)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Pregnant?</span><p className={styles.infoValue}>{yesNoText(medical.isPregnant)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Nursing?</span><p className={styles.infoValue}>{yesNoText(medical.isNursing)}</p></div>
+                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Taking Birth Control Pills?</span><p className={styles.infoValue}>{yesNoText(medical.takingBirthControl)}</p></div>
+                </div>
+
+                <div className={styles.infoBlock} style={{ marginTop: '28px' }}>
+                    <span className={styles.infoLabel} style={{ color: '#ef4444' }}><FaSyringe style={{marginRight: '6px'}} />Allergy Checklist</span>
+                    {renderChecklist(ALLERGY_OPTIONS, medical.allergies, true)}
+                    <p className={styles.infoValue} style={{ marginTop: '12px' }}>Other Allergy: {Array.isArray(medical.allergies) ? medical.allergies.filter((item) => !ALLERGY_OPTIONS.includes(item)).join(', ') || 'Not specified' : 'Not specified'}</p>
+                </div>
+
+                <div className={styles.infoBlock} style={{ marginTop: '28px' }}>
+                    <span className={styles.infoLabel}><FaNotesMedical style={{marginRight: '6px'}} />Medical Conditions Checklist</span>
+                    {renderChecklist(MEDICAL_CONDITION_OPTIONS, medical.conditions)}
+                    <p className={styles.infoValue} style={{ marginTop: '12px' }}>Other Condition: {Array.isArray(medical.conditions) ? medical.conditions.filter((item) => !MEDICAL_CONDITION_OPTIONS.includes(item)).join(', ') || 'Not specified' : 'Not specified'}</p>
+                </div>
+
+                <div className={styles.infoBlock} style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '30px', marginTop: '28px' }}>
+                    <span className={styles.infoLabel}>Clinical Notes & Remarks</span>
+                    <p className={styles.infoValue} style={{ fontWeight: '500', color: '#475569', fontStyle: 'italic' }}>
+                        {medical.notes ? `"${medical.notes}"` : 'No clinical notes on record.'}
+                    </p>
+                </div>
+            </div>
+        );
+    };
 
     // ─── TREATMENT LOGS TAB ────────────────────────────────────────────────────
     const renderTreatmentLogs = () => {
@@ -740,15 +796,15 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 {/* Updated tab structure */}
                 <div className={styles.tabContainer}>
                     <button className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.active : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
-                    <button className={`${styles.tabBtn} ${activeTab === 'medical' ? styles.active : ''}`} onClick={() => setActiveTab('medical')}>Medical History & Alerts</button>
-                    <button className={`${styles.tabBtn} ${activeTab === 'logs' ? styles.active : ''}`} onClick={() => setActiveTab('logs')}>Treatment Logs</button>
-                    <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Dental Chart</button>
+                    <button className={`${styles.tabBtn} ${activeTab === 'medical' ? styles.active : ''}`} onClick={() => setActiveTab('medical')}>Medical & Dental History</button>
+                    <button className={`${styles.tabBtn} ${activeTab === 'logs' ? styles.active : ''}`} onClick={() => setActiveTab('logs')}>Treatment History</button>
+                    <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Digital Odontogram</button>
                     <button className={`${styles.tabBtn} ${activeTab === 'radiographs' ? styles.active : ''}`} onClick={() => setActiveTab('radiographs')}>Radiographs</button>
                 </div>
 
                 <div className={styles.tabContentArea}>
                     {activeTab === 'overview'    && renderOverview()}
-                    {activeTab === 'medical'     && renderMedicalHistory()}
+                    {activeTab === 'medical'     && renderMedicalHistoryAligned()}
                     {activeTab === 'logs'        && renderTreatmentLogs()}
                     {activeTab === 'odontogram'  && renderOdontogram()}
                     {activeTab === 'radiographs' && renderRadiographs()}

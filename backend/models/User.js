@@ -98,6 +98,7 @@ const userSchema = new mongoose.Schema({
     occupation: { type: String },
     workPhone: { type: String },
     referredBy: { type: String },
+    reasonForConsultation: { type: String },
     emergencyContact: {
         name: { type: String },
         relationship: { type: String },
