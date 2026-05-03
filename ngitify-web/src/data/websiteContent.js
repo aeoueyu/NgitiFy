@@ -79,14 +79,6 @@ export const appointmentSteps = [
 ];
 
 export const appointmentProcedures = [
-    'Oral Prophylaxis (Cleaning)',
-    'Tooth Extraction',
-    'Dental Filling',
-    'Root Canal Treatment',
-    'Orthodontic Consultation',
-    'Dental Implant Consultation',
-    'Teeth Whitening',
-    'Dentures / Retainers',
-    'X-Ray / Imaging',
-    'Other / General Check-up',
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
 ];

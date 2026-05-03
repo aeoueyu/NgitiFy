@@ -69,6 +69,8 @@ export const AuthProvider = ({ children }) => {
                 email:        data.email || '',
                 profileImage: data.profileImage || null,
                 assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
+                appConsentGiven: Boolean(data.appConsentGiven),
+                appConsentTimestamp: data.appConsentTimestamp || null,
             };
         } catch {
             return null;

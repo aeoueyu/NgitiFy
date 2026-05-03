@@ -521,6 +521,9 @@ export default function PreRegisterPage() {
                                 <p className={styles.bodyText}>
                                     Hello {appointmentInfo.guestName}, please complete the patient information below for your {appointmentInfo.procedure} appointment on {formatDate(appointmentInfo.appointmentDate)} at {appointmentInfo.branch}.
                                 </p>
+                                <p className={styles.bodyText}>
+                                    The information you provide here will be used to complete your patient registration at NgitiFy Dental Clinic, in accordance with our Privacy Policy and Republic Act No. 10173.
+                                </p>
                                 <div className={styles.formGrid} style={{ marginTop: '16px' }}>
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Birthdate</label>

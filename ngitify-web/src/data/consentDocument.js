@@ -99,3 +99,36 @@ export const consentSectionsTagalog = [
         body: 'Sumasang-ayon ako na ako ang responsable sa lahat ng gastos sa paggamot at anumang karagdagang gastos, interes, legal na bayad, o bayarin sa hukuman na maaaring lumitaw upang matugunan ang anumang obligasyon sa klinikang ito. Pumapayag din ako na walang refund ng down payment o buong bayad sa anumang kaso ng kinansela o itinigil na paggamot. Ang lahat ng paggamot ay naipaliwanag sa akin at ang attending dentist ay hindi mananagot sa anumang hindi inaasahang pangyayari dahil kusang-loob akong sumasailalim sa paggamot na ito nang may buong tiwala at kumpiyansa sa kanya.',
     },
 ];
+
+export const privacyPolicyVersion = 'v1.0';
+export const privacyPolicyUpdatedAt = 'May 3, 2026';
+export const privacyPolicySections = [
+    {
+        heading: 'Introduction',
+        body: 'NgitiFy Dental Clinic respects your privacy and processes personal information in accordance with Republic Act No. 10173, also known as the Data Privacy Act of 2012. This policy explains how appointment and patient information is collected, used, stored, and protected when you interact with our website, clinic staff, and patient services.',
+    },
+    {
+        heading: 'What Data We Collect',
+        body: 'We may collect your name, email address, mobile number, date of birth, gender, appointment preferences, clinic branch, concerns or chief complaint, and any registration information you provide during pre-registration or patient onboarding.',
+    },
+    {
+        heading: 'How We Use Your Data',
+        body: 'Your information is used for appointment scheduling, patient care coordination, pre-registration, treatment preparation, account activation, clinic communications, and internal service records needed to support safe and accurate dental care.',
+    },
+    {
+        heading: 'Who Has Access',
+        body: 'Access is limited to authorized clinic personnel such as administrators, branch managers, secretaries, dentists, and approved system providers only when access is necessary for operations, support, or legal compliance.',
+    },
+    {
+        heading: 'Your Rights Under RA 10173',
+        body: 'You may request access to your personal data, ask for corrections to inaccurate records, withdraw consent where applicable, and raise privacy concerns through the clinic contact channels, subject to legal and medical record retention requirements.',
+    },
+    {
+        heading: 'Data Retention',
+        body: 'Appointment and patient records are retained only for as long as needed for patient care, legal obligations, audit requirements, and operational continuity. Records may be archived when no longer active but may still be retained as required by law or clinic policy.',
+    },
+    {
+        heading: 'Contact Information',
+        body: 'For privacy-related questions or requests, please contact NgitiFy Dental Clinic through the official clinic contact channels or ask the clinic for the current Data Protection Officer contact information.',
+    },
+];

@@ -165,6 +165,7 @@ export default function PatientDashboard({ navigation }) {
 
     // ── Data state ──
     const [upcomingAppt,    setUpcomingAppt]    = useState(null);
+    const [pastAppointments, setPastAppointments] = useState([]);
     const [notifications,   setNotifications]   = useState([]);
     const [lastVisitDate,   setLastVisitDate]   = useState(null);
     const [visitPrediction, setVisitPrediction] = useState(null);
@@ -203,10 +204,15 @@ export default function PatientDashboard({ navigation }) {
             // ── Upcoming appointment ──
             if (apptRes.status === 'fulfilled' && apptRes.value.ok) {
                 const appts = await apptRes.value.json();
-                const active = (Array.isArray(appts) ? appts : [])
+                const appointmentList = Array.isArray(appts) ? appts : [];
+                const active = appointmentList
                     .filter(a => ['pending', 'confirmed', 'in-clinic'].includes(a.status))
                     .sort((a, b) => new Date(a.date) - new Date(b.date));
+                const past = appointmentList
+                    .filter(a => ['completed', 'cancelled'].includes(a.status))
+                    .sort((a, b) => new Date(b.date) - new Date(a.date));
                 setUpcomingAppt(active[0] || null);
+                setPastAppointments(past);
                 setApptError(false);
             } else {
                 setApptError(true);
@@ -277,8 +283,8 @@ export default function PatientDashboard({ navigation }) {
 
         const statusColors = {
             pending:     { bg: '#fff3e0', text: '#e65100', dot: '#ff9800' },
-            confirmed:   { bg: '#e8f5e9', text: '#2e7d32', dot: '#4caf50' },
-            'in-clinic': { bg: '#e3f2fd', text: '#01538b', dot: '#2196f3' },
+            confirmed:   { bg: '#e3f2fd', text: '#01538b', dot: '#2196f3' },
+            'in-clinic': { bg: '#e8f5e9', text: '#2e7d32', dot: '#4caf50' },
         };
         const sc = statusColors[upcomingAppt.status] || statusColors.pending;
         const dentistName = upcomingAppt.dentist
@@ -315,6 +321,63 @@ export default function PatientDashboard({ navigation }) {
                     <Text style={styles.apptTapHint}>Tap to manage →</Text>
                 </View>
             </TouchableOpacity>
+        );
+    };
+
+    const renderPastAppointments = () => {
+        const statusColors = {
+            completed: { bg: '#e8f5e9', text: '#2e7d32', dot: '#4caf50' },
+            cancelled: { bg: '#ffebee', text: '#c62828', dot: '#ef5350' },
+        };
+
+        if (!pastAppointments.length) {
+            return (
+                <View style={[styles.apptCard, styles.apptCardEmpty]}>
+                    <Ionicons name="time-outline" size={32} color="#bbb" style={{ marginBottom: 10 }} />
+                    <Text style={styles.emptyTitle}>No past or cancelled appointments yet</Text>
+                    <Text style={styles.emptySubtitle}>Your completed and cancelled visits will appear here.</Text>
+                </View>
+            );
+        }
+
+        return (
+            <View style={styles.historyList}>
+                {pastAppointments.slice(0, 4).map((appointment) => {
+                    const sc = statusColors[appointment.status] || statusColors.completed;
+                    const dentistName = appointment.dentist
+                        ? `Dr. ${appointment.dentist.name?.first || ''} ${appointment.dentist.name?.last || ''}`.trim()
+                        : 'To be assigned';
+                    return (
+                        <TouchableOpacity
+                            key={appointment._id}
+                            style={styles.historyCard}
+                            onPress={() => navigation.navigate('AppointmentBooking')}
+                            activeOpacity={0.82}
+                        >
+                            <View style={styles.apptCardTop}>
+                                <View style={{ flex: 1, paddingRight: 10 }}>
+                                    <Text style={styles.historyProcedure}>{appointment.procedure}</Text>
+                                    <Text style={styles.apptMeta}>{formatDate(appointment.date)}</Text>
+                                    {appointment.time ? <Text style={styles.apptMeta}>{formatTime(appointment.time)}</Text> : null}
+                                    <Text style={styles.apptDentist}>{dentistName}</Text>
+                                </View>
+                                <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
+                                    <View style={[styles.statusDot, { backgroundColor: sc.dot }]} />
+                                    <Text style={[styles.statusText, { color: sc.text }]}>
+                                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={styles.apptCardFooter}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Ionicons name="location-outline" size={13} color="#888" style={{ marginRight: 4 }} />
+                                    <Text style={styles.apptBranch}>{appointment.branch || 'Dentime Dental Clinic'}</Text>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
         );
     };
 
@@ -435,6 +498,9 @@ export default function PatientDashboard({ navigation }) {
                 <SectionHeader title="Predictive Visit Window" />
                 {renderVisitBanner()}
 
+                <SectionHeader title="Past / Cancelled Appointments" />
+                {renderPastAppointments()}
+
                 {/* ── Quick Actions ── */}
                 <SectionHeader title="Quick Actions" />
                 <View style={styles.qaGrid}>
@@ -547,6 +613,7 @@ const styles = StyleSheet.create({
     apptCardTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
     apptCardFooter: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 10, marginTop: 4 },
     apptProcedure:  { fontSize: 17, fontWeight: 'bold', color: '#01538b', marginBottom: 4 },
+    historyProcedure: { fontSize: 15, fontWeight: 'bold', color: '#284b63', marginBottom: 4 },
     apptMeta:       { fontSize: 13, color: '#555', marginBottom: 2 },
     apptDentist:    { fontSize: 12, color: '#888', marginTop: 2 },
     apptBranch:     { fontSize: 12, color: '#888' },
@@ -560,6 +627,12 @@ const styles = StyleSheet.create({
     emptySubtitle: { fontSize: 12, color: '#999', textAlign: 'center', marginBottom: 16 },
     bookBtn:       { backgroundColor: '#01538b', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
     bookBtnText:   { color: 'white', fontWeight: 'bold', fontSize: 14 },
+    historyList:   { gap: 12, marginBottom: 16 },
+    historyCard: {
+        backgroundColor: 'white', borderRadius: 14, padding: 16,
+        elevation: 2, shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 3,
+    },
 
     // Visit banner
     visitBanner:      { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 14, marginBottom: 16 },

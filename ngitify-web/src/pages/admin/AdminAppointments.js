@@ -50,6 +50,13 @@ const initialBookingForm = {
     time: '',
     procedure: '',
     branch: '',
+    source: 'Walk-in',
+};
+
+const initialRescheduleForm = {
+    date: '',
+    time: '',
+    reason: '',
 };
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
@@ -107,6 +114,11 @@ const normalizeSurgery = (surgery) => ({
     rawDate: new Date(surgery.date),
     branch: surgery.branch || '',
     isGuest: !surgery.patient && surgery.source === 'Smile Hub (Online)',
+    consentGiven: Boolean(surgery.consentGiven),
+    consentTimestamp: surgery.consentTimestamp || '',
+    consentVersion: surgery.consentVersion || '',
+    cancellationReason: surgery.cancellationReason || '',
+    rescheduleHistory: Array.isArray(surgery.rescheduleHistory) ? surgery.rescheduleHistory : [],
 });
 
 const isAddressComplete = (address) => (
@@ -150,6 +162,19 @@ const extractPatients = (payload) => {
     return [];
 };
 
+const formatSourceBadgeStyle = (source) => {
+    switch (source) {
+        case 'Smile Hub (Online)':
+            return { background: '#eff6ff', color: '#1d4ed8' };
+        case 'Walk-in':
+            return { background: '#ecfdf5', color: '#047857' };
+        case 'Phone Call':
+            return { background: '#fff7ed', color: '#c2410c' };
+        default:
+            return { background: '#f1f5f9', color: '#475569' };
+    }
+};
+
 export default function AdminAppointments() {
     const navigate = useNavigate();
     const { addToast } = useToast();
@@ -168,7 +193,7 @@ export default function AdminAppointments() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [dentistFilter, setDentistFilter] = useState('All');
-    const [statusFilter, setStatusFilter] = useState('All');
+    const [statusFilter, setStatusFilter] = useState('Pending');
     const [branchFilter, setBranchFilter] = useState(isBranchManager ? assignedBranch : 'All');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -177,6 +202,12 @@ export default function AdminAppointments() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
     const [guestRegistrationTarget, setGuestRegistrationTarget] = useState(null);
+    const [detailsTarget, setDetailsTarget] = useState(null);
+    const [rescheduleTarget, setRescheduleTarget] = useState(null);
+    const [rescheduleForm, setRescheduleForm] = useState(initialRescheduleForm);
+    const [rescheduleError, setRescheduleError] = useState('');
+    const [isSubmittingReschedule, setIsSubmittingReschedule] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
     const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
     const [bookingForm, setBookingForm] = useState({ ...initialBookingForm, branch: bookingBranch });
     const [bookingErrors, setBookingErrors] = useState({});
@@ -356,14 +387,20 @@ export default function AdminAppointments() {
 
     const confirmCancelAppointment = async () => {
         if (!cancelTarget) return;
+        if (!cancelReason.trim()) {
+            addToast('Please provide a cancellation reason.', 'error');
+            return;
+        }
         try {
             const res = await authFetch(`/appointments/${cancelTarget.id}/status`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: 'cancelled' }),
+                body: JSON.stringify({ status: 'cancelled', cancellationReason: cancelReason.trim() }),
             });
             if (!res.ok) throw new Error();
             setAllAppointments((prev) => prev.map((item) => (
-                item.id === cancelTarget.id ? { ...item, status: 'Cancelled', rawStatus: 'cancelled' } : item
+                item.id === cancelTarget.id
+                    ? { ...item, status: 'Cancelled', rawStatus: 'cancelled', cancellationReason: cancelReason.trim() }
+                    : item
             )));
             addToast(
                 cancelTarget.isGuest
@@ -375,6 +412,7 @@ export default function AdminAppointments() {
             addToast('Failed to cancel appointment.', 'error');
         } finally {
             setCancelTarget(null);
+            setCancelReason('');
         }
     };
 
@@ -450,8 +488,8 @@ export default function AdminAppointments() {
                     date: bookingForm.date,
                     time: bookingForm.time,
                     procedure: bookingForm.procedure,
-                    status: 'confirmed',
-                    source: 'Walk-in',
+                    status: bookingForm.source === 'Walk-in' ? 'in-clinic' : 'confirmed',
+                    source: bookingForm.source,
                     branch: finalBranch,
                 }),
             });
@@ -485,6 +523,50 @@ export default function AdminAppointments() {
     const handleGuestRegistrationSuccess = async () => {
         setGuestRegistrationTarget(null);
         await fetchAppointments(true);
+    };
+
+    const handleOpenReschedule = (appointment) => {
+        setRescheduleTarget(appointment);
+        setRescheduleForm({
+            date: appointment.rawDate instanceof Date && !Number.isNaN(appointment.rawDate.getTime())
+                ? appointment.rawDate.toISOString().split('T')[0]
+                : '',
+            time: appointment.time || '',
+            reason: '',
+        });
+        setRescheduleError('');
+    };
+
+    const handleSubmitReschedule = async (event) => {
+        event.preventDefault();
+        if (!rescheduleTarget) return;
+        if (!rescheduleForm.date || !rescheduleForm.time) {
+            setRescheduleError('Please provide the new date and time.');
+            return;
+        }
+
+        setIsSubmittingReschedule(true);
+        setRescheduleError('');
+        try {
+            const response = await authFetch(`/appointments/${rescheduleTarget.id}/reschedule`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    newDate: rescheduleForm.date,
+                    newTime: rescheduleForm.time,
+                    reason: rescheduleForm.reason.trim(),
+                }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Unable to reschedule appointment.');
+            addToast('Appointment rescheduled successfully.', 'success');
+            setRescheduleTarget(null);
+            setRescheduleForm(initialRescheduleForm);
+            await fetchAppointments(true);
+        } catch (error) {
+            setRescheduleError(error.message || 'Unable to reschedule appointment.');
+        } finally {
+            setIsSubmittingReschedule(false);
+        }
     };
 
     const handleConfirmGuestAppointment = async (appointment) => {
@@ -585,6 +667,30 @@ export default function AdminAppointments() {
                     </div>
                 </div>
 
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' }}>
+                    {['Pending', 'Confirmed', 'In Clinic', 'Completed', 'Cancelled', 'All'].map((label) => {
+                        const active = statusFilter === label;
+                        return (
+                            <button
+                                key={label}
+                                type="button"
+                                onClick={() => setStatusFilter(label)}
+                                style={{
+                                    border: active ? '1px solid #01538b' : '1px solid #d6e2ec',
+                                    background: active ? '#01538b' : '#fff',
+                                    color: active ? '#fff' : '#35576a',
+                                    borderRadius: '999px',
+                                    padding: '10px 16px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {label}
+                            </button>
+                        );
+                    })}
+                </div>
+
                 <div className={styles.listContainer}>
                     {isLoading ? (
                         <div className={styles.emptyState} style={{ color: '#01538b' }}>
@@ -609,40 +715,55 @@ export default function AdminAppointments() {
                                     />
                                     <div className={styles.patientDetails}>
                                         <p className={styles.patientName}>{appointment.patientName}</p>
-                                        {appointment.isGuest && (
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
-                                                <span style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    padding: '4px 10px',
-                                                    borderRadius: '999px',
-                                                    background: '#fff7ed',
-                                                    color: '#c2410c',
-                                                    fontSize: '11px',
-                                                    fontWeight: 700,
-                                                    letterSpacing: '0.04em',
-                                                    textTransform: 'uppercase',
-                                                }}>
-                                                    Guest
-                                                </span>
-                                                {getGuestPreRegistrationMeta(appointment) && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                padding: '4px 10px',
+                                                borderRadius: '999px',
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                letterSpacing: '0.04em',
+                                                textTransform: 'uppercase',
+                                                ...formatSourceBadgeStyle(appointment.source),
+                                            }}>
+                                                {appointment.source}
+                                            </span>
+                                            {appointment.isGuest && (
+                                                <>
                                                     <span style={{
                                                         display: 'inline-flex',
                                                         alignItems: 'center',
                                                         padding: '4px 10px',
                                                         borderRadius: '999px',
-                                                        background: getGuestPreRegistrationMeta(appointment).background,
-                                                        color: getGuestPreRegistrationMeta(appointment).color,
+                                                        background: '#fff7ed',
+                                                        color: '#c2410c',
                                                         fontSize: '11px',
                                                         fontWeight: 700,
                                                         letterSpacing: '0.04em',
                                                         textTransform: 'uppercase',
                                                     }}>
-                                                        {getGuestPreRegistrationMeta(appointment).label}
+                                                        Guest
                                                     </span>
-                                                )}
-                                            </div>
-                                        )}
+                                                    {getGuestPreRegistrationMeta(appointment) && (
+                                                        <span style={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            padding: '4px 10px',
+                                                            borderRadius: '999px',
+                                                            background: getGuestPreRegistrationMeta(appointment).background,
+                                                            color: getGuestPreRegistrationMeta(appointment).color,
+                                                            fontSize: '11px',
+                                                            fontWeight: 700,
+                                                            letterSpacing: '0.04em',
+                                                            textTransform: 'uppercase',
+                                                        }}>
+                                                            {getGuestPreRegistrationMeta(appointment).label}
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
                                         <p className={styles.treatmentType}>
                                             {appointment.procedure}{appointment.branch ? ` • ${appointment.branch}` : ''}
                                         </p>
@@ -679,12 +800,32 @@ export default function AdminAppointments() {
 
                                     <button
                                         className={styles.viewBtn}
+                                        onClick={() => setDetailsTarget(appointment)}
+                                        title="View appointment details"
+                                        style={{ background: '#f8fafc' }}
+                                    >
+                                        Details
+                                    </button>
+
+                                    <button
+                                        className={styles.viewBtn}
                                         onClick={() => navigate(`${patientRouteBase}/${appointment.patientId}/emr`)}
                                         title="View Patient EMR"
                                         disabled={!appointment.patientId}
                                     >
                                         <FaFileMedical /> View Patient
                                     </button>
+
+                                    {((appointment.rawStatus === 'cancelled') || appointment.rawDate < new Date()) && (
+                                        <button
+                                            className={styles.viewBtn}
+                                            onClick={() => handleOpenReschedule(appointment)}
+                                            title="Reschedule appointment"
+                                            style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}
+                                        >
+                                            Reschedule
+                                        </button>
+                                    )}
 
                                     {appointment.isGuest && appointment.rawStatus === 'pending' && (
                                         <button
@@ -787,6 +928,24 @@ export default function AdminAppointments() {
                                     {bookingErrors.branch && <span className={modalStyles.errorMessage}>{bookingErrors.branch}</span>}
                                 </div>
                             )}
+
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Appointment Source <span style={{ color: 'red' }}>*</span></label>
+                                <select
+                                    name="source"
+                                    className={modalStyles.formInput}
+                                    required
+                                    value={bookingForm.source}
+                                    onChange={handleBookingChange}
+                                    disabled={isSubmittingBooking}
+                                >
+                                    <option value="Walk-in">Walk-in</option>
+                                    <option value="Phone Call">Phone Call</option>
+                                </select>
+                                <span style={{ color: '#64748b', fontSize: '12px' }}>
+                                    Walk-ins are recorded as In Clinic. Phone Call bookings start as Confirmed.
+                                </span>
+                            </div>
 
                             <div className={modalStyles.formGroup}>
                                 <label className={modalStyles.formLabel}>Select Patient <span style={{ color: 'red' }}>*</span></label>
@@ -936,6 +1095,108 @@ export default function AdminAppointments() {
                 />
             )}
 
+            {detailsTarget && (
+                <div className={modalStyles.modalOverlay}>
+                    <div className={modalStyles.modalContent}>
+                        <div className={modalStyles.modalHeader}>
+                            <h2 className={modalStyles.modalTitle}>Appointment Details</h2>
+                            <button className={modalStyles.closeButton} onClick={() => setDetailsTarget(null)}>
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className={modalStyles.modalBody}>
+                            <div className={modalStyles.infoGrid}>
+                                <div className={modalStyles.infoBox}>
+                                    <span className={modalStyles.infoLabel}>Patient</span>
+                                    <p className={modalStyles.infoValue}>{detailsTarget.patientName}</p>
+                                </div>
+                                <div className={modalStyles.infoBox}>
+                                    <span className={modalStyles.infoLabel}>Status</span>
+                                    <p className={modalStyles.infoValue}>{detailsTarget.status}</p>
+                                </div>
+                                <div className={modalStyles.infoBox}>
+                                    <span className={modalStyles.infoLabel}>Source</span>
+                                    <p className={modalStyles.infoValue}>{detailsTarget.source}</p>
+                                </div>
+                                <div className={modalStyles.infoBox}>
+                                    <span className={modalStyles.infoLabel}>Privacy Consent</span>
+                                    <p className={modalStyles.infoValue}>
+                                        {detailsTarget.consentGiven
+                                            ? `Recorded${detailsTarget.consentVersion ? ` (${detailsTarget.consentVersion})` : ''}${detailsTarget.consentTimestamp ? ` on ${formatDateShort(new Date(detailsTarget.consentTimestamp))}` : ''}`
+                                            : 'No consent metadata recorded'}
+                                    </p>
+                                </div>
+                                {detailsTarget.cancellationReason && (
+                                    <div className={modalStyles.infoBox} style={{ gridColumn: '1 / -1' }}>
+                                        <span className={modalStyles.infoLabel}>Cancellation Reason</span>
+                                        <p className={modalStyles.infoValue}>{detailsTarget.cancellationReason}</p>
+                                    </div>
+                                )}
+                                <div className={modalStyles.infoBox} style={{ gridColumn: '1 / -1' }}>
+                                    <span className={modalStyles.infoLabel}>Reschedule History</span>
+                                    {detailsTarget.rescheduleHistory.length > 0 ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                            {detailsTarget.rescheduleHistory.map((entry, index) => (
+                                                <div key={`${detailsTarget.id}-${index}`} style={{ padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                                    <p className={modalStyles.infoValue} style={{ marginBottom: '4px' }}>
+                                                        {formatDateShort(new Date(entry.originalDate))} {entry.originalTime} to {formatDateShort(new Date(entry.newDate))} {entry.newTime}
+                                                    </p>
+                                                    <p className={modalStyles.infoValue} style={{ color: '#64748b', fontSize: '13px' }}>
+                                                        {entry.reason || 'No reason provided'}{entry.rescheduledByName ? ` • ${entry.rescheduledByName}` : ''}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className={modalStyles.infoValue}>No reschedule history yet.</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {rescheduleTarget && (
+                <div className={modalStyles.modalOverlay}>
+                    <div className={modalStyles.modalContent}>
+                        <div className={modalStyles.modalHeader}>
+                            <h2 className={modalStyles.modalTitle}>Reschedule Appointment</h2>
+                            <button className={modalStyles.closeButton} onClick={() => setRescheduleTarget(null)}>
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmitReschedule} className={modalStyles.modalBody}>
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>New Date</label>
+                                <input type="date" className={modalStyles.formInput} min={getTodayString()} value={rescheduleForm.date} onChange={(event) => setRescheduleForm((prev) => ({ ...prev, date: event.target.value }))} />
+                            </div>
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>New Time</label>
+                                <input type="time" className={modalStyles.formInput} value={rescheduleForm.time} onChange={(event) => setRescheduleForm((prev) => ({ ...prev, time: event.target.value }))} />
+                            </div>
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Reason</label>
+                                <textarea
+                                    className={modalStyles.formInput}
+                                    style={{ minHeight: '110px', padding: '14px' }}
+                                    value={rescheduleForm.reason}
+                                    onChange={(event) => setRescheduleForm((prev) => ({ ...prev, reason: event.target.value }))}
+                                    placeholder="Optional note for the patient and the audit trail"
+                                />
+                            </div>
+                            {rescheduleError && <div className={modalStyles.errorMessage}>{rescheduleError}</div>}
+                            <div className={modalStyles.formActions}>
+                                <button type="button" className={modalStyles.cancelBtn} onClick={() => setRescheduleTarget(null)} disabled={isSubmittingReschedule}>Close</button>
+                                <button type="submit" className={modalStyles.submitBtn} disabled={isSubmittingReschedule}>
+                                    {isSubmittingReschedule ? 'Saving...' : 'Save Reschedule'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <ConfirmModal
                 isOpen={!!statusChangeTarget}
                 title="Update Appointment Status"
@@ -946,19 +1207,39 @@ export default function AdminAppointments() {
                 onCancel={() => setStatusChangeTarget(null)}
             />
 
-            <ConfirmModal
-                isOpen={!!cancelTarget}
-                title={cancelTarget?.isGuest ? 'Decline Guest Request' : 'Cancel Appointment'}
-                message={
-                    cancelTarget?.isGuest
-                        ? `Are you sure you want to decline the guest appointment request for ${cancelTarget?.patientName}? A decline email will be sent automatically.`
-                        : `Are you absolutely sure you want to cancel the appointment for ${cancelTarget?.patientName}? This action will free up the slot in the calendar.`
-                }
-                confirmText={cancelTarget?.isGuest ? 'Yes, Decline Request' : 'Yes, Cancel Appointment'}
-                isDestructive={true}
-                onConfirm={confirmCancelAppointment}
-                onCancel={() => setCancelTarget(null)}
-            />
+            {cancelTarget && (
+                <div className={modalStyles.modalOverlay}>
+                    <div className={modalStyles.modalContent}>
+                        <div className={modalStyles.modalHeader}>
+                            <h2 className={modalStyles.modalTitle}>{cancelTarget.isGuest ? 'Decline Guest Request' : 'Cancel Appointment'}</h2>
+                            <button className={modalStyles.closeButton} onClick={() => { setCancelTarget(null); setCancelReason(''); }}>
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className={modalStyles.modalBody}>
+                            <p style={{ marginTop: 0, color: '#475569', lineHeight: 1.6 }}>
+                                {cancelTarget.isGuest
+                                    ? `Declining this guest request will notify ${cancelTarget.patientName} automatically.`
+                                    : `Cancelling this appointment will free the slot and keep the reason in the patient record.`}
+                            </p>
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Cancellation Reason</label>
+                                <textarea
+                                    className={modalStyles.formInput}
+                                    style={{ minHeight: '110px', padding: '14px' }}
+                                    value={cancelReason}
+                                    onChange={(event) => setCancelReason(event.target.value)}
+                                    placeholder="State why this appointment is being cancelled"
+                                />
+                            </div>
+                            <div className={modalStyles.formActions}>
+                                <button type="button" className={modalStyles.cancelBtn} onClick={() => { setCancelTarget(null); setCancelReason(''); }}>Close</button>
+                                <button type="button" className={modalStyles.submitBtn} onClick={confirmCancelAppointment}>Confirm Cancellation</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <ConfirmModal
                 isOpen={!!deleteTarget}

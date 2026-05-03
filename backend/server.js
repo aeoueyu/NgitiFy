@@ -420,8 +420,14 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
     });
 };
 
-const GUEST_APPOINTMENT_PROCEDURES = [
-    'Oral Prophylaxis (Cleaning)',
+const PRIVACY_POLICY_VERSION = 'v1.0';
+const DEFAULT_DIRECT_BOOKING_PROCEDURE = 'General Check-up / Initial Consultation';
+const DIRECT_BOOKING_PROCEDURES = [
+    DEFAULT_DIRECT_BOOKING_PROCEDURE,
+    'Prophylaxis / Dental Cleaning',
+];
+const EXTENDED_PATIENT_PROCEDURES = [
+    ...DIRECT_BOOKING_PROCEDURES,
     'Tooth Extraction',
     'Dental Filling',
     'Root Canal Treatment',
@@ -430,8 +436,8 @@ const GUEST_APPOINTMENT_PROCEDURES = [
     'Teeth Whitening',
     'Dentures / Retainers',
     'X-Ray / Imaging',
-    'Other / General Check-up',
 ];
+const AUTO_CANCELLATION_REASON = 'Auto-cancelled: appointment time passed without check-in.';
 
 const GUEST_FULL_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
 const GUEST_PERSON_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{0,49}$/;
@@ -547,6 +553,176 @@ const getPatientDisplayName = (appointment) => {
         return `${appointment.patient.name.first || ''} ${appointment.patient.name.last || ''}`.trim() || 'Patient';
     }
     return appointment?.guestName || 'Patient';
+};
+
+const buildAppointmentDateTime = (dateValue, timeValue) => {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return null;
+    const [hoursText = '0', minutesText = '0'] = String(timeValue || '').split(':');
+    date.setHours(Number(hoursText), Number(minutesText), 0, 0);
+    return date;
+};
+
+const isSameCalendarDay = (leftDate, rightDate) => {
+    const left = new Date(leftDate);
+    const right = new Date(rightDate);
+    if (Number.isNaN(left.getTime()) || Number.isNaN(right.getTime())) return false;
+    return left.getFullYear() === right.getFullYear()
+        && left.getMonth() === right.getMonth()
+        && left.getDate() === right.getDate();
+};
+
+const mapAppointmentStatusToQueueStatus = (status) => {
+    switch (status) {
+        case 'completed':
+            return 'completed';
+        case 'cancelled':
+            return 'cancelled';
+        case 'in-clinic':
+            return 'in-clinic';
+        default:
+            return 'pending';
+    }
+};
+
+const createBranchScopedNotifications = async ({ type, title, message, branch, relatedId, includeOwners = false }) => {
+    const notifications = [
+        {
+            type,
+            title,
+            message,
+            recipientRole: 'administrator',
+            relatedId,
+        },
+    ];
+
+    if (includeOwners) {
+        notifications.push({
+            type,
+            title,
+            message,
+            recipientRole: 'owner',
+            relatedId,
+        });
+    }
+
+    if (branch) {
+        const branchScopedStaff = await User.find({
+            role: { $in: ['secretary', 'branch-manager'] },
+            status: 'active',
+            isArchived: { $ne: true },
+            $or: [
+                { assignedBranch: branch },
+                { assignedBranches: branch },
+            ],
+        }).select('_id');
+
+        branchScopedStaff.forEach((staff) => {
+            notifications.push({
+                type,
+                title,
+                message,
+                recipientId: staff._id,
+                relatedId,
+            });
+        });
+    }
+
+    await Notification.insertMany(notifications);
+};
+
+const getNextQueueTicketNumber = async ({ branch, day }) => {
+    const startOfDay = new Date(day);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(day);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const last = await Queue.findOne({
+        branch,
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+    }).sort({ ticketNumber: -1 });
+
+    return last ? last.ticketNumber + 1 : 1;
+};
+
+const syncQueueEntryForAppointment = async (appointmentLike) => {
+    if (!appointmentLike?._id) return null;
+    if (!['Walk-in', 'Phone Call'].includes(appointmentLike.source)) return null;
+
+    const appointment = appointmentLike.populate
+        ? appointmentLike
+        : await Surgery.findById(appointmentLike._id).populate('patient', 'name contactNumber');
+
+    if (!appointment) return null;
+
+    const patientName = appointment.patient?.name
+        ? `${appointment.patient.name.first || ''} ${appointment.patient.name.last || ''}`.trim()
+        : (appointment.guestName || 'Walk-in Patient');
+    const contactNumber = appointment.patient?.contactNumber
+        || appointment.guestPhone
+        || '';
+    const assignedDentist = appointment.dentist && appointment.dentist.name
+        ? getDentistDisplayName(appointment.dentist)
+        : '';
+    const nextStatus = mapAppointmentStatusToQueueStatus(appointment.status);
+    const existingEntry = await Queue.findOne({ linkedAppointment: appointment._id });
+
+    if (!existingEntry && appointment.status !== 'in-clinic') {
+        return null;
+    }
+
+    const basePayload = {
+        linkedAppointment: appointment._id,
+        patientName,
+        patientId: appointment.patient?._id || appointment.patient || null,
+        branch: appointment.branch,
+        status: nextStatus,
+        assignedDentist,
+        procedureType: appointment.procedure || '',
+        contactNumber,
+    };
+
+    if (!existingEntry) {
+        const ticketNumber = await getNextQueueTicketNumber({
+            branch: appointment.branch,
+            day: appointment.date || new Date(),
+        });
+
+        return Queue.create({
+            ...basePayload,
+            ticketNumber,
+            calledAt: nextStatus === 'in-clinic' ? new Date() : null,
+            completedAt: ['completed', 'cancelled'].includes(nextStatus) ? new Date() : null,
+        });
+    }
+
+    const update = {
+        ...basePayload,
+        ticketNumber: existingEntry.ticketNumber,
+    };
+    if (nextStatus === 'in-clinic' && !existingEntry.calledAt) update.calledAt = new Date();
+    if (['completed', 'cancelled'].includes(nextStatus) && !existingEntry.completedAt) {
+        update.completedAt = new Date();
+    }
+
+    return Queue.findByIdAndUpdate(existingEntry._id, update, { new: true });
+};
+
+const appendRescheduleHistoryEntry = ({ appointment, nextDate, nextTime, actor, reason = '' }) => {
+    const history = Array.isArray(appointment.rescheduleHistory)
+        ? [...appointment.rescheduleHistory]
+        : [];
+    history.push({
+        originalDate: appointment.date,
+        originalTime: appointment.time || '',
+        newDate: nextDate,
+        newTime: nextTime || '',
+        rescheduledBy: actor?.id || null,
+        rescheduledByName: actor?.email || actor?.id || '',
+        rescheduledAt: new Date(),
+        reason: String(reason || '').trim(),
+    });
+    return history;
 };
 
 const appendAutomaticTreatmentLogIfMissing = async ({
@@ -684,6 +860,35 @@ const sendAppointmentDeclinedEmail = async ({ email, name, branch, date, time, p
                 <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
                 <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
                 <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
+            </div>
+        `,
+    });
+};
+
+const sendAppointmentRescheduledEmail = async ({ email, name, branch, date, time, procedure }) => {
+    if (!email) return;
+
+    const appointmentDate = new Date(date);
+    const safeName = name || 'Patient';
+    const clinic = await getClinicContactDetails();
+
+    await resend.emails.send({
+        from: 'NgitiFy Appointments <noreply@ngitify.com>',
+        to: email,
+        subject: 'Your Dentime appointment has been rescheduled',
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #005466;">Appointment Rescheduled</h2>
+                <p>Hello ${safeName},</p>
+                <p>Your appointment schedule has been updated by the clinic.</p>
+                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
+                    <p><strong>Branch:</strong> ${branch}</p>
+                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
+                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p><strong>Procedure:</strong> ${procedure}</p>
+                </div>
+                <p>If you need help with the new schedule, please contact the clinic directly.</p>
             </div>
         `,
     });
@@ -985,51 +1190,14 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
 
 const notifyAppointmentManagers = async ({ appointmentId, patientName, procedure, date, branch }) => {
     const message = `${patientName} requested an appointment for: ${procedure} on ${new Date(date).toDateString()} at ${branch}.`;
-    const notifications = [
-        {
-            type: 'NEW_APPOINTMENT',
-            title: 'New Appointment Request',
-            message,
-            recipientRole: 'administrator',
-            relatedId: appointmentId,
-        },
-        {
-            type: 'NEW_APPOINTMENT',
-            title: 'New Appointment Request',
-            message,
-            recipientRole: 'administrator',
-            relatedId: appointmentId,
-        },
-        {
-            type: 'NEW_APPOINTMENT',
-            title: 'New Appointment Request',
-            message,
-            recipientRole: 'owner',
-            relatedId: appointmentId,
-        },
-    ];
-
-    const branchScopedStaff = await User.find({
-        role: { $in: ['secretary', 'branch-manager'] },
-        status: 'active',
-        isArchived: { $ne: true },
-        $or: [
-            { assignedBranch: branch },
-            { assignedBranches: branch },
-        ],
-    }).select('_id');
-
-    for (const staff of branchScopedStaff) {
-        notifications.push({
-            type: 'NEW_APPOINTMENT',
-            title: 'New Appointment Request',
-            message,
-            recipientId: staff._id,
-            relatedId: appointmentId,
-        });
-    }
-
-    await Notification.insertMany(notifications);
+    await createBranchScopedNotifications({
+        type: 'NEW_APPOINTMENT',
+        title: 'New Appointment Request',
+        message,
+        branch,
+        relatedId: appointmentId,
+        includeOwners: true,
+    });
 };
 
 app.post('/api/forgot-password', otpLimiter, async (req, res) => {
@@ -1932,6 +2100,32 @@ app.put('/api/user/notification-preferences', verifyToken, async (req, res) => {
     }
 });
 
+app.put('/api/user/app-consent', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        user.appConsentGiven = true;
+        user.appConsentTimestamp = new Date();
+        await user.save();
+
+        return res.json({
+            message: 'App privacy consent saved.',
+            appConsentGiven: user.appConsentGiven,
+            appConsentTimestamp: user.appConsentTimestamp,
+        });
+    } catch (error) {
+        console.error('Error saving app consent:', error);
+        return res.status(500).json({ message: 'Server error saving app consent.' });
+    }
+});
+
 app.put('/api/user/:id', verifyToken, async (req, res) => {
     try {
         const { password, email, role, isVerified, activationToken, isPasswordChanged, status, ...updateData } = req.body;
@@ -2662,6 +2856,15 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
     }
     try {
         const surgeryData = { ...req.body };
+        const normalizedSource = String(surgeryData.source || 'Walk-in').trim();
+
+        if (normalizedSource === 'Walk-in') {
+            surgeryData.source = 'Walk-in';
+            surgeryData.status = 'in-clinic';
+        } else if (normalizedSource === 'Phone Call') {
+            surgeryData.source = 'Phone Call';
+            surgeryData.status = surgeryData.status || 'confirmed';
+        }
 
         // Branch-scoped staff can only create appointments for their own branch
         if (isBranchScopedStaff(req.user.role)) {
@@ -2701,6 +2904,10 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
 
         const newSurgery = new Surgery(surgeryData);
         await newSurgery.save();
+
+        if (['Walk-in', 'Phone Call'].includes(newSurgery.source)) {
+            await syncQueueEntryForAppointment(newSurgery);
+        }
 
         await AuditLog.create({
             action: "CREATE_SURGERY",
@@ -3083,7 +3290,7 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
 
 app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyToken, async (req, res) => {
     try {
-        const { status, remarks, preOpInstructions, date, time, dentistId } = req.body;
+        const { status, remarks, preOpInstructions, date, time, dentistId, cancellationReason } = req.body;
 
         const allowedStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         if (!allowedStatuses.includes(status)) {
@@ -3115,13 +3322,35 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             return res.status(400).json({ message: 'Cannot change status of a completed or cancelled appointment.' });
         }
 
+        const nextDate = date ? new Date(date) : currentSurgery.date;
+        const nextTime = time !== undefined ? time : currentSurgery.time;
         const updateFields = { status };
         const isGuestWebsiteAppointment = currentSurgery.source === 'Smile Hub (Online)' && !currentSurgery.patient && !!currentSurgery.guestEmail;
         if (remarks !== undefined) updateFields.remarks = remarks;
         if (preOpInstructions !== undefined) updateFields.preOpInstructions = preOpInstructions;
-        if (date) updateFields.date = new Date(date);
-        if (time) updateFields.time = time;
+        if (date) updateFields.date = nextDate;
+        if (time !== undefined) updateFields.time = nextTime;
         if (dentistId !== undefined && req.user.role !== 'dentist') updateFields.dentist = dentistId || null;
+        if (status === 'cancelled') {
+            updateFields.cancellationReason = String(cancellationReason || currentSurgery.cancellationReason || 'Cancelled by clinic staff.').trim();
+            updateFields.autoCancelledAt = null;
+        } else if (cancellationReason !== undefined) {
+            updateFields.cancellationReason = String(cancellationReason || '').trim();
+        }
+
+        const scheduleChanged = (
+            (date && !isSameCalendarDay(currentSurgery.date, nextDate))
+            || (time !== undefined && (currentSurgery.time || '') !== (nextTime || ''))
+        );
+        if (scheduleChanged) {
+            updateFields.rescheduleHistory = appendRescheduleHistoryEntry({
+                appointment: currentSurgery,
+                nextDate,
+                nextTime,
+                actor: req.user,
+                reason: cancellationReason || remarks || '',
+            });
+        }
         if (currentSurgery.status !== 'confirmed' && status === 'confirmed' && isGuestWebsiteAppointment && !currentSurgery.preRegistrationCompleted) {
             updateFields.preRegistrationToken = crypto.randomBytes(32).toString('hex');
             updateFields.preRegistrationTokenExpiry = new Date(Date.now() + (72 * 60 * 60 * 1000));
@@ -3164,6 +3393,12 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                     procedure: updatedSurgery.procedure,
                     token: updatedSurgery.preRegistrationToken,
                 });
+                await AuditLog.create({
+                    action: 'PRE_REGISTRATION_LINK_SENT',
+                    user: req.user?.email || req.user?.id || 'SYSTEM',
+                    role: req.user?.role || 'SYSTEM',
+                    details: `Pre-registration link sent for appointment ${updatedSurgery._id}.`,
+                });
             } else if (patientEmail) {
                 await sendAppointmentConfirmedEmail({
                     email: patientEmail,
@@ -3203,9 +3438,6 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             }
         }
 
-        const scheduleChanged = (date && new Date(currentSurgery.date).toDateString() !== new Date(date).toDateString()) ||
-            (time && currentSurgery.time !== time);
-
         if (updatedSurgery.dentist?._id && req.user.role !== 'dentist') {
             let dentistMessage = `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} is now marked ${status}.`;
             if (scheduleChanged) {
@@ -3222,12 +3454,28 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             });
         }
 
+        if (scheduleChanged) {
+            const patientEmail = updatedSurgery.patient?.email || updatedSurgery.guestEmail || '';
+            if (patientEmail) {
+                await sendAppointmentRescheduledEmail({
+                    email: patientEmail,
+                    name: getPatientDisplayName(updatedSurgery),
+                    branch: updatedSurgery.branch,
+                    date: updatedSurgery.date,
+                    time: updatedSurgery.time,
+                    procedure: updatedSurgery.procedure,
+                });
+            }
+        }
+
         await AuditLog.create({
             action: 'UPDATE_SURGERY_STATUS',
             user: req.user?.email || req.user?.id,
             role: req.user?.role,
             details: `Dental treatment ID ${updatedSurgery._id} status changed to '${status}'.`
         });
+
+        await syncQueueEntryForAppointment(updatedSurgery);
 
         if (status === 'completed' && updatedSurgery.patient?._id) {
             await appendAutomaticTreatmentLogIfMissing({
@@ -3298,6 +3546,152 @@ app.get('/api/pre-register/:token', async (req, res) => {
     }
 });
 
+app.post('/api/appointments/:id/reschedule', verifyToken, async (req, res) => {
+    try {
+        const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const { newDate, newTime, reason = '' } = req.body;
+        if (!newDate || !newTime) {
+            return res.status(400).json({ message: 'New date and time are required.' });
+        }
+
+        const appointment = await Surgery.findById(req.params.id).populate('patient', 'name email').populate('dentist', 'name email');
+        if (!appointment || appointment.isArchived) {
+            return res.status(404).json({ message: 'Appointment not found.' });
+        }
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch || appointment.branch !== scopedBranch) {
+                return res.status(403).json({ message: 'Access denied. This appointment belongs to a different branch.' });
+            }
+        }
+
+        if (req.user.role === 'dentist' && appointment.dentist?._id?.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
+        }
+
+        const parsedDate = new Date(`${newDate}T12:00:00`);
+        if (Number.isNaN(parsedDate.getTime())) {
+            return res.status(400).json({ message: 'Please provide a valid reschedule date.' });
+        }
+
+        const allowedSlots = await getClinicAllowedSlots();
+        if (!allowedSlots.includes(newTime)) {
+            return res.status(400).json({ message: 'Please provide a valid reschedule time.' });
+        }
+
+        const takenSlots = await getTakenSlotsForDate({ date: newDate, branch: appointment.branch });
+        const currentDateKey = new Date(appointment.date).toISOString().split('T')[0];
+        const isSameSlot = currentDateKey === newDate && (appointment.time || '') === newTime;
+        if (!isSameSlot && takenSlots.includes(newTime)) {
+            return res.status(409).json({ message: 'That time slot is already taken. Please choose another time.' });
+        }
+
+        appointment.rescheduleHistory = appendRescheduleHistoryEntry({
+            appointment,
+            nextDate: parsedDate,
+            nextTime: newTime,
+            actor: req.user,
+            reason,
+        });
+        appointment.date = parsedDate;
+        appointment.time = newTime;
+        appointment.status = appointment.status === 'cancelled' ? 'confirmed' : appointment.status;
+        appointment.autoCancelledAt = null;
+        appointment.cancellationReason = '';
+        await appointment.save();
+
+        const patientEmail = appointment.patient?.email || appointment.guestEmail || '';
+        if (patientEmail) {
+            await sendAppointmentRescheduledEmail({
+                email: patientEmail,
+                name: getPatientDisplayName(appointment),
+                branch: appointment.branch,
+                date: appointment.date,
+                time: appointment.time,
+                procedure: appointment.procedure,
+            });
+        }
+
+        if (appointment.dentist?._id && appointment.dentist.email) {
+            await Notification.create({
+                type: 'NEW_APPOINTMENT',
+                title: 'Appointment Schedule Updated',
+                message: `${appointment.procedure} was rescheduled to ${new Date(appointment.date).toDateString()} at ${appointment.time}.`,
+                recipientId: appointment.dentist._id,
+                recipientRole: 'dentist',
+                relatedId: appointment._id,
+            });
+        }
+
+        await AuditLog.create({
+            action: 'APPOINTMENT_RESCHEDULED',
+            user: req.user?.email || req.user?.id || 'SYSTEM',
+            role: req.user?.role || 'SYSTEM',
+            details: `Appointment ${appointment._id} rescheduled to ${new Date(appointment.date).toDateString()} at ${appointment.time}.`,
+        });
+
+        await syncQueueEntryForAppointment(appointment);
+
+        return res.json({ message: 'Appointment rescheduled successfully.', appointment });
+    } catch (error) {
+        console.error('Error rescheduling appointment:', error);
+        return res.status(500).json({ message: 'Server error rescheduling appointment.' });
+    }
+});
+
+const autoCancelOverdueAppointments = async () => {
+    const now = new Date();
+    const candidates = await Surgery.find({
+        status: { $in: ['pending', 'confirmed'] },
+        isArchived: false,
+    }).populate('patient', 'name email');
+
+    for (const appointment of candidates) {
+        const appointmentDateTime = buildAppointmentDateTime(appointment.date, appointment.time);
+        if (!appointmentDateTime || appointmentDateTime >= now) continue;
+
+        appointment.status = 'cancelled';
+        appointment.autoCancelledAt = new Date();
+        appointment.cancellationReason = AUTO_CANCELLATION_REASON;
+        appointment.remarks = appointment.remarks || AUTO_CANCELLATION_REASON;
+        await appointment.save();
+
+        await AuditLog.create({
+            action: 'APPOINTMENT_AUTO_CANCELLED',
+            user: 'SYSTEM',
+            role: 'SYSTEM',
+            details: `Appointment ${appointment._id} auto-cancelled after its scheduled time passed.`,
+        });
+
+        await createBranchScopedNotifications({
+            type: 'APPOINTMENT_CANCELLED',
+            title: 'Appointment Auto-cancelled',
+            message: `${getPatientDisplayName(appointment)}'s appointment was auto-cancelled after the schedule passed.`,
+            branch: appointment.branch,
+            relatedId: appointment._id,
+        });
+
+        const recipientEmail = appointment.patient?.email || appointment.guestEmail || '';
+        if (recipientEmail) {
+            await sendAppointmentDeclinedEmail({
+                email: recipientEmail,
+                name: getPatientDisplayName(appointment),
+                branch: appointment.branch,
+                date: appointment.date,
+                time: appointment.time,
+                procedure: appointment.procedure,
+            });
+        }
+
+        await syncQueueEntryForAppointment(appointment);
+    }
+};
+
 app.post('/api/pre-register/:token', async (req, res) => {
     try {
         const token = String(req.params.token || '').trim();
@@ -3344,6 +3738,20 @@ app.post('/api/pre-register/:token', async (req, res) => {
         surgery.preRegistrationTokenExpiry = undefined;
         await surgery.save();
 
+        await AuditLog.create({
+            action: 'PRE_REGISTRATION_COMPLETED',
+            user: surgery.guestEmail || surgery.guestName || 'guest',
+            role: 'guest',
+            details: `Guest pre-registration completed for appointment ${surgery._id}.`,
+        });
+        await createBranchScopedNotifications({
+            type: 'NEW_APPOINTMENT',
+            title: 'Guest Pre-registration Completed',
+            message: `${surgery.guestName || 'Guest'} has completed pre-registration for ${surgery.procedure}.`,
+            branch: surgery.branch,
+            relatedId: surgery._id,
+        });
+
         return res.status(200).json({ message: 'Pre-registration completed successfully.' });
     } catch (error) {
         console.error('Error saving pre-registration data:', error);
@@ -3378,6 +3786,13 @@ app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/
         surgery.preRegistrationTokenExpiry = new Date(Date.now() + (72 * 60 * 60 * 1000));
         surgery.preRegistrationCompleted = false;
         await surgery.save();
+
+        await AuditLog.create({
+            action: 'PRE_REGISTRATION_LINK_SENT',
+            user: req.user?.email || req.user?.id || 'SYSTEM',
+            role: req.user?.role || 'SYSTEM',
+            details: `Pre-registration link resent for appointment ${surgery._id}.`,
+        });
 
         await sendPreRegistrationEmail({
             email: surgery.guestEmail,
@@ -3441,6 +3856,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
             notes,
             birthdate,
             gender,
+            privacyConsent,
             turnstileToken,
         } = req.body;
 
@@ -3455,6 +3871,9 @@ app.post('/api/public/appointments/request', async (req, res) => {
         }
         if (!turnstileToken) {
             return res.status(400).json({ message: 'Please complete the captcha before submitting.' });
+        }
+        if (!privacyConsent) {
+            return res.status(400).json({ message: 'Please agree to the Privacy Policy before submitting.' });
         }
 
         const normalizedPhone = String(phone).trim();
@@ -3492,7 +3911,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
             return res.status(400).json({ message: 'Please enter a valid email address.' });
         }
 
-        if (!GUEST_APPOINTMENT_PROCEDURES.includes(normalizedProcedure)) {
+        if (!DIRECT_BOOKING_PROCEDURES.includes(normalizedProcedure)) {
             return res.status(400).json({ message: 'Please select a valid procedure.' });
         }
 
@@ -3577,6 +3996,10 @@ app.post('/api/public/appointments/request', async (req, res) => {
             notes: normalizedNotes,
             status: 'pending',
             source: 'Smile Hub (Online)',
+            consentGiven: true,
+            consentTimestamp: new Date(),
+            consentVersion: PRIVACY_POLICY_VERSION,
+            consentIpAddress: remoteIp,
         });
 
         await newSurgery.save();
@@ -3635,6 +4058,19 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
         const patientUser = await User.findById(req.user.id).select('name email role');
         if (!patientUser || patientUser.role !== 'patient') {
             return res.status(403).json({ message: 'Only patients can submit appointment requests.' });
+        }
+
+        const completedConsultationCount = await Surgery.countDocuments({
+            patient: req.user.id,
+            status: 'completed',
+            procedure: { $in: [DEFAULT_DIRECT_BOOKING_PROCEDURE, 'Consultation', 'Other / General Check-up'] },
+            isArchived: false,
+        });
+        const allowedPatientProcedures = completedConsultationCount > 0
+            ? EXTENDED_PATIENT_PROCEDURES
+            : DIRECT_BOOKING_PROCEDURES;
+        if (!allowedPatientProcedures.includes(procedure)) {
+            return res.status(400).json({ message: 'Please select a valid procedure for your current booking eligibility.' });
         }
 
         if (time) {
@@ -5962,6 +6398,16 @@ app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
     return res.status(410).json({ message: 'Ownership transfer is not available in Phase 2.' });
+});
+
+setInterval(() => {
+    autoCancelOverdueAppointments().catch((error) => {
+        console.error('Auto-cancellation worker error:', error);
+    });
+}, 60 * 60 * 1000);
+
+autoCancelOverdueAppointments().catch((error) => {
+    console.error('Initial auto-cancellation worker error:', error);
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

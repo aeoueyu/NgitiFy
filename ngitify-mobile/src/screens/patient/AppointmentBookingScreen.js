@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet,
-    ScrollView, Animated, TextInput, ActivityIndicator, Alert,
+    ScrollView, Animated, TextInput, ActivityIndicator, Alert, Modal,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,8 +10,12 @@ import BackIcon from '../../assets/icons/Back.svg';
 import CustomModal from '../../components/CustomModal';
 import { logActivity } from '../../utils/logActivity';
 
-const PROCEDURES = [
-    'Oral Prophylaxis (Cleaning)',
+const DIRECT_BOOKING_PROCEDURES = [
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
+];
+const EXTENDED_PROCEDURES = [
+    ...DIRECT_BOOKING_PROCEDURES,
     'Tooth Extraction',
     'Dental Filling',
     'Root Canal Treatment',
@@ -20,7 +24,6 @@ const PROCEDURES = [
     'Teeth Whitening',
     'Dentures / Retainers',
     'X-Ray / Imaging',
-    'Other / General Check-up',
 ];
 
 const STEP_LABELS = ['Date', 'Time', 'Procedure', 'Confirm'];
@@ -107,6 +110,9 @@ export default function AppointmentBookingScreen({ navigation }) {
     const [selectedProcedure, setSelectedProcedure] = useState('');
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasCompletedConsultation, setHasCompletedConsultation] = useState(false);
+    const [privacyAccepted, setPrivacyAccepted] = useState(false);
+    const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState('success');
     const [modalMessage, setModalMessage] = useState('');
@@ -136,6 +142,27 @@ export default function AppointmentBookingScreen({ navigation }) {
         };
         if (userToken) checkDuplicate();
     }, [API_BASE_URL, userToken]);
+
+    useEffect(() => {
+        const fetchEligibility = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/my/treatment-logs`, {
+                    headers: { Authorization: `Bearer ${userToken}` },
+                });
+                if (!res.ok) return;
+                const logs = await res.json();
+                const hasCompleted = (Array.isArray(logs) ? logs : []).some((log) => (
+                    ['General Check-up / Initial Consultation', 'Consultation', 'Other / General Check-up'].includes(log.procedure)
+                ));
+                setHasCompletedConsultation(hasCompleted);
+            } catch {
+                setHasCompletedConsultation(false);
+            }
+        };
+        if (userToken) fetchEligibility();
+    }, [API_BASE_URL, userToken]);
+
+    const availableProcedures = hasCompletedConsultation ? EXTENDED_PROCEDURES : DIRECT_BOOKING_PROCEDURES;
 
     const fetchBlockedDates = useCallback(async (month) => {
         if (!assignedBranch) return;
@@ -482,9 +509,16 @@ export default function AppointmentBookingScreen({ navigation }) {
         <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.stepHeading}>Procedure and Details</Text>
             <Text style={styles.stepSub}>Choose the Dentime service that best matches your visit.</Text>
+            {!hasCompletedConsultation && (
+                <View style={styles.disclaimerCard}>
+                    <Text style={styles.disclaimerText}>
+                        New patients may directly request only a consultation or dental cleaning. More specific procedures will unlock after a completed consultation is on file.
+                    </Text>
+                </View>
+            )}
 
             <View style={styles.procedureList}>
-                {PROCEDURES.map((procedure) => {
+                {availableProcedures.map((procedure) => {
                     const selected = selectedProcedure === procedure;
                     return (
                         <TouchableOpacity
@@ -543,6 +577,24 @@ export default function AppointmentBookingScreen({ navigation }) {
                 {notes.trim() ? <SummaryRow label="Notes" value={notes.trim()} /> : null}
             </View>
 
+            <TouchableOpacity
+                style={[styles.privacyCard, privacyAccepted && styles.privacyCardActive]}
+                onPress={() => setPrivacyAccepted((prev) => !prev)}
+                activeOpacity={0.82}
+            >
+                <View style={[styles.radioCircle, privacyAccepted && styles.radioSelected]}>
+                    {privacyAccepted && <View style={styles.radioDot} />}
+                </View>
+                <Text style={styles.privacyText}>
+                    I have reviewed the NgitiFy Privacy Policy and consent to the use of my information for appointment scheduling and clinic communications.
+                </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setPrivacyModalVisible(true)} activeOpacity={0.75} style={styles.privacyLinkRow}>
+                <Ionicons name="document-text-outline" size={16} color="#01538b" />
+                <Text style={styles.privacyLinkText}>View Privacy Policy Summary</Text>
+            </TouchableOpacity>
+
             <View style={styles.disclaimerCard}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                     <Ionicons name="information-circle-outline" size={16} color="#795548" style={{ marginRight: 8, marginTop: 1 }} />
@@ -557,9 +609,9 @@ export default function AppointmentBookingScreen({ navigation }) {
                     <Text style={styles.secondaryBtnText}>← Back</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.primaryBtn, { flex: 1, marginLeft: 10 }, isSubmitting && styles.disabledBtn]}
+                    style={[styles.primaryBtn, { flex: 1, marginLeft: 10 }, (isSubmitting || !privacyAccepted) && styles.disabledBtn]}
                     onPress={handleSubmit}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !privacyAccepted}
                     activeOpacity={0.8}
                 >
                     {isSubmitting ? <ActivityIndicator color="white" /> : <Text style={styles.primaryBtnText}>Submit Booking</Text>}
@@ -595,6 +647,32 @@ export default function AppointmentBookingScreen({ navigation }) {
                 message={modalMessage}
                 onClose={handleModalClose}
             />
+
+            <Modal
+                visible={privacyModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setPrivacyModalVisible(false)}
+            >
+                <View style={styles.privacyModalOverlay}>
+                    <View style={styles.privacyModalCard}>
+                        <Text style={styles.privacyModalTitle}>NgitiFy Privacy Policy</Text>
+                        <Text style={styles.privacyModalMeta}>Version v1.0 • Updated May 3, 2026</Text>
+                        <Text style={styles.privacyModalText}>
+                            We collect the details you enter here to schedule your appointment, coordinate with your assigned branch, confirm your visit, and keep the clinic record aligned with your patient account.
+                        </Text>
+                        <Text style={styles.privacyModalText}>
+                            Authorized clinic staff may access this information for scheduling, treatment preparation, follow-up communication, and legal recordkeeping under the Data Privacy Act of 2012.
+                        </Text>
+                        <Text style={styles.privacyModalText}>
+                            You may ask the clinic to review, correct, or clarify the personal information attached to your booking at any time.
+                        </Text>
+                        <TouchableOpacity style={styles.primaryBtn} onPress={() => setPrivacyModalVisible(false)} activeOpacity={0.82}>
+                            <Text style={styles.primaryBtnText}>I Understand</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -672,4 +750,14 @@ const styles = StyleSheet.create({
     summaryValue: { color: '#284b63', flex: 1.4, textAlign: 'right' },
     disclaimerCard: { backgroundColor: '#fff8e1', borderRadius: 14, padding: 14, marginBottom: 16 },
     disclaimerText: { color: '#6d4c41', lineHeight: 19 },
+    privacyCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: 'white', borderRadius: 14, padding: 14, borderWidth: 1.2, borderColor: '#d8e2e8', marginBottom: 16 },
+    privacyCardActive: { borderColor: '#01538b', backgroundColor: '#e8f1f8' },
+    privacyText: { flex: 1, color: '#284b63', lineHeight: 20 },
+    privacyLinkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: -4, marginBottom: 16 },
+    privacyLinkText: { color: '#01538b', fontWeight: '700' },
+    privacyModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'center', padding: 20 },
+    privacyModalCard: { backgroundColor: 'white', borderRadius: 18, padding: 20, gap: 12 },
+    privacyModalTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
+    privacyModalMeta: { color: '#607d8b', fontWeight: '600' },
+    privacyModalText: { color: '#284b63', lineHeight: 21 },
 });

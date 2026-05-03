@@ -164,6 +164,8 @@ const userSchema = new mongoose.Schema({
         signedAt: { type: Date },
         version: { type: String, default: 'Data Privacy Act of 2012' }
     },
+    appConsentGiven: { type: Boolean, default: false },
+    appConsentTimestamp: { type: Date, default: null },
 
     // 8. EMR DATA
     treatmentLogs: [treatmentLogSchema],

@@ -6,6 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 
 // --- AUTH SCREENS ---
 import LoginScreen from '../screens/auth/LoginScreen';
+import AppPrivacyConsentScreen from '../screens/auth/AppPrivacyConsentScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 
 // --- PATIENT SCREENS ---
@@ -67,13 +68,18 @@ function PatientNavigator() {
 
 // --- MAIN APP NAVIGATOR ---
 export default function AppNavigator() {
-    const { userToken } = useContext(AuthContext);
+    const { userToken, userInfo } = useContext(AuthContext);
+    const needsAppConsent = Boolean(userToken) && !userInfo?.appConsentGiven;
 
     return (
         <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {userToken ? (
+                    needsAppConsent ? (
+                        <Stack.Screen name="AppPrivacyConsent" component={AppPrivacyConsentScreen} />
+                    ) : (
                     <Stack.Screen name="PatientApp" component={PatientNavigator} />
+                    )
                 ) : (
                     <Stack.Screen name="Auth" component={AuthNavigator} />
                 )}

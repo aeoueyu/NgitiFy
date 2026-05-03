@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const queueSchema = new mongoose.Schema({
+    linkedAppointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', default: null },
     patientName:    { type: String, required: true, trim: true },
     patientId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     branch:         { type: String, required: true, trim: true },

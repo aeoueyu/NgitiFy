@@ -7,9 +7,14 @@ import {
     clinicInfo,
     locationCards,
 } from '../../data/websiteContent';
+import {
+    privacyPolicySections,
+    privacyPolicyUpdatedAt,
+    privacyPolicyVersion,
+} from '../../data/consentDocument';
 import { publicFetch } from '../../utils/api';
 
-const initialForm = {
+const buildInitialForm = () => ({
     firstName: '',
     lastName: '',
     phone: '',
@@ -21,9 +26,9 @@ const initialForm = {
     branch: locationCards[0]?.name || '',
     preferredDate: '',
     preferredTime: '',
-    procedure: '',
+    procedure: appointmentProcedures[0] || '',
     notes: '',
-};
+});
 
 const TURNSTILE_SITE_KEY = process.env.REACT_APP_TURNSTILE_SITE_KEY || '';
 
@@ -62,7 +67,7 @@ const buildFullName = ({ firstName, lastName }) => (
 export default function WebsiteAppointment() {
     const turnstileContainerRef = useRef(null);
     const turnstileWidgetIdRef = useRef(null);
-    const [formData, setFormData] = useState(initialForm);
+    const [formData, setFormData] = useState(buildInitialForm);
     const [errors, setErrors] = useState({});
     const [submittedMessage, setSubmittedMessage] = useState('');
     const [submitState, setSubmitState] = useState('idle');
@@ -73,6 +78,7 @@ export default function WebsiteAppointment() {
     const [blockedDates, setBlockedDates] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [captchaReady, setCaptchaReady] = useState(false);
+    const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
 
     const renderTurnstile = useCallback(() => {
         if (!TURNSTILE_SITE_KEY || !turnstileContainerRef.current || !window.turnstile) return;
@@ -334,7 +340,7 @@ export default function WebsiteAppointment() {
                 `Your appointment request for ${formData.branch} on ${formData.preferredDate} at ${to12h(formData.preferredTime)} has been sent. The clinic will email you once it is confirmed.`
             );
             setSubmitState('success');
-            setFormData(initialForm);
+            setFormData(buildInitialForm());
             setErrors({});
             setAllowedSlots([]);
             setTakenSlots([]);
@@ -538,12 +544,14 @@ export default function WebsiteAppointment() {
                                     onChange={handleChange}
                                     required
                                 >
-                                    <option value="" disabled>Select a procedure</option>
                                     {appointmentProcedures.map((procedure) => (
                                         <option key={procedure} value={procedure}>{procedure}</option>
                                     ))}
                                 </select>
                                 {errors.procedure && <span className={styles.errorText}>{errors.procedure}</span>}
+                                <p className={styles.helperText}>
+                                    For all other procedures, please book a consultation first so the dentist can assess the best treatment plan for you.
+                                </p>
                             </div>
 
                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
@@ -605,13 +613,15 @@ export default function WebsiteAppointment() {
                                         required
                                     />
                                     <span className={styles.consentText}>
-                                        I agree to the collection and processing of my personal information for appointment scheduling,
-                                        patient coordination, and clinic follow-up related to this request.
+                                        I have read and agree to the Privacy Policy of NgitiFy Dental Clinic. By submitting this form,
+                                        I consent to the collection, use, and processing of my personal data for appointment scheduling,
+                                        patient care coordination, and related clinic communications, in accordance with Republic Act No. 10173,
+                                        or the Data Privacy Act of 2012.
                                     </span>
                                 </label>
-                                <p className={styles.helperText}>
-                                    This consent only covers the information needed to review and manage your appointment request.
-                                </p>
+                                <button type="button" className={styles.inlineLinkBtn} onClick={() => setIsPrivacyModalOpen(true)}>
+                                    View Privacy Policy
+                                </button>
                                 {errors.privacyConsent && <span className={styles.errorText}>{errors.privacyConsent}</span>}
                             </div>
 
@@ -669,6 +679,36 @@ export default function WebsiteAppointment() {
                     ))}
                 </div>
             </section>
+
+            {isPrivacyModalOpen && (
+                <div className={styles.privacyModalOverlay} role="dialog" aria-modal="true" aria-labelledby="privacy-policy-title">
+                    <div className={styles.privacyModal}>
+                        <div className={styles.privacyModalHeader}>
+                            <div>
+                                <p className={styles.eyebrow}>Privacy Policy</p>
+                                <h3 id="privacy-policy-title" className={styles.privacyModalTitle}>NgitiFy Dental Clinic Privacy Policy</h3>
+                                <p className={styles.bodyText}>Version {privacyPolicyVersion} • Last updated {privacyPolicyUpdatedAt}</p>
+                            </div>
+                            <button type="button" className={styles.inlineLinkBtn} onClick={() => setIsPrivacyModalOpen(false)}>
+                                Close
+                            </button>
+                        </div>
+                        <div className={styles.privacyModalBody}>
+                            {privacyPolicySections.map((section) => (
+                                <article key={section.heading} className={styles.privacyPolicyCard}>
+                                    <h4>{section.heading}</h4>
+                                    <p>{section.body}</p>
+                                </article>
+                            ))}
+                        </div>
+                        <div className={styles.privacyModalFooter}>
+                            <button type="button" className={styles.primaryBtn} onClick={() => setIsPrivacyModalOpen(false)}>
+                                I Understand
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </WebsiteShell>
     );
 }
