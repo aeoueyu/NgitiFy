@@ -49,6 +49,7 @@ const APPOINTMENT_STATUS_OPTIONS = [
 const SCHEDULE_SOURCE_OPTIONS = [
     { value: '', label: '--SELECT SOURCE--' },
     { value: 'appointment', label: 'Appointment' },
+    { value: 'phonecall', label: 'Phone Call' },
     { value: 'walkin', label: 'Walk-in' },
 ];
 
@@ -602,7 +603,9 @@ export default function SchedulePage() {
             procedure: entry.procedure || '',
             notes: entry.notes || '',
             status: entry.status || 'pending',
-            source: entry.type === 'walkin' ? 'walkin' : 'appointment',
+            source: entry.type === 'walkin'
+                ? 'walkin'
+                : (entry.source === 'Phone Call' ? 'phonecall' : 'appointment'),
             contactNumber: entry.contactNumber || '',
             assignedDentist: entry.type === 'walkin' ? (entry.dentistName === 'Unassigned' ? '' : entry.dentistName) : '',
         };
@@ -624,7 +627,13 @@ export default function SchedulePage() {
             if (name === 'source') {
                 const nextType = value === 'walkin' ? 'walkin' : 'appointment';
                 next.formType = nextType;
-                next.status = nextType === 'walkin' ? 'in-clinic' : 'pending';
+                if (value === 'walkin') {
+                    next.status = 'in-clinic';
+                } else if (value === 'phonecall') {
+                    next.status = 'confirmed';
+                } else {
+                    next.status = 'pending';
+                }
                 next.date = nextType === 'walkin' ? todayString : prev.date || todayString;
                 next.time = '';
                 if (nextType === 'walkin') {
@@ -709,7 +718,7 @@ export default function SchedulePage() {
                     procedure: formState.procedure,
                     notes: formState.notes,
                     status: formState.status,
-                    source: 'Appointment',
+                    source: formState.source === 'phonecall' ? 'Phone Call' : 'Appointment',
                 };
 
                 const response = await authFetch(

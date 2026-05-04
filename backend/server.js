@@ -577,6 +577,8 @@ const isSameCalendarDay = (leftDate, rightDate) => {
 
 const mapAppointmentStatusToQueueStatus = (status) => {
     switch (status) {
+        case 'confirmed':
+            return 'confirmed';
         case 'completed':
             return 'completed';
         case 'cancelled':
@@ -670,10 +672,6 @@ const syncQueueEntryForAppointment = async (appointmentLike) => {
     const nextStatus = mapAppointmentStatusToQueueStatus(appointment.status);
     const existingEntry = await Queue.findOne({ linkedAppointment: appointment._id });
 
-    if (!existingEntry && appointment.status !== 'in-clinic') {
-        return null;
-    }
-
     const basePayload = {
         linkedAppointment: appointment._id,
         patientName,
@@ -709,6 +707,11 @@ const syncQueueEntryForAppointment = async (appointmentLike) => {
     }
 
     return Queue.findByIdAndUpdate(existingEntry._id, update, { new: true });
+};
+
+const removeQueueEntryForAppointment = async (appointmentId) => {
+    if (!appointmentId) return null;
+    return Queue.findOneAndDelete({ linkedAppointment: appointmentId });
 };
 
 const appendRescheduleHistoryEntry = ({ appointment, nextDate, nextTime, actor, reason = '' }) => {
@@ -3153,13 +3156,14 @@ app.get(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
 
 app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req, res) => {
     try {
+        const existing = await Surgery.findById(req.params.id);
+        if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
+
         if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);
             if (!scopedBranch) {
                 return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
-            const existing = await Surgery.findById(req.params.id);
-            if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
             if (existing.branch !== scopedBranch) {
                 return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
             }
@@ -3168,16 +3172,42 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         }
 
         if (req.user.role === 'dentist') {
-            const existing = await Surgery.findById(req.params.id);
-            if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
             if (existing.dentist?.toString() !== req.user.id) {
                 return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
             }
             delete req.body.dentist;
         }
 
-        const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const updateData = { ...req.body };
+        const nextDate = updateData.date ? new Date(updateData.date) : existing.date;
+        const nextTime = updateData.time !== undefined ? updateData.time : existing.time;
+        const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
+
+        if (updateData.status === 'completed' && nextDateTime && nextDateTime > new Date()) {
+            return res.status(400).json({ message: 'Appointments can only be marked completed after their scheduled date and time.' });
+        }
+
+        if (updateData.source !== undefined) {
+            const normalizedSource = String(updateData.source || '').trim();
+            if (normalizedSource === 'Walk-in') {
+                updateData.source = 'Walk-in';
+                updateData.status = 'in-clinic';
+            } else if (normalizedSource === 'Phone Call') {
+                updateData.source = 'Phone Call';
+                updateData.status = updateData.status || existing.status || 'confirmed';
+            } else if (normalizedSource) {
+                updateData.source = normalizedSource;
+            }
+        }
+
+        const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, updateData, { new: true });
         if (!updatedSurgery) return res.status(404).json({ message: "Dental treatment not found" });
+
+        if (['Walk-in', 'Phone Call'].includes(updatedSurgery.source)) {
+            await syncQueueEntryForAppointment(updatedSurgery);
+        } else if (['Walk-in', 'Phone Call'].includes(existing.source)) {
+            await removeQueueEntryForAppointment(updatedSurgery._id);
+        }
 
         await AuditLog.create({
             action: "UPDATE_SURGERY",
@@ -3230,6 +3260,8 @@ app.delete(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (
             { new: true }
         );
         if (!archivedSurgery) return res.status(404).json({ message: "Dental treatment not found" });
+
+        await syncQueueEntryForAppointment(archivedSurgery);
 
         await AuditLog.create({
             action: "ARCHIVE_SURGERY",
@@ -4091,9 +4123,27 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Branch is required. Please select a clinic branch.' });
         }
 
-        const patientUser = await User.findById(req.user.id).select('name email role');
+        const patientUser = await User.findById(req.user.id).select('name email role assignedBranch assignedBranches');
         if (!patientUser || patientUser.role !== 'patient') {
             return res.status(403).json({ message: 'Only patients can submit appointment requests.' });
+        }
+
+        const resolvedBranch = patientUser.assignedBranch || patientUser.assignedBranches?.[0] || '';
+        if (!resolvedBranch) {
+            return res.status(400).json({ message: 'Your patient account does not have an assigned branch yet. Please contact the clinic before booking an appointment.' });
+        }
+
+        if (branch && String(branch).trim() !== resolvedBranch) {
+            return res.status(400).json({ message: 'Your booking branch does not match your assigned clinic branch.' });
+        }
+
+        const duplicateAppointment = await Surgery.findOne({
+            patient: req.user.id,
+            status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+            isArchived: false,
+        }).select('_id date time procedure status');
+        if (duplicateAppointment) {
+            return res.status(409).json({ message: 'You already have an active appointment request. Please wait for it to be completed or cancelled before booking another one.' });
         }
 
         const completedConsultationCount = await Surgery.countDocuments({
@@ -4115,7 +4165,7 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
                 return res.status(400).json({ message: 'Please select a valid appointment time.' });
             }
 
-            const takenSlots = await getTakenSlotsForDate({ date, branch });
+            const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranch });
             if (takenSlots.includes(time)) {
                 return res.status(409).json({ message: 'That time slot is already taken. Please choose another time.' });
             }
@@ -4124,7 +4174,7 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
         const newSurgery = new Surgery({
             patient: req.user.id,
             dentist: req.body.dentistId || null,
-            branch: branch,
+            branch: resolvedBranch,
             date: new Date(date),
             time: time || '',
             procedure,
@@ -4148,14 +4198,14 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             patientName: `${patientUser.name.first} ${patientUser.name.last}`.trim(),
             procedure,
             date,
-            branch,
+            branch: resolvedBranch,
         });
 
         if (patientUser.email) {
             await sendAppointmentReceivedEmail({
                 email: patientUser.email,
                 name: `${patientUser.name.first} ${patientUser.name.last}`.trim(),
-                branch,
+                branch: resolvedBranch,
                 date,
                 time,
                 procedure,
