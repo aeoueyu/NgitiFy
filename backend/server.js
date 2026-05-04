@@ -714,6 +714,8 @@ const removeQueueEntryForAppointment = async (appointmentId) => {
     return Queue.findOneAndDelete({ linkedAppointment: appointmentId });
 };
 
+const RESERVED_APPOINTMENT_ROUTE_IDS = new Set(['slots', 'blocked-dates', 'my-active', 'request']);
+
 const appendRescheduleHistoryEntry = ({ appointment, nextDate, nextTime, actor, reason = '' }) => {
     const history = Array.isArray(appointment.rescheduleHistory)
         ? [...appointment.rescheduleHistory]
@@ -3132,8 +3134,11 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
     }
 });
 
-app.get(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req, res) => {
+app.get(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req, res, next) => {
     try {
+        if (req.path.startsWith('/api/appointments/') && RESERVED_APPOINTMENT_ROUTE_IDS.has(String(req.params.id || '').trim())) {
+            return next();
+        }
         const surgery = await Surgery.findById(req.params.id)
             .populate('patient')
             .populate('dentist', 'name email role');
