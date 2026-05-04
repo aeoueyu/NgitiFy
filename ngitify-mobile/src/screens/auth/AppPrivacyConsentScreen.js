@@ -28,10 +28,16 @@ const PRIVACY_SECTIONS = [
 ];
 
 export default function AppPrivacyConsentScreen() {
-    const { userToken, API_BASE_URL, refreshUserInfo } = useContext(AuthContext);
+    const { userToken, API_BASE_URL, refreshUserInfo, logout } = useContext(AuthContext);
     const [isSaving, setIsSaving] = useState(false);
 
     const handleAgree = async () => {
+        if (!userToken) {
+            Alert.alert('Session expired', 'Please login again.');
+            await logout();
+            return;
+        }
+
         setIsSaving(true);
         try {
             const response = await fetch(`${API_BASE_URL}/api/user/app-consent`, {

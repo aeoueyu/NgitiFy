@@ -4185,28 +4185,25 @@ app.get('/api/appointments/slots', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'date query parameter is required.' });
         }
 
-        const start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(date);
-        end.setHours(23, 59, 59, 999);
+        let resolvedBranch = String(branch || '').trim();
 
-        // Block slots for active AND completed appointments (prevents rebooking taken slots)
-        const query = {
-            date:   { $gte: start, $lte: end },
-            status: { $in: ['pending', 'confirmed', 'in-clinic', 'completed'] },
-        };
-        if (branch) query.branch = branch;
+        if (req.user.role === 'patient') {
+            const patient = await User.findById(req.user.id).select('assignedBranch assignedBranches');
+            resolvedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || resolvedBranch;
 
-        const surgeries = await Surgery.find(query).select('time status');
-        const takenSlots = surgeries.map(s => s.time).filter(Boolean);
+            if (!resolvedBranch) {
+                return res.status(400).json({
+                    message: 'Your patient account does not have an assigned branch yet. Please contact the clinic before booking an appointment.',
+                });
+            }
+        } else if (isBranchScopedStaff(req.user.role)) {
+            resolvedBranch = getScopedBranchForUser(req.user) || resolvedBranch;
+        }
 
-        // Pull clinic's allowed time slots from SystemConfig
-        let config = await SystemConfig.findOne();
-        if (!config) config = await SystemConfig.create({});
-        const allowedSlots = config.allowedTimeSlots ||
-            ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+        const allowedSlots = await getClinicAllowedSlots();
+        const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranch });
 
-        res.json({ allowedSlots, takenSlots });
+        res.json({ allowedSlots, takenSlots, branch: resolvedBranch });
     } catch (error) {
         console.error('Error fetching appointment slots:', error);
         res.status(500).json({ message: 'Server error fetching appointment slots.' });
@@ -4243,52 +4240,24 @@ app.get('/api/appointments/my-active', verifyToken, async (req, res) => {
 app.get('/api/appointments/blocked-dates', verifyToken, async (req, res) => {
     try {
         const { branch, month } = req.query;
-        // month = 'YYYY-MM' e.g. '2026-05'
+        let resolvedBranch = String(branch || '').trim();
 
-        // Build date range: first to last day of requested month (or ±60 days if no month)
-        let start, end;
-        if (month && /^\d{4}-\d{2}$/.test(month)) {
-            const [y, m] = month.split('-').map(Number);
-            start = new Date(y, m - 1, 1, 0, 0, 0, 0);
-            end   = new Date(y, m,     0, 23, 59, 59, 999); // last day of month
-        } else {
-            start = new Date();
-            start.setHours(0, 0, 0, 0);
-            end = new Date();
-            end.setDate(end.getDate() + 60);
-            end.setHours(23, 59, 59, 999);
+        if (req.user.role === 'patient') {
+            const patient = await User.findById(req.user.id).select('assignedBranch assignedBranches');
+            resolvedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || resolvedBranch;
+
+            if (!resolvedBranch) {
+                return res.status(400).json({
+                    message: 'Your patient account does not have an assigned branch yet. Please contact the clinic before booking an appointment.',
+                });
+            }
+        } else if (isBranchScopedStaff(req.user.role)) {
+            resolvedBranch = getScopedBranchForUser(req.user) || resolvedBranch;
         }
 
-        // Get allowed time slots from SystemConfig
-        let config = await SystemConfig.findOne();
-        if (!config) config = await SystemConfig.create({});
-        const allowedSlots = config.allowedTimeSlots ||
-            ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
-        const totalSlots = allowedSlots.length;
+        const blockedDates = await getBlockedDatesForMonth({ branch: resolvedBranch, month });
 
-        // Build query for active appointments in range
-        const query = {
-            date:   { $gte: start, $lte: end },
-            status: { $in: ['pending', 'confirmed', 'in-clinic'] },
-        };
-        if (branch) query.branch = branch;
-
-        const appointments = await Surgery.find(query).select('date time');
-
-        // Group taken slots by date string (YYYY-MM-DD)
-        const slotsByDate = {};
-        for (const appt of appointments) {
-            const dateKey = appt.date.toISOString().split('T')[0];
-            if (!slotsByDate[dateKey]) slotsByDate[dateKey] = new Set();
-            if (appt.time) slotsByDate[dateKey].add(appt.time);
-        }
-
-        // A date is fully blocked when ALL allowed slots are taken
-        const blockedDates = Object.entries(slotsByDate)
-            .filter(([, slots]) => slots.size >= totalSlots)
-            .map(([date]) => date);
-
-        res.json({ blockedDates });
+        res.json({ blockedDates, branch: resolvedBranch });
     } catch (error) {
         console.error('Error fetching blocked dates:', error);
         res.status(500).json({ message: 'Server error fetching blocked dates.' });

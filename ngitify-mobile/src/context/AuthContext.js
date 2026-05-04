@@ -36,13 +36,23 @@ export const AuthProvider = ({ children }) => {
                 ]);
 
                 if (token && storedId && storedRole) {
-                    // Fetch the user's profile so we have their name ready
+                    // Validate the stored token by fetching the profile first.
+                    // If this fails, the token is stale/expired and must not boot
+                    // the user into a protected mobile flow.
                     const profile = await fetchUserProfile(storedId, token);
 
-                    setUserToken(token);
-                    setUserId(storedId);
-                    setUserRole(storedRole);
-                    setUserInfo(profile);
+                    if (profile) {
+                        setUserToken(token);
+                        setUserId(storedId);
+                        setUserRole(storedRole);
+                        setUserInfo(profile);
+                    } else {
+                        await Promise.all([
+                            AsyncStorage.removeItem(STORAGE_KEYS.TOKEN),
+                            AsyncStorage.removeItem(STORAGE_KEYS.USER_ID),
+                            AsyncStorage.removeItem(STORAGE_KEYS.ROLE),
+                        ]);
+                    }
                 }
             } catch (err) {
                 console.warn('Session restore failed:', err);

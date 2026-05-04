@@ -68,8 +68,12 @@ function PatientNavigator() {
 
 // --- MAIN APP NAVIGATOR ---
 export default function AppNavigator() {
-    const { userToken, userInfo } = useContext(AuthContext);
-    const needsAppConsent = Boolean(userToken) && !userInfo?.appConsentGiven;
+    const { userToken, userInfo, isLoading } = useContext(AuthContext);
+    const needsAppConsent = Boolean(userToken) && Boolean(userInfo) && !userInfo?.appConsentGiven;
+
+    if (isLoading) {
+        return null;
+    }
 
     return (
         <NavigationContainer>

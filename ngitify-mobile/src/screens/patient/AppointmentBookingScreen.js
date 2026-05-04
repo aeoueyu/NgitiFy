@@ -169,15 +169,18 @@ export default function AppointmentBookingScreen({ navigation }) {
     const availableProcedures = hasCompletedConsultation ? EXTENDED_PROCEDURES : DIRECT_BOOKING_PROCEDURES;
 
     const fetchBlockedDates = useCallback(async (month) => {
-        if (!assignedBranch) return;
+        if (!assignedBranch) {
+            setBlockedDates([]);
+            return;
+        }
         setLoadingBlocked(true);
         try {
             const res = await fetch(
                 `${API_BASE_URL}/api/appointments/blocked-dates?month=${month}&branch=${encodeURIComponent(assignedBranch)}`,
                 { headers: { Authorization: `Bearer ${userToken}` } },
             );
-            if (!res.ok) throw new Error();
-            const data = await res.json();
+            const data = await res.json().catch(() => null);
+            if (!res.ok) throw new Error(data?.message || 'Could not load blocked dates.');
             setBlockedDates(Array.isArray(data.blockedDates) ? data.blockedDates : []);
         } catch {
             setBlockedDates([]);
@@ -191,7 +194,12 @@ export default function AppointmentBookingScreen({ navigation }) {
     }, [currentMonth, fetchBlockedDates]);
 
     const fetchSlots = useCallback(async (date, { preserveSelection = false } = {}) => {
-        if (!assignedBranch) return;
+        if (!assignedBranch) {
+            setSlotsError('Your account does not have an assigned branch yet. Please contact the clinic before booking an appointment.');
+            setAllowedSlots([]);
+            setTakenSlots([]);
+            return;
+        }
         setLoadingSlots(true);
         setSlotsError('');
         if (!preserveSelection) {
@@ -202,8 +210,8 @@ export default function AppointmentBookingScreen({ navigation }) {
                 `${API_BASE_URL}/api/appointments/slots?date=${date}&branch=${encodeURIComponent(assignedBranch)}`,
                 { headers: { Authorization: `Bearer ${userToken}` } },
             );
-            if (!res.ok) throw new Error('Failed to fetch slots');
             const data = await res.json();
+            if (!res.ok) throw new Error(data?.message || 'Failed to fetch slots');
             const nextAllowedSlots = Array.isArray(data.allowedSlots) ? data.allowedSlots : [];
             const nextTakenSlots = Array.isArray(data.takenSlots) ? data.takenSlots : [];
             setAllowedSlots(nextAllowedSlots);
@@ -214,8 +222,8 @@ export default function AppointmentBookingScreen({ navigation }) {
                     setSelectedTime('');
                 }
             }
-        } catch {
-            setSlotsError('Could not load time slots. Please try again.');
+        } catch (error) {
+            setSlotsError(error?.message || 'Could not load time slots. Please try again.');
             setAllowedSlots([]);
             setTakenSlots([]);
         } finally {
