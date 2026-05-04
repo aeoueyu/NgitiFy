@@ -1671,7 +1671,7 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
 // GET ALL USERS (With Role-Based Security)
 // -------------------------------------------------------
 // Explicit allowlists — any new roles added to the system are blocked by default
-const SECRETARY_ALLOWED_ROLES = ['patient'];
+const SECRETARY_ALLOWED_ROLES = ['patient', 'dentist'];
 const DENTIST_ALLOWED_ROLES   = ['patient', 'dentist', 'secretary'];
 const BRANCH_MANAGER_ALLOWED_ROLES = ['patient', 'dentist', 'secretary'];
 
@@ -1708,10 +1708,10 @@ app.get('/api/users', verifyToken, async (req, res) => {
         let query = {};
         if (role) query.role = role;
 
-        // Branch managers can only see users in their own branch
-        if (req.user.role === 'branch-manager') {
+        // Branch managers and secretaries can only see users in their own branch
+        if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
             if (!req.user.assignedBranch) {
-                return res.status(403).json({ message: 'Branch manager has no assigned branch.' });
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
             query.assignedBranches = { $in: [req.user.assignedBranch] };
         }

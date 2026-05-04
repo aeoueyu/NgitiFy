@@ -16,16 +16,23 @@ import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/shared/SchedulePage.module.css';
 
 const PROCEDURE_OPTIONS = [
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
     'Consultation',
     'Teeth Cleaning (Prophylaxis)',
     'Tooth Extraction',
+    'Dental Filling',
     'Dental Filling (Composite)',
     'Root Canal Treatment',
+    'Orthodontic Consultation',
+    'Dental Implant Consultation',
     'Braces / Orthodontic Adjustment',
     'Teeth Whitening',
+    'Dentures / Retainers',
     'Crown / Bridge Fitting',
     'Wisdom Tooth Extraction',
     'Oral Surgery',
+    'X-Ray / Imaging',
     'X-Ray / Radiograph',
     'Other',
 ];
@@ -533,6 +540,13 @@ export default function SchedulePage() {
             : baseList;
     }, [currentUserId, dentists, formState.branch, isDentist]);
 
+    const procedureOptions = useMemo(() => {
+        const savedProcedure = String(formState.procedure || '').trim();
+        return savedProcedure && !PROCEDURE_OPTIONS.includes(savedProcedure)
+            ? [savedProcedure, ...PROCEDURE_OPTIONS]
+            : PROCEDURE_OPTIONS;
+    }, [formState.procedure]);
+
     const patientSearchOptions = useMemo(
         () => patientOptions.map((patient) => `${patient.name}${patient.email ? ` (${patient.email})` : ''}`),
         [patientOptions]
@@ -994,7 +1008,7 @@ export default function SchedulePage() {
                                         onChange={handleFormFieldChange}
                                     >
                                         <option value="">Select procedure</option>
-                                        {PROCEDURE_OPTIONS.map((procedure) => (
+                                        {procedureOptions.map((procedure) => (
                                             <option key={procedure} value={procedure}>{procedure}</option>
                                         ))}
                                     </select>

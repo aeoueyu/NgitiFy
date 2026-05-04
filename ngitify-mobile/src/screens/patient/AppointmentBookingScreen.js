@@ -460,7 +460,7 @@ export default function AppointmentBookingScreen({ navigation }) {
     );
 
     const renderTimeStep = () => {
-        const isSlotTaken = (slot12h) => takenSlots.some((slot) => slot === slot12h || to12h(slot) === slot12h);
+        const isSlotTaken = (slot24) => takenSlots.some((slot) => slot === slot24);
 
         return (
             <Animated.View style={{ opacity: fadeAnim }}>
@@ -488,10 +488,10 @@ export default function AppointmentBookingScreen({ navigation }) {
                         <View style={styles.slotGrid}>
                             {allowedSlots.map((slot24) => {
                                 const slot12 = to12h(slot24);
-                                const taken = isSlotTaken(slot12) || isSlotTaken(slot24);
+                                const taken = isSlotTaken(slot24);
                                 const past = isSlotPast(slot24, selectedDate, today);
                                 const disabled = taken || past;
-                                const selected = selectedTime === slot12;
+                                const selected = selectedTime === slot24;
                                 return (
                                     <TouchableOpacity
                                         key={slot24}
@@ -501,7 +501,7 @@ export default function AppointmentBookingScreen({ navigation }) {
                                             taken && styles.slotTaken,
                                             past && !taken && styles.slotPast,
                                         ]}
-                                        onPress={() => !disabled && setSelectedTime(slot12)}
+                                        onPress={() => !disabled && setSelectedTime(slot24)}
                                         disabled={disabled}
                                         activeOpacity={disabled ? 1 : 0.72}
                                     >
@@ -624,7 +624,7 @@ export default function AppointmentBookingScreen({ navigation }) {
             <View style={styles.summaryCard}>
                 <SummaryRow label="Assigned Branch" value={assignedBranch} />
                 <SummaryRow label="Date" value={formatDisplayDate(selectedDate)} />
-                <SummaryRow label="Time" value={selectedTime || '—'} />
+                <SummaryRow label="Time" value={selectedTime ? to12h(selectedTime) : '—'} />
                 <SummaryRow label="Procedure" value={selectedProcedure} />
                 {notes.trim() ? <SummaryRow label="Notes" value={notes.trim()} /> : null}
             </View>

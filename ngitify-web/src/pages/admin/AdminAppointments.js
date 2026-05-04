@@ -21,10 +21,25 @@ import {
 } from 'react-icons/fa';
 
 const PROCEDURE_OPTIONS = [
-    'Consultation', 'Teeth Cleaning (Prophylaxis)', 'Tooth Extraction',
-    'Dental Filling (Composite)', 'Root Canal Treatment', 'Braces / Orthodontic Adjustment',
-    'Teeth Whitening', 'Crown / Bridge Fitting', 'Wisdom Tooth Extraction',
-    'Oral Surgery', 'X-Ray / Radiograph', 'Other',
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
+    'Consultation',
+    'Teeth Cleaning (Prophylaxis)',
+    'Tooth Extraction',
+    'Dental Filling',
+    'Dental Filling (Composite)',
+    'Root Canal Treatment',
+    'Orthodontic Consultation',
+    'Dental Implant Consultation',
+    'Braces / Orthodontic Adjustment',
+    'Teeth Whitening',
+    'Dentures / Retainers',
+    'Crown / Bridge Fitting',
+    'Wisdom Tooth Extraction',
+    'Oral Surgery',
+    'X-Ray / Imaging',
+    'X-Ray / Radiograph',
+    'Other',
 ];
 
 const STATUS_DISPLAY_MAP = {
@@ -342,6 +357,13 @@ export default function AdminAppointments() {
         () => allowedSlots.filter((slot) => !takenSlots.includes(slot) && !isSlotPast(slot, bookingForm.date)),
         [allowedSlots, bookingForm.date, takenSlots]
     );
+
+    const bookingProcedureOptions = useMemo(() => {
+        const savedProcedure = String(bookingForm.procedure || '').trim();
+        return savedProcedure && !PROCEDURE_OPTIONS.includes(savedProcedure)
+            ? [savedProcedure, ...PROCEDURE_OPTIONS]
+            : PROCEDURE_OPTIONS;
+    }, [bookingForm.procedure]);
 
     const branchOptions = useMemo(() => {
         if (isBranchManager && assignedBranch) return [assignedBranch];
@@ -1059,7 +1081,7 @@ export default function AdminAppointments() {
                                     disabled={isSubmittingBooking}
                                 >
                                     <option value="" disabled hidden>-- Select Procedure --</option>
-                                    {PROCEDURE_OPTIONS.map((procedure) => (
+                                    {bookingProcedureOptions.map((procedure) => (
                                         <option key={procedure} value={procedure}>{procedure}</option>
                                     ))}
                                 </select>
