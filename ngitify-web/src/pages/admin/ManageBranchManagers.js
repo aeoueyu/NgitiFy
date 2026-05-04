@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaEdit, FaEye, FaEnvelope, FaSearch, FaToggleOn, FaToggleOff, FaUserPlus } from 'react-icons/fa';
+import { FaEdit, FaEye, FaSearch, FaToggleOn, FaToggleOff, FaUserPlus } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
 import EditBranchManager from './EditBranchManager';
 import AddBranchManager from './AddBranchManager';
+import ViewBranchManager from './ViewBranchManager';
 import UserTabs from './UserTabs';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
@@ -20,6 +21,7 @@ const ManageBranchManagers = () => {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedManagerId, setSelectedManagerId] = useState(null);
     const [confirmConfig, setConfirmConfig] = useState(null);
 
@@ -48,7 +50,22 @@ const ManageBranchManagers = () => {
         }
     }, [addToast]);
 
-    useEffect(() => { fetchManagers(); }, [fetchManagers]);
+    useEffect(() => {
+        fetchManagers();
+        const intervalId = window.setInterval(fetchManagers, 30000);
+        const handleFocus = () => fetchManagers();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') fetchManagers();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [fetchManagers]);
 
     const allBranches = [...new Set(managers.map((m) => m.assignedBranch).filter(Boolean))].sort();
 
@@ -64,6 +81,12 @@ const ManageBranchManagers = () => {
     const openManagerModal = (id) => {
         setSelectedManagerId(id);
         setIsEditModalOpen(true);
+    };
+
+    const openManagerView = (id) => {
+        setSelectedManagerId(id);
+        setIsEditModalOpen(false);
+        setIsViewModalOpen(true);
     };
 
     const handleToggleStatus = (manager) => {
@@ -204,7 +227,15 @@ const ManageBranchManagers = () => {
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{manager.email}</span>
-                                            {!manager.isVerified && <span style={{ color: '#01538b', fontSize: '12px', fontWeight: 600 }}>Resend Activation Link to email</span>}
+                                            {!manager.isVerified && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleResendActivation(manager)}
+                                                    style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+                                                >
+                                                    Resend Activation Link to email
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                     <td>
@@ -217,7 +248,7 @@ const ManageBranchManagers = () => {
                                             <button
                                                 type="button"
                                                 className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`}
-                                                onClick={() => openManagerModal(manager.id)}
+                                                onClick={() => openManagerView(manager.id)}
                                                 title="View Branch Manager"
                                             >
                                                 <FaEye />
@@ -230,16 +261,6 @@ const ManageBranchManagers = () => {
                                             >
                                                 <FaEdit />
                                             </button>
-                                            {!manager.isVerified && (
-                                                <button
-                                                    type="button"
-                                                    className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.warningIconButton}`}
-                                                    onClick={() => handleResendActivation(manager)}
-                                                    title="Resend Activation Email"
-                                                >
-                                                    <FaEnvelope />
-                                                </button>
-                                            )}
                                             <button
                                                 type="button"
                                                 className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
@@ -262,6 +283,13 @@ const ManageBranchManagers = () => {
 
             {isAddModalOpen && (
                 <AddBranchManager onClose={() => setIsAddModalOpen(false)} onSuccess={fetchManagers} />
+            )}
+            {isViewModalOpen && selectedManagerId && (
+                <ViewBranchManager
+                    managerId={selectedManagerId}
+                    onClose={() => { setIsViewModalOpen(false); setSelectedManagerId(null); }}
+                    onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                />
             )}
             {isEditModalOpen && selectedManagerId && (
                 <EditBranchManager

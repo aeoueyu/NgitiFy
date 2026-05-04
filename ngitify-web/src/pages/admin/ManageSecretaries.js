@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/admin/ManageSecretaries.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -69,7 +69,22 @@ export default function ManageSecretaries() {
         }
     }, []);
 
-    useEffect(() => { fetchSecretaries(); }, [fetchSecretaries]);
+    useEffect(() => {
+        fetchSecretaries();
+        const intervalId = window.setInterval(fetchSecretaries, 30000);
+        const handleFocus = () => fetchSecretaries();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') fetchSecretaries();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [fetchSecretaries]);
 
     const allBranches = [...new Set(secretariesList.flatMap(s => s.assignedBranches))].sort();
 
@@ -219,7 +234,15 @@ export default function ManageSecretaries() {
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{secretary.email}</span>
-                                            {!secretary.isVerified && <span style={{ color: '#01538b', fontSize: '12px', fontWeight: 600 }}>Resend Activation Link to email</span>}
+                                            {!secretary.isVerified && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleResendActivation(secretary)}
+                                                    style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+                                                >
+                                                    Resend Activation Link to email
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
@@ -232,16 +255,6 @@ export default function ManageSecretaries() {
                                         <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
                                             <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
                                             <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
-                                            {!secretary.isVerified && (
-                                                <button
-                                                    type="button"
-                                                    className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.warningIconButton}`}
-                                                    onClick={() => handleResendActivation(secretary)}
-                                                    title="Resend Activation Email"
-                                                >
-                                                    <FaEnvelope />
-                                                </button>
-                                            )}
                                             <button
                                                 type="button"
                                                 className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}

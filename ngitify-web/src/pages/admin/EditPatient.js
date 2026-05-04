@@ -405,6 +405,21 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     const validateForm = () => {
         const nextErrors = {};
         let isValid = true;
+        const requiredYesNoFields = [
+            ['dentalHistory', 'hadTreatmentReaction'],
+            ['dentalHistory', 'hasConfidentialInfo'],
+            ['medicalHistory', 'inGoodHealth'],
+            ['medicalHistory', 'underMedicalTreatment'],
+            ['medicalHistory', 'hadSeriousIllnessOrSurgery'],
+            ['medicalHistory', 'hadHospitalization'],
+            ['medicalHistory', 'isTakingMedication'],
+            ['medicalHistory', 'usesTobacco'],
+            ['medicalHistory', 'usesAlcoholOrDrugs'],
+            ['medicalHistory', 'hasAllergies'],
+            ['medicalHistory', 'isPregnant'],
+            ['medicalHistory', 'isNursing'],
+            ['medicalHistory', 'takingBirthControl'],
+        ];
 
         ['firstName', 'lastName', 'birthdate', 'gender', 'email'].forEach((field) => {
             if (!formData[field]) {
@@ -451,13 +466,24 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         };
         validateAddr(formData.currentAddress, 'current');
 
-        if (formData.emergencyContact.contactNumber && !isValidMobileNumber(formData.emergencyContact.contactNumber)) {
+        if (!formData.emergencyContact.name?.trim()) {
+            nextErrors.emergencyContact_name = 'Required';
+            isValid = false;
+        }
+        if (!formData.emergencyContact.relationship?.trim()) {
+            nextErrors.emergencyContact_relationship = 'Required';
+            isValid = false;
+        }
+        if (!formData.emergencyContact.contactNumber) {
+            nextErrors.emergencyContact_contactNumber = 'Required';
+            isValid = false;
+        } else if (!isValidMobileNumber(formData.emergencyContact.contactNumber)) {
             nextErrors.emergencyContact_contactNumber = 'Invalid format';
             isValid = false;
         }
 
         if (isMinor) {
-            ['name', 'relationship'].forEach((field) => {
+            ['name', 'relationship', 'occupation'].forEach((field) => {
                 if (!formData.guardian[field]) {
                     nextErrors[`guardian_${field}`] = 'Required';
                     isValid = false;
@@ -516,6 +542,12 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             nextErrors.dataPrivacyConsent_signedAt = 'Invalid signed date';
             isValid = false;
         }
+        requiredYesNoFields.forEach(([section, field]) => {
+            if (!formData[section][field]) {
+                nextErrors[`${section}_${field}`] = 'Required';
+                isValid = false;
+            }
+        });
 
         setErrors(nextErrors);
         return isValid;
@@ -674,7 +706,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
     const renderYesNoField = (label, section, field, value, disabled = false) => (
         <div className={styles.formGroup}>
-            <label>{label}</label>
+            <label>{label} <span style={{ color: 'red' }}>*</span></label>
             <div className={styles.radioGroup}>
                 <label className={`${styles.radioOption} ${value === 'yes' ? styles.radioOptionActive : ''}`}>
                     <input
@@ -699,6 +731,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                     <span>No</span>
                 </label>
             </div>
+            {errors[`${section}_${field}`] && <span className={styles.errorText}>{errors[`${section}_${field}`]}</span>}
         </div>
     );
 
@@ -955,16 +988,18 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                         {errors.dataPrivacyConsent_signedAt && <span className={styles.errorText}>{errors.dataPrivacyConsent_signedAt}</span>}
                                     </div>
                                 </div>
-                                <div style={{ display: 'grid', gap: '10px' }}>
-                                    <button
-                                        type="button"
-                                        onClick={() => handlePrivacyAcknowledged(!formData.dataPrivacyConsent.acknowledged)}
-                                        disabled={isSaving}
-                                        style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#01538b', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
-                                    >
-                                        {formData.dataPrivacyConsent.acknowledged ? 'Undo privacy acknowledgement' : 'Acknowledge data privacy consent'}
-                                    </button>
-                                    <span style={{ fontSize: '14px', color: formData.dataPrivacyConsent.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
+                                <div style={{ display: 'grid', gap: '8px' }}>
+                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#01538b', fontWeight: 700, cursor: isSaving ? 'not-allowed' : 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.dataPrivacyConsent.acknowledged}
+                                            onChange={(e) => handlePrivacyAcknowledged(e.target.checked)}
+                                            disabled={isSaving}
+                                            style={{ width: '14px', height: '14px', accentColor: '#01538b', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+                                        />
+                                        <span>Acknowledge data privacy consent</span>
+                                    </label>
+                                    <span style={{ fontSize: '12px', color: formData.dataPrivacyConsent.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
                                         {formData.dataPrivacyConsent.acknowledged ? 'Data privacy consent acknowledged.' : 'Data privacy consent has not been acknowledged yet.'}
                                     </span>
                                 </div>

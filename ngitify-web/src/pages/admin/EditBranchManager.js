@@ -5,6 +5,7 @@ import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { useToast } from '../../context/ToastContext';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import { normalizeAddressForForm } from '../../utils/addressHelpers';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -53,8 +54,8 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
                 let phone = data.contactNumber || '';
                 if (phone.startsWith('+63')) phone = phone.substring(3);
 
-                const fetchedCurrent = data?.currentAddress || { ...initialAddressState };
-                const fetchedPermanent = data?.permanentAddress || { ...initialAddressState };
+                const fetchedCurrent = normalizeAddressForForm(data?.currentAddress || initialAddressState);
+                const fetchedPermanent = normalizeAddressForForm(data?.permanentAddress || initialAddressState);
                 const hasAnyAddress = !!(fetchedCurrent.region || fetchedCurrent.city || fetchedCurrent.street);
                 const addressSame = hasAnyAddress && (
                     fetchedCurrent.region === fetchedPermanent.region &&

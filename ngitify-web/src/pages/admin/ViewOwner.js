@@ -1,36 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '../../styles/admin/StaffModals.module.css';
-import BackIcon from '../../assets/icons/Back.svg'; 
-
-// TASK 2.1 & 2.2: Import Global Utilities
+import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay } from '../../utils/addressHelpers';
 
-export default function ViewDentist({ dentistId, onClose, onEdit }) {
-    const [dentist, setDentist] = useState(null);
+export default function ViewOwner({ ownerId, onClose, onEdit }) {
+    const [owner, setOwner] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchDentist = async () => {
+        const fetchOwner = async () => {
             try {
-                // TASK 2.1: Replace raw fetch and inline token with authFetch
-                const response = await authFetch(`/user/${dentistId}`);
+                const response = await authFetch(`/user/${ownerId}`);
                 if (response.ok) {
-                    const data = await response.json();
-                    setDentist(data);
-                } else alert("Failed to load dentist data");
+                    setOwner(await response.json());
+                } else {
+                    alert('Failed to load owner data');
+                }
             } catch (error) {
-                console.error("Error:", error);
+                console.error('Error:', error);
             } finally {
                 setIsLoading(false);
             }
         };
-        if (dentistId) fetchDentist();
-    }, [dentistId]);
 
-    // TASK 2.2: Removed getInitials as UserAvatar handles this automatically
+        if (ownerId) fetchOwner();
+    }, [ownerId]);
 
     return (
         <div className={styles.mainOverlay}>
@@ -38,66 +35,72 @@ export default function ViewDentist({ dentistId, onClose, onEdit }) {
             <div className={styles.formCard}>
                 {isLoading ? (
                     <div className={styles.loadingState}>Loading profile...</div>
-                ) : dentist ? (
+                ) : owner ? (
                     <>
                         <div className={styles.headerWrapper}>
                             <div className={styles.headerLeft}>
                                 <button className={styles.backIconButton} onClick={onClose}><img src={BackIcon} alt="Back" /></button>
                                 <div className={styles.header}>
-                                    <h2>Dentist <span className={styles.highlight}>Profile</span></h2>
+                                    <h2>Owner <span className={styles.highlight}>Profile</span></h2>
                                 </div>
                             </div>
                             <button className={styles.editActionBtn} onClick={onEdit}>EDIT PROFILE</button>
                         </div>
 
                         <div className={styles.profileHeader}>
-                            {/* TASK 2.2: Adopt UserAvatar for clean, consistent UI */}
-                            <UserAvatar 
-                                user={{ 
-                                    name: `${dentist.name?.first || ''} ${dentist.name?.last || ''}`.trim() || 'Dentist', 
-                                    profileImage: dentist.profileImage 
-                                }} 
-                                size={70} 
+                            <UserAvatar
+                                user={{
+                                    name: `${owner.name?.first || ''} ${owner.name?.last || ''}`.trim() || 'Owner',
+                                    profileImage: owner.profileImage,
+                                }}
+                                size={70}
                             />
                             <div>
-                                <h3 className={styles.profileName}>Dr. {dentist.name?.first} {dentist.name?.last}</h3>
-                                <p className={styles.profileRole}>{dentist.specialization || 'General Dentist'}</p>
+                                <h3 className={styles.profileName}>{owner.name?.first} {owner.name?.last}</h3>
+                                <p className={styles.profileRole}>{owner.isDentist ? 'Owner with Dentist Access' : 'Clinic Owner'}</p>
                             </div>
                         </div>
 
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Assigned Branch</span>
-                                <p className={styles.infoValue}>{dentist.assignedBranch || dentist.assignedBranches?.[0] || 'Not assigned'}</p>
+                                <p className={styles.infoValue}>{owner.assignedBranch || owner.assignedBranches?.[0] || 'Not assigned'}</p>
                             </div>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Email Address</span>
-                                <p className={styles.infoValue}>{dentist.email}</p>
+                                <p className={styles.infoValue}>{owner.email}</p>
                             </div>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Contact Number</span>
-                                <p className={styles.infoValue}>{dentist.contactNumber || 'Not provided'}</p>
-                            </div>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>License Number</span>
-                                <p className={styles.infoValue}>{dentist.licenseNumber || 'Not provided'}</p>
+                                <p className={styles.infoValue}>{owner.contactNumber || 'Not provided'}</p>
                             </div>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Birthdate</span>
-                                {/* TASK 2.2: Adopt dateUtils */}
-                                <p className={styles.infoValue}>{dentist.birthdate ? formatDateShort(new Date(dentist.birthdate)) : 'Not provided'}</p>
+                                <p className={styles.infoValue}>{owner.birthdate ? formatDateShort(new Date(owner.birthdate)) : 'Not provided'}</p>
                             </div>
                             <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Gender</span>
-                                <p className={styles.infoValue}>{dentist.gender || 'Not provided'}</p>
+                                <p className={styles.infoValue}>{owner.gender || 'Not provided'}</p>
                             </div>
+                            {owner.isDentist && (
+                                <>
+                                    <div className={styles.infoBox}>
+                                        <span className={styles.infoLabel}>License Number</span>
+                                        <p className={styles.infoValue}>{owner.licenseNumber || 'Not provided'}</p>
+                                    </div>
+                                    <div className={styles.infoBox}>
+                                        <span className={styles.infoLabel}>Specialization</span>
+                                        <p className={styles.infoValue}>{owner.specialization || 'Not provided'}</p>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Home Address</h3>
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBox} style={{ gridColumn: '1 / -1' }}>
                                 <span className={styles.infoLabel}>Home Address</span>
-                                <p className={styles.infoValue}>{formatAddressDisplay(dentist.currentAddress?.region ? dentist.currentAddress : dentist.permanentAddress)}</p>
+                                <p className={styles.infoValue}>{formatAddressDisplay(owner.currentAddress?.region ? owner.currentAddress : owner.permanentAddress)}</p>
                             </div>
                         </div>
                     </>

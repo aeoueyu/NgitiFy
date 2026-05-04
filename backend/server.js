@@ -222,9 +222,6 @@ const upsertInventoryItemForBatch = async (reqUser, payload) => {
             {
                 $setOnInsert: {
                     name: (payload.name || payload.itemName || '').trim(),
-                    category: (payload.category || 'Uncategorized').trim(),
-                    unit: (payload.unit || 'pcs').trim(),
-                    lowStockThreshold: Number(payload.lowStockThreshold ?? payload.reorderLevel ?? payload.threshold ?? 0),
                     branch,
                     createdBy: reqUser.id || null,
                 },
@@ -2145,6 +2142,18 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             updateData.assignedBranch = updateData.assignedBranches[0] || '';
         }
 
+        if (updateData.licenseNumber) {
+            const normalizedLicense = String(updateData.licenseNumber).trim();
+            if (!/^\d{7}$/.test(normalizedLicense)) {
+                return res.status(400).json({ field: 'licenseNumber', message: 'License Number must be exactly 7 digits.' });
+            }
+            const existingLicense = await User.findOne({ _id: { $ne: userId }, licenseNumber: normalizedLicense });
+            if (existingLicense) {
+                return res.status(409).json({ field: 'licenseNumber', message: 'License Number is already registered.' });
+            }
+            updateData.licenseNumber = normalizedLicense;
+        }
+
         if (currentUser.role === 'administrator' && req.user.role !== 'administrator') {
             return res.status(403).json({ message: 'Access denied. Cannot modify the administrator account.' });
         }
@@ -2161,7 +2170,7 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
 
         if (email && email !== currentUser.email) {
             const emailExists = await User.findOne({ email });
-            if (emailExists) return res.status(409).json({ message: "New email is already in use." });
+            if (emailExists) return res.status(409).json({ field: 'email', message: "New email is already in use." });
 
             const tempPassword = crypto.randomBytes(4).toString('hex');
             const hashedPassword = await bcrypt.hash(tempPassword, 10);
@@ -2218,15 +2227,20 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             contactNumber, 
             birthdate, 
             gender, 
+            homePhone,
             occupation,
             civilStatus,
             bloodType,
             reasonForConsultation,
             emergencyContact,
             medicalHistory,
+            consentAcknowledgement,
             currentAddress,
             permanentAddress,
-            profileImage 
+            profileImage,
+            licenseNumber,
+            specialization,
+            bio,
         } = req.body;
 
         const user = await User.findById(userId);
@@ -2241,13 +2255,16 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         }
 
         if (contactNumber !== undefined) user.contactNumber = contactNumber;
-          if (birthdate !== undefined) user.birthdate = birthdate;
-          if (gender !== undefined) user.gender = gender;
-          if (homePhone !== undefined) user.homePhone = homePhone;
-          if (occupation !== undefined) user.occupation = occupation;
+        if (birthdate !== undefined) user.birthdate = birthdate;
+        if (gender !== undefined) user.gender = gender;
+        if (homePhone !== undefined) user.homePhone = homePhone;
+        if (occupation !== undefined) user.occupation = occupation;
         if (civilStatus !== undefined) user.civilStatus = civilStatus;
         if (bloodType !== undefined) user.bloodType = bloodType;
         if (reasonForConsultation !== undefined) user.reasonForConsultation = reasonForConsultation;
+        if (licenseNumber !== undefined) user.licenseNumber = licenseNumber;
+        if (specialization !== undefined) user.specialization = specialization;
+        if (bio !== undefined) user.bio = bio;
         if (profileImage !== undefined) {
             if (profileImage && profileImage.length > 1.5 * 1024 * 1024) {
                 return res.status(413).json({ message: 'Profile image must be under 1.5MB.' });
@@ -2263,21 +2280,21 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             };
         }
 
-          if (medicalHistory) {
-              user.medicalHistory = {
-                  ...user.medicalHistory?.toObject?.(),
-                  ...user.medicalHistory,
-                  ...medicalHistory
-              };
-          }
+        if (medicalHistory) {
+            user.medicalHistory = {
+                ...user.medicalHistory?.toObject?.(),
+                ...user.medicalHistory,
+                ...medicalHistory
+            };
+        }
 
-          if (consentAcknowledgement) {
-              user.consentAcknowledgement = {
-                  ...user.consentAcknowledgement?.toObject?.(),
-                  ...user.consentAcknowledgement,
-                  ...consentAcknowledgement
-              };
-          }
+        if (consentAcknowledgement) {
+            user.consentAcknowledgement = {
+                ...user.consentAcknowledgement?.toObject?.(),
+                ...user.consentAcknowledgement,
+                ...consentAcknowledgement
+            };
+        }
 
         if (currentAddress) {
             user.currentAddress = {

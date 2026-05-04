@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
 import UserTabs from './UserTabs';
 import AddOwner from './AddOwner';
 import EditOwner from './EditOwner';
+import ViewOwner from './ViewOwner';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
 
@@ -19,6 +20,7 @@ export default function ManageOwners() {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedOwnerId, setSelectedOwnerId] = useState(null);
     const [confirmConfig, setConfirmConfig] = useState(null);
 
@@ -48,7 +50,22 @@ export default function ManageOwners() {
         }
     }, []);
 
-    useEffect(() => { fetchOwners(); }, [fetchOwners]);
+    useEffect(() => {
+        fetchOwners();
+        const intervalId = window.setInterval(fetchOwners, 30000);
+        const handleFocus = () => fetchOwners();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') fetchOwners();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [fetchOwners]);
 
     const filteredOwners = ownersList.filter(o => {
         const matchesSearch =
@@ -108,6 +125,18 @@ export default function ManageOwners() {
         } catch {
             addToast('Cannot connect to server.', 'error');
         }
+    };
+
+    const handleViewClick = (id) => {
+        setSelectedOwnerId(id);
+        setIsEditModalOpen(false);
+        setIsViewModalOpen(true);
+    };
+
+    const handleEditClick = (id) => {
+        setSelectedOwnerId(id);
+        setIsViewModalOpen(false);
+        setIsEditModalOpen(true);
     };
 
     return (
@@ -176,7 +205,15 @@ export default function ManageOwners() {
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{owner.email}</span>
-                                            {!owner.isVerified && <span style={{ color: '#01538b', fontSize: '12px', fontWeight: 600 }}>Resend Activation Link to email</span>}
+                                            {!owner.isVerified && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleResendActivation(owner)}
+                                                    style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+                                                >
+                                                    Resend Activation Link to email
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                     <td>
@@ -189,7 +226,7 @@ export default function ManageOwners() {
                                             <button
                                                 type="button"
                                                 className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`}
-                                                onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
+                                                onClick={() => handleViewClick(owner.id)}
                                                 title="View Owner"
                                             >
                                                 <FaEye />
@@ -197,21 +234,11 @@ export default function ManageOwners() {
                                             <button
                                                 type="button"
                                                 className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`}
-                                                onClick={() => { setSelectedOwnerId(owner.id); setIsEditModalOpen(true); }}
+                                                onClick={() => handleEditClick(owner.id)}
                                                 title="Edit Owner"
                                             >
                                                 <FaEdit />
                                             </button>
-                                            {!owner.isVerified && (
-                                                <button
-                                                    type="button"
-                                                    className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.warningIconButton}`}
-                                                    onClick={() => handleResendActivation(owner)}
-                                                    title="Resend Activation Email"
-                                                >
-                                                    <FaEnvelope />
-                                                </button>
-                                            )}
                                             <button
                                                 type="button"
                                                 className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
@@ -233,6 +260,13 @@ export default function ManageOwners() {
             </div>
 
             {isAddModalOpen && <AddOwner onClose={() => setIsAddModalOpen(false)} onSuccess={fetchOwners} />}
+            {isViewModalOpen && selectedOwnerId && (
+                <ViewOwner
+                    ownerId={selectedOwnerId}
+                    onClose={() => { setIsViewModalOpen(false); setSelectedOwnerId(null); }}
+                    onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                />
+            )}
             {isEditModalOpen && selectedOwnerId && (
                 <EditOwner
                     ownerId={selectedOwnerId}

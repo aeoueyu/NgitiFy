@@ -15,6 +15,7 @@ import {
     ALLERGY_OPTIONS,
     MEDICAL_CONDITION_OPTIONS,
 } from '../../utils/patientIntake';
+import { normalizeBranchLabel, resolveAddressNames } from '../../utils/addressHelpers';
 
 // FDI Tooth Numbering (Adults)
 const UPPER_RIGHT = [18,17,16,15,14,13,12,11];
@@ -34,7 +35,8 @@ const calculateAge = (birthdate) => {
 
 const formatAddressFull = (addr) => {
     if (!addr) return '—';
-    return [addr.houseNumber, addr.street, addr.barangay, addr.city, addr.province, addr.region]
+    const resolved = resolveAddressNames(addr);
+    return [resolved.houseNumber, resolved.street, resolved.barangay, resolved.city, resolved.province, resolved.region]
         .filter(Boolean).join(', ') || '—';
 };
 
@@ -203,7 +205,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         ? `${patient.name?.first || ''}${patient.name?.middle ? ' ' + patient.name.middle : ''} ${patient.name?.last || ''}`.trim()
         : '';
     const age = calculateAge(patient?.birthdate);
-    const primaryBranch = patient?.assignedBranches?.[0] || 'Main';
+    const primaryBranch = normalizeBranchLabel(patient?.assignedBranch || patient?.assignedBranches?.[0] || 'Main');
 
     if (isLoading) {
         return (
@@ -292,9 +294,9 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                     {infoItem('House No.', patient.currentAddress?.houseNumber || patient.permanentAddress?.houseNumber)}
                     {infoItem('Street', patient.currentAddress?.street || patient.permanentAddress?.street)}
                     {infoItem('Barangay', patient.currentAddress?.barangay || patient.permanentAddress?.barangay)}
-                    {infoItem('City / Municipality', patient.currentAddress?.city || patient.permanentAddress?.city)}
-                    {infoItem('Province', patient.currentAddress?.province || patient.permanentAddress?.province)}
-                    {infoItem('Region', patient.currentAddress?.region || patient.permanentAddress?.region)}
+                    {infoItem('City / Municipality', resolveAddressNames(patient.currentAddress?.city ? patient.currentAddress : patient.permanentAddress).city)}
+                    {infoItem('Province', resolveAddressNames(patient.currentAddress?.province ? patient.currentAddress : patient.permanentAddress).province)}
+                    {infoItem('Region', resolveAddressNames(patient.currentAddress?.region ? patient.currentAddress : patient.permanentAddress).region)}
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Full Home Address</span>
@@ -783,7 +785,7 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                         <div className={styles.nameRow}>
                             <h2 className={styles.patientName}>{fullName}</h2>
                             <span className={`${styles.branchBadge} ${primaryBranch === 'Rizal' ? styles.rizal : ''}`}>
-                                {primaryBranch} Branch
+                                {primaryBranch}
                             </span>
                             <span className={styles.patientId}>ID: {patient._id}</span>
                         </div>

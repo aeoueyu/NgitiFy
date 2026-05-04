@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { regions, provinces, cities } from '../../utils/addressData';
 import styles from '../../styles/admin/StaffModals.module.css';
 import BackIcon from '../../assets/icons/Back.svg'; 
 
@@ -7,6 +6,7 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 import { formatDateShort } from '../../utils/dateUtils';
+import { formatAddressDisplay } from '../../utils/addressHelpers';
 
 export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
     const [secretary, setSecretary] = useState(null);
@@ -29,14 +29,6 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
         };
         if (secretaryId) fetchSecretary();
     }, [secretaryId]);
-
-    const formatAddress = (addr) => {
-        if (!addr || !addr.region) return "Not provided";
-        const rName = regions.find(r => r.code === addr.region)?.name || addr.region;
-        const pName = provinces[addr.region]?.find(p => p.code === addr.province)?.name || addr.province;
-        const cName = cities[addr.province]?.find(c => c.code === addr.city)?.name || addr.city;
-        return `${addr.houseNumber ? addr.houseNumber + ' ' : ''}${addr.street ? addr.street + ', ' : ''}${addr.barangay || ''}, ${cName}, ${pName}, ${rName}`;
-    };
 
     return (
         <div className={styles.mainOverlay}>
@@ -73,6 +65,10 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
 
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Assigned Branch</span>
+                                <p className={styles.infoValue}>{secretary.assignedBranch || secretary.assignedBranches?.[0] || 'Not assigned'}</p>
+                            </div>
+                            <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Email Address</span>
                                 <p className={styles.infoValue}>{secretary.email}</p>
                             </div>
@@ -91,15 +87,11 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
                             </div>
                         </div>
 
-                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Address Details</h3>
+                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Home Address</h3>
                         <div className={styles.infoGrid}>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Current Address</span>
-                                <p className={styles.infoValue}>{formatAddress(secretary.currentAddress)}</p>
-                            </div>
-                            <div className={styles.infoBox}>
-                                <span className={styles.infoLabel}>Permanent Address</span>
-                                <p className={styles.infoValue}>{formatAddress(secretary.permanentAddress)}</p>
+                            <div className={styles.infoBox} style={{ gridColumn: '1 / -1' }}>
+                                <span className={styles.infoLabel}>Home Address</span>
+                                <p className={styles.infoValue}>{formatAddressDisplay(secretary.currentAddress?.region ? secretary.currentAddress : secretary.permanentAddress)}</p>
                             </div>
                         </div>
                     </>

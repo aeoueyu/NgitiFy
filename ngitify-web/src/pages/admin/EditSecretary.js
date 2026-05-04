@@ -4,6 +4,7 @@ import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
 import { authFetch } from '../../utils/api'; // FIX 2: added authFetch import
+import { normalizeAddressForForm } from '../../utils/addressHelpers';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -51,8 +52,8 @@ export default function EditSecretary({ secretaryId, onClose, onSuccess }) {
                         formattedDob = new Date(data.birthdate || data.dob).toISOString().split('T')[0];
                     }
 
-                    const fetchedCurrent = data?.currentAddress || { ...initialAddressState };
-                    const fetchedPermanent = data?.permanentAddress || { ...initialAddressState };
+                    const fetchedCurrent = normalizeAddressForForm(data?.currentAddress || initialAddressState);
+                    const fetchedPermanent = normalizeAddressForForm(data?.permanentAddress || initialAddressState);
 
                     const isAddressSame = (
                         fetchedCurrent.region === fetchedPermanent.region &&

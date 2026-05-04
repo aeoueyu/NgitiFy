@@ -12,7 +12,7 @@ export default function AddOwner({ onClose, onSuccess }) {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({});
     const [profileImage, setProfileImage] = useState(null);
-    const [isSameAddress, setIsSameAddress] = useState(true);
+    const [isSameAddress] = useState(true);
     const specializationOptions = [
         'General Dentist', 'Orthodontist', 'Pediatric Dentist (Pedodontist)',
         'Periodontist', 'Endodontist', 'Oral & Maxillofacial Surgeon',
@@ -56,6 +56,22 @@ export default function AddOwner({ onClose, onSuccess }) {
         return allowedDomains.includes(email.split('@')[1].toLowerCase());
     };
 
+    const getMaxBirthday = () => {
+        const today = new Date();
+        today.setFullYear(today.getFullYear() - 18);
+        return today.toISOString().split('T')[0];
+    };
+
+    const scrollToFirstError = (nextErrors) => {
+        const firstKey = Object.keys(nextErrors)[0];
+        if (!firstKey) return;
+        const field = document.getElementsByName(firstKey)[0];
+        if (field) {
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            field.focus();
+        }
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
@@ -91,23 +107,12 @@ export default function AddOwner({ onClose, onSuccess }) {
         });
     };
 
-    const handleSameAddressToggle = (e) => {
-        const checked = e.target.checked;
-        setIsSameAddress(checked);
-        if (checked) {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
-            setErrors(prev => { const n = { ...prev }; Object.keys(n).forEach(k => { if (k.startsWith('permanent_')) delete n[k]; }); return n; });
-        } else {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...initialAddressState } }));
-        }
-    };
-
     const validateForm = () => {
         const newErrors = {};
         if (!formData.firstName.trim()) newErrors.firstName = 'Required';
-        if (!formData.middleName.trim()) newErrors.middleName = 'Required';
         if (!formData.lastName.trim())  newErrors.lastName  = 'Required';
         if (!formData.birthday)         newErrors.birthday  = 'Required';
+        else if (new Date(formData.birthday) > new Date(getMaxBirthday())) newErrors.birthday = 'Owner must be at least 18 years old';
         if (!formData.gender)           newErrors.gender    = 'Required';
         if (!formData.email)            newErrors.email     = 'Required';
         else if (!validateEmail(formData.email)) newErrors.email = 'Invalid email domain (e.g. gmail.com)';
@@ -127,6 +132,9 @@ export default function AddOwner({ onClose, onSuccess }) {
         validateAddr(formData.currentAddress, 'current');
         if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
         setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) {
+            scrollToFirstError(newErrors);
+        }
         return Object.keys(newErrors).length === 0;
     };
 
@@ -244,13 +252,12 @@ export default function AddOwner({ onClose, onSuccess }) {
                             {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
                         </div>
                         <div className={styles.formGroup}>
-                            <label>MIDDLE NAME <span style={{ color: 'red' }}>*</span></label>
+                            <label>MIDDLE NAME</label>
                             <input
                                 className={`${styles.inputField} ${errors.middleName ? styles.errorBorder : ''}`}
                                 name="middleName" value={formData.middleName}
                                 onChange={handleChange} maxLength={50} disabled={isLoading}
                             />
-                            {errors.middleName && <span className={styles.errorText}>{errors.middleName}</span>}
                         </div>
                         <div className={styles.formGroup}>
                             <label>LAST NAME <span style={{ color: 'red' }}>*</span></label>
@@ -271,7 +278,7 @@ export default function AddOwner({ onClose, onSuccess }) {
                                 type="date"
                                 className={`${styles.inputField} ${errors.birthday ? styles.errorBorder : ''}`}
                                 name="birthday" value={formData.birthday}
-                                onChange={handleChange} disabled={isLoading}
+                                onChange={handleChange} disabled={isLoading} max={getMaxBirthday()}
                             />
                             {errors.birthday && <span className={styles.errorText}>{errors.birthday}</span>}
                         </div>

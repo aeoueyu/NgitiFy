@@ -39,7 +39,7 @@ export default function Sidebar() {
     const isBranchManager = user?.role === 'branch-manager';
     const isSecretary = user?.role === 'secretary';
     const isOwner = user?.role === 'owner';
-    const isDentistUser = user?.role === 'dentist';
+    const isDentistUser = user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist);
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -304,17 +304,17 @@ export default function Sidebar() {
                     )}
 
                     {(isAdmin || isBranchManager) && navItem(inventoryPath, FaBoxes, 'Inventory', inventoryBadge)}
-                    {canReadInventory && !isAdmin && !isBranchManager && !isSecretary && navItem(inventoryPath, FaBoxes, 'Inventory')}
+                    {canReadInventory && !isAdmin && !isBranchManager && !isSecretary && !isOwner && navItem(inventoryPath, FaBoxes, 'Inventory')}
 
                     {isDentistUser && (
                         <>
                             {sectionLabel('Patients')}
-                            {navItem('/dentist/patient-emr', FaFileMedical, 'Patient EMR')}
+                            {navItem(isOwner ? '/owner/patient-emr' : '/dentist/patient-emr', FaFileMedical, 'Patient EMR')}
                             {sectionLabel('Clinic')}
-                            {navItem('/dentist/material-usage', FaBoxes, 'Material Usage')}
+                            {navItem(isOwner ? '/owner/material-usage' : '/dentist/material-usage', FaBoxes, 'Material Usage')}
                             {sectionLabel('System')}
-                            {navItem('/dentist/notifications', FaBell, 'Notifications')}
-                            {navItem('/dentist/activity-logs', FaHistory, 'Activity Logs')}
+                            {navItem(isOwner ? '/owner/notifications' : '/dentist/notifications', FaBell, 'Notifications')}
+                            {navItem(isOwner ? '/owner/activity-logs' : '/dentist/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
 
@@ -386,7 +386,7 @@ export default function Sidebar() {
                     <div
                         className={`${styles['settings-link']} ${aiAssistantActive ? styles.active : ''}`}
                         onClick={() => {
-                            if (isDentistUser) {
+                            if (isDentistUser && !isOwner) {
                                 handleNavigate('/dentist/ai-assistant');
                                 return;
                             }

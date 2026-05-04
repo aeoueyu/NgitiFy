@@ -9,6 +9,7 @@ import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import UserAvatar from '../../components/common/UserAvatar';
+import { normalizeAddressForForm } from '../../utils/addressHelpers';
 
 export default function MyProfile() {
     const { user, logout } = useAuth();
@@ -82,26 +83,14 @@ export default function MyProfile() {
                         formattedDate = new Date(data.birthdate).toISOString().split('T')[0];
                     }
 
-                    // Reverse Lookup to get the Address Codes from DB names
+                    const normalizedAddress = normalizeAddressForForm(data?.currentAddress || {});
+                    const rCode = normalizedAddress.region || '';
+                    const pCode = normalizedAddress.province || '';
+                    const cCode = normalizedAddress.city || '';
                     const dbRegion = data?.currentAddress?.region || '';
                     const dbProv = data?.currentAddress?.province || '';
                     const dbCity = data?.currentAddress?.city || '';
                     const dbBrgy = data?.currentAddress?.barangay || '';
-                    
-                    let rCode = '', pCode = '', cCode = '';
-
-                    if (dbRegion && regions && regions.length > 0) {
-                        const rMatch = regions.find(r => r.name === dbRegion);
-                        rCode = rMatch ? rMatch.code : '';
-                    }
-                    if (dbProv && rCode && provinces[rCode]) {
-                        const pMatch = provinces[rCode].find(p => p.name === dbProv);
-                        pCode = pMatch ? pMatch.code : '';
-                    }
-                    if (dbCity && pCode && cities[pCode]) {
-                        const cMatch = cities[pCode].find(c => c.name === dbCity);
-                        cCode = cMatch ? cMatch.code : '';
-                    }
 
                     const fetchedData = {
                         firstName: data?.name?.first || data?.firstName || '',
@@ -114,7 +103,7 @@ export default function MyProfile() {
                         gender: data?.gender || '',
                         
                         // Dentist Fields
-                        prcLicenseNumber: data?.prcLicenseNumber || '',
+                        prcLicenseNumber: data?.licenseNumber || data?.prcLicenseNumber || '',
                         specialization: data?.specialization || '',
                         yearsOfPractice: data?.yearsOfPractice || '',
                         bio: data?.bio || '',
@@ -123,8 +112,8 @@ export default function MyProfile() {
                         province: pCode, provinceName: dbProv,
                         city: cCode, cityName: dbCity,
                         barangay: dbBrgy, 
-                        street: data?.currentAddress?.street || '',
-                        houseNumber: data?.currentAddress?.houseNumber || '',
+                        street: normalizedAddress.street || '',
+                        houseNumber: normalizedAddress.houseNumber || '',
 
                         // §6.4: Read-only account metadata
                         createdAt: data?.createdAt || null,
@@ -225,10 +214,9 @@ export default function MyProfile() {
         }
 
         // Dynamic Validation for Dentist Role
-        if (user?.role === 'dentist') {
+        if (user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist)) {
             if (!formData.prcLicenseNumber.trim()) { newErrors.prcLicenseNumber = "Required"; isValid = false; }
             if (!formData.specialization) { newErrors.specialization = "Required"; isValid = false; }
-            if (!formData.yearsOfPractice) { newErrors.yearsOfPractice = "Required"; isValid = false; }
         }
 
         if (!formData.region) { newErrors.region = "Required"; isValid = false; }
@@ -268,14 +256,21 @@ export default function MyProfile() {
                     gender: formData.gender,
                     
                     // Conditionally send dentist fields if role matches
-                    ...(user?.role === 'dentist' && {
-                        prcLicenseNumber: formData.prcLicenseNumber.trim(),
+                    ...((user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist)) && {
+                        licenseNumber: formData.prcLicenseNumber.trim(),
                         specialization: formData.specialization,
-                        yearsOfPractice: Number(formData.yearsOfPractice),
                         bio: formData.bio.trim()
                     }),
 
                     currentAddress: {
+                        region: formData.regionName,
+                        province: formData.provinceName,
+                        city: formData.cityName,
+                        barangay: formData.barangay,
+                        street: formData.street.trim(),
+                        houseNumber: formData.houseNumber.trim()
+                    },
+                    permanentAddress: {
                         region: formData.regionName,
                         province: formData.provinceName,
                         city: formData.cityName,
@@ -514,7 +509,7 @@ export default function MyProfile() {
                     </div>
 
                     {/* --- DENTIST SPECIFIC: PROFESSIONAL DETAILS --- */}
-                    {user?.role === 'dentist' && (
+                    {(user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist)) && (
                         <>
                             <h3 className={styles.mainSectionTitle}>Professional Details</h3>
                             <div className={styles.row}>

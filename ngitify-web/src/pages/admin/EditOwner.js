@@ -4,6 +4,7 @@ import styles from '../../styles/admin/AddDentist.module.css';
 import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import { normalizeAddressForForm } from '../../utils/addressHelpers';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -58,8 +59,8 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
                 let phone = data.contactNumber || '';
                 if (phone.startsWith('+63')) phone = phone.substring(3);
 
-                const fetchedCurrent = data?.currentAddress || { ...initialAddressState };
-                const fetchedPermanent = data?.permanentAddress || { ...initialAddressState };
+                const fetchedCurrent = normalizeAddressForForm(data?.currentAddress || initialAddressState);
+                const fetchedPermanent = normalizeAddressForForm(data?.permanentAddress || initialAddressState);
                 const hasAnyAddress = !!(fetchedCurrent.region || fetchedCurrent.city || fetchedCurrent.street);
                 const addressSame = hasAnyAddress && (
                     fetchedCurrent.region === fetchedPermanent.region &&
@@ -151,17 +152,6 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
             if (type === 'currentAddress' && isSameAddress) return { ...prev, currentAddress: updated, permanentAddress: updated };
             return { ...prev, [type]: updated };
         });
-    };
-
-    const handleSameAddressToggle = (e) => {
-        const checked = e.target.checked;
-        setIsSameAddress(checked);
-        if (checked) {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
-            setErrors(prev => { const n = { ...prev }; Object.keys(n).forEach(k => { if (k.startsWith('permanent_')) delete n[k]; }); return n; });
-        } else {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...initialAddressState } }));
-        }
     };
 
     const validateForm = () => {

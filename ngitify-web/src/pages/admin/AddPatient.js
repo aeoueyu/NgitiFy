@@ -243,8 +243,23 @@ export default function AddPatient({ onClose, onSuccess }) {
     const validateForm = () => {
         let newErrors = {}; let isValid = true;
         const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
+        const requiredYesNoFields = [
+            ['dentalHistory', 'hadTreatmentReaction'],
+            ['dentalHistory', 'hasConfidentialInfo'],
+            ['medicalHistory', 'inGoodHealth'],
+            ['medicalHistory', 'underMedicalTreatment'],
+            ['medicalHistory', 'hadSeriousIllnessOrSurgery'],
+            ['medicalHistory', 'hadHospitalization'],
+            ['medicalHistory', 'isTakingMedication'],
+            ['medicalHistory', 'usesTobacco'],
+            ['medicalHistory', 'usesAlcoholOrDrugs'],
+            ['medicalHistory', 'hasAllergies'],
+            ['medicalHistory', 'isPregnant'],
+            ['medicalHistory', 'isNursing'],
+            ['medicalHistory', 'takingBirthControl'],
+        ];
         if (isMinor) {
-            required.push('guardianName', 'guardianRelationship');
+            required.push('guardianName', 'guardianRelationship', 'guardianOccupation');
             if (!formData.guardianContact) { newErrors.guardianContact = 'Required'; isValid = false; }
             else if (formData.guardianContact.length !== 10 || formData.guardianContact[0] !== '9') { newErrors.guardianContact = 'Invalid format'; isValid = false; }
         }
@@ -253,7 +268,10 @@ export default function AddPatient({ onClose, onSuccess }) {
         else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
         if (formData.homePhone && !isValidLandlineNumber(formData.homePhone)) { newErrors.homePhone = 'Invalid landline format'; isValid = false; }
         if (formData.workPhone && !isValidLandlineNumber(formData.workPhone)) { newErrors.workPhone = 'Invalid landline format'; isValid = false; }
-        if (formData.emergencyContactPhone && !isValidMobileNumber(formData.emergencyContactPhone)) { newErrors.emergencyContactPhone = 'Invalid format'; isValid = false; }
+        if (!formData.emergencyContactName.trim()) { newErrors.emergencyContactName = 'Required'; isValid = false; }
+        if (!formData.emergencyContactRelationship.trim()) { newErrors.emergencyContactRelationship = 'Required'; isValid = false; }
+        if (!formData.emergencyContactPhone) { newErrors.emergencyContactPhone = 'Required'; isValid = false; }
+        else if (!isValidMobileNumber(formData.emergencyContactPhone)) { newErrors.emergencyContactPhone = 'Invalid format'; isValid = false; }
         if (formData.physician.officeNumber && !isValidLandlineNumber(formData.physician.officeNumber)) { newErrors.physician_officeNumber = 'Invalid landline format'; isValid = false; }
         if (formData.email && !validateEmail(formData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
         if (!formData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = 'Required'; isValid = false; }
@@ -264,6 +282,12 @@ export default function AddPatient({ onClose, onSuccess }) {
         if (formData.dentalHistory.lastExamDate && new Date(formData.dentalHistory.lastExamDate) > new Date()) { newErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future'; isValid = false; }
         if (formData.consentAcknowledgement.signedAt && new Date(formData.consentAcknowledgement.signedAt) > new Date()) { newErrors.consentAcknowledgement_signedAt = 'Invalid signed date'; isValid = false; }
         if (formData.dataPrivacyConsent.signedAt && new Date(formData.dataPrivacyConsent.signedAt) > new Date()) { newErrors.dataPrivacyConsent_signedAt = 'Invalid signed date'; isValid = false; }
+        requiredYesNoFields.forEach(([section, field]) => {
+            if (!formData[section][field]) {
+                newErrors[`${section}_${field}`] = 'Required';
+                isValid = false;
+            }
+        });
         if (formData.dentalHistory.hadTreatmentReaction === 'yes' && !formData.dentalHistory.reactionDetails.trim()) { newErrors.dentalHistory_reactionDetails = 'Required when answer is Yes'; isValid = false; }
         if (formData.medicalHistory.underMedicalTreatment === 'yes' && !formData.medicalHistory.medicalTreatmentDetails.trim()) { newErrors.medicalHistory_medicalTreatmentDetails = 'Required when answer is Yes'; isValid = false; }
         if (formData.medicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !formData.medicalHistory.seriousIllnessOrSurgeryDetails.trim()) { newErrors.medicalHistory_seriousIllnessOrSurgeryDetails = 'Required when answer is Yes'; isValid = false; }
@@ -407,7 +431,7 @@ export default function AddPatient({ onClose, onSuccess }) {
 
     const renderYesNoField = (label, section, field, value, disabled = false) => (
         <div className={styles.formGroup}>
-            <label>{label}</label>
+            <label>{label} <span style={{ color: 'red' }}>*</span></label>
             <div className={styles.radioGroup}>
                 <label className={`${styles.radioOption} ${value === 'yes' ? styles.radioOptionActive : ''}`}>
                     <input
@@ -432,6 +456,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <span>No</span>
                 </label>
             </div>
+            {errors[`${section}_${field}`] && <span className={styles.errorText}>{errors[`${section}_${field}`]}</span>}
         </div>
     );
 
@@ -758,16 +783,18 @@ export default function AddPatient({ onClose, onSuccess }) {
                                 {errors.dataPrivacyConsent_signedAt && <span className={styles.errorText}>{errors.dataPrivacyConsent_signedAt}</span>}
                             </div>
                         </div>
-                        <div style={{ display: 'grid', gap: '10px' }}>
-                            <button
-                                type="button"
-                                onClick={() => handlePrivacyAcknowledged(!formData.dataPrivacyConsent.acknowledged)}
-                                disabled={isLoading}
-                                style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#01538b', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
-                            >
-                                {formData.dataPrivacyConsent.acknowledged ? 'Undo privacy acknowledgement' : 'Acknowledge data privacy consent'}
-                            </button>
-                            <span style={{ fontSize: '14px', color: formData.dataPrivacyConsent.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
+                        <div style={{ display: 'grid', gap: '8px' }}>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#01538b', fontWeight: 700, cursor: isLoading ? 'not-allowed' : 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.dataPrivacyConsent.acknowledged}
+                                    onChange={(e) => handlePrivacyAcknowledged(e.target.checked)}
+                                    disabled={isLoading}
+                                    style={{ width: '14px', height: '14px', accentColor: '#01538b', cursor: isLoading ? 'not-allowed' : 'pointer' }}
+                                />
+                                <span>Acknowledge data privacy consent</span>
+                            </label>
+                            <span style={{ fontSize: '12px', color: formData.dataPrivacyConsent.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
                                 {formData.dataPrivacyConsent.acknowledged ? 'Data privacy consent acknowledged.' : 'Data privacy consent has not been acknowledged yet.'}
                             </span>
                         </div>
