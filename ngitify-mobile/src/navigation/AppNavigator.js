@@ -18,6 +18,7 @@ import AiPatientCareCompanionScreen from '../screens/patient/AIPatientCareCompan
 import PatientXRayView from '../screens/patient/PatientXRayView';
 import PreOpInstructionsScreen from '../screens/patient/PreOpInstructionsScreen';
 import AppointmentBookingScreen from '../screens/patient/AppointmentBookingScreen';
+import PatientAppointmentsScreen from '../screens/patient/PatientAppointmentsScreen';
 import NotificationsScreen from '../screens/patient/NotificationsScreen';
 import ActivityLogsScreen from '../screens/patient/ActivityLogsScreen';
 
@@ -56,6 +57,7 @@ function PatientNavigator() {
             {/* X-Ray View — accessed from EMR Radiograph tab */}
             <PatientStack.Screen name="PatientXRayView" component={PatientXRayView} />
             <PatientStack.Screen name="PreOpInstructions" component={PreOpInstructionsScreen} />
+            <PatientStack.Screen name="MyAppointments" component={PatientAppointmentsScreen} />
             <PatientStack.Screen name="AppointmentBooking" component={AppointmentBookingScreen} />
             <PatientStack.Screen name="SurgerySchedules" component={SurgerySchedulesScreen} />
             <PatientStack.Screen name="Settings" component={SettingsScreen} />

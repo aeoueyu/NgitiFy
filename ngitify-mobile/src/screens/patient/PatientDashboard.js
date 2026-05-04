@@ -62,7 +62,7 @@ function ProfileMenuSheet({ visible, onClose, navigation, userInfo, logout }) {
         { iconName: 'settings-outline',      lib: 'Ionicons',               label: 'Settings',        screen: 'Settings' },
         { iconName: 'document-text-outline', lib: 'Ionicons',               label: 'Activity Logs',   screen: 'ActivityLogs' },
         { iconName: 'notifications-outline', lib: 'Ionicons',               label: 'Notifications',   screen: 'Notifications' },
-        { iconName: 'calendar-outline',      lib: 'Ionicons',               label: 'My Appointments', screen: 'AppointmentBooking' },
+        { iconName: 'calendar-outline',      lib: 'Ionicons',               label: 'My Appointments', screen: 'MyAppointments' },
         { iconName: 'tooth-outline',         lib: 'MaterialCommunityIcons', label: 'My EMR',          screen: 'MedicalRecords' },
     ];
 
@@ -301,7 +301,7 @@ export default function PatientDashboard({ navigation }) {
         return (
             <TouchableOpacity
                 style={styles.apptCard}
-                onPress={() => navigation.navigate('AppointmentBooking')}
+                onPress={() => navigation.navigate('MyAppointments')}
                 activeOpacity={0.85}
             >
                 <View style={styles.apptCardTop}>
@@ -325,7 +325,7 @@ export default function PatientDashboard({ navigation }) {
                         <Ionicons name="location-outline" size={13} color="#888" style={{ marginRight: 4 }} />
                         <Text style={styles.apptBranch}>{upcomingAppt.branch || 'Dentime Dental Clinic'}</Text>
                     </View>
-                    <Text style={styles.apptTapHint}>Tap to manage →</Text>
+                    <Text style={styles.apptTapHint}>Tap to view →</Text>
                 </View>
             </TouchableOpacity>
         );
@@ -358,7 +358,7 @@ export default function PatientDashboard({ navigation }) {
                         <TouchableOpacity
                             key={appointment._id}
                             style={styles.historyCard}
-                            onPress={() => navigation.navigate('AppointmentBooking')}
+                            onPress={() => navigation.navigate('MyAppointments')}
                             activeOpacity={0.82}
                         >
                             <View style={styles.apptCardTop}>

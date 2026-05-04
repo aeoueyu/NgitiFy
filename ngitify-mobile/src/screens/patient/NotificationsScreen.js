@@ -52,7 +52,7 @@ function NotifIcon({ type, size = 22 }) {
 }
 
 const getNavTarget = (type = '') => {
-    if (type.includes('APPOINTMENT'))  return 'AppointmentBooking';
+    if (type.includes('APPOINTMENT'))  return 'MyAppointments';
     if (type.includes('RADIOGRAPH'))   return 'MedicalRecords';
     if (type.includes('TICKET') || type.includes('INQUIRY')) return 'AiPatientCareCompanion';
     if (type.includes('VISIT'))        return 'AiPatientCareCompanion';
