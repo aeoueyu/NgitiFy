@@ -2,19 +2,30 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     FaBell,
-    FaBoxes,
-    FaCalendarCheck,
-    FaChartBar,
+    FaCalendarPlus,
+    FaClipboardList,
+    FaClock,
+    FaExclamationTriangle,
     FaListUl,
-    FaRobot,
     FaUserFriends,
+    FaUserPlus,
     FaUsers,
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
-import styles from '../../styles/branch-manager/BranchManagerDashboard.module.css';
+import { normalizeBranchLabel } from '../../utils/addressHelpers';
+import styles from '../../styles/secretary/SecretaryDashboard.module.css';
+
+const PH_HOLIDAYS = [
+    { month: 0, day: 1, name: "New Year's Day" },
+    { month: 3, day: 9, name: 'Araw ng Kagitingan' },
+    { month: 4, day: 1, name: 'Labor Day' },
+    { month: 5, day: 12, name: 'Independence Day' },
+    { month: 11, day: 25, name: 'Christmas Day' },
+    { month: 11, day: 31, name: "New Year's Eve" },
+];
 
 const startOfDay = (value) => {
     const date = new Date(value);
@@ -27,6 +38,9 @@ const normalizeAppointment = (entry) => ({
     patientName: entry.patient?.name
         ? `${entry.patient.name.first || ''} ${entry.patient.name.last || ''}`.trim()
         : (entry.guestName || 'Unknown Patient'),
+    dentistName: entry.dentist?.name
+        ? `Dr. ${entry.dentist.name.first || ''} ${entry.dentist.name.last || ''}`.trim()
+        : 'Unassigned',
     procedure: entry.procedure || 'Consultation',
     branch: entry.branch || '',
     status: entry.status || 'pending',
@@ -53,9 +67,11 @@ export default function BranchManagerDashboard() {
     const [activityLogs, setActivityLogs] = useState([]);
     const [queueEntries, setQueueEntries] = useState([]);
     const [staffUsers, setStaffUsers] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [currentMonthView, setCurrentMonthView] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [showAlertBanner, setShowAlertBanner] = useState(true);
 
-    const assignedBranch = user?.assignedBranch || '';
+    const assignedBranch = normalizeBranchLabel(user?.assignedBranch || '');
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -63,12 +79,15 @@ export default function BranchManagerDashboard() {
     }, []);
 
     useEffect(() => {
+        const toUsers = (payload) => (
+            Array.isArray(payload?.users) ? payload.users : (Array.isArray(payload) ? payload : [])
+        );
+
         const fetchDashboardData = async () => {
-            setIsLoading(true);
             try {
                 const userId = user?.userId || user?.id || user?._id;
                 const [
-                    surgeriesRes,
+                    appointmentsRes,
                     patientsRes,
                     notificationsRes,
                     inventoryRes,
@@ -87,22 +106,22 @@ export default function BranchManagerDashboard() {
                     authFetch('/users?role=secretary'),
                 ]);
 
-                if (surgeriesRes.ok) {
-                    const data = await surgeriesRes.json();
+                if (appointmentsRes?.ok) {
+                    const data = await appointmentsRes.json();
                     setAppointments(data.map(normalizeAppointment).sort((a, b) => a.rawDate - b.rawDate));
                 }
 
-                if (patientsRes.ok) {
+                if (patientsRes?.ok) {
                     const data = await patientsRes.json();
                     const patientList = Array.isArray(data) ? data : (data.patients || []);
                     setPatients(patientList);
                 }
 
-                if (notificationsRes.ok) {
+                if (notificationsRes?.ok) {
                     setNotifications(await notificationsRes.json());
                 }
 
-                if (inventoryRes.ok) {
+                if (inventoryRes?.ok) {
                     setInventory(await inventoryRes.json());
                 }
 
@@ -110,25 +129,22 @@ export default function BranchManagerDashboard() {
                     setActivityLogs(await activityRes.json());
                 }
 
-                if (queueRes.ok) {
+                if (queueRes?.ok) {
                     setQueueEntries(await queueRes.json());
                 }
 
-                const staff = [];
-                if (dentistsRes.ok) {
-                    const dentists = await dentistsRes.json();
-                    staff.push(...dentists.filter((entry) => entry.role === 'dentist'));
-                }
-                if (secretariesRes.ok) {
-                    const secretaries = await secretariesRes.json();
-                    staff.push(...secretaries.filter((entry) => entry.role === 'secretary'));
-                }
-                setStaffUsers(staff);
+                const [dentistsPayload, secretariesPayload] = await Promise.all([
+                    dentistsRes?.ok ? dentistsRes.json() : Promise.resolve([]),
+                    secretariesRes?.ok ? secretariesRes.json() : Promise.resolve([]),
+                ]);
+
+                setStaffUsers([
+                    ...toUsers(dentistsPayload).filter((entry) => entry.role === 'dentist'),
+                    ...toUsers(secretariesPayload).filter((entry) => entry.role === 'secretary'),
+                ]);
             } catch (error) {
                 console.error('Branch manager dashboard fetch error:', error);
                 addToast('Failed to load branch manager dashboard data.', 'error');
-            } finally {
-                setIsLoading(false);
             }
         };
 
@@ -149,352 +165,384 @@ export default function BranchManagerDashboard() {
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [addToast, assignedBranch, user?.userId, user?.id, user?._id]);
+    }, [addToast, user]);
 
-    const todayKey = startOfDay(new Date()).getTime();
-
-    const todayAppointments = useMemo(
-        () => appointments.filter((item) => startOfDay(item.rawDate).getTime() === todayKey),
-        [appointments, todayKey]
+    const displayedAppointments = useMemo(
+        () => appointments.filter((appointment) => startOfDay(appointment.rawDate).getTime() === startOfDay(selectedDate).getTime()),
+        [appointments, selectedDate]
     );
 
-    const pendingAppointments = appointments.filter((item) => item.status === 'pending').length;
-    const waitingQueue = queueEntries.filter((entry) => entry.status === 'waiting' || entry.status === 'serving');
-    const unreadNotifications = notifications.filter((item) => !item.isRead).length;
-    const recentNotifications = notifications.slice(0, 4);
-    const recentActivity = activityLogs.slice(0, 5);
+    const todaysAppointments = useMemo(
+        () => appointments.filter((appointment) => startOfDay(appointment.rawDate).getTime() === startOfDay(new Date()).getTime()),
+        [appointments]
+    );
 
-    const lowStockItems = useMemo(() => {
-        return inventory.filter((item) => {
+    const pendingAppointments = useMemo(
+        () => appointments.filter((appointment) => appointment.status === 'pending').length,
+        [appointments]
+    );
+
+    const unreadNotifications = useMemo(
+        () => notifications.filter((item) => !item.isRead).length,
+        [notifications]
+    );
+
+    const waitingQueue = useMemo(
+        () => queueEntries.filter((entry) => entry.status === 'waiting' || entry.status === 'serving').length,
+        [queueEntries]
+    );
+
+    const lowStockItems = useMemo(
+        () => inventory.filter((item) => {
             const stock = Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0));
             const limit = Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0));
             return stock <= limit;
-        }).slice(0, 4);
-    }, [inventory]);
+        }),
+        [inventory]
+    );
 
-    const upcomingAppointments = useMemo(() => {
-        const now = new Date();
-        return appointments
-            .filter((item) => item.rawDate >= startOfDay(now) && ['pending', 'confirmed', 'in-clinic'].includes(item.status))
-            .slice(0, 5);
-    }, [appointments]);
+    const activityLogsToday = useMemo(() => {
+        const todayKey = new Date().toDateString();
+        return activityLogs.filter((log) => new Date(log.timestamp || log.createdAt).toDateString() === todayKey).length;
+    }, [activityLogs]);
 
-    const statCards = [
-        {
-            title: "Today's Appointments",
-            value: todayAppointments.length,
-            icon: <FaCalendarCheck />,
-            accent: styles.blueAccent,
-            path: '/branch-manager/appointments',
-        },
-        {
-            title: 'Pending Confirmations',
-            value: pendingAppointments,
-            icon: <FaBell />,
-            accent: styles.orangeAccent,
-            path: '/branch-manager/appointments',
-        },
-        {
-            title: 'Branch Patients',
-            value: patients.length,
-            icon: <FaUserFriends />,
-            accent: styles.greenAccent,
-            path: '/branch-manager/manage-users',
-        },
-        {
-            title: 'Active Queue',
-            value: waitingQueue.length,
-            icon: <FaListUl />,
-            accent: styles.purpleAccent,
-            path: '/branch-manager/queue',
-        },
-    ];
+    const priorityAlertsCount = pendingAppointments + unreadNotifications + lowStockItems.length;
+    const branchLabel = assignedBranch || 'Assigned Branch';
+    const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
 
-    const moduleCards = [
-        {
-            title: 'User Management',
-            description: 'Manage only the dentists and secretaries assigned to your branch.',
-            value: `${staffUsers.length} branch staff accounts`,
-            icon: <FaUsers className={styles.moduleIcon} />,
-            actionLabel: 'Open Users',
-            action: () => navigate('/branch-manager/manage-users'),
-        },
-        {
-            title: 'Schedule Management',
-            description: 'Review branch appointments, queue flow, and patient arrivals in one place.',
-            value: `${todayAppointments.length} appointments today`,
-            icon: <FaCalendarCheck className={styles.moduleIcon} />,
-            actionLabel: 'Open Schedule',
-            action: () => navigate('/branch-manager/appointments'),
-        },
-        {
-            title: 'Inventory',
-            description: 'Track stock levels and stay ahead of low inventory items in your branch.',
-            value: `${lowStockItems.length} low-stock items`,
-            icon: <FaBoxes className={styles.moduleIcon} />,
-            actionLabel: 'Open Inventory',
-            action: () => navigate('/branch-manager/inventory'),
-        },
-        {
-            title: 'AI Assistant',
-            description: 'Preview the future branch manager AI helper for faster workflow guidance.',
-            value: 'Frontend preview ready',
-            icon: <FaRobot className={styles.moduleIcon} />,
-            actionLabel: 'Open Preview',
-            action: () => navigate('/branch-manager/ai-assistant'),
-        },
-    ];
+    const getCalendarDays = () => {
+        const year = currentMonthView.getFullYear();
+        const month = currentMonthView.getMonth();
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+        const days = [];
+
+        for (let i = firstDay - 1; i >= 0; i -= 1) {
+            days.push({ num: daysInPrevMonth - i, faded: true, date: new Date(year, month - 1, daysInPrevMonth - i) });
+        }
+
+        for (let i = 1; i <= daysInMonth; i += 1) {
+            const currentDate = new Date(year, month, i);
+            const holiday = PH_HOLIDAYS.find((item) => item.month === month && item.day === i);
+            days.push({
+                num: i,
+                active: currentDate.toDateString() === selectedDate.toDateString(),
+                isToday: currentDate.toDateString() === new Date().toDateString(),
+                hasEvent: appointments.some((appointment) => appointment.rawDate.toDateString() === currentDate.toDateString()),
+                isHoliday: !!holiday,
+                holidayName: holiday?.name || '',
+                date: currentDate,
+                faded: false,
+            });
+        }
+
+        const totalCells = days.length > 35 ? 42 : 35;
+        for (let i = 1; i <= totalCells - days.length; i += 1) {
+            days.push({ num: i, faded: true, date: new Date(year, month + 1, i) });
+        }
+
+        return days;
+    };
+
+    const getStatusClass = (status) => {
+        switch (status) {
+            case 'Pending':
+            case 'Confirmed':
+                return styles['status-pending'];
+            case 'In Clinic':
+                return styles['status-in-clinic'];
+            case 'Completed':
+                return styles['status-done'];
+            default:
+                return styles['status-neutral'];
+        }
+    };
+
+    const calendarDays = getCalendarDays();
+    const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     return (
-        <main className={styles.page}>
+        <main className={styles['main-content']}>
             <header className={styles.header}>
-                <div>
+                <div className={styles['header-left']}>
                     <h1 className={styles.title}>Branch Manager Dashboard</h1>
                     <p className={styles.subtitle}>
                         {formatWeekdayDate(currentTime)}
                         <span className={styles.divider}>|</span>
-                        <strong className={styles.timeText}>{formatTime(currentTime, true)}</strong>
-                        {assignedBranch && <span className={styles.branchText}>| {assignedBranch}</span>}
+                        <strong className={styles['time-accent']}>{formatTime(currentTime, true)}</strong>
+                    </p>
+                    <p className={styles.subtitle} style={{ marginTop: '6px' }}>
+                        {branchLabel} overview for appointments, branch staff, patients, and queue operations.
                     </p>
                 </div>
-
-                <button className={styles.bellBtn} type="button" onClick={() => navigate('/branch-manager/notifications')}>
-                    <FaBell className={styles.bellIcon} />
-                    {unreadNotifications > 0 && (
-                        <span className={styles.bellBadge}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>
-                    )}
-                </button>
+                <div className={styles['header-right']}>
+                    <button
+                        className={styles['bell-btn']}
+                        onClick={() => navigate('/branch-manager/notifications')}
+                        aria-label="Notifications"
+                    >
+                        <FaBell className={styles['bell-icon']} />
+                        {unreadNotifications > 0 && (
+                            <span className={styles['bell-badge']}>
+                                {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                            </span>
+                        )}
+                    </button>
+                </div>
             </header>
 
-            <section className={styles.statsGrid}>
-                {statCards.map((card) => (
-                    <button
-                        key={card.title}
-                        type="button"
-                        className={`${styles.statCard} ${card.accent}`}
-                        onClick={() => navigate(card.path)}
-                    >
-                        <div className={styles.statIcon}>{card.icon}</div>
-                        <div>
-                            <p className={styles.statLabel}>{card.title}</p>
-                            <p className={styles.statValue}>{card.value}</p>
-                        </div>
+            {priorityAlertsCount > 0 && showAlertBanner && (
+                <div className={styles['alert-banner']}>
+                    <div className={styles['alert-content']}>
+                        <FaExclamationTriangle style={{ fontSize: '16px' }} />
+                        <span>
+                            {priorityAlertsCount} branch item{priorityAlertsCount !== 1 ? 's need' : ' needs'} attention across pending appointments,
+                            unread notifications, and low-stock supplies.
+                        </span>
+                    </div>
+                    <button className={styles['alert-close-btn']} onClick={() => setShowAlertBanner(false)} aria-label="Close Alert">
+                        x
                     </button>
-                ))}
+                </div>
+            )}
+
+            <section className={styles['stats-grid']}>
+                <button type="button" className={`${styles['stat-card']} ${styles.clickable}`} onClick={() => navigate('/branch-manager/schedule')}>
+                    <div className={styles['stat-header']}>
+                        <p className={styles['stat-title']}>Today's Appointments</p>
+                        <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}>
+                            <FaClipboardList className={styles['stat-icon']} />
+                        </div>
+                    </div>
+                    <div className={styles['stat-value-wrapper']}>
+                        <h2 className={styles['stat-value']}>{todaysAppointments.length}</h2>
+                        <span className={`${styles['trend-indicator']} ${pendingAppointments > 0 ? styles['trend-negative'] : styles['trend-positive']}`}>
+                            {pendingAppointments > 0 ? `${pendingAppointments} Pending` : 'Ready'}
+                        </span>
+                    </div>
+                    <p className={styles['stat-desc']}>Visits scheduled under {branchLabel}</p>
+                </button>
+
+                <button type="button" className={`${styles['stat-card']} ${styles.clickable}`} onClick={() => navigate('/branch-manager/patients')}>
+                    <div className={styles['stat-header']}>
+                        <p className={styles['stat-title']}>Branch Patients</p>
+                        <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}>
+                            <FaUserFriends className={styles['stat-icon']} />
+                        </div>
+                    </div>
+                    <div className={styles['stat-value-wrapper']}>
+                        <h2 className={styles['stat-value']}>{patients.length}</h2>
+                        <span className={`${styles['trend-indicator']} ${styles['trend-neutral']}`}>
+                            Active
+                        </span>
+                    </div>
+                    <p className={`${styles['stat-desc']} ${styles.neutral}`}>Registered under your assigned branch</p>
+                </button>
+
+                <button type="button" className={`${styles['stat-card']} ${styles.clickable}`} onClick={() => navigate('/branch-manager/manage-users')}>
+                    <div className={styles['stat-header']}>
+                        <p className={styles['stat-title']}>Branch Staff</p>
+                        <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}>
+                            <FaUsers className={styles['stat-icon']} />
+                        </div>
+                    </div>
+                    <div className={styles['stat-value-wrapper']}>
+                        <h2 className={styles['stat-value']}>{staffUsers.length}</h2>
+                        <span className={`${styles['trend-indicator']} ${styles['trend-neutral']}`}>
+                            Team
+                        </span>
+                    </div>
+                    <p className={`${styles['stat-desc']} ${styles.neutral}`}>{waitingQueue} currently active in queue</p>
+                </button>
             </section>
 
-            <section className={styles.mainGrid}>
-                <div className={styles.leftColumn}>
-                    <article className={styles.panel}>
-                        <div className={styles.panelHeader}>
-                            <div>
-                                <p className={styles.panelEyebrow}>Module Summary</p>
-                                <h2 className={styles.panelTitle}>Branch tools at a glance</h2>
+            <section className={styles['main-grid']}>
+                <div className={styles['left-column']}>
+                    <div className={styles['widget-card']}>
+                        <div className={styles['widget-header']}>
+                            <h2 className={styles['widget-title']}>
+                                <FaClipboardList className={styles['widget-icon']} />
+                                {isTodaySelected ? "Today's Branch Schedule" : `Branch Schedule: ${formatDateShort(selectedDate)}`}
+                            </h2>
+                        </div>
+
+                        <div className={styles['list-content']}>
+                            {displayedAppointments.length > 0 ? (
+                                displayedAppointments.map((appointment) => (
+                                    <div key={appointment.id} className={styles['appointment-item']}>
+                                        <div className={styles['time-block']}>
+                                            <p className={styles['time-text']}>{appointment.time || formatTime(appointment.rawDate)}</p>
+                                            <p className={styles['meta-line']}>
+                                                <FaClock style={{ fontSize: '10px' }} />
+                                                {branchLabel}
+                                            </p>
+                                        </div>
+
+                                        <div className={styles['patient-block']}>
+                                            <p className={styles['patient-name']}>{appointment.patientName}</p>
+                                            <p className={styles['dentist-name']}>{appointment.dentistName}</p>
+                                            <p className={styles['treatment-type']}>{appointment.procedure}</p>
+                                        </div>
+
+                                        <div className={styles['action-block']}>
+                                            <span className={`${styles['status-badge']} ${getStatusClass(formatStatus(appointment.status))}`}>
+                                                {formatStatus(appointment.status)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className={styles['empty-state']}>
+                                    <p>No appointments scheduled for this date.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className={styles['widget-card']}>
+                        <div className={styles['widget-header']}>
+                            <h2 className={styles['widget-title']}>
+                                <FaBell className={styles['widget-icon']} />
+                                Branch Summary
+                            </h2>
+                        </div>
+
+                        <div className={styles['quick-grid']}>
+                            <div className={styles['quick-card']}>
+                                <span className={styles['quick-label']}>Unread Notifications</span>
+                                <strong className={styles['quick-value']}>{unreadNotifications}</strong>
+                                <p className={styles['quick-text']}>Alerts and updates still waiting for branch review.</p>
+                            </div>
+                            <div className={styles['quick-card']}>
+                                <span className={styles['quick-label']}>Live Queue</span>
+                                <strong className={styles['quick-value']}>{waitingQueue}</strong>
+                                <p className={styles['quick-text']}>Patients currently waiting or being served in your branch.</p>
+                            </div>
+                            <div className={styles['quick-card']}>
+                                <span className={styles['quick-label']}>Low Stock Items</span>
+                                <strong className={styles['quick-value']}>{lowStockItems.length}</strong>
+                                <p className={styles['quick-text']}>Items at or below the reorder threshold for branch operations.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={`${styles['widget-card']} ${styles.clickable}`} onClick={() => navigate('/branch-manager/activity-logs')}>
+                        <div className={styles['widget-header']}>
+                            <FaClipboardList className={styles['widget-icon']} />
+                            <h2 className={styles['widget-title']}>Activity Snapshot</h2>
+                        </div>
+                        <div className={styles['summary-slab']}>
+                            <div className={styles['slab-item']}>
+                                <span className={styles['slab-label']}>Today's logs</span>
+                                <strong className={styles['slab-value']}>{activityLogsToday}</strong>
+                            </div>
+                            <div className={styles['slab-item']}>
+                                <span className={styles['slab-label']}>Pending appointments</span>
+                                <strong className={styles['slab-value']}>{pendingAppointments}</strong>
+                            </div>
+                            <div className={styles['slab-item']}>
+                                <span className={styles['slab-label']}>Branch staff</span>
+                                <strong className={styles['slab-value']}>{staffUsers.length}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className={styles['right-column']}>
+                    <div className={styles['calendar-card']}>
+                        <div className={styles['calendar-header']}>
+                            <h3 className={styles['month-text']}>{dynamicMonthYear}</h3>
+                            <div className={styles['cal-nav']}>
+                                <button className={styles['cal-nav-btn']} onClick={() => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1))}>
+                                    &lt;
+                                </button>
+                                <button className={styles['cal-nav-btn']} onClick={() => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1))}>
+                                    &gt;
+                                </button>
                             </div>
                         </div>
 
-                        <div className={styles.moduleGrid}>
-                            {moduleCards.map((card) => (
-                                <div key={card.title} className={styles.moduleCard}>
-                                    <div className={styles.moduleHeader}>
-                                        {card.icon}
-                                        <span className={styles.moduleValue}>{card.value}</span>
-                                    </div>
-                                    <h3 className={styles.moduleTitle}>{card.title}</h3>
-                                    <p className={styles.moduleDescription}>{card.description}</p>
-                                    <button type="button" className={styles.quickLinkBtn} onClick={card.action}>
-                                        {card.actionLabel}
-                                    </button>
+                        <div className={styles['calendar-grid']}>
+                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+                                <div key={day} className={styles['day-name']}>{day}</div>
+                            ))}
+
+                            {calendarDays.map((day, index) => (
+                                <div
+                                    key={`${day.date.toISOString()}-${index}`}
+                                    title={day.holidayName || ''}
+                                    onClick={() => {
+                                        setSelectedDate(day.date);
+                                        if (day.faded) {
+                                            setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
+                                        }
+                                    }}
+                                    className={[
+                                        styles['date-num'],
+                                        day.faded ? styles.faded : '',
+                                        day.isToday && !day.faded ? styles.today : '',
+                                        day.active ? styles.active : '',
+                                        day.isHoliday && !day.faded ? styles.holiday : '',
+                                    ].join(' ')}
+                                >
+                                    {day.num}
+                                    {day.hasEvent && <div className={`${styles['event-dot']} ${day.active ? styles.white : ''}`} />}
                                 </div>
                             ))}
                         </div>
-                    </article>
+                    </div>
 
-                    <article className={styles.panel}>
-                        <div className={styles.panelHeader}>
-                            <div>
-                                <p className={styles.panelEyebrow}>Appointments</p>
-                                <h2 className={styles.panelTitle}>Upcoming branch schedule</h2>
-                            </div>
-                            <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/appointments')}>
-                                View all
-                            </button>
+                    <div className={styles['widget-card']}>
+                        <div className={styles['widget-header']}>
+                            <h2 className={styles['widget-title']}>
+                                <FaListUl className={styles['widget-icon']} />
+                                Latest Branch Alerts
+                            </h2>
+                            <span className={styles['view-all']} onClick={() => navigate('/branch-manager/notifications')}>View All</span>
                         </div>
-
-                        {isLoading ? (
-                            <p className={styles.emptyState}>Loading schedule...</p>
-                        ) : upcomingAppointments.length === 0 ? (
-                            <p className={styles.emptyState}>No upcoming appointments found.</p>
-                        ) : (
-                            <div className={styles.listStack}>
-                                {upcomingAppointments.map((appointment) => (
-                                    <div key={appointment.id} className={styles.listItem}>
-                                        <div>
-                                            <p className={styles.itemTitle}>{appointment.patientName}</p>
-                                            <p className={styles.itemMeta}>
-                                                {appointment.procedure} - {appointment.branch || assignedBranch}
-                                            </p>
+                        <div className={styles['list-content']}>
+                            {notifications.length > 0 ? (
+                                notifications.slice(0, 6).map((notification) => (
+                                    <div key={notification._id} className={styles['appointment-item-compact']}>
+                                        <div className={styles['patient-details']}>
+                                            <p className={styles['patient-name']}>{notification.title || 'Notification'}</p>
+                                            <p className={styles['treatment-type']}>{notification.message || 'No message provided.'}</p>
                                         </div>
-                                        <div className={styles.itemAside}>
-                                            <span className={styles.itemDate}>
-                                                {formatDateShort(appointment.rawDate)} {appointment.time ? `| ${appointment.time}` : ''}
-                                            </span>
-                                            <span className={styles.statusBadge}>{formatStatus(appointment.status)}</span>
+                                        <div className={styles['appointment-time']}>
+                                            <p className={styles['time-text']}>{formatDateShort(notification.createdAt || notification.updatedAt || new Date())}</p>
+                                            {!notification.isRead && (
+                                                <span className={`${styles['status-badge']} ${styles['status-in-clinic']}`}>
+                                                    Unread
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </article>
-
-                    <article className={styles.panel}>
-                        <div className={styles.panelHeader}>
-                            <div>
-                                <p className={styles.panelEyebrow}>Activity Logs</p>
-                                <h2 className={styles.panelTitle}>Recent account activity</h2>
-                            </div>
-                            <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/activity-logs')}>
-                                Open logs
-                            </button>
+                                ))
+                            ) : (
+                                <div className={styles['empty-state']}>
+                                    <p>No branch notifications yet.</p>
+                                </div>
+                            )}
                         </div>
-
-                        {recentActivity.length === 0 ? (
-                            <p className={styles.emptyState}>No activity logs available yet.</p>
-                        ) : (
-                            <div className={styles.listStack}>
-                                {recentActivity.map((entry) => (
-                                    <div key={entry._id || `${entry.action}-${entry.timestamp}`} className={styles.listItem}>
-                                        <div>
-                                            <p className={styles.itemTitle}>{entry.action || 'System Event'}</p>
-                                            <p className={styles.itemMeta}>{entry.details || 'No additional details provided.'}</p>
-                                        </div>
-                                        <span className={styles.itemDate}>{formatDateShort(entry.timestamp || entry.createdAt)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </article>
-                </div>
-
-                <div className={styles.rightColumn}>
-                    <article className={styles.panel}>
-                        <div className={styles.panelHeader}>
-                            <div>
-                                <p className={styles.panelEyebrow}>Branch Snapshot</p>
-                                <h2 className={styles.panelTitle}>Today in your branch</h2>
-                            </div>
-                        </div>
-
-                        <div className={styles.summaryGrid}>
-                            <div className={styles.summaryCard}>
-                                <FaChartBar className={styles.summaryIcon} />
-                                <span className={styles.summaryLabel}>Appointments Today</span>
-                                <strong className={styles.summaryValue}>{todayAppointments.length}</strong>
-                            </div>
-                            <div className={styles.summaryCard}>
-                                <FaBell className={styles.summaryIcon} />
-                                <span className={styles.summaryLabel}>Unread Notifications</span>
-                                <strong className={styles.summaryValue}>{unreadNotifications}</strong>
-                            </div>
-                            <div className={styles.summaryCard}>
-                                <FaListUl className={styles.summaryIcon} />
-                                <span className={styles.summaryLabel}>Waiting Queue</span>
-                                <strong className={styles.summaryValue}>{waitingQueue.length}</strong>
-                            </div>
-                            <div className={styles.summaryCard}>
-                                <FaUsers className={styles.summaryIcon} />
-                                <span className={styles.summaryLabel}>Branch Staff</span>
-                                <strong className={styles.summaryValue}>{staffUsers.length}</strong>
-                            </div>
-                        </div>
-                    </article>
-
-                    <article className={styles.panel}>
-                        <div className={styles.panelHeader}>
-                            <div>
-                                <p className={styles.panelEyebrow}>Notifications</p>
-                                <h2 className={styles.panelTitle}>Latest alerts</h2>
-                            </div>
-                            <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/notifications')}>
-                                Open alerts
-                            </button>
-                        </div>
-
-                        {recentNotifications.length === 0 ? (
-                            <p className={styles.emptyState}>No notifications yet.</p>
-                        ) : (
-                            <div className={styles.listStack}>
-                                {recentNotifications.map((notification) => (
-                                    <div key={notification._id} className={styles.listItem}>
-                                        <div>
-                                            <p className={styles.itemTitle}>{notification.title || 'Notification'}</p>
-                                            <p className={styles.itemMeta}>{notification.message || 'No message provided.'}</p>
-                                        </div>
-                                        {!notification.isRead && <span className={styles.helperPill}>Unread</span>}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </article>
-
-                    <article className={styles.panel}>
-                        <div className={styles.panelHeader}>
-                            <div>
-                                <p className={styles.panelEyebrow}>Inventory Watch</p>
-                                <h2 className={styles.panelTitle}>Stock attention items</h2>
-                            </div>
-                            <button type="button" className={styles.linkBtn} onClick={() => navigate('/branch-manager/inventory')}>
-                                Open inventory
-                            </button>
-                        </div>
-
-                        {lowStockItems.length === 0 ? (
-                            <p className={styles.emptyState}>No low-stock items right now.</p>
-                        ) : (
-                            <div className={styles.listStack}>
-                                {lowStockItems.map((item) => (
-                                    <div key={item._id || item.name} className={styles.listItem}>
-                                        <div>
-                                            <p className={styles.itemTitle}>{item.name || 'Unnamed Item'}</p>
-                                            <p className={styles.itemMeta}>
-                                                Branch: {item.branch || assignedBranch || 'Assigned Branch'}
-                                            </p>
-                                        </div>
-                                        <span className={styles.helperPill}>
-                                            {item.quantity !== undefined ? item.quantity : (item.currentStock || 0)} left
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </article>
-
-                    <article className={styles.panel}>
-                        <div className={styles.panelHeader}>
-                            <div>
-                                <p className={styles.panelEyebrow}>Quick Access</p>
-                                <h2 className={styles.panelTitle}>Branch shortcuts</h2>
-                            </div>
-                        </div>
-
-                        <div className={styles.shortcutStack}>
-                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/branch-manager/queue')}>
-                                Queue management
-                            </button>
-                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/branch-manager/chat-support')}>
-                                Chat support
-                            </button>
-                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/branch-manager/analytics')}>
-                                Branch analytics
-                            </button>
-                            <button type="button" className={styles.shortcutBtn} onClick={() => navigate('/branch-manager/branches')}>
-                                Branch details
-                            </button>
-                        </div>
-                    </article>
+                    </div>
                 </div>
             </section>
+
+            <div className={styles['quick-actions-bar']}>
+                <button
+                    className={`${styles['quick-action-btn']} ${styles.secondary}`}
+                    onClick={() => navigate('/branch-manager/patients')}
+                >
+                    <FaUserPlus /> Manage Patients
+                </button>
+                <button
+                    className={styles['quick-action-btn']}
+                    onClick={() => navigate('/branch-manager/manage-users')}
+                >
+                    <FaCalendarPlus /> Manage Staff
+                </button>
+            </div>
         </main>
     );
 }
-

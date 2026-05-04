@@ -18,6 +18,8 @@ const ProtectedRoute = ({ allowedRoles }) => {
     
     switch (user.role) {
       case 'administrator':
+          fallbackPath = '/admin/dashboard';
+          break;
       case 'branch-manager':
           fallbackPath = '/branch-manager/dashboard';
           break;
