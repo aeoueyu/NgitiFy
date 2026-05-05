@@ -222,27 +222,38 @@ const normalizeScheduleStatus = (status) => {
     }
 };
 
-const normalizeAppointment = (appointment) => ({
-    id: appointment._id || appointment.id,
-    type: 'appointment',
-    patientId: appointment.patient?._id || appointment.patient || '',
-    patientName: normalizePatientName(appointment.patient) || appointment.guestName || 'Unknown Patient',
-    dentistId: appointment.dentist?._id || appointment.dentist || '',
-    dentistName: appointment.dentist?.name
-        ? `Dr. ${appointment.dentist.name.first} ${appointment.dentist.name.last}`.trim()
-        : 'Unassigned',
-    date: formatDateInput(appointment.date),
-    time: appointment.time || '',
-    branch: appointment.branch || '',
-    procedure: appointment.procedure || '',
-    notes: appointment.notes || '',
-    status: appointment.status || 'pending',
-    statusLabel: APPOINTMENT_STATUS_LABELS[appointment.status] || 'Pending',
-    createdAt: appointment.createdAt || appointment.updatedAt || appointment.date,
-    source: appointment.source || 'Walk-in',
-    prioritySort: 1,
-    raw: appointment,
-});
+const normalizeAppointment = (appointment) => {
+    const normalizedSource = String(appointment.source || '').trim().toLowerCase();
+    const sourceKind = normalizedSource === 'walk-in'
+        ? 'walkin'
+        : (normalizedSource === 'phone call' ? 'phonecall' : 'appointment');
+    const sourceLabel = sourceKind === 'walkin'
+        ? 'Walk-in'
+        : (sourceKind === 'phonecall' ? 'Phone Call' : 'Appointment');
+    return {
+        id: appointment._id || appointment.id,
+        type: 'appointment',
+        patientId: appointment.patient?._id || appointment.patient || '',
+        patientName: normalizePatientName(appointment.patient) || appointment.guestName || 'Unknown Patient',
+        dentistId: appointment.dentist?._id || appointment.dentist || '',
+        dentistName: appointment.dentist?.name
+            ? `Dr. ${appointment.dentist.name.first} ${appointment.dentist.name.last}`.trim()
+            : 'Unassigned',
+        date: formatDateInput(appointment.date),
+        time: appointment.time || '',
+        branch: appointment.branch || '',
+        procedure: appointment.procedure || '',
+        notes: appointment.notes || '',
+        status: appointment.status || 'pending',
+        statusLabel: APPOINTMENT_STATUS_LABELS[appointment.status] || 'Pending',
+        createdAt: appointment.createdAt || appointment.updatedAt || appointment.date,
+        source: appointment.source || 'Walk-in',
+        sourceKind,
+        sourceLabel,
+        prioritySort: 1,
+        raw: appointment,
+    };
+};
 
 const normalizeQueueEntry = (entry) => ({
     id: entry._id || entry.id,
@@ -261,6 +272,8 @@ const normalizeQueueEntry = (entry) => ({
     createdAt: entry.createdAt,
     contactNumber: entry.contactNumber || '',
     ticketNumber: entry.ticketNumber || '',
+    sourceKind: 'walkin',
+    sourceLabel: 'Walk-in',
     prioritySort: 2,
     raw: entry,
 });
@@ -642,12 +655,13 @@ export default function SchedulePage() {
         const normalizedQuery = searchQuery.trim().toLowerCase();
         const rows = [
             ...appointments,
-            ...queueEntries,
+            ...queueEntries.filter((entry) => !entry.linkedAppointmentId),
         ];
 
         return rows
             .filter((entry) => {
-                const matchesType = typeFilter === 'all' || entry.type === typeFilter;
+                const matchesType = typeFilter === 'all'
+                    || (typeFilter === 'walkin' ? entry.sourceKind === 'walkin' : entry.sourceKind !== 'walkin');
                 const matchesStatus = statusFilter.length === 0 || statusFilter.includes(entry.status);
                 if (!normalizedQuery) return matchesType && matchesStatus;
 
@@ -690,7 +704,7 @@ export default function SchedulePage() {
 
     const openEditModal = (entry) => {
         const nextState = {
-            formType: entry.type,
+            formType: entry.sourceKind === 'walkin' ? 'walkin' : 'appointment',
             patientId: entry.patientId || '',
             patientName: entry.patientName || '',
             dentistId:
@@ -703,11 +717,11 @@ export default function SchedulePage() {
             procedure: entry.procedure || '',
             notes: entry.notes || '',
             status: entry.status || 'pending',
-            source: entry.type === 'walkin'
+            source: entry.sourceKind === 'walkin'
                 ? 'walkin'
-                : (entry.source === 'Phone Call' ? 'phonecall' : 'appointment'),
+                : (entry.sourceKind === 'phonecall' ? 'phonecall' : 'appointment'),
             contactNumber: entry.contactNumber || '',
-            assignedDentist: entry.type === 'walkin' ? (entry.dentistName === 'Unassigned' ? '' : entry.dentistName) : '',
+            assignedDentist: entry.sourceKind === 'walkin' ? (entry.dentistName === 'Unassigned' ? '' : entry.dentistName) : '',
         };
         setFormState(nextState);
         setFormErrors({});
@@ -874,6 +888,9 @@ export default function SchedulePage() {
                 );
             } else {
                 const currentStamp = getCurrentScheduleStamp();
+                const walkInAppointmentId = editingEntry?.type === 'appointment'
+                    ? editingEntry.id
+                    : (editingEntry?.linkedAppointmentId || '');
                 const payload = {
                     patient: formState.patientId || null,
                     branch: activeBranch,
@@ -888,21 +905,35 @@ export default function SchedulePage() {
                     contactNumber: formState.contactNumber.trim(),
                 };
 
-                const response = await authFetch(
-                    editingEntry?.linkedAppointmentId
-                        ? `/appointments/${editingEntry.linkedAppointmentId}`
-                        : '/appointments',
-                    {
-                        method: editingEntry?.linkedAppointmentId ? 'PUT' : 'POST',
-                        body: JSON.stringify(payload),
+                const isLegacyQueueEdit = editingEntry?.type === 'walkin' && !walkInAppointmentId;
+                const endpoint = isLegacyQueueEdit
+                    ? `/queue/${editingEntry.id}`
+                    : (walkInAppointmentId ? `/appointments/${walkInAppointmentId}` : '/appointments');
+                const method = isLegacyQueueEdit
+                    ? 'PUT'
+                    : (walkInAppointmentId ? 'PUT' : 'POST');
+                const requestBody = isLegacyQueueEdit
+                    ? {
+                        patientName: formState.patientName.trim(),
+                        patientId: formState.patientId || '',
+                        branch: activeBranch,
+                        assignedDentist: formState.assignedDentist || '',
+                        procedureType: formState.procedure.trim(),
+                        contactNumber: formState.contactNumber.trim(),
+                        status: 'in-clinic',
                     }
-                );
+                    : payload;
+
+                const response = await authFetch(endpoint, {
+                    method,
+                    body: JSON.stringify(requestBody),
+                });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     throw new Error(data.message || 'Failed to save the walk-in appointment.');
                 }
                 addToast(
-                    editingEntry?.linkedAppointmentId
+                    walkInAppointmentId || isLegacyQueueEdit
                         ? 'Walk-in appointment updated successfully.'
                         : 'Walk-in appointment added successfully.',
                     'success'
@@ -1308,7 +1339,7 @@ export default function SchedulePage() {
                             </div>
                             <div className={styles.summaryCard}>
                                 <span className={styles.summaryLabel}>Type</span>
-                                <span className={styles.summaryValue}>{viewEntry.type === 'appointment' ? 'Appointment' : 'Walk-in'}</span>
+                                <span className={styles.summaryValue}>{viewEntry.sourceLabel || 'Appointment'}</span>
                             </div>
                             <div className={styles.summaryCard}>
                                 <span className={styles.summaryLabel}>Date & Time</span>
@@ -1420,7 +1451,7 @@ export default function SchedulePage() {
                 </div>
 
                 <div className={styles.toolbar}>
-                    <div className={styles.toolbarFilters}>
+                    <div className={`${styles.toolbarFilters} ${styles.inlineFilterRow}`}>
                         <div className={styles.searchWrapper}>
                             <FaSearch className={styles.searchIcon} />
                             <input
@@ -1552,7 +1583,7 @@ export default function SchedulePage() {
                                         </td>
                                         <td>
                                             <span className={`${wideTable.statusBadge} ${entry.type === 'appointment' ? wideTable.statusBlue : wideTable.statusGray}`}>
-                                                {entry.type === 'appointment' ? 'Appointment' : 'Walk-in'}
+                                                {entry.sourceLabel || 'Appointment'}
                                             </span>
                                         </td>
                                         <td>{entry.dentistName}</td>
@@ -1637,9 +1668,11 @@ export default function SchedulePage() {
             {renderViewModal()}
             <ConfirmModal
                 isOpen={isConfirmingSave}
-                title="Save Schedule Changes"
-                message="Are you sure you want to save these schedule changes? This will immediately update the record."
-                confirmText={isSubmitting ? 'Saving...' : 'Yes, Save Changes'}
+                title={editingEntry ? 'Update Schedule Entry' : 'Add Schedule Entry'}
+                message={editingEntry
+                    ? 'Are you sure you want to update this schedule entry?'
+                    : 'Are you sure you want to add this schedule entry?'}
+                confirmText={isSubmitting ? 'Saving...' : (editingEntry ? 'Yes, Update Schedule' : 'Yes, Add Schedule')}
                 onConfirm={submitScheduleForm}
                 onCancel={() => !isSubmitting && setIsConfirmingSave(false)}
             />

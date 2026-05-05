@@ -54,12 +54,13 @@
     gap: 12px;
     align-items: center;
     flex-wrap: nowrap;
+    width: 100%;
 }
 
 .searchWrapper {
     position: relative;
-    flex: 2;
-    min-width: 260px;
+    flex: 1 1 320px;
+    min-width: 220px;
 }
 
 .searchIcon {
@@ -97,7 +98,7 @@
     padding: 4px;
     border-radius: 50px;
     gap: 4px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .filterPill {
@@ -152,12 +153,14 @@
 
 .filterSelectWrap {
     position: relative;
-    min-width: 180px;
+    min-width: 170px;
+    flex: 0 0 170px;
 }
 
 .multiSelectWrap {
     position: relative;
     min-width: 210px;
+    flex: 0 0 210px;
 }
 
 .dropdownLikeButton {

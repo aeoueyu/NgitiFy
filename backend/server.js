@@ -915,6 +915,14 @@ const notifyPatientQueueStatusChange = async ({ queueEntry, status, title = '' }
     });
 };
 
+const runPostSaveSideEffect = async (label, work) => {
+    try {
+        await work();
+    } catch (error) {
+        console.error(`Post-save side effect failed (${label}):`, error);
+    }
+};
+
 const buildAppointmentDateTime = (dateValue, timeValue) => {
     const date = new Date(dateValue);
     if (Number.isNaN(date.getTime())) return null;
@@ -1034,7 +1042,9 @@ const syncQueueEntryForAppointment = async (appointmentLike) => {
 
     const appointment = appointmentLike.populate
         ? appointmentLike
-        : await Surgery.findById(appointmentLike._id).populate('patient', 'name contactNumber');
+        : await Surgery.findById(appointmentLike._id)
+            .populate('patient', 'name contactNumber')
+            .populate('dentist', 'name');
 
     if (!appointment) return null;
 
@@ -3442,37 +3452,39 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
         await newSurgery.save();
 
         if (['Walk-in', 'Phone Call'].includes(newSurgery.source)) {
-            await syncQueueEntryForAppointment(newSurgery);
+            await runPostSaveSideEffect('syncQueueEntryForAppointment:create', () => syncQueueEntryForAppointment(newSurgery));
         }
 
-        await AuditLog.create({
+        await runPostSaveSideEffect('audit:createSurgery', () => AuditLog.create({
             action: "CREATE_SURGERY",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
             details: `Created new dental treatment record for patient ID: ${newSurgery.patient} at branch: ${newSurgery.branch}`
-        });
+        }));
 
         if (newSurgery.dentist) {
-            await Notification.create({
+            await runPostSaveSideEffect('notifyDentist:newAppointment', () => Notification.create({
                 type: 'NEW_APPOINTMENT',
                 title: 'New Appointment Assigned',
                 message: `You have a new ${newSurgery.procedure} appointment on ${new Date(newSurgery.date).toDateString()} at ${newSurgery.time || 'the scheduled time'}.`,
                 recipientId: newSurgery.dentist,
                 recipientRole: 'dentist',
                 relatedId: newSurgery._id,
-            });
+            }));
         }
 
         if (newSurgery.patient) {
-            const populatedAppointment = await Surgery.findById(newSurgery._id)
-                .populate('patient', 'name email')
-                .populate('dentist', 'name email');
-            if (populatedAppointment?.patient?._id) {
-                await notifyPatientAppointmentStatusChange({
-                    appointment: populatedAppointment,
-                    status: populatedAppointment.status,
-                });
-            }
+            await runPostSaveSideEffect('notifyPatient:createAppointment', async () => {
+                const populatedAppointment = await Surgery.findById(newSurgery._id)
+                    .populate('patient', 'name email')
+                    .populate('dentist', 'name email');
+                if (populatedAppointment?.patient?._id) {
+                    await notifyPatientAppointmentStatusChange({
+                        appointment: populatedAppointment,
+                        status: populatedAppointment.status,
+                    });
+                }
+            });
         }
 
         res.status(201).json(newSurgery);
@@ -3708,7 +3720,7 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         const nextTime = updateData.time !== undefined ? updateData.time : existing.time;
         const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
 
-        if (updateData.status === 'completed' && nextDateTime && nextDateTime > new Date()) {
+        if (updateData.status === 'completed' && existing.status !== 'in-clinic' && nextDateTime && nextDateTime > new Date()) {
             return res.status(400).json({ message: 'Appointments can only be marked completed after their scheduled date and time.' });
         }
 
@@ -3743,9 +3755,9 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         const statusChanged = updateData.status !== undefined && (existing.status || '') !== (updatedSurgery.status || '');
 
         if (['Walk-in', 'Phone Call'].includes(updatedSurgery.source)) {
-            await syncQueueEntryForAppointment(updatedSurgery);
+            await runPostSaveSideEffect('syncQueueEntryForAppointment:update', () => syncQueueEntryForAppointment(updatedSurgery));
         } else if (['Walk-in', 'Phone Call'].includes(existing.source)) {
-            await removeQueueEntryForAppointment(updatedSurgery._id);
+            await runPostSaveSideEffect('removeQueueEntryForAppointment:update', () => removeQueueEntryForAppointment(updatedSurgery._id));
         }
 
         if (updatedSurgery.dentist?._id && req.user.role !== 'dentist') {
@@ -3757,7 +3769,7 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
                     ? `${updatedSurgery.procedure} was updated to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`
                     : `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} has been updated.`;
 
-            await Notification.create({
+            await runPostSaveSideEffect('notifyDentist:updateAppointment', () => Notification.create({
                 type: 'NEW_APPOINTMENT',
                 title: dentistChanged
                     ? 'New Appointment Assigned'
@@ -3768,33 +3780,33 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
                 recipientId: updatedSurgery.dentist._id,
                 recipientRole: 'dentist',
                 relatedId: updatedSurgery._id,
-            });
+            }));
         }
 
         if (updatedSurgery.patient?._id) {
             if (statusChanged) {
-                await notifyPatientAppointmentStatusChange({
+                await runPostSaveSideEffect('notifyPatient:appointmentStatusUpdate', () => notifyPatientAppointmentStatusChange({
                     appointment: updatedSurgery,
                     status: updatedSurgery.status,
-                });
+                }));
             } else if (scheduleChanged) {
-                await Notification.create({
+                await runPostSaveSideEffect('notifyPatient:appointmentScheduleUpdate', () => Notification.create({
                     type: 'APPOINTMENT_STATUS_UPDATED',
                     title: 'Appointment Schedule Updated',
                     message: `Your appointment for ${updatedSurgery.procedure} was updated to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`,
                     recipientId: updatedSurgery.patient._id,
                     recipientRole: 'patient',
                     relatedId: updatedSurgery._id,
-                });
+                }));
             }
         }
 
-        await AuditLog.create({
+        await runPostSaveSideEffect('audit:updateSchedule', () => AuditLog.create({
             action: "UPDATE_SCHEDULE",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
             details: `Updated dental treatment record ID: ${updatedSurgery._id} at branch: ${updatedSurgery.branch}`
-        });
+        }));
 
         res.json(updatedSurgery);
     } catch (error) {
@@ -4012,7 +4024,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
         const updateFields = { status };
         const isGuestWebsiteAppointment = currentSurgery.source === 'Smile Hub (Online)' && !currentSurgery.patient && !!currentSurgery.guestEmail;
-        if (status === 'completed' && nextDateTime && nextDateTime > new Date()) {
+        if (status === 'completed' && currentSurgery.status !== 'in-clinic' && nextDateTime && nextDateTime > new Date()) {
             return res.status(400).json({ message: 'Appointments can only be marked completed after their scheduled date and time.' });
         }
         if (remarks !== undefined) updateFields.remarks = remarks;
@@ -4097,18 +4109,18 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             const dentistName = getDentistDisplayName(updatedSurgery.dentist);
 
             if (updatedSurgery.patient?._id) {
-                await Notification.create({
+                await runPostSaveSideEffect('notifyPatient:appointmentConfirmed', () => Notification.create({
                     type: 'APPOINTMENT_CONFIRMED',
                     title: 'Appointment Confirmed',
                     message: `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} has been confirmed. Assigned dentist: ${dentistName}.`,
                     recipientId: updatedSurgery.patient._id,
                     recipientRole: 'patient',
                     relatedId: updatedSurgery._id,
-                });
+                }));
             }
 
             if (isGuestWebsiteAppointment && updatedSurgery.preRegistrationToken) {
-                await sendPreRegistrationEmail({
+                await runPostSaveSideEffect('email:preRegistration', () => sendPreRegistrationEmail({
                     email: updatedSurgery.guestEmail,
                     name: updatedSurgery.guestName,
                     branch: updatedSurgery.branch,
@@ -4116,15 +4128,15 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                     time: updatedSurgery.time,
                     procedure: updatedSurgery.procedure,
                     token: updatedSurgery.preRegistrationToken,
-                });
-                await AuditLog.create({
+                }));
+                await runPostSaveSideEffect('audit:preRegistrationLinkSent', () => AuditLog.create({
                     action: 'PRE_REGISTRATION_LINK_SENT',
                     user: req.user?.email || req.user?.id || 'SYSTEM',
                     role: req.user?.role || 'SYSTEM',
                     details: `Pre-registration link sent for appointment ${updatedSurgery._id}.`,
-                });
+                }));
             } else if (patientEmail) {
-                await sendAppointmentConfirmedEmail({
+                await runPostSaveSideEffect('email:appointmentConfirmed', () => sendAppointmentConfirmedEmail({
                     email: patientEmail,
                     name: patientName,
                     branch: updatedSurgery.branch,
@@ -4132,25 +4144,25 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                     time: updatedSurgery.time,
                     procedure: updatedSurgery.procedure,
                     dentistName,
-                });
+                }));
             }
         }
 
         if (!wasConfirmedNow && dentistChanged) {
             if (updatedSurgery.patient?._id) {
-                await Notification.create({
+                await runPostSaveSideEffect('notifyPatient:dentistAssigned', () => Notification.create({
                     type: 'APPOINTMENT_CONFIRMED',
                     title: 'Dentist Assigned',
                     message: `Your appointment for ${updatedSurgery.procedure} is assigned to ${getDentistDisplayName(updatedSurgery.dentist)}.`,
                     recipientId: updatedSurgery.patient._id,
                     recipientRole: 'patient',
                     relatedId: updatedSurgery._id,
-                });
+                }));
             }
 
             const followUpEmail = updatedSurgery.patient?.email || updatedSurgery.guestEmail || '';
             if (followUpEmail && currentSurgery.status === 'confirmed') {
-                await sendAppointmentConfirmedEmail({
+                await runPostSaveSideEffect('email:dentistAssignment', () => sendAppointmentConfirmedEmail({
                     email: followUpEmail,
                     name: getPatientDisplayName(updatedSurgery),
                     branch: updatedSurgery.branch,
@@ -4158,25 +4170,25 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                     time: updatedSurgery.time,
                     procedure: updatedSurgery.procedure,
                     dentistName: getDentistDisplayName(updatedSurgery.dentist),
-                });
+                }));
             }
         }
 
         if (updatedSurgery.patient?._id) {
             if (statusChanged && !wasConfirmedNow) {
-                await notifyPatientAppointmentStatusChange({
+                await runPostSaveSideEffect('notifyPatient:statusChanged', () => notifyPatientAppointmentStatusChange({
                     appointment: updatedSurgery,
                     status: updatedSurgery.status,
-                });
+                }));
             } else if (scheduleChanged) {
-                await Notification.create({
+                await runPostSaveSideEffect('notifyPatient:scheduleChanged', () => Notification.create({
                     type: 'APPOINTMENT_STATUS_UPDATED',
                     title: 'Appointment Schedule Updated',
                     message: `Your appointment for ${updatedSurgery.procedure} was updated to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`,
                     recipientId: updatedSurgery.patient._id,
                     recipientRole: 'patient',
                     relatedId: updatedSurgery._id,
-                });
+                }));
             }
         }
 
@@ -4186,50 +4198,50 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 dentistMessage = `${updatedSurgery.procedure} was rescheduled to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`;
             }
 
-            await Notification.create({
+            await runPostSaveSideEffect('notifyDentist:statusOrScheduleChanged', () => Notification.create({
                 type: status === 'cancelled' ? 'APPOINTMENT_CANCELLED' : 'NEW_APPOINTMENT',
                 title: scheduleChanged ? 'Appointment Schedule Updated' : 'Appointment Status Updated',
                 message: dentistMessage,
                 recipientId: updatedSurgery.dentist._id,
                 recipientRole: 'dentist',
                 relatedId: updatedSurgery._id,
-            });
+            }));
         }
 
         if (scheduleChanged) {
             const patientEmail = updatedSurgery.patient?.email || updatedSurgery.guestEmail || '';
             if (patientEmail) {
-                await sendAppointmentRescheduledEmail({
+                await runPostSaveSideEffect('email:appointmentRescheduled', () => sendAppointmentRescheduledEmail({
                     email: patientEmail,
                     name: getPatientDisplayName(updatedSurgery),
                     branch: updatedSurgery.branch,
                     date: updatedSurgery.date,
                     time: updatedSurgery.time,
                     procedure: updatedSurgery.procedure,
-                });
+                }));
             }
         }
 
-        await AuditLog.create({
+        await runPostSaveSideEffect('audit:updateSurgeryStatus', () => AuditLog.create({
             action: 'UPDATE_SURGERY_STATUS',
             user: req.user?.email || req.user?.id,
             role: req.user?.role,
             details: `Dental treatment ID ${updatedSurgery._id} status changed to '${status}'.`
-        });
+        }));
 
-        await createBranchScopedNotifications({
+        await runPostSaveSideEffect('notifyBranchScopedStaff:appointmentStatus', () => createBranchScopedNotifications({
             type: 'APPOINTMENT_STATUS_UPDATED',
             title: 'Appointment Status Updated',
             message: `${getPatientDisplayName(updatedSurgery)}'s appointment for ${updatedSurgery.procedure} is now ${updatedSurgery.status}.`,
             branch: updatedSurgery.branch,
             relatedId: updatedSurgery._id,
             includeOwners: true,
-        });
+        }));
 
-        await syncQueueEntryForAppointment(updatedSurgery);
+        await runPostSaveSideEffect('syncQueueEntryForAppointment:statusUpdate', () => syncQueueEntryForAppointment(updatedSurgery));
 
         if (status === 'completed' && updatedSurgery.patient?._id) {
-            await appendAutomaticTreatmentLogIfMissing({
+            await runPostSaveSideEffect('appendAutomaticTreatmentLog:appointmentCompleted', () => appendAutomaticTreatmentLogIfMissing({
                 patientId: updatedSurgery.patient._id,
                 procedure: updatedSurgery.performedProcedure || updatedSurgery.procedure,
                 branch: updatedSurgery.branch,
@@ -4244,7 +4256,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 balance: normalizedBalance,
                 nextAppointment: normalizedNextAppointment,
                 sourceKey: `[AUTO-APPOINTMENT:${updatedSurgery._id}]`,
-            });
+            }));
         }
 
         if (shouldSendGuestDeclineEmail) {
