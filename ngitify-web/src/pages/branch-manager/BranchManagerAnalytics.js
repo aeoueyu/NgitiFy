@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { FaDownload, FaFilePdf } from 'react-icons/fa';
 import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
     Tooltip, LineChart, Line, PieChart, Pie, Cell, Legend
@@ -6,6 +7,7 @@ import {
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import styles from '../../styles/admin/BranchAnalytics.module.css';
+import { downloadCsvSections, openPrintReport } from '../../utils/exportHelpers';
 
 const COLORS = ['#01538b', '#2dccf6', '#27ae60', '#e67e22', '#8e44ad', '#e74c3c'];
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -58,6 +60,44 @@ export default function BranchManagerAnalytics() {
     const pieData = (data?.procedures || []).map(p => ({ name: p._id || 'Other', value: p.value }));
     const monthlyTrend = buildMonthlyTrend();
     const totalAppointments = barData.reduce((sum, b) => sum + b.appointments, 0);
+    const analyticsSections = [
+        {
+            title: 'Appointments',
+            headers: ['Branch', 'Appointments'],
+            rows: barData.map((item) => [item.name, item.appointments]),
+        },
+        {
+            title: 'Monthly Trend',
+            headers: ['Month', 'Appointments'],
+            rows: monthlyTrend.map((item) => [item.name, item.patients]),
+        },
+        {
+            title: 'Procedure Distribution',
+            headers: ['Procedure', 'Count'],
+            rows: pieData.map((item) => [item.name, item.value]),
+        },
+    ];
+
+    const handleExportCsv = () => {
+        downloadCsvSections(
+            `branch_manager_analytics_${new Date().toISOString().slice(0, 10)}.csv`,
+            analyticsSections,
+        );
+    };
+
+    const handleExportPdf = () => {
+        openPrintReport({
+            title: 'Branch Analytics Report',
+            subtitle: 'Dentime Dental Clinic - NgitiFy',
+            summaryItems: [
+                { label: 'Branch', value: branch || 'Unassigned' },
+                { label: 'Total Appointments', value: totalAppointments },
+                { label: 'Date From', value: from || 'Not set' },
+                { label: 'Date To', value: to || 'Not set' },
+            ],
+            sections: analyticsSections,
+        });
+    };
 
     return (
         <div className={styles.container}>
@@ -69,6 +109,14 @@ export default function BranchManagerAnalytics() {
                             {branch} — {totalAppointments} total appointments
                         </p>
                     </div>
+                </div>
+                <div className={styles.headerActions}>
+                    <button type="button" className={styles.secondaryBtn} onClick={handleExportCsv} disabled={loading}>
+                        <FaDownload /> Export CSV
+                    </button>
+                    <button type="button" className={styles.secondaryBtn} onClick={handleExportPdf} disabled={loading}>
+                        <FaFilePdf /> Export PDF
+                    </button>
                 </div>
             </div>
 

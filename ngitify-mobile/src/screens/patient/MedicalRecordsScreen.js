@@ -24,17 +24,22 @@ const LOWER_LEFT  = [31,32,33,34,35,36,37,38];
 const LOWER_RIGHT = [48,47,46,45,44,43,42,41]; // displayed right→left
 
 const STATUS_COLORS = {
-    'Healthy':           { bg: '#e8f5e9', text: '#2e7d32' },
-    'Normal':            { bg: '#e8f5e9', text: '#2e7d32' },
-    'Caries':            { bg: '#ffebee', text: '#c62828' },
-    'Missing':           { bg: '#eeeeee', text: '#757575' },
-    'Crowned':           { bg: '#e3f2fd', text: '#1565c0' },
-    'Filled':            { bg: '#fff8e1', text: '#f57f17' },
-    'Root Canal':        { bg: '#fce4ec', text: '#880e4f' },
-    'Implant':           { bg: '#e8eaf6', text: '#283593' },
-    'Fractured':         { bg: '#fff3e0', text: '#e65100' },
-    'Under Observation': { bg: '#e0f7fa', text: '#006064' },
-    'Extracted':         { bg: '#eeeeee', text: '#757575' },
+    healthy:            { bg: '#e8f5e9', text: '#2e7d32' },
+    normal:             { bg: '#e8f5e9', text: '#2e7d32' },
+    caries:             { bg: '#ffebee', text: '#c62828' },
+    decayed:            { bg: '#ffebee', text: '#c62828' },
+    missing:            { bg: '#eeeeee', text: '#757575' },
+    crowned:            { bg: '#e3f2fd', text: '#1565c0' },
+    crown:              { bg: '#e3f2fd', text: '#1565c0' },
+    filled:             { bg: '#fff8e1', text: '#f57f17' },
+    'root canal':       { bg: '#fce4ec', text: '#880e4f' },
+    implant:            { bg: '#e8eaf6', text: '#283593' },
+    fractured:          { bg: '#fff3e0', text: '#e65100' },
+    'under observation': { bg: '#e0f7fa', text: '#006064' },
+    extracted:          { bg: '#eeeeee', text: '#757575' },
+    'extraction-site':  { bg: '#eeeeee', text: '#757575' },
+    mobility:           { bg: '#fff3e0', text: '#e65100' },
+    bridge:             { bg: '#e8eaf6', text: '#283593' },
 };
 
 const DEFAULT_STATUS_COLOR = { bg: '#f5f5f5', text: '#333' };
@@ -199,22 +204,33 @@ function OdontogramTab({ data, loading, error, onRetry }) {
     if (error)   return <ErrorState message={error} onRetry={onRetry} />;
 
     const hasData = Object.keys(data).length > 0;
+    const normalizeToothData = (raw) => {
+        if (!raw) return { status: '', surfaces: [] };
+        if (typeof raw === 'string') return { status: raw, surfaces: [] };
+        return {
+            status: String(raw.status || ''),
+            surfaces: Array.isArray(raw.surfaces) ? raw.surfaces.map((surface) => String(surface)) : [],
+        };
+    };
 
     const ToothCell = ({ num }) => {
-        const status = data[String(num)];
-        const colors = status
-            ? (STATUS_COLORS[status] || DEFAULT_STATUS_COLOR)
+        const toothData = normalizeToothData(data[String(num)]);
+        const normalizedStatusKey = String(toothData.status || '').trim().toLowerCase();
+        const statusLabel = toothData.status || '';
+        const colors = normalizedStatusKey
+            ? (STATUS_COLORS[normalizedStatusKey] || DEFAULT_STATUS_COLOR)
             : { bg: 'white', text: '#ccc' };
-        const isMissing = status === 'Missing' || status === 'Extracted';
+        const isMissing = ['missing', 'extracted', 'extraction-site'].includes(normalizedStatusKey);
+        const surfaceSuffix = toothData.surfaces.length ? ` (${toothData.surfaces.join(', ')})` : '';
 
         return (
             <View style={[styles.toothCell, { backgroundColor: colors.bg, borderColor: colors.text + '55' }]}>
                 <Text style={[styles.toothNum, { color: colors.text, textDecorationLine: isMissing ? 'line-through' : 'none' }]}>
                     {num}
                 </Text>
-                {status && status !== 'Healthy' && status !== 'Normal' && (
+                {statusLabel && !['healthy', 'normal'].includes(normalizedStatusKey) && (
                     <Text style={[styles.toothStatus, { color: colors.text }]} numberOfLines={1}>
-                        {status.length > 7 ? status.slice(0, 6) + '…' : status}
+                        {`${statusLabel}${surfaceSuffix}`.length > 12 ? `${statusLabel}${surfaceSuffix}`.slice(0, 11) + '…' : `${statusLabel}${surfaceSuffix}`}
                     </Text>
                 )}
             </View>

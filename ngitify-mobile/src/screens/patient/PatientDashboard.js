@@ -186,7 +186,6 @@ export default function PatientDashboard({ navigation }) {
 
     // ── Data state ──
     const [upcomingAppt,    setUpcomingAppt]    = useState(null);
-    const [pastAppointments, setPastAppointments] = useState([]);
     const [notifications,   setNotifications]   = useState([]);
     const [lastVisitDate,   setLastVisitDate]   = useState(null);
     const [visitPrediction, setVisitPrediction] = useState(null);
@@ -229,11 +228,7 @@ export default function PatientDashboard({ navigation }) {
                 const active = appointmentList
                     .filter(a => ['pending', 'confirmed', 'in-clinic'].includes(a.status))
                     .sort((a, b) => new Date(a.date) - new Date(b.date));
-                const past = appointmentList
-                    .filter(a => ['completed', 'cancelled'].includes(a.status))
-                    .sort((a, b) => new Date(b.date) - new Date(a.date));
                 setUpcomingAppt(active[0] || null);
-                setPastAppointments(past);
                 setApptError(false);
             } else {
                 setApptError(true);
@@ -347,61 +342,6 @@ export default function PatientDashboard({ navigation }) {
                     <Text style={styles.apptTapHint}>Tap to view →</Text>
                 </View>
             </TouchableOpacity>
-        );
-    };
-
-    const renderPastAppointments = () => {
-        const statusColors = {
-            completed: { bg: '#e8f5e9', text: '#2e7d32', dot: '#4caf50' },
-            cancelled: { bg: '#ffebee', text: '#c62828', dot: '#ef5350' },
-        };
-
-        if (!pastAppointments.length) {
-            return (
-                <View style={[styles.apptCard, styles.apptCardEmpty]}>
-                    <Ionicons name="time-outline" size={32} color="#bbb" style={{ marginBottom: 10 }} />
-                    <Text style={styles.emptyTitle}>No past or cancelled appointments yet</Text>
-                    <Text style={styles.emptySubtitle}>Your completed and cancelled visits will appear here.</Text>
-                </View>
-            );
-        }
-
-        return (
-            <View style={styles.historyList}>
-                {pastAppointments.slice(0, 4).map((appointment) => {
-                    const sc = statusColors[appointment.status] || statusColors.completed;
-                    const dentistName = getAppointmentDentistLabel(appointment);
-                    return (
-                        <TouchableOpacity
-                            key={appointment._id}
-                            style={styles.historyCard}
-                            onPress={() => navigation.navigate('MyAppointments')}
-                            activeOpacity={0.82}
-                        >
-                            <View style={styles.apptCardTop}>
-                                <View style={{ flex: 1, paddingRight: 10 }}>
-                                    <Text style={styles.historyProcedure}>{appointment.procedure}</Text>
-                                    <View style={[styles.statusBadge, styles.statusBadgeInline, { backgroundColor: sc.bg }]}>
-                                        <View style={[styles.statusDot, { backgroundColor: sc.dot }]} />
-                                        <Text style={[styles.statusText, { color: sc.text }]}>
-                                            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.apptMeta}>{formatDate(appointment.date)}</Text>
-                                    {appointment.time ? <Text style={styles.apptMeta}>{formatTime(appointment.time)}</Text> : null}
-                                    <Text style={styles.apptDentist}>{dentistName}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.apptCardFooter}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Ionicons name="location-outline" size={13} color="#888" style={{ marginRight: 4 }} />
-                                    <Text style={styles.apptBranch}>{appointment.branch || 'Dentime Dental Clinic'}</Text>
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
         );
     };
 
@@ -540,8 +480,6 @@ export default function PatientDashboard({ navigation }) {
                 <SectionHeader title="Predictive Visit Window" />
                 {renderVisitBanner()}
 
-                <SectionHeader title="Past / Cancelled Appointments" />
-                {renderPastAppointments()}
 
                 {/* ── Quick Actions ── */}
                 <SectionHeader title="Quick Actions" />

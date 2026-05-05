@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/ManagePatients.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaDownload, FaFilePdf } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
+import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
 
 import AddPatient from './AddPatient';
 import EditPatient from './EditPatient';
@@ -211,6 +212,44 @@ export default function ManagePatients() {
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedPatientId(null); };
     const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedPatientId(null); };
 
+    const exportRows = filteredPatients.map((patient) => {
+        const computedStatus = (!patient.isVerified || patient.rawStatus !== 'active') ? 'Inactive' : 'Active';
+        return [
+            patient.name,
+            patient.email,
+            patient.assignedBranch || 'No branch assigned',
+            computedStatus,
+            patient.isVerified ? 'Verified' : 'Unverified',
+        ];
+    });
+
+    const handleExportCsv = () => {
+        downloadCsvFile(
+            `patients_${new Date().toISOString().slice(0, 10)}.csv`,
+            ['Name', 'Email Address', 'Assigned Branch', 'Status', 'Verification'],
+            exportRows,
+        );
+    };
+
+    const handleExportPdf = () => {
+        openPrintReport({
+            title: 'Patient List Report',
+            subtitle: 'Dentime Dental Clinic - NgitiFy',
+            summaryItems: [
+                { label: 'Visible Patients', value: filteredPatients.length },
+                { label: 'Status Filter', value: statusFilter },
+                { label: 'Branch Filter', value: branchFilter },
+            ],
+            sections: [
+                {
+                    title: 'Patients',
+                    headers: ['Name', 'Email Address', 'Assigned Branch', 'Status', 'Verification'],
+                    rows: exportRows,
+                },
+            ],
+        });
+    };
+
     if (!canReadPatients) {
         return (
             <div className={styles.container}>
@@ -228,14 +267,32 @@ export default function ManagePatients() {
                     <h1 className={styles.title}>Manage Patients</h1>
                     <p className={styles.subtitle}>{isDentist ? 'View your assigned patients and open their EMR records.' : 'View, filter, and manage clinic patient records.'}</p>
                 </div>
-                {canEditPatients && !isDentist && (
+                <div className={styles.headerActions}>
                     <button
-                        className={styles.addBtn}
-                        onClick={() => setIsAddModalOpen(true)}
+                        type="button"
+                        className={styles.secondaryBtn}
+                        onClick={handleExportCsv}
+                        disabled={filteredPatients.length === 0}
                     >
-                        <FaUserPlus className={styles.btnIcon} /> Add New Patient
+                        <FaDownload /> Export CSV
                     </button>
-                )}
+                    <button
+                        type="button"
+                        className={styles.secondaryBtn}
+                        onClick={handleExportPdf}
+                        disabled={filteredPatients.length === 0}
+                    >
+                        <FaFilePdf /> Export PDF
+                    </button>
+                    {canEditPatients && !isDentist && (
+                        <button
+                            className={styles.addBtn}
+                            onClick={() => setIsAddModalOpen(true)}
+                        >
+                            <FaUserPlus className={styles.btnIcon} /> Add New Patient
+                        </button>
+                    )}
+                </div>
             </header>
 
             <div className={styles.controlsRow}>

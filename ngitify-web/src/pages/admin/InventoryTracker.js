@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from '../../styles/admin/InventoryTracker.module.css'; 
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle, FaBoxes, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa';
+import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle, FaBoxes, FaExclamationTriangle, FaTimesCircle, FaDownload, FaFilePdf } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
+import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
 
 import AddInventoryItem from './AddInventoryItem'; 
 import AddInventoryStock from './AddInventoryStock';
@@ -135,16 +136,6 @@ export default function InventoryTracker() {
         return { total, lowStock, expiringSoon, expired };
     }, [inventoryList]);
 
-    if (!canReadInventory) {
-        return (
-            <div className={styles.container}>
-                <div style={{ textAlign: 'center', padding: '100px', color: '#dc3545', fontWeight: 'bold', fontSize: '18px' }}>
-                    Access Denied. You do not have permission to view the Inventory module.
-                </div>
-            </div>
-        );
-    }
-
     const filteredInventory = inventoryList.filter(item => {
         const query = searchQuery.toLowerCase();
         const matchesSearch =
@@ -154,6 +145,56 @@ export default function InventoryTracker() {
         const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
         return matchesSearch && matchesCategory;
     });
+
+    const exportRows = filteredInventory.map((item) => [
+        item.name,
+        item.branch || 'Unassigned',
+        item.brand,
+        item.category,
+        `${item.currentStock} ${item.unit}`,
+        item.threshold,
+        item.expirationDate ? formatDateShort(item.expirationDate) : 'No expiry',
+        item.batchNumber || '-',
+        item.status || 'Active',
+    ]);
+
+    const handleExportCsv = () => {
+        downloadCsvFile(
+            `inventory_${new Date().toISOString().slice(0, 10)}.csv`,
+            ['Item', 'Branch', 'Brand', 'Category', 'Quantity', 'Reorder Level', 'Expiry', 'Batch Number', 'Status'],
+            exportRows,
+        );
+    };
+
+    const handleExportPdf = () => {
+        openPrintReport({
+            title: 'Inventory Records Report',
+            subtitle: 'Dentime Dental Clinic - NgitiFy',
+            summaryItems: [
+                { label: 'Visible Items', value: filteredInventory.length },
+                { label: 'Low Stock', value: inventoryStats.lowStock },
+                { label: 'Expiring Soon', value: inventoryStats.expiringSoon },
+                { label: 'Expired', value: inventoryStats.expired },
+            ],
+            sections: [
+                {
+                    title: 'Inventory Listing',
+                    headers: ['Item', 'Branch', 'Brand', 'Category', 'Quantity', 'Reorder Level', 'Expiry', 'Batch Number', 'Status'],
+                    rows: exportRows,
+                },
+            ],
+        });
+    };
+
+    if (!canReadInventory) {
+        return (
+            <div className={styles.container}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#dc3545', fontWeight: 'bold', fontSize: '18px' }}>
+                    Access Denied. You do not have permission to view the Inventory module.
+                </div>
+            </div>
+        );
+    }
 
     const triggerDelete = (id, itemName) => {
         setConfirmConfig({
@@ -289,16 +330,24 @@ export default function InventoryTracker() {
                     </select>
                 </div>
                 
-                {canEditInventory && (
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <div className={styles.headerActions}>
+                    <button type="button" className={styles.secondaryBtn} onClick={handleExportCsv} disabled={filteredInventory.length === 0}>
+                        <FaDownload /> Export CSV
+                    </button>
+                    <button type="button" className={styles.secondaryBtn} onClick={handleExportPdf} disabled={filteredInventory.length === 0}>
+                        <FaFilePdf /> Export PDF
+                    </button>
+                    {canEditInventory && (
                         <button className={styles.addBtn} onClick={() => setIsAddStockModalOpen(true)}>
                             <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add Supply / Stock
                         </button>
+                    )}
+                    {canEditInventory && (
                         <button className={styles.addBtn} style={{ backgroundColor: '#2dccf6' }} onClick={() => setIsAddModalOpen(true)}>
                             <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add New Item
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
