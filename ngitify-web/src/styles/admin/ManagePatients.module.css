@@ -157,16 +157,16 @@
 .iconBtn:hover { color: #01538b; background-color: #f1f5f9; }
 .actionRow { gap: 6px; }
 .actionIconButton { width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; margin-right: 0; }
-.viewIconButton { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
-.viewIconButton:hover { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; }
-.editIconButton { color: #92400e; background: #fef3c7; border-color: #fde68a; }
-.editIconButton:hover { color: #92400e; background: #fde68a; border-color: #facc15; }
-.warningIconButton { color: #b45309; background: #ffedd5; border-color: #fdba74; }
-.warningIconButton:hover { color: #b45309; background: #fed7aa; border-color: #fb923c; }
-.deactivateIconButton { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
-.deactivateIconButton:hover { color: #991b1b; background: #fecaca; border-color: #fca5a5; }
-.activateIconButton { color: #166534; background: #dcfce7; border-color: #86efac; }
-.activateIconButton:hover { color: #166534; background: #bbf7d0; border-color: #4ade80; }
+.actionIconButton.viewIconButton { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.actionIconButton.viewIconButton:hover { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; }
+.actionIconButton.editIconButton { color: #92400e; background: #fef3c7; border-color: #fde68a; }
+.actionIconButton.editIconButton:hover { color: #92400e; background: #fde68a; border-color: #facc15; }
+.actionIconButton.warningIconButton { color: #b45309; background: #ffedd5; border-color: #fdba74; }
+.actionIconButton.warningIconButton:hover { color: #b45309; background: #fed7aa; border-color: #fb923c; }
+.actionIconButton.deactivateIconButton { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
+.actionIconButton.deactivateIconButton:hover { color: #991b1b; background: #fecaca; border-color: #fca5a5; }
+.actionIconButton.activateIconButton { color: #166534; background: #dcfce7; border-color: #86efac; }
+.actionIconButton.activateIconButton:hover { color: #166534; background: #bbf7d0; border-color: #4ade80; }
 
 /* --- MODAL / POP-UP STYLES --- */
 .modalOverlay {
