@@ -153,16 +153,19 @@ export default function NotificationsScreen({ navigation }) {
                 prev.map(n => n._id === item._id ? { ...n, isRead: true } : n)
             );
             try {
-                await fetch(`${API_BASE_URL}/api/notifications/${item._id}/read`, {
+                const response = await fetch(`${API_BASE_URL}/api/notifications/${item._id}/read`, {
                     method:  'PATCH',
                     headers: { Authorization: `Bearer ${userToken}` },
                 });
+                if (!response.ok) {
+                    throw new Error('Failed to mark notification as read.');
+                }
             } catch {
                 // non-critical — local state already updated
             }
         }
 
-        logActivity(
+        await logActivity(
             'NOTIFICATION_VIEWED',
             `Viewed notification: ${item.title || item.type}`,
             userToken, API_BASE_URL

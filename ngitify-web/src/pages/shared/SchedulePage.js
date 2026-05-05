@@ -93,8 +93,6 @@ const DATE_FILTER_OPTIONS = [
     { value: 'all', label: 'All' },
     { value: 'today', label: 'Today' },
     { value: 'past', label: 'Past' },
-    { value: '3days', label: '3 Days' },
-    { value: '7days', label: '7 Days' },
     { value: 'custom', label: 'Custom' },
 ];
 
@@ -183,15 +181,6 @@ const isScheduledInPast = (dateValue, timeValue) => {
     const base = new Date(`${dateValue}T${timeValue || '23:59'}:00`);
     if (Number.isNaN(base.getTime())) return false;
     return base < new Date();
-};
-
-const canMarkEntryComplete = (entry) => {
-    if (!entry || entry.status === 'completed' || entry.status === 'cancelled') return false;
-    if (entry.status === 'in-clinic') return true;
-    if (entry.type === 'appointment') {
-        return isScheduledInPast(entry.date, entry.time);
-    }
-    return false;
 };
 
 const normalizePatientName = (patient) => {
@@ -386,12 +375,6 @@ export default function SchedulePage() {
         }
         if (dateFilter === 'past') {
             return { from: subtractDaysFromDateString(todayString, 3650), to: addDaysToDateString(todayString, -1) };
-        }
-        if (dateFilter === '3days') {
-            return { from: todayString, to: addDaysToDateString(todayString, 2) };
-        }
-        if (dateFilter === '7days') {
-            return { from: todayString, to: addDaysToDateString(todayString, 6) };
         }
         if (dateFilter === 'custom') {
             const normalizedFrom = customDateFrom || todayString;
@@ -727,13 +710,6 @@ export default function SchedulePage() {
         setFormErrors({});
         setEditingEntry(entry);
         setIsFormOpen(true);
-    };
-
-    const openStatusUpdateModal = (entry, nextStatus) => {
-        openEditModal({
-            ...entry,
-            status: nextStatus,
-        });
     };
 
     const closeFormModal = () => {
@@ -1559,7 +1535,7 @@ export default function SchedulePage() {
                                 <th style={{ width: '118px' }}>SOURCE</th>
                                 <th>DENTIST</th>
                                 <th style={{ width: '118px' }}>STATUS</th>
-                                <th style={{ width: '96px', textAlign: 'center' }}>ACTIONS</th>
+                                <th style={{ width: '118px', textAlign: 'center' }}>ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1586,7 +1562,7 @@ export default function SchedulePage() {
                                             </div>
                                         </td>
                                         <td>
-                                            <span className={`${wideTable.statusBadge} ${entry.type === 'appointment' ? wideTable.statusBlue : wideTable.statusGray}`}>
+                                            <span className={`${wideTable.statusBadge} ${entry.sourceKind === 'walkin' ? wideTable.statusGray : wideTable.statusBlue}`}>
                                                 {entry.sourceLabel || 'Appointment'}
                                             </span>
                                         </td>
@@ -1621,33 +1597,21 @@ export default function SchedulePage() {
                                                 {canEditSchedule && entry.type === 'appointment' && entry.status === 'pending' && (
                                                     <button
                                                         type="button"
-                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
-                                                        onClick={() => openStatusUpdateModal(entry, 'confirmed')}
-                                                        title="Prepare and confirm appointment"
-                                                        aria-label="Prepare and confirm appointment"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.deleteIconButton}`}
+                                                        onClick={() => setPendingStatusTarget({ entry, status: 'cancelled' })}
+                                                        title="Cancel Appointment"
+                                                        aria-label="Cancel Appointment"
                                                     >
-                                                        <FaCheck />
+                                                        <FaTimes />
                                                     </button>
                                                 )}
-                                                {canEditSchedule && entry.type === 'appointment' && entry.status === 'confirmed' && (
-                                                    <button
-                                                        type="button"
-                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
-                                                        onClick={() => setPendingStatusTarget({ entry, status: 'in-clinic' })}
-                                                        title="Mark as In Clinic"
-                                                        aria-label="Mark as In Clinic"
-                                                    >
-                                                        <FaCheck />
-                                                    </button>
-                                                )}
-                                                {canEditSchedule && entry.status !== 'completed' && entry.status !== 'cancelled' && (
+                                                {canEditSchedule && entry.status === 'in-clinic' && (
                                                     <button
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
                                                         onClick={() => openCompleteModal(entry)}
-                                                        title={canMarkEntryComplete(entry) ? 'Mark as Complete' : 'This schedule cannot be completed yet.'}
+                                                        title="Mark as Complete"
                                                         aria-label="Mark as Complete"
-                                                        disabled={!canMarkEntryComplete(entry)}
                                                     >
                                                         <FaCheck />
                                                     </button>
