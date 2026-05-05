@@ -15,6 +15,7 @@ const NotificationSchema = new mongoose.Schema({
             // ── Patient-facing (Phase 3 additions) ───────────────────────
             'APPOINTMENT_CONFIRMED',       // Admin/secretary confirmed booking
             'APPOINTMENT_DECLINED',        // Admin/secretary declined booking
+            'APPOINTMENT_STATUS_UPDATED',  // Appointment status changed after booking
             'APPOINTMENT_REMINDER',        // Scheduled — 24 hrs before appointment
             'PREDICTIVE_VISIT_DUE',        // 14 days before predicted visit date
             'PREDICTIVE_VISIT_OVERDUE',    // Past predicted visit date

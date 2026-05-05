@@ -12,7 +12,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS = [
-    { key: 'treatment',  label: 'Treatment' },
     { key: 'odontogram', label: 'Odontogram' },
     { key: 'radiograph', label: 'X-Rays' },
     { key: 'medical',    label: 'Medical History' },
@@ -437,18 +436,17 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
 export default function MedicalRecordsScreen({ navigation }) {
     const { userToken, userId, API_BASE_URL } = useContext(AuthContext);
 
-    const [activeTab, setActiveTab] = useState('treatment');
+    const [activeTab, setActiveTab] = useState('odontogram');
     const underlineAnim = useRef(new Animated.Value(0)).current;
 
     // Per-tab state
-    const [treatmentLogs,  setTreatmentLogs]  = useState([]);
     const [odontogramData, setOdontogramData] = useState({});
     const [radiographs,    setRadiographs]    = useState([]);
     const [profile,        setProfile]        = useState(null);
 
-    const [loading, setLoading] = useState({ treatment: false, odontogram: false, radiograph: false, medical: false });
-    const [errors,  setErrors]  = useState({ treatment: '', odontogram: '', radiograph: '', medical: '' });
-    const [fetched, setFetched] = useState({ treatment: false, odontogram: false, radiograph: false, medical: false });
+    const [loading, setLoading] = useState({ odontogram: false, radiograph: false, medical: false });
+    const [errors,  setErrors]  = useState({ odontogram: '', radiograph: '', medical: '' });
+    const [fetched, setFetched] = useState({ odontogram: false, radiograph: false, medical: false });
 
     const headers = { Authorization: `Bearer ${userToken}` };
 
@@ -457,22 +455,6 @@ export default function MedicalRecordsScreen({ navigation }) {
     const setTabFetched = (tab)      => setFetched(prev => ({ ...prev, [tab]: true }));
 
     // ── Fetchers ──────────────────────────────────────────────────────────────
-
-    const fetchTreatment = useCallback(async () => {
-        setTabLoading('treatment', true);
-        setTabError('treatment', '');
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
-            setTreatmentLogs(Array.isArray(data) ? data : []);
-            setTabFetched('treatment');
-        } catch (e) {
-            setTabError('treatment', e.message || 'Could not load treatment notes.');
-        } finally {
-            setTabLoading('treatment', false);
-        }
-    }, [userToken, API_BASE_URL]);
 
     const fetchOdontogram = useCallback(async () => {
         setTabLoading('odontogram', true);
@@ -523,7 +505,6 @@ export default function MedicalRecordsScreen({ navigation }) {
     }, [userToken, userId, API_BASE_URL]);
 
     const FETCHERS = {
-        treatment:  fetchTreatment,
         odontogram: fetchOdontogram,
         radiograph: fetchRadiographs,
         medical:    fetchMedicalHistory,
@@ -542,7 +523,7 @@ export default function MedicalRecordsScreen({ navigation }) {
     }, [activeTab]);
 
     // Animate tab underline
-    const TAB_INDEX = { treatment: 0, odontogram: 1, radiograph: 2, medical: 3 };
+    const TAB_INDEX = { odontogram: 0, radiograph: 1, medical: 2 };
     useEffect(() => {
         Animated.timing(underlineAnim, {
             toValue: TAB_INDEX[activeTab],
@@ -589,14 +570,6 @@ export default function MedicalRecordsScreen({ navigation }) {
 
             {/* Tab content */}
             <View style={{ flex: 1 }}>
-                {activeTab === 'treatment' && (
-                    <TreatmentTab
-                        logs={treatmentLogs}
-                        loading={loading.treatment}
-                        error={errors.treatment}
-                        onRetry={fetchTreatment}
-                    />
-                )}
                 {activeTab === 'odontogram' && (
                     <OdontogramTab
                         data={odontogramData}

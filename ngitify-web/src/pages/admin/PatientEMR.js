@@ -71,6 +71,7 @@ const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false 
 const yesNoDisplay = (value) => value === 'yes' ? 'Yes' : value === 'no' ? 'No' : 'Not answered';
 const textDisplay = (value) => value || 'Not specified';
 const DATE_FILTER_OPTIONS = [
+    { value: 'all', label: 'All' },
     { value: 'today', label: 'Today' },
     { value: '3days', label: '3 Days' },
     { value: '7days', label: '7 Days' },
@@ -132,9 +133,9 @@ export default function PatientEMR({
     // Tab: Treatment Logs States
     const [logs, setLogs] = useState([]);
     const [logsSearchQuery, setLogsSearchQuery] = useState('');
-    const [logsRangeFilter, setLogsRangeFilter] = useState('today');
-    const [logsDateFrom, setLogsDateFrom] = useState(getTodayString());
-    const [logsDateTo, setLogsDateTo] = useState(getTodayString());
+    const [logsRangeFilter, setLogsRangeFilter] = useState('all');
+    const [logsDateFrom, setLogsDateFrom] = useState('');
+    const [logsDateTo, setLogsDateTo] = useState('');
     const [logsCategory, setLogsCategory] = useState('All');
     
     // Add Log Modal
@@ -1007,6 +1008,9 @@ export default function PatientEMR({
     };
 
     const normalizedLogRange = (() => {
+        if (logsRangeFilter === 'all') {
+            return { from: '', to: '' };
+        }
         if (logsRangeFilter === '3days') {
             return { from: getTodayString(), to: addDays(getTodayString(), 2) };
         }
@@ -1032,7 +1036,9 @@ export default function PatientEMR({
             || String(log.balance || '').includes(searchLower);
         const matchesCategory = logsCategory === 'All' || log.category === logsCategory;
         const logDateKey = log.rawDate.toISOString().split('T')[0];
-        const matchesDate = logDateKey >= normalizedLogRange.from && logDateKey <= normalizedLogRange.to;
+        const matchesDate = !normalizedLogRange.from || !normalizedLogRange.to
+            ? true
+            : (logDateKey >= normalizedLogRange.from && logDateKey <= normalizedLogRange.to);
         return matchesSearch && matchesCategory && matchesDate;
     });
 
@@ -1106,13 +1112,8 @@ export default function PatientEMR({
                 <thead>
                         <tr>
                             <th>Date</th>
-                            <th>Tooth No./s</th>
                             <th>Procedure</th>
                             <th>Dentist/s</th>
-                            <th>Amount Charged</th>
-                            <th>Amount Paid</th>
-                            <th>Balance</th>
-                            <th>Next Appointment</th>
                             <th>Details</th>
                         </tr>
                     </thead>
@@ -1129,24 +1130,9 @@ export default function PatientEMR({
                                         <span>{formatDateLong(log.rawDate)}</span>
                                     </div>
                                 </td>
-                                <td style={{ whiteSpace: 'nowrap' }} title={log.tooth || '-'}>
-                                    {log.tooth || '-'}
-                                </td>
                                 <td style={{ whiteSpace: 'nowrap' }} title={log.procedure}>{log.procedure}</td>
                                 <td style={{ whiteSpace: 'nowrap' }} title={log.dentistName || log.doctor || log.dentist || '-'}>
                                     {log.dentistName || log.doctor || log.dentist || '-'}
-                                </td>
-                                <td style={{ whiteSpace: 'nowrap' }} title={formatMoney(log.amountCharged)}>
-                                    {formatMoney(log.amountCharged)}
-                                </td>
-                                <td style={{ whiteSpace: 'nowrap' }} title={formatMoney(log.amountPaid)}>
-                                    {formatMoney(log.amountPaid)}
-                                </td>
-                                <td style={{ whiteSpace: 'nowrap' }} title={formatMoney(log.balance)}>
-                                    {formatMoney(log.balance)}
-                                </td>
-                                <td style={{ whiteSpace: 'nowrap' }} title={formatShortDate(log.nextAppointment)}>
-                                    {formatShortDate(log.nextAppointment)}
                                 </td>
                                 <td className={styles.detailsToggleCell}>
                                     <button
@@ -1160,7 +1146,7 @@ export default function PatientEMR({
                             </tr>
                             {isExpanded && (
                                 <tr className={styles.expandedDetailRow}>
-                                    <td colSpan="9">
+                                    <td colSpan="4">
                                         <div className={styles.expandedDetailPanel}>
                                             <div className={styles.expandedDetailGrid}>
                                                 <div>
@@ -1168,8 +1154,28 @@ export default function PatientEMR({
                                                     <p className={styles.expandedDetailValue}>{log.category || 'Other'}</p>
                                                 </div>
                                                 <div>
+                                                    <span className={styles.expandedDetailLabel}>Tooth No./s</span>
+                                                    <p className={styles.expandedDetailValue}>{log.tooth || '-'}</p>
+                                                </div>
+                                                <div>
                                                     <span className={styles.expandedDetailLabel}>Branch</span>
                                                     <p className={styles.expandedDetailValue}>{log.branch || '-'}</p>
+                                                </div>
+                                                <div>
+                                                    <span className={styles.expandedDetailLabel}>Amount Charged</span>
+                                                    <p className={styles.expandedDetailValue}>{formatMoney(log.amountCharged)}</p>
+                                                </div>
+                                                <div>
+                                                    <span className={styles.expandedDetailLabel}>Amount Paid</span>
+                                                    <p className={styles.expandedDetailValue}>{formatMoney(log.amountPaid)}</p>
+                                                </div>
+                                                <div>
+                                                    <span className={styles.expandedDetailLabel}>Balance</span>
+                                                    <p className={styles.expandedDetailValue}>{formatMoney(log.balance)}</p>
+                                                </div>
+                                                <div>
+                                                    <span className={styles.expandedDetailLabel}>Next Appointment</span>
+                                                    <p className={styles.expandedDetailValue}>{formatShortDate(log.nextAppointment)}</p>
                                                 </div>
                                             </div>
                                             <div>

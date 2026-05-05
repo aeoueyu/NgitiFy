@@ -4574,6 +4574,16 @@ app.post('/api/public/appointments/request', async (req, res) => {
             return res.status(400).json({ message: 'Please select a valid gender.' });
         }
 
+        const escapedBranchName = normalizedBranch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const branchRecord = await Branch.findOne({
+            name: { $regex: `^${escapedBranchName}$`, $options: 'i' },
+            isActive: true,
+        }).select('name');
+        if (!branchRecord) {
+            return res.status(400).json({ message: 'Selected branch is not available.' });
+        }
+        const resolvedBranchName = branchRecord.name;
+
         const remoteIpHeader = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'];
         const remoteIp = Array.isArray(remoteIpHeader)
             ? remoteIpHeader[0]
@@ -4585,11 +4595,6 @@ app.post('/api/public/appointments/request', async (req, res) => {
                 return res.status(500).json({ message: 'Captcha verification is not configured on the server.' });
             }
             return res.status(400).json({ message: 'Captcha verification failed. Please try again.' });
-        }
-
-        const branchRecord = await Branch.findOne({ name: normalizedBranch, isActive: true }).select('name');
-        if (!branchRecord) {
-            return res.status(400).json({ message: 'Selected branch is not available.' });
         }
 
         const appointmentDate = new Date(`${date}T12:00:00`);
@@ -4626,7 +4631,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
             return res.status(400).json({ message: 'Please choose a later appointment time.' });
         }
 
-        const takenSlots = await getTakenSlotsForDate({ date, branch: normalizedBranch });
+        const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranchName });
         if (takenSlots.includes(time)) {
             return res.status(409).json({ message: 'That time slot is no longer available. Please choose another time.' });
         }
@@ -4644,7 +4649,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
             guestDentalHistory: {
                 chiefComplaint: normalizedNotes,
             },
-            branch: normalizedBranch,
+            branch: resolvedBranchName,
             date: new Date(date),
             time,
             procedure: normalizedProcedure,
@@ -4663,7 +4668,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
             action: 'GUEST_APPOINTMENT_REQUEST',
             user: normalizedEmail,
             role: 'guest',
-            details: `Guest ${normalizedName} requested ${normalizedProcedure} on ${new Date(date).toDateString()} at ${normalizedBranch}.`,
+            details: `Guest ${normalizedName} requested ${normalizedProcedure} on ${new Date(date).toDateString()} at ${resolvedBranchName}.`,
         });
 
         await notifyAppointmentManagers({
@@ -4671,13 +4676,13 @@ app.post('/api/public/appointments/request', async (req, res) => {
             patientName: normalizedName,
             procedure: normalizedProcedure,
             date,
-            branch: normalizedBranch,
+            branch: resolvedBranchName,
         });
 
         await sendAppointmentReceivedEmail({
             email: normalizedEmail,
             name: normalizedName,
-            branch: normalizedBranch,
+            branch: resolvedBranchName,
             date,
             time,
             procedure: normalizedProcedure,
@@ -5294,6 +5299,8 @@ app.get('/api/my/treatment-logs', verifyToken, async (req, res) => {
         if (req.user.role !== 'patient') {
             return res.status(403).json({ message: 'Access denied.' });
         }
+        await reconcilePatientTreatmentLogsFromCompletedAppointments(req.user.id);
+
         const patient = await User.findById(req.user.id).select('treatmentLogs');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
