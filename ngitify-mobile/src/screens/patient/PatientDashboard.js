@@ -31,6 +31,17 @@ const formatTime = (time24) => {
     return `${hour12}:${m} ${suffix}`;
 };
 
+const formatExpiryDate = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+};
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function QuickActionCard({ iconComponent, label, color, onPress }) {
@@ -305,19 +316,19 @@ export default function PatientDashboard({ navigation }) {
                 activeOpacity={0.85}
             >
                 <View style={styles.apptCardTop}>
-                    <View>
+                    <View style={{ flex: 1, paddingRight: 10 }}>
                         <Text style={styles.apptProcedure}>{upcomingAppt.procedure}</Text>
+                        <View style={[styles.statusBadge, styles.statusBadgeInline, { backgroundColor: sc.bg }]}>
+                            <View style={[styles.statusDot, { backgroundColor: sc.dot }]} />
+                            <Text style={[styles.statusText, { color: sc.text }]}>
+                                {upcomingAppt.status.charAt(0).toUpperCase() + upcomingAppt.status.slice(1)}
+                            </Text>
+                        </View>
                         <Text style={styles.apptMeta}>{formatDate(upcomingAppt.date)}</Text>
                         {upcomingAppt.time ? (
                             <Text style={styles.apptMeta}>{formatTime(upcomingAppt.time)}</Text>
                         ) : null}
                         <Text style={styles.apptDentist}>{dentistName}</Text>
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                        <View style={[styles.statusDot, { backgroundColor: sc.dot }]} />
-                        <Text style={[styles.statusText, { color: sc.text }]}>
-                            {upcomingAppt.status.charAt(0).toUpperCase() + upcomingAppt.status.slice(1)}
-                        </Text>
                     </View>
                 </View>
                 <View style={styles.apptCardFooter}>
@@ -364,15 +375,15 @@ export default function PatientDashboard({ navigation }) {
                             <View style={styles.apptCardTop}>
                                 <View style={{ flex: 1, paddingRight: 10 }}>
                                     <Text style={styles.historyProcedure}>{appointment.procedure}</Text>
+                                    <View style={[styles.statusBadge, styles.statusBadgeInline, { backgroundColor: sc.bg }]}>
+                                        <View style={[styles.statusDot, { backgroundColor: sc.dot }]} />
+                                        <Text style={[styles.statusText, { color: sc.text }]}>
+                                            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                                        </Text>
+                                    </View>
                                     <Text style={styles.apptMeta}>{formatDate(appointment.date)}</Text>
                                     {appointment.time ? <Text style={styles.apptMeta}>{formatTime(appointment.time)}</Text> : null}
                                     <Text style={styles.apptDentist}>{dentistName}</Text>
-                                </View>
-                                <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                                    <View style={[styles.statusDot, { backgroundColor: sc.dot }]} />
-                                    <Text style={[styles.statusText, { color: sc.text }]}>
-                                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                                    </Text>
                                 </View>
                             </View>
                             <View style={styles.apptCardFooter}>
@@ -435,6 +446,8 @@ export default function PatientDashboard({ navigation }) {
     }
 
     const firstName = userInfo?.firstName || 'Patient';
+    const needsPasswordChange = userInfo && !userInfo?.isPasswordChanged;
+    const passwordDeadline = formatExpiryDate(userInfo?.temporaryPasswordExpires);
 
     return (
         <View style={styles.container}>
@@ -498,6 +511,22 @@ export default function PatientDashboard({ navigation }) {
                 showsVerticalScrollIndicator={false}
             >
                 {/* ── Upcoming Appointment ── */}
+                {needsPasswordChange ? (
+                    <TouchableOpacity
+                        style={styles.passwordWarningCard}
+                        onPress={() => navigation.navigate('Settings')}
+                        activeOpacity={0.82}
+                    >
+                        <Ionicons name="warning-outline" size={22} color="#b45309" style={{ marginRight: 10 }} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.passwordWarningTitle}>Password change required</Text>
+                            <Text style={styles.passwordWarningText}>
+                                Change your temporary password as soon as possible{passwordDeadline ? ` before ${passwordDeadline}` : ''}.
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color="#b45309" />
+                    </TouchableOpacity>
+                ) : null}
                 <SectionHeader title="Upcoming Appointment" />
                 {renderAppointmentCard()}
 
@@ -627,8 +656,22 @@ const styles = StyleSheet.create({
     apptTapHint:    { fontSize: 12, color: '#01538b', fontWeight: '600' },
 
     statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+    statusBadgeInline: { alignSelf: 'flex-start', marginTop: 8, marginBottom: 8 },
     statusDot:   { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
     statusText:  { fontSize: 12, fontWeight: '700' },
+    passwordWarningCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fffbeb',
+        borderWidth: 1,
+        borderColor: '#fcd34d',
+        borderRadius: 16,
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+        marginBottom: 18,
+    },
+    passwordWarningTitle: { fontSize: 14, fontWeight: '800', color: '#92400e', marginBottom: 3 },
+    passwordWarningText: { fontSize: 12, lineHeight: 18, color: '#92400e' },
 
     emptyTitle:    { fontSize: 15, fontWeight: 'bold', color: '#555', marginBottom: 4 },
     emptySubtitle: { fontSize: 12, color: '#999', textAlign: 'center', marginBottom: 16 },

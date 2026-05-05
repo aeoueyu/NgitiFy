@@ -341,7 +341,7 @@ export default function AppointmentBookingScreen({ navigation }) {
 
     const handleModalClose = () => {
         setModalVisible(false);
-        if (modalType === 'success') navigation.goBack();
+        if (modalType === 'success') navigation.navigate('PatientDashboardMain');
     };
 
     const renderDateStep = () => (

@@ -87,6 +87,9 @@ export default function LoginScreen({ navigation }) {
                         keyboardType="email-address"
                         autoCapitalize="none"
                         autoCorrect={false}
+                        autoComplete="off"
+                        textContentType="none"
+                        importantForAutofill="no"
                         value={email}
                         onChangeText={(text) => { setEmail(text); setEmailError(''); }}
                         editable={!isLoading}
@@ -105,6 +108,9 @@ export default function LoginScreen({ navigation }) {
                             placeholder="Password"
                             placeholderTextColor="#aaa"
                             secureTextEntry={!showPassword}
+                            autoComplete="off"
+                            textContentType="none"
+                            importantForAutofill="no"
                             value={password}
                             onChangeText={(text) => { setPassword(text); setLoginError(''); }}
                             editable={!isLoading}

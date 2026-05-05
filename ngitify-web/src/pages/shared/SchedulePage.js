@@ -247,6 +247,7 @@ const normalizeAppointment = (appointment) => ({
 const normalizeQueueEntry = (entry) => ({
     id: entry._id || entry.id,
     type: 'walkin',
+    linkedAppointmentId: entry.linkedAppointment || '',
     patientId: entry.patientId || '',
     patientName: entry.patientName || 'Walk-in Patient',
     dentistName: entry.assignedDentist || 'Unassigned',
@@ -319,6 +320,7 @@ export default function SchedulePage() {
     const isDentist = role === 'dentist';
 
     const canManageQueue = isAdmin || isBranchManager || isSecretary;
+    const canViewQueue = canManageQueue || isDentist;
     const canCreateSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
     const canEditSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
     const canChooseBranch = isAdmin || isOwner;
@@ -335,6 +337,7 @@ export default function SchedulePage() {
     const [customDateTo, setCustomDateTo] = useState(getTodayString());
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState(APPOINTMENT_STATUS_OPTIONS.map((option) => option.value));
+    const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
     const [typeFilter, setTypeFilter] = useState('all');
 
     const [formState, setFormState] = useState(buildInitialForm({ assignedBranch, currentUserId, role }));
@@ -343,6 +346,7 @@ export default function SchedulePage() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isConfirmingSave, setIsConfirmingSave] = useState(false);
+    const [pendingStatusTarget, setPendingStatusTarget] = useState(null);
     const [completeTarget, setCompleteTarget] = useState(null);
     const [isCompleting, setIsCompleting] = useState(false);
     const [completionForm, setCompletionForm] = useState({
@@ -385,6 +389,11 @@ export default function SchedulePage() {
         }
         return { from: todayString, to: todayString };
     }, [customDateFrom, customDateTo, dateFilter, todayString]);
+    const statusFilterLabel = useMemo(() => {
+        if (statusFilter.length === APPOINTMENT_STATUS_OPTIONS.length) return 'All Statuses';
+        if (statusFilter.length === 0) return 'No Status';
+        return `${statusFilter.length} Status${statusFilter.length === 1 ? '' : 'es'} Selected`;
+    }, [statusFilter]);
     const resetFormState = useCallback(() => {
         setFormState(buildInitialForm({ assignedBranch, currentUserId, role }));
         setFormErrors({});
@@ -421,7 +430,7 @@ export default function SchedulePage() {
                 authFetch('/users?role=dentist'),
             ];
 
-            if (canManageQueue) {
+            if (canViewQueue) {
                 const queueParams = new URLSearchParams();
                 if (selectedDateRange.from) queueParams.set('dateFrom', selectedDateRange.from);
                 if (selectedDateRange.to) queueParams.set('dateTo', selectedDateRange.to);
@@ -465,7 +474,7 @@ export default function SchedulePage() {
             }
 
             let nextIndex = 3;
-            if (canManageQueue) {
+            if (canViewQueue) {
                 const queueResponse = responses[nextIndex];
                 nextIndex += 1;
                 if (queueResponse?.ok) {
@@ -502,7 +511,7 @@ export default function SchedulePage() {
                 setLoading(false);
             }
         }
-    }, [addToast, assignedBranch, canChooseBranch, canManageQueue, selectedDateRange.from, selectedDateRange.to]);
+    }, [addToast, assignedBranch, canChooseBranch, canViewQueue, selectedDateRange.from, selectedDateRange.to]);
 
     useEffect(() => {
         fetchPageData();
@@ -706,6 +715,13 @@ export default function SchedulePage() {
         setIsFormOpen(true);
     };
 
+    const openStatusUpdateModal = (entry, nextStatus) => {
+        openEditModal({
+            ...entry,
+            status: nextStatus,
+        });
+    };
+
     const closeFormModal = () => {
         setIsFormOpen(false);
         resetFormState();
@@ -822,8 +838,6 @@ export default function SchedulePage() {
 
     const submitScheduleForm = async () => {
         const activeBranch = formState.branch || assignedBranch;
-        const selectedDentist = dentistOptions.find((entry) => entry.id === formState.dentistId);
-
         setIsSubmitting(true);
         try {
             if (formState.formType === 'appointment') {
@@ -859,33 +873,38 @@ export default function SchedulePage() {
                     'success'
                 );
             } else {
+                const currentStamp = getCurrentScheduleStamp();
                 const payload = {
-                    patientName: formState.patientName.trim(),
-                    patientId: formState.patientId || null,
+                    patient: formState.patientId || null,
                     branch: activeBranch,
-                    assignedDentist: formState.assignedDentist || selectedDentist?.name || '',
-                    procedureType: formState.procedure.trim(),
-                    contactNumber: formState.contactNumber.trim(),
+                    dentist: canChooseDentist ? (formState.dentistId || null) : currentUserId,
+                    date: currentStamp.date,
+                    time: currentStamp.time,
+                    procedure: formState.procedure.trim(),
+                    notes: formState.notes || '',
                     status: 'in-clinic',
+                    source: 'Walk-in',
+                    guestName: formState.patientId ? '' : formState.patientName.trim(),
+                    contactNumber: formState.contactNumber.trim(),
                 };
 
                 const response = await authFetch(
-                    editingEntry?.type === 'walkin'
-                        ? `/queue/${editingEntry.id}`
-                        : '/queue',
+                    editingEntry?.linkedAppointmentId
+                        ? `/appointments/${editingEntry.linkedAppointmentId}`
+                        : '/appointments',
                     {
-                        method: editingEntry?.type === 'walkin' ? 'PUT' : 'POST',
+                        method: editingEntry?.linkedAppointmentId ? 'PUT' : 'POST',
                         body: JSON.stringify(payload),
                     }
                 );
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    throw new Error(data.message || 'Failed to save the walk-in entry.');
+                    throw new Error(data.message || 'Failed to save the walk-in appointment.');
                 }
                 addToast(
-                    editingEntry?.type === 'walkin'
-                        ? 'Walk-in queue entry updated successfully.'
-                        : 'Walk-in queue entry added successfully.',
+                    editingEntry?.linkedAppointmentId
+                        ? 'Walk-in appointment updated successfully.'
+                        : 'Walk-in appointment added successfully.',
                     'success'
                 );
             }
@@ -966,6 +985,28 @@ export default function SchedulePage() {
         }
     };
 
+    const submitQuickStatusUpdate = async () => {
+        if (!pendingStatusTarget?.entry || !pendingStatusTarget?.status) return;
+        setIsSubmitting(true);
+        try {
+            const response = await authFetch(`/appointments/${pendingStatusTarget.entry.id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: pendingStatusTarget.status }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to update the appointment status.');
+            }
+            addToast(`Appointment updated to ${APPOINTMENT_STATUS_LABELS[pendingStatusTarget.status] || pendingStatusTarget.status}.`, 'success');
+            setPendingStatusTarget(null);
+            await fetchPageData();
+        } catch (error) {
+            addToast(error.message || 'Failed to update the appointment status.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const renderFormModal = () => {
         if (!isFormOpen) return null;
 
@@ -984,7 +1025,7 @@ export default function SchedulePage() {
                     <div className={styles.modalHeader}>
                         <div>
                             <h2 className={styles.modalTitle}>
-                                {editingEntry ? 'Edit Schedule Entry' : 'Create Schedule Entry'}
+                                {editingEntry ? 'Update Schedule Entry' : 'Create Schedule Entry'}
                             </h2>
                             <p className={styles.modalSubtitle}>
                                 Search an existing patient first, or add a new patient before saving this schedule entry.
@@ -1147,14 +1188,11 @@ export default function SchedulePage() {
                                     onChange={handleFormFieldChange}
                                     disabled={showWalkInFields}
                                 >
-                                    {APPOINTMENT_STATUS_OPTIONS.map((option) => {
-                                        const disableCompleted = option.value === 'completed' && !isScheduledInPast(formState.date, formState.time);
-                                        return (
-                                            <option key={option.value} value={option.value} disabled={disableCompleted}>
-                                                {option.label}
-                                            </option>
-                                        );
-                                    })}
+                                    {APPOINTMENT_STATUS_OPTIONS.filter((option) => option.value !== 'completed').map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -1412,28 +1450,40 @@ export default function SchedulePage() {
                             <select className={styles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                                 <option value="all">All Types</option>
                                 <option value="appointment">Appointments</option>
-                                {canManageQueue && <option value="walkin">Walk-ins</option>}
+                                {canViewQueue && <option value="walkin">Walk-ins</option>}
                             </select>
                         </label>
 
-                        <div className={styles.pillGroup}>
+                        <div className={styles.multiSelectWrap}>
                             <button
                                 type="button"
-                                className={`${styles.filterPill} ${statusFilter.length === APPOINTMENT_STATUS_OPTIONS.length ? styles.activePill : ''}`}
-                                onClick={() => toggleStatusFilter('all')}
+                                className={`${styles.filterSelect} ${styles.dropdownLikeButton}`}
+                                onClick={() => setIsStatusMenuOpen((prev) => !prev)}
                             >
-                                All Statuses
+                                {statusFilterLabel}
                             </button>
-                            {APPOINTMENT_STATUS_OPTIONS.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    className={`${styles.filterPill} ${statusFilter.includes(option.value) ? styles.activePill : ''}`}
-                                    onClick={() => toggleStatusFilter(option.value)}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
+                            {isStatusMenuOpen && (
+                                <div className={styles.multiSelectMenu}>
+                                    <label className={styles.multiSelectOption}>
+                                        <input
+                                            type="checkbox"
+                                            checked={statusFilter.length === APPOINTMENT_STATUS_OPTIONS.length}
+                                            onChange={() => toggleStatusFilter('all')}
+                                        />
+                                        <span>All</span>
+                                    </label>
+                                    {APPOINTMENT_STATUS_OPTIONS.map((option) => (
+                                        <label key={option.value} className={styles.multiSelectOption}>
+                                            <input
+                                                type="checkbox"
+                                                checked={statusFilter.includes(option.value)}
+                                                onChange={() => toggleStatusFilter(option.value)}
+                                            />
+                                            <span>{option.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1527,10 +1577,32 @@ export default function SchedulePage() {
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.editIconButton}`}
                                                         onClick={() => openEditModal(entry)}
-                                                        title="Edit"
-                                                        aria-label="Edit"
+                                                        title="Update Schedule Entry"
+                                                        aria-label="Update Schedule Entry"
                                                     >
                                                         <FaEdit />
+                                                    </button>
+                                                )}
+                                                {canEditSchedule && entry.type === 'appointment' && entry.status === 'pending' && (
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
+                                                        onClick={() => openStatusUpdateModal(entry, 'confirmed')}
+                                                        title="Prepare and confirm appointment"
+                                                        aria-label="Prepare and confirm appointment"
+                                                    >
+                                                        <FaCheck />
+                                                    </button>
+                                                )}
+                                                {canEditSchedule && entry.type === 'appointment' && entry.status === 'confirmed' && (
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
+                                                        onClick={() => setPendingStatusTarget({ entry, status: 'in-clinic' })}
+                                                        title="Mark as In Clinic"
+                                                        aria-label="Mark as In Clinic"
+                                                    >
+                                                        <FaCheck />
                                                     </button>
                                                 )}
                                                 {canEditSchedule && entry.status !== 'completed' && entry.status !== 'cancelled' && (
@@ -1570,6 +1642,14 @@ export default function SchedulePage() {
                 confirmText={isSubmitting ? 'Saving...' : 'Yes, Save Changes'}
                 onConfirm={submitScheduleForm}
                 onCancel={() => !isSubmitting && setIsConfirmingSave(false)}
+            />
+            <ConfirmModal
+                isOpen={!!pendingStatusTarget}
+                title="Update Appointment Status"
+                message={`Are you sure you want to update the status into ${pendingStatusTarget?.status ? APPOINTMENT_STATUS_LABELS[pendingStatusTarget.status] : 'the selected status'}?`}
+                confirmText={isSubmitting ? 'Updating...' : 'Yes, Update Status'}
+                onConfirm={submitQuickStatusUpdate}
+                onCancel={() => !isSubmitting && setPendingStatusTarget(null)}
             />
             {completeTarget && (
                 <div className={styles.modalOverlay}>

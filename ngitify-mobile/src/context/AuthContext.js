@@ -81,6 +81,8 @@ export const AuthProvider = ({ children }) => {
                 assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
                 appConsentGiven: Boolean(data.appConsentGiven),
                 appConsentTimestamp: data.appConsentTimestamp || null,
+                isPasswordChanged: Boolean(data.isPasswordChanged),
+                temporaryPasswordExpires: data.temporaryPasswordExpires || null,
             };
         } catch {
             return null;

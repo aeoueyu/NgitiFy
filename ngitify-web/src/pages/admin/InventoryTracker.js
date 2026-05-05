@@ -60,6 +60,7 @@ export default function InventoryTracker() {
                     receivedDate: item.receivedDate || null,
                     supplierName: item.supplierName || '',
                     batchNumber: item.batchNumber || '',
+                    branch: item.branch || '',
                     status: item.status || 'Active',
                     isExpired: Boolean(item.isExpired),
                     isExpiringSoon: Boolean(item.isExpiringSoon),
@@ -210,7 +211,7 @@ export default function InventoryTracker() {
                 </span>
             );
         }
-        return <span style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #bbf7d0', whiteSpace: 'nowrap' }}>ACTIVE</span>;
+        return null;
     };
 
     return (
@@ -323,6 +324,11 @@ export default function InventoryTracker() {
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                                 <span className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>{item.name}</span>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                    {item.branch ? (
+                                                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700 }}>
+                                                            {item.branch}
+                                                        </span>
+                                                    ) : null}
                                                     {getStatusBadge(item)}
                                                     {item.batchNumber && (
                                                         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>

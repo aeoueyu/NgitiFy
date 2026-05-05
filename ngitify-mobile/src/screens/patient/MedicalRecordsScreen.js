@@ -15,7 +15,7 @@ const TABS = [
     { key: 'treatment',  label: 'Treatment' },
     { key: 'odontogram', label: 'Odontogram' },
     { key: 'radiograph', label: 'X-Rays' },
-    { key: 'history',    label: 'History' },
+    { key: 'medical',    label: 'Medical History' },
 ];
 
 // FDI tooth notation — 4 quadrants, upper then lower
@@ -75,6 +75,12 @@ const fmtDate = (iso) => {
     const d = new Date(iso);
     return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 };
+
+const yesNoDisplay = (value) => (
+    value === true ? 'Yes'
+        : value === false ? 'No'
+            : 'Not specified'
+);
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -324,60 +330,104 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
 
 // ─── Tab: History ─────────────────────────────────────────────────────────────
 
-function HistoryTab({ surgeries, loading, error, onRetry }) {
+function MedicalHistoryTab({ profile, loading, error, onRetry }) {
     if (loading) return <LoadingState />;
     if (error)   return <ErrorState message={error} onRetry={onRetry} />;
-    if (!surgeries.length) return (
+    if (!profile) return (
         <EmptyState
-            iconComponent={<Ionicons name="calendar-outline" size={40} color="#bbb" />}
-            title="No Visit History Yet"
-            sub="Your completed appointments will appear here."
+            iconComponent={<Ionicons name="document-text-outline" size={40} color="#bbb" />}
+            title="No Medical History Yet"
+            sub="Your patient intake details will appear here once the clinic has completed your record."
         />
     );
 
-    const sorted = [...surgeries].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const medicalHistory = profile.medicalHistory || {};
+    const dentalHistory = profile.dentalHistory || {};
+    const physician = profile.physician || {};
+    const allergies = Array.isArray(medicalHistory.allergies) ? medicalHistory.allergies : [];
+    const conditions = Array.isArray(medicalHistory.conditions) ? medicalHistory.conditions : [];
+    const medications = Array.isArray(medicalHistory.medications) ? medicalHistory.medications : [];
+    const pairedRows = [
+        ['Reason for Consultation', profile.reasonForConsultation || dentalHistory.chiefComplaint || 'Not specified'],
+        ['Last Dental Visit', dentalHistory.lastExamDate ? fmtDate(dentalHistory.lastExamDate) : 'Not specified'],
+        ['Reaction or Complication After Dental Treatment?', yesNoDisplay(dentalHistory.hadTreatmentReaction), 'If Yes, Please Detail', dentalHistory.reactionDetails || 'Not specified'],
+        ['Under Medical Treatment Now?', yesNoDisplay(medicalHistory.underMedicalTreatment), 'Condition Treated', medicalHistory.medicalTreatmentDetails || 'Not specified'],
+        ['Serious Illness or Surgical Operation?', yesNoDisplay(medicalHistory.hadSeriousIllnessOrSurgery), 'Illness or Operation Details', medicalHistory.seriousIllnessOrSurgeryDetails || 'Not specified'],
+    ];
 
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-            {sorted.map((s) => {
-                const sc = SURGERY_STATUS_COLORS[s.status] || SURGERY_STATUS_COLORS.pending;
-                const dentistName = s.dentist?.name
-                    ? `${s.dentist.name.first || ''} ${s.dentist.name.last || ''}`.trim()
-                    : null;
-                return (
-                    <View key={s._id} style={styles.historyCard}>
-                        <View style={styles.historyLeft}>
-                            <Text style={styles.historyDate}>{fmtDate(s.date)}</Text>
-                            {s.time ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
-                                    <Ionicons name="time-outline" size={11} color="#888" style={{ marginRight: 3 }} />
-                                    <Text style={styles.historyTime}>{s.time}</Text>
-                                </View>
-                            ) : null}
-                        </View>
-                        <View style={styles.historyRight}>
-                            <Text style={styles.historyProcedure}>{s.procedure}</Text>
-                            {dentistName ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                                    <MaterialCommunityIcons name="tooth-outline" size={13} color="#555" style={{ marginRight: 4 }} />
-                                    <Text style={styles.historyDentist}>Dr. {dentistName}</Text>
-                                </View>
-                            ) : null}
-                            {s.branch ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                    <Ionicons name="location-outline" size={12} color="#aaa" style={{ marginRight: 4 }} />
-                                    <Text style={styles.historyBranch}>{s.branch}</Text>
-                                </View>
-                            ) : null}
-                            <View style={[styles.historyStatusPill, { backgroundColor: sc.bg }]}>
-                                <Text style={[styles.historyStatusText, { color: sc.color }]}>
-                                    {s.status.charAt(0).toUpperCase() + s.status.slice(1)}
-                                </Text>
-                            </View>
-                        </View>
+            {(physician.name || physician.officeNumber) ? (
+                <View style={styles.historySectionCard}>
+                    <Text style={styles.historySectionTitle}>Attending Physician</Text>
+                    <View style={styles.detailGrid}>
+                        <View style={styles.detailCell}><Text style={styles.detailLabel}>Physician Name</Text><Text style={styles.detailValue}>{physician.name || 'Not specified'}</Text></View>
+                        <View style={styles.detailCell}><Text style={styles.detailLabel}>Specialty</Text><Text style={styles.detailValue}>{physician.specialty || 'Not specified'}</Text></View>
+                        <View style={styles.detailCell}><Text style={styles.detailLabel}>Office Address</Text><Text style={styles.detailValue}>{physician.officeAddress || 'Not specified'}</Text></View>
+                        <View style={styles.detailCell}><Text style={styles.detailLabel}>Office Number</Text><Text style={styles.detailValue}>{physician.officeNumber || 'Not specified'}</Text></View>
                     </View>
-                );
-            })}
+                </View>
+            ) : null}
+
+            <View style={styles.historySectionCard}>
+                <Text style={styles.historySectionTitle}>Medical and Dental History</Text>
+                {pairedRows.map((row) => (
+                    <View key={row[0]} style={styles.detailRowPair}>
+                        <View style={styles.detailCell}>
+                            <Text style={styles.detailLabel}>{row[0]}</Text>
+                            <Text style={styles.detailValue}>{row[1]}</Text>
+                        </View>
+                        {row[2] ? (
+                            <View style={styles.detailCell}>
+                                <Text style={styles.detailLabel}>{row[2]}</Text>
+                                <Text style={styles.detailValue}>{row[3]}</Text>
+                            </View>
+                        ) : null}
+                    </View>
+                ))}
+
+                <View style={styles.detailGrid}>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Private or Confidential Information to Discuss in Private?</Text><Text style={styles.detailValue}>{yesNoDisplay(dentalHistory.hasConfidentialInfo)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Are You in Good Health?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.inGoodHealth)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Ever Been Hospitalized?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.hadHospitalization)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Hospitalization Details</Text><Text style={styles.detailValue}>{medicalHistory.hospitalizationDetails || 'Not specified'}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Taking Prescription / Non-Prescription Medication?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.isTakingMedication)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Medications</Text><Text style={styles.detailValue}>{medications.length ? medications.join(', ') : 'Not specified'}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Use Tobacco Products?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.usesTobacco)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Use Alcohol, Cocaine, or Other Dangerous Drugs?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.usesAlcoholOrDrugs)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Has Allergies?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.hasAllergies)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Bleeding Time</Text><Text style={styles.detailValue}>{medicalHistory.bleedingTime || 'Not specified'}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Blood Pressure</Text><Text style={styles.detailValue}>{medicalHistory.bloodPressure || 'Not specified'}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Blood Type</Text><Text style={styles.detailValue}>{profile.bloodType || medicalHistory.bloodType || 'Not specified'}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Are You Pregnant?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.isPregnant)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Are You Nursing?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.isNursing)}</Text></View>
+                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Taking Birth Control Pills?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.takingBirthControl)}</Text></View>
+                </View>
+
+                <View style={styles.detailChecklistSection}>
+                    <Text style={styles.detailLabel}>Allergy Checklist</Text>
+                    <View style={styles.checklistGrid}>
+                        {allergies.length ? allergies.map((item) => (
+                            <View key={item} style={styles.checklistItem}>
+                                <Ionicons name="checkbox-outline" size={16} color="#01538b" />
+                                <Text style={styles.checklistText}>{item}</Text>
+                            </View>
+                        )) : <Text style={styles.detailValue}>No allergies recorded.</Text>}
+                    </View>
+                </View>
+
+                <View style={styles.detailChecklistSection}>
+                    <Text style={styles.detailLabel}>Medical Conditions Checklist</Text>
+                    <View style={styles.checklistGrid}>
+                        {conditions.length ? conditions.map((item) => (
+                            <View key={item} style={styles.checklistItem}>
+                                <Ionicons name="checkbox-outline" size={16} color="#01538b" />
+                                <Text style={styles.checklistText}>{item}</Text>
+                            </View>
+                        )) : <Text style={styles.detailValue}>No medical conditions recorded.</Text>}
+                    </View>
+                </View>
+            </View>
         </ScrollView>
     );
 }
@@ -394,11 +444,11 @@ export default function MedicalRecordsScreen({ navigation }) {
     const [treatmentLogs,  setTreatmentLogs]  = useState([]);
     const [odontogramData, setOdontogramData] = useState({});
     const [radiographs,    setRadiographs]    = useState([]);
-    const [surgeries,      setSurgeries]      = useState([]);
+    const [profile,        setProfile]        = useState(null);
 
-    const [loading, setLoading] = useState({ treatment: false, odontogram: false, radiograph: false, history: false });
-    const [errors,  setErrors]  = useState({ treatment: '', odontogram: '', radiograph: '', history: '' });
-    const [fetched, setFetched] = useState({ treatment: false, odontogram: false, radiograph: false, history: false });
+    const [loading, setLoading] = useState({ treatment: false, odontogram: false, radiograph: false, medical: false });
+    const [errors,  setErrors]  = useState({ treatment: '', odontogram: '', radiograph: '', medical: '' });
+    const [fetched, setFetched] = useState({ treatment: false, odontogram: false, radiograph: false, medical: false });
 
     const headers = { Authorization: `Bearer ${userToken}` };
 
@@ -456,19 +506,19 @@ export default function MedicalRecordsScreen({ navigation }) {
         }
     }, [userToken, API_BASE_URL]);
 
-    const fetchHistory = useCallback(async () => {
-        setTabLoading('history', true);
-        setTabError('history', '');
+    const fetchMedicalHistory = useCallback(async () => {
+        setTabLoading('medical', true);
+        setTabError('medical', '');
         try {
-            const res = await fetch(`${API_BASE_URL}/api/appointments?patientId=${userId}`, { headers });
+            const res = await fetch(`${API_BASE_URL}/api/user/${userId}`, { headers });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
-            setSurgeries(Array.isArray(data) ? data : []);
-            setTabFetched('history');
+            setProfile(data || null);
+            setTabFetched('medical');
         } catch (e) {
-            setTabError('history', e.message || 'Could not load visit history.');
+            setTabError('medical', e.message || 'Could not load your medical history.');
         } finally {
-            setTabLoading('history', false);
+            setTabLoading('medical', false);
         }
     }, [userToken, userId, API_BASE_URL]);
 
@@ -476,7 +526,7 @@ export default function MedicalRecordsScreen({ navigation }) {
         treatment:  fetchTreatment,
         odontogram: fetchOdontogram,
         radiograph: fetchRadiographs,
-        history:    fetchHistory,
+        medical:    fetchMedicalHistory,
     };
 
     // Fetch on first tab activation (lazy per tab)
@@ -492,7 +542,7 @@ export default function MedicalRecordsScreen({ navigation }) {
     }, [activeTab]);
 
     // Animate tab underline
-    const TAB_INDEX = { treatment: 0, odontogram: 1, radiograph: 2, history: 3 };
+    const TAB_INDEX = { treatment: 0, odontogram: 1, radiograph: 2, medical: 3 };
     useEffect(() => {
         Animated.timing(underlineAnim, {
             toValue: TAB_INDEX[activeTab],
@@ -564,12 +614,12 @@ export default function MedicalRecordsScreen({ navigation }) {
                         navigation={navigation}
                     />
                 )}
-                {activeTab === 'history' && (
-                    <HistoryTab
-                        surgeries={surgeries}
-                        loading={loading.history}
-                        error={errors.history}
-                        onRetry={fetchHistory}
+                {activeTab === 'medical' && (
+                    <MedicalHistoryTab
+                        profile={profile}
+                        loading={loading.medical}
+                        error={errors.medical}
+                        onRetry={fetchMedicalHistory}
                     />
                 )}
             </View>
@@ -667,4 +717,15 @@ const styles = StyleSheet.create({
     historyProcedure:  { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 3 },
     historyStatusPill: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
     historyStatusText: { fontSize: 11, fontWeight: 'bold' },
+    historySectionCard: { backgroundColor: 'white', borderRadius: 16, padding: 16, marginBottom: 12, elevation: 1 },
+    historySectionTitle: { fontSize: 16, fontWeight: '800', color: '#01538b', marginBottom: 14 },
+    detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    detailRowPair: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+    detailCell: { flex: 1, minWidth: 140, backgroundColor: '#f8fbfd', borderRadius: 12, padding: 12 },
+    detailLabel: { fontSize: 11, fontWeight: '700', color: '#64748b', marginBottom: 6, textTransform: 'uppercase' },
+    detailValue: { fontSize: 13, lineHeight: 18, color: '#334155' },
+    detailChecklistSection: { marginTop: 14 },
+    checklistGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
+    checklistItem: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f8fbfd', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9 },
+    checklistText: { flex: 1, fontSize: 12, color: '#334155' },
 });

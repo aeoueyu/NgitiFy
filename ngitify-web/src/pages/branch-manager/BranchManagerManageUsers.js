@@ -1,39 +1,63 @@
-import React, { useState } from 'react';
-import ManageDentists from '../admin/ManageDentists';
-import ManageSecretaries from '../admin/ManageSecretaries';
-import styles from '../../styles/admin/UserTabs.module.css';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaArrowRight, FaUserMd, FaUserNurse } from 'react-icons/fa';
+import styles from '../../styles/admin/UserManagement.module.css';
 
-const TABS = [
-    { key: 'dentists',    label: 'Dentists' },
-    { key: 'secretaries', label: 'Secretaries' },
+const USER_SECTIONS = [
+    {
+        key: 'dentists',
+        label: 'Dentists',
+        description: 'Manage dentists, assigned branches, and account availability.',
+        path: '/branch-manager/manage-users/dentists',
+        icon: FaUserMd,
+    },
+    {
+        key: 'secretaries',
+        label: 'Secretaries',
+        description: 'Review secretary accounts, access, and branch coverage.',
+        path: '/branch-manager/manage-users/secretaries',
+        icon: FaUserNurse,
+    },
 ];
 
 export default function BranchManagerManageUsers() {
-    const [activeTab, setActiveTab] = useState('dentists');
+    const navigate = useNavigate();
 
     return (
-        <div className={styles.pageShell}>
-            <div className={styles.pageIntro}>
-                <h1 className={styles.pageTitle}>User Management</h1>
-                <p className={styles.pageSubtitle}>Manage dentists and secretaries in your branch.</p>
-            </div>
+        <div className={styles.page}>
+            <header className={styles.header}>
+                <div>
+                    <h1 className={styles.title}>User Management</h1>
+                    <p className={styles.subtitle}>
+                        Manage branch staff accounts from one shared hub before opening the detailed tables.
+                    </p>
+                </div>
+            </header>
 
-            <div className={styles.tabContainer}>
-                {TABS.map(tab => (
-                    <button
-                        key={tab.key}
-                        className={`${styles.tabButton} ${activeTab === tab.key ? styles.activeTab : ''}`}
-                        onClick={() => setActiveTab(tab.key)}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-
-            <div className={styles.tabPanel}>
-                {activeTab === 'dentists'    && <ManageDentists />}
-                {activeTab === 'secretaries' && <ManageSecretaries />}
-            </div>
+            <section className={styles.grid}>
+                {USER_SECTIONS.map((section) => {
+                    const Icon = section.icon;
+                    return (
+                        <button
+                            key={section.key}
+                            type="button"
+                            className={styles.card}
+                            onClick={() => navigate(section.path)}
+                        >
+                            <span className={styles.cardIcon}>
+                                <Icon />
+                            </span>
+                            <span className={styles.cardContent}>
+                                <span className={styles.cardTitle}>{section.label}</span>
+                                <span className={styles.cardDescription}>{section.description}</span>
+                            </span>
+                            <span className={styles.cardArrow}>
+                                <FaArrowRight />
+                            </span>
+                        </button>
+                    );
+                })}
+            </section>
         </div>
     );
 }

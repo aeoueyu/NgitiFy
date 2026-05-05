@@ -20,9 +20,13 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
 
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+const loginAttemptState = new Map();
+
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20,
+    windowMs: LOGIN_WINDOW_MS,
+    max: 100,
     message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -95,6 +99,65 @@ const getScopedInventoryBranch = async (reqUser) => {
     }
 
     return '';
+};
+
+const getLoginAttemptKey = (email = '', req) => {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const ipKey = ipKeyGenerator(req?.ip || req?.socket?.remoteAddress || '');
+    return `${normalizedEmail}::${ipKey}`;
+};
+
+const getLoginLockMinutes = (state, now = Date.now()) => {
+    if (!state?.lockUntil || state.lockUntil <= now) return 0;
+    return Math.max(1, Math.ceil((state.lockUntil - now) / 60000));
+};
+
+const getActiveLoginLockState = (email = '', req) => {
+    const key = getLoginAttemptKey(email, req);
+    const state = loginAttemptState.get(key);
+    if (!state) return { key, state: null, lockMinutes: 0 };
+
+    const now = Date.now();
+    const lockMinutes = getLoginLockMinutes(state, now);
+    if (!lockMinutes && state.lockUntil) {
+        loginAttemptState.set(key, {
+            failures: 0,
+            lockUntil: null,
+            lockMultiplier: state.lockMultiplier || 1,
+        });
+        return { key, state: loginAttemptState.get(key), lockMinutes: 0 };
+    }
+
+    return { key, state, lockMinutes };
+};
+
+const registerFailedLoginAttempt = (email = '', req) => {
+    const { key, state } = getActiveLoginLockState(email, req);
+    const now = Date.now();
+    const nextState = state || { failures: 0, lockUntil: null, lockMultiplier: 1 };
+
+    if (nextState.lockUntil && nextState.lockUntil > now) {
+        return { lockMinutes: getLoginLockMinutes(nextState, now), multiplier: nextState.lockMultiplier || 1 };
+    }
+
+    nextState.failures = (nextState.failures || 0) + 1;
+
+    if (nextState.failures >= LOGIN_MAX_ATTEMPTS) {
+        const multiplier = Math.max(nextState.lockMultiplier || 1, 1);
+        nextState.failures = 0;
+        nextState.lockUntil = now + (LOGIN_WINDOW_MS * multiplier);
+        nextState.lockMultiplier = Math.min(multiplier * 2, 16);
+        loginAttemptState.set(key, nextState);
+        return { lockMinutes: getLoginLockMinutes(nextState, now), multiplier };
+    }
+
+    loginAttemptState.set(key, nextState);
+    return { lockMinutes: 0, multiplier: nextState.lockMultiplier || 1 };
+};
+
+const clearLoginAttemptState = (email = '', req) => {
+    const key = getLoginAttemptKey(email, req);
+    loginAttemptState.delete(key);
 };
 
 const normalizeBranchKey = (value = '') => String(value || '').trim().toLowerCase();
@@ -403,9 +466,23 @@ mongoose.connection.once('open', async () => {
 app.post('/api/login', loginLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
-        
-        const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ message: "Invalid email or password" });
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        const { lockMinutes } = getActiveLoginLockState(normalizedEmail, req);
+        if (lockMinutes > 0) {
+            return res.status(429).json({
+                message: `Too many login attempts. Please try again in ${lockMinutes} minute${lockMinutes === 1 ? '' : 's'}.`,
+            });
+        }
+
+        const user = await User.findOne({ email: normalizedEmail });
+        if (!user) {
+            const failed = registerFailedLoginAttempt(normalizedEmail, req);
+            return res.status(failed.lockMinutes > 0 ? 429 : 404).json({
+                message: failed.lockMinutes > 0
+                    ? `Too many login attempts. Please try again in ${failed.lockMinutes} minute${failed.lockMinutes === 1 ? '' : 's'}.`
+                    : "Invalid email or password",
+            });
+        }
 
         if (!user.isPasswordChanged && user.temporaryPasswordExpires && new Date() > user.temporaryPasswordExpires) {
             user.status = 'inactive';
@@ -414,7 +491,16 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
+        if (!isMatch) {
+            const failed = registerFailedLoginAttempt(normalizedEmail, req);
+            return res.status(failed.lockMinutes > 0 ? 429 : 400).json({
+                message: failed.lockMinutes > 0
+                    ? `Too many login attempts. Please try again in ${failed.lockMinutes} minute${failed.lockMinutes === 1 ? '' : 's'}.`
+                    : "Invalid email or password",
+            });
+        }
+
+        clearLoginAttemptState(normalizedEmail, req);
 
         if (!user.isVerified) {
             return res.status(403).json({ message: "Account not verified. Please check your email." });
@@ -711,6 +797,59 @@ const getPatientDisplayName = (appointment) => {
         return `${appointment.patient.name.first || ''} ${appointment.patient.name.last || ''}`.trim() || 'Patient';
     }
     return appointment?.guestName || 'Patient';
+};
+
+const buildPatientAppointmentStatusNotification = ({ appointment, status, dentistName = '' }) => {
+    const normalizedStatus = String(status || appointment?.status || '').trim().toLowerCase();
+    const procedure = appointment?.performedProcedure || appointment?.procedure || 'appointment';
+    const dateLabel = appointment?.date ? new Date(appointment.date).toDateString() : 'the scheduled date';
+    const timeLabel = appointment?.time || 'the scheduled time';
+    const nextDentistName = dentistName || getDentistDisplayName(appointment?.dentist);
+
+    switch (normalizedStatus) {
+        case 'confirmed':
+            return {
+                type: 'APPOINTMENT_CONFIRMED',
+                title: 'Appointment Confirmed',
+                message: `Your appointment for ${procedure} on ${dateLabel} at ${timeLabel} has been confirmed. Assigned dentist: ${nextDentistName}.`,
+            };
+        case 'in-clinic':
+            return {
+                type: 'APPOINTMENT_STATUS_UPDATED',
+                title: 'Appointment In Clinic',
+                message: `Your appointment for ${procedure} has been checked in and is now in clinic.`,
+            };
+        case 'completed':
+            return {
+                type: 'APPOINTMENT_STATUS_UPDATED',
+                title: 'Appointment Completed',
+                message: `Your appointment for ${procedure} has been marked completed.`,
+            };
+        case 'cancelled':
+            return {
+                type: 'APPOINTMENT_CANCELLED',
+                title: 'Appointment Cancelled',
+                message: `Your appointment for ${procedure} on ${dateLabel} at ${timeLabel} has been cancelled.`,
+            };
+        case 'pending':
+        default:
+            return {
+                type: 'APPOINTMENT_STATUS_UPDATED',
+                title: 'Appointment Updated',
+                message: `Your appointment for ${procedure} is now marked ${normalizedStatus || 'pending'}.`,
+            };
+    }
+};
+
+const notifyPatientAppointmentStatusChange = async ({ appointment, status, dentistName = '' }) => {
+    if (!appointment?.patient?._id) return;
+    const notification = buildPatientAppointmentStatusNotification({ appointment, status, dentistName });
+    await Notification.create({
+        ...notification,
+        recipientId: appointment.patient._id,
+        recipientRole: 'patient',
+        relatedId: appointment._id,
+    });
 };
 
 const buildAppointmentDateTime = (dateValue, timeValue) => {
@@ -3261,6 +3400,18 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
             });
         }
 
+        if (newSurgery.patient) {
+            const populatedAppointment = await Surgery.findById(newSurgery._id)
+                .populate('patient', 'name email')
+                .populate('dentist', 'name email');
+            if (populatedAppointment?.patient?._id) {
+                await notifyPatientAppointmentStatusChange({
+                    appointment: populatedAppointment,
+                    status: populatedAppointment.status,
+                });
+            }
+        }
+
         res.status(201).json(newSurgery);
     } catch (error) {
         console.error("Error creating dental treatment:", error);
@@ -3557,6 +3708,24 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             });
         }
 
+        if (updatedSurgery.patient?._id) {
+            if (statusChanged) {
+                await notifyPatientAppointmentStatusChange({
+                    appointment: updatedSurgery,
+                    status: updatedSurgery.status,
+                });
+            } else if (scheduleChanged) {
+                await Notification.create({
+                    type: 'APPOINTMENT_STATUS_UPDATED',
+                    title: 'Appointment Schedule Updated',
+                    message: `Your appointment for ${updatedSurgery.procedure} was updated to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`,
+                    recipientId: updatedSurgery.patient._id,
+                    recipientRole: 'patient',
+                    relatedId: updatedSurgery._id,
+                });
+            }
+        }
+
         await AuditLog.create({
             action: "UPDATE_SCHEDULE",
             user: req.user?.email || req.user?.id || "ADMIN",
@@ -3808,6 +3977,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
 
         const wasConfirmedNow = currentSurgery.status !== 'confirmed' && status === 'confirmed';
         const dentistChanged = String(currentSurgery.dentist || '') !== String(updatedSurgery.dentist?._id || '');
+        const statusChanged = String(currentSurgery.status || '') !== String(updatedSurgery.status || '');
         if (wasConfirmedNow) {
             const patientName = getPatientDisplayName(updatedSurgery);
             const patientEmail = updatedSurgery.patient?.email || updatedSurgery.guestEmail || '';
@@ -3875,6 +4045,24 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                     time: updatedSurgery.time,
                     procedure: updatedSurgery.procedure,
                     dentistName: getDentistDisplayName(updatedSurgery.dentist),
+                });
+            }
+        }
+
+        if (updatedSurgery.patient?._id) {
+            if (statusChanged && !wasConfirmedNow) {
+                await notifyPatientAppointmentStatusChange({
+                    appointment: updatedSurgery,
+                    status: updatedSurgery.status,
+                });
+            } else if (scheduleChanged) {
+                await Notification.create({
+                    type: 'APPOINTMENT_STATUS_UPDATED',
+                    title: 'Appointment Schedule Updated',
+                    message: `Your appointment for ${updatedSurgery.procedure} was updated to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`,
+                    recipientId: updatedSurgery.patient._id,
+                    recipientRole: 'patient',
+                    relatedId: updatedSurgery._id,
                 });
             }
         }
@@ -4265,6 +4453,16 @@ app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/
     } catch (error) {
         console.error('Error resending pre-registration email:', error);
         return res.status(500).json({ message: 'Server error resending pre-registration email.' });
+    }
+});
+
+app.get('/api/public/branches', async (req, res) => {
+    try {
+        const branches = await Branch.find({ isActive: true }).sort({ name: 1 }).select('name');
+        res.json(branches);
+    } catch (error) {
+        console.error('Error fetching public branches:', error);
+        res.status(500).json({ message: 'Server error fetching public branches.' });
     }
 });
 
@@ -6251,14 +6449,21 @@ app.post('/api/queue', verifyToken, async (req, res) => {
 // GET /api/queue — get all active queue entries, optionally filtered by branch
 app.get('/api/queue', verifyToken, async (req, res) => {
     try {
-        const allowed = ['administrator', 'branch-manager', 'secretary'];
+        const allowed = ['administrator', 'branch-manager', 'secretary', 'dentist'];
         if (!allowed.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
  
         const filter = {};
  
-        if (isBranchScopedStaff(req.user.role)) {
+        if (req.user.role === 'dentist') {
+            const dentistUser = await User.findById(req.user.id).select('name assignedBranch assignedBranches');
+            const dentistBranch = dentistUser?.assignedBranch || dentistUser?.assignedBranches?.[0] || '';
+            if (!dentistBranch) {
+                return res.status(403).json({ message: 'Dentist has no assigned branch.' });
+            }
+            filter.branch = dentistBranch;
+        } else if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);
             if (!scopedBranch) {
                 return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
@@ -6300,7 +6505,22 @@ app.get('/api/queue', verifyToken, async (req, res) => {
             filter.createdAt = { $gte: startOfDay };
         }
  
-        const entries = await Queue.find(filter).sort({ createdAt: 1, ticketNumber: 1 });
+        let entries = await Queue.find(filter).sort({ createdAt: 1, ticketNumber: 1 });
+
+        if (req.user.role === 'dentist') {
+            const dentistUser = await User.findById(req.user.id).select('name');
+            const bareName = dentistUser?.name
+                ? `${dentistUser.name.first || ''} ${dentistUser.name.last || ''}`.trim().toLowerCase()
+                : '';
+            const prefixedName = bareName ? `dr. ${bareName}` : '';
+
+            entries = entries.filter((entry) => {
+                if (entry.linkedAppointment) return false;
+                const assignedDentist = String(entry.assignedDentist || '').trim().toLowerCase();
+                return assignedDentist && [bareName, prefixedName].includes(assignedDentist);
+            });
+        }
+
         res.json(entries);
     } catch (error) {
         console.error('Error fetching queue:', error);

@@ -33,6 +33,7 @@ const NOTIF_ICON_MAP = {
     APPOINTMENT_DECLINED:        { name: 'close-circle-outline',     lib: 'Ionicons',               color: '#c62828' },
     APPOINTMENT_REMINDER:        { name: 'alarm-outline',            lib: 'Ionicons',               color: '#f57f17' },
     APPOINTMENT_CANCELLED:       { name: 'ban-outline',              lib: 'Ionicons',               color: '#757575' },
+    APPOINTMENT_STATUS_UPDATED:  { name: 'sync-outline',             lib: 'Ionicons',               color: '#01538b' },
     PREDICTIVE_VISIT_DUE:        { name: 'warning-outline',          lib: 'Ionicons',               color: '#e65100' },
     PREDICTIVE_VISIT_OVERDUE:    { name: 'alert-circle-outline',     lib: 'Ionicons',               color: '#b71c1c' },
     DENTAL_HEALTH_TIP:           { name: 'tooth-outline',            lib: 'MaterialCommunityIcons', color: '#00897b' },
@@ -128,6 +129,16 @@ export default function NotificationsScreen({ navigation }) {
     }, [userToken, API_BASE_URL]);
 
     useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+
+    useEffect(() => {
+        const refresh = () => fetchNotifications();
+        const unsubscribe = navigation.addListener('focus', refresh);
+        const intervalId = setInterval(refresh, 30000);
+        return () => {
+            unsubscribe();
+            clearInterval(intervalId);
+        };
+    }, [fetchNotifications, navigation]);
 
     const onRefresh = () => {
         setRefreshing(true);

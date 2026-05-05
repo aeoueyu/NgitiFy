@@ -151,6 +151,8 @@ function App() {
                   <Route path="/branch-manager/appointments" element={<Navigate to="/branch-manager/schedule" replace />} />
                   <Route path="/branch-manager/schedule"     element={<SchedulePage />} />
                   <Route path="/branch-manager/manage-users" element={<BranchManagerManageUsers />} />
+                  <Route path="/branch-manager/manage-users/dentists" element={<ManageDentists />} />
+                  <Route path="/branch-manager/manage-users/secretaries" element={<ManageSecretaries />} />
                   <Route path="/branch-manager/patients"     element={<ManagePatients />} />
                   <Route path="/branch-manager/queue"        element={<Navigate to="/branch-manager/schedule" replace />} />
                   <Route path="/branch-manager/chat-support" element={<BranchManagerChatSupport />} />

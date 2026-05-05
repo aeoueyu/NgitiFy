@@ -76,6 +76,7 @@ export default function WebsiteAppointment() {
     const [allowedSlots, setAllowedSlots] = useState([]);
     const [takenSlots, setTakenSlots] = useState([]);
     const [blockedDates, setBlockedDates] = useState([]);
+    const [branchOptions, setBranchOptions] = useState(locationCards.map((location) => location.name));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [captchaReady, setCaptchaReady] = useState(false);
     const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
@@ -124,6 +125,33 @@ export default function WebsiteAppointment() {
 
         return () => script.removeEventListener('load', renderTurnstile);
     }, [renderTurnstile]);
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchBranches = async () => {
+            try {
+                const response = await publicFetch('/public/branches');
+                if (!response.ok) return;
+                const data = await response.json();
+                const names = (Array.isArray(data) ? data : [])
+                    .map((branch) => branch?.name)
+                    .filter(Boolean);
+                if (!isMounted || names.length === 0) return;
+                setBranchOptions(names);
+                setFormData((prev) => ({
+                    ...prev,
+                    branch: names.includes(prev.branch) ? prev.branch : names[0],
+                }));
+            } catch {
+                // Keep the website fallback branch list when the public branch route is unavailable.
+            }
+        };
+
+        fetchBranches();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const fetchBlockedDates = useCallback(async (branch, month) => {
         if (!branch) return;
@@ -333,6 +361,10 @@ export default function WebsiteAppointment() {
             if (!response.ok) {
                 setSubmittedMessage(data.message || 'Unable to submit your request right now.');
                 setSubmitState('error');
+                if (window.turnstile && turnstileWidgetIdRef.current !== null) {
+                    window.turnstile.reset(turnstileWidgetIdRef.current);
+                    setFormData((prev) => ({ ...prev, turnstileToken: '' }));
+                }
                 return;
             }
 
@@ -350,6 +382,10 @@ export default function WebsiteAppointment() {
         } catch {
             setSubmittedMessage('Unable to connect to the server. Please try again.');
             setSubmitState('error');
+            if (window.turnstile && turnstileWidgetIdRef.current !== null) {
+                window.turnstile.reset(turnstileWidgetIdRef.current);
+                setFormData((prev) => ({ ...prev, turnstileToken: '' }));
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -512,8 +548,8 @@ export default function WebsiteAppointment() {
                                     required
                                 >
                                     <option value="" disabled>Select a branch</option>
-                                    {locationCards.map((location) => (
-                                        <option key={location.name} value={location.name}>{location.name}</option>
+                                    {branchOptions.map((branchName) => (
+                                        <option key={branchName} value={branchName}>{branchName}</option>
                                     ))}
                                 </select>
                                 {errors.branch && <span className={styles.errorText}>{errors.branch}</span>}
