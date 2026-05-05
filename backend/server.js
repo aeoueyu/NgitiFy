@@ -248,19 +248,76 @@ const upsertInventoryItemForBatch = async (reqUser, payload) => {
     return item;
 };
 
+const normalizeInventoryText = (value) => String(value || '').trim();
+
+const normalizeInventoryNumber = (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const validateInventoryPayload = (payload, { requireIdentity = true, requireBrand = true } = {}) => {
+    const errors = {};
+    const hasExistingItem = !!(payload.inventoryItem || payload.inventoryItemId || payload.itemId);
+    const itemName = normalizeInventoryText(payload.name || payload.itemName);
+    const category = normalizeInventoryText(payload.category);
+    const unit = normalizeInventoryText(payload.unit || 'pcs');
+    const brand = normalizeInventoryText(payload.brand);
+    const quantityReceived = normalizeInventoryNumber(payload.quantityReceived ?? payload.quantity ?? payload.currentStock);
+    const lowStockThreshold = normalizeInventoryNumber(payload.lowStockThreshold ?? payload.reorderLevel ?? payload.threshold);
+
+    if (requireIdentity && !hasExistingItem && !itemName) {
+        errors.itemName = 'Item name is required.';
+    }
+    if (!hasExistingItem && !category) {
+        errors.category = 'Category is required.';
+    }
+    if (!unit) {
+        errors.unit = 'Unit is required.';
+    }
+    if (requireBrand && !brand) {
+        errors.brand = 'Brand is required.';
+    }
+    if (quantityReceived === null) {
+        errors.quantity = 'Quantity is required.';
+    } else if (quantityReceived < 0) {
+        errors.quantity = 'Quantity cannot be negative.';
+    }
+    if (lowStockThreshold !== null && lowStockThreshold < 0) {
+        errors.lowStockThreshold = 'Low stock threshold cannot be negative.';
+    }
+
+    return {
+        isValid: Object.keys(errors).length === 0,
+        errors,
+        normalized: {
+            itemName,
+            category,
+            unit,
+            brand,
+            quantityReceived,
+            lowStockThreshold,
+        },
+    };
+};
+
 const createInventoryBatchRecord = async (reqUser, payload) => {
     const item = await upsertInventoryItemForBatch(reqUser, payload);
+    const scopedBranch = await getScopedInventoryBranch(reqUser);
+    const resolvedBranch = item.branch || payload.branch || scopedBranch || '';
+    const quantityReceived = Number(payload.quantityReceived ?? payload.quantity ?? payload.currentStock ?? 0);
+    const quantityRemaining = Number(payload.quantityRemaining ?? payload.quantity ?? payload.currentStock ?? quantityReceived);
 
     const batch = new InventoryBatch({
         inventoryItem: item._id,
         brand: (payload.brand || 'Unspecified').trim() || 'Unspecified',
-        quantityReceived: Number(payload.quantityReceived ?? payload.quantity ?? payload.currentStock ?? 0),
-        quantityRemaining: Number(payload.quantityRemaining ?? payload.quantity ?? payload.currentStock ?? 0),
+        quantityReceived,
+        quantityRemaining,
         expirationDate: payload.expirationDate || null,
         receivedDate: payload.receivedDate || new Date(),
         supplierName: (payload.supplierName || payload.supplier || '').trim(),
         batchNumber: (payload.batchNumber || '').trim(),
-        branch: item.branch,
+        branch: resolvedBranch,
         receivedBy: reqUser.id || null,
     });
 
@@ -815,6 +872,8 @@ const appendAutomaticTreatmentLogIfMissing = async ({
     dentistId = null,
     dentistName = '',
     date = new Date(),
+    tooth = '',
+    category = 'Other',
     notes = '',
     amountCharged = 0,
     amountPaid = 0,
@@ -844,8 +903,8 @@ const appendAutomaticTreatmentLogIfMissing = async ({
     patient.treatmentLogs.push({
         date,
         procedure,
-        tooth: '',
-        category: 'Other',
+        tooth: tooth || '',
+        category: category || 'Other',
         notes: [notes, sourceKey].filter(Boolean).join(' ').trim(),
         dentistId: dentistId || undefined,
         dentistName: dentistName || undefined,
@@ -2720,15 +2779,19 @@ app.post('/api/inventory/items', verifyToken, async (req, res) => {
 
     try {
         await ensureInventoryMigration();
+        const validation = validateInventoryPayload(req.body, { requireBrand: false });
+        if (!validation.isValid) {
+            return res.status(400).json({ message: 'Please correct the highlighted inventory fields.', errors: validation.errors });
+        }
         const branch = req.user.role === 'branch-manager'
             ? await getScopedInventoryBranch(req.user)
             : (req.body.branch || '');
 
         const item = await InventoryItem.create({
-            name: (req.body.name || req.body.itemName || '').trim(),
-            category: (req.body.category || '').trim(),
-            unit: (req.body.unit || 'pcs').trim(),
-            lowStockThreshold: Number(req.body.lowStockThreshold ?? req.body.reorderLevel ?? req.body.threshold ?? 0),
+            name: validation.normalized.itemName,
+            category: validation.normalized.category,
+            unit: validation.normalized.unit || 'pcs',
+            lowStockThreshold: validation.normalized.lowStockThreshold ?? 0,
             branch,
             createdBy: req.user.id || null,
         });
@@ -2785,6 +2848,10 @@ app.post('/api/inventory/batches', verifyToken, async (req, res) => {
 
     try {
         await ensureInventoryMigration();
+        const validation = validateInventoryPayload(req.body);
+        if (!validation.isValid) {
+            return res.status(400).json({ message: 'Please correct the highlighted inventory fields.', errors: validation.errors });
+        }
         const batch = await createInventoryBatchRecord(req.user, req.body);
         const item = batch.inventoryItem;
 
@@ -2856,6 +2923,10 @@ app.post('/api/inventory', verifyToken, async (req, res) => {
 
     try {
         await ensureInventoryMigration();
+        const validation = validateInventoryPayload(req.body);
+        if (!validation.isValid) {
+            return res.status(400).json({ message: 'Please correct the highlighted inventory fields.', errors: validation.errors });
+        }
         const payload = {
             ...req.body,
             quantityReceived: req.body.quantityReceived ?? req.body.quantity ?? req.body.currentStock ?? 0,
@@ -2886,6 +2957,10 @@ app.put('/api/inventory/:id', verifyToken, async (req, res) => {
 
     try {
         await ensureInventoryMigration();
+        const validation = validateInventoryPayload(req.body);
+        if (!validation.isValid) {
+            return res.status(400).json({ message: 'Please correct the highlighted inventory fields.', errors: validation.errors });
+        }
         const batch = await InventoryBatch.findById(req.params.id).populate('inventoryItem');
         if (!batch) {
             return res.status(404).json({ message: 'Item not found.' });
@@ -2901,15 +2976,15 @@ app.put('/api/inventory/:id', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Inventory item category not found.' });
         }
 
-        item.name = (req.body.itemName || req.body.name || item.name).trim();
-        item.category = (req.body.category || item.category).trim();
-        item.unit = (req.body.unit || item.unit).trim();
-        item.lowStockThreshold = Number(req.body.lowStockThreshold ?? req.body.reorderLevel ?? req.body.threshold ?? item.lowStockThreshold);
+        item.name = validation.normalized.itemName || item.name;
+        item.category = validation.normalized.category || item.category;
+        item.unit = validation.normalized.unit || item.unit;
+        item.lowStockThreshold = validation.normalized.lowStockThreshold ?? item.lowStockThreshold;
         await item.save();
 
-        batch.brand = (req.body.brand || batch.brand || 'Unspecified').trim() || 'Unspecified';
+        batch.brand = validation.normalized.brand || batch.brand || 'Unspecified';
         batch.quantityRemaining = Number(req.body.quantity ?? req.body.currentStock ?? batch.quantityRemaining);
-        batch.quantityReceived = Number(req.body.quantityReceived ?? batch.quantityReceived);
+        batch.quantityReceived = Number(req.body.quantityReceived ?? req.body.quantity ?? req.body.currentStock ?? batch.quantityReceived);
         batch.expirationDate = req.body.expirationDate === '' ? null : (req.body.expirationDate ?? batch.expirationDate);
         batch.receivedDate = req.body.receivedDate || batch.receivedDate;
         batch.supplierName = (req.body.supplierName ?? req.body.supplier ?? batch.supplierName ?? '').trim();
@@ -3301,13 +3376,44 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             }
         }
 
-        const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, updateData, { new: true })
+            .populate('patient', 'name email')
+            .populate('dentist', 'name email');
         if (!updatedSurgery) return res.status(404).json({ message: "Dental treatment not found" });
+
+        const dentistChanged = String(existing.dentist || '') !== String(updatedSurgery.dentist?._id || updatedSurgery.dentist || '');
+        const dateChanged = !!(updateData.date && !isSameCalendarDay(existing.date, nextDate));
+        const timeChanged = updateData.time !== undefined && (existing.time || '') !== (nextTime || '');
+        const scheduleChanged = dateChanged || timeChanged;
+        const statusChanged = updateData.status !== undefined && (existing.status || '') !== (updatedSurgery.status || '');
 
         if (['Walk-in', 'Phone Call'].includes(updatedSurgery.source)) {
             await syncQueueEntryForAppointment(updatedSurgery);
         } else if (['Walk-in', 'Phone Call'].includes(existing.source)) {
             await removeQueueEntryForAppointment(updatedSurgery._id);
+        }
+
+        if (updatedSurgery.dentist?._id && req.user.role !== 'dentist') {
+            const dentistMessage = dentistChanged
+                ? `You have been assigned to ${getPatientDisplayName(updatedSurgery)} for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`
+                : statusChanged
+                    ? `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} is now marked ${updatedSurgery.status}.`
+                    : scheduleChanged
+                    ? `${updatedSurgery.procedure} was updated to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`
+                    : `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} has been updated.`;
+
+            await Notification.create({
+                type: 'NEW_APPOINTMENT',
+                title: dentistChanged
+                    ? 'New Appointment Assigned'
+                    : statusChanged
+                        ? 'Appointment Status Updated'
+                        : 'Appointment Schedule Updated',
+                message: dentistMessage,
+                recipientId: updatedSurgery.dentist._id,
+                recipientRole: 'dentist',
+                relatedId: updatedSurgery._id,
+            });
         }
 
         await AuditLog.create({
@@ -3446,7 +3552,7 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
 
 app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyToken, async (req, res) => {
     try {
-        const { status, remarks, preOpInstructions, date, time, dentistId, cancellationReason, performedProcedure } = req.body;
+        const { status, remarks, preOpInstructions, date, time, dentistId, cancellationReason, performedProcedure, tooth, category, amountCharged, amountPaid, nextAppointment, notes } = req.body;
 
         const allowedStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         if (!allowedStatuses.includes(status)) {
@@ -3494,6 +3600,18 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         if (performedProcedure !== undefined) {
             updateFields.performedProcedure = String(performedProcedure || '').trim();
         }
+        const normalizedAmountCharged = amountCharged === undefined ? null : normalizeCurrencyAmount(amountCharged);
+        const normalizedAmountPaid = amountPaid === undefined ? null : normalizeCurrencyAmount(amountPaid);
+        if ((amountCharged !== undefined && normalizedAmountCharged === null) || (amountPaid !== undefined && normalizedAmountPaid === null)) {
+            return res.status(400).json({ message: 'Amount charged and amount paid must be valid positive numbers.' });
+        }
+        const normalizedNextAppointment = nextAppointment ? new Date(nextAppointment) : null;
+        if (nextAppointment && Number.isNaN(normalizedNextAppointment.getTime())) {
+            return res.status(400).json({ message: 'Next appointment must be a valid date.' });
+        }
+        const normalizedBalance = normalizedAmountCharged !== null && normalizedAmountPaid !== null
+            ? Number(Math.max(normalizedAmountCharged - normalizedAmountPaid, 0).toFixed(2))
+            : 0;
         if (status === 'cancelled') {
             updateFields.cancellationReason = String(cancellationReason || currentSurgery.cancellationReason || 'Cancelled by clinic staff.').trim();
             updateFields.autoCancelledAt = null;
@@ -3502,6 +3620,17 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         }
         if (status === 'completed' && !String(updateFields.performedProcedure || currentSurgery.performedProcedure || currentSurgery.procedure || '').trim()) {
             return res.status(400).json({ message: 'Please select the procedure performed before completing the appointment.' });
+        }
+        if (status === 'completed') {
+            if (!String(category || '').trim()) {
+                return res.status(400).json({ message: 'Please select a treatment category before completing the appointment.' });
+            }
+            if (normalizedAmountCharged === null || normalizedAmountPaid === null) {
+                return res.status(400).json({ message: 'Please provide the amount charged and amount paid before completing the appointment.' });
+            }
+            if (!String(notes || remarks || '').trim()) {
+                return res.status(400).json({ message: 'Please enter dentist notes before completing the appointment.' });
+            }
         }
 
         const scheduleChanged = (
@@ -3660,7 +3789,13 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 dentistId: updatedSurgery.dentist?._id || updatedSurgery.dentist || null,
                 dentistName: getDentistDisplayName(updatedSurgery.dentist),
                 date: updatedSurgery.date || new Date(),
-                notes: updatedSurgery.remarks || '',
+                tooth: String(tooth || '').trim(),
+                category: String(category || 'Other').trim(),
+                notes: String(notes || updatedSurgery.remarks || '').trim(),
+                amountCharged: normalizedAmountCharged ?? 0,
+                amountPaid: normalizedAmountPaid ?? 0,
+                balance: normalizedBalance,
+                nextAppointment: normalizedNextAppointment,
                 sourceKey: `[AUTO-APPOINTMENT:${updatedSurgery._id}]`,
             });
         }
@@ -6049,6 +6184,12 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             procedureType,
             contactNumber,
             status,
+            tooth,
+            category,
+            amountCharged,
+            amountPaid,
+            nextAppointment,
+            notes,
         } = req.body;
         const allowedQueueStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         const legacyStatusMap = {
@@ -6076,6 +6217,29 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
         const nextStatus = legacyStatusMap[status] || status || existingEntry.status;
         if (!allowedQueueStatuses.includes(nextStatus)) {
             return res.status(400).json({ message: 'Invalid status value.' });
+        }
+        const normalizedAmountCharged = amountCharged === undefined ? null : normalizeCurrencyAmount(amountCharged);
+        const normalizedAmountPaid = amountPaid === undefined ? null : normalizeCurrencyAmount(amountPaid);
+        if ((amountCharged !== undefined && normalizedAmountCharged === null) || (amountPaid !== undefined && normalizedAmountPaid === null)) {
+            return res.status(400).json({ message: 'Amount charged and amount paid must be valid positive numbers.' });
+        }
+        const normalizedNextAppointment = nextAppointment ? new Date(nextAppointment) : null;
+        if (nextAppointment && Number.isNaN(normalizedNextAppointment.getTime())) {
+            return res.status(400).json({ message: 'Next appointment must be a valid date.' });
+        }
+        const normalizedBalance = normalizedAmountCharged !== null && normalizedAmountPaid !== null
+            ? Number(Math.max(normalizedAmountCharged - normalizedAmountPaid, 0).toFixed(2))
+            : 0;
+        if (nextStatus === 'completed') {
+            if (!String(category || '').trim()) {
+                return res.status(400).json({ message: 'Please select a treatment category before completing the schedule.' });
+            }
+            if (normalizedAmountCharged === null || normalizedAmountPaid === null) {
+                return res.status(400).json({ message: 'Please provide the amount charged and amount paid before completing the schedule.' });
+            }
+            if (!String(notes || '').trim()) {
+                return res.status(400).json({ message: 'Please enter dentist notes before completing the schedule.' });
+            }
         }
 
         const update = {
@@ -6109,7 +6273,13 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
                 branch: entry.branch,
                 dentistName: entry.assignedDentist || '',
                 date: entry.completedAt || new Date(),
-                notes: `Completed from queue ticket #${entry.ticketNumber}.`,
+                tooth: String(tooth || '').trim(),
+                category: String(category || 'Other').trim(),
+                notes: [String(notes || '').trim(), `Completed from queue ticket #${entry.ticketNumber}.`].filter(Boolean).join(' '),
+                amountCharged: normalizedAmountCharged ?? 0,
+                amountPaid: normalizedAmountPaid ?? 0,
+                balance: normalizedBalance,
+                nextAppointment: normalizedNextAppointment,
                 sourceKey: `[AUTO-QUEUE:${entry._id}]`,
             });
         }
@@ -6129,7 +6299,7 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied.' });
         }
  
-        const { status } = req.body;
+        const { status, tooth, category, amountCharged, amountPaid, nextAppointment, notes } = req.body;
         const allowedQueueStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         const legacyStatusMap = {
             waiting: 'pending',
@@ -6140,6 +6310,29 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
         const normalizedStatus = legacyStatusMap[status] || status;
         if (!allowedQueueStatuses.includes(normalizedStatus)) {
             return res.status(400).json({ message: 'Invalid status value.' });
+        }
+        const normalizedAmountCharged = amountCharged === undefined ? null : normalizeCurrencyAmount(amountCharged);
+        const normalizedAmountPaid = amountPaid === undefined ? null : normalizeCurrencyAmount(amountPaid);
+        if ((amountCharged !== undefined && normalizedAmountCharged === null) || (amountPaid !== undefined && normalizedAmountPaid === null)) {
+            return res.status(400).json({ message: 'Amount charged and amount paid must be valid positive numbers.' });
+        }
+        const normalizedNextAppointment = nextAppointment ? new Date(nextAppointment) : null;
+        if (nextAppointment && Number.isNaN(normalizedNextAppointment.getTime())) {
+            return res.status(400).json({ message: 'Next appointment must be a valid date.' });
+        }
+        const normalizedBalance = normalizedAmountCharged !== null && normalizedAmountPaid !== null
+            ? Number(Math.max(normalizedAmountCharged - normalizedAmountPaid, 0).toFixed(2))
+            : 0;
+        if (normalizedStatus === 'completed') {
+            if (!String(category || '').trim()) {
+                return res.status(400).json({ message: 'Please select a treatment category before completing the schedule.' });
+            }
+            if (normalizedAmountCharged === null || normalizedAmountPaid === null) {
+                return res.status(400).json({ message: 'Please provide the amount charged and amount paid before completing the schedule.' });
+            }
+            if (!String(notes || '').trim()) {
+                return res.status(400).json({ message: 'Please enter dentist notes before completing the schedule.' });
+            }
         }
  
         const existingEntry = await Queue.findById(req.params.id);
@@ -6172,7 +6365,13 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
                 branch: entry.branch,
                 dentistName: entry.assignedDentist || '',
                 date: entry.completedAt || new Date(),
-                notes: `Completed from queue ticket #${entry.ticketNumber}.`,
+                tooth: String(tooth || '').trim(),
+                category: String(category || 'Other').trim(),
+                notes: [String(notes || '').trim(), `Completed from queue ticket #${entry.ticketNumber}.`].filter(Boolean).join(' '),
+                amountCharged: normalizedAmountCharged ?? 0,
+                amountPaid: normalizedAmountPaid ?? 0,
+                balance: normalizedBalance,
+                nextAppointment: normalizedNextAppointment,
                 sourceKey: `[AUTO-QUEUE:${entry._id}]`,
             });
         }

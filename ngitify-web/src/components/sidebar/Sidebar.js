@@ -115,7 +115,7 @@ export default function Sidebar() {
                     : '/secretary/patients';
 
     useEffect(() => {
-        if (!canReadInventory && !isOwner) return;
+        if ((!canReadInventory && !isOwner) || user?.role === 'dentist') return;
 
         const fetchInventoryAlerts = async () => {
             try {
@@ -135,7 +135,7 @@ export default function Sidebar() {
         };
 
         fetchInventoryAlerts();
-    }, [canReadInventory, isOwner]);
+    }, [canReadInventory, isOwner, user?.role]);
 
     useEffect(() => {
         if (!isExpanded) return;
@@ -305,7 +305,7 @@ export default function Sidebar() {
                     )}
 
                     {(isAdmin || isBranchManager) && navItem(inventoryPath, FaBoxes, 'Inventory', inventoryBadge)}
-                    {canReadInventory && !isAdmin && !isBranchManager && !isSecretary && !isOwner && navItem(inventoryPath, FaBoxes, 'Inventory')}
+                    {canReadInventory && !isAdmin && !isBranchManager && !isSecretary && !isOwner && !isDentistUser && navItem(inventoryPath, FaBoxes, 'Inventory')}
 
                     {isDentistUser && (
                         <>

@@ -140,7 +140,7 @@ function App() {
                   <Route path="/dentist/ai-assistant"            element={<DentistAIAssistant />} />
                   <Route path="/dentist/profile"                 element={<AdminProfile />} />
                   <Route path="/dentist/settings"                element={<DentistSettings />} />
-                  <Route path="/dentist/inventory"               element={<InventoryTracker />} />
+                  <Route path="/dentist/inventory"               element={<Navigate to="/dentist/material-usage" replace />} />
                 </Route>
               </Route>
 

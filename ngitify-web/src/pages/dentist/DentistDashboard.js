@@ -15,7 +15,6 @@ import {
 import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
-import PatientEMR from './PatientEMR';
 import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
 
 const PH_HOLIDAYS = [
@@ -65,7 +64,6 @@ export default function DentistDashboard() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [currentMonthView, setCurrentMonthView] = useState(new Date());
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedPatientId, setSelectedPatientId] = useState(null);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -349,7 +347,7 @@ export default function DentistDashboard() {
                                             <div className={styles['action-block']}>
                                                 <button
                                                     className={styles['emr-btn']}
-                                                    onClick={() => setSelectedPatientId(appointment.patientId)}
+                                                    onClick={() => navigate(`/dentist/patients/${appointment.patientId}/emr`)}
                                                     disabled={!appointment.patientId}
                                                 >
                                                     <FaFileMedical /> View EMR
@@ -504,13 +502,6 @@ export default function DentistDashboard() {
                     </div>
                 </div>
             </main>
-
-            {selectedPatientId && (
-                <PatientEMR
-                    patientId={selectedPatientId}
-                    onClose={() => setSelectedPatientId(null)}
-                />
-            )}
         </>
     );
 }

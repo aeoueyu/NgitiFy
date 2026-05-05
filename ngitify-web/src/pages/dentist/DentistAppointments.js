@@ -15,7 +15,6 @@ import UserAvatar from '../../components/common/UserAvatar';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
 // Imported Modular Components
-import PatientEMR from './PatientEMR';
 import MaterialUsageLog from './MaterialUsageLog';
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
@@ -43,6 +42,33 @@ const PROCEDURE_OPTIONS = [
     'Dentures/Crowns',
     'Retainers',
 ];
+
+const TREATMENT_CATEGORY_OPTIONS = [
+    'General',
+    'Prophylaxis',
+    'Restoration',
+    'Extraction',
+    'Orthodontics',
+    'Endodontics',
+    'Prosthodontics',
+    'Oral Surgery',
+    'Consultation',
+    'Other',
+];
+
+const inferTreatmentCategory = (procedure = '') => {
+    const value = String(procedure || '').toLowerCase();
+    if (!value) return 'Other';
+    if (value.includes('consult') || value.includes('check-up') || value.includes('checkup')) return 'Consultation';
+    if (value.includes('prophy') || value.includes('cleaning') || value.includes('fluoride') || value.includes('sealant')) return 'Prophylaxis';
+    if (value.includes('fill') || value.includes('restoration') || value.includes('pasta')) return 'Restoration';
+    if (value.includes('root canal')) return 'Endodontics';
+    if (value.includes('braces') || value.includes('orthodont')) return 'Orthodontics';
+    if (value.includes('denture') || value.includes('crown') || value.includes('retainer')) return 'Prosthodontics';
+    if (value.includes('wisdom') || value.includes('odontectomy')) return 'Oral Surgery';
+    if (value.includes('extract') || value.includes('bunot')) return 'Extraction';
+    return 'Other';
+};
 
 // ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
 const normalizeSurgery = (s) => ({
@@ -76,8 +102,6 @@ export default function DentistAppointments() {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     // ─── EMR MODAL ───────────────────────────────────────────────────────────
-    const [isEMRModalOpen, setIsEMRModalOpen] = useState(false);
-    const [selectedPatientId, setSelectedPatientId] = useState(null);
 
     // ─── MATERIAL LOGGER MODAL ───────────────────────────────────────────────
     const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
@@ -86,6 +110,15 @@ export default function DentistAppointments() {
     // ─── COMPLETE CONFIRM MODAL ──────────────────────────────────────────────
     const [completeTarget, setCompleteTarget] = useState(null);
     const [completionProcedure, setCompletionProcedure] = useState('');
+    const [completionDetails, setCompletionDetails] = useState({
+        category: 'Other',
+        tooth: '',
+        amountCharged: '',
+        amountPaid: '',
+        nextAppointment: '',
+        notes: '',
+    });
+    const [completionError, setCompletionError] = useState('');
     const [clinicProcedures, setClinicProcedures] = useState(PROCEDURE_OPTIONS);
 
     // ─── FILTER STATES ───────────────────────────────────────────────────────
@@ -283,17 +316,27 @@ export default function DentistAppointments() {
     // ─── ACTION HANDLERS ──────────────────────────────────────────────────────
     const handleLogoutClick = () => { setIsProfileOpen(false); setShowLogoutModal(true); };
     const handleProfileNavigation = () => { setIsProfileOpen(false); navigate('/dentist/profile'); };
-    const handleViewEMR = (patientId) => { setSelectedPatientId(patientId); setIsEMRModalOpen(true); };
+    const handleViewEMR = (patientId) => { navigate(`/dentist/patients/${patientId}/emr`); };
     const handleOpenMaterialLog = (apt) => { setSelectedAptForMaterial(apt); setIsMaterialModalOpen(true); };
 
     const handleConfirmComplete = async () => {
         if (!completeTarget || !completionProcedure) return;
+        if (!completionDetails.category || completionDetails.amountCharged === '' || completionDetails.amountPaid === '' || !completionDetails.notes.trim()) {
+            setCompletionError('Please complete the treatment details before marking this appointment as done.');
+            return;
+        }
         try {
             const res = await authFetch(`/appointments/${completeTarget.id}/status`, {
                 method: 'PUT',
                 body: JSON.stringify({
                     status: 'completed',
                     performedProcedure: completionProcedure,
+                    category: completionDetails.category,
+                    tooth: completionDetails.tooth.trim(),
+                    amountCharged: Number(completionDetails.amountCharged),
+                    amountPaid: Number(completionDetails.amountPaid),
+                    nextAppointment: completionDetails.nextAppointment || null,
+                    notes: completionDetails.notes.trim(),
                 }),
             });
             const data = await res.json().catch(() => null);
@@ -312,6 +355,15 @@ export default function DentistAppointments() {
         } finally {
             setCompleteTarget(null);
             setCompletionProcedure('');
+            setCompletionDetails({
+                category: 'Other',
+                tooth: '',
+                amountCharged: '',
+                amountPaid: '',
+                nextAppointment: '',
+                notes: '',
+            });
+            setCompletionError('');
         }
     };
 
@@ -470,6 +522,15 @@ export default function DentistAppointments() {
                                                     onClick={() => {
                                                         setCompleteTarget(apt);
                                                         setCompletionProcedure(apt.performedProcedure || apt.procedure || '');
+                                                        setCompletionDetails({
+                                                            category: inferTreatmentCategory(apt.performedProcedure || apt.procedure || ''),
+                                                            tooth: '',
+                                                            amountCharged: '',
+                                                            amountPaid: '',
+                                                            nextAppointment: '',
+                                                            notes: '',
+                                                        });
+                                                        setCompletionError('');
                                                     }}
                                                 >
                                                     <FaCheckCircle /> Mark Done
@@ -681,15 +742,6 @@ export default function DentistAppointments() {
                 </div>
             )}
 
-            {/* EMR MODAL */}
-            {isEMRModalOpen && selectedPatientId && (
-                <PatientEMR
-                    patientId={selectedPatientId}
-                    onClose={() => setIsEMRModalOpen(false)}
-                    onEdit={() => addToast('Edit Profile action coming soon', 'info')}
-                />
-            )}
-
             {/* MATERIAL LOGGER MODAL */}
             {isMaterialModalOpen && selectedAptForMaterial && (
                 <MaterialUsageLog
@@ -731,7 +783,15 @@ export default function DentistAppointments() {
                                 <select
                                     className={styles.formInput}
                                     value={completionProcedure}
-                                    onChange={(e) => setCompletionProcedure(e.target.value)}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setCompletionProcedure(value);
+                                        setCompletionDetails((prev) => ({
+                                            ...prev,
+                                            category: prev.category === 'Other' || !prev.category ? inferTreatmentCategory(value) : prev.category,
+                                        }));
+                                        setCompletionError('');
+                                    }}
                                 >
                                     <option value="">Select the procedure performed</option>
                                     {clinicProcedures.map((procedure) => (
@@ -740,6 +800,103 @@ export default function DentistAppointments() {
                                 </select>
                             </div>
 
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Treatment Category</label>
+                                <select
+                                    className={styles.formInput}
+                                    value={completionDetails.category}
+                                    onChange={(e) => {
+                                        setCompletionDetails((prev) => ({ ...prev, category: e.target.value }));
+                                        setCompletionError('');
+                                    }}
+                                >
+                                    {TREATMENT_CATEGORY_OPTIONS.map((option) => (
+                                        <option key={option} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Tooth Number/s</label>
+                                <input
+                                    type="text"
+                                    className={styles.formInput}
+                                    value={completionDetails.tooth}
+                                    onChange={(e) => setCompletionDetails((prev) => ({ ...prev, tooth: e.target.value }))}
+                                    placeholder="e.g. 11, 12 or All"
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Amount Charged</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    className={styles.formInput}
+                                    value={completionDetails.amountCharged}
+                                    onChange={(e) => {
+                                        setCompletionDetails((prev) => ({ ...prev, amountCharged: e.target.value }));
+                                        setCompletionError('');
+                                    }}
+                                    placeholder="0.00"
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Amount Paid</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    className={styles.formInput}
+                                    value={completionDetails.amountPaid}
+                                    onChange={(e) => {
+                                        setCompletionDetails((prev) => ({ ...prev, amountPaid: e.target.value }));
+                                        setCompletionError('');
+                                    }}
+                                    placeholder="0.00"
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Balance</label>
+                                <input
+                                    type="text"
+                                    className={styles.formInput}
+                                    value={`PHP ${Math.max(Number(completionDetails.amountCharged || 0) - Number(completionDetails.amountPaid || 0), 0).toFixed(2)}`}
+                                    disabled
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Next Appointment</label>
+                                <input
+                                    type="date"
+                                    className={styles.formInput}
+                                    value={completionDetails.nextAppointment}
+                                    onChange={(e) => setCompletionDetails((prev) => ({ ...prev, nextAppointment: e.target.value }))}
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Dentist Notes</label>
+                                <textarea
+                                    className={styles.formInput}
+                                    style={{ minHeight: '110px', paddingTop: '12px', paddingBottom: '12px', borderRadius: '16px' }}
+                                    value={completionDetails.notes}
+                                    onChange={(e) => {
+                                        setCompletionDetails((prev) => ({ ...prev, notes: e.target.value }));
+                                        setCompletionError('');
+                                    }}
+                                    placeholder="Describe the procedure, findings, patient condition, and follow-up instructions."
+                                />
+                            </div>
+
+                            {completionError && (
+                                <div className={styles.errorMessage}>{completionError}</div>
+                            )}
+
                             <div className={styles.formActions}>
                                 <button
                                     type="button"
@@ -747,6 +904,15 @@ export default function DentistAppointments() {
                                     onClick={() => {
                                         setCompleteTarget(null);
                                         setCompletionProcedure('');
+                                        setCompletionDetails({
+                                            category: 'Other',
+                                            tooth: '',
+                                            amountCharged: '',
+                                            amountPaid: '',
+                                            nextAppointment: '',
+                                            notes: '',
+                                        });
+                                        setCompletionError('');
                                     }}
                                 >
                                     Cancel

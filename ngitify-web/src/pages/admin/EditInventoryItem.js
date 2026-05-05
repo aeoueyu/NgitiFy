@@ -3,12 +3,15 @@ import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/StaffModals.module.css'; 
 import successIcon from '../../assets/alert/success.svg'; 
 import BackIcon from '../../assets/icons/Back.svg'; 
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function EditInventoryItem({ itemId, onClose, onSuccess, existingCategories = [], existingUnits = [] }) {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState({});
+    const [serverMessage, setServerMessage] = useState('');
 
     const [formData, setFormData] = useState({
         name: '', category: '', currentStock: '', threshold: '', unit: 'pcs',
@@ -77,6 +80,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
         const { name, value } = e.target;
         if ((name === 'currentStock' || name === 'threshold') && value !== '' && Number(value) < 0) return;
         setFormData(prev => ({ ...prev, [name]: value }));
+        setServerMessage('');
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: undefined }));
     };
 
@@ -92,17 +96,16 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
         else if (formData.unit === 'Other' && !customUnit.trim()) { newErrors.customUnit = "Custom unit is required"; isValid = false; }
 
         if (formData.currentStock === '') { newErrors.currentStock = "Required"; isValid = false; }
+        else if (Number(formData.currentStock) < 0) { newErrors.currentStock = "Cannot be negative"; isValid = false; }
         if (formData.threshold === '') { newErrors.threshold = "Required"; isValid = false; }
+        else if (Number(formData.threshold) < 0) { newErrors.threshold = "Cannot be negative"; isValid = false; }
         if (!formData.brand.trim()) { newErrors.brand = "Required"; isValid = false; }
         
         setErrors(newErrors);
         return isValid;
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!validateForm()) return;
-
+    const submitInventoryUpdate = async () => {
         setIsSaving(true);
         
         const finalCategory = formData.category === 'Other' ? customCategory.trim() : formData.category;
@@ -125,17 +128,25 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
             });
 
             if (response.ok) {
+                setShowConfirmModal(false);
                 setShowSuccessModal(true);
             } else {
                 const data = await response.json();
-                alert(data.message || "Failed to update inventory item.");
+                setServerMessage(data.message || "Failed to update inventory item.");
+                if (data.errors) setErrors(prev => ({ ...prev, ...data.errors }));
             }
         } catch (error) {
             console.error("Error:", error);
-            alert("Cannot connect to server.");
+            setServerMessage("Cannot connect to server.");
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!validateForm()) return;
+        setShowConfirmModal(true);
     };
 
     const handleSuccessClose = () => { setShowSuccessModal(false); onSuccess(); onClose(); };
@@ -254,6 +265,8 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
                                 </div>
                             </div>
 
+                            {serverMessage && <div className={styles.errorText} style={{ marginLeft: 0 }}>{serverMessage}</div>}
+
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
                                 <button type="submit" className={styles.submitBtn} disabled={isSaving || (!hasChanges && formData.category !== 'Other' && formData.unit !== 'Other')}>
@@ -275,6 +288,15 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={showConfirmModal}
+                title="Save Inventory Changes"
+                message="Are you sure you want to save these inventory changes? This cannot be undone."
+                confirmText={isSaving ? 'Saving...' : 'Yes, Save Changes'}
+                onConfirm={submitInventoryUpdate}
+                onCancel={() => !isSaving && setShowConfirmModal(false)}
+            />
         </div>
     );
 }

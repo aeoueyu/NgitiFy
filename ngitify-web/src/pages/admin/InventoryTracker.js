@@ -3,9 +3,11 @@ import styles from '../../styles/admin/InventoryTracker.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
 import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle, FaBoxes, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 
 import AddInventoryItem from './AddInventoryItem'; 
+import AddInventoryStock from './AddInventoryStock';
 import EditInventoryItem from './EditInventoryItem'; 
 import ConfirmModal from '../../components/common/ConfirmModal'; 
 import { useToast } from '../../context/ToastContext';
@@ -22,13 +24,16 @@ const BASE_UNITS = ["pcs", "box", "set", "pack", "bottle", "tube"];
 export default function InventoryTracker() {
     const { addToast } = useToast();
     const { canReadInventory, canEditInventory } = usePermissions();
+    const { user } = useAuth();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
     const [inventoryList, setInventoryList] = useState([]);
+    const [branchOptions, setBranchOptions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
     const [selectedItemId, setSelectedItemId] = useState(null);    
 
@@ -76,6 +81,26 @@ export default function InventoryTracker() {
             fetchInventory();
         }
     }, [fetchInventory, canReadInventory]);
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const response = await authFetch('/branches?all=true');
+                if (!response.ok) return;
+                const data = await response.json();
+                const names = (Array.isArray(data) ? data : [])
+                    .map((branch) => branch?.name)
+                    .filter(Boolean);
+                setBranchOptions(names);
+            } catch (error) {
+                console.error('Failed to fetch branches for inventory:', error);
+            }
+        };
+
+        if (canReadInventory) {
+            fetchBranches();
+        }
+    }, [canReadInventory]);
 
     const dynamicCategories = useMemo(() => {
         const fetchedCategories = inventoryList.map(item => item.category).filter(Boolean);
@@ -264,9 +289,14 @@ export default function InventoryTracker() {
                 </div>
                 
                 {canEditInventory && (
-                    <button className={styles.addBtn} onClick={() => setIsAddModalOpen(true)}>
-                        <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add New Item
-                    </button>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <button className={styles.addBtn} onClick={() => setIsAddStockModalOpen(true)}>
+                            <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add Supply / Stock
+                        </button>
+                        <button className={styles.addBtn} style={{ backgroundColor: '#2dccf6' }} onClick={() => setIsAddModalOpen(true)}>
+                            <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add New Item
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -338,10 +368,21 @@ export default function InventoryTracker() {
 
             {isAddModalOpen && (
                 <AddInventoryItem 
+                    inventoryEntries={inventoryList}
+                    branchOptions={branchOptions}
+                    defaultBranch={user?.assignedBranch || user?.assignedBranches?.[0] || ''}
                     existingCategories={dynamicCategories} 
                     existingUnits={dynamicUnits}
                     onClose={() => setIsAddModalOpen(false)} 
                     onSuccess={fetchInventory} 
+                />
+            )}
+
+            {isAddStockModalOpen && (
+                <AddInventoryStock
+                    inventoryEntries={inventoryList}
+                    onClose={() => setIsAddStockModalOpen(false)}
+                    onSuccess={fetchInventory}
                 />
             )}
 

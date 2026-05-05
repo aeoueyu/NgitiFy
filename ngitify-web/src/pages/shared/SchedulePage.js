@@ -4,6 +4,7 @@ import {
     FaEdit,
     FaEye,
     FaFilter,
+    FaCheck,
     FaPlus,
     FaSearch,
     FaTimes,
@@ -12,6 +13,7 @@ import { authFetch, publicFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import PatientEMR from '../admin/PatientEMR';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/shared/SchedulePage.module.css';
 
@@ -36,6 +38,33 @@ const PROCEDURE_OPTIONS = [
     'X-Ray / Radiograph',
     'Other',
 ];
+
+const TREATMENT_CATEGORY_OPTIONS = [
+    'General',
+    'Prophylaxis',
+    'Restoration',
+    'Extraction',
+    'Orthodontics',
+    'Endodontics',
+    'Prosthodontics',
+    'Oral Surgery',
+    'Consultation',
+    'Other',
+];
+
+const inferTreatmentCategory = (procedure = '') => {
+    const value = String(procedure || '').toLowerCase();
+    if (!value) return 'Other';
+    if (value.includes('consult') || value.includes('check-up') || value.includes('checkup')) return 'Consultation';
+    if (value.includes('prophy') || value.includes('cleaning') || value.includes('fluoride') || value.includes('sealant')) return 'Prophylaxis';
+    if (value.includes('fill') || value.includes('restoration') || value.includes('pasta')) return 'Restoration';
+    if (value.includes('root canal')) return 'Endodontics';
+    if (value.includes('braces') || value.includes('orthodont')) return 'Orthodontics';
+    if (value.includes('denture') || value.includes('crown') || value.includes('retainer')) return 'Prosthodontics';
+    if (value.includes('wisdom') || value.includes('odontectomy')) return 'Oral Surgery';
+    if (value.includes('extract') || value.includes('bunot')) return 'Extraction';
+    return 'Other';
+};
 
 const APPOINTMENT_STATUS_LABELS = {
     pending: 'Pending',
@@ -291,6 +320,19 @@ export default function SchedulePage() {
     const [editingEntry, setEditingEntry] = useState(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isConfirmingSave, setIsConfirmingSave] = useState(false);
+    const [completeTarget, setCompleteTarget] = useState(null);
+    const [isCompleting, setIsCompleting] = useState(false);
+    const [completionForm, setCompletionForm] = useState({
+        performedProcedure: '',
+        category: 'Other',
+        tooth: '',
+        amountCharged: '',
+        amountPaid: '',
+        nextAppointment: '',
+        notes: '',
+    });
+    const [completionError, setCompletionError] = useState('');
     const [allowedSlots, setAllowedSlots] = useState([]);
     const [takenSlots, setTakenSlots] = useState([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
@@ -646,6 +688,21 @@ export default function SchedulePage() {
         resetFormState();
     };
 
+    const openCompleteModal = (entry) => {
+        setCompleteTarget(entry);
+        const performedProcedure = entry.procedure || '';
+        setCompletionForm({
+            performedProcedure,
+            category: inferTreatmentCategory(performedProcedure),
+            tooth: '',
+            amountCharged: '',
+            amountPaid: '',
+            nextAppointment: '',
+            notes: '',
+        });
+        setCompletionError('');
+    };
+
     const handleFormFieldChange = (event) => {
         const { name, value } = event.target;
         setFormState((prev) => {
@@ -725,10 +782,7 @@ export default function SchedulePage() {
         return Object.keys(nextErrors).length === 0;
     };
 
-    const handleSubmitForm = async (event) => {
-        event.preventDefault();
-        if (!validateForm()) return;
-
+    const submitScheduleForm = async () => {
         const activeBranch = formState.branch || assignedBranch;
         const selectedDentist = dentistOptions.find((entry) => entry.id === formState.dentistId);
 
@@ -804,6 +858,73 @@ export default function SchedulePage() {
             addToast(error.message || 'Could not save this schedule entry.', 'error');
         } finally {
             setIsSubmitting(false);
+            setIsConfirmingSave(false);
+        }
+    };
+
+    const handleSubmitForm = async (event) => {
+        event.preventDefault();
+        if (!validateForm()) return;
+        setIsConfirmingSave(true);
+    };
+
+    const handleMarkAsComplete = async () => {
+        if (!completeTarget) return;
+        if (
+            completeTarget.type === 'appointment'
+            && completeTarget.status !== 'in-clinic'
+            && !isScheduledInPast(completeTarget.date, completeTarget.time)
+        ) {
+            addToast('Only past or checked-in appointments can be marked as completed.', 'error');
+            setCompleteTarget(null);
+            return;
+        }
+        if (!completionForm.performedProcedure || !completionForm.category || completionForm.amountCharged === '' || completionForm.amountPaid === '' || !completionForm.notes.trim()) {
+            setCompletionError('Please complete the treatment details before marking this schedule as complete.');
+            return;
+        }
+
+        setIsCompleting(true);
+        try {
+            const endpoint = completeTarget.type === 'appointment'
+                ? `/appointments/${completeTarget.id}/status`
+                : `/queue/${completeTarget.id}/status`;
+            const method = completeTarget.type === 'appointment' ? 'PUT' : 'PATCH';
+            const payload = {
+                status: 'completed',
+                performedProcedure: completionForm.performedProcedure || completeTarget.procedure || '',
+                category: completionForm.category,
+                tooth: completionForm.tooth.trim(),
+                amountCharged: Number(completionForm.amountCharged),
+                amountPaid: Number(completionForm.amountPaid),
+                nextAppointment: completionForm.nextAppointment || null,
+                notes: completionForm.notes.trim(),
+            };
+            const response = await authFetch(endpoint, {
+                method,
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to mark this schedule as complete.');
+            }
+            addToast('Schedule marked as completed.', 'success');
+            setCompleteTarget(null);
+            setCompletionForm({
+                performedProcedure: '',
+                category: 'Other',
+                tooth: '',
+                amountCharged: '',
+                amountPaid: '',
+                nextAppointment: '',
+                notes: '',
+            });
+            setCompletionError('');
+            await fetchPageData();
+        } catch (error) {
+            addToast(error.message || 'Failed to mark this schedule as complete.', 'error');
+        } finally {
+            setIsCompleting(false);
         }
     };
 
@@ -1171,7 +1292,22 @@ export default function SchedulePage() {
                                     <span className={styles.inlineNote}>No linked patient record for this entry.</span>
                                 )}
                             </div>
-                            {viewEntry.patientId ? (
+                            {viewEntry.patientId && isDentist ? (
+                                <div className={styles.emptyStateBox}>
+                                    <p style={{ margin: '0 0 14px 0' }}>Open the patient record as a full page from the dentist workspace.</p>
+                                    <button
+                                        type="button"
+                                        className={styles.primaryButton}
+                                        onClick={() => {
+                                            const patientId = viewEntry.patientId;
+                                            setViewEntry(null);
+                                            navigate(`/dentist/patients/${patientId}/emr`);
+                                        }}
+                                    >
+                                        Open Full EMR Page
+                                    </button>
+                                </div>
+                            ) : viewEntry.patientId ? (
                                 <PatientEMR
                                     patientId={viewEntry.patientId}
                                     embedded
@@ -1359,6 +1495,17 @@ export default function SchedulePage() {
                                                         <FaEdit />
                                                     </button>
                                                 )}
+                                                {canEditSchedule && entry.status !== 'completed' && entry.status !== 'cancelled' && (
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
+                                                        onClick={() => openCompleteModal(entry)}
+                                                        title="Mark as Complete"
+                                                        aria-label="Mark as Complete"
+                                                    >
+                                                        <FaCheck />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -1377,6 +1524,174 @@ export default function SchedulePage() {
 
             {renderFormModal()}
             {renderViewModal()}
+            <ConfirmModal
+                isOpen={isConfirmingSave}
+                title="Save Schedule Changes"
+                message="Are you sure you want to save these schedule changes? This will immediately update the record."
+                confirmText={isSubmitting ? 'Saving...' : 'Yes, Save Changes'}
+                onConfirm={submitScheduleForm}
+                onCancel={() => !isSubmitting && setIsConfirmingSave(false)}
+            />
+            {completeTarget && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.wideModal}>
+                        <div className={styles.modalHeader}>
+                            <div>
+                                <h2 className={styles.modalTitle}>Mark Schedule as Complete</h2>
+                                <p className={styles.modalSubtitle}>Enter the treatment details so the EMR treatment history is recorded completely in one step.</p>
+                            </div>
+                            <button
+                                type="button"
+                                className={styles.closeButton}
+                                onClick={() => {
+                                    if (isCompleting) return;
+                                    setCompleteTarget(null);
+                                    setCompletionError('');
+                                }}
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className={styles.modalBody}>
+                            <div className={styles.formGrid}>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Booked Procedure</label>
+                                    <input type="text" className={styles.formControl} value={completeTarget.procedure || ''} disabled />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Procedure Performed</label>
+                                    <select
+                                        className={styles.formControl}
+                                        value={completionForm.performedProcedure}
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setCompletionForm((prev) => ({
+                                                ...prev,
+                                                performedProcedure: value,
+                                                category: prev.category === 'Other' || !prev.category ? inferTreatmentCategory(value) : prev.category,
+                                            }));
+                                            setCompletionError('');
+                                        }}
+                                    >
+                                        <option value="">Select the procedure performed</option>
+                                        {procedureOptions.map((procedure) => (
+                                            <option key={procedure} value={procedure}>{procedure}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Treatment Category</label>
+                                    <select
+                                        className={styles.formControl}
+                                        value={completionForm.category}
+                                        onChange={(event) => {
+                                            setCompletionForm((prev) => ({ ...prev, category: event.target.value }));
+                                            setCompletionError('');
+                                        }}
+                                    >
+                                        {TREATMENT_CATEGORY_OPTIONS.map((option) => (
+                                            <option key={option} value={option}>{option}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Tooth Number/s</label>
+                                    <input
+                                        type="text"
+                                        className={styles.formControl}
+                                        value={completionForm.tooth}
+                                        onChange={(event) => setCompletionForm((prev) => ({ ...prev, tooth: event.target.value }))}
+                                        placeholder="e.g. 11, 12 or All"
+                                    />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Amount Charged</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className={styles.formControl}
+                                        value={completionForm.amountCharged}
+                                        onChange={(event) => {
+                                            setCompletionForm((prev) => ({ ...prev, amountCharged: event.target.value }));
+                                            setCompletionError('');
+                                        }}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Amount Paid</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className={styles.formControl}
+                                        value={completionForm.amountPaid}
+                                        onChange={(event) => {
+                                            setCompletionForm((prev) => ({ ...prev, amountPaid: event.target.value }));
+                                            setCompletionError('');
+                                        }}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Balance</label>
+                                    <input
+                                        type="text"
+                                        className={styles.formControl}
+                                        value={`PHP ${Math.max(Number(completionForm.amountCharged || 0) - Number(completionForm.amountPaid || 0), 0).toFixed(2)}`}
+                                        disabled
+                                    />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Next Appointment</label>
+                                    <input
+                                        type="date"
+                                        className={styles.formControl}
+                                        value={completionForm.nextAppointment}
+                                        onChange={(event) => setCompletionForm((prev) => ({ ...prev, nextAppointment: event.target.value }))}
+                                    />
+                                </div>
+                                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                    <label className={styles.formLabel}>Dentist Notes</label>
+                                    <textarea
+                                        className={styles.textareaControl}
+                                        value={completionForm.notes}
+                                        onChange={(event) => {
+                                            setCompletionForm((prev) => ({ ...prev, notes: event.target.value }));
+                                            setCompletionError('');
+                                        }}
+                                        placeholder="Describe the procedure, findings, patient condition, and follow-up instructions."
+                                        rows={4}
+                                    />
+                                </div>
+                            </div>
+                            {completionError && <div className={styles.errorText}>{completionError}</div>}
+                            <div className={styles.modalActions}>
+                                <button
+                                    type="button"
+                                    className={styles.secondaryButton}
+                                    onClick={() => {
+                                        if (isCompleting) return;
+                                        setCompleteTarget(null);
+                                        setCompletionError('');
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className={styles.primaryButton}
+                                    onClick={handleMarkAsComplete}
+                                    disabled={isCompleting}
+                                >
+                                    {isCompleting ? 'Completing...' : 'Yes, Mark Complete'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
