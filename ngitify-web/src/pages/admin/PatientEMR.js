@@ -1482,7 +1482,7 @@ export default function PatientEMR({
     const renderUploadModal = () => (
         canUploadRadiograph && isUploadModalOpen && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
-                <div style={{ background: 'white', borderRadius: '16px', padding: '40px', width: '92%', maxWidth: '860px', boxShadow: '0 15px 40px rgba(0,0,0,0.2)', fontFamily: "'Lexend Deca', sans-serif" }}>
+                <div style={{ background: 'white', borderRadius: '16px', padding: '32px', width: '92%', maxWidth: '860px', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 15px 40px rgba(0,0,0,0.2)', fontFamily: "'Lexend Deca', sans-serif" }}>
                     <h3 style={{ color: '#01538b', fontSize: '20px', fontWeight: '800', margin: '0 0 20px 0', borderLeft: '4px solid #2dccf6', paddingLeft: '12px' }}>Upload Radiograph</h3>
                     <form onSubmit={handleUploadSubmit}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px', marginBottom: '16px' }}>
