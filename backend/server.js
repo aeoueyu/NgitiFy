@@ -929,6 +929,38 @@ const appendRescheduleHistoryEntry = ({ appointment, nextDate, nextTime, actor, 
     return history;
 };
 
+const TREATMENT_LOG_CATEGORIES = new Set([
+    'General',
+    'Restoration',
+    'Extraction',
+    'Prophylaxis',
+    'Orthodontics',
+    'Endodontics',
+    'Prosthodontics',
+    'Oral Surgery',
+    'Consultation',
+    'Other',
+]);
+
+const normalizeTreatmentCategory = (value) => {
+    const normalized = String(value || '').trim();
+    return TREATMENT_LOG_CATEGORIES.has(normalized) ? normalized : 'Other';
+};
+
+const inferTreatmentCategoryFromProcedure = (procedure = '') => {
+    const value = String(procedure || '').toLowerCase();
+    if (!value) return 'Other';
+    if (value.includes('consult') || value.includes('check-up') || value.includes('checkup') || value.includes('general')) return 'Consultation';
+    if (value.includes('prophy') || value.includes('cleaning') || value.includes('fluoride') || value.includes('sealant')) return 'Prophylaxis';
+    if (value.includes('fill') || value.includes('restoration') || value.includes('pasta')) return 'Restoration';
+    if (value.includes('root canal')) return 'Endodontics';
+    if (value.includes('braces') || value.includes('orthodont')) return 'Orthodontics';
+    if (value.includes('denture') || value.includes('crown') || value.includes('retainer')) return 'Prosthodontics';
+    if (value.includes('wisdom') || value.includes('odontectomy')) return 'Oral Surgery';
+    if (value.includes('extract') || value.includes('bunot')) return 'Extraction';
+    return 'Other';
+};
+
 const appendAutomaticTreatmentLogIfMissing = async ({
     patientId,
     procedure,
@@ -968,7 +1000,7 @@ const appendAutomaticTreatmentLogIfMissing = async ({
         date,
         procedure,
         tooth: tooth || '',
-        category: category || 'Other',
+        category: normalizeTreatmentCategory(category),
         notes: [notes, sourceKey].filter(Boolean).join(' ').trim(),
         dentistId: dentistId || undefined,
         dentistName: dentistName || undefined,
@@ -985,6 +1017,32 @@ const appendAutomaticTreatmentLogIfMissing = async ({
     }
 
     await patient.save();
+};
+
+const reconcilePatientTreatmentLogsFromCompletedAppointments = async (patientId) => {
+    if (!patientId) return;
+
+    const completedAppointments = await Surgery.find({
+        patient: patientId,
+        status: 'completed',
+        isArchived: { $ne: true },
+    }).populate('dentist', 'name');
+
+    for (const appointment of completedAppointments) {
+        await appendAutomaticTreatmentLogIfMissing({
+            patientId,
+            procedure: appointment.performedProcedure || appointment.procedure,
+            branch: appointment.branch,
+            dentistId: appointment.dentist?._id || appointment.dentist || null,
+            dentistName: getDentistDisplayName(appointment.dentist),
+            date: appointment.date || appointment.updatedAt || new Date(),
+            category: normalizeTreatmentCategory(
+                inferTreatmentCategoryFromProcedure(appointment.performedProcedure || appointment.procedure)
+            ),
+            notes: String(appointment.remarks || appointment.notes || '').trim(),
+            sourceKey: `[AUTO-APPOINTMENT:${appointment._id}]`,
+        });
+    }
 };
 
 const sendAppointmentReceivedEmail = async ({ email, name, branch, date, time, procedure }) => {
@@ -3878,7 +3936,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 dentistName: getDentistDisplayName(updatedSurgery.dentist),
                 date: updatedSurgery.date || new Date(),
                 tooth: String(tooth || '').trim(),
-                category: String(category || 'Other').trim(),
+        category: normalizeTreatmentCategory(category),
                 notes: String(notes || updatedSurgery.remarks || '').trim(),
                 amountCharged: normalizedAmountCharged ?? 0,
                 amountPaid: normalizedAmountPaid ?? 0,
@@ -4664,7 +4722,12 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             }
         }
 
-        const sorted = (patient.treatmentLogs || []).sort(
+        await reconcilePatientTreatmentLogsFromCompletedAppointments(patient._id);
+
+        const refreshedPatient = await User.findById(req.params.id).select('treatmentLogs');
+        if (!refreshedPatient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const sorted = (refreshedPatient.treatmentLogs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
         );
 
@@ -4728,7 +4791,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             date: new Date(date),
             procedure,
             tooth: tooth || '',
-            category: category || 'Other',
+            category: normalizeTreatmentCategory(category),
             notes: notes || '',
             dentistId: req.user.id,
             dentistName,
@@ -6362,7 +6425,7 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
                 dentistName: entry.assignedDentist || '',
                 date: entry.completedAt || new Date(),
                 tooth: String(tooth || '').trim(),
-                category: String(category || 'Other').trim(),
+                category: normalizeTreatmentCategory(category),
                 notes: [String(notes || '').trim(), `Completed from queue ticket #${entry.ticketNumber}.`].filter(Boolean).join(' '),
                 amountCharged: normalizedAmountCharged ?? 0,
                 amountPaid: normalizedAmountPaid ?? 0,
@@ -6454,7 +6517,7 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
                 dentistName: entry.assignedDentist || '',
                 date: entry.completedAt || new Date(),
                 tooth: String(tooth || '').trim(),
-                category: String(category || 'Other').trim(),
+                category: normalizeTreatmentCategory(category),
                 notes: [String(notes || '').trim(), `Completed from queue ticket #${entry.ticketNumber}.`].filter(Boolean).join(' '),
                 amountCharged: normalizedAmountCharged ?? 0,
                 amountPaid: normalizedAmountPaid ?? 0,

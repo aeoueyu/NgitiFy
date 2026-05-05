@@ -17,7 +17,7 @@ const treatmentLogSchema = new mongoose.Schema({
     tooth: { type: String },
     category: {
         type: String,
-        enum: ['Restoration', 'Extraction', 'Prophylaxis', 'Orthodontics', 'Endodontics', 'Prosthodontics', 'Oral Surgery', 'Consultation', 'Other'],
+        enum: ['General', 'Restoration', 'Extraction', 'Prophylaxis', 'Orthodontics', 'Endodontics', 'Prosthodontics', 'Oral Surgery', 'Consultation', 'Other'],
         default: 'Other'
     },
     notes: { type: String },
