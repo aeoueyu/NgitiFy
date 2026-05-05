@@ -120,6 +120,37 @@
 
 .clearBtn:hover { background: #dc2626; color: white; }
 
+.summaryPanel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summaryItem {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.summaryLabel {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.summaryValue {
+    color: #0a3f65;
+    font-size: 15px;
+    font-weight: 700;
+}
+
 /* Charts Grid */
 .chartsGrid {
     display: grid;

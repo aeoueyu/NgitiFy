@@ -15,6 +15,7 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 export default function BranchManagerAnalytics() {
     const { user } = useAuth();
     const branch = user?.assignedBranch || '';
+    const assignedManagerName = `${user?.name?.first || ''} ${user?.name?.last || ''}`.trim() || user?.email || 'No manager assigned';
 
     const [data, setData]       = useState(null);
     const [loading, setLoading] = useState(true);
@@ -91,6 +92,7 @@ export default function BranchManagerAnalytics() {
             subtitle: 'Dentime Dental Clinic - NgitiFy',
             summaryItems: [
                 { label: 'Branch', value: branch || 'Unassigned' },
+                { label: 'Assigned Manager', value: assignedManagerName },
                 { label: 'Total Appointments', value: totalAppointments },
                 { label: 'Date From', value: from || 'Not set' },
                 { label: 'Date To', value: to || 'Not set' },
@@ -130,6 +132,17 @@ export default function BranchManagerAnalytics() {
                     {(from || to) && (
                         <button className={styles.clearBtn} onClick={() => { setFrom(''); setTo(''); }}>Clear</button>
                     )}
+                </div>
+            </div>
+
+            <div className={styles.summaryPanel}>
+                <div className={styles.summaryItem}>
+                    <span className={styles.summaryLabel}>Branch</span>
+                    <strong className={styles.summaryValue}>{branch || 'Unassigned'}</strong>
+                </div>
+                <div className={styles.summaryItem}>
+                    <span className={styles.summaryLabel}>Assigned Manager</span>
+                    <strong className={styles.summaryValue}>{assignedManagerName}</strong>
                 </div>
             </div>
 

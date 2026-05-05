@@ -244,6 +244,13 @@ const normalizeAppointment = (appointment) => {
     };
 };
 
+const isGuestWebsiteAppointmentEntry = (entry) => (
+    entry?.type === 'appointment'
+    && !entry?.patientId
+    && entry?.raw?.source === 'Smile Hub (Online)'
+    && Boolean(entry?.raw?.guestEmail)
+);
+
 const normalizeQueueEntry = (entry) => ({
     id: entry._id || entry.id,
     type: 'walkin',
@@ -805,11 +812,12 @@ export default function SchedulePage() {
     const validateForm = () => {
         const nextErrors = {};
         const activeBranch = formState.branch || assignedBranch;
+        const isGuestWebsiteAppointment = isGuestWebsiteAppointmentEntry(editingEntry);
 
         if (!activeBranch) nextErrors.branch = 'Select a branch.';
         if (!formState.source) nextErrors.source = 'Select a source.';
         if (formState.formType === 'appointment') {
-            if (!formState.patientId) nextErrors.patientId = 'Select a patient.';
+            if (!formState.patientId && !isGuestWebsiteAppointment) nextErrors.patientId = 'Select a patient.';
             if (!formState.dentistId && canChooseDentist) nextErrors.dentistId = 'Select a dentist.';
             if (!formState.date) nextErrors.date = 'Choose an appointment date.';
             if (!formState.time) nextErrors.time = 'Choose an appointment time.';
@@ -831,8 +839,12 @@ export default function SchedulePage() {
         setIsSubmitting(true);
         try {
             if (formState.formType === 'appointment') {
+                const isGuestWebsiteAppointment = isGuestWebsiteAppointmentEntry(editingEntry);
+                const mappedSource = formState.source === 'phonecall'
+                    ? 'Phone Call'
+                    : (isGuestWebsiteAppointment ? 'Smile Hub (Online)' : 'Appointment');
                 const payload = {
-                    patient: formState.patientId,
+                    patient: formState.patientId || null,
                     dentist: canChooseDentist ? formState.dentistId : currentUserId,
                     branch: activeBranch,
                     date: formState.date,
@@ -840,7 +852,8 @@ export default function SchedulePage() {
                     procedure: formState.procedure,
                     notes: formState.notes,
                     status: formState.status,
-                    source: formState.source === 'phonecall' ? 'Phone Call' : 'Appointment',
+                    source: mappedSource,
+                    ...(isGuestWebsiteAppointment ? { guestName: formState.patientName.trim() || editingEntry?.raw?.guestName || '' } : {}),
                 };
 
                 const response = await authFetch(
@@ -1023,6 +1036,7 @@ export default function SchedulePage() {
 
         const activeBranch = formState.branch || assignedBranch;
         const showWalkInFields = formState.formType === 'walkin';
+        const isGuestWebsiteAppointment = isGuestWebsiteAppointmentEntry(editingEntry);
         const patientManagementPath = {
             administrator: '/admin/patients',
             owner: '/owner/patients',
@@ -1083,7 +1097,10 @@ export default function SchedulePage() {
                             )}
 
                             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                <label className={styles.formLabel}>Select Patient <span className={styles.requiredMark}>*</span></label>
+                                <label className={styles.formLabel}>
+                                    {isGuestWebsiteAppointment ? 'Guest / Patient' : 'Select Patient'}
+                                    {!isGuestWebsiteAppointment && <span className={styles.requiredMark}>*</span>}
+                                </label>
                                 <div className={styles.patientSearchRow}>
                                     <div>
                                         <input
@@ -1093,7 +1110,7 @@ export default function SchedulePage() {
                                             className={styles.formControl}
                                             value={showWalkInFields ? formState.patientName : (formState.patientId ? `${formState.patientName}${patientOptions.find((entry) => entry.id === formState.patientId)?.email ? ` (${patientOptions.find((entry) => entry.id === formState.patientId)?.email})` : ''}` : formState.patientName)}
                                             onChange={handleFormFieldChange}
-                                            placeholder="Search patient name or email"
+                                            placeholder={isGuestWebsiteAppointment ? 'Guest name or linked patient' : 'Search patient name or email'}
                                         />
                                         <datalist id="schedule-patient-search">
                                             {patientSearchOptions.map((option) => (

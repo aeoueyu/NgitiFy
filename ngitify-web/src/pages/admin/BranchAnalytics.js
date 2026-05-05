@@ -15,6 +15,7 @@ export default function BranchAnalytics() {
     const [data, setData]         = useState(null);
     const [loading, setLoading]   = useState(true);
     const [branches, setBranches] = useState([]);
+    const [managers, setManagers] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState('All');
     const [from, setFrom]         = useState('');
     const [to, setTo]             = useState('');
@@ -42,10 +43,18 @@ export default function BranchAnalytics() {
         } catch (err) { /* silent */ }
     }, []);
 
+    const fetchManagers = useCallback(async () => {
+        try {
+            const res = await authFetch('/users?role=branch-manager');
+            if (res.ok) setManagers(await res.json());
+        } catch (err) { /* silent */ }
+    }, []);
+
     useEffect(() => {
         fetchBranches();
+        fetchManagers();
         fetchAnalytics();
-    }, [fetchBranches, fetchAnalytics]);
+    }, [fetchBranches, fetchManagers, fetchAnalytics]);
 
     // ── Build chart datasets ──────────────────────────────────
 
@@ -79,6 +88,21 @@ export default function BranchAnalytics() {
     // 3. Pie chart: procedure distribution
     const pieData = (data?.procedures || [])
         .map(p => ({ name: p._id || 'Other', value: p.value }));
+
+    const normalizeBranchKey = (value = '') => String(value || '').trim().toLowerCase();
+    const selectedBranchDetails = selectedBranch === 'All'
+        ? null
+        : branches.find((branch) => normalizeBranchKey(branch?.name) === normalizeBranchKey(selectedBranch)) || null;
+    const selectedManagerNames = selectedBranchDetails
+        ? managers.filter((manager) => {
+            const managerIds = Array.isArray(selectedBranchDetails.managerIds) ? selectedBranchDetails.managerIds.map(String) : [];
+            const managerBranch = manager.assignedBranch || manager.assignedBranches?.[0] || '';
+            return managerIds.includes(String(manager._id)) || normalizeBranchKey(managerBranch) === normalizeBranchKey(selectedBranchDetails.name);
+        }).map((manager) => `${manager.name?.first || ''} ${manager.name?.last || ''}`.trim() || manager.email || 'Unnamed Manager')
+        : [];
+    const assignedManagerLabel = selectedBranch === 'All'
+        ? 'Select a branch to view its assigned manager.'
+        : (selectedManagerNames.length > 0 ? selectedManagerNames.join(', ') : 'No manager assigned');
 
     const monthlyTrend = buildMonthlyTrend();
     const totalAppointments = barData.reduce((sum, b) => sum + b.appointments, 0);
@@ -114,6 +138,7 @@ export default function BranchAnalytics() {
             subtitle: 'Dentime Dental Clinic - NgitiFy',
             summaryItems: [
                 { label: 'Selected Branch', value: selectedBranch },
+                { label: 'Assigned Manager', value: assignedManagerLabel },
                 { label: 'Total Appointments', value: totalAppointments },
                 { label: 'Date From', value: from || 'Not set' },
                 { label: 'Date To', value: to || 'Not set' },
@@ -169,6 +194,17 @@ export default function BranchAnalytics() {
                             Clear
                         </button>
                     )}
+                </div>
+            </div>
+
+            <div className={styles.summaryPanel}>
+                <div className={styles.summaryItem}>
+                    <span className={styles.summaryLabel}>Branch</span>
+                    <strong className={styles.summaryValue}>{selectedBranch === 'All' ? 'All Branches' : selectedBranch}</strong>
+                </div>
+                <div className={styles.summaryItem}>
+                    <span className={styles.summaryLabel}>Assigned Manager</span>
+                    <strong className={styles.summaryValue}>{assignedManagerLabel}</strong>
                 </div>
             </div>
 
