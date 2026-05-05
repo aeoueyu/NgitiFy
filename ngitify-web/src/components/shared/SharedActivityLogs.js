@@ -17,7 +17,7 @@ const RANGE_OPTIONS = [
 
 const ACTION_CATEGORIES = {
     'User Management': ['ADD_', 'CREATE_USER', 'DELETE_USER', 'ARCHIVE_USER', 'EDIT_USER', 'ROLE_', 'GRANT_'],
-    Appointments: ['APPOINTMENT', 'QUEUE_', 'SURGERY'],
+    Appointments: ['APPOINTMENT', 'QUEUE_', 'SURGERY', 'SCHEDULE'],
     Clinical: ['TREATMENT', 'ODONTOGRAM', 'RADIOGRAPH', 'EMR'],
     Inventory: ['INVENTORY', 'MATERIAL_USAGE'],
     Security: ['LOGIN', 'LOGOUT', 'PASSWORD', 'SESSION', 'TICKET', 'EMAIL_CHANGE'],
@@ -43,6 +43,7 @@ const getCategoryForAction = (action = '') => {
 const formatActionLabel = (action = '') => {
     if (!action) return 'Unknown Action';
     if (action.toUpperCase() === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
+    if (action.toUpperCase() === 'UPDATE_SCHEDULE') return 'Update Schedule';
     return action;
 };
 

@@ -24,6 +24,7 @@ import PatientIcon from '../../assets/icons/Patient.svg';
 const formatActionLabel = (action = '') => {
     if (!action) return 'Unknown action performed';
     if (action.toUpperCase() === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
+    if (action.toUpperCase() === 'UPDATE_SCHEDULE') return 'Update Schedule';
     return action;
 };
 

@@ -360,33 +360,47 @@
     min-width: 30px;
     min-height: 30px;
     border-radius: 5px;
+    margin-right: 0;
 }
 
-.viewIconButton {
+.actionIconButton:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.actionIconButton:disabled:hover {
+    background: inherit;
+    border-color: inherit;
+    color: inherit;
+}
+
+.actionIconButton.viewIconButton {
     color: #1d4ed8;
     background: #eff6ff;
     border-color: #bfdbfe;
 }
 
-.viewIconButton:hover {
+.actionIconButton.viewIconButton:hover {
     background: #dbeafe;
     border-color: #93c5fd;
     color: #1d4ed8;
 }
 
-.editIconButton {
+.actionIconButton.editIconButton {
     color: #92400e;
     background: #fef3c7;
     border-color: #fde68a;
 }
 
-.editIconButton:hover {
+.actionIconButton.editIconButton:hover {
     background: #fde68a;
     border-color: #facc15;
     color: #92400e;
 }
 
-.completeIconButton {
+.actionIconButton.completeIconButton {
     color: #166534;
     background: #dcfce7;
     border-color: #86efac;
@@ -394,19 +408,19 @@
     font-size: 14px;
 }
 
-.completeIconButton:hover {
+.actionIconButton.completeIconButton:hover {
     background: #bbf7d0;
     border-color: #4ade80;
     color: #166534;
 }
 
-.deleteIconButton {
+.actionIconButton.deleteIconButton {
     color: #991b1b;
     background: #fee2e2;
     border-color: #fecaca;
 }
 
-.deleteIconButton:hover {
+.actionIconButton.deleteIconButton:hover {
     background: #fecaca;
     border-color: #fca5a5;
     color: #991b1b;
@@ -507,6 +521,10 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+.requiredMark {
+    color: #dc2626;
 }
 
 .formControl {

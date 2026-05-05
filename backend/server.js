@@ -97,6 +97,25 @@ const getScopedInventoryBranch = async (reqUser) => {
     return '';
 };
 
+const normalizeBranchKey = (value = '') => String(value || '').trim().toLowerCase();
+
+const syncBranchManagerAssignments = async (managerId, branchName = '') => {
+    if (!managerId) return;
+
+    await Branch.updateMany(
+        { managerIds: managerId },
+        { $pull: { managerIds: managerId } }
+    );
+
+    const normalizedBranch = String(branchName || '').trim();
+    if (!normalizedBranch) return;
+
+    await Branch.findOneAndUpdate(
+        { name: normalizedBranch },
+        { $addToSet: { managerIds: managerId } }
+    );
+};
+
 const computeBatchStatus = (batch) => {
     if ((batch.quantityRemaining || 0) <= 0) return 'Depleted';
     if (batch.expirationDate && new Date(batch.expirationDate) < new Date()) return 'Expired';
@@ -374,6 +393,10 @@ mongoose.connect(process.env.MONGO_URI)
 // EMAIL CONFIG
 const resend = new Resend(process.env.RESEND_API_KEY);
 console.log('✅ Resend email client initialized');
+
+mongoose.connection.once('open', async () => {
+    await ensureInventoryBatchIndexes();
+});
 
 // ================= PUBLIC ROUTES ================= //
 
@@ -698,6 +721,27 @@ const buildAppointmentDateTime = (dateValue, timeValue) => {
     return date;
 };
 
+const getCurrentScheduleStamp = () => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+
+    const parts = Object.fromEntries(
+        formatter.formatToParts(new Date()).map((part) => [part.type, part.value])
+    );
+
+    return {
+        date: new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00+08:00`),
+        time: `${parts.hour}:${parts.minute}`,
+    };
+};
+
 const isSameCalendarDay = (leftDate, rightDate) => {
     const left = new Date(leftDate);
     const right = new Date(rightDate);
@@ -844,6 +888,26 @@ const syncQueueEntryForAppointment = async (appointmentLike) => {
 const removeQueueEntryForAppointment = async (appointmentId) => {
     if (!appointmentId) return null;
     return Queue.findOneAndDelete({ linkedAppointment: appointmentId });
+};
+
+const ensureInventoryBatchIndexes = async () => {
+    try {
+        const existingIndexes = await InventoryBatch.collection.indexes();
+        const legacyIndex = existingIndexes.find((index) => index.name === 'legacyInventoryId_1');
+
+        if (legacyIndex) {
+            const isLegacyUniqueNullIndex = legacyIndex.unique
+                && !legacyIndex.partialFilterExpression;
+
+            if (isLegacyUniqueNullIndex) {
+                await InventoryBatch.collection.dropIndex('legacyInventoryId_1');
+            }
+        }
+
+        await InventoryBatch.syncIndexes();
+    } catch (error) {
+        console.error('Failed to ensure InventoryBatch indexes:', error.message);
+    }
 };
 
 const RESERVED_APPOINTMENT_ROUTE_IDS = new Set(['slots', 'blocked-dates', 'my-active', 'request']);
@@ -1662,6 +1726,7 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
             temporaryPasswordExpires
         });
         await newUser.save();
+        await syncBranchManagerAssignments(newUser._id, assignedBranch);
 
         await AuditLog.create({
             action: "CREATE_USER",
@@ -2314,6 +2379,12 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             updateData.licenseNumber = normalizedLicense;
         }
 
+        const resolvedAssignedBranch = updateData.assignedBranch !== undefined
+            ? updateData.assignedBranch
+            : (Array.isArray(updateData.assignedBranches)
+                ? (updateData.assignedBranches[0] || '')
+                : (currentUser.assignedBranch || currentUser.assignedBranches?.[0] || ''));
+
         if (currentUser.role === 'administrator' && req.user.role !== 'administrator') {
             return res.status(403).json({ message: 'Access denied. Cannot modify the administrator account.' });
         }
@@ -2343,6 +2414,9 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             updateData.status = 'inactive'; 
 
             const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+            if (currentUser.role === 'branch-manager') {
+                await syncBranchManagerAssignments(updatedUser._id, resolvedAssignedBranch);
+            }
 
             const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
             try {
@@ -2363,6 +2437,9 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
         }
 
         const updatedUser = await User.findByIdAndUpdate(userId, { ...updateData }, { new: true });
+        if (currentUser.role === 'branch-manager') {
+            await syncBranchManagerAssignments(updatedUser._id, resolvedAssignedBranch);
+        }
 
         await AuditLog.create({
             action: "UPDATE_USER",
@@ -3376,6 +3453,12 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             }
         }
 
+        if (updateData.status === 'in-clinic') {
+            const currentStamp = getCurrentScheduleStamp();
+            updateData.date = currentStamp.date;
+            updateData.time = currentStamp.time;
+        }
+
         const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, updateData, { new: true })
             .populate('patient', 'name email')
             .populate('dentist', 'name email');
@@ -3417,7 +3500,7 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         }
 
         await AuditLog.create({
-            action: "UPDATE_SURGERY",
+            action: "UPDATE_SCHEDULE",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "SYSTEM",
             details: `Updated dental treatment record ID: ${updatedSurgery._id} at branch: ${updatedSurgery.branch}`
@@ -3597,6 +3680,11 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         if (date) updateFields.date = nextDate;
         if (time !== undefined) updateFields.time = nextTime;
         if (dentistId !== undefined && req.user.role !== 'dentist') updateFields.dentist = dentistId || null;
+        if (status === 'in-clinic') {
+            const currentStamp = getCurrentScheduleStamp();
+            updateFields.date = currentStamp.date;
+            updateFields.time = currentStamp.time;
+        }
         if (performedProcedure !== undefined) {
             updateFields.performedProcedure = String(performedProcedure || '').trim();
         }

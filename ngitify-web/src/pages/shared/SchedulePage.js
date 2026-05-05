@@ -148,6 +148,19 @@ const formatCreatedAt = (value) => {
     });
 };
 
+const getCurrentScheduleStamp = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return {
+        date: `${year}-${month}-${day}`,
+        time: `${hours}:${minutes}`,
+    };
+};
+
 const to12h = (time24) => {
     if (!time24) return '';
     const [hourText, minute] = time24.split(':');
@@ -170,6 +183,15 @@ const isScheduledInPast = (dateValue, timeValue) => {
     const base = new Date(`${dateValue}T${timeValue || '23:59'}:00`);
     if (Number.isNaN(base.getTime())) return false;
     return base < new Date();
+};
+
+const canMarkEntryComplete = (entry) => {
+    if (!entry || entry.status === 'completed' || entry.status === 'cancelled') return false;
+    if (entry.status === 'in-clinic') return true;
+    if (entry.type === 'appointment') {
+        return isScheduledInPast(entry.date, entry.time);
+    }
+    return false;
 };
 
 const normalizePatientName = (patient) => {
@@ -395,7 +417,7 @@ export default function SchedulePage() {
                 authFetch(appointmentParams.toString()
                     ? `/appointments?${appointmentParams.toString()}`
                     : '/appointments'),
-                authFetch('/patients'),
+                authFetch('/patients?limit=200'),
                 authFetch('/users?role=dentist'),
             ];
 
@@ -569,6 +591,7 @@ export default function SchedulePage() {
             name: normalizePatientName(patient) || patient.email || 'Unknown Patient',
             email: patient.email || '',
             contactNumber: patient.contactNumber || '',
+            branch: patient.assignedBranch || patient.assignedBranches?.[0] || '',
         })),
         [patients]
     );
@@ -707,6 +730,19 @@ export default function SchedulePage() {
         const { name, value } = event.target;
         setFormState((prev) => {
             const next = { ...prev, [name]: value };
+            const applyMatchedPatient = (matchedPatient) => {
+                next.patientId = matchedPatient.id;
+                next.patientName = matchedPatient.name;
+                next.contactNumber = matchedPatient.contactNumber;
+
+                if (matchedPatient.branch && matchedPatient.branch !== next.branch) {
+                    next.branch = matchedPatient.branch;
+                    next.time = '';
+                    next.dentistId = '';
+                    next.assignedDentist = '';
+                }
+            };
+
             if (name === 'source') {
                 const nextType = value === 'walkin' ? 'walkin' : 'appointment';
                 next.formType = nextType;
@@ -726,8 +762,7 @@ export default function SchedulePage() {
             if (name === 'patientId') {
                 const matchedPatient = patientOptions.find((entry) => entry.id === value);
                 if (matchedPatient) {
-                    next.patientName = matchedPatient.name;
-                    next.contactNumber = matchedPatient.contactNumber;
+                    applyMatchedPatient(matchedPatient);
                 }
             }
             if (name === 'patientName') {
@@ -737,9 +772,7 @@ export default function SchedulePage() {
                     || value === `${entry.name}${entry.email ? ` (${entry.email})` : ''}`
                 ));
                 if (matchedPatient) {
-                    next.patientId = matchedPatient.id;
-                    next.patientName = matchedPatient.name;
-                    next.contactNumber = matchedPatient.contactNumber;
+                    applyMatchedPatient(matchedPatient);
                 } else if (prev.formType === 'walkin') {
                     next.patientId = '';
                 }
@@ -747,6 +780,11 @@ export default function SchedulePage() {
             if (name === 'dentistId') {
                 const matchedDentist = dentistOptions.find((entry) => entry.id === value);
                 next.assignedDentist = matchedDentist?.name || '';
+            }
+            if (name === 'status' && value === 'in-clinic' && next.formType === 'appointment') {
+                const currentStamp = getCurrentScheduleStamp();
+                next.date = currentStamp.date;
+                next.time = currentStamp.time;
             }
             if (name === 'date' || name === 'branch') {
                 next.time = '';
@@ -769,7 +807,7 @@ export default function SchedulePage() {
             if (!formState.dentistId && canChooseDentist) nextErrors.dentistId = 'Select a dentist.';
             if (!formState.date) nextErrors.date = 'Choose an appointment date.';
             if (!formState.time) nextErrors.time = 'Choose an appointment time.';
-            if (formState.time && !availableSlots.includes(formState.time)) {
+            if (formState.status !== 'in-clinic' && formState.time && !availableSlots.includes(formState.time)) {
                 nextErrors.time = 'Choose one of the available time slots.';
             }
             if (!formState.procedure) nextErrors.procedure = 'Select a procedure.';
@@ -960,7 +998,7 @@ export default function SchedulePage() {
                     <form onSubmit={handleSubmitForm} className={styles.modalBody}>
                         <div className={styles.formGrid}>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Source</label>
+                                <label className={styles.formLabel}>Source <span className={styles.requiredMark}>*</span></label>
                                 <select
                                     name="source"
                                     className={styles.formControl}
@@ -976,7 +1014,7 @@ export default function SchedulePage() {
 
                             {canChooseBranch && (
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Branch</label>
+                                    <label className={styles.formLabel}>Branch <span className={styles.requiredMark}>*</span></label>
                                     <select
                                         name="branch"
                                         className={styles.formControl}
@@ -993,7 +1031,7 @@ export default function SchedulePage() {
                             )}
 
                             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                <label className={styles.formLabel}>Select Patient</label>
+                                <label className={styles.formLabel}>Select Patient <span className={styles.requiredMark}>*</span></label>
                                 <div className={styles.patientSearchRow}>
                                     <div>
                                         <input
@@ -1032,7 +1070,7 @@ export default function SchedulePage() {
 
                             {canChooseDentist ? (
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Dentist</label>
+                                    <label className={styles.formLabel}>Dentist <span className={styles.requiredMark}>*</span></label>
                                     <select
                                         name="dentistId"
                                         className={styles.formControl}
@@ -1087,7 +1125,7 @@ export default function SchedulePage() {
                                 </div>
                             ) : (
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Date</label>
+                                    <label className={styles.formLabel}>Date <span className={styles.requiredMark}>*</span></label>
                                     <input
                                         type="date"
                                         name="date"
@@ -1101,7 +1139,7 @@ export default function SchedulePage() {
                             )}
 
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Status</label>
+                                <label className={styles.formLabel}>Status <span className={styles.requiredMark}>*</span></label>
                                 <select
                                     name="status"
                                     className={styles.formControl}
@@ -1122,7 +1160,7 @@ export default function SchedulePage() {
 
                             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                 <label className={styles.formLabel}>
-                                    {showWalkInFields ? 'Chief Complaint / Procedure' : 'Procedure'}
+                                    {showWalkInFields ? 'Chief Complaint / Procedure' : 'Procedure'} <span className={styles.requiredMark}>*</span>
                                 </label>
                                 {showWalkInFields ? (
                                     <input
@@ -1151,7 +1189,7 @@ export default function SchedulePage() {
 
                             {!showWalkInFields && (
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Time</label>
+                                    <label className={styles.formLabel}>Time <span className={styles.requiredMark}>*</span></label>
                                     {!formState.date || !activeBranch ? (
                                         <div className={styles.helperText}>Select a branch and date first to load available time slots.</div>
                                     ) : loadingSlots ? (
@@ -1500,8 +1538,9 @@ export default function SchedulePage() {
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
                                                         onClick={() => openCompleteModal(entry)}
-                                                        title="Mark as Complete"
+                                                        title={canMarkEntryComplete(entry) ? 'Mark as Complete' : 'This schedule cannot be completed yet.'}
                                                         aria-label="Mark as Complete"
+                                                        disabled={!canMarkEntryComplete(entry)}
                                                     >
                                                         <FaCheck />
                                                     </button>
@@ -1559,7 +1598,7 @@ export default function SchedulePage() {
                                     <input type="text" className={styles.formControl} value={completeTarget.procedure || ''} disabled />
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Procedure Performed</label>
+                                    <label className={styles.formLabel}>Procedure Performed <span className={styles.requiredMark}>*</span></label>
                                     <select
                                         className={styles.formControl}
                                         value={completionForm.performedProcedure}
@@ -1580,7 +1619,7 @@ export default function SchedulePage() {
                                     </select>
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Treatment Category</label>
+                                    <label className={styles.formLabel}>Treatment Category <span className={styles.requiredMark}>*</span></label>
                                     <select
                                         className={styles.formControl}
                                         value={completionForm.category}
@@ -1605,7 +1644,7 @@ export default function SchedulePage() {
                                     />
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Amount Charged</label>
+                                    <label className={styles.formLabel}>Amount Charged <span className={styles.requiredMark}>*</span></label>
                                     <input
                                         type="number"
                                         min="0"
@@ -1620,7 +1659,7 @@ export default function SchedulePage() {
                                     />
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Amount Paid</label>
+                                    <label className={styles.formLabel}>Amount Paid <span className={styles.requiredMark}>*</span></label>
                                     <input
                                         type="number"
                                         min="0"
@@ -1653,7 +1692,7 @@ export default function SchedulePage() {
                                     />
                                 </div>
                                 <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                    <label className={styles.formLabel}>Dentist Notes</label>
+                                    <label className={styles.formLabel}>Dentist Notes <span className={styles.requiredMark}>*</span></label>
                                     <textarea
                                         className={styles.textareaControl}
                                         value={completionForm.notes}

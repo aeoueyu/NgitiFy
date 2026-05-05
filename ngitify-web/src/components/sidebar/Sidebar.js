@@ -65,7 +65,7 @@ export default function Sidebar() {
     }, [user]);
 
     useEffect(() => {
-        if (!isAdmin && !isBranchManager && !isOwner && !isSecretary) return;
+        if (!isAdmin && !isBranchManager && !isOwner && !isSecretary && !isDentistUser) return;
 
         const fetchNotifCount = async () => {
             try {
@@ -80,7 +80,7 @@ export default function Sidebar() {
         fetchNotifCount();
         const interval = setInterval(fetchNotifCount, 60000);
         return () => clearInterval(interval);
-    }, [isAdmin, isBranchManager, isOwner, isSecretary]);
+    }, [isAdmin, isBranchManager, isOwner, isSecretary, isDentistUser]);
 
     const getBasePath = () => {
         if (user?.role === 'dentist') return '/dentist';
@@ -312,7 +312,7 @@ export default function Sidebar() {
                             {sectionLabel('Clinic')}
                             {navItem(isOwner ? '/owner/material-usage' : '/dentist/material-usage', FaBoxes, 'Material Usage')}
                             {sectionLabel('System')}
-                            {navItem(isOwner ? '/owner/notifications' : '/dentist/notifications', FaBell, 'Notifications')}
+                            {navItem(isOwner ? '/owner/notifications' : '/dentist/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem(isOwner ? '/owner/activity-logs' : '/dentist/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}

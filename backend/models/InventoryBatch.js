@@ -16,10 +16,17 @@ const inventoryBatchSchema = new mongoose.Schema({
     },
     branch: { type: String, required: true, default: '' },
     receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-    legacyInventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory', default: null, unique: true, sparse: true },
+    legacyInventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory', default: undefined },
 }, { timestamps: true });
 
 inventoryBatchSchema.index({ inventoryItem: 1, receivedDate: 1 });
 inventoryBatchSchema.index({ branch: 1, status: 1, expirationDate: 1 });
+inventoryBatchSchema.index(
+    { legacyInventoryId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { legacyInventoryId: { $exists: true, $type: 'objectId' } },
+    }
+);
 
 module.exports = mongoose.model('InventoryBatch', inventoryBatchSchema);

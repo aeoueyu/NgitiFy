@@ -48,6 +48,8 @@ const getStatusClassName = (isActive) => (
     isActive ? wideTable.statusGreen : wideTable.statusGray
 );
 
+const normalizeBranchKey = (value = '') => String(value || '').trim().toLowerCase();
+
 export default function BranchManagement() {
     const { addToast } = useToast();
     const { user } = useAuth();
@@ -96,10 +98,25 @@ export default function BranchManagement() {
         fetchManagers();
     }, [fetchBranches, fetchManagers]);
 
-    const getManagerName = useCallback((managerIds = []) => {
-        if (!managerIds.length) return 'No manager assigned';
-        const match = managers.find((manager) => managerIds.map(String).includes(String(manager._id)));
-        return match ? `${match.name?.first || ''} ${match.name?.last || ''}`.trim() : 'No manager assigned';
+    const getManagerName = useCallback((branch) => {
+        const managerIds = Array.isArray(branch?.managerIds) ? branch.managerIds : [];
+        const branchKey = normalizeBranchKey(branch?.name);
+
+        const linkedManagers = managers.filter((manager) => managerIds.map(String).includes(String(manager._id)));
+        const assignedManagers = managers.filter((manager) => {
+            const managerBranch = manager.assignedBranch || manager.assignedBranches?.[0] || '';
+            return normalizeBranchKey(managerBranch) === branchKey;
+        });
+
+        const uniqueManagers = [...linkedManagers, ...assignedManagers].filter((manager, index, array) => (
+            array.findIndex((candidate) => String(candidate._id) === String(manager._id)) === index
+        ));
+
+        if (!uniqueManagers.length) return 'No manager assigned';
+
+        return uniqueManagers
+            .map((manager) => `${manager.name?.first || ''} ${manager.name?.last || ''}`.trim() || manager.email || 'Unnamed Manager')
+            .join(', ');
     }, [managers]);
 
     const activeBranches = branches.filter((branch) => branch.isActive);
@@ -341,7 +358,7 @@ export default function BranchManagement() {
                                         </div>
                                     </td>
                                     <td>{branch.contactNumber || '-'}</td>
-                                    <td>{getManagerName(branch.managerIds)}</td>
+                                    <td>{getManagerName(branch)}</td>
                                     <td>
                                         <span className={`${wideTable.statusBadge} ${getStatusClassName(branch.isActive)}`}>
                                             {branch.isActive ? 'Active' : 'Inactive'}
