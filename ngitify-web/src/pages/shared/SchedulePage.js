@@ -953,6 +953,10 @@ export default function SchedulePage() {
     const handleSubmitForm = async (event) => {
         event.preventDefault();
         if (!validateForm()) return;
+        if (!editingEntry) {
+            await submitScheduleForm();
+            return;
+        }
         setIsConfirmingSave(true);
     };
 
@@ -1667,12 +1671,10 @@ export default function SchedulePage() {
             {renderFormModal()}
             {renderViewModal()}
             <ConfirmModal
-                isOpen={isConfirmingSave}
-                title={editingEntry ? 'Update Schedule Entry' : 'Add Schedule Entry'}
-                message={editingEntry
-                    ? 'Are you sure you want to update this schedule entry?'
-                    : 'Are you sure you want to add this schedule entry?'}
-                confirmText={isSubmitting ? 'Saving...' : (editingEntry ? 'Yes, Update Schedule' : 'Yes, Add Schedule')}
+                isOpen={!!editingEntry && isConfirmingSave}
+                title="Update Schedule Entry"
+                message="Are you sure you want to update this schedule entry?"
+                confirmText={isSubmitting ? 'Saving...' : 'Yes, Update Schedule'}
                 onConfirm={submitScheduleForm}
                 onCancel={() => !isSubmitting && setIsConfirmingSave(false)}
             />
