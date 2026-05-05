@@ -34,12 +34,20 @@ const STATUS_STYLES = {
     cancelled: { bg: '#ffebee', text: '#c62828', dot: '#ef5350' },
 };
 
+const getAppointmentDentistLabel = (appointment) => {
+    if (appointment?.dentist) {
+        return `Dr. ${appointment.dentist.name?.first || ''} ${appointment.dentist.name?.last || ''}`.trim();
+    }
+    if (appointment?.dentistName) {
+        return appointment.dentistName;
+    }
+    return 'To be assigned';
+};
+
 function AppointmentCard({ appointment }) {
     const statusKey = String(appointment.status || 'pending').toLowerCase();
     const sc = STATUS_STYLES[statusKey] || STATUS_STYLES.pending;
-    const dentistName = appointment.dentist
-        ? `Dr. ${appointment.dentist.name?.first || ''} ${appointment.dentist.name?.last || ''}`.trim()
-        : 'To be assigned';
+    const dentistName = getAppointmentDentistLabel(appointment);
 
     return (
         <View style={styles.card}>

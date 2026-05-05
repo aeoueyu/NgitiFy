@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowRight, FaUserMd, FaUserNurse } from 'react-icons/fa';
 import styles from '../../styles/admin/UserManagement.module.css';
+import tabStyles from '../../styles/admin/UserTabs.module.css';
 
 const USER_SECTIONS = [
     {
@@ -20,6 +21,11 @@ const USER_SECTIONS = [
     },
 ];
 
+const BRANCH_MANAGER_TABS = [
+    { key: 'secretaries', label: 'Secretaries', path: '/branch-manager/manage-users/secretaries' },
+    { key: 'dentists', label: 'Dentists', path: '/branch-manager/manage-users/dentists' },
+];
+
 export default function BranchManagerManageUsers() {
     const navigate = useNavigate();
 
@@ -33,6 +39,19 @@ export default function BranchManagerManageUsers() {
                     </p>
                 </div>
             </header>
+
+            <div className={tabStyles.tabContainer}>
+                {BRANCH_MANAGER_TABS.map((tab) => (
+                    <button
+                        key={tab.key}
+                        type="button"
+                        className={tabStyles.tabButton}
+                        onClick={() => navigate(tab.path)}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
 
             <section className={styles.grid}>
                 {USER_SECTIONS.map((section) => {

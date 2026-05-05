@@ -42,6 +42,16 @@ const formatExpiryDate = (value) => {
     });
 };
 
+const getAppointmentDentistLabel = (appointment) => {
+    if (appointment?.dentist) {
+        return `Dr. ${appointment.dentist.name?.first || ''} ${appointment.dentist.name?.last || ''}`.trim();
+    }
+    if (appointment?.dentistName) {
+        return appointment.dentistName;
+    }
+    return 'To be assigned';
+};
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function QuickActionCard({ iconComponent, label, color, onPress }) {
@@ -305,9 +315,7 @@ export default function PatientDashboard({ navigation }) {
             'in-clinic': { bg: '#e8f5e9', text: '#2e7d32', dot: '#4caf50' },
         };
         const sc = statusColors[upcomingAppt.status] || statusColors.pending;
-        const dentistName = upcomingAppt.dentist
-            ? `Dr. ${upcomingAppt.dentist.name?.first || ''} ${upcomingAppt.dentist.name?.last || ''}`.trim()
-            : 'To be assigned';
+        const dentistName = getAppointmentDentistLabel(upcomingAppt);
 
         return (
             <TouchableOpacity
@@ -362,9 +370,7 @@ export default function PatientDashboard({ navigation }) {
             <View style={styles.historyList}>
                 {pastAppointments.slice(0, 4).map((appointment) => {
                     const sc = statusColors[appointment.status] || statusColors.completed;
-                    const dentistName = appointment.dentist
-                        ? `Dr. ${appointment.dentist.name?.first || ''} ${appointment.dentist.name?.last || ''}`.trim()
-                        : 'To be assigned';
+                    const dentistName = getAppointmentDentistLabel(appointment);
                     return (
                         <TouchableOpacity
                             key={appointment._id}

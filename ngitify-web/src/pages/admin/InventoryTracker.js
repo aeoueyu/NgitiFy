@@ -305,17 +305,18 @@ export default function InventoryTracker() {
                 <table className={`${styles.userTable} ${styles.inventoryTable}`}>
                     <thead>
                         <tr>
-                            <th style={{ width: '26%' }}>Item</th>
+                            <th style={{ width: '22%' }}>Item</th>
+                            <th style={{ width: '12%' }}>Branch</th>
                             <th style={{ width: '14%' }}>Brand</th>
-                            <th style={{ width: '18%' }}>Category</th>
-                            <th style={{ width: '14%' }}>Qty</th>
-                            <th style={{ width: '16%' }}>Expiry</th>
-                            <th style={{ width: '12%', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '16%' }}>Category</th>
+                            <th style={{ width: '12%' }}>Qty</th>
+                            <th style={{ width: '14%' }}>Expiry</th>
+                            <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#01538b'}}>Loading inventory records...</td></tr>
+                            <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#01538b'}}>Loading inventory records...</td></tr>
                         ) : filteredInventory.length > 0 ? (
                             filteredInventory.map((item) => {
                                 return (
@@ -324,11 +325,6 @@ export default function InventoryTracker() {
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                                 <span className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>{item.name}</span>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                    {item.branch ? (
-                                                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700 }}>
-                                                            {item.branch}
-                                                        </span>
-                                                    ) : null}
                                                     {getStatusBadge(item)}
                                                     {item.batchNumber && (
                                                         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
@@ -337,6 +333,9 @@ export default function InventoryTracker() {
                                                     )}
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td style={{ color: '#334155', fontWeight: 600 }}>
+                                            {item.branch || 'Unassigned'}
                                         </td>
                                         <td style={{ color: '#334155', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.brand}</td>
                                         <td>
@@ -366,7 +365,7 @@ export default function InventoryTracker() {
                                 );
                             })
                         ) : (
-                            <tr><td colSpan="6" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>No items found in inventory.</td></tr>
+                            <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>No items found in inventory.</td></tr>
                         )}
                     </tbody>
                 </table>

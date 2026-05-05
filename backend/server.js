@@ -799,6 +799,38 @@ const getPatientDisplayName = (appointment) => {
     return appointment?.guestName || 'Patient';
 };
 
+const normalizePersonNameValue = (value = '') => (
+    String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+);
+
+const doesPatientIdentityMatchWebsiteRequest = (patientUser, {
+    firstName = '',
+    lastName = '',
+    birthdate = '',
+}) => {
+    if (!patientUser) return false;
+
+    const patientFirst = normalizePersonNameValue(patientUser?.name?.first);
+    const patientLast = normalizePersonNameValue(patientUser?.name?.last);
+    const requestFirst = normalizePersonNameValue(firstName);
+    const requestLast = normalizePersonNameValue(lastName);
+
+    if (!patientFirst || !patientLast || patientFirst !== requestFirst || patientLast !== requestLast) {
+        return false;
+    }
+
+    const patientBirthdate = patientUser?.birthdate ? new Date(patientUser.birthdate) : null;
+    const requestBirthdate = birthdate ? new Date(`${birthdate}T12:00:00`) : null;
+    if (!patientBirthdate || !requestBirthdate || Number.isNaN(patientBirthdate.getTime()) || Number.isNaN(requestBirthdate.getTime())) {
+        return false;
+    }
+
+    return isSameCalendarDay(patientBirthdate, requestBirthdate);
+};
+
 const buildPatientAppointmentStatusNotification = ({ appointment, status, dentistName = '' }) => {
     const normalizedStatus = String(status || appointment?.status || '').trim().toLowerCase();
     const procedure = appointment?.performedProcedure || appointment?.procedure || 'appointment';
@@ -849,6 +881,37 @@ const notifyPatientAppointmentStatusChange = async ({ appointment, status, denti
         recipientId: appointment.patient._id,
         recipientRole: 'patient',
         relatedId: appointment._id,
+    });
+};
+
+const notifyPatientQueueStatusChange = async ({ queueEntry, status, title = '' }) => {
+    if (!queueEntry?.patientId) return;
+
+    const normalizedStatus = String(status || queueEntry.status || '').trim().toLowerCase();
+    const procedure = queueEntry.procedureType || 'walk-in appointment';
+    const branch = queueEntry.branch || 'the clinic';
+
+    let notificationTitle = title || 'Walk-in Appointment Updated';
+    let message = `Your walk-in appointment for ${procedure} is now marked ${normalizedStatus || 'pending'}.`;
+
+    if (normalizedStatus === 'in-clinic') {
+        notificationTitle = title || 'Walk-in Appointment In Clinic';
+        message = `Your walk-in appointment for ${procedure} has been checked in at ${branch}.`;
+    } else if (normalizedStatus === 'completed') {
+        notificationTitle = title || 'Walk-in Appointment Completed';
+        message = `Your walk-in appointment for ${procedure} has been marked completed.`;
+    } else if (normalizedStatus === 'cancelled') {
+        notificationTitle = title || 'Walk-in Appointment Cancelled';
+        message = `Your walk-in appointment for ${procedure} has been cancelled.`;
+    }
+
+    await Notification.create({
+        type: normalizedStatus === 'cancelled' ? 'APPOINTMENT_CANCELLED' : 'APPOINTMENT_STATUS_UPDATED',
+        title: notificationTitle,
+        message,
+        recipientId: queueEntry.patientId,
+        recipientRole: 'patient',
+        relatedId: queueEntry.linkedAppointment || queueEntry._id,
     });
 };
 
@@ -3807,8 +3870,13 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
     try {
         const { patientId, status, date, dateFrom, dateTo } = req.query;
         const query = { isArchived: { $ne: true } };
+        const isPatientRequest = req.user.role === 'patient';
+        const requestedPatientId = patientId ? String(patientId) : '';
+        const isPatientSelfRequest = isPatientRequest && (!requestedPatientId || requestedPatientId === String(req.user.id));
 
-        if (req.user.role === 'dentist') {
+        if (isPatientRequest) {
+            query.patient = req.user.id;
+        } else if (req.user.role === 'dentist') {
             // Dentists are always scoped to their own appointments only
             query.dentist = req.user.id;
         } else if (isBranchScopedStaff(req.user.role)) {
@@ -3823,7 +3891,7 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
             if (req.query.dentistId) query.dentist = req.query.dentistId;
         }
 
-        if (patientId) query.patient = patientId;
+        if (!isPatientRequest && patientId) query.patient = patientId;
         if (status) query.status = status;
 
         if (dateFrom || dateTo) {
@@ -3848,7 +3916,52 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
             .populate('dentist', 'name email role')
             .sort({ date: -1 });
 
-        res.json(surgeries);
+        if (!isPatientSelfRequest) {
+            return res.json(surgeries);
+        }
+
+        const queueDateFilter = {};
+        if (dateFrom || dateTo) {
+            const start = new Date(dateFrom || dateTo);
+            const end = new Date(dateTo || dateFrom);
+            if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                queueDateFilter.createdAt = { $gte: start, $lte: end };
+            }
+        } else if (date) {
+            const start = new Date(date);
+            const end = new Date(date);
+            if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                queueDateFilter.createdAt = { $gte: start, $lte: end };
+            }
+        }
+
+        const queueEntries = await Queue.find({
+            patientId: req.user.id,
+            linkedAppointment: null,
+            ...(status ? { status } : {}),
+            ...queueDateFilter,
+        }).sort({ createdAt: -1 });
+
+        const queueAsAppointments = queueEntries.map((entry) => ({
+            _id: entry._id,
+            patient: req.user.id,
+            dentist: null,
+            dentistName: entry.assignedDentist || '',
+            date: entry.completedAt || entry.calledAt || entry.createdAt,
+            time: '',
+            branch: entry.branch || '',
+            procedure: entry.procedureType || 'Walk-in Appointment',
+            notes: '',
+            status: entry.status || 'pending',
+            source: 'Walk-in',
+            isQueueEntry: true,
+        }));
+
+        return res.json([...surgeries, ...queueAsAppointments]);
     } catch (error) {
         console.error('Error fetching surgeries:', error);
         res.status(500).json({ message: 'Server error fetching surgeries.' });
@@ -4537,6 +4650,11 @@ app.post('/api/public/appointments/request', async (req, res) => {
         const normalizedProcedure = String(procedure).trim();
         const normalizedNotes = String(notes).trim();
         const normalizedGender = String(gender).trim();
+        const matchedPatient = await User.findOne({
+            email: normalizedEmail,
+            role: 'patient',
+            isArchived: { $ne: true },
+        }).select('name birthdate email');
 
         if ((normalizedFirstName || normalizedLastName || normalizedMiddleName) && (!normalizedFirstName || !normalizedLastName)) {
             return res.status(400).json({ message: 'First name and last name are required.' });
@@ -4620,6 +4738,16 @@ app.post('/api/public/appointments/request', async (req, res) => {
             return res.status(400).json({ message: 'Birthdate must be in the past.' });
         }
 
+        if (matchedPatient && !doesPatientIdentityMatchWebsiteRequest(matchedPatient, {
+            firstName: normalizedFirstName,
+            lastName: normalizedLastName,
+            birthdate,
+        })) {
+            return res.status(409).json({
+                message: 'This email already belongs to a registered patient, but the submitted personal details do not match. Please log in with the patient account or contact the clinic.',
+            });
+        }
+
         const allowedSlots = await getClinicAllowedSlots();
         if (!allowedSlots.includes(time)) {
             return res.status(400).json({ message: 'Please select a valid appointment time.' });
@@ -4637,11 +4765,12 @@ app.post('/api/public/appointments/request', async (req, res) => {
         }
 
         const newSurgery = new Surgery({
-            guestName: normalizedName,
-            guestPhone: normalizePhoneNumber(normalizedPhone),
-            guestEmail: normalizedEmail,
-            guestBirthdate,
-            guestGender: normalizedGender,
+            patient: matchedPatient?._id || undefined,
+            guestName: matchedPatient ? undefined : normalizedName,
+            guestPhone: matchedPatient ? undefined : normalizePhoneNumber(normalizedPhone),
+            guestEmail: matchedPatient ? undefined : normalizedEmail,
+            guestBirthdate: matchedPatient ? undefined : guestBirthdate,
+            guestGender: matchedPatient ? undefined : normalizedGender,
             guestProfile: {
                 nationality: 'Filipino',
                 reasonForConsultation: normalizedNotes,
@@ -4687,6 +4816,19 @@ app.post('/api/public/appointments/request', async (req, res) => {
             time,
             procedure: normalizedProcedure,
         });
+
+        if (matchedPatient?._id) {
+            await notifyPatientAppointmentStatusChange({
+                appointment: {
+                    ...newSurgery.toObject(),
+                    patient: {
+                        _id: matchedPatient._id,
+                        name: matchedPatient.name,
+                    },
+                },
+                status: newSurgery.status,
+            });
+        }
 
         res.status(201).json({
             message: 'Appointment request submitted successfully. The clinic will email you once it is confirmed.',
@@ -6438,6 +6580,14 @@ app.post('/api/queue', verifyToken, async (req, res) => {
             contactNumber: contactNumber || '',
             patientId: patientId || null
         });
+
+        if (entry.patientId) {
+            await notifyPatientQueueStatusChange({
+                queueEntry: entry,
+                status: entry.status,
+                title: 'Walk-in Appointment Created',
+            });
+        }
  
         await AuditLog.create({
             action: 'QUEUE_CREATE',
@@ -6662,6 +6812,13 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             });
         }
 
+        if (entry.patientId) {
+            await notifyPatientQueueStatusChange({
+                queueEntry: entry,
+                status: entry.status,
+            });
+        }
+
         res.json(entry);
     } catch (error) {
         console.error('Error updating queue entry:', error);
@@ -6751,6 +6908,13 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
                 balance: normalizedBalance,
                 nextAppointment: normalizedNextAppointment,
                 sourceKey: `[AUTO-QUEUE:${entry._id}]`,
+            });
+        }
+
+        if (entry.patientId) {
+            await notifyPatientQueueStatusChange({
+                queueEntry: entry,
+                status: entry.status,
             });
         }
  
