@@ -268,7 +268,8 @@ export default function SchedulePage() {
     const isDentist = role === 'dentist';
 
     const canManageQueue = isAdmin || isBranchManager || isSecretary;
-    const canCreateSchedule = isAdmin || isOwner || isBranchManager || isSecretary || isDentist;
+    const canCreateSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
+    const canEditSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
     const canChooseBranch = isAdmin || isOwner;
     const canChooseDentist = !isDentist;
 
@@ -282,7 +283,7 @@ export default function SchedulePage() {
     const [customDateFrom, setCustomDateFrom] = useState(getTodayString());
     const [customDateTo, setCustomDateTo] = useState(getTodayString());
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState(APPOINTMENT_STATUS_OPTIONS.map((option) => option.value));
     const [typeFilter, setTypeFilter] = useState('all');
 
     const [formState, setFormState] = useState(buildInitialForm({ assignedBranch, currentUserId, role }));
@@ -328,6 +329,17 @@ export default function SchedulePage() {
         setSlotError('');
         setEditingEntry(null);
     }, [assignedBranch, currentUserId, role]);
+
+    const toggleStatusFilter = useCallback((value) => {
+        setStatusFilter((prev) => {
+            if (value === 'all') {
+                return APPOINTMENT_STATUS_OPTIONS.map((option) => option.value);
+            }
+            return prev.includes(value)
+                ? prev.filter((entry) => entry !== value)
+                : [...prev, value];
+        });
+    }, []);
 
     const fetchPageData = useCallback(async ({ silent = false, suppressErrorToast = false } = {}) => {
         if (!silent) {
@@ -562,7 +574,7 @@ export default function SchedulePage() {
         return rows
             .filter((entry) => {
                 const matchesType = typeFilter === 'all' || entry.type === typeFilter;
-                const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
+                const matchesStatus = statusFilter.length === 0 || statusFilter.includes(entry.status);
                 if (!normalizedQuery) return matchesType && matchesStatus;
 
                 const haystack = [
@@ -1230,14 +1242,25 @@ export default function SchedulePage() {
                             </select>
                         </label>
 
-                        <label className={styles.filterSelectWrap}>
-                            <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                                <option value="all">All Statuses</option>
-                                {APPOINTMENT_STATUS_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-                        </label>
+                        <div className={styles.pillGroup}>
+                            <button
+                                type="button"
+                                className={`${styles.filterPill} ${statusFilter.length === APPOINTMENT_STATUS_OPTIONS.length ? styles.activePill : ''}`}
+                                onClick={() => toggleStatusFilter('all')}
+                            >
+                                All Statuses
+                            </button>
+                            {APPOINTMENT_STATUS_OPTIONS.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={`${styles.filterPill} ${statusFilter.includes(option.value) ? styles.activePill : ''}`}
+                                    onClick={() => toggleStatusFilter(option.value)}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -1273,11 +1296,11 @@ export default function SchedulePage() {
                             <tr>
                                 <th style={{ width: '42px', textAlign: 'center' }}>#</th>
                                 <th>NAME</th>
-                                <th style={{ width: '170px' }}>DATE</th>
-                                <th style={{ width: '150px' }}>SOURCE</th>
+                                <th style={{ width: '140px' }}>DATE</th>
+                                <th style={{ width: '118px' }}>SOURCE</th>
                                 <th>DENTIST</th>
-                                <th style={{ width: '150px' }}>STATUS</th>
-                                <th style={{ width: '120px', textAlign: 'center' }}>ACTIONS</th>
+                                <th style={{ width: '118px' }}>STATUS</th>
+                                <th style={{ width: '96px', textAlign: 'center' }}>ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1325,7 +1348,7 @@ export default function SchedulePage() {
                                                 >
                                                     <FaEye />
                                                 </button>
-                                                {canCreateSchedule && (
+                                                {canEditSchedule && (
                                                     <button
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.editIconButton}`}

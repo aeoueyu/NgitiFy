@@ -831,6 +831,64 @@
     margin-top: 15px;
 }
 
+.logsTableWrapper {
+    overflow-x: auto;
+}
+
+.logsTable {
+    width: 100%;
+    min-width: 1080px;
+    border-collapse: collapse;
+}
+
+.logsTable th,
+.logsTable td {
+    padding: 14px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.logsTable th {
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.singleLineCell {
+    max-width: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    color: #334155;
+    font-weight: 600;
+}
+
+.detailsCell {
+    text-align: center;
+}
+
+.expandedRow td {
+    white-space: normal;
+    padding: 0;
+    background: #f8fbfd;
+}
+
+.expandedDetails {
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.expandedMetaGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
 /* --- INLINE AI IMAGE VIEWER --- */
 .imageViewerContainer {
     display: flex;

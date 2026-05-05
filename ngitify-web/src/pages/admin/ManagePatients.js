@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/ManagePatients.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaEnvelope } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
@@ -38,6 +38,7 @@ export default function ManagePatients() {
     const [confirmConfig, setConfirmConfig] = useState(null);
 
     const isSecretary = user?.role === 'secretary';
+    const isDentist = user?.role === 'dentist';
 
     useEffect(() => {
         if (location.state?.openAddModal && canEditPatients) {
@@ -102,6 +103,30 @@ export default function ManagePatients() {
             fetchBranches();
         }
     }, [fetchPatients, fetchBranches, canReadPatients]);
+
+    useEffect(() => {
+        if (!canReadPatients) return undefined;
+
+        const refreshData = () => {
+            fetchPatients();
+            fetchBranches();
+        };
+
+        const intervalId = window.setInterval(refreshData, 30000);
+        const handleFocus = () => refreshData();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') refreshData();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [canReadPatients, fetchBranches, fetchPatients]);
 
     const filteredPatients = patientsList.filter((patient) => {
         const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -168,6 +193,10 @@ export default function ManagePatients() {
     };
 
     const handleEditClick = (id) => {
+        if (isDentist) {
+            navigate(`/dentist/patients/${id}/emr`);
+            return;
+        }
         setIsViewModalOpen(false);
         setSelectedPatientId(id);
         setIsEditModalOpen(true);
@@ -197,9 +226,9 @@ export default function ManagePatients() {
             <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className={styles.title}>Manage Patients</h1>
-                    <p className={styles.subtitle}>View, filter, and manage clinic patient records.</p>
+                    <p className={styles.subtitle}>{isDentist ? 'View your assigned patients and open their EMR records.' : 'View, filter, and manage clinic patient records.'}</p>
                 </div>
-                {canEditPatients && (
+                {canEditPatients && !isDentist && (
                     <button
                         className={styles.addBtn}
                         onClick={() => setIsAddModalOpen(true)}
@@ -228,7 +257,7 @@ export default function ManagePatients() {
                         <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
                     </div>
 
-                    {!isSecretary && (
+                    {!isSecretary && !isDentist && (
                         <select
                             className={styles.filterSelect}
                             value={branchFilter}
@@ -271,7 +300,15 @@ export default function ManagePatients() {
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{patient.email}</span>
-                                            {!patient.isVerified && <span style={{ color: '#01538b', fontSize: '12px', fontWeight: 600 }}>Resend Activation Link to email</span>}
+                                            {!patient.isVerified && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleResendActivation(patient)}
+                                                    style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+                                                >
+                                                    Resend Activation Link to email
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                     <td>
@@ -282,27 +319,19 @@ export default function ManagePatients() {
                                     <td style={{ textAlign: 'center' }}>
                                         <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
                                             <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(patient.id)} title="View Full EMR Profile"><FaEye /></button>
-                                            {canEditPatients && (
+                                            {(canEditPatients || isDentist) && (
                                                 <>
-                                                    <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`} onClick={() => handleEditClick(patient.id)} title="Edit Quick Details"><FaEdit /></button>
-                                                    {!patient.isVerified && (
+                                                    <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`} onClick={() => handleEditClick(patient.id)} title={isDentist ? 'Open Patient EMR' : 'Edit Quick Details'}><FaEdit /></button>
+                                                    {!isDentist && (
                                                         <button
                                                             type="button"
-                                                            className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.warningIconButton}`}
-                                                            onClick={() => handleResendActivation(patient)}
-                                                            title="Resend Activation Email"
+                                                            className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                            onClick={() => handleToggleStatus({ ...patient, status: computedStatus })}
+                                                            title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
                                                         >
-                                                            <FaEnvelope />
+                                                            {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
                                                         </button>
                                                     )}
-                                                    <button
-                                                        type="button"
-                                                        className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
-                                                        onClick={() => handleToggleStatus({ ...patient, status: computedStatus })}
-                                                        title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                                    >
-                                                        {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
-                                                    </button>
                                                 </>
                                             )}
                                         </div>

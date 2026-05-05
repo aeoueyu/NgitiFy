@@ -116,7 +116,7 @@ const appointmentSchema = new mongoose.Schema({
 
     source: {
         type: String,
-        enum: ['Smile Hub (Online)', 'Walk-in', 'Phone Call'],
+        enum: ['Smile Hub (Online)', 'Walk-in', 'Phone Call', 'Appointment'],
         default: 'Walk-in',
     },
 

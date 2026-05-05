@@ -129,11 +129,12 @@ function App() {
                   <Route path="/dentist/dashboard"               element={<DentistDashboard />} />
                   <Route path="/dentist/appointments"            element={<Navigate to="/dentist/schedule" replace />} />
                   <Route path="/dentist/schedule"                element={<SchedulePage />} />
-                  <Route path="/dentist/emr"                     element={<Navigate to="/dentist/patient-emr" replace />} />
-                  <Route path="/dentist/patient-emr"             element={<PatientEMRPage />} />
+                  <Route path="/dentist/emr"                     element={<Navigate to="/dentist/patients" replace />} />
+                  <Route path="/dentist/patient-emr"             element={<Navigate to="/dentist/patients" replace />} />
+                  <Route path="/dentist/patients"                element={<ManagePatients />} />
                   <Route path="/dentist/patients/:patientId/emr" element={<DentistPatientEMR />} />
                   <Route path="/dentist/material-usage"          element={<DentistMaterialUsage />} />
-                  <Route path="/dentist/odontogram"              element={<Navigate to="/dentist/patient-emr" replace />} />
+                  <Route path="/dentist/odontogram"              element={<Navigate to="/dentist/patients" replace />} />
                   <Route path="/dentist/notifications"           element={<DentistNotifications />} />
                   <Route path="/dentist/activity-logs"           element={<DentistActivityLogs />} />
                   <Route path="/dentist/ai-assistant"            element={<DentistAIAssistant />} />

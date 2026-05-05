@@ -17,6 +17,7 @@ import { authFetch } from '../../utils/api';
 import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
 import { normalizeBranchLabel } from '../../utils/addressHelpers';
 import styles from '../../styles/secretary/SecretaryDashboard.module.css';
+import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -291,6 +292,7 @@ export default function BranchManagerDashboard() {
                     </button>
                 </div>
             </header>
+            <PasswordChangeWarning />
 
             {priorityAlertsCount > 0 && showAlertBanner && (
                 <div className={styles['alert-banner']}>

@@ -46,6 +46,19 @@ export const PHYSICIAN_SPECIALTY_OPTIONS = [
     'Other',
 ];
 
+export const RELATIONSHIP_OPTIONS = [
+    'Parent',
+    'Guardian',
+    'Spouse',
+    'Sibling',
+    'Child',
+    'Relative',
+    'Friend',
+    'Partner',
+    'Coworker',
+    'Other',
+];
+
 export const ALLERGY_OPTIONS = [
     'Local Anesthetic (ex. Lidocaine)',
     'Penicillin',

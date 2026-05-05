@@ -15,6 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { formatWeekdayDate, formatTime, formatDateShort } from '../../utils/dateUtils';
 import UserAvatar from '../../components/common/UserAvatar'; 
+import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
 
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
 import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
@@ -344,6 +345,7 @@ export default function AdminDashboard() {
                         </button>
                     </div>
                 </header>
+                <PasswordChangeWarning />
 
                 {lowStockAlerts > 0 && showAlertBanner && (
                     <div className={styles['alert-banner']}>

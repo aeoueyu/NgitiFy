@@ -613,7 +613,7 @@ export default function WebsiteAppointment() {
                                         required
                                     />
                                     <span className={styles.consentText}>
-                                        I have read and agree to the Privacy Policy of NgitiFy Dental Clinic. By submitting this form,
+                                        I have read and agree to the Privacy Policy of Dentime Dental Clinic. By submitting this form,
                                         I consent to the collection, use, and processing of my personal data for appointment scheduling,
                                         patient care coordination, and related clinic communications, in accordance with Republic Act No. 10173,
                                         or the Data Privacy Act of 2012.
@@ -686,7 +686,7 @@ export default function WebsiteAppointment() {
                         <div className={styles.privacyModalHeader}>
                             <div>
                                 <p className={styles.eyebrow}>Privacy Policy</p>
-                                <h3 id="privacy-policy-title" className={styles.privacyModalTitle}>NgitiFy Dental Clinic Privacy Policy</h3>
+                                <h3 id="privacy-policy-title" className={styles.privacyModalTitle}>Dentime Dental Clinic Privacy Policy</h3>
                                 <p className={styles.bodyText}>Version {privacyPolicyVersion} • Last updated {privacyPolicyUpdatedAt}</p>
                             </div>
                             <button type="button" className={styles.inlineLinkBtn} onClick={() => setIsPrivacyModalOpen(false)}>

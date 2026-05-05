@@ -16,6 +16,7 @@ import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
 import PatientEMR from './PatientEMR';
+import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -180,11 +181,11 @@ export default function DentistDashboard() {
 
     const moduleCards = [
         {
-            title: 'Patient EMR',
-            description: 'Open and update treatment notes, radiographs, and patient history.',
+            title: 'Manage Patients',
+            description: 'Open your assigned patients and update their EMR records from one place.',
             value: `${patients.length} assigned patients`,
-            action: () => navigate('/dentist/emr'),
-            actionLabel: 'Open EMR',
+            action: () => navigate('/dentist/patients'),
+            actionLabel: 'Open Patients',
             icon: <FaFileMedical className={styles.widgetIcon} />,
         },
         {
@@ -271,6 +272,7 @@ export default function DentistDashboard() {
                         </p>
                     </div>
                 </header>
+                <PasswordChangeWarning />
 
                 <div className={styles['stats-grid']}>
                     <div className={styles['stat-card']}>

@@ -17,6 +17,7 @@ const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
 
 const loginLimiter = rateLimit({
@@ -443,7 +444,43 @@ const DEFAULT_CLINIC_PROCEDURES = [
     'Dentures/Crowns',
     'Retainers',
 ];
-const AUTO_CANCELLATION_REASON = 'Auto-cancelled: appointment time passed without check-in.';
+const AUTO_CANCELLATION_REASON = 'Auto-cancelled: patient did not check in within 15 minutes of the appointment time.';
+const APPOINTMENT_CHECKIN_GRACE_MINUTES = 15;
+
+const getAppointmentGraceDeadline = (appointment) => {
+    if (!appointment?.date || !appointment?.time) return null;
+
+    const baseDate = new Date(appointment.date);
+    if (Number.isNaN(baseDate.getTime())) return null;
+
+    const normalizedTime = String(appointment.time).trim();
+    const timeMatch = normalizedTime.match(/^(\d{1,2}):(\d{2})(?:\s*([APap][Mm]))?$/);
+    if (!timeMatch) return null;
+
+    let hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const meridiem = timeMatch[3] ? timeMatch[3].toUpperCase() : '';
+
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+
+    if (meridiem) {
+        if (hours === 12) hours = 0;
+        if (meridiem === 'PM') hours += 12;
+    }
+
+    const scheduledDateTime = new Date(baseDate);
+    scheduledDateTime.setHours(hours, minutes, 0, 0);
+    if (Number.isNaN(scheduledDateTime.getTime())) return null;
+
+    return new Date(scheduledDateTime.getTime() + (APPOINTMENT_CHECKIN_GRACE_MINUTES * 60 * 1000));
+};
+
+const normalizeCurrencyAmount = (value) => {
+    if (value === '' || value === null || value === undefined) return 0;
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue < 0) return null;
+    return Number(numericValue.toFixed(2));
+};
 
 const GUEST_FULL_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
 const GUEST_PERSON_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{0,49}$/;
@@ -554,6 +591,14 @@ const patientBelongsToBranch = (patient, branch) => {
 
 const dentistCanAccessPatient = async (dentistId, patientId) => {
     if (!dentistId || !patientId) return false;
+
+    const directlyAssignedPatient = await User.exists({
+        _id: patientId,
+        role: 'patient',
+        assignedDentistId: dentistId,
+    });
+
+    if (directlyAssignedPatient) return true;
 
     const assignedAppointment = await Surgery.exists({
         dentist: dentistId,
@@ -771,6 +816,10 @@ const appendAutomaticTreatmentLogIfMissing = async ({
     dentistName = '',
     date = new Date(),
     notes = '',
+    amountCharged = 0,
+    amountPaid = 0,
+    balance = 0,
+    nextAppointment = null,
     sourceKey = '',
 }) => {
     if (!patientId || !procedure || !branch) return;
@@ -801,7 +850,16 @@ const appendAutomaticTreatmentLogIfMissing = async ({
         dentistId: dentistId || undefined,
         dentistName: dentistName || undefined,
         branch,
+        amountCharged: normalizeCurrencyAmount(amountCharged) ?? 0,
+        amountPaid: normalizeCurrencyAmount(amountPaid) ?? 0,
+        balance: normalizeCurrencyAmount(balance) ?? 0,
+        nextAppointment: nextAppointment ? new Date(nextAppointment) : null,
     });
+
+    if (dentistId || dentistName) {
+        patient.assignedDentistId = dentistId || patient.assignedDentistId || null;
+        patient.assignedDentistName = dentistName || patient.assignedDentistName || '';
+    }
 
     await patient.save();
 };
@@ -1779,7 +1837,10 @@ app.get('/api/patients', verifyToken, async (req, res) => {
                 dentist: req.user.id,
                 patient: { $ne: null },
             });
-            baseFilter._id = { $in: assignedPatientIds };
+            baseFilter.$or = [
+                { assignedDentistId: req.user.id },
+                { _id: { $in: assignedPatientIds } },
+            ];
         }
 
         const patients = await User.find(baseFilter)
@@ -2008,6 +2069,11 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
 
 app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
     try {
+        const allowedRoles = ['administrator', 'owner', 'branch-manager', 'secretary'];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
         const { id } = req.params;
         const { status } = req.body;
 
@@ -3761,26 +3827,27 @@ const autoCancelOverdueAppointments = async () => {
     }).populate('patient', 'name email');
 
     for (const appointment of candidates) {
-        const appointmentDateTime = buildAppointmentDateTime(appointment.date, appointment.time);
-        if (!appointmentDateTime || appointmentDateTime >= now) continue;
+        const graceDeadline = getAppointmentGraceDeadline(appointment);
+        if (!graceDeadline || graceDeadline >= now) continue;
 
         appointment.status = 'cancelled';
         appointment.autoCancelledAt = new Date();
         appointment.cancellationReason = AUTO_CANCELLATION_REASON;
         appointment.remarks = appointment.remarks || AUTO_CANCELLATION_REASON;
         await appointment.save();
+        await syncQueueEntryForAppointment(appointment);
 
         await AuditLog.create({
             action: 'APPOINTMENT_AUTO_CANCELLED',
             user: 'SYSTEM',
             role: 'SYSTEM',
-            details: `Appointment ${appointment._id} auto-cancelled after its scheduled time passed.`,
+            details: `Appointment ${appointment._id} auto-cancelled after the ${APPOINTMENT_CHECKIN_GRACE_MINUTES}-minute check-in grace period passed.`,
         });
 
         await createBranchScopedNotifications({
             type: 'APPOINTMENT_CANCELLED',
             title: 'Appointment Auto-cancelled',
-            message: `${getPatientDisplayName(appointment)}'s appointment was auto-cancelled after the schedule passed.`,
+            message: `${getPatientDisplayName(appointment)}'s appointment was auto-cancelled after no check-in was recorded within ${APPOINTMENT_CHECKIN_GRACE_MINUTES} minutes.`,
             branch: appointment.branch,
             relatedId: appointment._id,
         });
@@ -4406,7 +4473,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             }
         }
 
-        const { date, procedure, tooth, category, notes, branch } = req.body;
+        const { date, procedure, tooth, category, notes, branch, amountCharged, amountPaid, nextAppointment } = req.body;
 
         if (!date || !procedure) {
             return res.status(400).json({ message: 'Date and procedure are required.' });
@@ -4415,6 +4482,19 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
         if (!branch) {
             return res.status(400).json({ message: 'Branch is required.' });
         }
+
+        const normalizedAmountCharged = normalizeCurrencyAmount(amountCharged);
+        const normalizedAmountPaid = normalizeCurrencyAmount(amountPaid);
+        if (normalizedAmountCharged === null || normalizedAmountPaid === null) {
+            return res.status(400).json({ message: 'Amount charged and amount paid must be valid positive numbers.' });
+        }
+
+        const normalizedNextAppointment = nextAppointment ? new Date(nextAppointment) : null;
+        if (normalizedNextAppointment && Number.isNaN(normalizedNextAppointment.getTime())) {
+            return res.status(400).json({ message: 'Next appointment must be a valid date.' });
+        }
+
+        const normalizedBalance = Number(Math.max(normalizedAmountCharged - normalizedAmountPaid, 0).toFixed(2));
 
         const dentist = await User.findById(req.user.id).select('name');
         const dentistName = dentist
@@ -4429,10 +4509,16 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             notes: notes || '',
             dentistId: req.user.id,
             dentistName,
-            branch: branch
+            branch: branch,
+            amountCharged: normalizedAmountCharged,
+            amountPaid: normalizedAmountPaid,
+            balance: normalizedBalance,
+            nextAppointment: normalizedNextAppointment,
         };
 
         patient.treatmentLogs.push(newLog);
+        patient.assignedDentistId = req.user.id;
+        patient.assignedDentistName = dentistName;
         await patient.save();
 
         await AuditLog.create({
@@ -5607,7 +5693,7 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
 const aiChatLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 20,
-    keyGenerator: (req) => req.user?.id || req.ip,
+    keyGenerator: (req) => req.user?.id || ipKeyGenerator(req),
     message: { message: 'Too many AI requests. Please wait before trying again.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -6506,7 +6592,7 @@ setInterval(() => {
     autoCancelOverdueAppointments().catch((error) => {
         console.error('Auto-cancellation worker error:', error);
     });
-}, 60 * 60 * 1000);
+}, 60 * 1000);
 
 autoCancelOverdueAppointments().catch((error) => {
     console.error('Initial auto-cancellation worker error:', error);

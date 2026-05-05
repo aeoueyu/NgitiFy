@@ -20,6 +20,7 @@ import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -295,6 +296,7 @@ export default function SecretaryDashboard() {
                         </button>
                     </div>
                 </header>
+                <PasswordChangeWarning />
 
                 {priorityAlertsCount > 0 && showAlertBanner && (
                     <div className={styles['alert-banner']}>

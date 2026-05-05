@@ -33,6 +33,7 @@ export default function DashboardLayout() {
         };
         fetchConfig();
     }, []);
+
     // ─────────────────────────────────────────────────────────────────────
 
     const handleTimeout = useCallback(async () => {

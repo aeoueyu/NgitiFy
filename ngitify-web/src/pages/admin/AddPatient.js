@@ -12,6 +12,7 @@ import {
     NATIONALITY_OPTIONS,
     RELIGION_OPTIONS,
     PHYSICIAN_SPECIALTY_OPTIONS,
+    RELATIONSHIP_OPTIONS,
     LANDLINE_PREFIX,
     isValidLandlineNumber,
     isValidMobileNumber,
@@ -77,6 +78,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [errors, setErrors] = useState({});
+    const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
 
@@ -138,7 +140,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
-        if (['firstName', 'middleName', 'lastName', 'guardianName'].includes(name)) {
+        if (['firstName', 'middleName', 'lastName', 'guardianName', 'emergencyContactName'].includes(name)) {
             if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) setFormData({ ...formData, [name]: toTitleCase(value) });
             return;
         }
@@ -166,12 +168,12 @@ export default function AddPatient({ onClose, onSuccess }) {
         setFormData({ ...formData, guardianContact: value });
     };
 
-    const handleNestedChange = (section, field, value) => {
+    const handleNestedChange = (section, field, value, formatter) => {
         setFormData(prev => ({
             ...prev,
             [section]: {
                 ...prev[section],
-                [field]: value
+                [field]: formatter ? formatter(value) : value
             }
         }));
     };
@@ -240,7 +242,7 @@ export default function AddPatient({ onClose, onSuccess }) {
         });
     };
 
-    const validateForm = () => {
+    const getValidationErrors = (currentFormData = formData) => {
         let newErrors = {}; let isValid = true;
         const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
         const requiredYesNoFields = [
@@ -258,59 +260,81 @@ export default function AddPatient({ onClose, onSuccess }) {
             ['medicalHistory', 'isNursing'],
             ['medicalHistory', 'takingBirthControl'],
         ];
-        if (isMinor) {
+        const computedIsMinor = currentFormData.birthdate && getAge(currentFormData.birthdate) < 18;
+        if (computedIsMinor) {
             required.push('guardianName', 'guardianRelationship', 'guardianOccupation');
-            if (!formData.guardianContact) { newErrors.guardianContact = 'Required'; isValid = false; }
-            else if (formData.guardianContact.length !== 10 || formData.guardianContact[0] !== '9') { newErrors.guardianContact = 'Invalid format'; isValid = false; }
+            if (!currentFormData.guardianContact) { newErrors.guardianContact = 'Required'; isValid = false; }
+            else if (currentFormData.guardianContact.length !== 10 || currentFormData.guardianContact[0] !== '9') { newErrors.guardianContact = 'Invalid format'; isValid = false; }
         }
-        required.forEach(f => { if (!formData[f]) { newErrors[f] = 'Required'; isValid = false; } });
-        if (!formData.phone) { newErrors.phone = 'Required'; isValid = false; }
-        else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
-        if (formData.homePhone && !isValidLandlineNumber(formData.homePhone)) { newErrors.homePhone = 'Invalid landline format'; isValid = false; }
-        if (formData.workPhone && !isValidLandlineNumber(formData.workPhone)) { newErrors.workPhone = 'Invalid landline format'; isValid = false; }
-        if (!formData.emergencyContactName.trim()) { newErrors.emergencyContactName = 'Required'; isValid = false; }
-        if (!formData.emergencyContactRelationship.trim()) { newErrors.emergencyContactRelationship = 'Required'; isValid = false; }
-        if (!formData.emergencyContactPhone) { newErrors.emergencyContactPhone = 'Required'; isValid = false; }
-        else if (!isValidMobileNumber(formData.emergencyContactPhone)) { newErrors.emergencyContactPhone = 'Invalid format'; isValid = false; }
-        if (formData.physician.officeNumber && !isValidLandlineNumber(formData.physician.officeNumber)) { newErrors.physician_officeNumber = 'Invalid landline format'; isValid = false; }
-        if (formData.email && !validateEmail(formData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
-        if (!formData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = 'Required'; isValid = false; }
-        if (!formData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = 'Required'; isValid = false; }
-        if (!formData.dataPrivacyConsent.acknowledged) { newErrors.dataPrivacyConsent_acknowledged = 'Required'; isValid = false; }
-        if (!formData.dataPrivacyConsent.signerName.trim()) { newErrors.dataPrivacyConsent_signerName = 'Required'; isValid = false; }
-        if (formData.birthdate && new Date(formData.birthdate) > new Date()) { newErrors.birthdate = 'Birthdate cannot be in the future'; isValid = false; }
-        if (formData.dentalHistory.lastExamDate && new Date(formData.dentalHistory.lastExamDate) > new Date()) { newErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future'; isValid = false; }
-        if (formData.consentAcknowledgement.signedAt && new Date(formData.consentAcknowledgement.signedAt) > new Date()) { newErrors.consentAcknowledgement_signedAt = 'Invalid signed date'; isValid = false; }
-        if (formData.dataPrivacyConsent.signedAt && new Date(formData.dataPrivacyConsent.signedAt) > new Date()) { newErrors.dataPrivacyConsent_signedAt = 'Invalid signed date'; isValid = false; }
+        required.forEach(f => { if (!currentFormData[f]) { newErrors[f] = 'Required'; isValid = false; } });
+        if (!currentFormData.phone) { newErrors.phone = 'Required'; isValid = false; }
+        else if (currentFormData.phone.length !== 10 || currentFormData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
+        if (currentFormData.homePhone && !isValidLandlineNumber(currentFormData.homePhone)) { newErrors.homePhone = 'Invalid landline format'; isValid = false; }
+        if (currentFormData.workPhone && !isValidLandlineNumber(currentFormData.workPhone)) { newErrors.workPhone = 'Invalid landline format'; isValid = false; }
+        if (!currentFormData.emergencyContactName.trim()) { newErrors.emergencyContactName = 'Required'; isValid = false; }
+        if (!currentFormData.emergencyContactRelationship.trim()) { newErrors.emergencyContactRelationship = 'Required'; isValid = false; }
+        if (!currentFormData.emergencyContactPhone) { newErrors.emergencyContactPhone = 'Required'; isValid = false; }
+        else if (!isValidMobileNumber(currentFormData.emergencyContactPhone)) { newErrors.emergencyContactPhone = 'Invalid format'; isValid = false; }
+        if (currentFormData.physician.officeNumber && !isValidLandlineNumber(currentFormData.physician.officeNumber)) { newErrors.physician_officeNumber = 'Invalid landline format'; isValid = false; }
+        if (currentFormData.email && !validateEmail(currentFormData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
+        if (!currentFormData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = 'Required'; isValid = false; }
+        if (!currentFormData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = 'Required'; isValid = false; }
+        if (!currentFormData.dataPrivacyConsent.acknowledged) { newErrors.dataPrivacyConsent_acknowledged = 'Required'; isValid = false; }
+        if (!currentFormData.dataPrivacyConsent.signerName.trim()) { newErrors.dataPrivacyConsent_signerName = 'Required'; isValid = false; }
+        if (currentFormData.birthdate && new Date(currentFormData.birthdate) > new Date()) { newErrors.birthdate = 'Birthdate cannot be in the future'; isValid = false; }
+        if (currentFormData.dentalHistory.lastExamDate && new Date(currentFormData.dentalHistory.lastExamDate) > new Date()) { newErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future'; isValid = false; }
+        if (currentFormData.consentAcknowledgement.signedAt && new Date(currentFormData.consentAcknowledgement.signedAt) > new Date()) { newErrors.consentAcknowledgement_signedAt = 'Invalid signed date'; isValid = false; }
+        if (currentFormData.dataPrivacyConsent.signedAt && new Date(currentFormData.dataPrivacyConsent.signedAt) > new Date()) { newErrors.dataPrivacyConsent_signedAt = 'Invalid signed date'; isValid = false; }
         requiredYesNoFields.forEach(([section, field]) => {
-            if (!formData[section][field]) {
+            if (!currentFormData[section][field]) {
                 newErrors[`${section}_${field}`] = 'Required';
                 isValid = false;
             }
         });
-        if (formData.dentalHistory.hadTreatmentReaction === 'yes' && !formData.dentalHistory.reactionDetails.trim()) { newErrors.dentalHistory_reactionDetails = 'Required when answer is Yes'; isValid = false; }
-        if (formData.medicalHistory.underMedicalTreatment === 'yes' && !formData.medicalHistory.medicalTreatmentDetails.trim()) { newErrors.medicalHistory_medicalTreatmentDetails = 'Required when answer is Yes'; isValid = false; }
-        if (formData.medicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !formData.medicalHistory.seriousIllnessOrSurgeryDetails.trim()) { newErrors.medicalHistory_seriousIllnessOrSurgeryDetails = 'Required when answer is Yes'; isValid = false; }
-        if (formData.medicalHistory.hadHospitalization === 'yes' && !formData.medicalHistory.hospitalizationDetails.trim()) { newErrors.medicalHistory_hospitalizationDetails = 'Required when answer is Yes'; isValid = false; }
-        if (formData.medicalHistory.isTakingMedication === 'yes' && !formData.medicalHistory.medications.trim()) { newErrors.medicalHistory_medications = 'Required when answer is Yes'; isValid = false; }
-        if (formData.medicalHistory.hasAllergies === 'yes' && formData.medicalHistory.allergies.length === 0 && !formData.medicalHistory.allergyOther.trim()) { newErrors.medicalHistory_allergies = 'Select or enter at least one allergy'; isValid = false; }
-        if (formData.religion === 'Other' && !formData.religionOther.trim()) { newErrors.religionOther = 'Required'; isValid = false; }
-        if (formData.physician.specialty === 'Other' && !formData.physician.specialtyOther.trim()) { newErrors.physician_specialtyOther = 'Required'; isValid = false; }
+        if (currentFormData.dentalHistory.hadTreatmentReaction === 'yes' && !currentFormData.dentalHistory.reactionDetails.trim()) { newErrors.dentalHistory_reactionDetails = 'Required when answer is Yes'; isValid = false; }
+        if (currentFormData.medicalHistory.underMedicalTreatment === 'yes' && !currentFormData.medicalHistory.medicalTreatmentDetails.trim()) { newErrors.medicalHistory_medicalTreatmentDetails = 'Required when answer is Yes'; isValid = false; }
+        if (currentFormData.medicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !currentFormData.medicalHistory.seriousIllnessOrSurgeryDetails.trim()) { newErrors.medicalHistory_seriousIllnessOrSurgeryDetails = 'Required when answer is Yes'; isValid = false; }
+        if (currentFormData.medicalHistory.hadHospitalization === 'yes' && !currentFormData.medicalHistory.hospitalizationDetails.trim()) { newErrors.medicalHistory_hospitalizationDetails = 'Required when answer is Yes'; isValid = false; }
+        if (currentFormData.medicalHistory.isTakingMedication === 'yes' && !currentFormData.medicalHistory.medications.trim()) { newErrors.medicalHistory_medications = 'Required when answer is Yes'; isValid = false; }
+        if (currentFormData.medicalHistory.hasAllergies === 'yes' && currentFormData.medicalHistory.allergies.length === 0 && !currentFormData.medicalHistory.allergyOther.trim()) { newErrors.medicalHistory_allergies = 'Select or enter at least one allergy'; isValid = false; }
+        if (currentFormData.religion === 'Other' && !currentFormData.religionOther.trim()) { newErrors.religionOther = 'Required'; isValid = false; }
+        if (currentFormData.physician.specialty === 'Other' && !currentFormData.physician.specialtyOther.trim()) { newErrors.physician_specialtyOther = 'Required'; isValid = false; }
         // Branch is required unless branch manager (auto-assigned)
-        if (!isBranchScopedStaff && !formData.assignedBranch) { newErrors.assignedBranch = 'Required'; isValid = false; }
+        if (!isBranchScopedStaff && !currentFormData.assignedBranch) { newErrors.assignedBranch = 'Required'; isValid = false; }
         const validateAddr = (addr, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
                 if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
             });
         };
-        validateAddr(formData.currentAddress, 'current');
+        validateAddr(currentFormData.currentAddress, 'current');
+        if (!isValid) {
+            return newErrors;
+        }
+        return newErrors;
+    };
+
+    useEffect(() => {
+        if (hasTriedSubmit) {
+            setErrors(getValidationErrors(formData));
+        }
+    }, [formData, hasTriedSubmit]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const validateForm = () => {
+        const newErrors = getValidationErrors(formData);
         setErrors(newErrors);
-        if (!isValid) { const el = document.getElementsByName(Object.keys(newErrors)[0])[0]; if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); } }
+        const isValid = Object.keys(newErrors).length === 0;
+        if (!isValid) {
+            const el = document.getElementsByName(Object.keys(newErrors)[0])[0];
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+        }
         return isValid;
     };
 
+    const hasFormErrors = Object.keys(getValidationErrors(formData)).length > 0;
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setHasTriedSubmit(true);
         if (!validateForm()) return;
         setIsLoading(true);
         const finalData = {
@@ -567,16 +591,16 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <hr className={styles.divider} style={{ marginTop: '10px' }} />
                     <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>EMERGENCY CONTACT</label><input className={styles.inputField} name="emergencyContactName" value={formData.emergencyContactName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>EMERGENCY CONTACT <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.emergencyContactName ? styles.errorBorder : ''}`} name="emergencyContactName" value={formData.emergencyContactName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} />{errors.emergencyContactName && <span className={styles.errorText}>{errors.emergencyContactName}</span>}</div>
                         <div className={styles.formGroup}>
-                            <label>MOBILE</label>
+                            <label>MOBILE <span style={{ color: 'red' }}>*</span></label>
                             <div className={`${styles.phoneInputGroup} ${errors.emergencyContactPhone ? styles.errorBorder : ''}`}>
                                 <span className={styles.phonePrefix}>+63</span>
                                 <input className={styles.phoneField} name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handlePhoneChange('emergencyContactPhone')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
                             </div>
                             {errors.emergencyContactPhone && <span className={styles.errorText}>{errors.emergencyContactPhone}</span>}
                         </div>
-                        <div className={styles.formGroup}><label>RELATION</label><input className={styles.inputField} name="emergencyContactRelationship" value={formData.emergencyContactRelationship} onChange={handlePersonalChange} maxLength={40} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>RELATION <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.emergencyContactRelationship ? styles.errorBorder : ''}`} name="emergencyContactRelationship" value={formData.emergencyContactRelationship} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select relationship</option>{RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{errors.emergencyContactRelationship && <span className={styles.errorText}>{errors.emergencyContactRelationship}</span>}</div>
                     </div>
 
                     {/* Guardian Info (minors only) */}
@@ -589,7 +613,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                                 <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="guardianOccupation" value={formData.guardianOccupation} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} /></div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardianRelationship ? styles.errorBorder : ''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} maxLength={30} disabled={isLoading} placeholder="e.g. Mother, Father" />{errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}</div>
+                                <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.guardianRelationship ? styles.errorBorder : ''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select relationship</option>{RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}</div>
                                 <div className={styles.formGroup}>
                                     <label>GUARDIAN PHONE <span style={{ color: 'red' }}>*</span></label>
                             <div className={`${styles.phoneInputGroup} ${errors.guardianContact ? styles.errorBorder : ''}`}>
@@ -649,16 +673,17 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={`${styles.inputField} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} max={getTodayDate()} disabled={isLoading} />{errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}</div>
                         {renderYesNoField('REACTION OR COMPLICATION AFTER DENTAL TREATMENT?', 'dentalHistory', 'hadTreatmentReaction', formData.dentalHistory.hadTreatmentReaction, isLoading)}
+                        <div className={styles.formGroup}><label>IF YES, PLEASE DETAIL</label><textarea className={`${styles.textArea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}</div>
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>IF YES, PLEASE DETAIL</label><textarea className={`${styles.textArea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={formData.dentalHistory.reactionDetails} onChange={(e) => handleNestedChange('dentalHistory', 'reactionDetails', e.target.value)} rows={3} disabled={isLoading} />{errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}</div>
                         {renderYesNoField('PRIVATE OR CONFIDENTIAL INFORMATION TO DISCUSS IN PRIVATE?', 'dentalHistory', 'hasConfidentialInfo', formData.dentalHistory.hasConfidentialInfo, isLoading)}
+                        <div className={styles.formGroup} />
                     </div>
 
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value, toTitleCase)} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isLoading}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}</select></div>
                     </div>
                     {formData.physician.specialty === 'Other' && (
@@ -763,23 +788,24 @@ export default function AddPatient({ onClose, onSuccess }) {
                                 <label>PRIVACY SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
                                 <input
                                     className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`}
+                                    name="dataPrivacyConsent_signerName"
                                     value={formData.dataPrivacyConsent.signerName}
-                                    onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerName', e.target.value)}
+                                    onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerName', e.target.value, toTitleCase)}
                                     disabled={isLoading}
                                 />
                                 {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
                             </div>
                             <div className={styles.formGroup}>
-                                <label>PRIVACY SIGNER ROLE</label>
-                                <select className={styles.inputField} value={formData.dataPrivacyConsent.signerRole} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerRole', e.target.value)} disabled={isLoading}>
+                                <label>PRIVACY SIGNER ROLE <span style={{ color: 'red' }}>*</span></label>
+                                <select className={styles.inputField} name="dataPrivacyConsent_signerRole" value={formData.dataPrivacyConsent.signerRole} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerRole', e.target.value)} disabled={isLoading}>
                                     <option value="Patient">Patient</option>
                                     <option value="Parent">Parent</option>
                                     <option value="Guardian">Guardian</option>
                                 </select>
                             </div>
                             <div className={styles.formGroup}>
-                                <label>DATE SIGNED</label>
-                                <input type="date" className={`${styles.inputField} ${errors.dataPrivacyConsent_signedAt ? styles.errorBorder : ''}`} value={formData.dataPrivacyConsent.signedAt} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isLoading} />
+                                <label>DATE SIGNED <span style={{ color: 'red' }}>*</span></label>
+                                <input type="date" className={`${styles.inputField} ${errors.dataPrivacyConsent_signedAt ? styles.errorBorder : ''}`} name="dataPrivacyConsent_signedAt" value={formData.dataPrivacyConsent.signedAt} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isLoading} />
                                 {errors.dataPrivacyConsent_signedAt && <span className={styles.errorText}>{errors.dataPrivacyConsent_signedAt}</span>}
                             </div>
                         </div>
@@ -812,23 +838,24 @@ export default function AddPatient({ onClose, onSuccess }) {
                                 <label>SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
                                 <input
                                     className={`${styles.inputField} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`}
+                                    name="consentAcknowledgement_signerName"
                                     value={formData.consentAcknowledgement.signerName}
-                                    onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerName', e.target.value)}
+                                    onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerName', e.target.value, toTitleCase)}
                                     disabled={isLoading}
                                 />
                                 {errors.consentAcknowledgement_signerName && <span className={styles.errorText}>{errors.consentAcknowledgement_signerName}</span>}
                             </div>
                             <div className={styles.formGroup}>
-                                <label>SIGNER ROLE</label>
-                                <select className={styles.inputField} value={formData.consentAcknowledgement.signerRole} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerRole', e.target.value)} disabled={isLoading}>
+                                <label>SIGNER ROLE <span style={{ color: 'red' }}>*</span></label>
+                                <select className={styles.inputField} name="consentAcknowledgement_signerRole" value={formData.consentAcknowledgement.signerRole} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerRole', e.target.value)} disabled={isLoading}>
                                     <option value="Patient">Patient</option>
                                     <option value="Parent">Parent</option>
                                     <option value="Guardian">Guardian</option>
                                 </select>
                             </div>
                             <div className={styles.formGroup}>
-                                <label>DATE SIGNED</label>
-                                <input type="date" className={`${styles.inputField} ${errors.consentAcknowledgement_signedAt ? styles.errorBorder : ''}`} value={formData.consentAcknowledgement.signedAt} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isLoading} />
+                                <label>DATE SIGNED <span style={{ color: 'red' }}>*</span></label>
+                                <input type="date" className={`${styles.inputField} ${errors.consentAcknowledgement_signedAt ? styles.errorBorder : ''}`} name="consentAcknowledgement_signedAt" value={formData.consentAcknowledgement.signedAt} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signedAt', e.target.value)} max={getTodayDate()} disabled={isLoading} />
                                 {errors.consentAcknowledgement_signedAt && <span className={styles.errorText}>{errors.consentAcknowledgement_signedAt}</span>}
                             </div>
                         </div>
@@ -850,7 +877,7 @@ export default function AddPatient({ onClose, onSuccess }) {
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
-                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'ADDING PATIENT...' : 'ADD PATIENT'}</button>
+                        <button type="submit" className={styles.submitBtn} disabled={isLoading || hasFormErrors}>{isLoading ? 'ADDING PATIENT...' : 'ADD PATIENT'}</button>
                     </div>
                 </form>
             </div>

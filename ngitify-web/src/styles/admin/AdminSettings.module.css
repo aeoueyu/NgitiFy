@@ -119,6 +119,25 @@ select.inputField {
 /* Alerts */
 .apiErrorMessage { background-color: #ffe6e6; color: #dc3545; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 20px; border: 1px solid #ffcccc; text-align: center; }
 .successMessage { background-color: #e0f8e9; color: #15803d; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 20px; border: 1px solid #bbf7d0; text-align: center; }
+.securityNotice {
+    background-color: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+.securityNoticeTitle {
+    font-size: 13px;
+    font-weight: 800;
+    margin: 0 0 6px;
+    text-transform: uppercase;
+}
+.securityNoticeText {
+    font-size: 12px;
+    line-height: 1.55;
+    margin: 0;
+}
 
 /* Buttons */
 .buttonGroup { display: flex; justify-content: flex-end; gap: 15px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9; }

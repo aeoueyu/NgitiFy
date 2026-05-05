@@ -12,7 +12,6 @@ import {
     FaCodeBranch,
     FaCog,
     FaDatabase,
-    FaFileMedical,
     FaHistory,
     FaHeadset,
     FaRobot,
@@ -111,7 +110,9 @@ export default function Sidebar() {
             ? '/owner/patients'
             : isBranchManager
                 ? '/branch-manager/patients'
-                : '/secretary/patients';
+                : isDentistUser
+                    ? '/dentist/patients'
+                    : '/secretary/patients';
 
     useEffect(() => {
         if (!canReadInventory && !isOwner) return;
@@ -271,7 +272,7 @@ export default function Sidebar() {
                     {navItem(schedulePath, FaCalendarAlt, 'Schedule')}
 
                     {sectionLabel('Patients')}
-                    {(isAdmin || isOwner || isBranchManager || isSecretary) && navItem(managePatientsPath, FaUserInjured, 'Manage Patients')}
+                    {(isAdmin || isOwner || isBranchManager || isSecretary || isDentistUser) && navItem(managePatientsPath, FaUserInjured, 'Manage Patients')}
 
                     {isBranchManager && (
                         <>
@@ -308,8 +309,6 @@ export default function Sidebar() {
 
                     {isDentistUser && (
                         <>
-                            {sectionLabel('Patients')}
-                            {navItem(isOwner ? '/owner/patient-emr' : '/dentist/patient-emr', FaFileMedical, 'Patient EMR')}
                             {sectionLabel('Clinic')}
                             {navItem(isOwner ? '/owner/material-usage' : '/dentist/material-usage', FaBoxes, 'Material Usage')}
                             {sectionLabel('System')}

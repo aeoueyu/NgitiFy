@@ -38,6 +38,11 @@ export const usePermissions = () => {
                 patients: 'edit',
                 appointments: 'edit',
             },
+            dentist: {
+                patients: 'read',
+                appointments: 'edit',
+                inventory: 'read',
+            },
             'branch-manager': {
                 patients: 'edit',
                 appointments: 'edit',

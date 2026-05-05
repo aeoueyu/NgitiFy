@@ -24,6 +24,10 @@ const treatmentLogSchema = new mongoose.Schema({
     dentistId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     dentistName: { type: String },
     branch: { type: String },
+    amountCharged: { type: Number, default: 0, min: 0 },
+    amountPaid: { type: Number, default: 0, min: 0 },
+    balance: { type: Number, default: 0, min: 0 },
+    nextAppointment: { type: Date, default: null },
 }, { timestamps: true });
 
 // ✅ PHASE 2: Radiograph subdocument schema
@@ -148,6 +152,9 @@ const userSchema = new mongoose.Schema({
         officeAddress: { type: String },
         officeNumber: { type: String }
     },
+
+    assignedDentistId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    assignedDentistName: { type: String, default: '' },
 
     consentAcknowledgement: {
         acknowledged: { type: Boolean, default: false },
