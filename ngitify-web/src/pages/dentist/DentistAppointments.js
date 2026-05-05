@@ -29,10 +29,19 @@ const PH_HOLIDAYS = [
 ];
 
 const PROCEDURE_OPTIONS = [
-    'Consultation', 'Teeth Cleaning (Prophylaxis)', 'Tooth Extraction',
-    'Dental Filling (Composite)', 'Root Canal Treatment', 'Braces / Orthodontic Adjustment',
-    'Teeth Whitening', 'Crown / Bridge Fitting', 'Wisdom Tooth Extraction',
-    'Oral Surgery', 'X-Ray / Radiograph', 'Other',
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
+    'Oral Prophylaxis (Teeth Cleaning)',
+    'Fluoride Application',
+    'Teeth Whitening',
+    'Tooth Restoration/Filling (Pasta)',
+    'Pit and Fissure Sealant Application',
+    'Root Canal Treatment',
+    'Tooth Extraction (Bunot)',
+    'Odontectomy (Wisdom Tooth Removal)',
+    'Orthodontics (Braces)',
+    'Dentures/Crowns',
+    'Retainers',
 ];
 
 // ─── DATA NORMALIZER ─────────────────────────────────────────────────────────
@@ -43,6 +52,7 @@ const normalizeSurgery = (s) => ({
         ? `${s.patient.name.first} ${s.patient.name.last}`
         : (s.guestName || 'Unknown Patient'),
     patientImage: s.patient?.profileImage || null,
+    performedProcedure: s.performedProcedure || '',
     procedure: s.procedure || '—',
     status: s.status || 'pending',
     time: s.time || '',
@@ -75,6 +85,8 @@ export default function DentistAppointments() {
 
     // ─── COMPLETE CONFIRM MODAL ──────────────────────────────────────────────
     const [completeTarget, setCompleteTarget] = useState(null);
+    const [completionProcedure, setCompletionProcedure] = useState('');
+    const [clinicProcedures, setClinicProcedures] = useState(PROCEDURE_OPTIONS);
 
     // ─── FILTER STATES ───────────────────────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState('');
@@ -130,6 +142,25 @@ export default function DentistAppointments() {
     useEffect(() => {
         fetchAppointments();
     }, [fetchAppointments]);
+
+    useEffect(() => {
+        const loadClinicProcedures = async () => {
+            try {
+                const res = await authFetch('/procedures');
+                if (!res.ok) throw new Error('Failed to load clinic procedures.');
+                const data = await res.json();
+                const procedures = Array.isArray(data?.procedures) && data.procedures.length > 0
+                    ? data.procedures
+                    : PROCEDURE_OPTIONS;
+                setClinicProcedures(procedures);
+            } catch (err) {
+                console.error('Failed to load clinic procedures:', err);
+                setClinicProcedures(PROCEDURE_OPTIONS);
+            }
+        };
+
+        loadClinicProcedures();
+    }, []);
 
     // ─── FETCH PATIENTS, DENTISTS, BRANCHES FOR BOOKING MODAL ───────────────
     useEffect(() => {
@@ -256,22 +287,31 @@ export default function DentistAppointments() {
     const handleOpenMaterialLog = (apt) => { setSelectedAptForMaterial(apt); setIsMaterialModalOpen(true); };
 
     const handleConfirmComplete = async () => {
-        if (!completeTarget) return;
+        if (!completeTarget || !completionProcedure) return;
         try {
             const res = await authFetch(`/appointments/${completeTarget.id}/status`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: 'completed' }),
+                body: JSON.stringify({
+                    status: 'completed',
+                    performedProcedure: completionProcedure,
+                }),
             });
-            if (!res.ok) throw new Error('Failed to mark complete.');
+            const data = await res.json().catch(() => null);
+            if (!res.ok) throw new Error(data?.message || 'Failed to mark complete.');
             setAllAppointments(prev =>
-                prev.map(a => a.id === completeTarget.id ? { ...a, status: 'completed' } : a)
+                prev.map(a => a.id === completeTarget.id ? {
+                    ...a,
+                    status: 'completed',
+                    performedProcedure: completionProcedure,
+                } : a)
             );
             addToast(`${completeTarget.patientName}'s appointment marked as Completed.`, 'success');
         } catch (err) {
             console.error('Complete error:', err);
-            addToast('Failed to update appointment.', 'error');
+            addToast(err.message || 'Failed to update appointment.', 'error');
         } finally {
             setCompleteTarget(null);
+            setCompletionProcedure('');
         }
     };
 
@@ -423,11 +463,14 @@ export default function DentistAppointments() {
                                                 <FaFileMedical /> View EMR
                                             </button>
 
-                                            {(apt.status === 'confirmed' || apt.status === 'pending') && (
+                                            {(apt.status === 'confirmed' || apt.status === 'pending' || apt.status === 'in-clinic') && (
                                                 <button
                                                     className={styles['logMaterialsBtn']}
                                                     style={{ background: '#16a34a', color: '#fff' }}
-                                                    onClick={() => setCompleteTarget(apt)}
+                                                    onClick={() => {
+                                                        setCompleteTarget(apt);
+                                                        setCompletionProcedure(apt.performedProcedure || apt.procedure || '');
+                                                    }}
                                                 >
                                                     <FaCheckCircle /> Mark Done
                                                 </button>
@@ -610,7 +653,7 @@ export default function DentistAppointments() {
                                     disabled={isSubmittingBooking}
                                 >
                                     <option value="" disabled hidden>-- Select Procedure --</option>
-                                    {PROCEDURE_OPTIONS.map(p => (
+                                    {clinicProcedures.map(p => (
                                         <option key={p} value={p}>{p}</option>
                                     ))}
                                 </select>
@@ -655,16 +698,72 @@ export default function DentistAppointments() {
                 />
             )}
 
-            {/* CONFIRM MARK COMPLETE */}
-            <ConfirmModal
-                isOpen={!!completeTarget}
-                title="Mark Appointment as Completed"
-                message={`Mark ${completeTarget?.patientName}'s appointment (${completeTarget?.procedure}) as completed?`}
-                confirmText="Yes, Mark Done"
-                isDestructive={false}
-                onConfirm={handleConfirmComplete}
-                onCancel={() => setCompleteTarget(null)}
-            />
+            {/* COMPLETE APPOINTMENT MODAL */}
+            {completeTarget && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent} style={{ maxWidth: '520px' }}>
+                        <div className={styles.modalHeader}>
+                            <h2 className={styles.modalTitle}>Complete Appointment</h2>
+                            <button
+                                className={styles.closeButton}
+                                onClick={() => {
+                                    setCompleteTarget(null);
+                                    setCompletionProcedure('');
+                                }}
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+
+                        <div className={styles.modalBody}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Booked Procedure</label>
+                                <input
+                                    type="text"
+                                    className={styles.formInput}
+                                    value={completeTarget.procedure || ''}
+                                    disabled
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Procedure Performed</label>
+                                <select
+                                    className={styles.formInput}
+                                    value={completionProcedure}
+                                    onChange={(e) => setCompletionProcedure(e.target.value)}
+                                >
+                                    <option value="">Select the procedure performed</option>
+                                    {clinicProcedures.map((procedure) => (
+                                        <option key={procedure} value={procedure}>{procedure}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className={styles.formActions}>
+                                <button
+                                    type="button"
+                                    className={styles.cancelBtn}
+                                    onClick={() => {
+                                        setCompleteTarget(null);
+                                        setCompletionProcedure('');
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className={styles.submitBtn}
+                                    disabled={!completionProcedure}
+                                    onClick={handleConfirmComplete}
+                                >
+                                    Mark Done
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* LOGOUT CONFIRM */}
             <ConfirmModal

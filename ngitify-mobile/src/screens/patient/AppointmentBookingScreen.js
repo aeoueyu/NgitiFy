@@ -14,18 +14,6 @@ const DIRECT_BOOKING_PROCEDURES = [
     'General Check-up / Initial Consultation',
     'Prophylaxis / Dental Cleaning',
 ];
-const EXTENDED_PROCEDURES = [
-    ...DIRECT_BOOKING_PROCEDURES,
-    'Tooth Extraction',
-    'Dental Filling',
-    'Root Canal Treatment',
-    'Orthodontic Consultation',
-    'Dental Implant Consultation',
-    'Teeth Whitening',
-    'Dentures / Retainers',
-    'X-Ray / Imaging',
-];
-
 const STEP_LABELS = ['Date', 'Time', 'Procedure', 'Confirm'];
 const getTodayString = () => new Date().toISOString().split('T')[0];
 const toMonthString = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -110,7 +98,6 @@ export default function AppointmentBookingScreen({ navigation }) {
     const [selectedProcedure, setSelectedProcedure] = useState('');
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [hasCompletedConsultation, setHasCompletedConsultation] = useState(false);
     const [privacyAccepted, setPrivacyAccepted] = useState(false);
     const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
@@ -136,23 +123,6 @@ export default function AppointmentBookingScreen({ navigation }) {
         }
     }, [API_BASE_URL, userToken]);
 
-    const fetchEligibility = useCallback(async () => {
-        if (!userToken) return;
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/my/treatment-logs`, {
-                headers: { Authorization: `Bearer ${userToken}` },
-            });
-            if (!res.ok) return;
-            const logs = await res.json();
-            const hasCompleted = (Array.isArray(logs) ? logs : []).some((log) => (
-                ['General Check-up / Initial Consultation', 'Consultation', 'Other / General Check-up'].includes(log.procedure)
-            ));
-            setHasCompletedConsultation(hasCompleted);
-        } catch {
-            setHasCompletedConsultation(false);
-        }
-    }, [API_BASE_URL, userToken]);
-
     useEffect(() => {
         fadeAnim.setValue(0);
         Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
@@ -162,11 +132,7 @@ export default function AppointmentBookingScreen({ navigation }) {
         fetchDuplicateAppointment();
     }, [fetchDuplicateAppointment]);
 
-    useEffect(() => {
-        fetchEligibility();
-    }, [fetchEligibility]);
-
-    const availableProcedures = hasCompletedConsultation ? EXTENDED_PROCEDURES : DIRECT_BOOKING_PROCEDURES;
+    const availableProcedures = DIRECT_BOOKING_PROCEDURES;
 
     const fetchBlockedDates = useCallback(async (month) => {
         if (!assignedBranch) {
@@ -236,7 +202,6 @@ export default function AppointmentBookingScreen({ navigation }) {
 
         const refreshBookingState = () => {
             fetchDuplicateAppointment();
-            fetchEligibility();
             fetchBlockedDates(currentMonth);
             if (selectedDate) {
                 fetchSlots(selectedDate, { preserveSelection: true });
@@ -254,7 +219,6 @@ export default function AppointmentBookingScreen({ navigation }) {
         currentMonth,
         fetchBlockedDates,
         fetchDuplicateAppointment,
-        fetchEligibility,
         fetchSlots,
         navigation,
         selectedDate,
@@ -561,13 +525,11 @@ export default function AppointmentBookingScreen({ navigation }) {
         <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.stepHeading}>Procedure and Details</Text>
             <Text style={styles.stepSub}>Choose the Dentime service that best matches your visit.</Text>
-            {!hasCompletedConsultation && (
-                <View style={styles.disclaimerCard}>
-                    <Text style={styles.disclaimerText}>
-                        New patients may directly request only a consultation or dental cleaning. More specific procedures will unlock after a completed consultation is on file.
-                    </Text>
-                </View>
-            )}
+            <View style={styles.disclaimerCard}>
+                <Text style={styles.disclaimerText}>
+                    Patients may directly request only a general check-up or prophylaxis online. Any additional procedure needed after assessment or treatment will be recorded by the clinic.
+                </Text>
+            </View>
 
             <View style={styles.procedureList}>
                 {availableProcedures.map((procedure) => {

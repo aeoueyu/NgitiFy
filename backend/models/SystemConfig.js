@@ -1,5 +1,21 @@
 const mongoose = require('mongoose');
 
+const DEFAULT_CLINIC_PROCEDURES = [
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
+    'Oral Prophylaxis (Teeth Cleaning)',
+    'Fluoride Application',
+    'Teeth Whitening',
+    'Tooth Restoration/Filling (Pasta)',
+    'Pit and Fissure Sealant Application',
+    'Root Canal Treatment',
+    'Tooth Extraction (Bunot)',
+    'Odontectomy (Wisdom Tooth Removal)',
+    'Orthodontics (Braces)',
+    'Dentures/Crowns',
+    'Retainers',
+];
+
 const systemConfigSchema = new mongoose.Schema({
     clinicName: { type: String, default: 'NgitiFy Dental Clinic' },
     clinicLogo: { type: String, default: '' },
@@ -10,6 +26,10 @@ const systemConfigSchema = new mongoose.Schema({
     allowedTimeSlots: {
         type: [String],
         default: ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00']
+    },
+    clinicProcedures: {
+        type: [String],
+        default: DEFAULT_CLINIC_PROCEDURES,
     },
     emailTemplates: {
         activation: {

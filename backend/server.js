@@ -429,16 +429,19 @@ const DIRECT_BOOKING_PROCEDURES = [
     DEFAULT_DIRECT_BOOKING_PROCEDURE,
     'Prophylaxis / Dental Cleaning',
 ];
-const EXTENDED_PATIENT_PROCEDURES = [
+const DEFAULT_CLINIC_PROCEDURES = [
     ...DIRECT_BOOKING_PROCEDURES,
-    'Tooth Extraction',
-    'Dental Filling',
+    'Oral Prophylaxis (Teeth Cleaning)',
+    'Fluoride Application',
     'Root Canal Treatment',
-    'Orthodontic Consultation',
-    'Dental Implant Consultation',
     'Teeth Whitening',
-    'Dentures / Retainers',
-    'X-Ray / Imaging',
+    'Tooth Restoration/Filling (Pasta)',
+    'Pit and Fissure Sealant Application',
+    'Tooth Extraction (Bunot)',
+    'Odontectomy (Wisdom Tooth Removal)',
+    'Orthodontics (Braces)',
+    'Dentures/Crowns',
+    'Retainers',
 ];
 const AUTO_CANCELLATION_REASON = 'Auto-cancelled: appointment time passed without check-in.';
 
@@ -452,6 +455,33 @@ const getClinicAllowedSlots = async () => {
     if (!config) config = await SystemConfig.create({});
     return config.allowedTimeSlots ||
         ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+};
+
+const normalizeProcedureList = (procedures = []) => {
+    const seen = new Set();
+    return procedures
+        .map((entry) => String(entry || '').trim())
+        .filter(Boolean)
+        .filter((entry) => {
+            const key = entry.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+};
+
+const getClinicProcedureCatalog = async () => {
+    let config = await SystemConfig.findOne();
+    if (!config) config = await SystemConfig.create({});
+
+    const normalized = normalizeProcedureList(config.clinicProcedures);
+    if (normalized.length > 0) {
+        return normalized;
+    }
+
+    config.clinicProcedures = DEFAULT_CLINIC_PROCEDURES;
+    await config.save();
+    return [...DEFAULT_CLINIC_PROCEDURES];
 };
 
 const getTakenSlotsForDate = async ({ date, branch }) => {
@@ -3350,7 +3380,7 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
 
 app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyToken, async (req, res) => {
     try {
-        const { status, remarks, preOpInstructions, date, time, dentistId, cancellationReason } = req.body;
+        const { status, remarks, preOpInstructions, date, time, dentistId, cancellationReason, performedProcedure } = req.body;
 
         const allowedStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         if (!allowedStatuses.includes(status)) {
@@ -3395,11 +3425,17 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         if (date) updateFields.date = nextDate;
         if (time !== undefined) updateFields.time = nextTime;
         if (dentistId !== undefined && req.user.role !== 'dentist') updateFields.dentist = dentistId || null;
+        if (performedProcedure !== undefined) {
+            updateFields.performedProcedure = String(performedProcedure || '').trim();
+        }
         if (status === 'cancelled') {
             updateFields.cancellationReason = String(cancellationReason || currentSurgery.cancellationReason || 'Cancelled by clinic staff.').trim();
             updateFields.autoCancelledAt = null;
         } else if (cancellationReason !== undefined) {
             updateFields.cancellationReason = String(cancellationReason || '').trim();
+        }
+        if (status === 'completed' && !String(updateFields.performedProcedure || currentSurgery.performedProcedure || currentSurgery.procedure || '').trim()) {
+            return res.status(400).json({ message: 'Please select the procedure performed before completing the appointment.' });
         }
 
         const scheduleChanged = (
@@ -3553,7 +3589,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         if (status === 'completed' && updatedSurgery.patient?._id) {
             await appendAutomaticTreatmentLogIfMissing({
                 patientId: updatedSurgery.patient._id,
-                procedure: updatedSurgery.procedure,
+                procedure: updatedSurgery.performedProcedure || updatedSurgery.procedure,
                 branch: updatedSurgery.branch,
                 dentistId: updatedSurgery.dentist?._id || updatedSurgery.dentist || null,
                 dentistName: getDentistDisplayName(updatedSurgery.dentist),
@@ -4151,17 +4187,8 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(409).json({ message: 'You already have an active appointment request. Please wait for it to be completed or cancelled before booking another one.' });
         }
 
-        const completedConsultationCount = await Surgery.countDocuments({
-            patient: req.user.id,
-            status: 'completed',
-            procedure: { $in: [DEFAULT_DIRECT_BOOKING_PROCEDURE, 'Consultation', 'Other / General Check-up'] },
-            isArchived: false,
-        });
-        const allowedPatientProcedures = completedConsultationCount > 0
-            ? EXTENDED_PATIENT_PROCEDURES
-            : DIRECT_BOOKING_PROCEDURES;
-        if (!allowedPatientProcedures.includes(procedure)) {
-            return res.status(400).json({ message: 'Please select a valid procedure for your current booking eligibility.' });
+        if (!DIRECT_BOOKING_PROCEDURES.includes(procedure)) {
+            return res.status(400).json({ message: 'Patients may only book a general check-up or prophylaxis online. Additional procedures are recorded by the clinic after assessment or treatment.' });
         }
 
         if (time) {
@@ -5245,6 +5272,16 @@ app.put('/api/branches/:id', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 // SYSTEM CONFIG ROUTES
 // -------------------------------------------------------
+
+app.get('/api/procedures', verifyToken, async (req, res) => {
+    try {
+        const procedures = await getClinicProcedureCatalog();
+        res.json({ procedures });
+    } catch (error) {
+        console.error('Error fetching clinic procedures:', error);
+        res.status(500).json({ message: 'Server error fetching clinic procedures.' });
+    }
+});
  
 app.get('/api/system-config', verifyToken, async (req, res) => {
     try {
@@ -5270,11 +5307,16 @@ app.put('/api/system-config', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied. Admin only.' });
         }
  
+        const payload = {
+            ...req.body,
+            clinicProcedures: normalizeProcedureList(req.body?.clinicProcedures?.length ? req.body.clinicProcedures : DEFAULT_CLINIC_PROCEDURES),
+        };
+
         let config = await SystemConfig.findOne();
         if (!config) {
-            config = new SystemConfig(req.body);
+            config = new SystemConfig({ ...payload, updatedBy: req.user?.email });
         } else {
-            Object.assign(config, req.body, { updatedBy: req.user?.email });
+            Object.assign(config, payload, { updatedBy: req.user?.email });
         }
         await config.save();
  

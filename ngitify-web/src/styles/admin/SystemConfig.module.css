@@ -109,6 +109,54 @@
 }
 .slotChipActive { background: #e8f4fd; border-color: #01538b; color: #01538b; font-weight: 600; }
 
+.procedureList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.procedureRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.addProcedureBtn,
+.removeProcedureBtn {
+    border: none;
+    border-radius: 999px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.addProcedureBtn {
+    margin-top: 12px;
+    background: #e8f4fd;
+    color: #01538b;
+}
+
+.addProcedureBtn:hover {
+    background: #d7ecfb;
+}
+
+.removeProcedureBtn {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.removeProcedureBtn:hover:not(:disabled) {
+    background: #fecaca;
+}
+
+.removeProcedureBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 /* Feature toggles */
 .toggleRow {
     display: flex;
@@ -158,4 +206,5 @@
 @media (max-width: 768px) {
     .layout { flex-direction: column; }
     .sectionNav { width: 100%; position: static; flex-direction: row; overflow-x: auto; }
+    .procedureRow { grid-template-columns: 1fr; }
 }

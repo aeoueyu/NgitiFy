@@ -3,6 +3,21 @@ import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/SystemConfig.module.css';
 
 const DEFAULT_SLOTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+const DEFAULT_PROCEDURES = [
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
+    'Oral Prophylaxis (Teeth Cleaning)',
+    'Fluoride Application',
+    'Teeth Whitening',
+    'Tooth Restoration/Filling (Pasta)',
+    'Pit and Fissure Sealant Application',
+    'Root Canal Treatment',
+    'Tooth Extraction (Bunot)',
+    'Odontectomy (Wisdom Tooth Removal)',
+    'Orthodontics (Braces)',
+    'Dentures/Crowns',
+    'Retainers',
+];
 
 const SystemConfig = () => {
     const [isLoading, setIsLoading] = useState(true);
@@ -18,6 +33,7 @@ const SystemConfig = () => {
         clinicEmail: '',
         maxAppointmentsPerDay: 20,
         allowedTimeSlots: [],
+        clinicProcedures: DEFAULT_PROCEDURES,
         emailTemplates: {
             activation: '',
             appointmentReminder: ''
@@ -81,17 +97,55 @@ const SystemConfig = () => {
         });
     };
 
+    const handleProcedureInputChange = (index, value) => {
+        setConfig(prev => ({
+            ...prev,
+            clinicProcedures: prev.clinicProcedures.map((procedure, procedureIndex) => (
+                procedureIndex === index ? value : procedure
+            )),
+        }));
+    };
+
+    const handleAddProcedure = () => {
+        setConfig(prev => ({
+            ...prev,
+            clinicProcedures: [...(prev.clinicProcedures || []), ''],
+        }));
+    };
+
+    const handleRemoveProcedure = (index) => {
+        setConfig(prev => ({
+            ...prev,
+            clinicProcedures: prev.clinicProcedures.filter((_, procedureIndex) => procedureIndex !== index),
+        }));
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
         setSuccessMsg('');
         setErrorMsg('');
         try {
+            const normalizedProcedures = Array.from(
+                new Set((config.clinicProcedures || []).map((procedure) => String(procedure || '').trim()).filter(Boolean))
+            );
+
+            if (normalizedProcedures.length === 0) {
+                setErrorMsg('Add at least one clinic procedure before saving.');
+                setIsSaving(false);
+                return;
+            }
+
             const res = await authFetch('/system-config', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
+                body: JSON.stringify({
+                    ...config,
+                    clinicProcedures: normalizedProcedures,
+                })
             });
             if (res.ok) {
+                const savedConfig = await res.json();
+                setConfig(prev => ({ ...prev, ...savedConfig }));
                 setSuccessMsg('System configuration saved successfully.');
                 setTimeout(() => setSuccessMsg(''), 4000);
             } else {
@@ -200,6 +254,39 @@ const SystemConfig = () => {
                                         </label>
                                     ))}
                                 </div>
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Clinic Procedures</label>
+                                <p className={styles.helpText}>These are the procedures dentists can record as the actual treatment performed.</p>
+                                <div className={styles.procedureList}>
+                                    {(config.clinicProcedures || []).map((procedure, index) => (
+                                        <div key={`procedure-${index}`} className={styles.procedureRow}>
+                                            <input
+                                                type="text"
+                                                value={procedure}
+                                                onChange={(e) => handleProcedureInputChange(index, e.target.value)}
+                                                className={styles.input}
+                                                placeholder="Enter procedure name"
+                                            />
+                                            <button
+                                                type="button"
+                                                className={styles.removeProcedureBtn}
+                                                onClick={() => handleRemoveProcedure(index)}
+                                                disabled={(config.clinicProcedures || []).length <= 1}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    className={styles.addProcedureBtn}
+                                    onClick={handleAddProcedure}
+                                >
+                                    Add Procedure
+                                </button>
                             </div>
                         </div>
                     )}

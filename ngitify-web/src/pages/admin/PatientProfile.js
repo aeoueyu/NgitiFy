@@ -43,6 +43,9 @@ const formatAddressFull = (addr) => {
 const yesNoText = (value) => value === true ? 'Yes' : value === false ? 'No' : 'Not answered';
 const textValue = (value) => value || 'Not specified';
 const listIncludes = (list, item) => Array.isArray(list) && list.includes(item);
+const getNonChecklistItems = (list, options) => (
+    Array.isArray(list) ? list.filter((item) => !options.includes(item)) : []
+);
 
 export default function PatientProfile({ patientId, onClose, onEdit }) {
     const { addToast } = useToast();
@@ -308,14 +311,14 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
 
                 <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Consent Summary</h3>
                 <div className={styles.infoGrid} style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    {infoItem('Digital Consent Agreed', patient.consentAcknowledgement?.acknowledged === true ? 'Yes' : patient.consentAcknowledgement?.acknowledged === false ? 'No' : 'Not answered')}
-                    {infoItem('Digital Consent Signer', patient.consentAcknowledgement?.signerName)}
-                    {infoItem('Digital Consent Role', patient.consentAcknowledgement?.signerRole)}
-                    {infoItem('Digital Consent Date', patient.consentAcknowledgement?.signedAt ? formatDateLong(patient.consentAcknowledgement.signedAt) : 'Not specified')}
-                    {infoItem('Data Privacy Agreed', patient.dataPrivacyConsent?.acknowledged === true ? 'Yes' : patient.dataPrivacyConsent?.acknowledged === false ? 'No' : 'Not answered')}
+                    {infoItem('Data Privacy', patient.dataPrivacyConsent?.acknowledged === true ? 'Yes' : patient.dataPrivacyConsent?.acknowledged === false ? 'No' : 'Not answered')}
+                    {infoItem('Date Signed', patient.dataPrivacyConsent?.signedAt ? formatDateLong(patient.dataPrivacyConsent.signedAt) : 'Not specified')}
+                    {infoItem('Treatment Consent', patient.consentAcknowledgement?.acknowledged === true ? 'Yes' : patient.consentAcknowledgement?.acknowledged === false ? 'No' : 'Not answered')}
+                    {infoItem('Consent Signed', patient.consentAcknowledgement?.signedAt ? formatDateLong(patient.consentAcknowledgement.signedAt) : 'Not specified')}
                     {infoItem('Privacy Signer', patient.dataPrivacyConsent?.signerName)}
                     {infoItem('Privacy Role', patient.dataPrivacyConsent?.signerRole)}
-                    {infoItem('Privacy Date', patient.dataPrivacyConsent?.signedAt ? formatDateLong(patient.dataPrivacyConsent.signedAt) : 'Not specified')}
+                    {infoItem('Consent Signer', patient.consentAcknowledgement?.signerName)}
+                    {infoItem('Consent Role', patient.consentAcknowledgement?.signerRole)}
                 </div>
             </div>
         );
@@ -415,12 +418,19 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
         const medical = patient?.medicalHistory || {};
         const dental = patient?.dentalHistory || {};
         const renderChecklist = (options, selected, warning = false) => (
-            <div className={styles.tagList}>
-                {options.map((option) => (
-                    <span key={option} className={`${styles.tag} ${listIncludes(selected, option) && warning ? styles.warning : ''}`}>
-                        {listIncludes(selected, option) ? '[x]' : '[ ]'} {option}
-                    </span>
-                ))}
+            <div className={styles.checklistGrid}>
+                {options.map((option) => {
+                    const checked = listIncludes(selected, option);
+                    return (
+                        <label
+                            key={option}
+                            className={`${styles.checklistItem} ${checked ? styles.checklistItemChecked : ''} ${warning && checked ? styles.checklistItemWarning : ''}`}
+                        >
+                            <input type="checkbox" checked={checked} readOnly />
+                            <span>{option}</span>
+                        </label>
+                    );
+                })}
             </div>
         );
 
@@ -460,13 +470,13 @@ export default function PatientProfile({ patientId, onClose, onEdit }) {
                 <div className={styles.infoBlock} style={{ marginTop: '28px' }}>
                     <span className={styles.infoLabel} style={{ color: '#ef4444' }}><FaSyringe style={{marginRight: '6px'}} />Allergy Checklist</span>
                     {renderChecklist(ALLERGY_OPTIONS, medical.allergies, true)}
-                    <p className={styles.infoValue} style={{ marginTop: '12px' }}>Other Allergy: {Array.isArray(medical.allergies) ? medical.allergies.filter((item) => !ALLERGY_OPTIONS.includes(item)).join(', ') || 'Not specified' : 'Not specified'}</p>
+                    <p className={styles.infoValue} style={{ marginTop: '12px' }}>Other Allergy: {getNonChecklistItems(medical.allergies, ALLERGY_OPTIONS).join(', ') || 'Not specified'}</p>
                 </div>
 
                 <div className={styles.infoBlock} style={{ marginTop: '28px' }}>
                     <span className={styles.infoLabel}><FaNotesMedical style={{marginRight: '6px'}} />Medical Conditions Checklist</span>
                     {renderChecklist(MEDICAL_CONDITION_OPTIONS, medical.conditions)}
-                    <p className={styles.infoValue} style={{ marginTop: '12px' }}>Other Condition: {Array.isArray(medical.conditions) ? medical.conditions.filter((item) => !MEDICAL_CONDITION_OPTIONS.includes(item)).join(', ') || 'Not specified' : 'Not specified'}</p>
+                    <p className={styles.infoValue} style={{ marginTop: '12px' }}>Other Condition: {getNonChecklistItems(medical.conditions, MEDICAL_CONDITION_OPTIONS).join(', ') || 'Not specified'}</p>
                 </div>
 
                 <div className={styles.infoBlock} style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '30px', marginTop: '28px' }}>
