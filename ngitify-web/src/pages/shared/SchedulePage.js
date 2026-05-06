@@ -13,6 +13,7 @@ import { authFetch, publicFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import PatientEMR from '../admin/PatientEMR';
+import RegisterGuestPatient from '../admin/RegisterGuestPatient';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/shared/SchedulePage.module.css';
@@ -251,6 +252,41 @@ const isGuestWebsiteAppointmentEntry = (entry) => (
     && Boolean(entry?.raw?.guestEmail)
 );
 
+const isAddressComplete = (address) => (
+    ['region', 'province', 'city', 'barangay', 'street', 'houseNumber']
+        .every((field) => Boolean(address?.[field]))
+);
+
+const hasCompleteGuestIntake = (appointment) => (
+    Boolean(appointment?.raw?.guestBirthdate) &&
+    Boolean(appointment?.raw?.guestGender) &&
+    isAddressComplete(appointment?.raw?.guestCurrentAddress) &&
+    isAddressComplete(appointment?.raw?.guestPermanentAddress) &&
+    Boolean(appointment?.raw?.guestProfile?.occupation) &&
+    Boolean(appointment?.raw?.guestEmergencyContact?.name) &&
+    Boolean(appointment?.raw?.guestEmergencyContact?.relationship) &&
+    Boolean(appointment?.raw?.guestEmergencyContact?.contactNumber) &&
+    Boolean(appointment?.raw?.guestDentalHistory?.chiefComplaint) &&
+    appointment?.raw?.guestMedicalHistory?.inGoodHealth !== undefined
+);
+
+const getGuestPreRegistrationMeta = (appointment) => {
+    if (!isGuestWebsiteAppointmentEntry(appointment)) return null;
+    if (appointment?.raw?.preRegistrationCompleted) {
+        return { label: 'Ready to Register', tone: 'ready' };
+    }
+    if (hasCompleteGuestIntake(appointment)) {
+        return { label: 'Ready to Register', tone: 'ready' };
+    }
+    if (appointment?.raw?.preRegistrationTokenExpiry && new Date(appointment.raw.preRegistrationTokenExpiry) < new Date()) {
+        return { label: 'Link Expired', tone: 'expired' };
+    }
+    if (appointment?.status === 'confirmed') {
+        return { label: 'Awaiting Guest Info', tone: 'waiting' };
+    }
+    return null;
+};
+
 const normalizeQueueEntry = (entry) => ({
     id: entry._id || entry.id,
     type: 'walkin',
@@ -357,6 +393,7 @@ export default function SchedulePage() {
     const [isConfirmingSave, setIsConfirmingSave] = useState(false);
     const [pendingStatusTarget, setPendingStatusTarget] = useState(null);
     const [completeTarget, setCompleteTarget] = useState(null);
+    const [guestRegistrationTarget, setGuestRegistrationTarget] = useState(null);
     const [isCompleting, setIsCompleting] = useState(false);
     const [completionForm, setCompletionForm] = useState({
         performedProcedure: '',
@@ -1031,6 +1068,47 @@ export default function SchedulePage() {
         }
     };
 
+    const handleConfirmGuestAppointment = async (entry) => {
+        if (!entry?.id) return;
+        setIsSubmitting(true);
+        try {
+            const response = await authFetch(`/appointments/${entry.id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'confirmed' }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Unable to confirm guest appointment.');
+            addToast('Guest appointment confirmed. A pre-registration link was sent to the guest.', 'success');
+            await fetchPageData({ silent: true });
+            if (viewEntry?.id === entry.id) {
+                setViewEntry(null);
+            }
+        } catch (error) {
+            addToast(error.message || 'Failed to confirm guest appointment.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleResendPreRegistration = async (entry) => {
+        if (!entry?.id) return;
+        setIsSubmitting(true);
+        try {
+            const response = await authFetch(`/admin/appointments/${entry.id}/resend-pre-register`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Unable to resend pre-registration link.');
+            addToast('Pre-registration link resent successfully.', 'success');
+            await fetchPageData({ silent: true });
+        } catch (error) {
+            addToast(error.message || 'Unable to process guest appointment.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const renderFormModal = () => {
         if (!isFormOpen) return null;
 
@@ -1310,6 +1388,7 @@ export default function SchedulePage() {
 
     const renderViewModal = () => {
         if (!viewEntry) return null;
+        const guestPreRegistrationMeta = getGuestPreRegistrationMeta(viewEntry);
 
         return (
             <div className={styles.modalOverlay}>
@@ -1387,6 +1466,45 @@ export default function SchedulePage() {
                                     <dd>{viewEntry.notes || 'No notes recorded.'}</dd>
                                 </div>
                             </dl>
+                            {isGuestWebsiteAppointmentEntry(viewEntry) && (
+                                <div style={{ display: 'grid', gap: '10px', marginTop: '18px' }}>
+                                    <div className={styles.detailItem}>
+                                        <dt>Guest Registration Status</dt>
+                                        <dd>{guestPreRegistrationMeta?.label || 'Pending Confirmation'}</dd>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                        {viewEntry.status === 'pending' && (
+                                            <button
+                                                type="button"
+                                                className={styles.primaryButton}
+                                                onClick={() => handleConfirmGuestAppointment(viewEntry)}
+                                                disabled={isSubmitting}
+                                            >
+                                                {isSubmitting ? 'Confirming...' : 'Confirm Request'}
+                                            </button>
+                                        )}
+                                        {viewEntry.status === 'confirmed' && guestPreRegistrationMeta?.label === 'Ready to Register' && (
+                                            <button
+                                                type="button"
+                                                className={styles.primaryButton}
+                                                onClick={() => setGuestRegistrationTarget(viewEntry)}
+                                            >
+                                                Register Guest
+                                            </button>
+                                        )}
+                                        {viewEntry.status === 'confirmed' && guestPreRegistrationMeta?.label !== 'Ready to Register' && (
+                                            <button
+                                                type="button"
+                                                className={styles.secondaryButton}
+                                                onClick={() => handleResendPreRegistration(viewEntry)}
+                                                disabled={isSubmitting}
+                                            >
+                                                {isSubmitting ? 'Sending...' : 'Resend Link'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </section>
 
                         <section className={styles.emrPanel}>
@@ -1651,6 +1769,17 @@ export default function SchedulePage() {
 
             {renderFormModal()}
             {renderViewModal()}
+            {guestRegistrationTarget && (
+                <RegisterGuestPatient
+                    appointment={guestRegistrationTarget}
+                    onClose={() => setGuestRegistrationTarget(null)}
+                    onSuccess={async () => {
+                        setGuestRegistrationTarget(null);
+                        setViewEntry(null);
+                        await fetchPageData({ silent: true });
+                    }}
+                />
+            )}
             <ConfirmModal
                 isOpen={!!editingEntry && isConfirmingSave}
                 title="Update Schedule Entry"
