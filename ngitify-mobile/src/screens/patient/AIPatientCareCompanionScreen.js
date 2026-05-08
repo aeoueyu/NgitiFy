@@ -3,12 +3,14 @@ import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
     Animated, Modal, TextInput, Alert, ActivityIndicator,
 } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import { getVisitPrediction } from '../../utils/visitPrediction';
+import { getVisitPredictionFromHistory } from '../../utils/visitPrediction';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
+import PatientBottomNav from '../../components/mobile/PatientBottomNav';
 
 // ─── DENTAL HEALTH EDUCATION CONTENT ────────────────────────────────────────
 const EDUCATION_ARTICLES = [
@@ -77,6 +79,54 @@ const fmtDate = (iso) => {
     return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const toDateKey = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const buildVisitWindowMarkedDates = (visitInfo, selectedDate) => {
+    if (!visitInfo?.nextDate) return {};
+
+    const anchorDate = new Date(visitInfo.nextDate);
+    if (Number.isNaN(anchorDate.getTime())) return {};
+
+    const windowStart = new Date(anchorDate);
+    windowStart.setDate(anchorDate.getDate() - 2);
+
+    const windowEnd = new Date(anchorDate);
+    windowEnd.setDate(anchorDate.getDate() + 2);
+
+    const markedDates = {};
+    const cursor = new Date(windowStart);
+    const selectedKey = selectedDate || toDateKey(anchorDate);
+
+    while (cursor <= windowEnd) {
+        const key = toDateKey(cursor);
+        const isSelected = key === selectedKey;
+        markedDates[key] = {
+            selected: true,
+            selectedColor: isSelected ? '#01538b' : '#bfeffc',
+            selectedTextColor: isSelected ? '#ffffff' : '#01538b',
+        };
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    if (selectedKey && !markedDates[selectedKey]) {
+        markedDates[selectedKey] = {
+            selected: true,
+            selectedColor: '#01538b',
+            selectedTextColor: '#ffffff',
+        };
+    }
+
+    return markedDates;
+};
+
 function DynamicIcon({ iconName, iconLib, iconColor, size }) {
     if (iconLib === 'MaterialCommunityIcons') {
         return <MaterialCommunityIcons name={iconName} size={size} color={iconColor} />;
@@ -85,15 +135,16 @@ function DynamicIcon({ iconName, iconLib, iconColor, size }) {
 }
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
-export default function AiPatientCareCompanionScreen({ navigation }) {
+export default function AiPatientCareCompanionScreen({ navigation, route }) {
     const { userToken, userInfo, userId, API_BASE_URL } = useContext(AuthContext);
 
     const fadeAnim    = useRef(new Animated.Value(0)).current;
     const [activeSection, setActiveSection] = useState('overview');
+    const [selectedVisitDate,  setSelectedVisitDate]  = useState(route?.params?.focusDate || '');
 
     // ── Visit prediction state ──
-    const [lastVisitDate,      setLastVisitDate]      = useState(null);
-    const [lastProcedure,      setLastProcedure]      = useState(null);
+    const [visitInfo,          setVisitInfo]          = useState(null);
+    const [treatmentHistory,   setTreatmentHistory]   = useState([]);
     const [loadingVisit,       setLoadingVisit]       = useState(true);
 
     // ── Inquiry state ──
@@ -118,12 +169,12 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
             const res  = await fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers: authHeader });
             if (!res.ok) throw new Error();
             const logs = await res.json();
-            const latest = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
-            if (latest?.date) {
-                setLastVisitDate(latest.date);
-                setLastProcedure(latest.procedure || null);
-            }
+            const safeLogs = Array.isArray(logs) ? logs : [];
+            setTreatmentHistory(safeLogs);
+            setVisitInfo(getVisitPredictionFromHistory(safeLogs));
         } catch {
+            setTreatmentHistory([]);
+            setVisitInfo(null);
             // Non-critical — visit prediction simply won't show
         } finally {
             setLoadingVisit(false);
@@ -134,9 +185,16 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
         fetchLastVisit();
     }, [fetchLastVisit]);
 
-    // ── Computed visit prediction (uses shared utility) ───────────────────────
-    const visitInfo = getVisitPrediction(lastVisitDate); // returns null if no date yet
+    useEffect(() => {
+        if (route?.params?.initialSection && SECTIONS.includes(route.params.initialSection)) {
+            setActiveSection(route.params.initialSection);
+        }
+        if (route?.params?.focusDate) {
+            setSelectedVisitDate(route.params.focusDate);
+        }
+    }, [route?.params?.focusDate, route?.params?.initialSection]);
 
+    // ── Computed visit prediction (uses shared utility) ───────────────────────
     // ── Submit Inquiry → POST /api/support-tickets ────────────────────────────
     const handleSubmitInquiry = async () => {
         if (!inquiryText.trim()) {
@@ -398,6 +456,9 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
     );
 
     const renderVisitWindow = () => {
+        const markedDates = buildVisitWindowMarkedDates(visitInfo, selectedVisitDate);
+        const calendarFocusDate = selectedVisitDate || toDateKey(visitInfo?.nextDate);
+
         if (loadingVisit) {
             return (
                 <View style={styles.visitLoadingBox}>
@@ -448,6 +509,35 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                     }
                 </View>
 
+                <Calendar
+                    current={calendarFocusDate || undefined}
+                    markedDates={markedDates}
+                    onDayPress={(day) => setSelectedVisitDate(day.dateString)}
+                    theme={{
+                        selectedDayBackgroundColor: '#01538b',
+                        todayTextColor: '#01538b',
+                        arrowColor: '#01538b',
+                        textDayFontWeight: '600',
+                        textMonthFontWeight: '700',
+                        textDayHeaderFontWeight: '700',
+                        calendarBackground: 'white',
+                        textSectionTitleColor: '#01538b',
+                        monthTextColor: '#234051',
+                    }}
+                    style={styles.visitCalendar}
+                />
+
+                <View style={styles.visitLegendRow}>
+                    <View style={styles.visitLegendItem}>
+                        <View style={[styles.visitLegendDot, { backgroundColor: '#01538b' }]} />
+                        <Text style={styles.visitLegendText}>Selected day</Text>
+                    </View>
+                    <View style={styles.visitLegendItem}>
+                        <View style={[styles.visitLegendDot, { backgroundColor: '#bfeffc' }]} />
+                        <Text style={styles.visitLegendText}>Predicted window</Text>
+                    </View>
+                </View>
+
                 <View style={styles.visitDetailsCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                         <Ionicons name="clipboard-outline" size={16} color="#333" style={{ marginRight: 6 }} />
@@ -455,18 +545,38 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                     </View>
                     <View style={styles.visitDetailRow}>
                         <Text style={styles.visitDetailLabel}>Last Visit:</Text>
-                        <Text style={styles.visitDetailValue}>{fmtDate(lastVisitDate)}</Text>
+                        <Text style={styles.visitDetailValue}>{fmtDate(visitInfo.lastVisitDate)}</Text>
                     </View>
-                    {lastProcedure ? (
+                    {visitInfo.lastProcedure ? (
                         <View style={styles.visitDetailRow}>
                             <Text style={styles.visitDetailLabel}>Last Procedure:</Text>
-                            <Text style={styles.visitDetailValue}>{lastProcedure}</Text>
+                            <Text style={styles.visitDetailValue}>{visitInfo.lastProcedure}</Text>
                         </View>
                     ) : null}
+                    <View style={styles.visitDetailRow}>
+                        <Text style={styles.visitDetailLabel}>Treatment Records Used:</Text>
+                        <Text style={styles.visitDetailValue}>{visitInfo.historyCount}</Text>
+                    </View>
                     <View style={styles.visitDetailRow}>
                         <Text style={styles.visitDetailLabel}>Recommended Interval:</Text>
                         <Text style={styles.visitDetailValue}>Every 6 months</Text>
                     </View>
+                </View>
+
+                <View style={styles.visitDetailsCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                        <Ionicons name="time-outline" size={16} color="#333" style={{ marginRight: 6 }} />
+                        <Text style={styles.visitDetailTitle}>Recent Treatment History</Text>
+                    </View>
+                    {treatmentHistory.slice(0, 5).map((log, index) => (
+                        <View key={log._id || `${log.date}-${index}`} style={styles.historyRow}>
+                            <View style={styles.historyDot} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.historyProcedure}>{log.procedure || 'Treatment recorded'}</Text>
+                                <Text style={styles.historyDate}>{fmtDate(log.date)}</Text>
+                            </View>
+                        </View>
+                    ))}
                 </View>
 
                 <View style={styles.visitTipCard}>
@@ -545,6 +655,8 @@ export default function AiPatientCareCompanionScreen({ navigation }) {
                 {activeSection === 'visitWindow' && renderVisitWindow()}
             </Animated.ScrollView>
 
+            <PatientBottomNav navigation={navigation} activeKey="home" />
+
             {/* Article Detail Modal */}
             <Modal
                 visible={!!selectedArticle}
@@ -598,14 +710,14 @@ const styles = StyleSheet.create({
 
     // Tabs
     tabBar:        { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee', elevation: 1 },
-    tabScroll:     { paddingHorizontal: 10 },
+    tabScroll:     { paddingHorizontal: 10, paddingBottom: 120 },
     tab:           { paddingVertical: 12, paddingHorizontal: 14, marginRight: 2 },
     tabActive:     { borderBottomWidth: 3, borderBottomColor: '#01538b' },
     tabText:       { fontSize: 13, color: '#888', fontWeight: '600' },
     tabTextActive: { color: '#01538b' },
 
     // Content
-    content:     { padding: 20, paddingBottom: 40 },
+    content:     { padding: 20, paddingBottom: 150 },
     welcomeText: { fontSize: 14, color: '#666', lineHeight: 20, marginBottom: 20 },
 
     // Feature grid
@@ -664,10 +776,19 @@ const styles = StyleSheet.create({
     visitStatus:        { fontWeight: 'bold', fontSize: 14, marginBottom: 5 },
     visitNextDate:      { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 3 },
     visitDaysText:      { fontSize: 13, color: '#888' },
+    visitCalendar:      { borderWidth: 1, borderColor: '#dfeef6', borderRadius: 16, overflow: 'hidden', marginBottom: 12 },
+    visitLegendRow:     { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 15 },
+    visitLegendItem:    { flexDirection: 'row', alignItems: 'center', marginRight: 18, marginBottom: 8 },
+    visitLegendDot:     { width: 10, height: 10, borderRadius: 5, marginRight: 7 },
+    visitLegendText:    { fontSize: 12, color: '#6f8593' },
     visitDetailsCard:   { backgroundColor: 'white', padding: 18, borderRadius: 15, marginBottom: 15, elevation: 2 },
     visitDetailRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
     visitDetailLabel:   { fontSize: 13, color: '#888', flex: 1 },
     visitDetailValue:   { fontSize: 13, color: '#333', fontWeight: '600', flex: 1.2, textAlign: 'right' },
+    historyRow:         { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#eef4f8' },
+    historyDot:         { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2dccf6', marginTop: 5, marginRight: 10 },
+    historyProcedure:   { fontSize: 13, fontWeight: '700', color: '#01538b', marginBottom: 3 },
+    historyDate:        { fontSize: 12, color: '#6b7c87' },
     visitTipCard:       { backgroundColor: '#e8f5e9', padding: 18, borderRadius: 15, marginBottom: 15, borderLeftWidth: 4, borderLeftColor: '#4caf50' },
     visitTipText:       { fontSize: 13, color: '#555', lineHeight: 20 },
     bookVisitBtn:       { backgroundColor: '#01538b', paddingVertical: 16, borderRadius: 12, alignItems: 'center', elevation: 2, marginTop: 4 },

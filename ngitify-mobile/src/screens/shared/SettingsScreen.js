@@ -9,6 +9,7 @@ import { AuthContext } from '../../context/AuthContext';
 import LogoutModal from '../../components/LogoutModal';
 import BackIcon from '../../assets/icons/Back.svg';
 import { Ionicons } from '@expo/vector-icons';
+import PatientBottomNav from '../../components/mobile/PatientBottomNav';
 
 const DARK_MODE_KEY = 'ngitify_darkMode';
 
@@ -283,7 +284,7 @@ export default function SettingsScreen({ navigation }) {
                 <View style={styles.card}>
                     <TouchableOpacity
                         style={styles.menuItem}
-                        onPress={() => navigation.navigate('MyProfile')}
+                        onPress={() => navigation.navigate('PatientTabs', { screen: 'MyProfile' })}
                         activeOpacity={0.7}
                     >
                         <View style={styles.menuItemLeft}>
@@ -423,6 +424,8 @@ export default function SettingsScreen({ navigation }) {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            <PatientBottomNav navigation={navigation} activeKey="profile" />
 
             {/* ── Logout Modal ── */}
             <LogoutModal
@@ -657,7 +660,7 @@ const styles = StyleSheet.create({
     profileName:  { fontSize: 16, fontWeight: 'bold', color: '#222', marginBottom: 3 },
     profileEmail: { fontSize: 13, color: '#888' },
 
-    content: { padding: 16 },
+    content: { padding: 16, paddingBottom: 152 },
 
     sectionTitle: {
         fontSize: 12, fontWeight: '700', color: '#888',

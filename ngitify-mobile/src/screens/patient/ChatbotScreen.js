@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
+import PatientBottomNav from '../../components/mobile/PatientBottomNav';
 
 const INITIAL_MESSAGES = [
     {
@@ -192,6 +193,7 @@ export default function ChatbotScreen({ navigation }) {
                     <Text style={styles.sendBtnText}>Send</Text>
                 </TouchableOpacity>
             </View>
+            <PatientBottomNav navigation={navigation} activeKey="home" />
         </KeyboardAvoidingView>
     );
 }
@@ -210,7 +212,7 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b', marginRight: 6 },
     onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4caf50' },
 
-    chatContainer: { padding: 15, paddingBottom: 10 },
+    chatContainer: { padding: 15, paddingBottom: 120 },
 
     messageBubble: { flexDirection: 'row', marginBottom: 16, alignItems: 'flex-end' },
     userBubble: { justifyContent: 'flex-end' },
@@ -245,7 +247,7 @@ const styles = StyleSheet.create({
 
     inputContainer: {
         flexDirection: 'row', padding: 12, backgroundColor: 'white',
-        borderTopWidth: 1, borderTopColor: '#eee', alignItems: 'center'
+        borderTopWidth: 1, borderTopColor: '#eee', alignItems: 'center', marginBottom: 86
     },
     inputBox: {
         flex: 1, backgroundColor: '#f5f5f5', paddingHorizontal: 16,

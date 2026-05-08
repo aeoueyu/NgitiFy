@@ -167,7 +167,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             const res = await fetch(`${API_BASE_URL}/api/reset-password`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ email: email.trim(), newPassword }),
+                body:    JSON.stringify({ email: email.trim(), otp: otp.trim(), newPassword }),
             });
             const data = await res.json();
             if (res.ok) {

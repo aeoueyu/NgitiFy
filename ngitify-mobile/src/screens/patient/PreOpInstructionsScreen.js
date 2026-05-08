@@ -6,6 +6,7 @@ import BackIcon from '../../assets/icons/Back.svg';
 import TimeIcon from '../../assets/icons/Time.svg';
 import DentistIcon from '../../assets/icons/Dentist.svg';
 import SurgeryProcedureIcon from '../../assets/icons/SurgeryProcedure.svg';
+import PatientBottomNav from '../../components/mobile/PatientBottomNav';
 
 export default function PreOpInstructionsScreen({ navigation }) {
     const [isChecked, setIsChecked] = useState(false);
@@ -90,6 +91,7 @@ export default function PreOpInstructionsScreen({ navigation }) {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+            <PatientBottomNav navigation={navigation} activeKey="visits" />
         </View>
     );
 }
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
     backText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
     
-    content: { padding: 20 },
+    content: { padding: 20, paddingBottom: 150 },
     
     card: { backgroundColor: 'white', padding: 20, borderRadius: 15, elevation: 2, marginBottom: 20, borderTopWidth: 5, borderTopColor: '#01538b' },
     cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },

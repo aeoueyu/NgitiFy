@@ -7,6 +7,7 @@ import TimeIcon from '../../assets/icons/Time.svg';
 import PatientIcon from '../../assets/icons/Patient.svg';
 import SurgeryProcedureIcon from '../../assets/icons/SurgeryProcedure.svg';
 import DentistIcon from '../../assets/icons/Dentist.svg';
+import PatientBottomNav from '../../components/mobile/PatientBottomNav';
 
 const DUMMY_SCHEDULES = {
     '2026-02-20': [
@@ -109,6 +110,7 @@ export default function SurgerySchedulesScreen({ navigation }) {
                     showsVerticalScrollIndicator={false}
                 />
             </View>
+            <PatientBottomNav navigation={navigation} activeKey="visits" />
         </View>
     );
 }
@@ -122,7 +124,7 @@ const styles = StyleSheet.create({
     
     calendar: { marginBottom: 10, elevation: 2 },
     
-    listContainer: { flex: 1, padding: 20, paddingTop: 10 },
+    listContainer: { flex: 1, padding: 20, paddingTop: 10, paddingBottom: 110 },
     listTitle: { fontSize: 16, fontWeight: 'bold', color: '#555', marginBottom: 15 },
     emptyText: { textAlign: 'center', color: '#888', marginTop: 20, fontStyle: 'italic' },
 

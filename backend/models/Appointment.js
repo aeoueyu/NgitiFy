@@ -125,6 +125,8 @@ const appointmentSchema = new mongoose.Schema({
     remarks: { type: String },
     autoCancelledAt: { type: Date, default: null },
     cancellationReason: { type: String, default: '' },
+    statusReminderSentAt: { type: Date, default: null },
+    statusReminderDayKey: { type: String, default: '' },
     rescheduleHistory: [{
         originalDate: { type: Date },
         originalTime: { type: String, default: '' },

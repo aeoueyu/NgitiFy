@@ -10,6 +10,7 @@ import { AuthContext } from '../../context/AuthContext';
 import CustomModal from '../../components/CustomModal';
 import BackIcon from '../../assets/icons/Back.svg';
 import Calendar from '../../assets/images/calendar.svg';
+import PatientBottomNav from '../../components/mobile/PatientBottomNav';
 
 // Address JSON data
 import regionsData   from '../../utils/json/region.json';
@@ -129,8 +130,8 @@ export default function EditProfileScreen({ navigation }) {
             if (!res.ok) throw new Error('Failed to load profile.');
             const data = await res.json();
 
-            const addr     = data.currentAddress  || {};
-            const permAddr = data.permanentAddress || {};
+            const addr     = data.currentAddress || data.permanentAddress || {};
+            const permAddr = data.permanentAddress || data.currentAddress || {};
 
             // Resolve stored values (code OR name) → codes for dropdown filtering
             const regCode      = resolveToCode(regionsData,   'region_name',   'region_code',   addr.region);
@@ -202,8 +203,8 @@ export default function EditProfileScreen({ navigation }) {
 
             setFormData(populated);
             setSavedData(populated);
-            setIsSameAddress(sameAddr);
-            setSavedSameAddr(sameAddr);
+            setIsSameAddress(true);
+            setSavedSameAddr(true);
 
             if (data.birthdate) {
                 const bd = new Date(data.birthdate);
@@ -390,24 +391,7 @@ export default function EditProfileScreen({ navigation }) {
             houseNumber: formData.house.trim(),
         };
 
-        let permanentAddressPayload;
-        if (isSameAddress) {
-            permanentAddressPayload = { ...currentAddressPayload };
-        } else {
-            const permRegionName   = nameFromCode(regionsData,   'region_code',   'region_name',   formData.permReg);
-            const permProvinceName = nameFromCode(provincesData, 'province_code', 'province_name', formData.permProv);
-            const permCityName     = nameFromCode(citiesData,    'city_code',     'city_name',     formData.permCity);
-            const permBarangayName = nameFromCode(barangaysData, 'brgy_code',     'brgy_name',     formData.permBrgy);
-            permanentAddressPayload = {
-                country:     'Philippines',
-                region:      permRegionName,
-                province:    permProvinceName,
-                city:        permCityName,
-                barangay:    permBarangayName,
-                street:      formData.permStreet.trim(),
-                houseNumber: formData.permHouse.trim(),
-            };
-        }
+        const permanentAddressPayload = { ...currentAddressPayload };
 
         const payload = {
             name: {
@@ -762,7 +746,7 @@ export default function EditProfileScreen({ navigation }) {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Current Address</Text>
+                    <Text style={styles.sectionTitle}>Home Address</Text>
 
                     <View style={{ flexDirection: 'row', marginLeft: -5, marginRight: -5 }}>
                         {renderDropdownInput('Region',   formData.reg,  regionsData,        'region_name',   'region_code',   val => handleAddressChange('reg', val))}
@@ -801,6 +785,7 @@ export default function EditProfileScreen({ navigation }) {
                 </View>
 
                 {/* ── Permanent Address ── */}
+                {false && (
                 <View style={styles.section}>
                     <View style={styles.permHeaderRow}>
                         <Text style={styles.sectionTitle}>Permanent Address</Text>
@@ -861,6 +846,7 @@ export default function EditProfileScreen({ navigation }) {
                         </View>
                     </View>
                 </View>
+                )}
 
                 {/* Save error */}
                 {saveError ? (
@@ -886,6 +872,8 @@ export default function EditProfileScreen({ navigation }) {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            <PatientBottomNav navigation={navigation} activeKey="profile" />
 
             {/* ── Date Picker (Android) ── */}
             {showDatePicker && Platform.OS === 'android' && (
@@ -995,7 +983,7 @@ const styles = StyleSheet.create({
     editBtn:     { width: 60, alignItems: 'flex-end', padding: 5 },
     editBtnText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
 
-    formContainer: { padding: 20 },
+    formContainer: { padding: 20, paddingBottom: 152 },
 
     // Error / retry
     errorBanner: {

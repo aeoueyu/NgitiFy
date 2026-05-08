@@ -1,54 +1,85 @@
-import React, { useContext, useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
-    View, Text, TouchableOpacity, StyleSheet, ScrollView,
-    ActivityIndicator, RefreshControl, StatusBar, Image,
+    ActivityIndicator,
+    Alert,
+    Image,
+    Modal,
+    RefreshControl,
+    ScrollView,
+    Share,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import BackIcon from '../../assets/icons/Back.svg';
 
-// Address JSON data (needed to resolve codes → names for display)
-import regionsData   from '../../utils/json/region.json';
+import regionsData from '../../utils/json/region.json';
 import provincesData from '../../utils/json/province.json';
-import citiesData    from '../../utils/json/city.json';
+import citiesData from '../../utils/json/city.json';
 import barangaysData from '../../utils/json/barangay.json';
 
+const COLORS = {
+    primary: '#01538b',
+    secondary: '#2dccf6',
+    background: '#eef7fb',
+    surface: '#ffffff',
+    surfaceSoft: '#f6fbfe',
+    text: '#17364a',
+    textSoft: '#6d8597',
+    border: '#d5e9f4',
+    accentPink: '#ffe6ef',
+    accentLavender: '#ece9ff',
+    accentOrange: '#fff0df',
+    accentGray: '#eef3f6',
+    danger: '#d85b73',
+};
+
 const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return '-';
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+    if (Number.isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
 };
 
 const calculateAge = (dateStr) => {
     if (!dateStr) return null;
     const today = new Date();
-    const bDate = new Date(dateStr);
-    if (isNaN(bDate.getTime())) return null;
-    let age = today.getFullYear() - bDate.getFullYear();
+    const birthDate = new Date(dateStr);
+    if (Number.isNaN(birthDate.getTime())) return null;
+
+    let age = today.getFullYear() - birthDate.getFullYear();
     if (
-        today.getMonth() < bDate.getMonth() ||
-        (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())
-    ) age--;
+        today.getMonth() < birthDate.getMonth() ||
+        (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
+    ) {
+        age -= 1;
+    }
     return age;
 };
 
-// Resolves a stored value (which may be a code OR a name) to its display name.
 const resolveAddressName = (list, codeKey, nameKey, value) => {
     if (!value) return '';
-    // Check if already a readable name
-    const byName = list.find(i => i[nameKey]?.toLowerCase() === value.toLowerCase());
+    const byName = list.find((item) => item[nameKey]?.toLowerCase() === value.toLowerCase());
     if (byName) return byName[nameKey];
-    // Fallback: treat as code and resolve to name
-    const byCode = list.find(i => i[codeKey] === value);
-    return byCode ? byCode[nameKey] : value; // last resort: show raw value
+    const byCode = list.find((item) => item[codeKey] === value);
+    return byCode ? byCode[nameKey] : value;
 };
 
 const formatAddress = (address) => {
-    if (!address) return '—';
-    const regionName   = resolveAddressName(regionsData,   'region_code',   'region_name',   address.region);
+    if (!address) return '-';
+
+    const regionName = resolveAddressName(regionsData, 'region_code', 'region_name', address.region);
     const provinceName = resolveAddressName(provincesData, 'province_code', 'province_name', address.province);
-    const cityName     = resolveAddressName(citiesData,    'city_code',     'city_name',     address.city);
-    const barangayName = resolveAddressName(barangaysData, 'brgy_code',     'brgy_name',     address.barangay);
+    const cityName = resolveAddressName(citiesData, 'city_code', 'city_name', address.city);
+    const barangayName = resolveAddressName(barangaysData, 'brgy_code', 'brgy_name', address.barangay);
+
     const parts = [
         address.houseNumber,
         address.street,
@@ -57,23 +88,50 @@ const formatAddress = (address) => {
         provinceName,
         regionName,
     ].filter(Boolean);
-    return parts.length > 0 ? parts.join(', ') : '—';
+
+    return parts.length ? parts.join(', ') : '-';
 };
 
-function InfoRow({ label, value }) {
+function DetailRow({ label, value, last = false }) {
     return (
-        <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>{label}</Text>
-            <Text style={styles.infoValue}>{value || '—'}</Text>
+        <View style={[styles.detailRow, !last && styles.detailRowBorder]}>
+            <Text style={styles.detailLabel}>{label}</Text>
+            <Text style={styles.detailValue}>{value || '-'}</Text>
         </View>
     );
 }
 
-function SectionCard({ title, children }) {
+function DetailSection({ title, children }) {
     return (
-        <View style={styles.card}>
-            <Text style={styles.cardTitle}>{title}</Text>
-            {children}
+        <View style={styles.detailSection}>
+            <Text style={styles.detailSectionTitle}>{title}</Text>
+            <View style={styles.detailSectionBody}>{children}</View>
+        </View>
+    );
+}
+
+function ActionCard({ icon, iconColor, iconBg, title, subtitle, onPress }) {
+    return (
+        <TouchableOpacity style={styles.actionCard} onPress={onPress} activeOpacity={0.82}>
+            <View style={styles.actionLeft}>
+                <View style={[styles.actionIconWrap, { backgroundColor: iconBg }]}>
+                    <Ionicons name={icon} size={20} color={iconColor} />
+                </View>
+                <View style={styles.actionTextWrap}>
+                    <Text style={styles.actionTitle}>{title}</Text>
+                    {subtitle ? <Text style={styles.actionSubtitle}>{subtitle}</Text> : null}
+                </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textSoft} />
+        </TouchableOpacity>
+    );
+}
+
+function StatPill({ label, value }) {
+    return (
+        <View style={styles.statPill}>
+            <Text style={styles.statValue}>{value}</Text>
+            <Text style={styles.statLabel}>{label}</Text>
         </View>
     );
 }
@@ -81,19 +139,25 @@ function SectionCard({ title, children }) {
 export default function MyProfileScreen({ navigation }) {
     const { userToken, userId, userInfo, API_BASE_URL } = useContext(AuthContext);
 
-    const [profile,    setProfile]    = useState(null);
-    const [loading,    setLoading]    = useState(true);
+    const [profile, setProfile] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [error,      setError]      = useState(null);
+    const [error, setError] = useState(null);
+    const [detailsVisible, setDetailsVisible] = useState(false);
 
     const fetchProfile = useCallback(async () => {
         if (!userId || !userToken) return;
+
         setError(null);
         try {
             const res = await fetch(`${API_BASE_URL}/api/user/${userId}`, {
                 headers: { Authorization: `Bearer ${userToken}` },
             });
-            if (!res.ok) throw new Error('Failed to load profile.');
+
+            if (!res.ok) {
+                throw new Error('Failed to load profile.');
+            }
+
             const data = await res.json();
             setProfile(data);
         } catch (err) {
@@ -102,313 +166,569 @@ export default function MyProfileScreen({ navigation }) {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [userId, userToken, API_BASE_URL]);
+    }, [API_BASE_URL, userId, userToken]);
 
-    useEffect(() => { fetchProfile(); }, [fetchProfile]);
+    useEffect(() => {
+        fetchProfile();
+    }, [fetchProfile]);
 
-    // Refresh when navigating back from EditProfile so changes show immediately
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             setLoading(true);
             fetchProfile();
         });
+
         return unsubscribe;
-    }, [navigation, fetchProfile]);
+    }, [fetchProfile, navigation]);
 
-    const onRefresh = () => { setRefreshing(true); fetchProfile(); };
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchProfile();
+    };
 
-    // ─── Derived display values ───────────────────────────────────────────────
-    const firstName  = profile?.name?.first  || userInfo?.firstName || '';
-    const middleName = profile?.name?.middle  || '';
-    const lastName   = profile?.name?.last   || userInfo?.lastName  || '';
-    const fullName   = [firstName, middleName, lastName].filter(Boolean).join(' ') || 'Patient';
-    const initials   = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '?';
+    const firstName = profile?.name?.first || userInfo?.firstName || '';
+    const middleName = profile?.name?.middle || '';
+    const lastName = profile?.name?.last || userInfo?.lastName || '';
+    const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ') || 'Patient';
+    const initials = ([firstName?.[0], lastName?.[0]].filter(Boolean).join('') || 'P').toUpperCase();
+    const age = calculateAge(profile?.birthdate);
+    const bloodType = profile?.bloodType || profile?.medicalHistory?.bloodType || '-';
+    const contactNumber = profile?.contactNumber || '-';
+    const email = profile?.email || userInfo?.email || '';
 
-    const age      = calculateAge(profile?.birthdate);
-    const ageLabel = age !== null
-        ? `${age} yrs old (${formatDate(profile.birthdate)})`
-        : '—';
+    const activityCount = useMemo(() => {
+        const medical = profile?.medicalHistory || {};
+        return [
+            ...(medical.allergies || []),
+            ...(medical.conditions || []),
+            ...(medical.medications || []),
+        ].filter(Boolean).length;
+    }, [profile]);
 
-    // Check if permanent address is same as current
-    const currAddr = profile?.currentAddress;
-    const permAddr = profile?.permanentAddress;
-    const isSameAddress =
-        currAddr && permAddr &&
-        currAddr.region      === permAddr.region      &&
-        currAddr.province    === permAddr.province    &&
-        currAddr.city        === permAddr.city        &&
-        currAddr.barangay    === permAddr.barangay    &&
-        currAddr.street      === permAddr.street      &&
-        currAddr.houseNumber === permAddr.houseNumber &&
-        !!currAddr.region;
+    const detailSections = useMemo(() => {
+        const homeAddress = formatAddress(profile?.currentAddress || profile?.permanentAddress);
 
-    // ─── Loading state ────────────────────────────────────────────────────────
+        return [
+            {
+                title: 'Personal Information',
+                rows: [
+                    ['Full Name', fullName],
+                    ['Birthdate', formatDate(profile?.birthdate)],
+                    ['Age', age !== null ? `${age} years old` : '-'],
+                    ['Gender', profile?.gender || '-'],
+                    ['Civil Status', profile?.civilStatus || '-'],
+                    ['Occupation', profile?.occupation || '-'],
+                ],
+            },
+            {
+                title: 'Contact Details',
+                rows: [
+                    ['Email Address', email || '-'],
+                    ['Phone Number', contactNumber],
+                    ['Home Address', homeAddress],
+                ],
+            },
+            {
+                title: 'Health Snapshot',
+                rows: [
+                    ['Blood Type', bloodType],
+                    ['Height', profile?.height ? `${profile.height} cm` : '-'],
+                    ['Weight', profile?.weight ? `${profile.weight} kg` : '-'],
+                ],
+            },
+            {
+                title: 'Emergency Contact',
+                rows: [
+                    ['Contact Name', profile?.emergencyContact?.name || '-'],
+                    ['Relationship', profile?.emergencyContact?.relationship || '-'],
+                    ['Contact Number', profile?.emergencyContact?.contactNumber || '-'],
+                ],
+            },
+            {
+                title: 'Medical History',
+                rows: [
+                    ['Allergies', profile?.medicalHistory?.allergies?.join(', ') || '-'],
+                    ['Conditions', profile?.medicalHistory?.conditions?.join(', ') || '-'],
+                    ['Medications', profile?.medicalHistory?.medications?.join(', ') || '-'],
+                ],
+            },
+        ];
+    }, [age, bloodType, contactNumber, email, fullName, profile]);
+
+    const handleInviteFriend = async () => {
+        try {
+            await Share.share({
+                message: 'Check out NgitiFy Dentime for your dental appointments and records.',
+            });
+        } catch (err) {
+            Alert.alert('Unable to share', 'Please try again in a moment.');
+        }
+    };
+
+    const actionCards = [
+        {
+            title: 'Edit profile',
+            subtitle: 'Update your photo and personal information',
+            icon: 'create-outline',
+            iconColor: COLORS.danger,
+            iconBg: COLORS.accentPink,
+            onPress: () => navigation.navigate('EditProfile'),
+        },
+        {
+            title: 'My details',
+            subtitle: 'View your complete patient profile',
+            icon: 'person-outline',
+            iconColor: COLORS.primary,
+            iconBg: COLORS.accentLavender,
+            onPress: () => setDetailsVisible(true),
+        },
+        {
+            title: 'My activity',
+            subtitle: 'See recent account actions and updates',
+            icon: 'stats-chart-outline',
+            iconColor: '#6b63ff',
+            iconBg: COLORS.accentLavender,
+            onPress: () => navigation.navigate('ActivityLogs'),
+        },
+        {
+            title: 'Settings',
+            subtitle: 'Notifications, privacy, and password',
+            icon: 'settings-outline',
+            iconColor: '#ff8b2d',
+            iconBg: COLORS.accentOrange,
+            onPress: () => navigation.navigate('Settings'),
+        },
+        {
+            title: 'Invite a friend',
+            subtitle: 'Share the mobile app with someone',
+            icon: 'person-add-outline',
+            iconColor: COLORS.text,
+            iconBg: COLORS.accentGray,
+            onPress: handleInviteFriend,
+        },
+        {
+            title: 'Help',
+            subtitle: 'Open patient support and dental guidance',
+            icon: 'help-circle-outline',
+            iconColor: COLORS.text,
+            iconBg: COLORS.accentGray,
+            onPress: () => navigation.navigate('AiPatientCareCompanion'),
+        },
+    ];
+
     if (loading) {
         return (
             <View style={styles.container}>
-                <StatusBar barStyle="dark-content" backgroundColor="white" />
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        onPress={() => navigation.goBack()}
-                        style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
-                    >
-                        <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
-                        <Text style={styles.backText}>Back</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>My Profile</Text>
-                    <View style={{ width: 60 }} />
-                </View>
+                <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
                 <View style={styles.centered}>
-                    <ActivityIndicator size="large" color="#01538b" />
-                    <Text style={styles.loadingText}>Loading your profile…</Text>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <Text style={styles.loadingText}>Loading your profile...</Text>
                 </View>
             </View>
         );
     }
 
-    // ─── Main render ──────────────────────────────────────────────────────────
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="white" />
-
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
-                >
-                    <BackIcon width={16} height={16} style={{ color: '#01538b', marginRight: 5 }} />
-                    <Text style={styles.backText}>Back</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>My Profile</Text>
-                <TouchableOpacity
-                    style={styles.editBtn}
-                    onPress={() => navigation.navigate('EditProfile')}
-                >
-                    <Text style={styles.editBtnText}>Edit</Text>
-                </TouchableOpacity>
-            </View>
+            <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
             <ScrollView
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
-                refreshControl={
+                refreshControl={(
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        colors={['#01538b']}
-                        tintColor="#01538b"
+                        colors={[COLORS.primary]}
+                        tintColor={COLORS.primary}
                     />
-                }
-            >
-                {/* Error banner */}
-                {error && (
-                    <View style={styles.errorBanner}>
-                        <Text style={styles.errorBannerText}>⚠️ {error}</Text>
-                    </View>
                 )}
+            >
+                <View style={styles.topAccent} />
 
-                {/* Avatar + name card */}
-                <View style={styles.profileCard}>
-                    {profile?.profileImage ? (
-                        <Image
-                            source={{ uri: profile.profileImage }}
-                            style={styles.avatarCircle}
-                        />
-                    ) : (
-                        <View style={styles.avatarCircle}>
-                            <Text style={styles.avatarText}>{initials}</Text>
-                        </View>
-                    )}
-                    <Text style={styles.patientName}>{fullName}</Text>
-                    <Text style={styles.patientEmail}>{profile?.email || userInfo?.email || ''}</Text>
-                    {profile?.gender && (
-                        <View style={styles.genderBadge}>
-                            <Text style={styles.genderBadgeText}>{profile.gender}</Text>
-                        </View>
-                    )}
+                {error ? (
+                    <View style={styles.errorBanner}>
+                        <Ionicons name="warning-outline" size={16} color="#b45309" />
+                        <Text style={styles.errorBannerText}>{error}</Text>
+                    </View>
+                ) : null}
+
+                <View style={styles.profileHero}>
+                    <View style={styles.avatarWrap}>
+                        {profile?.profileImage ? (
+                            <Image source={{ uri: profile.profileImage }} style={styles.avatarImage} />
+                        ) : (
+                            <View style={styles.avatarFallback}>
+                                <Text style={styles.avatarText}>{initials}</Text>
+                            </View>
+                        )}
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.profileBadge}
+                        onPress={() => navigation.navigate('MedicalRecords')}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.profileBadgeText}>PATIENT</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.nameText}>{fullName}</Text>
+                    <Text style={styles.subText}>{email || 'No email available'}</Text>
+
+                    <View style={styles.statsRow}>
+                        <StatPill label="Age" value={age !== null ? `${age}` : '-'} />
+                        <StatPill label="Blood Type" value={bloodType} />
+                        <StatPill label="Health Notes" value={`${activityCount}`} />
+                    </View>
                 </View>
 
-                {/* Personal Information */}
-                <SectionCard title="👤  Personal Information">
-                    <InfoRow label="Full Name"       value={fullName} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Age & Birthdate" value={ageLabel} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Gender"          value={profile?.gender} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Occupation"      value={profile?.occupation} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Civil Status"    value={profile?.civilStatus} />
-                </SectionCard>
+                <View style={styles.actionsSection}>
+                    {actionCards.slice(0, 4).map((item) => (
+                        <ActionCard key={item.title} {...item} />
+                    ))}
 
-                {/* Contact Details */}
-                <SectionCard title="📞  Contact Details">
-                    <InfoRow label="Email Address"     value={profile?.email || userInfo?.email} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Phone Number"      value={profile?.contactNumber} />
-                    <View style={styles.divider} />
-                    <InfoRow label="Current Address"   value={formatAddress(profile?.currentAddress)} />
-                    <View style={styles.divider} />
-                    {isSameAddress ? (
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Permanent Address</Text>
-                            <View style={styles.sameAddrBadge}>
-                                <Text style={styles.sameAddrBadgeText}>✓ Same as Current Address</Text>
-                            </View>
-                        </View>
-                    ) : (
-                        <InfoRow label="Permanent Address" value={formatAddress(profile?.permanentAddress)} />
-                    )}
-                </SectionCard>
+                    <View style={styles.sectionDivider} />
 
-                {/* Physical Information */}
-                {(profile?.height || profile?.weight || profile?.bloodType || profile?.medicalHistory?.bloodType) && (
-                    <SectionCard title="💪  Physical Information">
-                        <InfoRow label="Height"     value={profile?.height ? `${profile.height} cm` : null} />
-                        {(profile?.height && profile?.weight) && <View style={styles.divider} />}
-                        <InfoRow label="Weight"     value={profile?.weight ? `${profile.weight} kg` : null} />
-                        {((profile?.height || profile?.weight) && (profile?.bloodType || profile?.medicalHistory?.bloodType)) && <View style={styles.divider} />}
-                        <InfoRow label="Blood Type" value={profile?.bloodType || profile?.medicalHistory?.bloodType} />
-                    </SectionCard>
-                )}
+                    {actionCards.slice(4).map((item) => (
+                        <ActionCard key={item.title} {...item} />
+                    ))}
+                </View>
 
-                {(profile?.emergencyContact?.name || profile?.emergencyContact?.contactNumber) && (
-                    <SectionCard title="Emergency Contact">
-                        <InfoRow label="Contact Name" value={profile?.emergencyContact?.name} />
-                        <View style={styles.divider} />
-                        <InfoRow label="Relationship" value={profile?.emergencyContact?.relationship} />
-                        <View style={styles.divider} />
-                        <InfoRow label="Contact Number" value={profile?.emergencyContact?.contactNumber} />
-                    </SectionCard>
-                )}
-
-                {/* Medical History */}
-                {(profile?.medicalHistory?.allergies?.length > 0 ||
-                  profile?.medicalHistory?.conditions?.length > 0 ||
-                  profile?.medicalHistory?.medications?.length > 0) && (
-                    <SectionCard title="🏥  Medical History">
-                        {profile.medicalHistory.allergies?.length > 0 && (
-                            <>
-                                <InfoRow
-                                    label="Allergies"
-                                    value={profile.medicalHistory.allergies.join(', ')}
-                                />
-                                <View style={styles.divider} />
-                            </>
-                        )}
-                        {profile.medicalHistory.conditions?.length > 0 && (
-                            <>
-                                <InfoRow
-                                    label="Conditions"
-                                    value={profile.medicalHistory.conditions.join(', ')}
-                                />
-                                <View style={styles.divider} />
-                            </>
-                        )}
-                        {profile.medicalHistory.medications?.length > 0 && (
-                            <>
-                                <InfoRow
-                                    label="Medications"
-                                    value={profile.medicalHistory.medications.join(', ')}
-                                />
-                                <View style={styles.divider} />
-                            </>
-                        )}
-                    </SectionCard>
-                )}
-
-                {/* Notice */}
-                <View style={styles.noticeCard}>
-                    <Text style={styles.noticeText}>
-                        💡 To update personal information that cannot be edited here, please contact the clinic secretary during your next visit.
+                <View style={styles.quickInfoCard}>
+                    <Text style={styles.quickInfoTitle}>Quick info</Text>
+                    <Text style={styles.quickInfoText}>Phone: {contactNumber}</Text>
+                    <Text style={styles.quickInfoText}>
+                        Address: {formatAddress(profile?.currentAddress)}
                     </Text>
                 </View>
 
-                <View style={{ height: 40 }} />
+                <View style={{ height: 120 }} />
             </ScrollView>
+            <Modal
+                visible={detailsVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setDetailsVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalSheet}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>My Details</Text>
+                            <TouchableOpacity onPress={() => setDetailsVisible(false)} activeOpacity={0.75}>
+                                <Ionicons name="close" size={22} color={COLORS.textSoft} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {detailSections.map((section) => (
+                                <DetailSection key={section.title} title={section.title}>
+                                    {section.rows.map(([label, value], index) => (
+                                        <DetailRow
+                                            key={`${section.title}-${label}`}
+                                            label={label}
+                                            value={value}
+                                            last={index === section.rows.length - 1}
+                                        />
+                                    ))}
+                                </DetailSection>
+                            ))}
+
+                            <TouchableOpacity
+                                style={styles.modalButton}
+                                onPress={() => {
+                                    setDetailsVisible(false);
+                                    navigation.navigate('EditProfile');
+                                }}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.modalButtonText}>Edit Profile</Text>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container:    { flex: 1, backgroundColor: '#f3f7f9' },
-    centered:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingText:  { marginTop: 12, color: '#888', fontSize: 14 },
-
-    // Header
-    header: {
-        backgroundColor: 'white', padding: 20, paddingTop: 50,
-        flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'space-between', elevation: 3, zIndex: 10,
+    container: {
+        flex: 1,
+        backgroundColor: COLORS.background,
     },
-    backBtn:     { flexDirection: 'row', alignItems: 'center', width: 60, padding: 5 },
-    backText:    { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
-    editBtn:     { padding: 5, width: 60, alignItems: 'flex-end' },
-    editBtnText: { color: '#01538b', fontWeight: 'bold', fontSize: 15 },
-
-    content: { padding: 16 },
-
-    // Error
+    centered: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loadingText: {
+        marginTop: 12,
+        color: COLORS.textSoft,
+        fontSize: 14,
+    },
+    content: {
+        paddingHorizontal: 18,
+        paddingTop: 18,
+        paddingBottom: 0,
+    },
+    topAccent: {
+        alignSelf: 'center',
+        width: 132,
+        height: 18,
+        borderRadius: 999,
+        backgroundColor: '#ffffff',
+        marginBottom: 22,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
+    },
     errorBanner: {
-        backgroundColor: '#fff3e0', borderWidth: 1, borderColor: '#ffe0b2',
-        borderRadius: 10, padding: 12, marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff4db',
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        marginBottom: 16,
     },
-    errorBannerText: { color: '#e65100', fontSize: 13 },
-
-    // Profile avatar card
-    profileCard: {
-        backgroundColor: 'white', borderRadius: 16, padding: 24,
-        alignItems: 'center', marginBottom: 16, elevation: 2,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.07, shadowRadius: 3,
+    errorBannerText: {
+        flex: 1,
+        color: '#8a5a14',
+        fontSize: 13,
+        lineHeight: 18,
     },
-    avatarCircle: {
-        width: 88, height: 88, borderRadius: 44,
-        backgroundColor: '#01538b', alignItems: 'center',
-        justifyContent: 'center', marginBottom: 14,
+    profileHero: {
+        alignItems: 'center',
+        marginBottom: 22,
     },
-    avatarText:   { color: 'white', fontSize: 30, fontWeight: 'bold' },
-    patientName:  { fontSize: 22, fontWeight: 'bold', color: '#01538b', marginBottom: 4 },
-    patientEmail: { fontSize: 14, color: '#888', marginBottom: 10 },
-    genderBadge:  {
-        backgroundColor: '#e3f2fd', paddingHorizontal: 14, paddingVertical: 4,
-        borderRadius: 20, marginTop: 4,
+    avatarWrap: {
+        width: 118,
+        height: 118,
+        borderRadius: 59,
+        padding: 4,
+        backgroundColor: '#ffffff',
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+        elevation: 6,
     },
-    genderBadgeText: { color: '#01538b', fontSize: 12, fontWeight: '600' },
-
-    // Section card
-    card: {
-        backgroundColor: 'white', borderRadius: 15, paddingVertical: 6,
-        paddingHorizontal: 18, marginBottom: 14, elevation: 2,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06, shadowRadius: 3,
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 55,
     },
-    cardTitle: {
-        fontSize: 12, fontWeight: '700', color: '#888',
-        textTransform: 'uppercase', letterSpacing: 0.8,
-        paddingTop: 14, paddingBottom: 10,
+    avatarFallback: {
+        flex: 1,
+        borderRadius: 55,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-
-    // Info rows
-    infoRow:    { paddingVertical: 12 },
-    infoLabel:  { fontSize: 12, color: '#aaa', fontWeight: '600', marginBottom: 3 },
-    infoValue:  { fontSize: 14, color: '#333', fontWeight: '500', lineHeight: 20 },
-    divider:    { height: 1, backgroundColor: '#f0f0f0' },
-
-    // Same address badge
-    sameAddrBadge: {
-        backgroundColor: '#e3f2fd', borderRadius: 8,
-        paddingHorizontal: 10, paddingVertical: 4,
-        alignSelf: 'flex-start', marginTop: 2,
+    avatarText: {
+        color: '#ffffff',
+        fontSize: 34,
+        fontWeight: '700',
     },
-    sameAddrBadgeText: { color: '#01538b', fontSize: 12, fontWeight: '600' },
-
-    // Notice
-    noticeCard: {
-        backgroundColor: '#e0f2f1', padding: 14, borderRadius: 12,
-        borderWidth: 1, borderColor: '#b2dfdb', marginBottom: 4,
+    profileBadge: {
+        marginTop: -10,
+        backgroundColor: '#1fbbe0',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 999,
     },
-    noticeText: { color: '#00897b', fontSize: 12, lineHeight: 18, textAlign: 'center' },
+    profileBadgeText: {
+        color: '#ffffff',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+    nameText: {
+        marginTop: 12,
+        color: COLORS.text,
+        fontSize: 31,
+        fontWeight: '700',
+        textAlign: 'center',
+    },
+    subText: {
+        marginTop: 6,
+        color: COLORS.textSoft,
+        fontSize: 15,
+        textAlign: 'center',
+    },
+    statsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+        marginTop: 20,
+        marginHorizontal: -5,
+    },
+    statPill: {
+        flex: 1,
+        backgroundColor: COLORS.surfaceSoft,
+        borderRadius: 18,
+        paddingVertical: 14,
+        paddingHorizontal: 10,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        marginHorizontal: 5,
+    },
+    statValue: {
+        color: COLORS.primary,
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    statLabel: {
+        marginTop: 4,
+        color: COLORS.textSoft,
+        fontSize: 11,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    actionsSection: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 28,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        shadowColor: '#0b3a54',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 5,
+    },
+    actionCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+    },
+    actionLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        paddingRight: 12,
+    },
+    actionIconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 14,
+    },
+    actionTextWrap: {
+        flex: 1,
+    },
+    actionTitle: {
+        color: '#1f2d3a',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    actionSubtitle: {
+        marginTop: 3,
+        color: COLORS.textSoft,
+        fontSize: 12,
+        lineHeight: 17,
+    },
+    sectionDivider: {
+        height: 1,
+        backgroundColor: '#e7eef3',
+        marginVertical: 4,
+    },
+    quickInfoCard: {
+        marginTop: 18,
+        backgroundColor: '#dff5fc',
+        borderRadius: 22,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: '#b8e9f6',
+    },
+    quickInfoTitle: {
+        color: COLORS.primary,
+        fontSize: 14,
+        fontWeight: '700',
+        marginBottom: 8,
+    },
+    quickInfoText: {
+        color: COLORS.text,
+        fontSize: 13,
+        lineHeight: 19,
+        marginBottom: 4,
+    },
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(8, 29, 43, 0.28)',
+    },
+    modalSheet: {
+        maxHeight: '86%',
+        backgroundColor: '#f7fbfd',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingHorizontal: 18,
+        paddingTop: 18,
+        paddingBottom: 26,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 14,
+    },
+    modalTitle: {
+        color: COLORS.primary,
+        fontSize: 21,
+        fontWeight: '700',
+    },
+    detailSection: {
+        marginBottom: 16,
+    },
+    detailSectionTitle: {
+        color: COLORS.text,
+        fontSize: 13,
+        fontWeight: '700',
+        marginBottom: 8,
+        paddingHorizontal: 4,
+    },
+    detailSectionBody: {
+        backgroundColor: '#ffffff',
+        borderRadius: 18,
+        paddingHorizontal: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    detailRow: {
+        paddingVertical: 14,
+    },
+    detailRowBorder: {
+        borderBottomWidth: 1,
+        borderBottomColor: '#e9f1f5',
+    },
+    detailLabel: {
+        color: COLORS.textSoft,
+        fontSize: 12,
+        fontWeight: '600',
+        marginBottom: 5,
+    },
+    detailValue: {
+        color: COLORS.text,
+        fontSize: 14,
+        lineHeight: 20,
+        fontWeight: '500',
+    },
+    modalButton: {
+        marginTop: 6,
+        backgroundColor: COLORS.primary,
+        borderRadius: 18,
+        paddingVertical: 16,
+        alignItems: 'center',
+    },
+    modalButtonText: {
+        color: '#ffffff',
+        fontSize: 15,
+        fontWeight: '700',
+    },
 });

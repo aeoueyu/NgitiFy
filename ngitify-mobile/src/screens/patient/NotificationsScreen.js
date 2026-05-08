@@ -9,6 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
+import PatientBottomNav from '../../components/mobile/PatientBottomNav';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -305,10 +306,11 @@ export default function NotificationsScreen({ navigation }) {
                             tintColor="#01538b"
                         />
                     }
-                    contentContainerStyle={notifications.length === 0 && styles.emptyFlex}
+                    contentContainerStyle={[styles.listContent, notifications.length === 0 && styles.emptyFlex]}
                     showsVerticalScrollIndicator={false}
                 />
             )}
+            <PatientBottomNav navigation={navigation} activeKey="profile" />
         </View>
     );
 }
@@ -338,6 +340,7 @@ const styles = StyleSheet.create({
     // Loading
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     loadingText:      { marginTop: 12, color: '#888', fontSize: 14 },
+    listContent:      { paddingBottom: 130 },
 
     // List header
     listHeader: {

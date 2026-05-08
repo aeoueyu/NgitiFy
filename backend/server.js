@@ -568,25 +568,81 @@ app.post('/api/activate-account', async (req, res) => {
     }
 });
 
+const getFrontendBaseUrl = () => String(process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+const getDentimeLogoUrl = () => `${getFrontendBaseUrl()}/logo.svg`;
+const formatEmailDateLabel = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'To be coordinated by the clinic';
+    return date.toDateString();
+};
+
+const buildDentimeEmailTemplate = ({
+    clinic = {},
+    title = '',
+    intro = '',
+    bodyHtml = '',
+    ctaLabel = '',
+    ctaUrl = '',
+}) => {
+    const clinicName = clinic.clinicName || 'Dentime Dental Clinic';
+    const clinicContact = clinic.clinicContact || '-';
+    const clinicEmail = clinic.clinicEmail || '-';
+    const clinicAddress = clinic.clinicAddress || '-';
+
+    return `
+        <div style="margin:0;padding:24px;background:#eef7fb;font-family:Arial,sans-serif;color:#1f2937;">
+            <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;border:1px solid #d9edf7;box-shadow:0 10px 28px rgba(1,83,139,0.08);">
+                <div style="background:linear-gradient(135deg,#01538b 0%,#2dccf6 100%);padding:28px 28px 22px 28px;color:#ffffff;">
+                    <img src="${getDentimeLogoUrl()}" alt="${clinicName}" style="width:64px;height:64px;display:block;margin-bottom:16px;background:#ffffff;border-radius:18px;padding:8px;" />
+                    <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.92;margin-bottom:8px;">Dentime Dental Clinic</div>
+                    <h1 style="margin:0;font-size:28px;line-height:1.2;">${title}</h1>
+                    ${intro ? `<p style="margin:12px 0 0 0;font-size:15px;line-height:1.6;color:rgba(255,255,255,0.92);">${intro}</p>` : ''}
+                </div>
+                <div style="padding:28px;">
+                    ${bodyHtml}
+                    ${ctaLabel && ctaUrl ? `
+                        <div style="margin:24px 0 0 0;">
+                            <a href="${ctaUrl}" style="display:inline-block;padding:13px 22px;background:#01538b;color:#ffffff;text-decoration:none;border-radius:999px;font-weight:700;font-size:14px;">
+                                ${ctaLabel}
+                            </a>
+                        </div>
+                    ` : ''}
+                </div>
+                <div style="padding:22px 28px;background:#f8fcff;border-top:1px solid #d9edf7;">
+                    <div style="font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#01538b;margin-bottom:10px;">Clinic Contact Details</div>
+                    <p style="margin:0 0 6px 0;"><strong>Clinic:</strong> ${clinicName}</p>
+                    <p style="margin:0 0 6px 0;"><strong>Contact Number:</strong> ${clinicContact}</p>
+                    <p style="margin:0 0 6px 0;"><strong>Email:</strong> ${clinicEmail}</p>
+                    <p style="margin:0;"><strong>Address:</strong> ${clinicAddress}</p>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
 const sendActivationEmail = async (email, role, tempPassword, activationLink) => {
+    const clinic = await getClinicContactDetails();
     await resend.emails.send({
         from: 'NgitiFy Admin <noreply@ngitify.com>',
         to: email,
         subject: 'Welcome to NgitiFy! Activate Your Account',
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #005466;">Welcome to NgitiFy!</h2>
-                <p>Hello,</p>
-                <p>Your <b>${role}</b> account has been successfully created.</p>
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Welcome to NgitiFy',
+            intro: 'Your Dentime Dental Clinic account is ready. Please activate it to continue.',
+            bodyHtml: `
+                <p style="margin:0 0 14px 0;">Hello,</p>
+                <p style="margin:0 0 14px 0;">Your <strong>${role}</strong> account has been successfully created.</p>
                 ${tempPassword ? `
-                <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p><strong>Temporary Password:</strong> <span style="font-size: 18px; font-weight: bold; color: #000;">${tempPassword}</span></p>
-                </div>
+                    <div style="background:#f4fbff;border:1px solid #cfeffc;border-radius:16px;padding:16px;margin:18px 0;">
+                        <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#01538b;margin-bottom:8px;">Temporary Password</div>
+                        <div style="font-size:20px;font-weight:800;color:#0f172a;">${tempPassword}</div>
+                    </div>
                 ` : ''}
-                <p>Please click the button below to activate your account:</p>
-                <a href="${activationLink}" style="background-color: #005466; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Activate Account</a>
-            </div>
-        `
+            `,
+            ctaLabel: 'Activate Account',
+            ctaUrl: activationLink,
+        }),
     });
 };
 
@@ -685,6 +741,13 @@ const getClinicProcedureCatalog = async () => {
     config.clinicProcedures = DEFAULT_CLINIC_PROCEDURES;
     await config.save();
     return [...DEFAULT_CLINIC_PROCEDURES];
+};
+
+const isClinicProcedureAllowed = async (procedure = '') => {
+    const normalizedProcedure = String(procedure || '').trim().toLowerCase();
+    if (!normalizedProcedure) return false;
+    const procedures = await getClinicProcedureCatalog();
+    return procedures.some((entry) => String(entry || '').trim().toLowerCase() === normalizedProcedure);
 };
 
 const getTakenSlotsForDate = async ({ date, branch }) => {
@@ -931,6 +994,22 @@ const buildAppointmentDateTime = (dateValue, timeValue) => {
     return date;
 };
 
+const STATUS_TRANSITIONS = {
+    pending: ['confirmed', 'cancelled'],
+    confirmed: ['in-clinic', 'cancelled'],
+    'in-clinic': ['completed'],
+    completed: [],
+    cancelled: [],
+};
+
+const canTransitionAppointmentStatus = ({ currentStatus = '', nextStatus = '' }) => {
+    const current = String(currentStatus || '').trim().toLowerCase();
+    const next = String(nextStatus || '').trim().toLowerCase();
+    if (!current || !next) return false;
+    if (current === next) return true;
+    return (STATUS_TRANSITIONS[current] || []).includes(next);
+};
+
 const getCurrentScheduleStamp = () => {
     const formatter = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Manila',
@@ -950,6 +1029,21 @@ const getCurrentScheduleStamp = () => {
         date: new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00+08:00`),
         time: `${parts.hour}:${parts.minute}`,
     };
+};
+
+const getManilaDayKey = (value = new Date()) => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    return formatter.format(new Date(value));
+};
+
+const getStartOfManilaDay = (value = new Date()) => {
+    const dayKey = getManilaDayKey(value);
+    return new Date(`${dayKey}T00:00:00+08:00`);
 };
 
 const isSameCalendarDay = (leftDate, rightDate) => {
@@ -1260,7 +1354,6 @@ const reconcilePatientTreatmentLogsFromCompletedAppointments = async (patientId)
 const sendAppointmentReceivedEmail = async ({ email, name, branch, date, time, procedure }) => {
     if (!email) return;
 
-    const appointmentDate = new Date(date);
     const safeName = name || 'Patient';
     const clinic = await getClinicContactDetails();
 
@@ -1268,31 +1361,27 @@ const sendAppointmentReceivedEmail = async ({ email, name, branch, date, time, p
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
         to: email,
         subject: 'Your Dentime appointment request is in process',
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #005466;">Appointment Request Received</h2>
-                <p>Hello ${safeName},</p>
-                <p>Your appointment request is now in process. Please wait for confirmation from the clinic.</p>
-                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
-                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
-                    <p><strong>Branch:</strong> ${branch}</p>
-                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
-                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
-                    <p><strong>Procedure:</strong> ${procedure}</p>
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Appointment Request Received',
+            intro: 'Your appointment request is now in process. Please wait for confirmation from the clinic.',
+            bodyHtml: `
+                <p style="margin:0 0 14px 0;">Hello ${safeName},</p>
+                <div style="background:#f7fbfe;border:1px solid #d9edf7;border-radius:18px;padding:18px;margin:18px 0;">
+                    <p style="margin:0 0 8px 0;"><strong>Branch:</strong> ${branch}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Date:</strong> ${formatEmailDateLabel(date)}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
-                <p>If you have questions, you may contact the clinic through the details below.</p>
-                <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
-                <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
-                <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
-            </div>
-        `,
+                <p style="margin:0;">If you have questions, you may contact the clinic through the details below.</p>
+            `,
+        }),
     });
 };
 
 const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, procedure, dentistName }) => {
     if (!email) return;
 
-    const appointmentDate = new Date(date);
     const safeName = name || 'Patient';
     const clinic = await getClinicContactDetails();
 
@@ -1300,32 +1389,28 @@ const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, 
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
         to: email,
         subject: 'Your Dentime appointment is confirmed',
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #005466;">Appointment Confirmed</h2>
-                <p>Hello ${safeName},</p>
-                <p>Your appointment request at Dentime Dental Clinic has been confirmed.</p>
-                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
-                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
-                    <p><strong>Branch:</strong> ${branch}</p>
-                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
-                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
-                    <p><strong>Procedure:</strong> ${procedure}</p>
-                    <p><strong>Assigned Dentist:</strong> ${dentistName || 'To be assigned by the clinic'}</p>
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Appointment Confirmed',
+            intro: 'Your appointment request at Dentime Dental Clinic has been confirmed.',
+            bodyHtml: `
+                <p style="margin:0 0 14px 0;">Hello ${safeName},</p>
+                <div style="background:#f7fbfe;border:1px solid #d9edf7;border-radius:18px;padding:18px;margin:18px 0;">
+                    <p style="margin:0 0 8px 0;"><strong>Branch:</strong> ${branch}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Date:</strong> ${formatEmailDateLabel(date)}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Procedure:</strong> ${procedure}</p>
+                    <p style="margin:0;"><strong>Assigned Dentist:</strong> ${dentistName || 'To be assigned by the clinic'}</p>
                 </div>
-                <p>If you need to update your appointment, please contact the clinic directly.</p>
-                <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
-                <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
-                <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
-            </div>
-        `,
+                <p style="margin:0;">If you need to update your appointment, please contact the clinic directly.</p>
+            `,
+        }),
     });
 };
 
 const sendAppointmentDeclinedEmail = async ({ email, name, branch, date, time, procedure }) => {
     if (!email) return;
 
-    const appointmentDate = new Date(date);
     const safeName = name || 'Patient';
     const clinic = await getClinicContactDetails();
 
@@ -1333,31 +1418,28 @@ const sendAppointmentDeclinedEmail = async ({ email, name, branch, date, time, p
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
         to: email,
         subject: 'Your Dentime appointment request was declined',
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #8b1e1e;">Appointment Request Declined</h2>
-                <p>Hello ${safeName},</p>
-                <p>Thank you for your interest in Dentime Dental Clinic. At this time, we were unable to confirm the appointment request below.</p>
-                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
-                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
-                    <p><strong>Branch:</strong> ${branch}</p>
-                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
-                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
-                    <p><strong>Procedure:</strong> ${procedure}</p>
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Appointment Request Declined',
+            intro: 'We were unable to confirm this appointment request at this time.',
+            bodyHtml: `
+                <p style="margin:0 0 14px 0;">Hello ${safeName},</p>
+                <p style="margin:0 0 14px 0;">Thank you for your interest in Dentime Dental Clinic.</p>
+                <div style="background:#fff8f8;border:1px solid #f4d4d4;border-radius:18px;padding:18px;margin:18px 0;">
+                    <p style="margin:0 0 8px 0;"><strong>Branch:</strong> ${branch}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Date:</strong> ${formatEmailDateLabel(date)}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
-                <p>You may contact the clinic directly if you would like help booking another schedule.</p>
-                <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
-                <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
-                <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
-            </div>
-        `,
+                <p style="margin:0;">You may contact the clinic directly if you would like help booking another schedule.</p>
+            `,
+        }),
     });
 };
 
 const sendAppointmentRescheduledEmail = async ({ email, name, branch, date, time, procedure }) => {
     if (!email) return;
 
-    const appointmentDate = new Date(date);
     const safeName = name || 'Patient';
     const clinic = await getClinicContactDetails();
 
@@ -1365,21 +1447,44 @@ const sendAppointmentRescheduledEmail = async ({ email, name, branch, date, time
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
         to: email,
         subject: 'Your Dentime appointment has been rescheduled',
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #005466;">Appointment Rescheduled</h2>
-                <p>Hello ${safeName},</p>
-                <p>Your appointment schedule has been updated by the clinic.</p>
-                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
-                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
-                    <p><strong>Branch:</strong> ${branch}</p>
-                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
-                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
-                    <p><strong>Procedure:</strong> ${procedure}</p>
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Appointment Rescheduled',
+            intro: 'Your appointment schedule has been updated by the clinic.',
+            bodyHtml: `
+                <p style="margin:0 0 14px 0;">Hello ${safeName},</p>
+                <div style="background:#f7fbfe;border:1px solid #d9edf7;border-radius:18px;padding:18px;margin:18px 0;">
+                    <p style="margin:0 0 8px 0;"><strong>Branch:</strong> ${branch}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Date:</strong> ${formatEmailDateLabel(date)}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
-                <p>If you need help with the new schedule, please contact the clinic directly.</p>
-            </div>
-        `,
+                <p style="margin:0;">If you need help with the new schedule, please contact the clinic directly.</p>
+            `,
+        }),
+    });
+};
+
+const sendPasswordResetOtpEmail = async ({ email, code }) => {
+    if (!email || !code) return;
+    const clinic = await getClinicContactDetails();
+
+    await resend.emails.send({
+        from: 'NgitiFy Support <noreply@ngitify.com>',
+        to: email,
+        subject: 'Your Dentime Password Reset Code',
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Password Reset Code',
+            intro: 'Use the verification code below to continue resetting your password.',
+            bodyHtml: `
+                <div style="background:#f4fbff;border:1px solid #cfeffc;border-radius:18px;padding:18px;margin:18px 0;text-align:center;">
+                    <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#01538b;margin-bottom:10px;">One-Time Password</div>
+                    <div style="font-size:28px;font-weight:800;letter-spacing:0.24em;color:#0f172a;">${code}</div>
+                </div>
+                <p style="margin:0;">This code will expire in 1 hour. If you did not request a password reset, you may safely ignore this email.</p>
+            `,
+        }),
     });
 };
 
@@ -1575,7 +1680,6 @@ const buildPreRegistrationUrl = (token) => `${process.env.FRONTEND_URL}/pre-regi
 const sendPreRegistrationEmail = async ({ email, name, branch, date, time, procedure, token }) => {
     if (!email || !token) return;
 
-    const appointmentDate = new Date(date);
     const safeName = name || 'Patient';
     const clinic = await getClinicContactDetails();
     const preRegistrationUrl = buildPreRegistrationUrl(token);
@@ -1584,29 +1688,23 @@ const sendPreRegistrationEmail = async ({ email, name, branch, date, time, proce
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
         to: email,
         subject: `Complete Your Registration - ${clinic.clinicName} Appointment Confirmed`,
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #005466;">Appointment Confirmed</h2>
-                <p>Hello ${safeName},</p>
-                <p>Your appointment request has been accepted. Please complete your registration so the clinic can prepare your patient record in advance.</p>
-                <div style="background: #f7fafc; border: 1px solid #d9e6ef; border-radius: 10px; padding: 16px; margin: 20px 0;">
-                    <p><strong>Clinic:</strong> ${clinic.clinicName}</p>
-                    <p><strong>Branch:</strong> ${branch}</p>
-                    <p><strong>Date:</strong> ${appointmentDate.toDateString()}</p>
-                    <p><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
-                    <p><strong>Procedure:</strong> ${procedure}</p>
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Appointment Confirmed',
+            intro: 'Please complete your registration so the clinic can prepare your patient record in advance.',
+            bodyHtml: `
+                <p style="margin:0 0 14px 0;">Hello ${safeName},</p>
+                <div style="background:#f7fbfe;border:1px solid #d9edf7;border-radius:18px;padding:18px;margin:18px 0;">
+                    <p style="margin:0 0 8px 0;"><strong>Branch:</strong> ${branch}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Date:</strong> ${formatEmailDateLabel(date)}</p>
+                    <p style="margin:0 0 8px 0;"><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
+                    <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
-                <p>
-                    <a href="${preRegistrationUrl}" style="display:inline-block;padding:12px 20px;background:#01538b;color:#fff;text-decoration:none;border-radius:999px;font-weight:700;">
-                        Complete Your Registration
-                    </a>
-                </p>
-                <p>This secure link will expire in 72 hours.</p>
-                <p><strong>Contact Number:</strong> ${clinic.clinicContact}</p>
-                <p><strong>Email:</strong> ${clinic.clinicEmail}</p>
-                <p><strong>Address:</strong> ${clinic.clinicAddress}</p>
-            </div>
-        `,
+                <p style="margin:0;">This secure link will expire in 72 hours.</p>
+            `,
+            ctaLabel: 'Complete Your Registration',
+            ctaUrl: preRegistrationUrl,
+        }),
     });
 };
 
@@ -1712,12 +1810,7 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
             user.resetPasswordExpires = Date.now() + 3600000;
             await user.save();
 
-            await resend.emails.send({
-                from: 'NgitiFy Support <noreply@ngitify.com>',
-                to: user.email,
-                subject: 'Your Password Reset Code',
-                text: `Your password reset code is: ${code}`,
-            });
+            await sendPasswordResetOtpEmail({ email: user.email, code });
         }
 
         // Always return 200 — prevents email/role enumeration regardless of outcome.
@@ -1745,12 +1838,7 @@ app.post('/api/mobile/forgot-password', otpLimiter, async (req, res) => {
             user.resetPasswordExpires = Date.now() + 3600000;
             await user.save();
 
-            await resend.emails.send({
-                from: 'NgitiFy Support <noreply@ngitify.com>',
-                to: user.email,
-                subject: 'Your Password Reset Code',
-                text: `Your password reset code is: ${code}`,
-            });
+            await sendPasswordResetOtpEmail({ email: user.email, code });
         }
 
         // Non-existent emails still get a 200 to prevent enumeration
@@ -3409,7 +3497,14 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
             surgeryData.status = 'in-clinic';
         } else if (normalizedSource === 'Phone Call') {
             surgeryData.source = 'Phone Call';
-            surgeryData.status = surgeryData.status || 'confirmed';
+            surgeryData.status = 'confirmed';
+        } else {
+            surgeryData.source = 'Appointment';
+            surgeryData.status = 'pending';
+        }
+
+        if (!(await isClinicProcedureAllowed(surgeryData.procedure))) {
+            return res.status(400).json({ message: 'Please select a valid clinic procedure.' });
         }
 
         // Branch-scoped staff can only create appointments for their own branch
@@ -3716,25 +3811,34 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         }
 
         const updateData = { ...req.body };
+        delete updateData.patient;
+        delete updateData.source;
+        delete updateData.branch;
         const nextDate = updateData.date ? new Date(updateData.date) : existing.date;
         const nextTime = updateData.time !== undefined ? updateData.time : existing.time;
         const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
 
+        if (updateData.procedure !== undefined && !(await isClinicProcedureAllowed(updateData.procedure))) {
+            return res.status(400).json({ message: 'Please select a valid clinic procedure.' });
+        }
+
         if (updateData.status === 'completed' && existing.status !== 'in-clinic' && nextDateTime && nextDateTime > new Date()) {
             return res.status(400).json({ message: 'Appointments can only be marked completed after their scheduled date and time.' });
         }
-
-        if (updateData.source !== undefined) {
-            const normalizedSource = String(updateData.source || '').trim();
-            if (normalizedSource === 'Walk-in') {
-                updateData.source = 'Walk-in';
-                updateData.status = 'in-clinic';
-            } else if (normalizedSource === 'Phone Call') {
-                updateData.source = 'Phone Call';
-                updateData.status = updateData.status || existing.status || 'confirmed';
-            } else if (normalizedSource) {
-                updateData.source = normalizedSource;
+        if (updateData.status !== undefined) {
+            if (['completed', 'cancelled'].includes(String(existing.status || '').toLowerCase())) {
+                return res.status(400).json({ message: 'Cannot change status of a completed or cancelled appointment.' });
             }
+            if (!canTransitionAppointmentStatus({ currentStatus: existing.status, nextStatus: updateData.status })) {
+                const nextAllowedStatuses = STATUS_TRANSITIONS[String(existing.status || '').toLowerCase()] || [];
+                return res.status(400).json({
+                    message: nextAllowedStatuses.length > 0
+                        ? `Status can only be updated to ${nextAllowedStatuses.join(' or ')} from ${existing.status}.`
+                        : 'This appointment status can no longer be updated.',
+                });
+            }
+            updateData.statusReminderSentAt = null;
+            updateData.statusReminderDayKey = '';
         }
 
         if (updateData.status === 'in-clinic') {
@@ -3753,6 +3857,12 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         const timeChanged = updateData.time !== undefined && (existing.time || '') !== (nextTime || '');
         const scheduleChanged = dateChanged || timeChanged;
         const statusChanged = updateData.status !== undefined && (existing.status || '') !== (updatedSurgery.status || '');
+
+        if (scheduleChanged) {
+            updatedSurgery.statusReminderSentAt = null;
+            updatedSurgery.statusReminderDayKey = '';
+            await updatedSurgery.save();
+        }
 
         if (['Walk-in', 'Phone Call'].includes(updatedSurgery.source)) {
             await runPostSaveSideEffect('syncQueueEntryForAppointment:update', () => syncQueueEntryForAppointment(updatedSurgery));
@@ -4015,8 +4125,16 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
         }
 
-        if (TERMINAL_STATUSES.includes(currentSurgery.status) && req.user.role !== 'administrator') {
+        if (TERMINAL_STATUSES.includes(currentSurgery.status)) {
             return res.status(400).json({ message: 'Cannot change status of a completed or cancelled appointment.' });
+        }
+        if (!canTransitionAppointmentStatus({ currentStatus: currentSurgery.status, nextStatus: status })) {
+            const nextAllowedStatuses = STATUS_TRANSITIONS[String(currentSurgery.status || '').toLowerCase()] || [];
+            return res.status(400).json({
+                message: nextAllowedStatuses.length > 0
+                    ? `Status can only be updated to ${nextAllowedStatuses.join(' or ')} from ${currentSurgery.status}.`
+                    : 'This appointment status can no longer be updated.',
+            });
         }
 
         const nextDate = date ? new Date(date) : currentSurgery.date;
@@ -4039,6 +4157,9 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         }
         if (performedProcedure !== undefined) {
             updateFields.performedProcedure = String(performedProcedure || '').trim();
+            if (updateFields.performedProcedure && !(await isClinicProcedureAllowed(updateFields.performedProcedure))) {
+                return res.status(400).json({ message: 'Please select a valid performed procedure.' });
+            }
         }
         const normalizedAmountCharged = amountCharged === undefined ? null : normalizeCurrencyAmount(amountCharged);
         const normalizedAmountPaid = amountPaid === undefined ? null : normalizeCurrencyAmount(amountPaid);
@@ -4057,6 +4178,10 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             updateFields.autoCancelledAt = null;
         } else if (cancellationReason !== undefined) {
             updateFields.cancellationReason = String(cancellationReason || '').trim();
+        }
+        if (status !== currentSurgery.status) {
+            updateFields.statusReminderSentAt = null;
+            updateFields.statusReminderDayKey = '';
         }
         if (status === 'completed' && !String(updateFields.performedProcedure || currentSurgery.performedProcedure || currentSurgery.procedure || '').trim()) {
             return res.status(400).json({ message: 'Please select the procedure performed before completing the appointment.' });
@@ -4085,6 +4210,8 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 actor: req.user,
                 reason: cancellationReason || remarks || '',
             });
+            updateFields.statusReminderSentAt = null;
+            updateFields.statusReminderDayKey = '';
         }
         if (currentSurgery.status !== 'confirmed' && status === 'confirmed' && isGuestWebsiteAppointment && !currentSurgery.preRegistrationCompleted) {
             updateFields.preRegistrationToken = crypto.randomBytes(32).toString('hex');
@@ -4459,6 +4586,59 @@ const autoCancelOverdueAppointments = async () => {
         }
 
         await syncQueueEntryForAppointment(appointment);
+    }
+};
+
+const remindIncompleteSchedulesForStaff = async () => {
+    const todayStart = getStartOfManilaDay();
+    const todayKey = getManilaDayKey();
+    const candidates = await Surgery.find({
+        status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+        isArchived: false,
+        date: { $lt: todayStart },
+        $or: [
+            { statusReminderDayKey: { $ne: todayKey } },
+            { statusReminderDayKey: { $exists: false } },
+        ],
+    }).populate('patient', 'name').populate('dentist', 'name email');
+
+    for (const appointment of candidates) {
+        const statusLabel = String(appointment.status || 'pending')
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, (char) => char.toUpperCase());
+        const scheduleDateLabel = formatEmailDateLabel(appointment.date);
+        const reminderMessage = `${getPatientDisplayName(appointment)}'s ${appointment.procedure} schedule from ${scheduleDateLabel} is still marked ${statusLabel}. Please update the schedule status.`;
+
+        await createBranchScopedNotifications({
+            type: 'APPOINTMENT_STATUS_UPDATED',
+            title: 'Schedule Update Reminder',
+            message: reminderMessage,
+            branch: appointment.branch,
+            relatedId: appointment._id,
+            includeOwners: true,
+        });
+
+        if (appointment.dentist?._id) {
+            await Notification.create({
+                type: 'APPOINTMENT_STATUS_UPDATED',
+                title: 'Schedule Update Reminder',
+                message: reminderMessage,
+                recipientId: appointment.dentist._id,
+                recipientRole: 'dentist',
+                relatedId: appointment._id,
+            });
+        }
+
+        appointment.statusReminderDayKey = todayKey;
+        appointment.statusReminderSentAt = new Date();
+        await appointment.save();
+
+        await AuditLog.create({
+            action: 'SCHEDULE_STATUS_REMINDER_SENT',
+            user: 'SYSTEM',
+            role: 'SYSTEM',
+            details: `Sent schedule update reminder for appointment ${appointment._id} with current status ${appointment.status}.`,
+        });
     }
 };
 
@@ -7345,10 +7525,16 @@ setInterval(() => {
     autoCancelOverdueAppointments().catch((error) => {
         console.error('Auto-cancellation worker error:', error);
     });
+    remindIncompleteSchedulesForStaff().catch((error) => {
+        console.error('Schedule reminder worker error:', error);
+    });
 }, 60 * 1000);
 
 autoCancelOverdueAppointments().catch((error) => {
     console.error('Initial auto-cancellation worker error:', error);
+});
+remindIncompleteSchedulesForStaff().catch((error) => {
+    console.error('Initial schedule reminder worker error:', error);
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

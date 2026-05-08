@@ -4,10 +4,11 @@ import {
     ActivityIndicator, FlatList, Animated
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
-import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Header, Screen } from '../../components/mobile/MobileUI';
+import { mobileTheme } from '../../theme/mobileTheme';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -135,7 +136,7 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
     );
 
     return (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             {logs.map((log) => {
                 const isOpen = expanded === log._id;
                 return (
@@ -238,7 +239,7 @@ function OdontogramTab({ data, loading, error, onRetry }) {
     };
 
     return (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
                 <Text style={styles.odontogramTitle}>Dental Chart</Text>
                 <Text style={styles.odontogramSub}>FDI Notation  ·  Read-only</Text>
@@ -308,7 +309,7 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
         <FlatList
             data={radiographs}
             keyExtractor={item => item._id}
-            contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+            contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
             numColumns={2}
             columnWrapperStyle={{ gap: 12 }}
             renderItem={({ item }) => (
@@ -371,7 +372,7 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
     ];
 
     return (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             {(physician.name || physician.officeNumber) ? (
                 <View style={styles.historySectionCard}>
                     <Text style={styles.historySectionTitle}>Attending Physician</Text>
@@ -550,26 +551,32 @@ export default function MedicalRecordsScreen({ navigation }) {
 
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
-        <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
-                >
-                    <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
-                    <Text style={styles.backText}>Back</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>My EMR</Text>
-                <View style={{ width: 60 }} />
+        <Screen>
+            <Header
+                title="Records"
+                subtitle="EMR, radiographs, and medical history"
+            />
+
+            <View style={styles.heroCard}>
+                <View style={styles.heroIconBubble}>
+                    <Ionicons name="document-text-outline" size={22} color="#ffffff" />
+                </View>
+                <View style={styles.heroCopy}>
+                    <Text style={styles.heroTitle}>Your dental record hub</Text>
+                    <Text style={styles.heroText}>
+                        Switch between odontogram, x-rays, and medical history without leaving the same patient record space.
+                    </Text>
+                </View>
             </View>
 
-            {/* Tab bar */}
             <View style={styles.tabBar}>
                 {TABS.map((tab, idx) => (
                     <TouchableOpacity
                         key={tab.key}
-                        style={styles.tabItem}
+                        style={[
+                            styles.tabItem,
+                            activeTab === tab.key && styles.tabItemActive,
+                        ]}
                         onPress={() => setActiveTab(tab.key)}
                         activeOpacity={0.7}
                     >
@@ -579,7 +586,6 @@ export default function MedicalRecordsScreen({ navigation }) {
                         ]}>
                             {tab.label}
                         </Text>
-                        {activeTab === tab.key && <View style={styles.tabUnderline} />}
                     </TouchableOpacity>
                 ))}
             </View>
@@ -612,7 +618,8 @@ export default function MedicalRecordsScreen({ navigation }) {
                     />
                 )}
             </View>
-        </View>
+
+        </Screen>
     );
 }
 
@@ -620,101 +627,150 @@ export default function MedicalRecordsScreen({ navigation }) {
 
 const shared = StyleSheet.create({
     emptyBox:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 },
-    emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#555', marginBottom: 8, textAlign: 'center' },
-    emptySub:   { fontSize: 13, color: '#aaa', textAlign: 'center', lineHeight: 19 },
+    emptyTitle: { fontSize: 16, fontWeight: 'bold', color: mobileTheme.colors.text, marginBottom: 8, textAlign: 'center' },
+    emptySub:   { fontSize: 13, color: mobileTheme.colors.textSoft, textAlign: 'center', lineHeight: 19 },
     loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 60 },
-    loadingText:{ color: '#888', marginTop: 12, fontSize: 14 },
+    loadingText:{ color: mobileTheme.colors.textSoft, marginTop: 12, fontSize: 14 },
     errorBox:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, marginTop: 40 },
     errorText:  { color: '#d32f2f', fontSize: 14, textAlign: 'center', marginBottom: 16 },
-    retryBtn:   { backgroundColor: '#01538b', paddingHorizontal: 24, paddingVertical: 11, borderRadius: 8 },
+    retryBtn:   { backgroundColor: mobileTheme.colors.primary, paddingHorizontal: 24, paddingVertical: 11, borderRadius: 999 },
     retryText:  { color: 'white', fontWeight: 'bold', fontSize: 14 },
 });
 
 // ─── Screen styles ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-    container:   { flex: 1, backgroundColor: '#f3f7f9' },
-
-    // Header
-    header:      { backgroundColor: 'white', padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 3, zIndex: 10 },
-    backBtn:     { padding: 5, width: 60 },
-    backText:    { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
+    container:   { flex: 1, backgroundColor: mobileTheme.colors.background },
+    heroCard: {
+        marginHorizontal: 18,
+        marginBottom: 16,
+        backgroundColor: mobileTheme.colors.primary,
+        borderRadius: 24,
+        padding: 18,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    heroIconBubble: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.18)',
+        marginRight: 14,
+    },
+    heroCopy: {
+        flex: 1,
+    },
+    heroTitle: {
+        fontSize: 17,
+        fontWeight: '800',
+        color: '#ffffff',
+        marginBottom: 6,
+    },
+    heroText: {
+        fontSize: 12,
+        lineHeight: 18,
+        color: 'rgba(255,255,255,0.86)',
+    },
 
     // Tab bar
-    tabBar:        { flexDirection: 'row', backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee' },
-    tabItem:       { flex: 1, alignItems: 'center', paddingVertical: 13 },
-    tabLabel:      { fontSize: 12, fontWeight: '600', color: '#aaa' },
-    tabLabelActive:{ color: '#01538b' },
-    tabUnderline:  { position: 'absolute', bottom: 0, left: '10%', right: '10%', height: 2.5, backgroundColor: '#01538b', borderRadius: 2 },
+    tabBar: {
+        flexDirection: 'row',
+        marginHorizontal: 18,
+        marginBottom: 10,
+        backgroundColor: mobileTheme.colors.surface,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: mobileTheme.colors.border,
+        padding: 6,
+        ...mobileTheme.shadows.soft,
+    },
+    tabItem: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: 11,
+        borderRadius: 16,
+    },
+    tabItemActive: {
+        backgroundColor: mobileTheme.colors.primarySoft,
+    },
+    tabLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: mobileTheme.colors.textSoft,
+    },
+    tabLabelActive:{
+        color: mobileTheme.colors.primaryDark,
+    },
 
     // Treatment log cards
-    logCard:      { backgroundColor: 'white', borderRadius: 14, marginBottom: 12, elevation: 2, borderLeftWidth: 4, borderLeftColor: '#e0e0e0', overflow: 'hidden' },
-    logCardOpen:  { borderLeftColor: '#01538b' },
+    logCard:      { backgroundColor: 'white', borderRadius: 20, marginBottom: 12, borderWidth: 1, borderColor: mobileTheme.colors.border, overflow: 'hidden', ...mobileTheme.shadows.soft },
+    logCardOpen:  { borderColor: mobileTheme.colors.primary },
     logHeader:    { flexDirection: 'row', alignItems: 'flex-start', padding: 14 },
     logDateBox:   { alignItems: 'center', width: 48, marginRight: 12 },
     logMonth:     { fontSize: 10, fontWeight: 'bold', color: '#01538b', textTransform: 'uppercase' },
     logDay:       { fontSize: 22, fontWeight: 'bold', color: '#01538b', lineHeight: 24 },
-    logYear:      { fontSize: 10, color: '#aaa' },
+    logYear:      { fontSize: 10, color: mobileTheme.colors.textSoft },
     logMeta:      { flex: 1 },
     logTitleRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
-    logProcedure: { fontSize: 14, fontWeight: 'bold', color: '#333', flex: 1 },
-    logCategory:  { fontSize: 11, color: '#888', marginBottom: 2 },
-    logDentist:   { fontSize: 12, color: '#555' },
-    logTooth:     { fontSize: 11, color: '#aaa', marginTop: 2 },
-    logNotesBox:  { backgroundColor: '#f9f9f9', padding: 14, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
-    logNotesLabel:{ fontSize: 11, fontWeight: 'bold', color: '#01538b', marginBottom: 4 },
-    logNotes:     { fontSize: 13, color: '#555', lineHeight: 19 },
+    logProcedure: { fontSize: 14, fontWeight: 'bold', color: mobileTheme.colors.text, flex: 1 },
+    logCategory:  { fontSize: 11, color: mobileTheme.colors.textSoft, marginBottom: 2 },
+    logDentist:   { fontSize: 12, color: mobileTheme.colors.textMuted },
+    logTooth:     { fontSize: 11, color: mobileTheme.colors.textSoft, marginTop: 2 },
+    logNotesBox:  { backgroundColor: mobileTheme.colors.surfaceAlt, padding: 14, borderTopWidth: 1, borderTopColor: mobileTheme.colors.border },
+    logNotesLabel:{ fontSize: 11, fontWeight: 'bold', color: mobileTheme.colors.primary, marginBottom: 4 },
+    logNotes:     { fontSize: 13, color: mobileTheme.colors.textMuted, lineHeight: 19 },
 
     // Odontogram
-    odontogramCard:   { backgroundColor: 'white', borderRadius: 14, padding: 16, elevation: 2, marginBottom: 16 },
-    odontogramTitle:  { fontSize: 16, fontWeight: 'bold', color: '#01538b', marginBottom: 2 },
-    odontogramSub:    { fontSize: 11, color: '#aaa', marginBottom: 16 },
-    odontogramEmpty:  { backgroundColor: '#f9f9f9', padding: 16, borderRadius: 10, marginBottom: 12 },
-    odontogramEmptyText: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 19 },
-    jawLabel:     { fontSize: 11, fontWeight: '700', color: '#aaa', textAlign: 'center', letterSpacing: 1, marginVertical: 6 },
+    odontogramCard:   { backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: mobileTheme.colors.border, ...mobileTheme.shadows.soft },
+    odontogramTitle:  { fontSize: 16, fontWeight: 'bold', color: mobileTheme.colors.primary, marginBottom: 2 },
+    odontogramSub:    { fontSize: 11, color: mobileTheme.colors.textSoft, marginBottom: 16 },
+    odontogramEmpty:  { backgroundColor: mobileTheme.colors.surfaceAlt, padding: 16, borderRadius: 14, marginBottom: 12 },
+    odontogramEmptyText: { fontSize: 13, color: mobileTheme.colors.textSoft, textAlign: 'center', lineHeight: 19 },
+    jawLabel:     { fontSize: 11, fontWeight: '700', color: mobileTheme.colors.textSoft, textAlign: 'center', letterSpacing: 1, marginVertical: 6 },
     jawRow:       { flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center' },
     midline:      { width: 2, height: 36, backgroundColor: '#e0e0e0', marginHorizontal: 3 },
     jawDivider:   { height: 1, backgroundColor: '#e0e0e0', marginVertical: 6 },
     toothCell:    { width: 30, height: 42, margin: 2, borderRadius: 6, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
     toothNum:     { fontSize: 9, fontWeight: 'bold' },
     toothStatus:  { fontSize: 6, textAlign: 'center', marginTop: 1, lineHeight: 8 },
-    legendTitle:  { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 10 },
+    legendTitle:  { fontSize: 13, fontWeight: 'bold', color: mobileTheme.colors.text, marginBottom: 10 },
     legendGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
     legendItem:   { flexDirection: 'row', alignItems: 'center' },
     legendDot:    { width: 14, height: 14, borderRadius: 3, borderWidth: 1, marginRight: 5 },
-    legendLabel:  { fontSize: 11, color: '#666' },
-    readOnlyBanner: { backgroundColor: '#e3f2fd', padding: 12, borderRadius: 10, alignItems: 'center' },
-    readOnlyText:   { fontSize: 12, color: '#1565c0' },
+    legendLabel:  { fontSize: 11, color: mobileTheme.colors.textMuted },
+    readOnlyBanner: { backgroundColor: mobileTheme.colors.primarySoft, padding: 12, borderRadius: 14, alignItems: 'center' },
+    readOnlyText:   { fontSize: 12, color: mobileTheme.colors.primaryDark },
 
     // Radiograph cards
-    xrayCard:          { flex: 1, backgroundColor: 'white', borderRadius: 14, marginBottom: 12, elevation: 2, overflow: 'hidden' },
+    xrayCard:          { flex: 1, backgroundColor: 'white', borderRadius: 18, marginBottom: 12, borderWidth: 1, borderColor: mobileTheme.colors.border, overflow: 'hidden', ...mobileTheme.shadows.soft },
     xrayThumb:         { backgroundColor: '#1a1a2e', height: 90, alignItems: 'center', justifyContent: 'center' },
     xrayAvailableDot:  { position: 'absolute', top: 8, right: 8, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4caf50' },
     xrayInfo:          { padding: 10 },
-    xrayLabel:         { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 3 },
-    xrayDate:          { fontSize: 11, color: '#888', marginBottom: 2 },
+    xrayLabel:         { fontSize: 13, fontWeight: 'bold', color: mobileTheme.colors.text, marginBottom: 3 },
+    xrayDate:          { fontSize: 11, color: mobileTheme.colors.textSoft, marginBottom: 2 },
     xrayMeta:          { fontSize: 11, color: '#64748b', marginBottom: 2 },
-    xrayNotes:         { fontSize: 11, color: '#aaa', marginBottom: 4 },
-    xrayTapHint:       { fontSize: 10, color: '#01538b', fontWeight: '700' },
+    xrayNotes:         { fontSize: 11, color: mobileTheme.colors.textSoft, marginBottom: 4 },
+    xrayTapHint:       { fontSize: 10, color: mobileTheme.colors.primary, fontWeight: '700' },
 
     // History cards
-    historyCard:       { backgroundColor: 'white', borderRadius: 14, padding: 14, marginBottom: 10, elevation: 1, flexDirection: 'row', gap: 12 },
+    historyCard:       { backgroundColor: 'white', borderRadius: 18, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: mobileTheme.colors.border, flexDirection: 'row', gap: 12 },
     historyLeft:       { width: 72, alignItems: 'center' },
     historyDate:       { fontSize: 12, fontWeight: 'bold', color: '#01538b', textAlign: 'center' },
     historyRight:      { flex: 1 },
-    historyProcedure:  { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 3 },
+    historyProcedure:  { fontSize: 14, fontWeight: 'bold', color: mobileTheme.colors.text, marginBottom: 3 },
     historyStatusPill: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
     historyStatusText: { fontSize: 11, fontWeight: 'bold' },
-    historySectionCard: { backgroundColor: 'white', borderRadius: 16, padding: 16, marginBottom: 12, elevation: 1 },
-    historySectionTitle: { fontSize: 16, fontWeight: '800', color: '#01538b', marginBottom: 14 },
+    historySectionCard: { backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: mobileTheme.colors.border, ...mobileTheme.shadows.soft },
+    historySectionTitle: { fontSize: 16, fontWeight: '800', color: mobileTheme.colors.primary, marginBottom: 14 },
     detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     detailRowPair: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-    detailCell: { flex: 1, minWidth: 140, backgroundColor: '#f8fbfd', borderRadius: 12, padding: 12 },
+    detailCell: { flex: 1, minWidth: 140, backgroundColor: mobileTheme.colors.surfaceAlt, borderRadius: 14, padding: 12 },
     detailLabel: { fontSize: 11, fontWeight: '700', color: '#64748b', marginBottom: 6, textTransform: 'uppercase' },
-    detailValue: { fontSize: 13, lineHeight: 18, color: '#334155' },
+    detailValue: { fontSize: 13, lineHeight: 18, color: mobileTheme.colors.textMuted },
     detailChecklistSection: { marginTop: 14 },
     checklistGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-    checklistItem: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f8fbfd', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9 },
-    checklistText: { flex: 1, fontSize: 12, color: '#334155' },
+    checklistItem: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: mobileTheme.colors.surfaceAlt, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9 },
+    checklistText: { flex: 1, fontSize: 12, color: mobileTheme.colors.textMuted },
 });

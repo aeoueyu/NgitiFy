@@ -18,7 +18,7 @@ import ConfirmModal from '../../components/common/ConfirmModal';
 import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/shared/SchedulePage.module.css';
 
-const PROCEDURE_OPTIONS = [
+const FALLBACK_PROCEDURE_OPTIONS = [
     'General Check-up / Initial Consultation',
     'Prophylaxis / Dental Cleaning',
     'Consultation',
@@ -82,6 +82,14 @@ const APPOINTMENT_STATUS_OPTIONS = [
     { value: 'completed', label: 'Completed' },
     { value: 'cancelled', label: 'Cancelled' },
 ];
+
+const STATUS_TRANSITIONS = {
+    pending: ['confirmed', 'cancelled'],
+    confirmed: ['in-clinic', 'cancelled'],
+    'in-clinic': ['completed'],
+    completed: [],
+    cancelled: [],
+};
 
 const SCHEDULE_SOURCE_OPTIONS = [
     { value: '', label: '--SELECT SOURCE--' },
@@ -248,8 +256,7 @@ const normalizeAppointment = (appointment) => {
 const isGuestWebsiteAppointmentEntry = (entry) => (
     entry?.type === 'appointment'
     && !entry?.patientId
-    && entry?.raw?.source === 'Smile Hub (Online)'
-    && Boolean(entry?.raw?.guestEmail)
+    && (entry?.raw?.source === 'Smile Hub (Online)' || entry?.source === 'Smile Hub (Online)')
 );
 
 const isAddressComplete = (address) => (
@@ -376,6 +383,7 @@ export default function SchedulePage() {
     const [patients, setPatients] = useState([]);
     const [dentists, setDentists] = useState([]);
     const [branches, setBranches] = useState([]);
+    const [clinicProcedures, setClinicProcedures] = useState([]);
     const [loading, setLoading] = useState(true);
     const [dateFilter, setDateFilter] = useState('all');
     const [customDateFrom, setCustomDateFrom] = useState(getTodayString());
@@ -468,6 +476,7 @@ export default function SchedulePage() {
                     : '/appointments'),
                 authFetch('/patients?limit=200'),
                 authFetch('/users?role=dentist'),
+                authFetch('/procedures'),
             ];
 
             if (canViewQueue) {
@@ -485,6 +494,7 @@ export default function SchedulePage() {
             const appointmentsResponse = responses[0];
             const patientsResponse = responses[1];
             const dentistsResponse = responses[2];
+            const proceduresResponse = responses[3];
 
             if (appointmentsResponse.ok) {
                 const appointmentData = await appointmentsResponse.json();
@@ -513,7 +523,17 @@ export default function SchedulePage() {
                 setDentists([]);
             }
 
-            let nextIndex = 3;
+            if (proceduresResponse.ok) {
+                const procedureData = await proceduresResponse.json();
+                const procedures = Array.isArray(procedureData?.procedures) && procedureData.procedures.length > 0
+                    ? procedureData.procedures
+                    : FALLBACK_PROCEDURE_OPTIONS;
+                setClinicProcedures(procedures);
+            } else {
+                setClinicProcedures(FALLBACK_PROCEDURE_OPTIONS);
+            }
+
+            let nextIndex = 4;
             if (canViewQueue) {
                 const queueResponse = responses[nextIndex];
                 nextIndex += 1;
@@ -668,10 +688,30 @@ export default function SchedulePage() {
 
     const procedureOptions = useMemo(() => {
         const savedProcedure = String(formState.procedure || '').trim();
-        return savedProcedure && !PROCEDURE_OPTIONS.includes(savedProcedure)
-            ? [savedProcedure, ...PROCEDURE_OPTIONS]
-            : PROCEDURE_OPTIONS;
-    }, [formState.procedure]);
+        const baseList = clinicProcedures.length > 0 ? clinicProcedures : FALLBACK_PROCEDURE_OPTIONS;
+        return savedProcedure && !baseList.includes(savedProcedure)
+            ? [savedProcedure, ...baseList]
+            : baseList;
+    }, [clinicProcedures, formState.procedure]);
+
+    const editingBaseStatus = editingEntry?.status || formState.status || 'pending';
+    const editableStatusOptions = useMemo(() => {
+        const currentStatus = editingBaseStatus || 'pending';
+        if (!editingEntry) {
+            return APPOINTMENT_STATUS_OPTIONS.filter((option) => option.value === (formState.status || currentStatus));
+        }
+
+        const allowedTransitions = STATUS_TRANSITIONS[currentStatus] || [];
+        const allowedValues = [currentStatus, ...allowedTransitions];
+        return APPOINTMENT_STATUS_OPTIONS.filter((option) => allowedValues.includes(option.value));
+    }, [editingBaseStatus, editingEntry, formState.status]);
+
+    const statusFieldDisabled = useMemo(() => {
+        if (!editingEntry) return true;
+        if (formState.formType === 'walkin') return true;
+        if (editingBaseStatus === 'in-clinic') return true;
+        return ['completed', 'cancelled'].includes(editingBaseStatus);
+    }, [editingBaseStatus, editingEntry, formState.formType]);
 
     const patientSearchOptions = useMemo(
         () => patientOptions.map((patient) => `${patient.name}${patient.email ? ` (${patient.email})` : ''}`),
@@ -864,7 +904,7 @@ export default function SchedulePage() {
             if (!formState.procedure) nextErrors.procedure = 'Select a procedure.';
         } else {
             if (!formState.patientName.trim()) nextErrors.patientName = 'Enter the walk-in patient name.';
-            if (!formState.procedure.trim()) nextErrors.procedure = 'Enter the chief complaint or procedure.';
+            if (!formState.procedure.trim()) nextErrors.procedure = 'Select a procedure.';
         }
 
         setFormErrors(nextErrors);
@@ -943,7 +983,9 @@ export default function SchedulePage() {
                         patientName: formState.patientName.trim(),
                         patientId: formState.patientId || '',
                         branch: activeBranch,
-                        assignedDentist: formState.assignedDentist || '',
+                        assignedDentist: dentistOptions.find((entry) => entry.id === formState.dentistId)?.name
+                            || formState.assignedDentist
+                            || '',
                         procedureType: formState.procedure.trim(),
                         contactNumber: formState.contactNumber.trim(),
                         status: 'in-clinic',
@@ -1131,7 +1173,9 @@ export default function SchedulePage() {
                                 {editingEntry ? 'Update Schedule Entry' : 'Create Schedule Entry'}
                             </h2>
                             <p className={styles.modalSubtitle}>
-                                Search an existing patient first, or add a new patient before saving this schedule entry.
+                                {editingEntry
+                                    ? 'Only the editable schedule details are shown below.'
+                                    : 'Search an existing patient first, or add a new patient before saving this schedule entry.'}
                             </p>
                         </div>
                         <button type="button" className={styles.closeButton} onClick={closeFormModal}>
@@ -1148,6 +1192,7 @@ export default function SchedulePage() {
                                     className={styles.formControl}
                                     value={formState.source}
                                     onChange={handleFormFieldChange}
+                                    disabled={!!editingEntry}
                                 >
                                     {SCHEDULE_SOURCE_OPTIONS.filter((option) => canManageQueue || option.value !== 'walkin').map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -1164,6 +1209,7 @@ export default function SchedulePage() {
                                         className={styles.formControl}
                                         value={formState.branch}
                                         onChange={handleFormFieldChange}
+                                        disabled={!!editingEntry}
                                     >
                                         <option value="">--SELECT BRANCH--</option>
                                         {branchOptions.map((branch) => (
@@ -1176,7 +1222,7 @@ export default function SchedulePage() {
 
                             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                 <label className={styles.formLabel}>
-                                    {isGuestWebsiteAppointment ? 'Guest / Patient' : 'Select Patient'}
+                                    {editingEntry ? 'Patient Name' : (isGuestWebsiteAppointment ? 'Guest / Patient' : 'Select Patient')}
                                     {!isGuestWebsiteAppointment && <span className={styles.requiredMark}>*</span>}
                                 </label>
                                 <div className={styles.patientSearchRow}>
@@ -1188,18 +1234,21 @@ export default function SchedulePage() {
                                             className={styles.formControl}
                                             value={showWalkInFields ? formState.patientName : (formState.patientId ? `${formState.patientName}${patientOptions.find((entry) => entry.id === formState.patientId)?.email ? ` (${patientOptions.find((entry) => entry.id === formState.patientId)?.email})` : ''}` : formState.patientName)}
                                             onChange={handleFormFieldChange}
-                                            placeholder={isGuestWebsiteAppointment ? 'Guest name or linked patient' : 'Search patient name or email'}
+                                            placeholder={editingEntry ? 'Patient name' : (isGuestWebsiteAppointment ? 'Guest name or linked patient' : 'Search patient name or email')}
+                                            disabled={!!editingEntry}
                                         />
-                                        <datalist id="schedule-patient-search">
-                                            {patientSearchOptions.map((option) => (
-                                                <option key={option} value={option} />
-                                            ))}
-                                        </datalist>
+                                        {!editingEntry && (
+                                            <datalist id="schedule-patient-search">
+                                                {patientSearchOptions.map((option) => (
+                                                    <option key={option} value={option} />
+                                                ))}
+                                            </datalist>
+                                        )}
                                     </div>
-                                    {patientManagementPath && (
+                                    {!editingEntry && patientManagementPath && (
                                         <button
                                             type="button"
-                                            className={styles.secondaryButton}
+                                            className={`${styles.primaryButton} ${styles.addPatientButton}`}
                                             onClick={() => {
                                                 closeFormModal();
                                                 navigate(patientManagementPath, { state: { openAddModal: true } });
@@ -1244,20 +1293,6 @@ export default function SchedulePage() {
                                 </div>
                             )}
 
-                            {showWalkInFields && (
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Display Dentist Name</label>
-                                    <input
-                                        type="text"
-                                        name="assignedDentist"
-                                        className={styles.formControl}
-                                        value={formState.assignedDentist}
-                                        onChange={handleFormFieldChange}
-                                        placeholder="Optional"
-                                    />
-                                </div>
-                            )}
-
                             {showWalkInFields ? (
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Contact Number</label>
@@ -1292,42 +1327,37 @@ export default function SchedulePage() {
                                     className={styles.formControl}
                                     value={formState.status}
                                     onChange={handleFormFieldChange}
-                                    disabled={showWalkInFields}
+                                    disabled={statusFieldDisabled}
                                 >
-                                    {APPOINTMENT_STATUS_OPTIONS.filter((option) => option.value !== 'completed').map((option) => (
+                                    {editableStatusOptions.map((option) => (
                                         <option key={option.value} value={option.value}>
                                             {option.label}
                                         </option>
                                     ))}
                                 </select>
+                                {statusFieldDisabled && editingEntry && editingBaseStatus === 'in-clinic' && (
+                                    <span className={styles.helperText}>Use the complete action to mark an in-clinic schedule as completed.</span>
+                                )}
+                                {statusFieldDisabled && editingEntry && ['completed', 'cancelled'].includes(editingBaseStatus) && (
+                                    <span className={styles.helperText}>Completed and cancelled schedules can no longer change status.</span>
+                                )}
                             </div>
 
                             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                 <label className={styles.formLabel}>
-                                    {showWalkInFields ? 'Chief Complaint / Procedure' : 'Procedure'} <span className={styles.requiredMark}>*</span>
+                                    Procedure <span className={styles.requiredMark}>*</span>
                                 </label>
-                                {showWalkInFields ? (
-                                    <input
-                                        type="text"
-                                        name="procedure"
-                                        className={styles.formControl}
-                                        value={formState.procedure}
-                                        onChange={handleFormFieldChange}
-                                        placeholder="Enter walk-in concern"
-                                    />
-                                ) : (
-                                    <select
-                                        name="procedure"
-                                        className={styles.formControl}
-                                        value={formState.procedure}
-                                        onChange={handleFormFieldChange}
-                                    >
-                                        <option value="">Select procedure</option>
-                                        {procedureOptions.map((procedure) => (
-                                            <option key={procedure} value={procedure}>{procedure}</option>
-                                        ))}
-                                    </select>
-                                )}
+                                <select
+                                    name="procedure"
+                                    className={styles.formControl}
+                                    value={formState.procedure}
+                                    onChange={handleFormFieldChange}
+                                >
+                                    <option value="">Select procedure</option>
+                                    {procedureOptions.map((procedure) => (
+                                        <option key={procedure} value={procedure}>{procedure}</option>
+                                    ))}
+                                </select>
                                 {formErrors.procedure && <span className={styles.errorText}>{formErrors.procedure}</span>}
                             </div>
 
@@ -1398,7 +1428,9 @@ export default function SchedulePage() {
                             <h2 className={styles.modalTitle}>Schedule Details</h2>
                             <p className={styles.modalSubtitle}>
                                 {viewEntry.type === 'appointment'
-                                    ? 'Appointment details with linked patient record.'
+                                    ? (viewEntry.patientId
+                                        ? 'Appointment details with linked patient record.'
+                                        : 'Appointment details with no linked patient record yet.')
                                     : 'Walk-in queue details with linked EMR when available.'}
                             </p>
                         </div>
@@ -1730,6 +1762,39 @@ export default function SchedulePage() {
                                                     </button>
                                                 )}
                                                 {canEditSchedule && entry.type === 'appointment' && entry.status === 'pending' && (
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
+                                                        onClick={() => setPendingStatusTarget({ entry, status: 'confirmed' })}
+                                                        title="Confirm Appointment"
+                                                        aria-label="Confirm Appointment"
+                                                    >
+                                                        <FaCheck />
+                                                    </button>
+                                                )}
+                                                {canEditSchedule && entry.type === 'appointment' && entry.status === 'pending' && (
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.deleteIconButton}`}
+                                                        onClick={() => setPendingStatusTarget({ entry, status: 'cancelled' })}
+                                                        title="Cancel Appointment"
+                                                        aria-label="Cancel Appointment"
+                                                    >
+                                                        <FaTimes />
+                                                    </button>
+                                                )}
+                                                {canEditSchedule && entry.type === 'appointment' && entry.status === 'confirmed' && (
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
+                                                        onClick={() => setPendingStatusTarget({ entry, status: 'in-clinic' })}
+                                                        title="Mark as In Clinic"
+                                                        aria-label="Mark as In Clinic"
+                                                    >
+                                                        <FaCheck />
+                                                    </button>
+                                                )}
+                                                {canEditSchedule && entry.type === 'appointment' && entry.status === 'confirmed' && (
                                                     <button
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.deleteIconButton}`}

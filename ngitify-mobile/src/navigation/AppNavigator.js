@@ -1,8 +1,10 @@
 // src/navigation/AppNavigator.js
 import React, { useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthContext } from '../context/AuthContext';
+import PatientBottomNav from '../components/mobile/PatientBottomNav';
 
 // --- AUTH SCREENS ---
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -30,6 +32,7 @@ import EditProfileScreen from '../screens/shared/EditProfileScreen';
 const Stack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const PatientStack = createNativeStackNavigator();
+const PatientTabs = createBottomTabNavigator();
 
 // --- NAVIGATORS ---
 
@@ -45,19 +48,32 @@ function AuthNavigator() {
     );
 }
 
+function PatientTabsNavigator() {
+    return (
+        <PatientTabs.Navigator
+            initialRouteName="PatientDashboardMain"
+            backBehavior="history"
+            screenOptions={{ headerShown: false }}
+            tabBar={(props) => <PatientBottomNav {...props} />}
+        >
+            <PatientTabs.Screen name="PatientDashboardMain" component={PatientDashboard} />
+            <PatientTabs.Screen name="MyAppointments" component={PatientAppointmentsScreen} />
+            <PatientTabs.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
+            <PatientTabs.Screen name="MyProfile" component={MyProfileScreen} />
+        </PatientTabs.Navigator>
+    );
+}
+
 function PatientNavigator() {
     return (
         <PatientStack.Navigator screenOptions={{ headerShown: false }}>
-            <PatientStack.Screen name="PatientDashboardMain" component={PatientDashboard} />
-            <PatientStack.Screen name="MyProfile" component={MyProfileScreen} />
-            <PatientStack.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
+            <PatientStack.Screen name="PatientTabs" component={PatientTabsNavigator} />
             <PatientStack.Screen name="Chatbot" component={ChatbotScreen} />
             {/* FR#5 — AI Patient Care Companion (replaces PatientPredictiveView) */}
             <PatientStack.Screen name="AiPatientCareCompanion" component={AiPatientCareCompanionScreen} />
             {/* X-Ray View — accessed from EMR Radiograph tab */}
             <PatientStack.Screen name="PatientXRayView" component={PatientXRayView} />
             <PatientStack.Screen name="PreOpInstructions" component={PreOpInstructionsScreen} />
-            <PatientStack.Screen name="MyAppointments" component={PatientAppointmentsScreen} />
             <PatientStack.Screen name="AppointmentBooking" component={AppointmentBookingScreen} />
             <PatientStack.Screen name="SurgerySchedules" component={SurgerySchedulesScreen} />
             <PatientStack.Screen name="Settings" component={SettingsScreen} />
