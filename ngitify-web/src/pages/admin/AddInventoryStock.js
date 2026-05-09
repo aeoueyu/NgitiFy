@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/StaffModals.module.css';
 import successIcon from '../../assets/alert/success.svg';
@@ -8,11 +8,11 @@ import ConfirmModal from '../../components/common/ConfirmModal';
 const buildItemCatalog = (inventoryEntries = []) => {
     const seen = new Map();
     inventoryEntries.forEach((entry) => {
-        const itemId = entry.itemId || entry.id;
+        const itemId = entry.itemId || entry._id || entry.id;
         if (!itemId || seen.has(itemId)) return;
         seen.set(itemId, {
             itemId,
-            name: entry.name || '',
+            name: entry.name || entry.itemName || '',
             category: entry.category || '',
             unit: entry.unit || 'pcs',
         });
@@ -20,14 +20,14 @@ const buildItemCatalog = (inventoryEntries = []) => {
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
-export default function AddInventoryStock({ inventoryEntries = [], onClose, onSuccess }) {
+export default function AddInventoryStock({ inventoryEntries = [], inventoryBatches = [], onClose, onSuccess, initialItemId = '' }) {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState({});
     const [serverMessage, setServerMessage] = useState('');
     const [formData, setFormData] = useState({
-        itemId: '',
+        itemId: initialItemId,
         brand: '',
         quantityReceived: '',
         expirationDate: '',
@@ -44,12 +44,15 @@ export default function AddInventoryStock({ inventoryEntries = [], onClose, onSu
         return Array.from(
             new Set(
                 inventoryEntries
-                    .filter((entry) => (entry.itemId || entry.id) === selectedItem.itemId)
+                    .filter((entry) => (entry.itemId || entry._id || entry.id) === selectedItem.itemId)
+                    .concat(
+                        inventoryBatches.filter((entry) => (entry.itemId || entry._id || entry.id) === selectedItem.itemId)
+                    )
                     .map((entry) => String(entry.brand || '').trim())
                     .filter(Boolean)
             )
         ).sort((a, b) => a.localeCompare(b));
-    }, [inventoryEntries, selectedItem]);
+    }, [inventoryEntries, inventoryBatches, selectedItem]);
 
     const handleChange = (event) => {
         const { name, value } = event.target;
@@ -57,7 +60,7 @@ export default function AddInventoryStock({ inventoryEntries = [], onClose, onSu
         setFormData((prev) => ({
             ...prev,
             [name]: value,
-            ...(name === 'itemId' ? { brand: '' } : {}),
+            ...(name === 'itemId' ? { brand: brandOptions[0] || '' } : {}),
         }));
         setServerMessage('');
         if (errors[name]) {
@@ -65,11 +68,18 @@ export default function AddInventoryStock({ inventoryEntries = [], onClose, onSu
         }
     };
 
+    useEffect(() => {
+        if (!selectedItem) return;
+        if (formData.brand) return;
+        if (brandOptions.length === 0) return;
+        setFormData((prev) => ({ ...prev, brand: brandOptions[0] }));
+    }, [selectedItem, brandOptions, formData.brand]);
+
     const validateForm = () => {
         const nextErrors = {};
 
         if (!formData.itemId) nextErrors.itemId = 'Select an item.';
-        if (!formData.brand) nextErrors.brand = 'Select a brand.';
+        if (!formData.brand.trim()) nextErrors.brand = 'Enter or select a brand.';
         if (formData.quantityReceived === '') nextErrors.quantityReceived = 'Enter the quantity received.';
         else if (Number(formData.quantityReceived) <= 0) nextErrors.quantityReceived = 'Quantity must be greater than zero.';
 
@@ -85,7 +95,7 @@ export default function AddInventoryStock({ inventoryEntries = [], onClose, onSu
                 itemName: selectedItem.name,
                 category: selectedItem.category,
                 unit: selectedItem.unit,
-                brand: formData.brand,
+                brand: formData.brand.trim(),
                 quantityReceived: Number(formData.quantityReceived),
                 quantityRemaining: Number(formData.quantityReceived),
                 receivedDate: formData.receivedDate || new Date().toISOString().split('T')[0],
@@ -137,7 +147,7 @@ export default function AddInventoryStock({ inventoryEntries = [], onClose, onSu
                         </button>
                         <div className={styles.header}>
                             <h2>Add <span className={styles.highlight}>Supply / Stock</span></h2>
-                            <p>Select an existing item and its assigned brand to add a new stock batch.</p>
+                            <p>Receive fresh stock for an existing item and keep the batch history accurate.</p>
                         </div>
                     </div>
                 </div>
@@ -159,12 +169,20 @@ export default function AddInventoryStock({ inventoryEntries = [], onClose, onSu
 
                         <div className={styles.formGroup}>
                             <label>BRAND <span style={{ color: 'red' }}>*</span></label>
-                            <select className={`${styles.inputField} ${errors.brand ? styles.errorBorder : ''}`} name="brand" value={formData.brand} onChange={handleChange} disabled={isSaving || !selectedItem}>
-                                <option value="" hidden>{selectedItem ? 'Select assigned brand' : 'Select item first'}</option>
+                            <input
+                                list="inventory-brand-options"
+                                className={`${styles.inputField} ${errors.brand ? styles.errorBorder : ''}`}
+                                name="brand"
+                                value={formData.brand}
+                                onChange={handleChange}
+                                placeholder={selectedItem ? 'Type or pick a known brand' : 'Select item first'}
+                                disabled={isSaving || !selectedItem}
+                            />
+                            <datalist id="inventory-brand-options">
                                 {brandOptions.map((brand) => (
-                                    <option key={brand} value={brand}>{brand}</option>
+                                    <option key={brand} value={brand} />
                                 ))}
-                            </select>
+                            </datalist>
                             {errors.brand && <span className={styles.errorText}>{errors.brand}</span>}
                         </div>
                     </div>

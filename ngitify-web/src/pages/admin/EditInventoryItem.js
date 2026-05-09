@@ -14,8 +14,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
     const [serverMessage, setServerMessage] = useState('');
 
     const [formData, setFormData] = useState({
-        name: '', category: '', currentStock: '', threshold: '', unit: 'pcs',
-        brand: '', expirationDate: '', batchNumber: '', supplierName: ''
+        name: '', category: '', threshold: '', unit: 'pcs'
     });
     const [initialData, setInitialData] = useState(null);
 
@@ -25,7 +24,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
     useEffect(() => {
         const fetchItemData = async () => {
             try {
-                const response = await authFetch(`/inventory/${itemId}`);
+                const response = await authFetch(`/inventory/items/${itemId}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -39,13 +38,8 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
                     const mappedData = {
                         name: data.itemName || data.name || '',
                         category: isCustomCat ? 'Other' : fetchedCat,
-                        currentStock: data.quantity !== undefined ? data.quantity.toString() : (data.currentStock !== undefined ? data.currentStock.toString() : ''),
-                        threshold: data.reorderLevel !== undefined ? data.reorderLevel.toString() : '',
+                        threshold: data.reorderLevel !== undefined ? data.reorderLevel.toString() : (data.lowStockThreshold !== undefined ? data.lowStockThreshold.toString() : ''),
                         unit: isCustomUnit ? 'Other' : fetchedUnit,
-                        brand: data.brand || '',
-                        expirationDate: data.expirationDate ? new Date(data.expirationDate).toISOString().split('T')[0] : '',
-                        batchNumber: data.batchNumber || '',
-                        supplierName: data.supplierName || ''
                     };
 
                     setFormData(mappedData);
@@ -78,7 +72,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if ((name === 'currentStock' || name === 'threshold') && value !== '' && Number(value) < 0) return;
+        if (name === 'threshold' && value !== '' && Number(value) < 0) return;
         setFormData(prev => ({ ...prev, [name]: value }));
         setServerMessage('');
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: undefined }));
@@ -95,11 +89,8 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
         if (!formData.unit) { newErrors.unit = "Required"; isValid = false; }
         else if (formData.unit === 'Other' && !customUnit.trim()) { newErrors.customUnit = "Custom unit is required"; isValid = false; }
 
-        if (formData.currentStock === '') { newErrors.currentStock = "Required"; isValid = false; }
-        else if (Number(formData.currentStock) < 0) { newErrors.currentStock = "Cannot be negative"; isValid = false; }
         if (formData.threshold === '') { newErrors.threshold = "Required"; isValid = false; }
         else if (Number(formData.threshold) < 0) { newErrors.threshold = "Cannot be negative"; isValid = false; }
-        if (!formData.brand.trim()) { newErrors.brand = "Required"; isValid = false; }
         
         setErrors(newErrors);
         return isValid;
@@ -112,18 +103,13 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
         const finalUnit = formData.unit === 'Other' ? customUnit.trim() : formData.unit;
 
         try {
-            const response = await authFetch(`/inventory/${itemId}`, {
+            const response = await authFetch(`/inventory/items/${itemId}`, {
                 method: 'PUT',
                 body: JSON.stringify({
                     itemName: formData.name.trim(),
                     category: finalCategory,
-                    quantity: Number(formData.currentStock),
                     reorderLevel: Number(formData.threshold),
                     unit: finalUnit,
-                    brand: formData.brand.trim(),
-                    expirationDate: formData.expirationDate || null,
-                    batchNumber: formData.batchNumber.trim(),
-                    supplierName: formData.supplierName.trim(),
                 }),
             });
 
@@ -165,7 +151,7 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
                                 </button>
                                 <div className={styles.header}>
                                     <h2>Edit <span className={styles.highlight}>Inventory Item</span></h2>
-                                    <p>Update the details and stock thresholds for this item.</p>
+                                    <p>Update the item definition used for tracking and future stock receipts.</p>
                                 </div>
                             </div>
                         </div>
@@ -231,37 +217,9 @@ export default function EditInventoryItem({ itemId, onClose, onSuccess, existing
 
                             <div className={styles.row}>
                                 <div className={styles.formGroup}>
-                                    <label>CURRENT STOCK LEVEL <span style={{color:'red'}}>*</span></label>
-                                    <input type="number" className={`${styles.inputField} ${errors.currentStock ? styles.errorBorder : ''}`} name="currentStock" value={formData.currentStock} onChange={handleChange} placeholder="0" min="0" disabled={isSaving} />
-                                    {errors.currentStock && <span className={styles.errorText}>{errors.currentStock}</span>}
-                                </div>
-                                <div className={styles.formGroup}>
                                     <label>LOW STOCK THRESHOLD <span style={{color:'red'}}>*</span></label>
                                     <input type="number" className={`${styles.inputField} ${errors.threshold ? styles.errorBorder : ''}`} name="threshold" value={formData.threshold} onChange={handleChange} placeholder="Alert when below..." min="0" disabled={isSaving} />
                                     {errors.threshold && <span className={styles.errorText}>{errors.threshold}</span>}
-                                </div>
-                            </div>
-
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>BRAND <span style={{color:'red'}}>*</span></label>
-                                    <input className={`${styles.inputField} ${errors.brand ? styles.errorBorder : ''}`} name="brand" value={formData.brand} onChange={handleChange} placeholder="e.g. Listerine" maxLength={80} disabled={isSaving} />
-                                    {errors.brand && <span className={styles.errorText}>{errors.brand}</span>}
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>EXPIRATION DATE</label>
-                                    <input type="date" className={styles.inputField} name="expirationDate" value={formData.expirationDate} onChange={handleChange} disabled={isSaving} />
-                                </div>
-                            </div>
-
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}>
-                                    <label>BATCH NUMBER</label>
-                                    <input className={styles.inputField} name="batchNumber" value={formData.batchNumber} onChange={handleChange} placeholder="Optional batch / lot number" maxLength={80} disabled={isSaving} />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>SUPPLIER</label>
-                                    <input className={styles.inputField} name="supplierName" value={formData.supplierName} onChange={handleChange} placeholder="Optional supplier name" maxLength={100} disabled={isSaving} />
                                 </div>
                             </div>
 

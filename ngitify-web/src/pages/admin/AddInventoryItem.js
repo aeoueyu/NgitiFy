@@ -16,8 +16,7 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
     const [serverMessage, setServerMessage] = useState('');
 
     const [formData, setFormData] = useState({
-        name: '', category: '', currentStock: '', threshold: '10', unit: 'pcs',
-        brand: '', expirationDate: '', batchNumber: '', supplierName: '', branch: defaultBranch || ''
+        name: '', category: '', threshold: '10', unit: 'pcs', branch: defaultBranch || ''
     });
     
     const [customCategory, setCustomCategory] = useState('');
@@ -26,7 +25,7 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if ((name === 'currentStock' || name === 'threshold') && value !== '' && Number(value) < 0) return;
+        if (name === 'threshold' && value !== '' && Number(value) < 0) return;
         
         setFormData(prev => ({ ...prev, [name]: value }));
         setServerMessage('');
@@ -46,11 +45,8 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
 
         if (!formData.branch) { newErrors.branch = "Required"; isValid = false; }
 
-        if (formData.currentStock === '') { newErrors.currentStock = "Required"; isValid = false; }
-        else if (Number(formData.currentStock) < 0) { newErrors.currentStock = 'Cannot be negative'; isValid = false; }
         if (formData.threshold === '') { newErrors.threshold = "Required"; isValid = false; }
         else if (Number(formData.threshold) < 0) { newErrors.threshold = 'Cannot be negative'; isValid = false; }
-        if (!formData.brand.trim()) { newErrors.brand = "Required"; isValid = false; }
         
         setErrors(newErrors);
         return isValid;
@@ -63,19 +59,14 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
         const finalUnit = formData.unit === 'Other' ? customUnit.trim() : formData.unit;
 
         try {
-            const response = await authFetch('/inventory', {
+            const response = await authFetch('/inventory/items', {
                 method: 'POST',
                 body: JSON.stringify({
                     itemName: formData.name.trim(),
                     category: finalCategory,
-                    quantity: Number(formData.currentStock),
                     reorderLevel: Number(formData.threshold),
                     unit: finalUnit,
                     branch: formData.branch,
-                    brand: formData.brand.trim(),
-                    expirationDate: formData.expirationDate || null,
-                    batchNumber: formData.batchNumber.trim(),
-                    supplierName: formData.supplierName.trim(),
                 }),
             });
 
@@ -115,7 +106,7 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
                         </button>
                         <div className={styles.header}>
                             <h2>Add New <span className={styles.highlight}>Inventory Item</span></h2>
-                            <p>Register new clinic supplies to track their stock levels.</p>
+                            <p>Create a supply record first, then receive stock separately when items arrive.</p>
                         </div>
                     </div>
                 </div>
@@ -199,37 +190,9 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
-                            <label>INITIAL STOCK LEVEL <span style={{color:'red'}}>*</span></label>
-                            <input type="number" className={`${styles.inputField} ${errors.currentStock ? styles.errorBorder : ''}`} name="currentStock" value={formData.currentStock} onChange={handleChange} placeholder="0" min="0" disabled={isLoading} />
-                            {errors.currentStock && <span className={styles.errorText}>{errors.currentStock}</span>}
-                        </div>
-                        <div className={styles.formGroup}>
                             <label>LOW STOCK THRESHOLD <span style={{color:'red'}}>*</span></label>
                             <input type="number" className={`${styles.inputField} ${errors.threshold ? styles.errorBorder : ''}`} name="threshold" value={formData.threshold} onChange={handleChange} placeholder="Alert when below..." min="0" disabled={isLoading} />
                             {errors.threshold && <span className={styles.errorText}>{errors.threshold}</span>}
-                        </div>
-                    </div>
-
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}>
-                            <label>BRAND <span style={{color:'red'}}>*</span></label>
-                            <input className={`${styles.inputField} ${errors.brand ? styles.errorBorder : ''}`} name="brand" value={formData.brand} onChange={handleChange} placeholder="e.g. Listerine" maxLength={80} disabled={isLoading} />
-                            {errors.brand && <span className={styles.errorText}>{errors.brand}</span>}
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>EXPIRATION DATE</label>
-                            <input type="date" className={styles.inputField} name="expirationDate" value={formData.expirationDate} onChange={handleChange} disabled={isLoading} />
-                        </div>
-                    </div>
-
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}>
-                            <label>BATCH NUMBER</label>
-                            <input className={styles.inputField} name="batchNumber" value={formData.batchNumber} onChange={handleChange} placeholder="Optional batch / lot number" maxLength={80} disabled={isLoading} />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>SUPPLIER</label>
-                            <input className={styles.inputField} name="supplierName" value={formData.supplierName} onChange={handleChange} placeholder="Optional supplier name" maxLength={100} disabled={isLoading} />
                         </div>
                     </div>
 
@@ -247,7 +210,7 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
                         <h3 className={styles.modalTitle}>Success!</h3>
-                        <p className={styles.modalMessage}>The new item has been added to your inventory tracker.</p>
+                        <p className={styles.modalMessage}>The new item has been created. Receive stock next when supplies arrive.</p>
                         <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
                     </div>
                 </div>
@@ -256,7 +219,7 @@ export default function AddInventoryItem({ onClose, onSuccess, existingCategorie
             <ConfirmModal
                 isOpen={showConfirmModal}
                 title="Save New Inventory Item"
-                message="Are you sure you want to save this new inventory item? This will immediately add it to the tracker."
+                message="Are you sure you want to save this new inventory item? Stock will be received separately."
                 confirmText={isLoading ? 'Saving...' : 'Yes, Save Item'}
                 onConfirm={submitNewItem}
                 onCancel={() => !isLoading && setShowConfirmModal(false)}

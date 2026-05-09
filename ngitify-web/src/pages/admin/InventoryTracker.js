@@ -1,26 +1,68 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import styles from '../../styles/admin/InventoryTracker.module.css'; 
+import styles from '../../styles/admin/InventoryTracker.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaPlus, FaEdit, FaTrash, FaExclamationCircle, FaBoxes, FaExclamationTriangle, FaTimesCircle, FaDownload, FaFilePdf } from 'react-icons/fa';
+import {
+    FaSearch,
+    FaPlus,
+    FaTrash,
+    FaExclamationCircle,
+    FaBoxes,
+    FaExclamationTriangle,
+    FaTimesCircle,
+    FaDownload,
+    FaFilePdf,
+    FaChevronDown,
+    FaChevronUp,
+    FaEdit,
+} from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
-
-import AddInventoryItem from './AddInventoryItem'; 
+import AddInventoryItem from './AddInventoryItem';
 import AddInventoryStock from './AddInventoryStock';
-import EditInventoryItem from './EditInventoryItem'; 
-import ConfirmModal from '../../components/common/ConfirmModal'; 
+import EditInventoryItem from './EditInventoryItem';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
 import { formatDateShort } from '../../utils/dateUtils';
 
 const BASE_CATEGORIES = [
-    "Personal Protective Equipment (PPE)", "Consumables", "Restorative Materials", 
-    "Diagnostic Supplies", "Surgical Supplies", "Endodontic Supplies", 
-    "Cleaning & Sterilization", "General Clinic Supplies"
+    'Personal Protective Equipment (PPE)', 'Consumables', 'Restorative Materials',
+    'Diagnostic Supplies', 'Surgical Supplies', 'Endodontic Supplies',
+    'Cleaning & Sterilization', 'General Clinic Supplies'
 ];
 
-const BASE_UNITS = ["pcs", "box", "set", "pack", "bottle", "tube"];
+const BASE_UNITS = ['pcs', 'box', 'set', 'pack', 'bottle', 'tube'];
+
+const summarizeItem = (item, batches = []) => {
+    const totalStock = batches.reduce((sum, batch) => sum + Number(batch.currentStock || batch.quantity || 0), 0);
+    const threshold = Number(item.lowStockThreshold ?? item.reorderLevel ?? item.threshold ?? 0);
+    const activeBatches = batches.filter((batch) => Number(batch.currentStock || batch.quantity || 0) > 0);
+    const expiryCandidates = activeBatches
+        .filter((batch) => batch.expirationDate)
+        .sort((left, right) => new Date(left.expirationDate) - new Date(right.expirationDate));
+    const nearestExpiry = expiryCandidates[0]?.expirationDate || null;
+    const hasExpiredBatch = batches.some((batch) => batch.isExpired || batch.status === 'Expired');
+    const hasExpiringSoon = batches.some((batch) => batch.isExpiringSoon);
+    const isLowStock = totalStock <= threshold;
+
+    return {
+        id: item._id || item.id,
+        itemId: item._id || item.id,
+        name: item.name || item.itemName || 'Unknown Item',
+        category: item.category || 'Uncategorized',
+        unit: item.unit || 'pcs',
+        branch: item.branch || '',
+        threshold,
+        totalStock,
+        nearestExpiry,
+        batchCount: batches.length,
+        batches,
+        hasExpiredBatch,
+        hasExpiringSoon,
+        isLowStock,
+    };
+};
 
 export default function InventoryTracker() {
     const { addToast } = useToast();
@@ -29,54 +71,55 @@ export default function InventoryTracker() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
-    const [inventoryList, setInventoryList] = useState([]);
+    const [inventoryItems, setInventoryItems] = useState([]);
+    const [inventoryBatches, setInventoryBatches] = useState([]);
     const [branchOptions, setBranchOptions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [expandedItems, setExpandedItems] = useState([]);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
-    const [selectedItemId, setSelectedItemId] = useState(null);    
+    const [selectedStockItemId, setSelectedStockItemId] = useState('');
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedItemId, setSelectedItemId] = useState(null);
 
     const [confirmConfig, setConfirmConfig] = useState(null);
 
     const fetchInventory = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await authFetch('/inventory');
+            const [itemsResponse, batchesResponse] = await Promise.all([
+                authFetch('/inventory/items'),
+                authFetch('/inventory'),
+            ]);
 
-            if (response.ok) {
-                const data = await response.json();
-                
-                const mappedInventory = data.map(item => ({
-                    id: item._id || item.id,
-                    itemId: item.itemId || '',
-                    name: item.itemName || item.name || 'Unknown Item',
-                    category: item.category || 'Uncategorized',
-                    currentStock: item.quantity !== undefined ? item.quantity : (item.currentStock || 0),
-                    threshold: item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0),
-                    unit: item.unit || 'pcs',
-                    brand: item.brand || 'Unspecified',
-                    expirationDate: item.expirationDate || null,
-                    receivedDate: item.receivedDate || null,
-                    supplierName: item.supplierName || '',
-                    batchNumber: item.batchNumber || '',
-                    branch: item.branch || '',
-                    status: item.status || 'Active',
-                    isExpired: Boolean(item.isExpired),
-                    isExpiringSoon: Boolean(item.isExpiringSoon),
-                }));
-                
-                setInventoryList(mappedInventory);
-            } else {
-                console.error("Failed to load inventory data");
+            if (!itemsResponse.ok || !batchesResponse.ok) {
+                throw new Error('Failed to load inventory data.');
             }
+
+            const [itemsData, batchesData] = await Promise.all([
+                itemsResponse.json(),
+                batchesResponse.json(),
+            ]);
+
+            setInventoryItems(Array.isArray(itemsData) ? itemsData : []);
+            setInventoryBatches(Array.isArray(batchesData) ? batchesData.map((batch) => ({
+                ...batch,
+                id: batch._id || batch.id,
+                itemId: batch.itemId || batch.inventoryItem || '',
+                name: batch.itemName || batch.name || 'Unknown Item',
+                currentStock: batch.quantity !== undefined ? Number(batch.quantity) : Number(batch.currentStock || 0),
+                threshold: batch.reorderLevel !== undefined ? Number(batch.reorderLevel) : Number(batch.threshold || 0),
+                unit: batch.unit || 'pcs',
+                branch: batch.branch || '',
+            })) : []);
         } catch (error) {
-            console.error("Error fetching inventory:", error);
+            console.error('Error fetching inventory:', error);
+            addToast('Failed to load inventory data.', 'error');
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [addToast]);
 
     useEffect(() => {
         if (canReadInventory) {
@@ -104,64 +147,90 @@ export default function InventoryTracker() {
         }
     }, [canReadInventory]);
 
+    const batchesByItemId = useMemo(() => {
+        const grouped = new Map();
+        inventoryBatches.forEach((batch) => {
+            const key = String(batch.itemId || '');
+            if (!key) return;
+            const existing = grouped.get(key) || [];
+            existing.push(batch);
+            grouped.set(key, existing);
+        });
+        grouped.forEach((batches, key) => {
+            grouped.set(key, batches.sort((left, right) => {
+                const leftDate = left.receivedDate ? new Date(left.receivedDate).getTime() : 0;
+                const rightDate = right.receivedDate ? new Date(right.receivedDate).getTime() : 0;
+                return leftDate - rightDate;
+            }));
+        });
+        return grouped;
+    }, [inventoryBatches]);
+
     const dynamicCategories = useMemo(() => {
-        const fetchedCategories = inventoryList.map(item => item.category).filter(Boolean);
-        const uniqueCategories = [...new Set([...BASE_CATEGORIES, ...fetchedCategories])];
-        return uniqueCategories.sort();
-    }, [inventoryList]);
+        const fetchedCategories = inventoryItems.map((item) => item.category).filter(Boolean);
+        return [...new Set([...BASE_CATEGORIES, ...fetchedCategories])].sort();
+    }, [inventoryItems]);
 
     const dynamicUnits = useMemo(() => {
-        const fetchedUnits = inventoryList.map(item => item.unit).filter(Boolean);
-        const uniqueUnits = [...new Set([...BASE_UNITS, ...fetchedUnits])];
-        return uniqueUnits.sort();
-    }, [inventoryList]);
+        const fetchedUnits = inventoryItems.map((item) => item.unit).filter(Boolean);
+        return [...new Set([...BASE_UNITS, ...fetchedUnits])].sort();
+    }, [inventoryItems]);
+
+    const summaryInventory = useMemo(() => {
+        return inventoryItems
+            .map((item) => summarizeItem(item, batchesByItemId.get(String(item._id || item.id || '')) || []))
+            .sort((left, right) => left.name.localeCompare(right.name));
+    }, [inventoryItems, batchesByItemId]);
 
     const inventoryStats = useMemo(() => {
-        let total = inventoryList.length;
         let lowStock = 0;
         let expiringSoon = 0;
         let expired = 0;
 
-        inventoryList.forEach(item => {
-            if (item.isExpired || item.status === 'Expired') {
-                expired++;
-            } else if (item.isExpiringSoon) {
-                expiringSoon++;
-            }
-            if (item.currentStock <= item.threshold) {
-                lowStock++;
-            }
+        summaryInventory.forEach((item) => {
+            if (item.isLowStock) lowStock++;
+            if (item.hasExpiringSoon) expiringSoon++;
+            if (item.hasExpiredBatch) expired++;
         });
 
-        return { total, lowStock, expiringSoon, expired };
-    }, [inventoryList]);
+        return {
+            total: summaryInventory.length,
+            lowStock,
+            expiringSoon,
+            expired,
+        };
+    }, [summaryInventory]);
 
-    const filteredInventory = inventoryList.filter(item => {
+    const filteredInventory = useMemo(() => {
         const query = searchQuery.toLowerCase();
-        const matchesSearch =
-            item.name.toLowerCase().includes(query) ||
-            item.brand.toLowerCase().includes(query) ||
-            item.batchNumber.toLowerCase().includes(query);
-        const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
-        return matchesSearch && matchesCategory;
-    });
+        return summaryInventory.filter((item) => {
+            const matchesSearch =
+                item.name.toLowerCase().includes(query) ||
+                item.category.toLowerCase().includes(query) ||
+                item.batches.some((batch) =>
+                    String(batch.brand || '').toLowerCase().includes(query) ||
+                    String(batch.batchNumber || '').toLowerCase().includes(query)
+                );
+            const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
+            return matchesSearch && matchesCategory;
+        });
+    }, [summaryInventory, searchQuery, categoryFilter]);
 
     const exportRows = filteredInventory.map((item) => [
         item.name,
         item.branch || 'Unassigned',
-        item.brand,
         item.category,
-        `${item.currentStock} ${item.unit}`,
+        `${item.totalStock} ${item.unit}`,
         item.threshold,
-        item.expirationDate ? formatDateShort(item.expirationDate) : 'No expiry',
-        item.batchNumber || '-',
-        item.status || 'Active',
+        item.nearestExpiry ? formatDateShort(item.nearestExpiry) : 'No expiry',
+        item.batchCount,
+        item.isLowStock ? 'Low Stock' : item.hasExpiredBatch ? 'Has Expired Batch' : item.hasExpiringSoon ? 'Expiring Soon' : 'Healthy',
     ]);
 
     const handleExportCsv = () => {
         downloadCsvFile(
             `inventory_${new Date().toISOString().slice(0, 10)}.csv`,
-            ['Item', 'Branch', 'Brand', 'Category', 'Quantity', 'Reorder Level', 'Expiry', 'Batch Number', 'Status'],
+            ['Item', 'Branch', 'Category', 'Total Quantity', 'Reorder Level', 'Nearest Expiry', 'Batches', 'Status'],
             exportRows,
         );
     };
@@ -171,7 +240,7 @@ export default function InventoryTracker() {
             title: 'Inventory Records Report',
             subtitle: 'Dentime Dental Clinic - NgitiFy',
             summaryItems: [
-                { label: 'Visible Items', value: filteredInventory.length },
+                { label: 'Tracked Items', value: filteredInventory.length },
                 { label: 'Low Stock', value: inventoryStats.lowStock },
                 { label: 'Expiring Soon', value: inventoryStats.expiringSoon },
                 { label: 'Expired', value: inventoryStats.expired },
@@ -179,7 +248,7 @@ export default function InventoryTracker() {
             sections: [
                 {
                     title: 'Inventory Listing',
-                    headers: ['Item', 'Branch', 'Brand', 'Category', 'Quantity', 'Reorder Level', 'Expiry', 'Batch Number', 'Status'],
+                    headers: ['Item', 'Branch', 'Category', 'Total Quantity', 'Reorder Level', 'Nearest Expiry', 'Batches', 'Status'],
                     rows: exportRows,
                 },
             ],
@@ -196,82 +265,78 @@ export default function InventoryTracker() {
         );
     }
 
-    const triggerDelete = (id, itemName) => {
+    const toggleExpanded = (itemId) => {
+        setExpandedItems((prev) =>
+            prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
+        );
+    };
+
+    const triggerDeleteBatch = (batchId, itemName, batchNumber) => {
         setConfirmConfig({
-            title: 'Delete Inventory Item',
-            message: `Are you sure you want to permanently delete "${itemName}"? This action cannot be undone.`,
-            confirmText: 'Yes, Delete',
+            title: 'Delete Stock Batch',
+            message: `Are you sure you want to permanently delete the ${batchNumber ? `batch ${batchNumber} for ` : ''}"${itemName}"? This will remove that stock record from the tracker.`,
+            confirmText: 'Yes, Delete Batch',
             isDestructive: true,
-            onConfirm: () => executeDelete(id)
+            onConfirm: () => executeDeleteBatch(batchId)
         });
     };
 
-    const executeDelete = async (id) => {
+    const executeDeleteBatch = async (batchId) => {
         try {
-            const res = await authFetch(`/inventory/${id}`, { method: 'DELETE' });
+            const res = await authFetch(`/inventory/${batchId}`, { method: 'DELETE' });
 
             if (res.ok) {
-                setInventoryList(prev => prev.filter(item => item.id !== id));
-                addToast('Item deleted successfully.', 'success');
+                addToast('Stock batch deleted successfully.', 'success');
+                fetchInventory();
             } else {
                 const data = await res.json();
-                addToast(data.message || "Failed to delete item.", 'error'); 
+                addToast(data.message || 'Failed to delete stock batch.', 'error');
             }
         } catch (error) {
-            console.error("Error deleting item:", error);
-            addToast("Cannot connect to server.", 'error'); 
+            console.error('Error deleting stock batch:', error);
+            addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null); 
+            setConfirmConfig(null);
         }
     };
 
-    const handleEditClick = (id) => {
-        setSelectedItemId(id);
-        setIsEditModalOpen(true);
-    };
-
-    const handleCloseEditModal = () => {
-        setIsEditModalOpen(false);
-        setSelectedItemId(null);
-    };
-
-    const getStatusBadge = (item) => {
-        if (item.isExpired || item.status === 'Expired') {
-            return <span style={{ backgroundColor: '#fef2f2', color: '#dc3545', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fecaca', whiteSpace: 'nowrap' }}>EXPIRED</span>;
+    const getSummaryStatusBadge = (item) => {
+        if (item.hasExpiredBatch) {
+            return <span className={`${styles.statusBadge} ${styles.expiredBadge}`}>HAS EXPIRED BATCH</span>;
         }
-        if (item.currentStock <= 0) {
-            return <span style={{ backgroundColor: '#f3f4f6', color: '#475569', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>DEPLETED</span>;
+        if (item.totalStock <= 0) {
+            return <span className={`${styles.statusBadge} ${styles.depletedBadge}`}>OUT OF STOCK</span>;
         }
-        if (item.isExpiringSoon) {
-            return <span style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fde68a', whiteSpace: 'nowrap' }}>EXPIRING SOON</span>;
+        if (item.hasExpiringSoon) {
+            return <span className={`${styles.statusBadge} ${styles.warningBadge}`}>EXPIRING SOON</span>;
         }
-        if (item.currentStock <= item.threshold) {
+        if (item.isLowStock) {
             return (
-                <span style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '11px', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                <span className={`${styles.statusBadge} ${styles.warningBadge}`}>
                     <FaExclamationCircle /> LOW STOCK
                 </span>
             );
         }
-        return null;
+        return <span className={`${styles.statusBadge} ${styles.healthyBadge}`}>HEALTHY</span>;
     };
 
     return (
         <div className={styles.container}>
             <header className={styles.header}>
                 <h1 className={styles.title}>Inventory Tracker</h1>
-                <p className={styles.subtitle}>Monitor clinic supplies, check stock levels, and receive low-stock alerts.</p>
+                <p className={styles.subtitle}>Track supply definitions, receive stock batches, and watch low-stock items for manual restocking.</p>
             </header>
 
             <div className={styles.statsGrid}>
                 <div className={styles.statCard}>
                     <div className={styles.statHeader}>
-                        <p className={styles.statTitle}>Total Items</p>
+                        <p className={styles.statTitle}>Tracked Items</p>
                         <div className={`${styles.statIconWrapper} ${styles.bgBlue}`}>
                             <FaBoxes className={styles.statIcon} />
                         </div>
                     </div>
                     <h2 className={styles.statValue}>{inventoryStats.total}</h2>
-                    <p className={styles.statDesc}>Tracked in system</p>
+                    <p className={styles.statDesc}>Supply records in system</p>
                 </div>
 
                 <div className={styles.statCard}>
@@ -285,22 +350,22 @@ export default function InventoryTracker() {
                         {inventoryStats.lowStock}
                     </h2>
                     <p className={`${styles.statDesc} ${inventoryStats.lowStock > 0 ? styles.warningText : ''}`}>
-                        {inventoryStats.lowStock > 0 ? 'Approaching depletion' : 'Stock levels optimal'}
+                        {inventoryStats.lowStock > 0 ? 'Needs manual restock review' : 'Stock levels look stable'}
                     </p>
                 </div>
 
                 <div className={styles.statCard}>
                     <div className={styles.statHeader}>
-                        <p className={styles.statTitle}>Expiring Soon</p>
+                        <p className={styles.statTitle}>Expiring / Expired</p>
                         <div className={`${styles.statIconWrapper} ${styles.bgRed}`}>
                             <FaTimesCircle className={styles.statIcon} />
                         </div>
                     </div>
-                    <h2 className={styles.statValue} style={{ color: inventoryStats.expiringSoon > 0 ? '#d97706' : '#01538b' }}>
-                        {inventoryStats.expiringSoon}
+                    <h2 className={styles.statValue} style={{ color: (inventoryStats.expiringSoon + inventoryStats.expired) > 0 ? '#d97706' : '#01538b' }}>
+                        {inventoryStats.expiringSoon + inventoryStats.expired}
                     </h2>
-                    <p className={`${styles.statDesc} ${inventoryStats.expiringSoon > 0 ? styles.warningText : ''}`}>
-                        {inventoryStats.expiringSoon > 0 ? 'Prioritize for use soon' : 'No near-expiry batches'}
+                    <p className={`${styles.statDesc} ${(inventoryStats.expiringSoon + inventoryStats.expired) > 0 ? styles.warningText : ''}`}>
+                        {(inventoryStats.expiringSoon + inventoryStats.expired) > 0 ? 'Check batch usage order' : 'No urgent batch expiry issues'}
                     </p>
                 </div>
             </div>
@@ -309,27 +374,27 @@ export default function InventoryTracker() {
                 <div className={styles.searchFilterGroup}>
                     <div className={styles.searchWrapper}>
                         <FaSearch className={styles.searchIcon} />
-                        <input 
-                            type="text" 
-                            placeholder="Search items by name..." 
-                            className={styles.searchInput} 
-                            value={searchQuery} 
-                            onChange={(e) => setSearchQuery(e.target.value)} 
+                        <input
+                            type="text"
+                            placeholder="Search items, categories, brands, or batch numbers..."
+                            className={styles.searchInput}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    
-                    <select 
-                        className={styles.filterSelect} 
+
+                    <select
+                        className={styles.filterSelect}
                         value={categoryFilter}
                         onChange={(e) => setCategoryFilter(e.target.value)}
                     >
                         <option value="All">All Categories</option>
-                        {dynamicCategories.map(cat => (
+                        {dynamicCategories.map((cat) => (
                             <option key={`filter-${cat}`} value={cat}>{cat}</option>
                         ))}
                     </select>
                 </div>
-                
+
                 <div className={styles.headerActions}>
                     <button type="button" className={styles.secondaryBtn} onClick={handleExportCsv} disabled={filteredInventory.length === 0}>
                         <FaDownload /> Export CSV
@@ -338,8 +403,11 @@ export default function InventoryTracker() {
                         <FaFilePdf /> Export PDF
                     </button>
                     {canEditInventory && (
-                        <button className={styles.addBtn} onClick={() => setIsAddStockModalOpen(true)}>
-                            <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add Supply / Stock
+                        <button className={styles.addBtn} onClick={() => {
+                            setSelectedStockItemId('');
+                            setIsAddStockModalOpen(true);
+                        }}>
+                            <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Receive Stock
                         </button>
                     )}
                     {canEditInventory && (
@@ -354,103 +422,180 @@ export default function InventoryTracker() {
                 <table className={`${styles.userTable} ${styles.inventoryTable}`}>
                     <thead>
                         <tr>
-                            <th style={{ width: '22%' }}>Item</th>
+                            <th style={{ width: '26%' }}>Item</th>
                             <th style={{ width: '12%' }}>Branch</th>
-                            <th style={{ width: '14%' }}>Brand</th>
-                            <th style={{ width: '16%' }}>Category</th>
-                            <th style={{ width: '12%' }}>Qty</th>
-                            <th style={{ width: '14%' }}>Expiry</th>
-                            <th style={{ width: '10%', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '14%' }}>Category</th>
+                            <th style={{ width: '12%' }}>On Hand</th>
+                            <th style={{ width: '12%' }}>Reorder</th>
+                            <th style={{ width: '14%' }}>Nearest Expiry</th>
+                            <th style={{ width: '10%' }}>Batches</th>
+                            <th style={{ width: '16%', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#01538b'}}>Loading inventory records...</td></tr>
+                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#01538b' }}>Loading inventory records...</td></tr>
                         ) : filteredInventory.length > 0 ? (
                             filteredInventory.map((item) => {
+                                const isExpanded = expandedItems.includes(item.itemId);
                                 return (
-                                    <tr key={item.id}>
-                                        <td className={tblStyles.wrapCell} style={{ color: '#01538b', fontSize: '15px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                <span className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>{item.name}</span>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                    {getStatusBadge(item)}
-                                                    {item.batchNumber && (
-                                                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                                                            Batch {item.batchNumber}
-                                                        </span>
-                                                    )}
+                                    <React.Fragment key={item.itemId}>
+                                        <tr>
+                                            <td className={tblStyles.wrapCell} style={{ color: '#01538b', fontSize: '15px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <span className={styles.fwBold} style={{ color: '#01538b', fontSize: '15px' }}>{item.name}</span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                        {getSummaryStatusBadge(item)}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td style={{ color: '#334155', fontWeight: 600 }}>
-                                            {item.branch || 'Unassigned'}
-                                        </td>
-                                        <td style={{ color: '#334155', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.brand}</td>
-                                        <td>
-                                            <span style={{ backgroundColor: '#f1f5f9', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', color: '#475569', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                                                {item.category}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span style={{ fontWeight: '700', color: item.currentStock <= item.threshold ? '#dc3545' : '#334155', fontSize: '15px' }}>
-                                                {item.currentStock} <span style={{ fontSize: '12px', fontWeight: '500', color: '#64748b' }}>{item.unit}</span>
-                                            </span>
-                                        </td>
-                                        <td style={{ color: item.isExpired ? '#dc2626' : '#64748b', fontSize: '14px', fontWeight: '600' }}>
-                                            {item.expirationDate ? formatDateShort(item.expirationDate) : 'No expiry'}
-                                        </td>
-                                        <td className={styles.actionsCell} style={{ textAlign: 'center' }}>
-                                            {canEditInventory ? (
-                                                <>
-                                                    <button className={styles.iconBtn} onClick={() => handleEditClick(item.id)} title="Edit Item"><FaEdit /></button>
-                                                    <button className={`${styles.iconBtn} ${styles.deleteBtn}`} onClick={() => triggerDelete(item.id, item.name)} title="Delete Item" style={{ color: '#dc3545' }}><FaTrash /></button>
-                                                </>
-                                            ) : (
-                                                <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Read Only</span>
-                                            )}
-                                        </td>
-                                    </tr>
+                                            </td>
+                                            <td style={{ color: '#334155', fontWeight: 600 }}>{item.branch || 'Unassigned'}</td>
+                                            <td>
+                                                <span className={styles.categoryPill}>{item.category}</span>
+                                            </td>
+                                            <td>
+                                                <span style={{ fontWeight: '700', color: item.isLowStock ? '#dc3545' : '#334155', fontSize: '15px' }}>
+                                                    {item.totalStock} <span style={{ fontSize: '12px', fontWeight: '500', color: '#64748b' }}>{item.unit}</span>
+                                                </span>
+                                            </td>
+                                            <td style={{ color: '#334155', fontWeight: 700 }}>{item.threshold} {item.unit}</td>
+                                            <td style={{ color: item.hasExpiredBatch ? '#dc2626' : '#64748b', fontSize: '14px', fontWeight: '600' }}>
+                                                {item.nearestExpiry ? formatDateShort(item.nearestExpiry) : 'No expiry'}
+                                            </td>
+                                            <td style={{ color: '#334155', fontWeight: 700 }}>{item.batchCount}</td>
+                                            <td className={styles.actionsCell} style={{ textAlign: 'center' }}>
+                                                <button className={styles.iconBtn} onClick={() => toggleExpanded(item.itemId)} title={isExpanded ? 'Hide batches' : 'Show batches'}>
+                                                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                                                </button>
+                                                {canEditInventory && (
+                                                    <>
+                                                        <button
+                                                            className={styles.iconBtn}
+                                                            onClick={() => {
+                                                                setSelectedItemId(item.itemId);
+                                                                setIsEditModalOpen(true);
+                                                            }}
+                                                            title="Edit item"
+                                                        >
+                                                            <FaEdit />
+                                                        </button>
+                                                        <button
+                                                            className={styles.iconBtn}
+                                                            onClick={() => {
+                                                                setSelectedStockItemId(item.itemId);
+                                                                setIsAddStockModalOpen(true);
+                                                            }}
+                                                            title="Receive stock"
+                                                        >
+                                                            <FaPlus />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </td>
+                                        </tr>
+                                        {isExpanded && (
+                                            <tr>
+                                                <td colSpan="8" className={styles.batchDetailsCell}>
+                                                    {item.batches.length === 0 ? (
+                                                        <div className={styles.emptyBatchState}>No stock batches yet. Receive stock when this item arrives at the clinic.</div>
+                                                    ) : (
+                                                        <div className={styles.batchPanel}>
+                                                            <div className={styles.batchPanelHeader}>
+                                                                <h3 className={styles.batchPanelTitle}>Batch History</h3>
+                                                                <p className={styles.batchPanelSubtitle}>Each batch keeps its own quantity, supplier, and expiry for tracking.</p>
+                                                            </div>
+                                                            <table className={styles.batchTable}>
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Brand</th>
+                                                                        <th>Batch No.</th>
+                                                                        <th>Supplier</th>
+                                                                        <th>Received</th>
+                                                                        <th>Expiry</th>
+                                                                        <th>Remaining</th>
+                                                                        <th>Status</th>
+                                                                        {canEditInventory && <th style={{ textAlign: 'center' }}>Action</th>}
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {item.batches.map((batch) => (
+                                                                        <tr key={batch.id}>
+                                                                            <td>{batch.brand || 'Unspecified'}</td>
+                                                                            <td>{batch.batchNumber || '-'}</td>
+                                                                            <td>{batch.supplierName || '-'}</td>
+                                                                            <td>{batch.receivedDate ? formatDateShort(batch.receivedDate) : '-'}</td>
+                                                                            <td>{batch.expirationDate ? formatDateShort(batch.expirationDate) : 'No expiry'}</td>
+                                                                            <td>{batch.currentStock} {item.unit}</td>
+                                                                            <td>{batch.status || 'Active'}</td>
+                                                                            {canEditInventory && (
+                                                                                <td style={{ textAlign: 'center' }}>
+                                                                                    <button
+                                                                                        className={`${styles.iconBtn} ${styles.deleteBtn}`}
+                                                                                        onClick={() => triggerDeleteBatch(batch.id, item.name, batch.batchNumber)}
+                                                                                        title="Delete batch"
+                                                                                        style={{ color: '#dc3545' }}
+                                                                                    >
+                                                                                        <FaTrash />
+                                                                                    </button>
+                                                                                </td>
+                                                                            )}
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
                                 );
                             })
                         ) : (
-                            <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>No items found in inventory.</td></tr>
+                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No items found in inventory.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
             {isAddModalOpen && (
-                <AddInventoryItem 
-                    inventoryEntries={inventoryList}
+                <AddInventoryItem
                     branchOptions={branchOptions}
                     defaultBranch={user?.assignedBranch || user?.assignedBranches?.[0] || ''}
-                    existingCategories={dynamicCategories} 
+                    existingCategories={dynamicCategories}
                     existingUnits={dynamicUnits}
-                    onClose={() => setIsAddModalOpen(false)} 
-                    onSuccess={fetchInventory} 
+                    onClose={() => setIsAddModalOpen(false)}
+                    onSuccess={fetchInventory}
                 />
             )}
 
             {isAddStockModalOpen && (
                 <AddInventoryStock
-                    inventoryEntries={inventoryList}
-                    onClose={() => setIsAddStockModalOpen(false)}
+                    inventoryEntries={inventoryItems}
+                    inventoryBatches={inventoryBatches}
+                    initialItemId={selectedStockItemId}
+                    onClose={() => {
+                        setIsAddStockModalOpen(false);
+                        setSelectedStockItemId('');
+                    }}
                     onSuccess={fetchInventory}
                 />
             )}
 
             {isEditModalOpen && selectedItemId && (
-                <EditInventoryItem 
-                    itemId={selectedItemId} 
-                    existingCategories={dynamicCategories} 
+                <EditInventoryItem
+                    itemId={selectedItemId}
+                    existingCategories={dynamicCategories}
                     existingUnits={dynamicUnits}
-                    onClose={handleCloseEditModal} 
-                    onSuccess={fetchInventory} 
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setSelectedItemId(null);
+                    }}
+                    onSuccess={fetchInventory}
                 />
             )}
 
-            <ConfirmModal 
+            <ConfirmModal
                 isOpen={!!confirmConfig}
                 title={confirmConfig?.title}
                 message={confirmConfig?.message}

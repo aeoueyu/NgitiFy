@@ -338,7 +338,7 @@ const normalizeInventoryNumber = (value) => {
     return Number.isFinite(parsed) ? parsed : null;
 };
 
-const validateInventoryPayload = (payload, { requireIdentity = true, requireBrand = true } = {}) => {
+const validateInventoryPayload = (payload, { requireIdentity = true, requireBrand = true, requireQuantity = true } = {}) => {
     const errors = {};
     const hasExistingItem = !!(payload.inventoryItem || payload.inventoryItemId || payload.itemId);
     const itemName = normalizeInventoryText(payload.name || payload.itemName);
@@ -360,9 +360,9 @@ const validateInventoryPayload = (payload, { requireIdentity = true, requireBran
     if (requireBrand && !brand) {
         errors.brand = 'Brand is required.';
     }
-    if (quantityReceived === null) {
+    if (requireQuantity && quantityReceived === null) {
         errors.quantity = 'Quantity is required.';
-    } else if (quantityReceived < 0) {
+    } else if (quantityReceived !== null && quantityReceived < 0) {
         errors.quantity = 'Quantity cannot be negative.';
     }
     if (lowStockThreshold !== null && lowStockThreshold < 0) {
@@ -3214,7 +3214,7 @@ app.post('/api/inventory/items', verifyToken, async (req, res) => {
 
     try {
         await ensureInventoryMigration();
-        const validation = validateInventoryPayload(req.body, { requireBrand: false });
+        const validation = validateInventoryPayload(req.body, { requireBrand: false, requireQuantity: false });
         if (!validation.isValid) {
             return res.status(400).json({ message: 'Please correct the highlighted inventory fields.', errors: validation.errors });
         }
@@ -3245,6 +3245,75 @@ app.post('/api/inventory/items', verifyToken, async (req, res) => {
             return res.status(409).json({ message: 'An item with this name already exists for this branch.' });
         }
         res.status(500).json({ message: 'Server error adding item category.' });
+    }
+});
+
+app.get('/api/inventory/items/:id', verifyToken, async (req, res) => {
+    if (!INVENTORY_READ_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        await ensureInventoryMigration();
+        const item = await InventoryItem.findById(req.params.id);
+        if (!item) {
+            return res.status(404).json({ message: 'Inventory item not found.' });
+        }
+
+        const branch = await getScopedInventoryBranch(req.user);
+        if (branch && item.branch !== branch) {
+            return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
+        }
+
+        res.status(200).json(item);
+    } catch (error) {
+        console.error('Error fetching inventory item category:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error fetching inventory item category.' });
+    }
+});
+
+app.put('/api/inventory/items/:id', verifyToken, async (req, res) => {
+    if (!INVENTORY_EDIT_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        await ensureInventoryMigration();
+        const validation = validateInventoryPayload(req.body, { requireBrand: false, requireQuantity: false });
+        if (!validation.isValid) {
+            return res.status(400).json({ message: 'Please correct the highlighted inventory fields.', errors: validation.errors });
+        }
+
+        const item = await InventoryItem.findById(req.params.id);
+        if (!item) {
+            return res.status(404).json({ message: 'Inventory item not found.' });
+        }
+
+        const branch = await getScopedInventoryBranch(req.user);
+        if (branch && item.branch !== branch) {
+            return res.status(403).json({ message: 'Access denied. This item belongs to a different branch.' });
+        }
+
+        item.name = validation.normalized.itemName || item.name;
+        item.category = validation.normalized.category || item.category;
+        item.unit = validation.normalized.unit || item.unit;
+        item.lowStockThreshold = validation.normalized.lowStockThreshold ?? item.lowStockThreshold;
+        await item.save();
+
+        await AuditLog.create({
+            action: 'UPDATE_INVENTORY',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Updated inventory item category: ${item.name}${item.branch ? ` (branch: ${item.branch})` : ''}`
+        });
+
+        res.status(200).json(item);
+    } catch (error) {
+        console.error('Error updating inventory item category:', error);
+        if (error.code === 11000) {
+            return res.status(409).json({ message: 'An item with this name already exists for this branch.' });
+        }
+        res.status(500).json({ message: 'Server error updating inventory item category.' });
     }
 });
 
