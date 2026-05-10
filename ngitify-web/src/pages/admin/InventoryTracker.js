@@ -71,6 +71,7 @@ export default function InventoryTracker() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
+    const [branchFilter, setBranchFilter] = useState('All');
     const [inventoryItems, setInventoryItems] = useState([]);
     const [inventoryBatches, setInventoryBatches] = useState([]);
     const [branchOptions, setBranchOptions] = useState([]);
@@ -176,30 +177,16 @@ export default function InventoryTracker() {
         return [...new Set([...BASE_UNITS, ...fetchedUnits])].sort();
     }, [inventoryItems]);
 
+    const dynamicBranches = useMemo(() => {
+        const fetchedBranches = inventoryItems.map((item) => item.branch).filter(Boolean);
+        return [...new Set([...branchOptions, ...fetchedBranches])].sort((left, right) => left.localeCompare(right));
+    }, [branchOptions, inventoryItems]);
+
     const summaryInventory = useMemo(() => {
         return inventoryItems
             .map((item) => summarizeItem(item, batchesByItemId.get(String(item._id || item.id || '')) || []))
             .sort((left, right) => left.name.localeCompare(right.name));
     }, [inventoryItems, batchesByItemId]);
-
-    const inventoryStats = useMemo(() => {
-        let lowStock = 0;
-        let expiringSoon = 0;
-        let expired = 0;
-
-        summaryInventory.forEach((item) => {
-            if (item.isLowStock) lowStock++;
-            if (item.hasExpiringSoon) expiringSoon++;
-            if (item.hasExpiredBatch) expired++;
-        });
-
-        return {
-            total: summaryInventory.length,
-            lowStock,
-            expiringSoon,
-            expired,
-        };
-    }, [summaryInventory]);
 
     const filteredInventory = useMemo(() => {
         const query = searchQuery.toLowerCase();
@@ -212,9 +199,29 @@ export default function InventoryTracker() {
                     String(batch.batchNumber || '').toLowerCase().includes(query)
                 );
             const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
-            return matchesSearch && matchesCategory;
+            const matchesBranch = branchFilter === 'All' || item.branch === branchFilter;
+            return matchesSearch && matchesCategory && matchesBranch;
         });
-    }, [summaryInventory, searchQuery, categoryFilter]);
+    }, [summaryInventory, searchQuery, categoryFilter, branchFilter]);
+
+    const inventoryStats = useMemo(() => {
+        let lowStock = 0;
+        let expiringSoon = 0;
+        let expired = 0;
+
+        filteredInventory.forEach((item) => {
+            if (item.isLowStock) lowStock++;
+            if (item.hasExpiringSoon) expiringSoon++;
+            if (item.hasExpiredBatch) expired++;
+        });
+
+        return {
+            total: filteredInventory.length,
+            lowStock,
+            expiringSoon,
+            expired,
+        };
+    }, [filteredInventory]);
 
     const exportRows = filteredInventory.map((item) => [
         item.name,
@@ -382,6 +389,17 @@ export default function InventoryTracker() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
+
+                    <select
+                        className={styles.filterSelect}
+                        value={branchFilter}
+                        onChange={(e) => setBranchFilter(e.target.value)}
+                    >
+                        <option value="All">All Branches</option>
+                        {dynamicBranches.map((branch) => (
+                            <option key={`branch-${branch}`} value={branch}>{branch}</option>
+                        ))}
+                    </select>
 
                     <select
                         className={styles.filterSelect}

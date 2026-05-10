@@ -119,6 +119,100 @@
     align-items: center;
 }
 
+.branchOverviewSection {
+    margin-bottom: 25px;
+}
+
+.branchOverviewHeader {
+    margin-bottom: 14px;
+}
+
+.branchOverviewTitle {
+    margin: 0 0 4px 0;
+    color: #01538b;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.branchOverviewSubtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.branchCardsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.branchCard {
+    background: #ffffff;
+    border: 1px solid #dbeafe;
+    border-radius: 18px;
+    padding: 18px;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 8px 24px rgba(1, 83, 139, 0.06);
+}
+
+.branchCard:hover {
+    transform: translateY(-2px);
+    border-color: #7dd3fc;
+    box-shadow: 0 12px 26px rgba(1, 83, 139, 0.1);
+}
+
+.branchCardActive {
+    border-color: #01538b;
+    background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
+}
+
+.branchCardTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.branchCardName {
+    color: #01538b;
+    font-weight: 800;
+    font-size: 15px;
+}
+
+.branchCardTotal {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.branchCardMetrics,
+.branchGroupMetrics {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.metricChip {
+    background: #f8fafc;
+    color: #486173;
+    border: 1px solid #dbeafe;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.emptyBranchSummary {
+    padding: 18px;
+    color: #64748b;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px dashed #cbd5e1;
+}
+
 .searchWrapper {
     position: relative;
     flex: 1;
@@ -354,6 +448,38 @@
 
 .userTable tr:hover { background-color: #f8fbff; }
 
+.branchGroupRow:hover {
+    background: transparent !important;
+}
+
+.branchGroupCell {
+    padding: 0 !important;
+    background: #eef7fd;
+    border-bottom: 1px solid #dbeafe;
+}
+
+.branchGroupHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 18px 24px;
+}
+
+.branchGroupTitle {
+    margin: 0 0 4px 0;
+    color: #01538b;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.branchGroupSubtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
 .batchDetailsCell {
     padding: 0 !important;
     background: #f8fbff;
@@ -442,6 +568,9 @@
     .searchFilterGroup { flex-direction: column; align-items: stretch; }
     .searchWrapper { max-width: 100%; }
     .filterSelect { max-width: 100%; }
+    .branchGroupHeader {
+        align-items: flex-start;
+    }
 }
 
 @media (max-width: 1024px) {
