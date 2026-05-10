@@ -715,6 +715,11 @@
     margin-bottom: 18px;
 }
 
+.printPageBreakBefore {
+    break-before: page;
+    page-break-before: always;
+}
+
 .printSectionHeader {
     display: flex;
     justify-content: space-between;
@@ -870,6 +875,142 @@
     background: #fbfdff;
 }
 
+.printTreatmentTable {
+    table-layout: fixed;
+}
+
+.printTreatmentTable th,
+.printTreatmentTable td {
+    padding: 8px 7px;
+    font-size: 10px;
+    line-height: 1.45;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.printTreatmentTable th {
+    vertical-align: bottom;
+}
+
+.printRadiographList {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.printRadiographCard {
+    border: 1px solid #dbe5ef;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    break-inside: avoid;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+}
+
+.printRadiographMedia {
+    background: #f8fbfd;
+    border-bottom: 1px solid #dbe5ef;
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+}
+
+.printRadiographImage {
+    width: 100%;
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: 6px;
+    display: block;
+    background: #ffffff;
+}
+
+.printRadiographPlaceholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 180px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    padding: 14px;
+    background: #ffffff;
+}
+
+.printRadiographContent {
+    padding: 0;
+}
+
+.printRadiographMetaTable {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.printRadiographMetaTable th,
+.printRadiographMetaTable td {
+    border-bottom: 1px solid #dbe5ef;
+    border-right: 1px solid #dbe5ef;
+    padding: 10px 11px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.printRadiographMetaTable th {
+    width: 18%;
+    background: #f5f9fc;
+    color: #0a3f65;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.printRadiographMetaTable td {
+    width: 32%;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.55;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.printRadiographMetaTable tr:last-child th,
+.printRadiographMetaTable tr:last-child td {
+    border-bottom: none;
+}
+
+.printRadiographMetaTable th:last-child,
+.printRadiographMetaTable td:last-child {
+    border-right: none;
+}
+
+.printRadiographWideRow td {
+    width: auto;
+}
+
+.printIdentityGrid,
+.printCompactTableWrap,
+.printTableWrap,
+.printOdontogramWrap,
+.printRadiographList,
+.printTable tr,
+.printCompactTable tr {
+    break-inside: avoid;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+}
+
 .printEmptyCell {
     text-align: center;
     color: #64748b;
@@ -928,6 +1069,10 @@
 .printTableWrap,
 .printTable th,
 .printTable td,
+.printRadiographCard,
+.printRadiographMedia,
+.printRadiographMetaTable th,
+.printRadiographMetaTable td,
 .printOdontogramWrap,
 .printFooter {
     -webkit-print-color-adjust: exact;
@@ -959,6 +1104,7 @@
     .printIdentityGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .printIdentityGrid .printIdentityItem:nth-child(4n) { border-right: 1px solid #dbe5ef; }
     .printIdentityGrid .printIdentityItem:nth-child(2n) { border-right: none; }
+    .printRadiographMedia { min-height: 180px; }
     .printCompactTableWrap,
     .printTableWrap { overflow-x: auto; }
     .printCompactTable { min-width: 620px; }
@@ -1058,5 +1204,32 @@
 
     .printSection {
         page-break-inside: auto;
+    }
+
+    .printPageBreakBefore:first-of-type {
+        break-before: auto;
+        page-break-before: auto;
+    }
+
+    .printRadiographList,
+    .printRadiographCard,
+    .printRadiographMedia,
+    .printRadiographContent,
+    .printOdontogramWrap,
+    .printIdentityGrid,
+    .printCompactTableWrap,
+    .printTableWrap,
+    .printTable tr,
+    .printCompactTable tr {
+        break-inside: avoid-page;
+        page-break-inside: avoid;
+    }
+
+    .printTable thead {
+        display: table-header-group;
+    }
+
+    .printTable tfoot {
+        display: table-footer-group;
     }
 }

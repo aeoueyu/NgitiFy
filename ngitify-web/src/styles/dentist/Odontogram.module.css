@@ -1,320 +1,949 @@
 @import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
 
 .odontogramWrapper {
+    --primary: #01538b;
+    --secondary: #2dccf6;
+    --border: #d7e1ea;
+    --border-strong: #c3cfdb;
+    --soft: #f6f9fc;
+    --soft-blue: #eef6fb;
+    --text: #0f172a;
+    --muted: #64748b;
+    --muted-soft: #94a3b8;
     width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 30px;
-    padding: 10px 0;
+    color: var(--text);
     font-family: 'Lexend Deca', sans-serif;
 }
 
-.jawSection {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    width: 100%;
-    max-width: 850px;
-    background: #f8fafc;
-    padding: 35px 20px;
-    border-radius: 20px;
-    border: 1px solid #e2e8f0;
+.readOnlyChart {
 }
 
-.jawTitle {
-    color: #64748b;
-    font-size: 14px;
+.chartShell {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 18px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.chartHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 14px;
+}
+
+.chartEyebrow,
+.modalEyebrow,
+.surfaceSectionEyebrow {
+    margin: 0 0 6px;
+    font-size: 10px;
     font-weight: 800;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    color: var(--primary);
+}
+
+.chartTitle {
+    margin: 0 0 6px;
+    font-size: 23px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.chartSubtitle,
+.modalSubtitle {
     margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: 760px;
 }
 
-.arch {
+.modeChipRow {
     display: flex;
-    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.modeChip,
+.archNotation,
+.surfaceSectionNote {
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    width: 100%;
-    flex-wrap: nowrap;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--soft-blue);
+    border: 1px solid var(--border);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 700;
 }
 
-.quadrant {
+.filterRow {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 10px 0 14px;
+    border-bottom: 1px solid #edf3f8;
 }
 
-.divider {
-    width: 3px;
-    background-color: #cbd5e1;
-    margin: 0 10px;
-    border-radius: 50px;
+.filterLabel {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-soft);
 }
 
-/* --- INDIVIDUAL TOOTH STYLING --- */
-.toothContainer {
+.stageFilterGroup {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filterChip {
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    transition: transform 0.2s ease, filter 0.2s ease;
+    transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.16s ease;
 }
 
-.toothContainer:hover {
-    transform: translateY(-4px);
-    filter: drop-shadow(0 4px 8px rgba(1, 83, 139, 0.15));
+.filterChip:hover {
+    transform: translateY(-1px);
+    border-color: rgba(1, 83, 139, 0.22);
+    background: var(--soft-blue);
 }
 
-.toothNum {
-    font-size: 12px;
+.filterChipActive {
+    background: rgba(1, 83, 139, 0.08);
+    border-color: rgba(1, 83, 139, 0.36);
+    color: var(--primary);
+}
+
+.filterChipCount {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(1, 83, 139, 0.12);
+    font-size: 10px;
     font-weight: 800;
-    color: #94a3b8;
+    color: var(--primary);
 }
 
-/* Base Graphic */
-.toothGraphic {
-    width: 36px;
-    height: 48px;
-    border-radius: 8px;
-    border: 2px solid;
+.archStack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.archCard {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 12px;
+    background: #ffffff;
+}
+
+.archCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 10px;
+}
+
+.archCardTitle {
+    margin: 0 0 2px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.archCardSubtitle {
+    margin: 0;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.archGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 3px;
+}
+
+.numberRow,
+.viewRow {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) 46px;
+    align-items: center;
+    gap: 8px;
+    min-width: 760px;
+}
+
+.numberRowBottom {
+    margin-top: 2px;
+}
+
+.rowTrack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+}
+
+.teethHalf {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 5px;
+    min-width: 0;
+}
+
+.rowLabelSpacer {
+    height: 1px;
+}
+
+.viewLabel {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--muted-soft);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.midlineDivider {
+    width: 2px;
+    height: 100%;
+    min-height: 54px;
+    border-radius: 999px;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(1, 83, 139, 0.3) 0,
+        rgba(1, 83, 139, 0.3) 6px,
+        rgba(1, 83, 139, 0.06) 6px,
+        rgba(1, 83, 139, 0.06) 12px
+    );
+    justify-self: center;
+}
+
+.toothNumberTag {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: white;
-    transition: all 0.3s ease;
-    box-shadow: inset 0 2px 4px rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.02);
+    min-height: 16px;
+    font-size: 10px;
+    font-weight: 800;
 }
 
-.toothIcon { font-size: 20px; transition: color 0.3s ease; }
-
-/* Status Conditionals */
-.healthy .toothGraphic { border-color: #cbd5e1; color: #cbd5e1; }
-.filled .toothGraphic { border-color: #38bdf8; background-color: #e0f2fe; color: #0284c7; }
-.decayed .toothGraphic { border-color: #f87171; background-color: #fef2f2; color: #dc2626; }
-.crown .toothGraphic { border-color: #facc15; background-color: #fef9c3; color: #ca8a04; }
-.missing .toothGraphic { border-color: #94a3b8; background-color: #f1f5f9; color: #94a3b8; opacity: 0.4; }
-.missing .toothNum { opacity: 0.5; text-decoration: line-through; }
-
-/* --- LEGEND --- */
-.chartLegend {
-    display: flex; gap: 25px; justify-content: center; margin-top: 10px;
-    padding: 15px 30px; background-color: white; border-radius: 50px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.04); border: 1px solid #f1f5f9;
-    flex-wrap: wrap;
+.viewCellButton {
+    appearance: none;
+    width: 100%;
+    min-height: 66px;
+    padding: 4px 2px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
-.legendItem { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #64748b; }
-.legendColor { width: 16px; height: 16px; border-radius: 4px; border: 2px solid; }
+.viewCellButton:hover {
+    background: rgba(45, 204, 246, 0.08);
+    border-color: rgba(45, 204, 246, 0.16);
+}
 
-.legendColor.healthy { background-color: white; border-color: #cbd5e1; }
-.legendColor.filled { background-color: #e0f2fe; border-color: #38bdf8; }
-.legendColor.decayed { background-color: #fef2f2; border-color: #f87171; }
-.legendColor.crown { background-color: #fef9c3; border-color: #facc15; }
-.legendColor.missing { background-color: #f1f5f9; border-color: #94a3b8; }
+.viewCellButton:focus-visible {
+    outline: 3px solid rgba(45, 204, 246, 0.2);
+    outline-offset: 1px;
+}
 
-.readOnlyChart .toothContainer {
+.viewCellButtonReadOnly,
+.readOnlyChart .viewCellButton {
     cursor: default;
 }
 
-.readOnlyChart .toothContainer:hover {
-    transform: none;
-    filter: none;
+.readOnlyChart .viewCellButton:hover {
+    background: transparent;
+    border-color: transparent;
 }
 
-.documentMode {
-    gap: 18px;
-    padding: 0;
+.miniViewSvg {
+    width: 48px;
+    height: 62px;
+    overflow: visible;
 }
 
-.documentMode .jawSection {
-    max-width: none;
+.miniViewSvgDocument {
+    width: 42px;
+    height: 54px;
+}
+
+.surfaceRegion {
+}
+
+.surfaceRegionActive {
+    filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.1));
+}
+
+.surfaceHitArea {
+    cursor: pointer;
+}
+
+.surfaceHitArea:hover polygon,
+.surfaceHitArea:hover path {
+    filter: brightness(0.98);
+}
+
+.legendSection {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stageLegendRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.stageLegendBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.stageLegendDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+}
+
+.legendSurfaceMap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.surfaceKeyCard {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+}
+
+.surfaceKeyBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(1, 83, 139, 0.08);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.surfaceKeyText {
+    font-size: 11px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.chartLegend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.legendCard {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px;
+    border-radius: 10px;
     background: #ffffff;
-    padding: 18px 16px;
-    border-radius: 12px;
-    box-shadow: none;
+    border: 1px solid var(--border);
 }
 
-.documentMode .jawTitle {
-    letter-spacing: 1.2px;
-    font-size: 12px;
+.legendSwatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid;
+    flex-shrink: 0;
 }
 
-.documentMode .quadrant {
+.legendCopy {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
 }
 
-.documentMode .divider {
-    margin: 0 6px;
+.legendCopy strong {
+    font-size: 12px;
+    color: #0f172a;
 }
 
-.documentMode .toothContainer {
-    gap: 6px;
+.legendCopy span {
+    font-size: 10px;
+    line-height: 1.55;
+    color: var(--muted);
 }
 
-.documentMode .toothGraphic {
-    width: 30px;
-    height: 42px;
-    border-radius: 6px;
-}
-
-.documentMode .toothIcon {
-    font-size: 17px;
-}
-
-.documentMode .toothNum {
-    font-size: 11px;
-}
-
-.documentMode .chartLegend {
-    width: 100%;
-    justify-content: flex-start;
-    gap: 14px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    box-shadow: none;
-}
-
-.documentMode .legendItem {
-    font-size: 11px;
-}
-
-.documentMode .legendColor {
-    width: 12px;
-    height: 12px;
-}
-
-/* --- TOOTH ACTION MODAL --- */
 .modalOverlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(3px);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 1005; animation: fadeIn 0.2s ease;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+}
+
+.overlayBackground {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.56);
+    backdrop-filter: blur(3px);
 }
 
 .miniModalCard {
-    background: white; padding: 35px 40px; border-radius: 20px; 
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2); max-width: 420px; 
-    width: 90%; text-align: center; animation: scaleUp 0.2s ease;
+    position: relative;
+    width: min(1120px, 100%);
+    max-height: min(92vh, 980px);
+    overflow: auto;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 28px 60px rgba(15, 23, 42, 0.22);
 }
 
-.modalTitle { color: #01538b; font-size: 22px; font-weight: 800; margin: 0 0 5px 0; }
-.modalSubtitle { color: #64748b; font-size: 14px; font-weight: 500; margin: 0 0 25px 0; }
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.modalTitle {
+    margin: 0 0 6px;
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.modalCloseBtn {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.18s ease, transform 0.18s ease;
+}
+
+.modalCloseBtn:hover {
+    transform: translateY(-1px);
+    background: #f8fafc;
+}
+
+.modalLayout {
+    display: grid;
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    gap: 18px;
+}
+
+.previewPanel {
+    padding: 16px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fbfdff 0%, #f5f9fc 100%);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.previewStatus,
+.previewStageBadge {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.previewStack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.previewRow {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(215, 225, 234, 0.92);
+}
+
+.previewRowLabel {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-soft);
+}
+
+.previewSvg {
+    width: 158px;
+    height: 96px;
+    justify-self: center;
+}
+
+.previewSummary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.previewSummary > div {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(215, 225, 234, 0.92);
+}
+
+.previewSummary strong {
+    display: block;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.previewSummaryLabel {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-soft);
+}
+
+.previewHint {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+.editorPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.findingStageList {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.findingStageCard {
+    text-align: left;
+    min-height: 110px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.findingStageCard:hover {
+    transform: translateY(-1px);
+    border-color: rgba(1, 83, 139, 0.22);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+}
+
+.findingStageCardActive {
+    border-color: rgba(1, 83, 139, 0.34);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+}
+
+.findingStageCard strong {
+    font-size: 13px;
+}
+
+.findingStageCard span:last-child {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.findingStagePill {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    min-height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
 
 .statusOptionsGrid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
 }
 
 .statusBtn {
-    padding: 14px; border-radius: 12px; border: 2px solid #e2e8f0; 
-    background: white; cursor: pointer; font-weight: 700; color: #64748b; 
-    font-size: 14px; transition: all 0.2s; font-family: 'Lexend Deca', sans-serif;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 86px;
+    padding: 13px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
-.statusBtn:hover { border-color: #cbd5e1; background: #f8fafc; }
 
-.statusBtn.activeHealthy { border-color: #94a3b8; background: white; color: #334155; box-shadow: 0 0 0 3px rgba(203,213,225,0.3); }
-.statusBtn.activeFilled { border-color: #38bdf8; background: #e0f2fe; color: #0284c7; box-shadow: 0 0 0 3px rgba(56,189,248,0.3); }
-.statusBtn.activeDecayed { border-color: #f87171; background: #fef2f2; color: #dc2626; box-shadow: 0 0 0 3px rgba(248,113,113,0.3); }
-.statusBtn.activeCrown { border-color: #facc15; background: #fef9c3; color: #ca8a04; box-shadow: 0 0 0 3px rgba(250,204,21,0.3); }
-.statusBtn.activeMissing { border-color: #94a3b8; background: #f1f5f9; color: #475569; box-shadow: 0 0 0 3px rgba(148,163,184,0.3); }
+.statusBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.06);
+}
 
-.modalButtonGroup { display: flex; gap: 15px; }
+.statusBtnActive {
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+}
+
+.statusBtnLabel {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.statusBtnDescription {
+    display: block;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.surfaceSection {
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+}
+
+.surfaceSectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.surfaceSectionTitle {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.surfaceGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+}
+
+.surfaceBtn {
+    min-height: 68px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.surfaceBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: rgba(1, 83, 139, 0.26);
+    background: rgba(45, 204, 246, 0.08);
+}
+
+.surfaceBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.surfaceBtnActive {
+    background: rgba(1, 83, 139, 0.08);
+    border-color: rgba(1, 83, 139, 0.38);
+}
+
+.surfaceKey {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: rgba(1, 83, 139, 0.08);
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.surfaceLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    line-height: 1.45;
+    text-align: left;
+}
+
+.modalButtonGroup {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.cancelBtn,
+.submitBtn,
+.changePatientBtn {
+    min-height: 46px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+}
+
 .cancelBtn {
-    flex: 1; background-color: white; color: #64748b; border: 1px solid #e2e8f0;
-    padding: 12px; border-radius: 50px; font-weight: 700; font-size: 14px;
-    cursor: pointer; transition: all 0.2s; font-family: 'Lexend Deca';
+    background: #ffffff;
+    border: 1px solid var(--border);
+    color: #475569;
 }
-.cancelBtn:hover { background-color: #f8fafc; color: #334155; }
-.submitBtn {
-    flex: 1; background-color: #01538b; color: white; border: none;
-    padding: 12px; border-radius: 50px; font-weight: 700; font-size: 14px;
-    cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(1,83,139,0.2); font-family: 'Lexend Deca';
-}
-.submitBtn:hover { background-color: #013f6b; transform: translateY(-2px); }
 
-/* ── Standalone Odontogram Page ── */
+.submitBtn {
+    border: none;
+    background: linear-gradient(135deg, var(--primary) 0%, #0f6fae 100%);
+    color: #ffffff;
+    box-shadow: 0 12px 20px rgba(1, 83, 139, 0.18);
+}
+
+.cancelBtn:hover,
+.submitBtn:hover,
+.changePatientBtn:hover {
+    transform: translateY(-1px);
+}
+
+.submitBtn:disabled,
+.cancelBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+    transform: none;
+}
+
+.documentMode .chartShell {
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+.documentMode .chartHeader {
+    margin-bottom: 10px;
+}
+
+.documentMode .chartTitle {
+    font-size: 20px;
+}
+
+.documentMode .filterRow {
+    display: none;
+}
+
+.documentMode .archGrid {
+    overflow: visible;
+}
+
+.documentMode .numberRow,
+.documentMode .viewRow {
+    min-width: 0;
+}
+
+.documentMode .archCard {
+    padding: 12px 10px;
+}
+
+.documentMode .miniViewSvg {
+    width: 40px;
+    height: 52px;
+}
+
+.documentMode .previewSvg {
+    width: 138px;
+    height: 84px;
+}
+
+.documentMode .toothNumberTag {
+    font-size: 9px;
+}
+
+.documentMode .chartLegend {
+    grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+}
+
 .odontogramPageWrapper {
     padding: 28px 32px;
-    max-width: 1100px;
+    max-width: 1240px;
 }
 
 .odontogramPageHeader {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    gap: 18px;
     margin-bottom: 28px;
 }
 
 .odontogramPageTitle {
-    font-size: 24px;
-    font-weight: 700;
-    color: #01538b;
+    margin: 0 0 6px;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary);
     display: flex;
     align-items: center;
-    margin: 0 0 4px 0;
 }
 
 .odontogramPageSubtitle {
-    font-size: 14px;
-    color: #64748b;
     margin: 0;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--muted);
+    max-width: 720px;
 }
 
 .changePatientBtn {
-    padding: 8px 18px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #475569;
-    cursor: pointer;
-    transition: background 0.2s;
+    border: 1px solid rgba(1, 83, 139, 0.12);
+    background: rgba(45, 204, 246, 0.08);
+    color: var(--primary);
 }
-.changePatientBtn:hover { background: #e2e8f0; }
+
+.patientSelectorCard,
+.odontogramViewCard {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
 
 .patientSelectorCard {
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 2px 12px rgba(1,83,139,0.06);
     overflow: hidden;
-    max-width: 560px;
+    max-width: 620px;
 }
 
 .selectorSearchWrapper {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 16px 20px;
-    border-bottom: 1px solid #f1f5f9;
+    padding: 18px 20px;
+    border-bottom: 1px solid #edf3f8;
 }
 
-.selectorSearchIcon { color: #94a3b8; font-size: 15px; }
+.selectorSearchIcon {
+    color: var(--muted-soft);
+    font-size: 15px;
+}
 
 .selectorSearchInput {
     flex: 1;
     border: none;
     outline: none;
-    font-size: 14px;
-    color: #334155;
     background: transparent;
+    font-size: 14px;
+    color: #0f172a;
+    font-family: 'Lexend Deca', sans-serif;
 }
 
 .selectorEmpty {
-    padding: 48px 20px;
-    text-align: center;
-    color: #94a3b8;
-    font-size: 14px;
+    padding: 52px 22px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--muted-soft);
+    font-size: 14px;
+}
+
+.selectorEmpty p {
+    margin: 0;
 }
 
 .selectorList {
-    max-height: 480px;
+    max-height: 520px;
     overflow-y: auto;
 }
 
@@ -323,23 +952,44 @@
     align-items: center;
     gap: 14px;
     padding: 14px 20px;
+    border-bottom: 1px solid #f3f7fa;
     cursor: pointer;
-    transition: background 0.15s;
-    border-bottom: 1px solid #f8fafc;
+    transition: background-color 0.18s ease;
 }
-.selectorItem:hover { background: #f0f9ff; }
-.selectorItem:last-child { border-bottom: none; }
 
-.selectorItemInfo { flex: 1; }
-.selectorName { font-size: 14px; font-weight: 600; color: #1e293b; display: block; }
-.selectorMeta { font-size: 12px; color: #94a3b8; }
-.selectorChevron { color: #2dccf6; font-size: 14px; }
+.selectorItem:hover {
+    background: rgba(45, 204, 246, 0.08);
+}
+
+.selectorItem:last-child {
+    border-bottom: none;
+}
+
+.selectorItemInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.selectorName {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.selectorMeta {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--muted-soft);
+}
+
+.selectorChevron {
+    color: var(--secondary);
+    font-size: 14px;
+}
 
 .odontogramViewCard {
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 2px 12px rgba(1,83,139,0.06);
     padding: 24px;
 }
 
@@ -348,128 +998,80 @@
     align-items: center;
     gap: 14px;
     padding-bottom: 20px;
-    margin-bottom: 24px;
-    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #edf3f8;
 }
 
-.selectedPatientName { font-size: 16px; font-weight: 700; color: #01538b; margin: 0 0 2px 0; }
-.selectedPatientMeta { font-size: 13px; color: #94a3b8; margin: 0; }
+.selectedPatientName {
+    margin: 0 0 4px;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--primary);
+}
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.selectedPatientMeta {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted-soft);
+}
 
-@media (max-width: 1024px) {
-    .arch { gap: 8px; }
-    .toothGraphic { width: 28px; height: 38px; }
-    .toothIcon { font-size: 16px; }
+@media (max-width: 1080px) {
+    .chartHeader,
+    .archCardHeader,
+    .odontogramPageHeader {
+        flex-direction: column;
+    }
+
+    .modeChipRow {
+        justify-content: flex-start;
+    }
+
+    .modalLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .findingStageList {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 860px) {
+    .statusOptionsGrid,
+    .previewSummary {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
-    .arch { overflow-x: auto; padding-bottom: 10px; justify-content: flex-start; }
-    .jawSection { align-items: flex-start; }
-    .statusOptionsGrid { grid-template-columns: 1fr; }
+    .chartShell,
+    .archCard,
+    .odontogramViewCard,
+    .miniModalCard {
+        padding: 16px;
+    }
+
+    .odontogramPageWrapper {
+        padding: 20px 16px;
+    }
+
+    .chartTitle,
+    .modalTitle,
+    .odontogramPageTitle {
+        font-size: 21px;
+    }
+
+    .surfaceGrid,
+    .statusOptionsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .modalButtonGroup {
+        flex-direction: column-reverse;
+    }
+
+    .cancelBtn,
+    .submitBtn,
+    .changePatientBtn {
+        width: 100%;
+    }
 }
-
-/* ── New condition styles ── */
-.implant .toothGraphic         { border-color: #8b5cf6; background-color: #f5f3ff; color: #7c3aed; }
-.bridge .toothGraphic          { border-color: #f97316; background-color: #fff7ed; color: #ea580c; }
-.extraction-site .toothGraphic { border-color: #64748b; background-color: #f8fafc; color: #64748b; opacity: 0.55; }
-.extraction-site .toothNum     { opacity: 0.55; text-decoration: line-through; }
-.mobility .toothGraphic        { border-color: #ec4899; background-color: #fdf2f8; color: #db2777; border-style: dashed; }
-
-.legendColor.implant         { background-color: #f5f3ff; border-color: #8b5cf6; }
-.legendColor.bridge          { background-color: #fff7ed; border-color: #f97316; }
-.legendColor.extraction-site { background-color: #f8fafc; border-color: #64748b; opacity: 0.7; }
-.legendColor.mobility        { background-color: #fdf2f8; border-color: #ec4899; }
-
-/* Active state buttons for new conditions */
-.statusBtn.activeImplant        { border-color: #8b5cf6; background: #f5f3ff; color: #7c3aed; box-shadow: 0 0 0 3px rgba(139,92,246,0.2); }
-.statusBtn.activeBridge         { border-color: #f97316; background: #fff7ed; color: #ea580c; box-shadow: 0 0 0 3px rgba(249,115,22,0.2); }
-.statusBtn.activeExtractionSite { border-color: #64748b; background: #f1f5f9; color: #475569; box-shadow: 0 0 0 3px rgba(100,116,139,0.2); }
-.statusBtn.activeMobility       { border-color: #ec4899; background: #fdf2f8; color: #db2777; box-shadow: 0 0 0 3px rgba(236,72,153,0.2); }
-
-/* ── Surface annotation ── */
-.surfaceRow {
-    display: flex;
-    gap: 2px;
-    flex-wrap: wrap;
-    justify-content: center;
-    max-width: 42px;
-}
-
-.surfaceDot {
-    font-size: 8px;
-    font-weight: 800;
-    color: #fff;
-    background: #01538b;
-    border-radius: 3px;
-    padding: 1px 3px;
-    line-height: 1.2;
-}
-
-/* Surface section inside modal */
-.surfaceSection {
-    margin-bottom: 24px;
-    padding-top: 18px;
-    border-top: 1px dashed #e2e8f0;
-    text-align: left;
-}
-
-.surfaceSectionTitle {
-    font-size: 13px;
-    font-weight: 700;
-    color: #334155;
-    margin: 0 0 12px 0;
-}
-
-.surfaceOptional {
-    font-weight: 500;
-    color: #94a3b8;
-    font-size: 12px;
-    margin-left: 4px;
-}
-
-.surfaceGrid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 8px;
-}
-
-.surfaceBtn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    padding: 10px 4px;
-    border-radius: 10px;
-    border: 2px solid #e2e8f0;
-    background: white;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: 'Lexend Deca', sans-serif;
-}
-.surfaceBtn:hover { border-color: #94a3b8; background: #f8fafc; }
-
-.surfaceBtn.surfaceBtnActive {
-    border-color: #01538b;
-    background: #e0f2fe;
-}
-
-.surfaceKey {
-    font-size: 15px;
-    font-weight: 800;
-    color: #334155;
-}
-.surfaceBtn.surfaceBtnActive .surfaceKey { color: #01538b; }
-
-.surfaceLabel {
-    font-size: 8px;
-    font-weight: 600;
-    color: #94a3b8;
-    text-align: center;
-    line-height: 1.2;
-}
-.surfaceBtn.surfaceBtnActive .surfaceLabel { color: #0284c7; }
-
-/* Widen modal to fit 4-col grid + surface section */
-.miniModalCard { max-width: 480px; }

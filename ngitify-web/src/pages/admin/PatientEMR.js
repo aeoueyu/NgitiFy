@@ -138,6 +138,7 @@ const PRINT_FORCED_DETAIL_PAIRS = new Map([
     ['Hospitalized Before', 'Hospitalization Details'],
     ['Taking Medication', 'Medication List'],
 ]);
+const TREATMENT_HISTORY_COLUMN_WIDTHS = ['9%', '18%', '10%', '12%', '8%', '10%', '8%', '8%', '8%', '9%'];
 const isWidePrintDetail = (label, value) => {
     const normalizedValue = String(value || '').trim();
     return PRINT_WIDE_DETAIL_LABELS.has(label)
@@ -410,6 +411,7 @@ export default function PatientEMR({
     const reportSections = patient ? [
         {
             title: 'Patient Profile',
+            kind: 'details',
             rows: buildDetailRows([
             ['Gender', patient.gender],
             ['Home Phone', patient.homePhone],
@@ -425,6 +427,7 @@ export default function PatientEMR({
         },
         ...(patient?.guardian?.name ? [{
             title: 'Guardian Information',
+            kind: 'details',
             rows: buildDetailRows([
                 ['Guardian Name', patient.guardian.name],
                 ['Guardian Occupation', patient.guardian.occupation],
@@ -434,24 +437,23 @@ export default function PatientEMR({
         }] : []),
         ...((patient?.emergencyContact?.name || patient?.emergencyContact?.contactNumber) ? [{
             title: 'Emergency Contact',
+            kind: 'details',
             rows: buildDetailRows([
                 ['Emergency Contact', patient.emergencyContact?.name],
                 ['Emergency Phone', patient.emergencyContact?.contactNumber],
                 ['Relationship', patient.emergencyContact?.relationship],
             ]),
         }] : []),
-        ...((patient?.physician?.name || patient?.physician?.officeNumber) ? [{
-            title: 'Attending Physician',
+        {
+            title: 'Medical and Dental History',
+            kind: 'details',
             rows: buildDetailRows([
+            ...((patient?.physician?.name || patient?.physician?.specialty || patient?.physician?.officeAddress || patient?.physician?.officeNumber) ? [
                 ["Physician's Name", patient.physician?.name],
                 ['Specialty', patient.physician?.specialty],
                 ['Office Address', patient.physician?.officeAddress],
                 ['Office Number', patient.physician?.officeNumber],
-            ]),
-        }] : []),
-        {
-            title: 'Medical and Dental History',
-            rows: buildDetailRows([
+            ] : []),
             ['Last Dental Visit', medicalHistory.lastExam ? formatLongDate(medicalHistory.lastExam) : 'Not specified'],
             ['Reaction After Dental Treatment', formatYesNoValue(medicalHistory.hadTreatmentReaction)],
             ['Reaction Details', medicalHistory.reactionDetails],
@@ -481,6 +483,8 @@ export default function PatientEMR({
         },
         {
             title: 'Treatment History',
+            kind: 'table',
+            variant: 'treatmentHistory',
             headers: ['Date', 'Procedure', 'Category', 'Dentist', 'Tooth', 'Branch', 'Charged', 'Paid', 'Balance', 'Next Appointment'],
             rows: logs
                 .slice()
@@ -499,18 +503,23 @@ export default function PatientEMR({
                 ])),
         },
         {
+            title: 'Odontogram',
+            kind: 'odontogram',
+        },
+        {
             title: 'Radiograph Records',
-            headers: ['Date', 'Type', 'Radiograph No.', 'Findings', 'Notes'],
-            rows: radiographs
+            kind: 'radiographs',
+            records: radiographs
                 .slice()
                 .sort((a, b) => b.rawDate - a.rawDate)
-                .map((radiograph) => ([
-                formatShortDate(radiograph.rawDate),
-                normalizeTextValue(radiograph.type || radiograph.label),
-                normalizeTextValue(radiograph.radiographNumber),
-                normalizeTextValue(radiograph.findings),
-                normalizeTextValue(radiograph.notes),
-                ])),
+                .map((radiograph) => ({
+                ...radiograph,
+                formattedDate: formatShortDate(radiograph.rawDate),
+                displayType: normalizeTextValue(radiograph.type || radiograph.label),
+                displayNumber: normalizeTextValue(radiograph.radiographNumber),
+                displayFindings: normalizeTextValue(radiograph.findings),
+                displayNotes: normalizeTextValue(radiograph.notes),
+                })),
         },
     ] : [];
 
@@ -580,7 +589,7 @@ export default function PatientEMR({
                                 <div className={styles.printHeaderTop}>
                                     <div>
                                         <h1>Patient Medical and Dental Record</h1>
-                                        <p>Official patient profile, clinical history, dental chart, treatment record, and radiograph notes</p>
+                                        <p>Official patient profile, clinical history, odontogram, treatment record, and radiograph notes</p>
                                     </div>
                                     <div className={styles.printHeaderMeta}>
                                         <span className={styles.printMetaBadge}>{patientPrimaryBranch}</span>
@@ -641,34 +650,37 @@ export default function PatientEMR({
                                 </div>
                             </section>
 
-                            <section className={styles.printSection}>
-                                <div className={styles.printSectionHeader}>
-                                    <div className={styles.printSectionTitleWrap}>
-                                        <span className={styles.printSectionNumber}>01</span>
-                                        <h3>Dental Chart and Odontogram</h3>
-                                    </div>
-                                    <span className={styles.printSectionHint}>FDI Chart View</span>
-                                </div>
-                                <div className={styles.printOdontogramWrap}>
-                                    <Odontogram patientId={activePatientId} readOnly documentMode />
-                                </div>
-                            </section>
-
                             {reportSections.map((section, index) => (
-                                <section key={section.title} className={styles.printSection}>
+                                <section
+                                    key={section.title}
+                                    className={`${styles.printSection} ${section.kind === 'odontogram' || section.kind === 'radiographs' ? styles.printPageBreakBefore : ''}`.trim()}
+                                >
                                     <div className={styles.printSectionHeader}>
                                         <div className={styles.printSectionTitleWrap}>
-                                            <span className={styles.printSectionNumber}>{String(index + 2).padStart(2, '0')}</span>
+                                            <span className={styles.printSectionNumber}>{String(index + 1).padStart(2, '0')}</span>
                                             <h3>{section.title}</h3>
                                         </div>
-                                        {section.headers ? (
+                                        {section.kind === 'table' ? (
                                             <span className={styles.printSectionHint}>{section.rows.length} record{section.rows.length === 1 ? '' : 's'}</span>
+                                        ) : null}
+                                        {section.kind === 'radiographs' ? (
+                                            <span className={styles.printSectionHint}>{section.records.length} record{section.records.length === 1 ? '' : 's'}</span>
+                                        ) : null}
+                                        {section.kind === 'odontogram' ? (
+                                            <span className={styles.printSectionHint}>FDI Chart View</span>
                                         ) : null}
                                     </div>
 
-                                    {section.headers ? (
+                                    {section.kind === 'table' ? (
                                         <div className={styles.printTableWrap}>
-                                            <table className={styles.printTable}>
+                                            <table className={`${styles.printTable} ${section.variant === 'treatmentHistory' ? styles.printTreatmentTable : ''}`.trim()}>
+                                                {section.variant === 'treatmentHistory' ? (
+                                                    <colgroup>
+                                                        {TREATMENT_HISTORY_COLUMN_WIDTHS.map((width, widthIndex) => (
+                                                            <col key={`${section.title}-col-${widthIndex}`} style={{ width }} />
+                                                        ))}
+                                                    </colgroup>
+                                                ) : null}
                                                 <thead>
                                                     <tr>
                                                         {section.headers.map((header) => (
@@ -693,6 +705,57 @@ export default function PatientEMR({
                                                 </tbody>
                                             </table>
                                         </div>
+                                    ) : section.kind === 'odontogram' ? (
+                                        <div className={styles.printOdontogramWrap}>
+                                            <Odontogram patientId={activePatientId} readOnly documentMode />
+                                        </div>
+                                    ) : section.kind === 'radiographs' ? (
+                                        section.records.length > 0 ? (
+                                            <div className={styles.printRadiographList}>
+                                                {section.records.map((radiograph, radiographIndex) => (
+                                                    <article key={radiograph.id || `${section.title}-${radiographIndex}`} className={styles.printRadiographCard}>
+                                                        <div className={styles.printRadiographMedia}>
+                                                            {radiograph.url ? (
+                                                                <img
+                                                                    src={radiograph.url}
+                                                                    alt={`${radiograph.displayType} radiograph`}
+                                                                    className={styles.printRadiographImage}
+                                                                />
+                                                            ) : (
+                                                                <div className={styles.printRadiographPlaceholder}>
+                                                                    No radiograph image uploaded.
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className={styles.printRadiographContent}>
+                                                            <table className={styles.printRadiographMetaTable}>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <th scope="row">Date</th>
+                                                                        <td>{radiograph.formattedDate}</td>
+                                                                        <th scope="row">Type</th>
+                                                                        <td>{radiograph.displayType}</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <th scope="row">Radiograph No.</th>
+                                                                        <td>{radiograph.displayNumber}</td>
+                                                                        <th scope="row">Notes</th>
+                                                                        <td>{radiograph.displayNotes}</td>
+                                                                    </tr>
+                                                                    <tr className={styles.printRadiographWideRow}>
+                                                                        <th scope="row">Findings</th>
+                                                                        <td colSpan={3}>{radiograph.displayFindings}</td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </article>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.printEmptyState}>No radiograph records found.</div>
+                                        )
                                     ) : (
                                         section.rows.length > 0 ? (
                                             <div className={styles.printCompactTableWrap}>

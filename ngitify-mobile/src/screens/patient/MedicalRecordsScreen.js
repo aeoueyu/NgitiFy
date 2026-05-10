@@ -3,6 +3,7 @@ import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
     ActivityIndicator, FlatList, Animated
 } from 'react-native';
+import Svg, { Circle, Line, Path, Polygon } from 'react-native-svg';
 import { AuthContext } from '../../context/AuthContext';
 import { logActivity } from '../../utils/logActivity';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,26 +25,82 @@ const UPPER_LEFT  = [21,22,23,24,25,26,27,28];
 const LOWER_LEFT  = [31,32,33,34,35,36,37,38];
 const LOWER_RIGHT = [48,47,46,45,44,43,42,41]; // displayed right→left
 
-const STATUS_COLORS = {
-    healthy:            { bg: '#e8f5e9', text: '#2e7d32' },
-    normal:             { bg: '#e8f5e9', text: '#2e7d32' },
-    caries:             { bg: '#ffebee', text: '#c62828' },
-    decayed:            { bg: '#ffebee', text: '#c62828' },
-    missing:            { bg: '#eeeeee', text: '#757575' },
-    crowned:            { bg: '#e3f2fd', text: '#1565c0' },
-    crown:              { bg: '#e3f2fd', text: '#1565c0' },
-    filled:             { bg: '#fff8e1', text: '#f57f17' },
-    'root canal':       { bg: '#fce4ec', text: '#880e4f' },
-    implant:            { bg: '#e8eaf6', text: '#283593' },
-    fractured:          { bg: '#fff3e0', text: '#e65100' },
-    'under observation': { bg: '#e0f7fa', text: '#006064' },
-    extracted:          { bg: '#eeeeee', text: '#757575' },
-    'extraction-site':  { bg: '#eeeeee', text: '#757575' },
-    mobility:           { bg: '#fff3e0', text: '#e65100' },
-    bridge:             { bg: '#e8eaf6', text: '#283593' },
+const SURFACE_CODES = ['M', 'D', 'O', 'B', 'L'];
+const SURFACE_LABELS = {
+    M: 'Mesial',
+    D: 'Distal',
+    O: 'Occlusal / Incisal',
+    B: 'Buccal / Labial',
+    L: 'Lingual / Palatal',
 };
 
-const DEFAULT_STATUS_COLOR = { bg: '#f5f5f5', text: '#333' };
+const SURFACE_POSITIONS = {
+    top: '24,14 48,14 42,28 30,28',
+    left: '14,24 30,28 26,46 14,38',
+    center: '30,28 42,28 46,42 36,50 26,42',
+    right: '48,14 58,24 58,38 46,42 42,28',
+    bottom: '26,42 36,50 46,42 48,56 24,56',
+};
+
+const ODONTOGRAM_STATUS_META = {
+    healthy:            { label: 'Healthy', fill: '#ffffff', stroke: '#cbd5e1', accent: '#64748b', badgeBg: '#f8fafc', badgeText: '#475569' },
+    filled:             { label: 'Filled', fill: '#e0f2fe', stroke: '#0ea5e9', accent: '#0284c7', badgeBg: '#e0f2fe', badgeText: '#0369a1' },
+    decayed:            { label: 'Caries / Decayed', fill: '#fee2e2', stroke: '#ef4444', accent: '#b91c1c', badgeBg: '#fee2e2', badgeText: '#b91c1c' },
+    crown:              { label: 'Crown', fill: '#fef3c7', stroke: '#f59e0b', accent: '#b45309', badgeBg: '#fef3c7', badgeText: '#92400e' },
+    implant:            { label: 'Implant', fill: '#ede9fe', stroke: '#8b5cf6', accent: '#6d28d9', badgeBg: '#ede9fe', badgeText: '#6d28d9' },
+    bridge:             { label: 'Bridge Pontic', fill: '#ffedd5', stroke: '#f97316', accent: '#c2410c', badgeBg: '#ffedd5', badgeText: '#9a3412' },
+    'extraction-site':  { label: 'Extraction Site', fill: '#e2e8f0', stroke: '#64748b', accent: '#334155', badgeBg: '#e2e8f0', badgeText: '#334155' },
+    missing:            { label: 'Missing', fill: '#e5e7eb', stroke: '#94a3b8', accent: '#475569', badgeBg: '#e5e7eb', badgeText: '#475569' },
+    mobility:           { label: 'Mobility', fill: '#fce7f3', stroke: '#ec4899', accent: '#be185d', badgeBg: '#fce7f3', badgeText: '#be185d' },
+    fractured:          { label: 'Fractured', fill: '#ffedd5', stroke: '#fb923c', accent: '#c2410c', badgeBg: '#ffedd5', badgeText: '#c2410c' },
+    'root-canal':       { label: 'Root Canal', fill: '#fae8ff', stroke: '#a855f7', accent: '#7e22ce', badgeBg: '#fae8ff', badgeText: '#7e22ce' },
+    'under-observation':{ label: 'Under Observation', fill: '#ccfbf1', stroke: '#14b8a6', accent: '#0f766e', badgeBg: '#ccfbf1', badgeText: '#0f766e' },
+    unknown:            { label: 'Recorded Finding', fill: '#eef2ff', stroke: '#818cf8', accent: '#4f46e5', badgeBg: '#eef2ff', badgeText: '#4338ca' },
+};
+
+const STATUS_ALIASES = {
+    '': 'healthy',
+    healthy: 'healthy',
+    normal: 'healthy',
+    sound: 'healthy',
+    filled: 'filled',
+    filling: 'filled',
+    decayed: 'decayed',
+    caries: 'decayed',
+    crown: 'crown',
+    crowned: 'crown',
+    implant: 'implant',
+    bridge: 'bridge',
+    pontic: 'bridge',
+    missing: 'missing',
+    extracted: 'missing',
+    'extraction site': 'extraction-site',
+    'extraction-site': 'extraction-site',
+    mobility: 'mobility',
+    fracture: 'fractured',
+    fractured: 'fractured',
+    'root canal': 'root-canal',
+    'root-canal': 'root-canal',
+    'under observation': 'under-observation',
+    'under-observation': 'under-observation',
+};
+
+const LEGEND_KEYS = [
+    'healthy',
+    'filled',
+    'decayed',
+    'crown',
+    'implant',
+    'bridge',
+    'extraction-site',
+    'missing',
+    'mobility',
+    'fractured',
+    'root-canal',
+    'under-observation',
+];
+
+const WHOLE_TOOTH_STATUSES = new Set(['crown', 'implant', 'bridge', 'extraction-site', 'missing', 'mobility', 'root-canal']);
 
 const CATEGORY_ICONS = {
     Restoration:    { name: 'construct-outline',     lib: 'Ionicons' },
@@ -285,6 +342,266 @@ function OdontogramTab({ data, loading, error, onRetry }) {
 }
 
 // ─── Tab: Radiographs ────────────────────────────────────────────────────────
+
+function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
+    if (loading) return <LoadingState />;
+    if (error)   return <ErrorState message={error} onRetry={onRetry} />;
+
+    const hasData = Object.keys(data).length > 0;
+    const normalizeStatusKey = (value) => {
+        const normalized = String(value || '').trim().toLowerCase();
+        return STATUS_ALIASES[normalized] || normalized.replace(/\s+/g, '-');
+    };
+
+    const getStatusMeta = (statusKey) => ODONTOGRAM_STATUS_META[statusKey] || ODONTOGRAM_STATUS_META.unknown;
+
+    const sanitizeSurfaces = (surfaces) => {
+        if (!Array.isArray(surfaces)) return [];
+        const normalized = new Set(
+            surfaces
+                .map((surface) => String(surface || '').trim().toUpperCase())
+                .filter((surface) => SURFACE_CODES.includes(surface))
+        );
+        return SURFACE_CODES.filter((surface) => normalized.has(surface));
+    };
+
+    const normalizeToothData = (raw) => {
+        if (!raw) {
+            return { status: 'healthy', statusLabel: ODONTOGRAM_STATUS_META.healthy.label, surfaces: [] };
+        }
+
+        const rawStatus = typeof raw === 'string' ? raw : raw.status;
+        const statusKey = normalizeStatusKey(rawStatus);
+        const meta = getStatusMeta(statusKey);
+
+        return {
+            status: statusKey || 'healthy',
+            statusLabel: meta === ODONTOGRAM_STATUS_META.unknown && rawStatus ? String(rawStatus) : meta.label,
+            surfaces: sanitizeSurfaces(typeof raw === 'string' ? [] : raw.surfaces),
+        };
+    };
+
+    const getSurfacePositionMap = (toothNumber) => {
+        const quadrant = Number(String(toothNumber)[0]);
+        const isUpper = quadrant === 1 || quadrant === 2;
+        const isRightQuadrant = quadrant === 1 || quadrant === 4;
+
+        return {
+            M: isRightQuadrant ? 'right' : 'left',
+            D: isRightQuadrant ? 'left' : 'right',
+            O: 'center',
+            B: isUpper ? 'top' : 'bottom',
+            L: isUpper ? 'bottom' : 'top',
+        };
+    };
+
+    const getHighlightedSurfaces = (statusKey, surfaces) => {
+        if (statusKey === 'healthy') return new Set();
+        if (WHOLE_TOOTH_STATUSES.has(statusKey)) return new Set(SURFACE_CODES);
+        if (surfaces.length > 0) return new Set(surfaces);
+        return new Set(SURFACE_CODES);
+    };
+
+    const RootShape = ({ toothNumber, stroke }) => {
+        const digit = toothNumber % 10;
+        const isPosterior = digit >= 6 || digit === 8;
+
+        if (isPosterior) {
+            return (
+                <>
+                    <Path d="M26 56 C20 68 18 80 22 90" fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
+                    <Path d="M46 56 C52 68 54 80 50 90" fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
+                </>
+            );
+        }
+
+        return <Path d="M36 56 C36 68 34 80 36 92" fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />;
+    };
+
+    const StatusOverlay = ({ statusKey, accent, stroke }) => {
+        if (statusKey === 'missing' || statusKey === 'extraction-site') {
+            return (
+                <>
+                    <Line x1="18" y1="16" x2="56" y2="54" stroke={accent} strokeWidth="3" strokeLinecap="round" opacity="0.8" />
+                    <Line x1="56" y1="16" x2="18" y2="54" stroke={accent} strokeWidth="3" strokeLinecap="round" opacity="0.8" />
+                </>
+            );
+        }
+
+        if (statusKey === 'implant') {
+            return (
+                <>
+                    <Path d="M36 58 V88" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" />
+                    <Path d="M28 64 H44" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" />
+                    <Path d="M29 71 H43" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" />
+                    <Path d="M30 78 H42" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" />
+                    <Circle cx="36" cy="34" r="4.5" fill={accent} opacity="0.85" />
+                </>
+            );
+        }
+
+        if (statusKey === 'bridge') {
+            return <Path d="M18 36 H54" fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" opacity="0.8" />;
+        }
+
+        if (statusKey === 'mobility') {
+            return (
+                <>
+                    <Path d="M18 10 L24 14" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M18 10 L24 6" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M18 10 H54" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" />
+                    <Path d="M54 10 L48 14" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M54 10 L48 6" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </>
+            );
+        }
+
+        if (statusKey === 'fractured') {
+            return <Path d="M28 14 L40 24 L32 36 L44 50" fill="none" stroke={accent} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />;
+        }
+
+        if (statusKey === 'root-canal') {
+            return (
+                <>
+                    <Path d="M36 30 V90" fill="none" stroke={accent} strokeWidth="2.6" strokeLinecap="round" />
+                    <Path d="M31 44 H41" fill="none" stroke={accent} strokeWidth="2.6" strokeLinecap="round" />
+                </>
+            );
+        }
+
+        if (statusKey === 'under-observation') {
+            return <Circle cx="36" cy="34" r="19" fill="none" stroke={accent} strokeWidth="2.2" strokeDasharray="4 4" />;
+        }
+
+        if (statusKey === 'crown') {
+            return <Path d="M18 18 L54 18 L54 52 L18 52 Z" fill="none" stroke={stroke} strokeWidth="3" />;
+        }
+
+        return null;
+    };
+
+    const ToothFigure = ({ num }) => {
+        const toothData = normalizeToothData(data[String(num)]);
+        const meta = getStatusMeta(toothData.status);
+        const highlightedSurfaces = getHighlightedSurfaces(toothData.status, toothData.surfaces);
+        const surfacePositions = getSurfacePositionMap(num);
+        const showBadges = toothData.status !== 'healthy';
+
+        return (
+            <View style={styles.toothFigure}>
+                <Text style={styles.toothNum}>{num}</Text>
+                <Svg width={42} height={58} viewBox="0 0 72 100" style={styles.toothSvg}>
+                    <Path
+                        d="M18 8 C24 2 48 2 54 8 L62 20 C64 22 64 28 62 34 L58 48 C56 56 48 62 36 62 C24 62 16 56 14 48 L10 34 C8 28 8 22 10 20 Z"
+                        fill="#ffffff"
+                        stroke={meta.stroke}
+                        strokeWidth="2.4"
+                        strokeLinejoin="round"
+                        strokeDasharray={toothData.status === 'mobility' ? '4 3' : undefined}
+                    />
+                    {SURFACE_CODES.map((surfaceCode) => {
+                        const isActive = highlightedSurfaces.has(surfaceCode);
+                        return (
+                            <Polygon
+                                key={`${num}-${surfaceCode}`}
+                                points={SURFACE_POSITIONS[surfacePositions[surfaceCode]]}
+                                fill={isActive ? meta.fill : '#ffffff'}
+                                stroke={isActive ? meta.stroke : '#d4dde7'}
+                                strokeWidth="1.8"
+                            />
+                        );
+                    })}
+                    <RootShape toothNumber={num} stroke={meta.stroke} />
+                    <StatusOverlay statusKey={toothData.status} accent={meta.accent} stroke={meta.stroke} />
+                </Svg>
+
+                {showBadges && (
+                    <View style={[styles.toothStatusPill, { backgroundColor: meta.badgeBg, borderColor: meta.stroke }]}>
+                        <Text style={[styles.toothStatusText, { color: meta.badgeText }]} numberOfLines={2}>
+                            {toothData.statusLabel}
+                        </Text>
+                    </View>
+                )}
+
+                {toothData.surfaces.length > 0 && (
+                    <View style={styles.toothSurfaceRow}>
+                        {toothData.surfaces.map((surfaceCode) => (
+                            <View key={`${num}-${surfaceCode}-badge`} style={styles.toothSurfaceBadge}>
+                                <Text style={styles.toothSurfaceBadgeText}>{surfaceCode}</Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+            </View>
+        );
+    };
+
+    const JawRow = ({ teeth }) => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.jawScroll}>
+            <View style={styles.jawRow}>
+                {teeth[0].map((num) => <ToothFigure key={num} num={num} />)}
+                <View style={styles.midline} />
+                {teeth[1].map((num) => <ToothFigure key={num} num={num} />)}
+            </View>
+        </ScrollView>
+    );
+
+    return (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
+            <View style={styles.odontogramCard}>
+                <Text style={styles.odontogramTitle}>Dental Chart</Text>
+                <Text style={styles.odontogramSub}>Surface-based 2D odontogram · FDI notation · Read-only</Text>
+
+                {!hasData && (
+                    <View style={styles.odontogramEmpty}>
+                        <Text style={styles.odontogramEmptyText}>
+                            No tooth conditions recorded yet. Your dentist will update this after an examination.
+                        </Text>
+                    </View>
+                )}
+
+                <Text style={styles.jawLabel}>Upper Jaw</Text>
+                <JawRow teeth={[UPPER_RIGHT, UPPER_LEFT]} />
+
+                <View style={styles.jawDivider} />
+
+                <JawRow teeth={[LOWER_RIGHT, LOWER_LEFT]} />
+                <Text style={styles.jawLabel}>Lower Jaw</Text>
+            </View>
+
+            <Text style={styles.legendTitle}>Legend</Text>
+            <View style={styles.legendGrid}>
+                {LEGEND_KEYS.map((key) => {
+                    const meta = ODONTOGRAM_STATUS_META[key];
+                    return (
+                        <View key={key} style={styles.legendItem}>
+                            <View style={[styles.legendDot, { backgroundColor: meta.fill, borderColor: meta.stroke }]} />
+                            <Text style={styles.legendLabel}>{meta.label}</Text>
+                        </View>
+                    );
+                })}
+            </View>
+
+            <View style={styles.surfaceKeyList}>
+                {SURFACE_CODES.map((surfaceCode) => (
+                    <View key={surfaceCode} style={styles.surfaceKeyItem}>
+                        <View style={styles.surfaceKeyBubble}>
+                            <Text style={styles.surfaceKeyBubbleText}>{surfaceCode}</Text>
+                        </View>
+                        <Text style={styles.surfaceKeyItemText}>{SURFACE_LABELS[surfaceCode]}</Text>
+                    </View>
+                ))}
+            </View>
+
+            <View style={styles.readOnlyBanner}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="lock-closed-outline" size={13} color="#1565c0" style={{ marginRight: 6 }} />
+                    <Text style={styles.readOnlyText}>View-only. Only your dentist can update tooth conditions.</Text>
+                </View>
+            </View>
+        </ScrollView>
+    );
+}
 
 function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
     if (loading) return <LoadingState />;
@@ -585,7 +902,7 @@ export default function MedicalRecordsScreen({ navigation }) {
             {/* Tab content */}
             <View style={{ flex: 1 }}>
                 {activeTab === 'odontogram' && (
-                    <OdontogramTab
+                    <OdontogramSurfaceTab
                         data={odontogramData}
                         loading={loading.odontogram}
                         error={errors.odontogram}
@@ -720,18 +1037,29 @@ const styles = StyleSheet.create({
     odontogramSub:    { fontSize: 11, color: mobileTheme.colors.textSoft, marginBottom: 16 },
     odontogramEmpty:  { backgroundColor: mobileTheme.colors.surfaceAlt, padding: 16, borderRadius: 14, marginBottom: 12 },
     odontogramEmptyText: { fontSize: 13, color: mobileTheme.colors.textSoft, textAlign: 'center', lineHeight: 19 },
-    jawLabel:     { fontSize: 11, fontWeight: '700', color: mobileTheme.colors.textSoft, textAlign: 'center', letterSpacing: 1, marginVertical: 6 },
-    jawRow:       { flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center' },
-    midline:      { width: 2, height: 36, backgroundColor: '#e0e0e0', marginHorizontal: 3 },
-    jawDivider:   { height: 1, backgroundColor: '#e0e0e0', marginVertical: 6 },
-    toothCell:    { width: 30, height: 42, margin: 2, borderRadius: 6, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-    toothNum:     { fontSize: 9, fontWeight: 'bold' },
-    toothStatus:  { fontSize: 6, textAlign: 'center', marginTop: 1, lineHeight: 8 },
+    jawLabel:     { fontSize: 11, fontWeight: '700', color: mobileTheme.colors.textSoft, textAlign: 'center', letterSpacing: 1, marginVertical: 8 },
+    jawScroll:    { paddingHorizontal: 2 },
+    jawRow:       { flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'flex-start' },
+    midline:      { width: 2, height: 74, backgroundColor: '#dbe6ef', marginHorizontal: 6, marginTop: 8, borderRadius: 999 },
+    jawDivider:   { height: 1, backgroundColor: '#e0e7ef', marginVertical: 8 },
+    toothFigure:  { width: 52, alignItems: 'center', marginHorizontal: 2 },
+    toothSvg:     { marginBottom: 6 },
+    toothNum:     { fontSize: 10, fontWeight: '800', color: mobileTheme.colors.textSoft, marginBottom: 4 },
+    toothStatusPill: { minHeight: 28, minWidth: 40, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    toothStatusText: { fontSize: 8, fontWeight: '800', textAlign: 'center', lineHeight: 10 },
+    toothSurfaceRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4, marginTop: 5 },
+    toothSurfaceBadge: { minWidth: 18, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(1,83,139,0.08)' },
+    toothSurfaceBadgeText: { fontSize: 8, fontWeight: '800', color: mobileTheme.colors.primary, textAlign: 'center' },
     legendTitle:  { fontSize: 13, fontWeight: 'bold', color: mobileTheme.colors.text, marginBottom: 10 },
     legendGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
     legendItem:   { flexDirection: 'row', alignItems: 'center' },
-    legendDot:    { width: 14, height: 14, borderRadius: 3, borderWidth: 1, marginRight: 5 },
+    legendDot:    { width: 14, height: 14, borderRadius: 4, borderWidth: 1, marginRight: 5 },
     legendLabel:  { fontSize: 11, color: mobileTheme.colors.textMuted },
+    surfaceKeyList: { backgroundColor: mobileTheme.colors.surfaceAlt, borderRadius: 14, padding: 12, marginBottom: 16, gap: 8 },
+    surfaceKeyItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    surfaceKeyBubble: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(1,83,139,0.08)', alignItems: 'center', justifyContent: 'center' },
+    surfaceKeyBubbleText: { fontSize: 10, fontWeight: '800', color: mobileTheme.colors.primary },
+    surfaceKeyItemText: { fontSize: 11, color: mobileTheme.colors.textMuted },
     readOnlyBanner: { backgroundColor: mobileTheme.colors.primarySoft, padding: 12, borderRadius: 14, alignItems: 'center' },
     readOnlyText:   { fontSize: 12, color: mobileTheme.colors.primaryDark },
 

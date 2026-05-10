@@ -5462,6 +5462,180 @@ app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, r
 });
 
 
+const ODONTOGRAM_SURFACE_CODES = ['M', 'D', 'O', 'B', 'L'];
+const ODONTOGRAM_STATUS_ALIASES = {
+    '': 'healthy',
+    healthy: 'healthy',
+    normal: 'healthy',
+    sound: 'healthy',
+    filled: 'filled',
+    filling: 'filled',
+    decayed: 'decayed',
+    caries: 'decayed',
+    crown: 'crown',
+    crowned: 'crown',
+    implant: 'implant',
+    bridge: 'bridge',
+    pontic: 'bridge',
+    missing: 'missing',
+    extracted: 'missing',
+    'extraction site': 'extraction-site',
+    'extraction-site': 'extraction-site',
+    mobility: 'mobility',
+    fracture: 'fractured',
+    fractured: 'fractured',
+    'root canal': 'root-canal',
+    'root-canal': 'root-canal',
+    'under observation': 'under-observation',
+    'under-observation': 'under-observation',
+};
+const ODONTOGRAM_STAGE_ALIASES = {
+    '': 'existing',
+    existing: 'existing',
+    current: 'existing',
+    planned: 'planned',
+    proposed: 'planned',
+    completed: 'completed',
+    done: 'completed',
+};
+const ODONTOGRAM_STAGE_ORDER = ['existing', 'planned', 'completed'];
+const ODONTOGRAM_TOOTH_KEY_REGEX = /^[1-4][1-8]$/;
+
+const normalizeOdontogramStatus = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return ODONTOGRAM_STATUS_ALIASES[normalized] || normalized.replace(/\s+/g, '-');
+};
+
+const normalizeOdontogramStage = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return ODONTOGRAM_STAGE_ALIASES[normalized] || 'existing';
+};
+
+const sanitizeOdontogramSurfaces = (surfaces) => {
+    if (!Array.isArray(surfaces)) return [];
+    const normalized = new Set(
+        surfaces
+            .map((surface) => String(surface || '').trim().toUpperCase())
+            .filter((surface) => ODONTOGRAM_SURFACE_CODES.includes(surface))
+    );
+    return ODONTOGRAM_SURFACE_CODES.filter((surface) => normalized.has(surface));
+};
+
+const createOdontogramFindingId = () => `finding_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+const buildHealthyOdontogramEntry = (stage = 'existing') => ({
+    status: 'healthy',
+    surfaces: [],
+    stage,
+    activeFindingId: null,
+    findings: [],
+});
+
+const normalizeOdontogramFinding = (raw, fallbackStage = 'existing') => {
+    if (!raw) return null;
+
+    const rawStatus = typeof raw === 'string' ? raw : raw.status;
+    const status = normalizeOdontogramStatus(rawStatus);
+    if (!status || status === 'healthy') return null;
+
+    const stage = normalizeOdontogramStage(typeof raw === 'string' ? fallbackStage : raw.stage || fallbackStage);
+    const updatedAtCandidate = typeof raw === 'object' && raw !== null && raw.updatedAt
+        ? new Date(raw.updatedAt)
+        : new Date();
+    const updatedAt = Number.isNaN(updatedAtCandidate.getTime()) ? new Date() : updatedAtCandidate;
+
+    return {
+        id: typeof raw === 'object' && raw !== null && raw.id
+            ? String(raw.id)
+            : createOdontogramFindingId(),
+        status,
+        surfaces: sanitizeOdontogramSurfaces(typeof raw === 'string' ? [] : raw.surfaces),
+        stage,
+        note: typeof raw === 'object' && raw !== null && raw.note ? String(raw.note).trim() : '',
+        updatedAt,
+    };
+};
+
+const getLatestFindingForStage = (findings, stageKey) => (
+    [...findings].reverse().find((finding) => finding.stage === stageKey) || null
+);
+
+const pickPreferredOdontogramFinding = (findings, activeFindingId) => {
+    if (!Array.isArray(findings) || findings.length === 0) return null;
+    const activeFinding = findings.find((finding) => finding.id === activeFindingId);
+    if (activeFinding) return activeFinding;
+    for (const stageKey of ODONTOGRAM_STAGE_ORDER) {
+        const finding = getLatestFindingForStage(findings, stageKey);
+        if (finding) return finding;
+    }
+    return findings[findings.length - 1] || null;
+};
+
+const normalizeOdontogramEntry = (raw) => {
+    if (!raw) return buildHealthyOdontogramEntry();
+
+    let findings = [];
+
+    if (typeof raw === 'string') {
+        const legacyFinding = normalizeOdontogramFinding({ status: raw, stage: 'existing', surfaces: [] }, 'existing');
+        findings = legacyFinding ? [legacyFinding] : [];
+    } else if (Array.isArray(raw.findings) && raw.findings.length > 0) {
+        findings = raw.findings
+            .map((finding, index) => normalizeOdontogramFinding(
+                finding,
+                finding?.stage || raw.stage || ODONTOGRAM_STAGE_ORDER[Math.min(index, ODONTOGRAM_STAGE_ORDER.length - 1)]
+            ))
+            .filter(Boolean);
+    } else if (raw.status || raw.stage || Array.isArray(raw.surfaces)) {
+        const singleFinding = normalizeOdontogramFinding(raw, raw.stage || 'existing');
+        findings = singleFinding ? [singleFinding] : [];
+    }
+
+    const activeFinding = pickPreferredOdontogramFinding(findings, raw.activeFindingId);
+    if (!activeFinding) return buildHealthyOdontogramEntry();
+
+    return {
+        status: activeFinding.status,
+        surfaces: activeFinding.surfaces,
+        stage: activeFinding.stage,
+        activeFindingId: activeFinding.id,
+        findings: findings.map((finding) => ({
+            id: finding.id,
+            status: finding.status,
+            surfaces: finding.surfaces,
+            stage: finding.stage,
+            note: finding.note,
+            updatedAt: finding.updatedAt,
+        })),
+    };
+};
+
+const normalizeOdontogramPayload = (payload) => {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return { error: 'Odontogram data must be a key-value object.' };
+    }
+
+    const normalized = {};
+
+    for (const [rawTooth, rawEntry] of Object.entries(payload)) {
+        const tooth = String(rawTooth || '').trim();
+        if (!ODONTOGRAM_TOOTH_KEY_REGEX.test(tooth)) {
+            return { error: `Invalid tooth number "${tooth}". Use adult FDI numbers like 11, 26, or 48.` };
+        }
+
+        normalized[tooth] = normalizeOdontogramEntry(rawEntry);
+    }
+
+    return { value: normalized };
+};
+
+const serializeOdontogramMap = (odontogramMap) => {
+    if (!odontogramMap) return {};
+    return Object.fromEntries(
+        Object.entries(Object.fromEntries(odontogramMap)).map(([tooth, entry]) => [tooth, normalizeOdontogramEntry(entry)])
+    );
+};
+
 // -------------------------------------------------------
 // ODONTOGRAM: GET the tooth chart for a patient
 // -------------------------------------------------------
@@ -5485,9 +5659,7 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
             }
         }
 
-        const odontogramObj = patient.odontogram
-            ? Object.fromEntries(patient.odontogram)
-            : {};
+        const odontogramObj = serializeOdontogramMap(patient.odontogram);
 
         res.json(odontogramObj);
     } catch (error) {
@@ -5517,16 +5689,22 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
             }
         }
 
-        const updates = req.body;
-        if (!updates || typeof updates !== 'object') {
-            return res.status(400).json({ message: 'Odontogram data must be a key-value object.' });
+        const normalizedPayload = normalizeOdontogramPayload(req.body);
+        if (normalizedPayload.error) {
+            return res.status(400).json({ message: normalizedPayload.error });
         }
 
         if (!patient.odontogram) patient.odontogram = new Map();
-        Object.entries(updates).forEach(([tooth, status]) => {
-            patient.odontogram.set(tooth, status);
+
+        Object.entries(normalizedPayload.value).forEach(([tooth, entry]) => {
+            if (!entry.findings || entry.findings.length === 0) {
+                patient.odontogram.delete(tooth);
+                return;
+            }
+            patient.odontogram.set(tooth, entry);
         });
 
+        patient.markModified('odontogram');
         await patient.save();
 
         await AuditLog.create({
@@ -5538,7 +5716,7 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 
         res.json({
             message: 'Odontogram saved successfully.',
-            odontogram: Object.fromEntries(patient.odontogram)
+            odontogram: serializeOdontogramMap(patient.odontogram)
         });
     } catch (error) {
         console.error('Error saving odontogram:', error);
@@ -5721,9 +5899,7 @@ app.get('/api/my/odontogram', verifyToken, async (req, res) => {
         const patient = await User.findById(req.user.id).select('odontogram');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
-        const odontogramObj = patient.odontogram
-            ? Object.fromEntries(patient.odontogram)
-            : {};
+        const odontogramObj = serializeOdontogramMap(patient.odontogram);
         res.json(odontogramObj);
     } catch (error) {
         console.error('Error fetching own odontogram:', error);
