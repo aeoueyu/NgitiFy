@@ -114,6 +114,77 @@
 .legendColor.crown { background-color: #fef9c3; border-color: #facc15; }
 .legendColor.missing { background-color: #f1f5f9; border-color: #94a3b8; }
 
+.readOnlyChart .toothContainer {
+    cursor: default;
+}
+
+.readOnlyChart .toothContainer:hover {
+    transform: none;
+    filter: none;
+}
+
+.documentMode {
+    gap: 18px;
+    padding: 0;
+}
+
+.documentMode .jawSection {
+    max-width: none;
+    background: #ffffff;
+    padding: 18px 16px;
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+.documentMode .jawTitle {
+    letter-spacing: 1.2px;
+    font-size: 12px;
+}
+
+.documentMode .quadrant {
+    gap: 4px;
+}
+
+.documentMode .divider {
+    margin: 0 6px;
+}
+
+.documentMode .toothContainer {
+    gap: 6px;
+}
+
+.documentMode .toothGraphic {
+    width: 30px;
+    height: 42px;
+    border-radius: 6px;
+}
+
+.documentMode .toothIcon {
+    font-size: 17px;
+}
+
+.documentMode .toothNum {
+    font-size: 11px;
+}
+
+.documentMode .chartLegend {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+.documentMode .legendItem {
+    font-size: 11px;
+}
+
+.documentMode .legendColor {
+    width: 12px;
+    height: 12px;
+}
+
 /* --- TOOTH ACTION MODAL --- */
 .modalOverlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;

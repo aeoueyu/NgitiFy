@@ -107,7 +107,7 @@ export default function PatientXRayView({ navigation, route }) {
                     )}
                 </View>
 
-                {/* Dentist Notes (if any) */}
+                {/* Radiograph findings and notes */}
                 {radiograph?.findings ? (
                     <View style={styles.notesCard}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -122,7 +122,7 @@ export default function PatientXRayView({ navigation, route }) {
                     <View style={styles.notesCard}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                         <Ionicons name="document-text-outline" size={14} color="#01538b" style={{ marginRight: 6 }} />
-                        <Text style={[styles.notesTitle, { marginBottom: 0 }]}>Notes from Your Dentist</Text>
+                        <Text style={[styles.notesTitle, { marginBottom: 0 }]}>Radiograph Notes</Text>
                     </View>
                         <Text style={styles.notesText}>{radiograph.notes}</Text>
                     </View>

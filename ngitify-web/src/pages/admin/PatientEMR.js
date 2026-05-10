@@ -1,8 +1,10 @@
 import React, { Fragment, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/PatientEMR.module.css';
 import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
 import wideTable from '../../styles/wideTable.module.css';
+import clinicLogo from '../../assets/images/logo-dentime.svg';
 
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
@@ -17,7 +19,7 @@ import {
 import { 
     FaUserMd, FaPhoneAlt, FaEnvelope, FaArrowLeft, FaMapMarkerAlt,
     FaSyringe, FaNotesMedical, FaSearch, FaPlus, FaTimes, FaFilter,
-    FaUpload, FaMagic, FaRobot, FaCalendarAlt, FaIdCard,
+    FaUpload, FaMagic, FaRobot, FaCalendarAlt, FaIdCard, FaFilePdf,
     FaChild, FaVenusMars, FaBirthdayCake
 } from 'react-icons/fa';
 import Odontogram from '../dentist/Odontogram';
@@ -92,6 +94,112 @@ const formatShortDate = (value) => {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? '-' : formatDateShort(parsed);
 };
+const formatLongDate = (value) => {
+    if (!value) return 'Not specified';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? 'Not specified' : formatDateLong(parsed);
+};
+const formatYesNoValue = (value) => {
+    if (value === true || value === 'yes') return 'Yes';
+    if (value === false || value === 'no') return 'No';
+    return 'Not answered';
+};
+const formatListValue = (value) => {
+    if (Array.isArray(value)) {
+        const cleaned = value.map((item) => String(item || '').trim()).filter(Boolean);
+        return cleaned.length ? cleaned.join(', ') : 'Not specified';
+    }
+    return value ? String(value) : 'Not specified';
+};
+const normalizeTextValue = (value) => value ? String(value) : 'Not specified';
+const buildDetailRows = (pairs = []) => pairs.map(([label, value]) => [label, value || 'Not specified']);
+const sanitizeFilenamePart = (value) => String(value || '')
+    .replace(/[^a-z0-9]/gi, '')
+    .trim();
+const formatAgeDisplay = (age, fallback = 'Age not specified') => {
+    if (age === null || age === undefined || Number.isNaN(age)) return fallback;
+    return age === 1 ? '1 year old' : `${age} years old`;
+};
+const PRINT_WIDE_DETAIL_LABELS = new Set([
+    'Home Address',
+    'Office Address',
+    'Reason for Consultation',
+    'Condition Being Treated',
+    'Illness or Surgery Details',
+    'Hospitalization Details',
+    'Medication List',
+    'Allergies',
+    'Medical Conditions',
+    'Clinical Notes and Remarks',
+]);
+const PRINT_FORCED_DETAIL_PAIRS = new Map([
+    ['Under Medical Treatment Now', 'Condition Being Treated'],
+    ['Serious Illness or Surgery', 'Illness or Surgery Details'],
+    ['Hospitalized Before', 'Hospitalization Details'],
+    ['Taking Medication', 'Medication List'],
+]);
+const isWidePrintDetail = (label, value) => {
+    const normalizedValue = String(value || '').trim();
+    return PRINT_WIDE_DETAIL_LABELS.has(label)
+        || normalizedValue.includes('\n')
+        || normalizedValue.length > 72
+        || (normalizedValue.includes(', ') && normalizedValue.length > 54);
+};
+const buildPrintDetailTableRows = (rows = []) => {
+    const groupedRows = [];
+    let pairedCells = [];
+
+    for (let index = 0; index < rows.length; index += 1) {
+        const [label, value] = rows[index];
+        const detailCell = {
+            label,
+            value: value || 'Not specified',
+        };
+        const forcedPairLabel = PRINT_FORCED_DETAIL_PAIRS.get(label);
+        const nextRow = rows[index + 1];
+
+        if (forcedPairLabel && nextRow?.[0] === forcedPairLabel) {
+            if (pairedCells.length) {
+                groupedRows.push({ type: 'paired', cells: pairedCells });
+                pairedCells = [];
+            }
+
+            groupedRows.push({
+                type: 'paired',
+                cells: [
+                    detailCell,
+                    {
+                        label: nextRow[0],
+                        value: nextRow[1] || 'Not specified',
+                    },
+                ],
+            });
+            index += 1;
+            continue;
+        }
+
+        if (isWidePrintDetail(label, detailCell.value)) {
+            if (pairedCells.length) {
+                groupedRows.push({ type: 'paired', cells: pairedCells });
+                pairedCells = [];
+            }
+            groupedRows.push({ type: 'wide', cell: detailCell });
+            continue;
+        }
+
+        pairedCells.push(detailCell);
+        if (pairedCells.length === 2) {
+            groupedRows.push({ type: 'paired', cells: pairedCells });
+            pairedCells = [];
+        }
+    }
+
+    if (pairedCells.length) {
+        groupedRows.push({ type: 'paired', cells: pairedCells });
+    }
+
+    return groupedRows;
+};
 
 const renderInfoBlock = (stylesRef, label, value, extraClassName = '') => (
     <div className={`${stylesRef.infoBlock} ${extraClassName}`.trim()}>
@@ -149,7 +257,6 @@ export default function PatientEMR({
         amountCharged: '',
         amountPaid: '',
         nextAppointment: '',
-        notes: '',
         branchId: '',
     });
     const [expandedLogRows, setExpandedLogRows] = useState({});
@@ -163,8 +270,19 @@ export default function PatientEMR({
     const [uploadForm, setUploadForm] = useState({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
     const [uploadPreview, setUploadPreview] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
     const [branches, setBranches] = useState([]);
+    const patientFullName = patient?.name?.first
+        ? `${patient.name.first}${patient.name.middle ? ` ${patient.name.middle}` : ''} ${patient.name.last}`
+        : patient?.name || 'Patient';
+    const patientPrimaryBranch = patient?.assignedBranches?.[0] || 'Unassigned';
+    const patientAge = patient?.birthdate
+        ? Math.floor((new Date() - new Date(patient.birthdate)) / 31557600000)
+        : null;
+    const patientRecordFilename = patient?.name?.first || patient?.name?.last
+        ? `DentimeDentalClinicPxRecord_${sanitizeFilenamePart(patient?.name?.last)}${sanitizeFilenamePart(patient?.name?.first)}`
+        : `DentimeDentalClinicPxRecord_${sanitizeFilenamePart(patientFullName) || 'PatientRecord'}`;
 
     useEffect(() => {
         const fetchBranches = async () => {
@@ -280,6 +398,356 @@ export default function PatientEMR({
         else navigate(-1); 
     };
 
+    const allergyValues = [
+        ...(medicalHistory.allergies ? medicalHistory.allergies.split(',').map((item) => item.trim()) : []),
+        ...(medicalHistory.allergyOther ? medicalHistory.allergyOther.split(',').map((item) => item.trim()) : []),
+    ].filter(Boolean);
+    const conditionValues = [
+        ...(medicalHistory.conditions ? medicalHistory.conditions.split(',').map((item) => item.trim()) : []),
+        ...(medicalHistory.conditionOther ? medicalHistory.conditionOther.split(',').map((item) => item.trim()) : []),
+    ].filter(Boolean);
+
+    const reportSections = patient ? [
+        {
+            title: 'Patient Profile',
+            rows: buildDetailRows([
+            ['Gender', patient.gender],
+            ['Home Phone', patient.homePhone],
+            ['Work Phone', patient.workPhone],
+            ['Occupation', patient.occupation],
+            ['Civil Status', patient.civilStatus],
+            ['Nationality', patient.nationality],
+            ['Religion', patient.religion],
+            ['Blood Type', patient.bloodType || medicalHistory.bloodType],
+            ['Referred By', patient.referredBy],
+            ['Registration Date', patient.createdAt ? formatLongDate(patient.createdAt) : 'Not specified'],
+            ]),
+        },
+        ...(patient?.guardian?.name ? [{
+            title: 'Guardian Information',
+            rows: buildDetailRows([
+                ['Guardian Name', patient.guardian.name],
+                ['Guardian Occupation', patient.guardian.occupation],
+                ['Relationship', patient.guardian.relationship],
+                ['Guardian Phone', patient.guardian.contactNumber],
+            ]),
+        }] : []),
+        ...((patient?.emergencyContact?.name || patient?.emergencyContact?.contactNumber) ? [{
+            title: 'Emergency Contact',
+            rows: buildDetailRows([
+                ['Emergency Contact', patient.emergencyContact?.name],
+                ['Emergency Phone', patient.emergencyContact?.contactNumber],
+                ['Relationship', patient.emergencyContact?.relationship],
+            ]),
+        }] : []),
+        ...((patient?.physician?.name || patient?.physician?.officeNumber) ? [{
+            title: 'Attending Physician',
+            rows: buildDetailRows([
+                ["Physician's Name", patient.physician?.name],
+                ['Specialty', patient.physician?.specialty],
+                ['Office Address', patient.physician?.officeAddress],
+                ['Office Number', patient.physician?.officeNumber],
+            ]),
+        }] : []),
+        {
+            title: 'Medical and Dental History',
+            rows: buildDetailRows([
+            ['Last Dental Visit', medicalHistory.lastExam ? formatLongDate(medicalHistory.lastExam) : 'Not specified'],
+            ['Reaction After Dental Treatment', formatYesNoValue(medicalHistory.hadTreatmentReaction)],
+            ['Reaction Details', medicalHistory.reactionDetails],
+            ['Private or Confidential Discussion Needed', formatYesNoValue(medicalHistory.hasConfidentialInfo)],
+            ['In Good Health', formatYesNoValue(medicalHistory.inGoodHealth)],
+            ['Under Medical Treatment Now', formatYesNoValue(medicalHistory.underMedicalTreatment)],
+            ['Condition Being Treated', medicalHistory.medicalTreatmentDetails],
+            ['Serious Illness or Surgery', formatYesNoValue(medicalHistory.hadSeriousIllnessOrSurgery)],
+            ['Illness or Surgery Details', medicalHistory.seriousIllnessOrSurgeryDetails],
+            ['Hospitalized Before', formatYesNoValue(medicalHistory.hadHospitalization)],
+            ['Hospitalization Details', medicalHistory.hospitalizationDetails],
+            ['Taking Medication', formatYesNoValue(medicalHistory.isTakingMedication)],
+            ['Medication List', formatListValue(medicalHistory.medications)],
+            ['Uses Tobacco Products', formatYesNoValue(medicalHistory.usesTobacco)],
+            ['Uses Alcohol or Dangerous Drugs', formatYesNoValue(medicalHistory.usesAlcoholOrDrugs)],
+            ['Has Allergies', formatYesNoValue(medicalHistory.hasAllergies)],
+            ['Allergies', allergyValues.join(', ') || 'Not specified'],
+            ['Bleeding Time', medicalHistory.bleedingTime],
+            ['Pregnant', formatYesNoValue(medicalHistory.isPregnant)],
+            ['Nursing', formatYesNoValue(medicalHistory.isNursing)],
+            ['Taking Birth Control Pills', formatYesNoValue(medicalHistory.takingBirthControl)],
+            ['Blood Type', medicalHistory.bloodType || patient.bloodType],
+            ['Blood Pressure', medicalHistory.bloodPressure],
+            ['Medical Conditions', conditionValues.join(', ') || 'Not specified'],
+            ['Clinical Notes and Remarks', medicalHistory.notes || 'No clinical notes on record.'],
+            ]),
+        },
+        {
+            title: 'Treatment History',
+            headers: ['Date', 'Procedure', 'Category', 'Dentist', 'Tooth', 'Branch', 'Charged', 'Paid', 'Balance', 'Next Appointment'],
+            rows: logs
+                .slice()
+                .sort((a, b) => b.rawDate - a.rawDate)
+                .map((log) => ([
+                formatShortDate(log.rawDate),
+                log.procedure || 'Not specified',
+                log.category || 'Other',
+                log.dentistName || log.doctor || log.dentist || '-',
+                log.tooth || '-',
+                log.branch || '-',
+                formatMoney(log.amountCharged),
+                formatMoney(log.amountPaid),
+                formatMoney(log.balance),
+                formatShortDate(log.nextAppointment),
+                ])),
+        },
+        {
+            title: 'Radiograph Records',
+            headers: ['Date', 'Type', 'Radiograph No.', 'Findings', 'Notes'],
+            rows: radiographs
+                .slice()
+                .sort((a, b) => b.rawDate - a.rawDate)
+                .map((radiograph) => ([
+                formatShortDate(radiograph.rawDate),
+                normalizeTextValue(radiograph.type || radiograph.label),
+                normalizeTextValue(radiograph.radiographNumber),
+                normalizeTextValue(radiograph.findings),
+                normalizeTextValue(radiograph.notes),
+                ])),
+        },
+    ] : [];
+
+    const handleExportPdf = () => {
+        if (!patient) return;
+        setIsPrintPreviewOpen(true);
+    };
+
+    const handlePrintPreview = () => {
+        const previousTitle = document.title;
+        document.title = patientRecordFilename;
+        window.print();
+        window.setTimeout(() => {
+            document.title = previousTitle;
+        }, 1000);
+    };
+
+    useEffect(() => {
+        if (!isPrintPreviewOpen || !patient) return undefined;
+
+        const previousTitle = document.title;
+        document.title = patientRecordFilename;
+        document.body.classList.add('print-record-active');
+
+        const handleAfterPrint = () => {
+            document.title = previousTitle;
+        };
+
+        window.addEventListener('afterprint', handleAfterPrint);
+        return () => {
+            document.title = previousTitle;
+            document.body.classList.remove('print-record-active');
+            window.removeEventListener('afterprint', handleAfterPrint);
+        };
+    }, [isPrintPreviewOpen, patient, patientRecordFilename]);
+
+    const renderPrintPreview = () => (
+        isPrintPreviewOpen && patient && typeof document !== 'undefined'
+            ? createPortal((
+            <div className={styles.printPreviewOverlay}>
+                <div className={styles.printPreviewCard}>
+                    <div className={styles.printPreviewToolbar}>
+                        <div>
+                            <h2 className={styles.printPreviewTitle}>Formal Patient Record Preview</h2>
+                            <p className={styles.printPreviewSubtitle}>Review the clinic document, then print or choose Save as PDF in the browser dialog.</p>
+                        </div>
+                        <div className={styles.printPreviewActions}>
+                            <button type="button" className={styles.cancelBtn} onClick={() => setIsPrintPreviewOpen(false)}>
+                                Close
+                            </button>
+                            <button type="button" className={styles.saveBtn} onClick={handlePrintPreview}>
+                                Print
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className={styles.printSheet}>
+                        <div className={styles.printDocumentFrame}>
+                            <header className={styles.printHeader}>
+                                <div className={styles.printClinicBanner}>
+                                    <div className={styles.printClinicBrand}>
+                                        <img src={clinicLogo} alt="Dentime Dental Clinic logo" className={styles.printClinicLogo} />
+                                    </div>
+                                    <span className={styles.printConfidentialTag}>Confidential Clinic Document</span>
+                                </div>
+
+                                <div className={styles.printHeaderTop}>
+                                    <div>
+                                        <h1>Patient Medical and Dental Record</h1>
+                                        <p>Official patient profile, clinical history, dental chart, treatment record, and radiograph notes</p>
+                                    </div>
+                                    <div className={styles.printHeaderMeta}>
+                                        <span className={styles.printMetaBadge}>{patientPrimaryBranch}</span>
+                                        <span className={styles.printMetaText}>Generated {formatLongDate(new Date())}</span>
+                                    </div>
+                                </div>
+                            </header>
+
+                            <section className={`${styles.printSection} ${styles.printIdentitySection}`}>
+                                <div className={styles.printSectionHeader}>
+                                    <div className={styles.printSectionTitleWrap}>
+                                        <span className={styles.printSectionNumber}>00</span>
+                                        <h3>Patient Identification</h3>
+                                    </div>
+                                </div>
+
+                                <div className={styles.printIdentityGrid}>
+                                    <article className={`${styles.printIdentityItem} ${styles.printIdentitySpanTwo}`}>
+                                        <span className={styles.printIdentityLabel}>Patient Name</span>
+                                        <strong className={styles.printIdentityValue}>{patientFullName}</strong>
+                                    </article>
+                                    <article className={styles.printIdentityItem}>
+                                        <span className={styles.printIdentityLabel}>Patient ID</span>
+                                        <strong className={styles.printIdentityValue}>{patient._id || patient.id || 'Not specified'}</strong>
+                                    </article>
+                                    <article className={styles.printIdentityItem}>
+                                        <span className={styles.printIdentityLabel}>Branch</span>
+                                        <strong className={styles.printIdentityValue}>{patientPrimaryBranch}</strong>
+                                    </article>
+                                    <article className={styles.printIdentityItem}>
+                                        <span className={styles.printIdentityLabel}>Assigned Dentist</span>
+                                        <strong className={styles.printIdentityValue}>{patient.assignedDentistName || 'Not specified'}</strong>
+                                    </article>
+                                    <article className={styles.printIdentityItem}>
+                                        <span className={styles.printIdentityLabel}>Date of Birth</span>
+                                        <strong className={styles.printIdentityValue}>{patient.birthdate ? formatLongDate(patient.birthdate) : 'Not specified'}</strong>
+                                    </article>
+                                    <article className={styles.printIdentityItem}>
+                                        <span className={styles.printIdentityLabel}>Age / Sex</span>
+                                        <strong className={styles.printIdentityValue}>{`${formatAgeDisplay(patientAge)} / ${patient.gender || 'Sex not specified'}`}</strong>
+                                    </article>
+                                    <article className={styles.printIdentityItem}>
+                                        <span className={styles.printIdentityLabel}>Contact Number</span>
+                                        <strong className={styles.printIdentityValue}>{patient.contactNumber || 'Not specified'}</strong>
+                                    </article>
+                                    <article className={styles.printIdentityItem}>
+                                        <span className={styles.printIdentityLabel}>Email Address</span>
+                                        <strong className={styles.printIdentityValue}>{patient.email || 'Not specified'}</strong>
+                                    </article>
+                                    <article className={`${styles.printIdentityItem} ${styles.printIdentitySpanTwo}`}>
+                                        <span className={styles.printIdentityLabel}>Home Address</span>
+                                        <strong className={styles.printIdentityValue}>{formatAddressDisplay(patient.currentAddress)}</strong>
+                                    </article>
+                                    <article className={`${styles.printIdentityItem} ${styles.printIdentitySpanTwo}`}>
+                                        <span className={styles.printIdentityLabel}>Reason for Consultation</span>
+                                        <strong className={styles.printIdentityValue}>{patient.reasonForConsultation || patient.dentalHistory?.chiefComplaint || 'Not specified'}</strong>
+                                    </article>
+                                </div>
+                            </section>
+
+                            <section className={styles.printSection}>
+                                <div className={styles.printSectionHeader}>
+                                    <div className={styles.printSectionTitleWrap}>
+                                        <span className={styles.printSectionNumber}>01</span>
+                                        <h3>Dental Chart and Odontogram</h3>
+                                    </div>
+                                    <span className={styles.printSectionHint}>FDI Chart View</span>
+                                </div>
+                                <div className={styles.printOdontogramWrap}>
+                                    <Odontogram patientId={activePatientId} readOnly documentMode />
+                                </div>
+                            </section>
+
+                            {reportSections.map((section, index) => (
+                                <section key={section.title} className={styles.printSection}>
+                                    <div className={styles.printSectionHeader}>
+                                        <div className={styles.printSectionTitleWrap}>
+                                            <span className={styles.printSectionNumber}>{String(index + 2).padStart(2, '0')}</span>
+                                            <h3>{section.title}</h3>
+                                        </div>
+                                        {section.headers ? (
+                                            <span className={styles.printSectionHint}>{section.rows.length} record{section.rows.length === 1 ? '' : 's'}</span>
+                                        ) : null}
+                                    </div>
+
+                                    {section.headers ? (
+                                        <div className={styles.printTableWrap}>
+                                            <table className={styles.printTable}>
+                                                <thead>
+                                                    <tr>
+                                                        {section.headers.map((header) => (
+                                                            <th key={header}>{header}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {section.rows.length > 0 ? section.rows.map((row, rowIndex) => (
+                                                        <tr key={`${section.title}-${rowIndex}`}>
+                                                            {row.map((cell, cellIndex) => (
+                                                                <td key={`${section.title}-${rowIndex}-${cellIndex}`}>{cell}</td>
+                                                            ))}
+                                                        </tr>
+                                                    )) : (
+                                                        <tr>
+                                                            <td colSpan={section.headers.length} className={styles.printEmptyCell}>
+                                                                No records found.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        section.rows.length > 0 ? (
+                                            <div className={styles.printCompactTableWrap}>
+                                                <table className={styles.printCompactTable}>
+                                                    <tbody>
+                                                        {buildPrintDetailTableRows(section.rows).map((row, rowIndex) => (
+                                                            row.type === 'wide' ? (
+                                                                <tr key={`${section.title}-${rowIndex}`} className={styles.printCompactWideRow}>
+                                                                    <th scope="row">{row.cell.label}</th>
+                                                                    <td colSpan={3}>{row.cell.value}</td>
+                                                                </tr>
+                                                            ) : (
+                                                                <tr key={`${section.title}-${rowIndex}`}>
+                                                                    <th scope="row">{row.cells[0].label}</th>
+                                                                    <td>{row.cells[0].value}</td>
+                                                                    {row.cells[1] ? (
+                                                                        <>
+                                                                            <th scope="row">{row.cells[1].label}</th>
+                                                                            <td>{row.cells[1].value}</td>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <th className={styles.printCompactSpacerCell} aria-hidden="true"></th>
+                                                                            <td className={styles.printCompactSpacerCell} aria-hidden="true"></td>
+                                                                        </>
+                                                                    )}
+                                                                </tr>
+                                                            )
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className={styles.printEmptyState}>No records found.</div>
+                                        )
+                                    )}
+                                </section>
+                            ))}
+
+                            <footer className={styles.printFooter}>
+                                <div className={styles.printFooterMeta}>
+                                    <span>{patientFullName}</span>
+                                    <span>{patient._id || patient.id || 'No record ID'}</span>
+                                    <span>{patientPrimaryBranch}</span>
+                                </div>
+                                <p>This document contains confidential patient information intended for clinic use and records handling only.</p>
+                            </footer>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ), document.body)
+            : null
+    );
+
     // ─── OVERVIEW TAB: Patient Info ────────────────────────────────────────────
     const renderOverview = () => {
         const patientAge = patient?.birthdate
@@ -308,7 +776,7 @@ export default function PatientEMR({
                     {infoItem('Gender', patient?.gender, <FaVenusMars />)}
                     {infoItem('Date of Birth',
                         patient?.birthdate
-                            ? `${formatDateLong(patient.birthdate)}${patientAge !== null ? ` (${patientAge} years old)` : ''}` 
+                            ? `${formatDateLong(patient.birthdate)}${patientAge !== null ? ` (${formatAgeDisplay(patientAge, '-')})` : ''}`
                             : '—',
                         <FaBirthdayCake />
                     )}
@@ -969,7 +1437,6 @@ export default function PatientEMR({
                     amountCharged: newLogForm.amountCharged || 0,
                     amountPaid: newLogForm.amountPaid || 0,
                     nextAppointment: newLogForm.nextAppointment || '',
-                    notes: newLogForm.notes,
                     branch: newLogForm.branchId,
                 }),
             });
@@ -991,7 +1458,6 @@ export default function PatientEMR({
                 amountCharged: '',
                 amountPaid: '',
                 nextAppointment: '',
-                notes: '',
                 branchId: '',
             });
             addToast("Treatment log added successfully.", "success");
@@ -1029,7 +1495,6 @@ export default function PatientEMR({
         const searchLower = logsSearchQuery.toLowerCase();
         const matchesSearch =
             (log.procedure || '').toLowerCase().includes(searchLower)
-            || (log.notes || '').toLowerCase().includes(searchLower)
             || (log.dentistName || '').toLowerCase().includes(searchLower)
             || String(log.amountCharged || '').includes(searchLower)
             || String(log.amountPaid || '').includes(searchLower)
@@ -1059,7 +1524,7 @@ export default function PatientEMR({
                         <FaSearch className={scheduleStyles.searchIcon} />
                         <input
                             type="text"
-                            placeholder="Search procedures, dentist, or notes..."
+                            placeholder="Search procedures, dentist, or amounts..."
                             className={scheduleStyles.searchInput}
                             value={logsSearchQuery}
                             onChange={(e) => setLogsSearchQuery(e.target.value)}
@@ -1178,10 +1643,6 @@ export default function PatientEMR({
                                                     <p className={styles.expandedDetailValue}>{formatShortDate(log.nextAppointment)}</p>
                                                 </div>
                                             </div>
-                                            <div>
-                                                <span className={styles.expandedDetailLabel}>Dentist Notes</span>
-                                                <p className={styles.expandedDetailValue}>{log.notes || 'No notes recorded.'}</p>
-                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -1201,7 +1662,7 @@ export default function PatientEMR({
                     <div className={styles.modalCard} style={{ maxWidth: '720px' }}>
                         <h3 className={styles.modalTitle} style={{ textAlign: 'left', border: 'none', padding: 0, marginBottom: '12px' }}>Add Treatment Log</h3>
                         <p style={{ margin: '0 0 18px 0', color: '#64748b', lineHeight: 1.6 }}>
-                            Follow the clinic treatment record: enter the service details on one row, then use dentist notes for the expandable remarks below the history row.
+                            Follow the clinic treatment record and capture the service details in one complete row.
                         </p>
                         <form onSubmit={handleAddLogSubmit} style={{ textAlign: 'left' }}>
                             <div className={styles.formGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '15px' }}>
@@ -1264,10 +1725,6 @@ export default function PatientEMR({
                                     <label>Next Appointment</label>
                                     <input type="date" className={styles.inputField} value={newLogForm.nextAppointment} onChange={(e) => setNewLogForm({...newLogForm, nextAppointment: e.target.value})} />
                                 </div>
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Dentist Notes <span style={{color:'red'}}>*</span></label>
-                                <textarea required className={styles.textareaField} value={newLogForm.notes} onChange={(e) => setNewLogForm({...newLogForm, notes: e.target.value})} placeholder="Describe the procedure, patient condition, dentist remarks, and any follow-up instructions." />
                             </div>
                             <div className={styles.modalButtonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={() => setIsAddLogOpen(false)} disabled={isSubmittingLog}>Cancel</button>
@@ -1569,9 +2026,6 @@ export default function PatientEMR({
         return <main className={styles['main-content']}>{notFoundContent}</main>;
     }
 
-    const patientAge = patient?.birthdate
-        ? Math.floor((new Date() - new Date(patient.birthdate)) / 31557600000)
-        : null;
     const patientPhone = patient?.contactNumber || 'N/A';
 
     const modalWrapperStyle = onClose ? {
@@ -1617,6 +2071,11 @@ export default function PatientEMR({
                         <span className={styles.metaItem}><FaEnvelope className={styles.metaIcon} /> {patient.email}</span>
                     </div>
                 </div>
+                <div className={styles.profileHeaderActions}>
+                    <button type="button" className={styles.actionBtn} onClick={handleExportPdf}>
+                        <FaFilePdf /> Export PDF
+                    </button>
+                </div>
             </div>
 
             {/* Updated Tab Structure */}
@@ -1644,6 +2103,7 @@ export default function PatientEMR({
                 <div className={styles.overlayBackground} onClick={onClose}></div>
                 {innerContent}
                 {renderUploadModal()}
+                {renderPrintPreview()}
             </div>
         );
     }
@@ -1653,6 +2113,7 @@ export default function PatientEMR({
             <>
                 {innerContent}
                 {renderUploadModal()}
+                {renderPrintPreview()}
             </>
         );
     }
@@ -1661,6 +2122,7 @@ export default function PatientEMR({
         <>
             <main className={styles['main-content']}>{innerContent}</main>
             {renderUploadModal()}
+            {renderPrintPreview()}
         </>
     );
 }

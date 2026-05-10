@@ -67,6 +67,7 @@
 }
 
 .patientMainInfo { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.profileHeaderActions { display: flex; align-items: flex-start; }
 .nameRow { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
 .patientName { color: #01538b; font-size: 24px; font-weight: 800; margin: 0; }
 
@@ -461,6 +462,479 @@
     white-space: pre-wrap;
 }
 
+.printPreviewOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2500;
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 28px 20px;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.printPreviewCard {
+    width: min(230mm, calc(100vw - 40px));
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.28);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-sizing: border-box;
+}
+
+.printPreviewToolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 28px;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(180deg, #f8fbfd 0%, #f2f8fc 100%);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.printPreviewTitle {
+    margin: 0 0 4px;
+    color: #01538b;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.printPreviewSubtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.printPreviewActions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.printSheet {
+    width: min(210mm, 100%);
+    margin: 0 auto;
+    padding: 12mm;
+    background: #ffffff;
+    box-sizing: border-box;
+}
+
+.printDocumentFrame {
+    border: 1px solid #d5e0e9;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 18px 20px 20px;
+    box-shadow: none;
+}
+
+.printHeader {
+    border: none;
+    border-bottom: 2px solid #0a3f65;
+    background: #ffffff;
+    border-radius: 0;
+    padding: 0 0 14px;
+    margin-bottom: 18px;
+}
+
+.printClinicBanner {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #dbe5ef;
+}
+
+.printClinicBrand {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.printClinicLogo {
+    width: 178px;
+    height: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.printConfidentialTag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border: 1px solid #fecaca;
+    background: #fff5f5;
+    color: #b91c1c;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.printHeaderTop {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.printHeader h1 {
+    margin: 0 0 4px;
+    color: #0a3f65;
+    font-size: 20px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.printHeader p {
+    margin: 0;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.printHeaderMeta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.printMetaBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #e0f7ff;
+    border: 1px solid #bae6fd;
+    color: #01538b;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.printMetaText {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.printIdentitySection {
+    margin-bottom: 18px;
+}
+
+.printIdentityGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    border: 1px solid #cfdbe6;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.printIdentityItem {
+    padding: 10px 12px;
+    background: #ffffff;
+    border-right: 1px solid #dbe5ef;
+    border-bottom: 1px solid #dbe5ef;
+    min-height: 62px;
+}
+
+.printIdentityGrid .printIdentityItem:nth-child(4n) {
+    border-right: none;
+}
+
+.printIdentitySpanTwo {
+    grid-column: span 2;
+}
+
+.printIdentityLabel {
+    display: block;
+    margin-bottom: 6px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.printIdentityValue {
+    display: block;
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.printSummaryGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.printSummaryCard {
+    border: 1px solid #dbe5ef;
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.printSummaryLabel {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+.printSummaryValue {
+    color: #0a3f65;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.printSection {
+    margin-bottom: 18px;
+}
+
+.printSectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+.printSectionTitleWrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.printSectionNumber {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #0a3f65;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.printSection h3 {
+    margin: 0;
+    color: #0a3f65;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.printSectionHint {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.printCompactTableWrap {
+    border: 1px solid #dbe5ef;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.printCompactTable {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.printCompactTable th,
+.printCompactTable td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #dbe5ef;
+    border-right: 1px solid #dbe5ef;
+    vertical-align: top;
+}
+
+.printCompactTable th {
+    width: 18%;
+    background: #f5f9fc;
+    color: #0a3f65;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+}
+
+.printCompactTable td {
+    width: 32%;
+    color: #1e293b;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #ffffff;
+}
+
+.printCompactTable tr:last-child th,
+.printCompactTable tr:last-child td {
+    border-bottom: none;
+}
+
+.printCompactTable th:last-child,
+.printCompactTable td:last-child {
+    border-right: none;
+}
+
+.printCompactWideRow td {
+    width: auto;
+}
+
+.printCompactTable .printCompactSpacerCell {
+    background: #ffffff;
+    color: transparent;
+    font-size: 0;
+}
+
+.printTableWrap {
+    border: 1px solid #dbe5ef;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.printOdontogramWrap {
+    border: 1px solid #dbe5ef;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 14px;
+}
+
+.printTable {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.printTable th,
+.printTable td {
+    border-bottom: 1px solid #dbe5ef;
+    padding: 9px 11px;
+    text-align: left;
+    vertical-align: top;
+    font-size: 11px;
+}
+
+.printTable th {
+    background: #eef7fb;
+    color: #0a3f65;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.printTable td {
+    color: #334155;
+    line-height: 1.55;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.printTable tbody tr:nth-child(even) td {
+    background: #fbfdff;
+}
+
+.printEmptyCell {
+    text-align: center;
+    color: #64748b;
+    padding: 18px 12px;
+}
+
+.printEmptyState {
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 22px;
+    text-align: center;
+    background: #f8fbfd;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.printFooter {
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #dbe5ef;
+}
+
+.printFooterMeta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-wrap: wrap;
+}
+
+.printFooter p {
+    margin: 0;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.55;
+    text-align: center;
+    letter-spacing: 0.01em;
+}
+
+.printSheet,
+.printDocumentFrame,
+.printHeader,
+.printClinicBanner,
+.printConfidentialTag,
+.printMetaBadge,
+.printIdentityGrid,
+.printIdentityItem,
+.printCompactTableWrap,
+.printCompactTable th,
+.printCompactTable td,
+.printTableWrap,
+.printTable th,
+.printTable td,
+.printOdontogramWrap,
+.printFooter {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    forced-color-adjust: none;
+}
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
@@ -470,4 +944,119 @@
     .patientId { margin-left: 0; }
     .metaRow { justify-content: center; }
     .detailGrid { grid-template-columns: 1fr; gap: 15px; }
+    .printPreviewToolbar { flex-direction: column; align-items: flex-start; }
+    .printPreviewActions { width: 100%; justify-content: flex-end; }
+    .printSheet {
+        width: 100%;
+        padding: 16px;
+    }
+    .printDocumentFrame { padding: 16px; }
+    .printClinicBanner { flex-direction: column; }
+    .printClinicBrand { width: 100%; }
+    .printClinicLogo { width: 150px; }
+    .printHeaderTop { flex-direction: column; }
+    .printHeaderMeta { align-items: flex-start; }
+    .printIdentityGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .printIdentityGrid .printIdentityItem:nth-child(4n) { border-right: 1px solid #dbe5ef; }
+    .printIdentityGrid .printIdentityItem:nth-child(2n) { border-right: none; }
+    .printCompactTableWrap,
+    .printTableWrap { overflow-x: auto; }
+    .printCompactTable { min-width: 620px; }
+    .printSectionHeader { flex-direction: column; align-items: flex-start; }
+    .printTableWrap { overflow-x: auto; }
+}
+
+@media print {
+    @page {
+        size: portrait;
+        margin: 0;
+    }
+
+    body {
+        background: #ffffff;
+    }
+
+    :global(body.print-record-active) #root {
+        display: none !important;
+    }
+
+    :global(body.print-record-active) * {
+        visibility: hidden !important;
+    }
+
+    :global(body.print-record-active) .printPreviewOverlay,
+    :global(body.print-record-active) .printPreviewOverlay * {
+        visibility: visible !important;
+    }
+
+    :global(body.print-record-active) .printPreviewOverlay {
+        position: absolute !important;
+        inset: 0 auto auto 0 !important;
+        width: 100% !important;
+        background: #ffffff !important;
+        backdrop-filter: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        display: block !important;
+    }
+
+    .main-content,
+    .formCard,
+    .overlayBackground,
+    .printPreviewToolbar {
+        display: none !important;
+    }
+
+    .printPreviewOverlay {
+        position: static;
+        inset: auto;
+        background: #ffffff;
+        backdrop-filter: none;
+        padding: 0;
+        overflow: visible;
+        display: block;
+    }
+
+    .printPreviewCard {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        width: 100%;
+        overflow: visible;
+    }
+
+    .printSheet {
+        width: 210mm;
+        max-width: none;
+        padding: 12mm;
+        background: #ffffff;
+    }
+
+    .printDocumentFrame {
+        border: 1px solid #d5e0e9;
+        border-radius: 8px;
+        padding: 18px 20px 20px;
+        box-shadow: none;
+    }
+
+    .printHeader {
+        box-shadow: none;
+        background: #ffffff;
+    }
+
+    .printIdentityGrid {
+        break-inside: avoid;
+    }
+
+    .printSummaryCard,
+    .printCompactTableWrap,
+    .printTableWrap,
+    .printOdontogramWrap {
+        box-shadow: none;
+    }
+
+    .printSection {
+        page-break-inside: auto;
+    }
 }

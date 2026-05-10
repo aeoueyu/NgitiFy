@@ -15,12 +15,14 @@ const buildItemCatalog = (inventoryEntries = []) => {
             name: entry.name || entry.itemName || '',
             category: entry.category || '',
             unit: entry.unit || 'pcs',
+            branch: entry.branch || '',
         });
     });
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
 export default function AddInventoryStock({ inventoryEntries = [], inventoryBatches = [], onClose, onSuccess, initialItemId = '' }) {
+    const isItemLocked = Boolean(initialItemId);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -147,7 +149,7 @@ export default function AddInventoryStock({ inventoryEntries = [], inventoryBatc
                         </button>
                         <div className={styles.header}>
                             <h2>Add <span className={styles.highlight}>Supply / Stock</span></h2>
-                            <p>Receive fresh stock for an existing item and keep the batch history accurate.</p>
+                            <p>Receive fresh stock for the selected item and keep the batch history accurate.</p>
                         </div>
                     </div>
                 </div>
@@ -158,12 +160,25 @@ export default function AddInventoryStock({ inventoryEntries = [], inventoryBatc
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>ITEM <span style={{ color: 'red' }}>*</span></label>
-                            <select className={`${styles.inputField} ${errors.itemId ? styles.errorBorder : ''}`} name="itemId" value={formData.itemId} onChange={handleChange} disabled={isSaving}>
+                            <select
+                                className={`${styles.inputField} ${errors.itemId ? styles.errorBorder : ''}`}
+                                name="itemId"
+                                value={formData.itemId}
+                                onChange={handleChange}
+                                disabled={isSaving || isItemLocked}
+                            >
                                 <option value="" hidden>Select an existing item</option>
                                 {items.map((item) => (
-                                    <option key={item.itemId} value={item.itemId}>{item.name}</option>
+                                    <option key={item.itemId} value={item.itemId}>
+                                        {item.branch ? `${item.name} - ${item.branch}` : item.name}
+                                    </option>
                                 ))}
                             </select>
+                            {isItemLocked && selectedItem && (
+                                <span className={styles.helperText}>
+                                    This stock entry is locked to `{selectedItem.name}`{selectedItem.branch ? ` in ${selectedItem.branch}` : ''}.
+                                </span>
+                            )}
                             {errors.itemId && <span className={styles.errorText}>{errors.itemId}</span>}
                         </div>
 

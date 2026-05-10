@@ -162,6 +162,7 @@ select.inputField { appearance: none; background-image: url("data:image/svg+xml;
 
 .errorBorder { border: 1.5px solid #dc3545 !important; background-color: #ffe6e6 !important; }
 .errorText { color: #dc3545; font-size: 11px; font-weight: 600; margin-top: 4px; margin-left: 10px; }
+.helperText { color: #64748b; font-size: 11px; font-weight: 600; margin-top: 6px; margin-left: 10px; }
 
 .buttonGroup { display: flex; justify-content: flex-end; gap: 15px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; }
 .submitBtn { background-color: #01538b; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2); }

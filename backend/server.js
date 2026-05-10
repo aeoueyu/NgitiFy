@@ -1290,6 +1290,7 @@ const appendAutomaticTreatmentLogIfMissing = async ({
 
     const normalizedDate = new Date(date);
     normalizedDate.setHours(0, 0, 0, 0);
+    const metadataToken = String(sourceKey || notes || '').trim();
 
     const duplicate = (patient.treatmentLogs || []).some((log) => {
         const logDate = new Date(log.date);
@@ -1297,7 +1298,7 @@ const appendAutomaticTreatmentLogIfMissing = async ({
         return logDate.getTime() === normalizedDate.getTime()
             && String(log.procedure || '').trim().toLowerCase() === String(procedure).trim().toLowerCase()
             && String(log.branch || '').trim().toLowerCase() === String(branch).trim().toLowerCase()
-            && String(log.notes || '').includes(sourceKey);
+            && (!metadataToken || String(log.notes || '').includes(metadataToken));
     });
 
     if (duplicate) return;
@@ -1307,7 +1308,7 @@ const appendAutomaticTreatmentLogIfMissing = async ({
         procedure,
         tooth: tooth || '',
         category: normalizeTreatmentCategory(category),
-        notes: [notes, sourceKey].filter(Boolean).join(' ').trim(),
+        notes: metadataToken,
         dentistId: dentistId || undefined,
         dentistName: dentistName || undefined,
         branch,
@@ -1345,7 +1346,6 @@ const reconcilePatientTreatmentLogsFromCompletedAppointments = async (patientId)
             category: normalizeTreatmentCategory(
                 inferTreatmentCategoryFromProcedure(appointment.performedProcedure || appointment.procedure)
             ),
-            notes: String(appointment.remarks || appointment.notes || '').trim(),
             sourceKey: `[AUTO-APPOINTMENT:${appointment._id}]`,
         });
     }
@@ -4166,7 +4166,7 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
 
 app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyToken, async (req, res) => {
     try {
-        const { status, remarks, preOpInstructions, date, time, dentistId, cancellationReason, performedProcedure, tooth, category, amountCharged, amountPaid, nextAppointment, notes } = req.body;
+        const { status, remarks, preOpInstructions, date, time, dentistId, cancellationReason, performedProcedure, tooth, category, amountCharged, amountPaid, nextAppointment } = req.body;
 
         const allowedStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         if (!allowedStatuses.includes(status)) {
@@ -4261,9 +4261,6 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             }
             if (normalizedAmountCharged === null || normalizedAmountPaid === null) {
                 return res.status(400).json({ message: 'Please provide the amount charged and amount paid before completing the appointment.' });
-            }
-            if (!String(notes || remarks || '').trim()) {
-                return res.status(400).json({ message: 'Please enter dentist notes before completing the appointment.' });
             }
         }
 
@@ -4445,8 +4442,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 dentistName: getDentistDisplayName(updatedSurgery.dentist),
                 date: updatedSurgery.date || new Date(),
                 tooth: String(tooth || '').trim(),
-        category: normalizeTreatmentCategory(category),
-                notes: String(notes || updatedSurgery.remarks || '').trim(),
+                category: normalizeTreatmentCategory(category),
                 amountCharged: normalizedAmountCharged ?? 0,
                 amountPaid: normalizedAmountPaid ?? 0,
                 balance: normalizedBalance,
@@ -5365,7 +5361,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             }
         }
 
-        const { date, procedure, tooth, category, notes, branch, amountCharged, amountPaid, nextAppointment } = req.body;
+        const { date, procedure, tooth, category, branch, amountCharged, amountPaid, nextAppointment } = req.body;
 
         if (!date || !procedure) {
             return res.status(400).json({ message: 'Date and procedure are required.' });
@@ -5398,7 +5394,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             procedure,
             tooth: tooth || '',
             category: normalizeTreatmentCategory(category),
-            notes: notes || '',
+            notes: '',
             dentistId: req.user.id,
             dentistName,
             branch: branch,
@@ -6990,7 +6986,6 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             amountCharged,
             amountPaid,
             nextAppointment,
-            notes,
         } = req.body;
         const allowedQueueStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         const legacyStatusMap = {
@@ -7038,9 +7033,6 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             if (normalizedAmountCharged === null || normalizedAmountPaid === null) {
                 return res.status(400).json({ message: 'Please provide the amount charged and amount paid before completing the schedule.' });
             }
-            if (!String(notes || '').trim()) {
-                return res.status(400).json({ message: 'Please enter dentist notes before completing the schedule.' });
-            }
         }
 
         const update = {
@@ -7076,7 +7068,6 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
                 date: entry.completedAt || new Date(),
                 tooth: String(tooth || '').trim(),
                 category: normalizeTreatmentCategory(category),
-                notes: [String(notes || '').trim(), `Completed from queue ticket #${entry.ticketNumber}.`].filter(Boolean).join(' '),
                 amountCharged: normalizedAmountCharged ?? 0,
                 amountPaid: normalizedAmountPaid ?? 0,
                 balance: normalizedBalance,
@@ -7107,7 +7098,7 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied.' });
         }
  
-        const { status, tooth, category, amountCharged, amountPaid, nextAppointment, notes } = req.body;
+        const { status, tooth, category, amountCharged, amountPaid, nextAppointment } = req.body;
         const allowedQueueStatuses = ['pending', 'confirmed', 'in-clinic', 'completed', 'cancelled'];
         const legacyStatusMap = {
             waiting: 'pending',
@@ -7137,9 +7128,6 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
             }
             if (normalizedAmountCharged === null || normalizedAmountPaid === null) {
                 return res.status(400).json({ message: 'Please provide the amount charged and amount paid before completing the schedule.' });
-            }
-            if (!String(notes || '').trim()) {
-                return res.status(400).json({ message: 'Please enter dentist notes before completing the schedule.' });
             }
         }
  
@@ -7175,7 +7163,6 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
                 date: entry.completedAt || new Date(),
                 tooth: String(tooth || '').trim(),
                 category: normalizeTreatmentCategory(category),
-                notes: [String(notes || '').trim(), `Completed from queue ticket #${entry.ticketNumber}.`].filter(Boolean).join(' '),
                 amountCharged: normalizedAmountCharged ?? 0,
                 amountPaid: normalizedAmountPaid ?? 0,
                 balance: normalizedBalance,

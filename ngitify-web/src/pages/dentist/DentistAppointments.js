@@ -116,7 +116,6 @@ export default function DentistAppointments() {
         amountCharged: '',
         amountPaid: '',
         nextAppointment: '',
-        notes: '',
     });
     const [completionError, setCompletionError] = useState('');
     const [clinicProcedures, setClinicProcedures] = useState(PROCEDURE_OPTIONS);
@@ -321,7 +320,7 @@ export default function DentistAppointments() {
 
     const handleConfirmComplete = async () => {
         if (!completeTarget || !completionProcedure) return;
-        if (!completionDetails.category || completionDetails.amountCharged === '' || completionDetails.amountPaid === '' || !completionDetails.notes.trim()) {
+        if (!completionDetails.category || completionDetails.amountCharged === '' || completionDetails.amountPaid === '') {
             setCompletionError('Please complete the treatment details before marking this appointment as done.');
             return;
         }
@@ -336,7 +335,6 @@ export default function DentistAppointments() {
                     amountCharged: Number(completionDetails.amountCharged),
                     amountPaid: Number(completionDetails.amountPaid),
                     nextAppointment: completionDetails.nextAppointment || null,
-                    notes: completionDetails.notes.trim(),
                 }),
             });
             const data = await res.json().catch(() => null);
@@ -361,7 +359,6 @@ export default function DentistAppointments() {
                 amountCharged: '',
                 amountPaid: '',
                 nextAppointment: '',
-                notes: '',
             });
             setCompletionError('');
         }
@@ -528,7 +525,6 @@ export default function DentistAppointments() {
                                                             amountCharged: '',
                                                             amountPaid: '',
                                                             nextAppointment: '',
-                                                            notes: '',
                                                         });
                                                         setCompletionError('');
                                                     }}
@@ -879,20 +875,6 @@ export default function DentistAppointments() {
                                 />
                             </div>
 
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Dentist Notes</label>
-                                <textarea
-                                    className={styles.formInput}
-                                    style={{ minHeight: '110px', paddingTop: '12px', paddingBottom: '12px', borderRadius: '16px' }}
-                                    value={completionDetails.notes}
-                                    onChange={(e) => {
-                                        setCompletionDetails((prev) => ({ ...prev, notes: e.target.value }));
-                                        setCompletionError('');
-                                    }}
-                                    placeholder="Describe the procedure, findings, patient condition, and follow-up instructions."
-                                />
-                            </div>
-
                             {completionError && (
                                 <div className={styles.errorMessage}>{completionError}</div>
                             )}
@@ -910,7 +892,6 @@ export default function DentistAppointments() {
                                             amountCharged: '',
                                             amountPaid: '',
                                             nextAppointment: '',
-                                            notes: '',
                                         });
                                         setCompletionError('');
                                     }}

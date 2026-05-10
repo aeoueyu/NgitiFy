@@ -8,7 +8,14 @@
     flex: 1;
 }
 
-.header { margin-bottom: 25px; }
+.header {
+    margin-bottom: 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
 
 .title {
     color: #01538b;
@@ -568,6 +575,7 @@
     .searchFilterGroup { flex-direction: column; align-items: stretch; }
     .searchWrapper { max-width: 100%; }
     .filterSelect { max-width: 100%; }
+    .header { align-items: stretch; }
     .branchGroupHeader {
         align-items: flex-start;
     }

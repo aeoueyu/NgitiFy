@@ -99,7 +99,7 @@
     margin: 0 0 20px 0;
 }
 
-/* Treatment Notes */
+/* Treatment History */
 .notesList { display: flex; flex-direction: column; gap: 14px; }
 .noteCard {
     border: 1px solid #e2e8f0;

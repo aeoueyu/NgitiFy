@@ -330,8 +330,18 @@ export default function InventoryTracker() {
     return (
         <div className={styles.container}>
             <header className={styles.header}>
-                <h1 className={styles.title}>Inventory Tracker</h1>
-                <p className={styles.subtitle}>Track supply definitions, receive stock batches, and watch low-stock items for manual restocking.</p>
+                <div>
+                    <h1 className={styles.title}>Inventory Tracker</h1>
+                    <p className={styles.subtitle}>Track supply definitions, receive stock batches, and watch low-stock items for manual restocking.</p>
+                </div>
+                <div className={styles.headerActions}>
+                    <button type="button" className={styles.secondaryBtn} onClick={handleExportCsv} disabled={filteredInventory.length === 0}>
+                        <FaDownload /> Export CSV
+                    </button>
+                    <button type="button" className={styles.secondaryBtn} onClick={handleExportPdf} disabled={filteredInventory.length === 0}>
+                        <FaFilePdf /> Export PDF
+                    </button>
+                </div>
             </header>
 
             <div className={styles.statsGrid}>
@@ -414,20 +424,6 @@ export default function InventoryTracker() {
                 </div>
 
                 <div className={styles.headerActions}>
-                    <button type="button" className={styles.secondaryBtn} onClick={handleExportCsv} disabled={filteredInventory.length === 0}>
-                        <FaDownload /> Export CSV
-                    </button>
-                    <button type="button" className={styles.secondaryBtn} onClick={handleExportPdf} disabled={filteredInventory.length === 0}>
-                        <FaFilePdf /> Export PDF
-                    </button>
-                    {canEditInventory && (
-                        <button className={styles.addBtn} onClick={() => {
-                            setSelectedStockItemId('');
-                            setIsAddStockModalOpen(true);
-                        }}>
-                            <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Receive Stock
-                        </button>
-                    )}
                     {canEditInventory && (
                         <button className={styles.addBtn} style={{ backgroundColor: '#2dccf6' }} onClick={() => setIsAddModalOpen(true)}>
                             <FaPlus className={styles.btnIcon} style={{ fontSize: '12px', marginRight: '8px' }} /> Add New Item

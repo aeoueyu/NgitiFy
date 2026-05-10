@@ -39,7 +39,7 @@ const normalizeToothData = (raw) => {
     return { status: raw.status || 'healthy', surfaces: Array.isArray(raw.surfaces) ? raw.surfaces : [] };
 };
 
-export default function Odontogram({ patientId }) {
+export default function Odontogram({ patientId, readOnly = false, documentMode = false }) {
     const { addToast } = useToast();
 
     const [chartData, setChartData] = useState({});
@@ -64,6 +64,7 @@ export default function Odontogram({ patientId }) {
     const getToothData = (num) => normalizeToothData(chartData[num]);
 
     const openToothModal = (num) => {
+        if (readOnly) return;
         const { status, surfaces } = getToothData(num);
         setSelectedTooth(num);
         setTempStatus(status);
@@ -130,7 +131,7 @@ export default function Odontogram({ patientId }) {
         });
 
     return (
-        <div className={styles.odontogramWrapper}>
+        <div className={`${styles.odontogramWrapper} ${readOnly ? styles.readOnlyChart : ''} ${documentMode ? styles.documentMode : ''}`.trim()}>
             {/* UPPER JAW */}
             <div className={styles.jawSection}>
                 <h4 className={styles.jawTitle}>Maxillary Arch (Upper)</h4>
@@ -165,7 +166,7 @@ export default function Odontogram({ patientId }) {
             </div>
 
             {/* UPDATE TOOTH MODAL */}
-            {selectedTooth && (
+            {!readOnly && selectedTooth && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.overlayBackground} onClick={() => setSelectedTooth(null)}></div>
                     <div className={styles.miniModalCard}>

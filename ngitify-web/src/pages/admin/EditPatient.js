@@ -976,7 +976,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 <div className={styles.formGroup}><label>BLOOD PRESSURE</label><input className={styles.inputField} value={formData.medicalHistory.bloodPressure} onChange={(e) => handleNestedChange('medicalHistory', 'bloodPressure', e.target.value)} placeholder="e.g. 120/80" disabled={isSaving} /></div>
                             </div>
                             <div className={styles.row}>
-                                {renderTextArea('MEDICAL NOTES', formData.medicalHistory.notes, (e) => handleNestedChange('medicalHistory', 'notes', e.target.value), 'Hospitalization, illness history, treatment notes, etc.', 'medicalNotes')}
+                                {renderTextArea('MEDICAL NOTES', formData.medicalHistory.notes, (e) => handleNestedChange('medicalHistory', 'notes', e.target.value), 'Hospitalization, illness history, medical remarks, etc.', 'medicalNotes')}
                             </div>
 
                             <hr className={styles.divider} />

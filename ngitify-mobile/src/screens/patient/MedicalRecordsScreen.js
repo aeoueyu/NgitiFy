@@ -120,7 +120,7 @@ function ErrorState({ message, onRetry }) {
     );
 }
 
-// ─── Tab: Treatment Notes ─────────────────────────────────────────────────────
+// ─── Tab: Treatment History ───────────────────────────────────────────────────
 
 function TreatmentTab({ logs, loading, error, onRetry }) {
     const [expanded, setExpanded] = useState(null);
@@ -130,8 +130,8 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
     if (!logs.length) return (
         <EmptyState
             iconComponent={<Ionicons name="document-text-outline" size={40} color="#bbb" />}
-            title="No Treatment Notes Yet"
-            sub="Your dentist's notes will appear here after your first visit."
+            title="No Treatment History Yet"
+            sub="Your recorded treatments will appear here after your first visit."
         />
     );
 
@@ -177,14 +177,6 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
                                 style={{ paddingLeft: 8, paddingTop: 2 }}
                             />
                         </View>
-
-                        {isOpen && log.notes ? (
-                            <View style={styles.logNotesBox}>
-                                <Text style={styles.logNotesLabel}>Clinical Notes</Text>
-                                <Text style={styles.logNotes}>{log.notes}</Text>
-                            </View>
-                        ) : null}
-
                         {isOpen && log.branch ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 12 }}>
                                 <Ionicons name="location-outline" size={12} color="#aaa" style={{ marginRight: 4 }} />

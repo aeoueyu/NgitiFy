@@ -410,7 +410,6 @@ export default function SchedulePage() {
         amountCharged: '',
         amountPaid: '',
         nextAppointment: '',
-        notes: '',
     });
     const [completionError, setCompletionError] = useState('');
     const [allowedSlots, setAllowedSlots] = useState([]);
@@ -1039,7 +1038,7 @@ export default function SchedulePage() {
             setCompleteTarget(null);
             return;
         }
-        if (!completionForm.performedProcedure || !completionForm.category || completionForm.amountCharged === '' || completionForm.amountPaid === '' || !completionForm.notes.trim()) {
+        if (!completionForm.performedProcedure || !completionForm.category || completionForm.amountCharged === '' || completionForm.amountPaid === '') {
             setCompletionError('Please complete the treatment details before marking this schedule as complete.');
             return;
         }
@@ -1058,7 +1057,6 @@ export default function SchedulePage() {
                 amountCharged: Number(completionForm.amountCharged),
                 amountPaid: Number(completionForm.amountPaid),
                 nextAppointment: completionForm.nextAppointment || null,
-                notes: completionForm.notes.trim(),
             };
             const response = await authFetch(endpoint, {
                 method,
@@ -1077,7 +1075,6 @@ export default function SchedulePage() {
                 amountCharged: '',
                 amountPaid: '',
                 nextAppointment: '',
-                notes: '',
             });
             setCompletionError('');
             await fetchPageData();
@@ -1979,19 +1976,6 @@ export default function SchedulePage() {
                                         className={styles.formControl}
                                         value={completionForm.nextAppointment}
                                         onChange={(event) => setCompletionForm((prev) => ({ ...prev, nextAppointment: event.target.value }))}
-                                    />
-                                </div>
-                                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                    <label className={styles.formLabel}>Dentist Notes <span className={styles.requiredMark}>*</span></label>
-                                    <textarea
-                                        className={styles.textareaControl}
-                                        value={completionForm.notes}
-                                        onChange={(event) => {
-                                            setCompletionForm((prev) => ({ ...prev, notes: event.target.value }));
-                                            setCompletionError('');
-                                        }}
-                                        placeholder="Describe the procedure, findings, patient condition, and follow-up instructions."
-                                        rows={4}
                                     />
                                 </div>
                             </div>
