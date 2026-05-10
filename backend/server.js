@@ -5857,10 +5857,12 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
             }
 
             let inventoryItem = await InventoryItem.findById(targetId);
+            let selectedBatch = null;
             let itemBranch = inventoryItem?.branch || '';
 
             if (!inventoryItem) {
                 const batchHit = await InventoryBatch.findById(targetId).populate('inventoryItem');
+                selectedBatch = batchHit || null;
                 inventoryItem = batchHit?.inventoryItem || null;
                 itemBranch = batchHit?.branch || inventoryItem?.branch || '';
             }
@@ -5875,11 +5877,20 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
                 continue;
             }
 
-            const activeBatches = await InventoryBatch.find({
+            let activeBatches = await InventoryBatch.find({
                 inventoryItem: inventoryItem._id,
                 branch: inventoryItem.branch,
                 quantityRemaining: { $gt: 0 },
             }).sort({ expirationDate: 1, receivedDate: 1, createdAt: 1 });
+
+            if (selectedBatch) {
+                const selectedBatchId = String(selectedBatch._id);
+                activeBatches = activeBatches.sort((left, right) => {
+                    const leftIsSelected = String(left._id) === selectedBatchId ? 1 : 0;
+                    const rightIsSelected = String(right._id) === selectedBatchId ? 1 : 0;
+                    return rightIsSelected - leftIsSelected;
+                });
+            }
 
             const availableQty = activeBatches.reduce((sum, batch) => sum + Number(batch.quantityRemaining || 0), 0);
             if (availableQty < requiredQty) {
@@ -5914,6 +5925,7 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
             }
 
             results.push({
+                requestedInventoryId: targetId,
                 inventoryId: inventoryItem._id,
                 itemName: inventoryItem.name,
                 previousQty: availableQty,

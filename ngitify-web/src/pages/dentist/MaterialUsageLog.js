@@ -6,42 +6,58 @@ import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatDateLong } from '../../utils/dateUtils';
 
-const groupInventoryItems = (rows = []) => {
-    const grouped = new Map();
+const buildInventoryBatchOptions = (rows = []) => {
+    return rows
+        .map((entry) => {
+            const batchId = entry._id || entry.id;
+            if (!batchId) return null;
 
-    rows.forEach((entry) => {
-        const itemId = entry.itemId || entry._id || entry.id;
-        if (!itemId) return;
+            return {
+                _id: batchId,
+                id: batchId,
+                inventoryItemId: entry.itemId || entry.inventoryItem || '',
+                name: entry.itemName || entry.name || 'Unknown Item',
+                itemName: entry.itemName || entry.name || 'Unknown Item',
+                unit: entry.unit || 'pcs',
+                stock: Number(entry.quantity ?? entry.currentStock ?? entry.stock ?? 0),
+                batchNumber: entry.batchNumber || '',
+                brand: entry.brand || 'Unspecified',
+                expirationDate: entry.expirationDate || null,
+                receivedDate: entry.receivedDate || null,
+            };
+        })
+        .filter(Boolean)
+        .sort((left, right) => {
+            const nameCompare = left.name.localeCompare(right.name);
+            if (nameCompare !== 0) return nameCompare;
 
-        const existing = grouped.get(itemId);
-        if (existing) {
-            existing.stock += Number(entry.quantity ?? entry.currentStock ?? entry.stock ?? 0);
-            return;
-        }
+            const leftExpiry = left.expirationDate ? new Date(left.expirationDate).getTime() : Number.MAX_SAFE_INTEGER;
+            const rightExpiry = right.expirationDate ? new Date(right.expirationDate).getTime() : Number.MAX_SAFE_INTEGER;
+            if (leftExpiry !== rightExpiry) return leftExpiry - rightExpiry;
 
-        grouped.set(itemId, {
-            _id: itemId,
-            id: itemId,
-            name: entry.itemName || entry.name || 'Unknown Item',
-            itemName: entry.itemName || entry.name || 'Unknown Item',
-            unit: entry.unit || 'pcs',
-            stock: Number(entry.quantity ?? entry.currentStock ?? entry.stock ?? 0),
+            const leftReceived = left.receivedDate ? new Date(left.receivedDate).getTime() : 0;
+            const rightReceived = right.receivedDate ? new Date(right.receivedDate).getTime() : 0;
+            return leftReceived - rightReceived;
         });
-    });
-
-    return Array.from(grouped.values()).sort((left, right) => left.name.localeCompare(right.name));
 };
 
 const buildDeductionLookup = (deducted = []) => {
     const lookup = new Map();
 
     deducted.forEach((entry) => {
-        if (entry?.inventoryId) {
+        if (entry?.requestedInventoryId) {
+            lookup.set(String(entry.requestedInventoryId), entry);
+        } else if (entry?.inventoryId) {
             lookup.set(String(entry.inventoryId), entry);
         }
     });
 
     return lookup;
+};
+
+const formatInventoryOptionLabel = (item) => {
+    const batchLabel = item.batchNumber ? item.batchNumber : 'No batch number';
+    return `${item.name || item.itemName} - Batch ${batchLabel} - ${item.stock ?? item.quantity} ${item.unit} available`;
 };
 
 // ─── MODAL MODE (used from DentistAppointments) ──────────────────────────────
@@ -59,7 +75,7 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
             try {
                 const res = await authFetch('/inventory');
                 if (!res.ok) throw new Error('Failed to load inventory.');
-                setInventoryList(groupInventoryItems(await res.json()));
+                setInventoryList(buildInventoryBatchOptions(await res.json()));
             } catch (error) {
                 addToast('Failed to load inventory data.', 'error');
             } finally {
@@ -96,6 +112,7 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
                     patientId: appointment.patientId,
                     itemsUsed: usedMaterials.map(m => ({
                         itemId: m.itemId,
+                        inventoryId: m.itemId,
                         quantityUsed: Number(m.quantity),
                     })),
                 }),
@@ -112,7 +129,7 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
                     name: inv ? inv.name || inv.itemName : 'Unknown',
                     quantity: Number(m.quantity),
                     unit: inv ? inv.unit || 'piece' : 'piece',
-                    inventoryItemId: inv ? (inv._id || inv.id) : null,
+                    inventoryItemId: inv ? (inv.inventoryItemId || inv._id || inv.id) : null,
                     consumedBatches: Array.isArray(deduction?.consumedBatches) ? deduction.consumedBatches : [],
                 };
             });
@@ -168,7 +185,7 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
                                         <option value="" disabled hidden>Select item from inventory...</option>
                                         {inventoryList.map(item => (
                                             <option key={item._id || item.id} value={item._id || item.id}>
-                                                {item.name || item.itemName} ({item.stock ?? item.quantity} {item.unit} available)
+                                                {formatInventoryOptionLabel(item)}
                                             </option>
                                         ))}
                                     </select>
@@ -279,6 +296,7 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList }) {
                     patientId: selectedAppt.patientId || null,
                     itemsUsed: usedMaterials.map(m => ({
                         itemId: m.itemId,
+                        inventoryId: m.itemId,
                         quantityUsed: Number(m.quantity),
                     })),
                 }),
@@ -298,7 +316,7 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList }) {
                     name: inv ? (inv.name || inv.itemName) : 'Unknown',
                     quantity: Number(m.quantity),
                     unit: inv ? inv.unit || 'piece' : 'piece',
-                    inventoryItemId: inv ? (inv._id || inv.id) : null,
+                    inventoryItemId: inv ? (inv.inventoryItemId || inv._id || inv.id) : null,
                     consumedBatches: Array.isArray(deduction?.consumedBatches) ? deduction.consumedBatches : [],
                 };
             });
@@ -425,7 +443,7 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList }) {
                                             <option value="" disabled hidden>Select item...</option>
                                             {inventoryList.map(item => (
                                                 <option key={item._id || item.id} value={item._id || item.id}>
-                                                    {item.name || item.itemName} ({item.stock ?? item.quantity} {item.unit} left)
+                                                    {formatInventoryOptionLabel(item)}
                                                 </option>
                                             ))}
                                         </select>
@@ -500,7 +518,7 @@ function MaterialUsagePage() {
         fetchLogs();
         // Fetch branch-filtered inventory for the dentist
         authFetch('/inventory').then(res => {
-            if (res.ok) res.json().then((rows) => setInventoryList(groupInventoryItems(rows)));
+            if (res.ok) res.json().then((rows) => setInventoryList(buildInventoryBatchOptions(rows)));
         }).catch(() => {});
     }, [fetchLogs]);
 
