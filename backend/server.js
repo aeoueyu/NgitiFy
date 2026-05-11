@@ -133,6 +133,12 @@ const spawnRadiographEnhancer = ({ command, args, imageBase64, mediaType }) => {
         child.on('close', (code) => {
             if (code !== 0) {
                 const detail = stderr.trim() || stdout.trim() || `Enhancer exited with code ${code}.`;
+                if (
+                    detail.includes("ModuleNotFoundError: No module named 'cv2'")
+                    || detail.includes('No module named \'cv2\'')
+                ) {
+                    return reject(new Error('OpenCV is not installed on the server. Redeploy after installing backend/python/requirements.txt during the backend build step.'));
+                }
                 return reject(new Error(`OpenCV enhancement failed. ${detail}`));
             }
             try {
