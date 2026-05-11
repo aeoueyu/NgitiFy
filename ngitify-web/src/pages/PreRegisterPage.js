@@ -4,8 +4,17 @@ import WebsiteShell from '../components/website/WebsiteShell';
 import styles from '../styles/website/WebsitePages.module.css';
 import { publicFetch } from '../utils/api';
 import { regions, provinces, cities, barangays } from '../utils/addressData';
+import {
+    NATIONALITY_OPTIONS,
+    RELIGION_OPTIONS,
+    RELATIONSHIP_OPTIONS,
+    PHYSICIAN_SPECIALTY_OPTIONS,
+    getSelectValueWithOther,
+    getOtherTextValue,
+} from '../utils/patientIntake';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
+const bloodTypeOptions = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const initialProfileState = {
     homePhone: '',
     workPhone: '',
@@ -13,13 +22,15 @@ const initialProfileState = {
     civilStatus: '',
     bloodType: '',
     nationality: 'Filipino',
+    nationalityOther: '',
     religion: '',
+    religionOther: '',
     referredBy: '',
     reasonForConsultation: '',
 };
-const initialEmergencyContact = { name: '', relationship: '', contactNumber: '' };
-const initialGuardian = { name: '', relationship: '', contactNumber: '', occupation: '' };
-const initialPhysician = { name: '', specialty: '', officeAddress: '', officeNumber: '' };
+const initialEmergencyContact = { name: '', relationship: '', relationshipOther: '', contactNumber: '' };
+const initialGuardian = { name: '', relationship: '', relationshipOther: '', contactNumber: '', occupation: '' };
+const initialPhysician = { name: '', specialty: '', specialtyOther: '', officeAddress: '', officeNumber: '' };
 const initialDentalHistory = {
     lastExamDate: '',
     chiefComplaint: '',
@@ -218,7 +229,15 @@ export default function PreRegisterPage() {
                 }
 
                 setAppointmentInfo(data);
-                setProfile({ ...initialProfileState, ...(data.guestProfile || {}) });
+                const guestProfile = data.guestProfile || {};
+                setProfile({
+                    ...initialProfileState,
+                    ...guestProfile,
+                    nationality: getSelectValueWithOther(guestProfile.nationality || initialProfileState.nationality, NATIONALITY_OPTIONS),
+                    nationalityOther: getOtherTextValue(guestProfile.nationality || '', NATIONALITY_OPTIONS),
+                    religion: getSelectValueWithOther(guestProfile.religion || '', RELIGION_OPTIONS),
+                    religionOther: getOtherTextValue(guestProfile.religion || '', RELIGION_OPTIONS),
+                });
                 const nextCurrentAddress = { ...initialAddressState, ...(data.currentAddress || {}) };
                 const nextPermanentAddress = { ...initialAddressState, ...(data.permanentAddress || {}) };
                 setCurrentAddress(nextCurrentAddress);
@@ -226,16 +245,22 @@ export default function PreRegisterPage() {
                 setEmergencyContact({
                     ...initialEmergencyContact,
                     ...(data.guestEmergencyContact || {}),
+                    relationship: getSelectValueWithOther(data.guestEmergencyContact?.relationship || '', RELATIONSHIP_OPTIONS),
+                    relationshipOther: getOtherTextValue(data.guestEmergencyContact?.relationship || '', RELATIONSHIP_OPTIONS),
                     contactNumber: stripPhonePrefix(data.guestEmergencyContact?.contactNumber || ''),
                 });
                 setGuardian({
                     ...initialGuardian,
                     ...(data.guestGuardian || {}),
+                    relationship: getSelectValueWithOther(data.guestGuardian?.relationship || '', RELATIONSHIP_OPTIONS),
+                    relationshipOther: getOtherTextValue(data.guestGuardian?.relationship || '', RELATIONSHIP_OPTIONS),
                     contactNumber: stripPhonePrefix(data.guestGuardian?.contactNumber || ''),
                 });
                 setPhysician({
                     ...initialPhysician,
                     ...(data.guestPhysician || {}),
+                    specialty: getSelectValueWithOther(data.guestPhysician?.specialty || '', PHYSICIAN_SPECIALTY_OPTIONS),
+                    specialtyOther: getOtherTextValue(data.guestPhysician?.specialty || '', PHYSICIAN_SPECIALTY_OPTIONS),
                     officeNumber: stripPhonePrefix(data.guestPhysician?.officeNumber || ''),
                 });
                 setDentalHistory(normalizeDentalHistoryState(data.guestDentalHistory || {}));
@@ -290,12 +315,17 @@ export default function PreRegisterPage() {
 
         if (!profile.occupation.trim()) nextErrors.profile_occupation = 'Required';
         if (!profile.reasonForConsultation.trim()) nextErrors.profile_reasonForConsultation = 'Required';
+        if (profile.nationality === 'Other' && !profile.nationalityOther.trim()) nextErrors.profile_nationalityOther = 'Required';
+        if (profile.religion === 'Other' && !profile.religionOther.trim()) nextErrors.profile_religionOther = 'Required';
         if (!emergencyContact.name.trim()) nextErrors.emergencyContact_name = 'Required';
         if (!emergencyContact.relationship.trim()) nextErrors.emergencyContact_relationship = 'Required';
+        if (emergencyContact.relationship === 'Other' && !emergencyContact.relationshipOther.trim()) nextErrors.emergencyContact_relationshipOther = 'Required';
         if (isMinor) {
             if (!guardian.name.trim()) nextErrors.guardian_name = 'Required';
             if (!guardian.relationship.trim()) nextErrors.guardian_relationship = 'Required';
+            if (guardian.relationship === 'Other' && !guardian.relationshipOther.trim()) nextErrors.guardian_relationshipOther = 'Required';
         }
+        if (physician.specialty === 'Other' && !physician.specialtyOther.trim()) nextErrors.physician_specialtyOther = 'Required';
         if (!isPhoneCallPreRegistration && !medicalHistory.inGoodHealth) nextErrors.medicalHistory_inGoodHealth = 'Required';
 
         setErrors(nextErrors);
@@ -456,19 +486,24 @@ export default function PreRegisterPage() {
                     permanentAddress: finalPermanentAddress,
                     guestProfile: {
                         ...profile,
+                        nationality: profile.nationality === 'Other' ? profile.nationalityOther.trim() : profile.nationality,
+                        religion: profile.religion === 'Other' ? profile.religionOther.trim() : profile.religion,
                         homePhone: toPhonePayload(profile.homePhone),
                         workPhone: toPhonePayload(profile.workPhone),
                     },
                     guestEmergencyContact: {
                         ...emergencyContact,
+                        relationship: emergencyContact.relationship === 'Other' ? emergencyContact.relationshipOther.trim() : emergencyContact.relationship,
                         contactNumber: toPhonePayload(emergencyContact.contactNumber),
                     },
                     guestGuardian: {
                         ...guardian,
+                        relationship: guardian.relationship === 'Other' ? guardian.relationshipOther.trim() : guardian.relationship,
                         contactNumber: toPhonePayload(guardian.contactNumber),
                     },
                     guestPhysician: {
                         ...physician,
+                        specialty: physician.specialty === 'Other' ? physician.specialtyOther.trim() : physician.specialty,
                         officeNumber: toPhonePayload(physician.officeNumber),
                     },
                     guestDentalHistory: {
@@ -574,16 +609,39 @@ export default function PreRegisterPage() {
                                     </div>
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Blood Type</label>
-                                        <input className={styles.fieldInput} value={profile.bloodType} onChange={(e) => handleProfileChange('bloodType', e.target.value)} />
+                                        <select className={styles.fieldSelect} value={profile.bloodType} onChange={(e) => handleProfileChange('bloodType', e.target.value)}>
+                                            <option value="">Select blood type</option>
+                                            {bloodTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                                        </select>
                                     </div>
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Nationality</label>
-                                        <input className={styles.fieldInput} value={profile.nationality} onChange={(e) => handleProfileChange('nationality', e.target.value)} />
+                                        <select className={styles.fieldSelect} value={profile.nationality} onChange={(e) => handleProfileChange('nationality', e.target.value)}>
+                                            <option value="">Select nationality</option>
+                                            {NATIONALITY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                        </select>
                                     </div>
+                                    {profile.nationality === 'Other' && (
+                                        <div className={styles.fieldGroup}>
+                                            <label className={styles.fieldLabel}>Other Nationality</label>
+                                            <input className={`${styles.fieldInput} ${errors.profile_nationalityOther ? styles.errorBorder : ''}`} value={profile.nationalityOther} onChange={(e) => handleProfileChange('nationalityOther', e.target.value)} />
+                                            {errors.profile_nationalityOther && <span className={styles.errorText}>{errors.profile_nationalityOther}</span>}
+                                        </div>
+                                    )}
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Religion</label>
-                                        <input className={styles.fieldInput} value={profile.religion} onChange={(e) => handleProfileChange('religion', e.target.value)} />
+                                        <select className={styles.fieldSelect} value={profile.religion} onChange={(e) => handleProfileChange('religion', e.target.value)}>
+                                            <option value="">Select religion</option>
+                                            {RELIGION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                        </select>
                                     </div>
+                                    {profile.religion === 'Other' && (
+                                        <div className={styles.fieldGroup}>
+                                            <label className={styles.fieldLabel}>Other Religion</label>
+                                            <input className={`${styles.fieldInput} ${errors.profile_religionOther ? styles.errorBorder : ''}`} value={profile.religionOther} onChange={(e) => handleProfileChange('religionOther', e.target.value)} />
+                                            {errors.profile_religionOther && <span className={styles.errorText}>{errors.profile_religionOther}</span>}
+                                        </div>
+                                    )}
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Referred By</label>
                                         <input className={styles.fieldInput} value={profile.referredBy} onChange={(e) => handleProfileChange('referredBy', e.target.value)} />
@@ -631,9 +689,19 @@ export default function PreRegisterPage() {
                                     </div>
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Relationship</label>
-                                        <input className={`${styles.fieldInput} ${errors.emergencyContact_relationship ? styles.errorBorder : ''}`} value={emergencyContact.relationship} onChange={(e) => handleContactChange(setEmergencyContact, 'emergencyContact', 'relationship', e.target.value)} />
+                                        <select className={`${styles.fieldSelect} ${errors.emergencyContact_relationship ? styles.errorBorder : ''}`} value={emergencyContact.relationship} onChange={(e) => handleContactChange(setEmergencyContact, 'emergencyContact', 'relationship', e.target.value)}>
+                                            <option value="">Select relationship</option>
+                                            {RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                        </select>
                                         {errors.emergencyContact_relationship && <span className={styles.errorText}>{errors.emergencyContact_relationship}</span>}
                                     </div>
+                                    {emergencyContact.relationship === 'Other' && (
+                                        <div className={styles.fieldGroup}>
+                                            <label className={styles.fieldLabel}>Other Relationship</label>
+                                            <input className={`${styles.fieldInput} ${errors.emergencyContact_relationshipOther ? styles.errorBorder : ''}`} value={emergencyContact.relationshipOther} onChange={(e) => handleContactChange(setEmergencyContact, 'emergencyContact', 'relationshipOther', e.target.value)} />
+                                            {errors.emergencyContact_relationshipOther && <span className={styles.errorText}>{errors.emergencyContact_relationshipOther}</span>}
+                                        </div>
+                                    )}
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Mobile Number</label>
                                         <div className={`${styles.phoneInputGroup} ${errors.emergencyContact_contactNumber ? styles.errorBorder : ''}`}>
@@ -656,9 +724,19 @@ export default function PreRegisterPage() {
                                         </div>
                                         <div className={styles.fieldGroup}>
                                             <label className={styles.fieldLabel}>Relationship</label>
-                                            <input className={`${styles.fieldInput} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={guardian.relationship} onChange={(e) => handleContactChange(setGuardian, 'guardian', 'relationship', e.target.value)} />
+                                            <select className={`${styles.fieldSelect} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={guardian.relationship} onChange={(e) => handleContactChange(setGuardian, 'guardian', 'relationship', e.target.value)}>
+                                                <option value="">Select relationship</option>
+                                                {RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                            </select>
                                             {errors.guardian_relationship && <span className={styles.errorText}>{errors.guardian_relationship}</span>}
                                         </div>
+                                        {guardian.relationship === 'Other' && (
+                                            <div className={styles.fieldGroup}>
+                                                <label className={styles.fieldLabel}>Other Relationship</label>
+                                                <input className={`${styles.fieldInput} ${errors.guardian_relationshipOther ? styles.errorBorder : ''}`} value={guardian.relationshipOther} onChange={(e) => handleContactChange(setGuardian, 'guardian', 'relationshipOther', e.target.value)} />
+                                                {errors.guardian_relationshipOther && <span className={styles.errorText}>{errors.guardian_relationshipOther}</span>}
+                                            </div>
+                                        )}
                                         <div className={styles.fieldGroup}>
                                             <label className={styles.fieldLabel}>Contact Number</label>
                                             <div className={`${styles.phoneInputGroup} ${errors.guardian_contactNumber ? styles.errorBorder : ''}`}>
@@ -844,8 +922,18 @@ export default function PreRegisterPage() {
                                     </div>
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Specialty</label>
-                                        <input className={styles.fieldInput} value={physician.specialty} onChange={(e) => handleContactChange(setPhysician, 'physician', 'specialty', e.target.value)} />
+                                        <select className={styles.fieldSelect} value={physician.specialty} onChange={(e) => handleContactChange(setPhysician, 'physician', 'specialty', e.target.value)}>
+                                            <option value="">Select specialty</option>
+                                            {PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                        </select>
                                     </div>
+                                    {physician.specialty === 'Other' && (
+                                        <div className={styles.fieldGroup}>
+                                            <label className={styles.fieldLabel}>Other Specialty</label>
+                                            <input className={`${styles.fieldInput} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={physician.specialtyOther} onChange={(e) => handleContactChange(setPhysician, 'physician', 'specialtyOther', e.target.value)} />
+                                            {errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}
+                                        </div>
+                                    )}
                                     <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
                                         <label className={styles.fieldLabel}>Office Address</label>
                                         <input className={styles.fieldInput} value={physician.officeAddress} onChange={(e) => handleContactChange(setPhysician, 'physician', 'officeAddress', e.target.value)} />

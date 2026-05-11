@@ -40,6 +40,11 @@ const FALLBACK_PROCEDURE_OPTIONS = [
     'Other',
 ];
 
+const DIRECT_BOOKING_PROCEDURES = [
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
+];
+
 const TREATMENT_CATEGORY_OPTIONS = [
     'General',
     'Prophylaxis',
@@ -863,13 +868,27 @@ export default function SchedulePage() {
             : baseList;
     }, [currentUserId, dentists, formState.branch, isDentist]);
 
-    const procedureOptions = useMemo(() => {
+    const scheduleProcedureOptions = useMemo(() => {
         const savedProcedure = String(formState.procedure || '').trim();
+        const fullProcedureList = clinicProcedures.length > 0 ? clinicProcedures : FALLBACK_PROCEDURE_OPTIONS;
+        const appointmentProcedureList = DIRECT_BOOKING_PROCEDURES.filter((procedure) => (
+            fullProcedureList.includes(procedure) || DIRECT_BOOKING_PROCEDURES.includes(procedure)
+        ));
+        const baseList = formState.formType === 'appointment'
+            ? appointmentProcedureList
+            : fullProcedureList;
+        return savedProcedure && !baseList.includes(savedProcedure)
+            ? [savedProcedure, ...baseList]
+            : baseList;
+    }, [clinicProcedures, formState.formType, formState.procedure]);
+
+    const completionProcedureOptions = useMemo(() => {
+        const savedProcedure = String(completionForm.performedProcedure || completeTarget?.procedure || '').trim();
         const baseList = clinicProcedures.length > 0 ? clinicProcedures : FALLBACK_PROCEDURE_OPTIONS;
         return savedProcedure && !baseList.includes(savedProcedure)
             ? [savedProcedure, ...baseList]
             : baseList;
-    }, [clinicProcedures, formState.procedure]);
+    }, [clinicProcedures, completeTarget?.procedure, completionForm.performedProcedure]);
 
     const editingBaseStatus = editingEntry?.status || formState.status || 'pending';
     const editableStatusOptions = useMemo(() => {
@@ -1723,7 +1742,7 @@ export default function SchedulePage() {
                                     onChange={handleFormFieldChange}
                                 >
                                     <option value="">Select procedure</option>
-                                    {procedureOptions.map((procedure) => (
+                                    {scheduleProcedureOptions.map((procedure) => (
                                         <option key={procedure} value={procedure}>{procedure}</option>
                                     ))}
                                 </select>
@@ -2374,7 +2393,7 @@ export default function SchedulePage() {
                                         }}
                                     >
                                         <option value="">Select the procedure performed</option>
-                                        {procedureOptions.map((procedure) => (
+                                        {completionProcedureOptions.map((procedure) => (
                                             <option key={procedure} value={procedure}>{procedure}</option>
                                         ))}
                                     </select>

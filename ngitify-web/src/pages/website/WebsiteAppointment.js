@@ -105,6 +105,8 @@ export default function WebsiteAppointment() {
     const [submitState, setSubmitState] = useState('idle');
     const [successModalMessage, setSuccessModalMessage] = useState('');
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [errorModalMessage, setErrorModalMessage] = useState('');
+    const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [slotsError, setSlotsError] = useState('');
     const [allowedSlots, setAllowedSlots] = useState([]);
@@ -351,6 +353,7 @@ export default function WebsiteAppointment() {
         setSubmittedMessage('');
         setSubmitState('idle');
         setIsSuccessModalOpen(false);
+        setIsErrorModalOpen(false);
         if (name === 'phone') {
             setErrors((prev) => {
                 const nextErrors = { ...prev };
@@ -373,6 +376,7 @@ export default function WebsiteAppointment() {
         setErrors((prev) => ({ ...prev, preferredTime: '' }));
         setSubmittedMessage('');
         setIsSuccessModalOpen(false);
+        setIsErrorModalOpen(false);
     };
 
     const handleSubmit = async (event) => {
@@ -414,6 +418,21 @@ export default function WebsiteAppointment() {
                 return;
             }
             if (!response.ok) {
+                const conflictMessage = String(data.message || '');
+                if (
+                    response.status === 409
+                    && conflictMessage.includes('This email already belongs to a registered patient')
+                ) {
+                    setErrorModalMessage(conflictMessage);
+                    setIsErrorModalOpen(true);
+                    setSubmittedMessage('');
+                    setSubmitState('error');
+                    if (window.turnstile && turnstileWidgetIdRef.current !== null) {
+                        window.turnstile.reset(turnstileWidgetIdRef.current);
+                        setFormData((prev) => ({ ...prev, turnstileToken: '' }));
+                    }
+                    return;
+                }
                 setSubmittedMessage(data.message || 'Unable to submit your request right now.');
                 setSubmitState('error');
                 if (window.turnstile && turnstileWidgetIdRef.current !== null) {
@@ -823,6 +842,21 @@ export default function WebsiteAppointment() {
                             </button>
                             <button type="button" className={styles.primaryBtn} onClick={() => setIsSuccessModalOpen(false)}>
                                 Book Another Appointment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isErrorModalOpen && errorModalMessage && (
+                <div className={styles.bookingSuccessOverlay} role="dialog" aria-modal="true" aria-labelledby="booking-conflict-title">
+                    <div className={styles.bookingSuccessModal}>
+                        <p className={styles.eyebrow}>Booking Conflict</p>
+                        <h3 id="booking-conflict-title" className={styles.privacyModalTitle}>Existing patient details do not match</h3>
+                        <p className={styles.bodyText}>{errorModalMessage}</p>
+                        <div className={styles.bookingSuccessActions}>
+                            <button type="button" className={styles.primaryBtn} onClick={() => setIsErrorModalOpen(false)}>
+                                I Understand
                             </button>
                         </div>
                     </div>

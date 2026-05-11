@@ -3914,6 +3914,11 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
         if (!(await isClinicProcedureAllowed(surgeryData.procedure))) {
             return res.status(400).json({ message: 'Please select a valid clinic procedure.' });
         }
+        if (surgeryData.source !== 'Walk-in' && !DIRECT_BOOKING_PROCEDURES.includes(String(surgeryData.procedure || '').trim())) {
+            return res.status(400).json({
+                message: 'Booked appointments may only use General Check-up / Initial Consultation or Prophylaxis / Dental Cleaning.',
+            });
+        }
 
         // Branch-scoped staff can only create appointments for their own branch
         if (isBranchScopedStaff(req.user.role)) {
@@ -4314,6 +4319,16 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         if (updateData.procedure !== undefined && !(await isClinicProcedureAllowed(updateData.procedure))) {
             return res.status(400).json({ message: 'Please select a valid clinic procedure.' });
         }
+        if (
+            updateData.procedure !== undefined
+            && String(existing.source || '').trim() !== 'Walk-in'
+            && String(updateData.procedure || '').trim() !== String(existing.procedure || '').trim()
+            && !DIRECT_BOOKING_PROCEDURES.includes(String(updateData.procedure || '').trim())
+        ) {
+            return res.status(400).json({
+                message: 'Booked appointments may only use General Check-up / Initial Consultation or Prophylaxis / Dental Cleaning.',
+            });
+        }
 
         if (updateData.status === 'completed' && existing.status !== 'in-clinic' && nextDateTime && nextDateTime > new Date()) {
             return res.status(400).json({ message: 'Appointments can only be marked completed after their scheduled date and time.' });
@@ -4471,6 +4486,9 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         res.json(updatedSurgery);
     } catch (error) {
         console.error("Error updating dental treatment:", error);
+        if (error?.name === 'CastError' || error?.name === 'ValidationError') {
+            return res.status(400).json({ message: error.message || 'Please review the updated schedule details and try again.' });
+        }
         res.status(500).json({ message: "Error updating dental treatment." });
     }
 });
