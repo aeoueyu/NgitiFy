@@ -6,6 +6,7 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
+import { formatPatientDuplicateLine, getPatientDuplicateSections } from '../../utils/patientDuplicateWarnings';
 import {
     ALLERGY_OPTIONS,
     MEDICAL_CONDITION_OPTIONS,
@@ -78,6 +79,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [errors, setErrors] = useState({});
+    const [duplicateSummary, setDuplicateSummary] = useState(null);
     const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
@@ -115,10 +117,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     });
 
     const validateEmail = (email) => {
-        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formatRegex.test(email)) return false;
-        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
-        return allowedDomains.includes(email.split('@')[1].toLowerCase());
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
     };
 
     const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, c => c.toUpperCase());
@@ -129,7 +128,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     const handleBlur = (e) => {
         const { name, value } = e.target;
         let newError = '';
-        if (name === 'email') { if (!value) newError = 'Required'; else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)'; }
+        if (name === 'email') { if (!value) newError = 'Required'; else if (!validateEmail(value)) newError = 'Enter a valid email address.'; }
         else if (name === 'phone' || name === 'guardianContact') { if (!value) newError = 'Required'; else if (!isValidMobileNumber(value)) newError = 'Invalid format (9xxxxxxxxx)'; }
         setErrors(prev => ({ ...prev, [name]: newError }));
     };
@@ -276,7 +275,7 @@ export default function AddPatient({ onClose, onSuccess }) {
         if (!currentFormData.emergencyContactPhone) { newErrors.emergencyContactPhone = 'Required'; isValid = false; }
         else if (!isValidMobileNumber(currentFormData.emergencyContactPhone)) { newErrors.emergencyContactPhone = 'Invalid format'; isValid = false; }
         if (currentFormData.physician.officeNumber && !isValidLandlineNumber(currentFormData.physician.officeNumber)) { newErrors.physician_officeNumber = 'Invalid landline format'; isValid = false; }
-        if (currentFormData.email && !validateEmail(currentFormData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
+        if (currentFormData.email && !validateEmail(currentFormData.email)) { newErrors.email = 'Invalid email address.'; isValid = false; }
         if (!currentFormData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = 'Required'; isValid = false; }
         if (!currentFormData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = 'Required'; isValid = false; }
         if (!currentFormData.dataPrivacyConsent.acknowledged) { newErrors.dataPrivacyConsent_acknowledged = 'Required'; isValid = false; }
@@ -319,6 +318,16 @@ export default function AddPatient({ onClose, onSuccess }) {
         }
     }, [formData, hasTriedSubmit]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    useEffect(() => {
+        setDuplicateSummary(null);
+        setErrors((prev) => {
+            if (!prev.duplicateCheck) return prev;
+            const next = { ...prev };
+            delete next.duplicateCheck;
+            return next;
+        });
+    }, [formData.firstName, formData.lastName, formData.birthdate, formData.email, formData.phone]);
+
     const validateForm = () => {
         const newErrors = getValidationErrors(formData);
         setErrors(newErrors);
@@ -331,12 +340,12 @@ export default function AddPatient({ onClose, onSuccess }) {
     };
 
     const hasFormErrors = Object.keys(getValidationErrors(formData)).length > 0;
+    const duplicateSections = getPatientDuplicateSections(duplicateSummary);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setHasTriedSubmit(true);
         if (!validateForm()) return;
-        setIsLoading(true);
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email: formData.email, contactNumber: toMobilePayload(formData.phone),
@@ -411,13 +420,34 @@ export default function AddPatient({ onClose, onSuccess }) {
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: { country: 'Philippines', ...formData.currentAddress },
         };
+        setIsLoading(true);
         try {
+            const duplicateResponse = await authFetch('/patients/duplicate-check', {
+                method: 'POST',
+                body: JSON.stringify({
+                    firstName: formData.firstName.trim(),
+                    lastName: formData.lastName.trim(),
+                    birthdate: formData.birthdate,
+                    email: formData.email.trim(),
+                    contactNumber: finalData.contactNumber,
+                }),
+            });
+            const duplicateData = await duplicateResponse.json().catch(() => ({}));
+            if (duplicateResponse.ok && duplicateData?.hasStrongMatch) {
+                setDuplicateSummary(duplicateData);
+                setErrors((prev) => ({ ...prev, duplicateCheck: 'Possible existing patient found. Review the duplicate warning before creating a new record.' }));
+                setIsLoading(false);
+                return;
+            }
+
             const response = await authFetch('/add-patient', { method: 'POST', body: JSON.stringify(finalData) });
             const data = await response.json();
             if (response.ok) { setShowSuccessModal(true); }
             else if (response.status === 409) {
-                setErrors(prev => ({ ...prev, [data.field]: data.message }));
-                const el = document.getElementsByName(data.field)[0];
+                if (data.duplicateSummary) setDuplicateSummary(data.duplicateSummary);
+                const nextField = data.field || 'duplicateCheck';
+                setErrors(prev => ({ ...prev, [nextField]: data.message }));
+                const el = document.getElementsByName(nextField)[0];
                 if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
             } else alert(data.message || 'Failed to add patient');
         } catch (error) { console.error(error); alert('Cannot connect to server.'); }
@@ -518,6 +548,29 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
 
                     <h3 className={styles.mainSectionTitle}>Patient Details</h3>
+                    {duplicateSections.length > 0 && (
+                        <div style={{ marginBottom: '18px', padding: '16px 18px', borderRadius: '16px', border: '1px solid #f8d7a8', background: '#fff8e8' }}>
+                            <strong style={{ display: 'block', color: '#8a5b00', marginBottom: '6px' }}>
+                                {duplicateSummary?.hasStrongMatch ? 'Possible existing patient found' : 'Possible duplicate details found'}
+                            </strong>
+                            <span style={{ display: 'block', color: '#7a5b20', fontSize: '13px', lineHeight: '1.5' }}>
+                                Review the existing patient matches below before creating a new record.
+                            </span>
+                            {errors.duplicateCheck && <span className={styles.errorText}>{errors.duplicateCheck}</span>}
+                            {duplicateSections.map((section) => (
+                                <div key={section.key} style={{ marginTop: '10px' }}>
+                                    <div style={{ color: '#6b4f1d', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{section.label}</div>
+                                    <ul style={{ margin: '6px 0 0 18px', padding: 0, color: '#5c4520' }}>
+                                        {section.items.slice(0, 3).map((patient) => (
+                                            <li key={`${section.key}-${patient.id}`} style={{ marginBottom: '4px' }}>
+                                                {formatPatientDuplicateLine(patient)}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Row 1: Names */}
                     <div className={styles.row}>

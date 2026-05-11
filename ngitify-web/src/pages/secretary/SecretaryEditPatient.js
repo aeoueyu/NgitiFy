@@ -95,9 +95,7 @@ export default function SecretaryEditPatient() {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     const validateEmail = (email) => {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
-        const allowed = ['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com'];
-        return allowed.includes(email.split('@')[1].toLowerCase());
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
     };
 
     const toTitleCase = (str) =>
@@ -140,7 +138,7 @@ export default function SecretaryEditPatient() {
         const { name, value } = e.target;
         if (name === 'email') {
             if (!value) setErrors(p => ({ ...p, email: 'Required' }));
-            else if (!validateEmail(value)) setErrors(p => ({ ...p, email: 'Invalid domain (e.g. gmail.com)' }));
+            else if (!validateEmail(value)) setErrors(p => ({ ...p, email: 'Enter a valid email address.' }));
         }
         if (name === 'phone' || name === 'guardianContact') {
             if (!value) setErrors(p => ({ ...p, [name]: 'Required' }));
@@ -200,7 +198,7 @@ export default function SecretaryEditPatient() {
         else if (formData.phone.length !== 10 || formData.phone[0] !== '9')
             { newErrors.phone = 'Invalid format'; isValid = false; }
         if (formData.email && !validateEmail(formData.email))
-            { newErrors.email = 'Invalid email domain'; isValid = false; }
+            { newErrors.email = 'Invalid email address.'; isValid = false; }
 
         const validateAddr = (addr, prefix) => {
             ['region','province','city','barangay','street','houseNumber'].forEach(f => {

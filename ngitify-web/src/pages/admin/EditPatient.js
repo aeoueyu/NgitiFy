@@ -111,10 +111,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     });
 
     const validateEmail = (email) => {
-        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formatRegex.test(email)) return false;
-        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
-        return allowedDomains.includes(email.split('@')[1].toLowerCase());
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
     };
 
     const getAge = (dateValue) => {
@@ -401,7 +398,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         let newError = '';
         if (name === 'email') {
             if (!value) newError = 'Required';
-            else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)';
+            else if (!validateEmail(value)) newError = 'Enter a valid email address.';
         } else if (name === 'phone' && value && !isValidMobileNumber(value)) {
             newError = 'Invalid format (9xxxxxxxxx)';
         } else if (['homePhone', 'workPhone'].includes(name) && value && !isValidLandlineNumber(value)) {
@@ -445,7 +442,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         }
 
         if (formData.email && !validateEmail(formData.email)) {
-            nextErrors.email = 'Invalid domain';
+            nextErrors.email = 'Invalid email address.';
             isValid = false;
         }
 

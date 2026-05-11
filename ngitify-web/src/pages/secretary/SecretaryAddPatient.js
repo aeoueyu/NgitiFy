@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/secretary/SecretaryAddPatient.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
@@ -6,6 +6,7 @@ import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
+import { formatPatientDuplicateLine, getPatientDuplicateSections } from '../../utils/patientDuplicateWarnings';
 
 export default function SecretaryAddPatient() {
     const navigate  = useNavigate();
@@ -18,6 +19,7 @@ export default function SecretaryAddPatient() {
     const [isLoading, setIsLoading]         = useState(false);
     const [showSuccess, setShowSuccess]     = useState(false);
     const [errors, setErrors]               = useState({});
+    const [duplicateSummary, setDuplicateSummary] = useState(null);
 
     const initialAddress = {
         country: 'Philippines', region: '', province: '',
@@ -34,10 +36,7 @@ export default function SecretaryAddPatient() {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     const validateEmail = (email) => {
-        const fmt = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!fmt.test(email)) return false;
-        const allowed = ['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com'];
-        return allowed.includes(email.split('@')[1].toLowerCase());
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
     };
 
     const toTitleCase = (str) =>
@@ -81,7 +80,7 @@ export default function SecretaryAddPatient() {
         const { name, value } = e.target;
         if (name === 'email') {
             if (!value) setErrors(prev => ({ ...prev, email: 'Required' }));
-            else if (!validateEmail(value)) setErrors(prev => ({ ...prev, email: 'Invalid domain (e.g. gmail.com)' }));
+            else if (!validateEmail(value)) setErrors(prev => ({ ...prev, email: 'Enter a valid email address.' }));
         }
         if (name === 'phone' || name === 'guardianContact') {
             if (!value) setErrors(prev => ({ ...prev, [name]: 'Required' }));
@@ -147,7 +146,7 @@ export default function SecretaryAddPatient() {
             { newErrors.phone = 'Invalid format'; isValid = false; }
 
         if (formData.email && !validateEmail(formData.email))
-            { newErrors.email = 'Invalid email domain'; isValid = false; }
+            { newErrors.email = 'Invalid email address.'; isValid = false; }
 
         const validateAddr = (addr, prefix) => {
             ['region','province','city','barangay','street','houseNumber'].forEach(f => {
@@ -167,11 +166,20 @@ export default function SecretaryAddPatient() {
         return isValid;
     };
 
+    useEffect(() => {
+        setDuplicateSummary(null);
+        setErrors((prev) => {
+            if (!prev.duplicateCheck) return prev;
+            const next = { ...prev };
+            delete next.duplicateCheck;
+            return next;
+        });
+    }, [formData.firstName, formData.lastName, formData.birthdate, formData.email, formData.phone]);
+
     // ── Submit ────────────────────────────────────────────────────────────────
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
-        setIsLoading(true);
 
         const payload = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
@@ -192,16 +200,37 @@ export default function SecretaryAddPatient() {
                 ? { country: 'Philippines', ...formData.currentAddress }
                 : { country: 'Philippines', ...formData.permanentAddress },
         };
+        setIsLoading(true);
 
         try {
+            const duplicateResponse = await authFetch('/patients/duplicate-check', {
+                method: 'POST',
+                body: JSON.stringify({
+                    firstName: formData.firstName.trim(),
+                    lastName: formData.lastName.trim(),
+                    birthdate: formData.birthdate,
+                    email: formData.email.trim(),
+                    contactNumber: payload.contactNumber,
+                }),
+            });
+            const duplicateData = await duplicateResponse.json().catch(() => ({}));
+            if (duplicateResponse.ok && duplicateData?.hasStrongMatch) {
+                setDuplicateSummary(duplicateData);
+                setErrors((prev) => ({ ...prev, duplicateCheck: 'Possible existing patient found. Review the duplicate warning before creating a new record.' }));
+                setIsLoading(false);
+                return;
+            }
+
             const res  = await authFetch('/add-patient', { method: 'POST', body: JSON.stringify(payload) });
             const data = await res.json();
 
             if (res.ok) {
                 setShowSuccess(true);
             } else if (res.status === 409) {
-                setErrors(prev => ({ ...prev, [data.field]: data.message }));
-                const el = document.getElementsByName(data.field)[0];
+                if (data.duplicateSummary) setDuplicateSummary(data.duplicateSummary);
+                const nextField = data.field || 'duplicateCheck';
+                setErrors(prev => ({ ...prev, [nextField]: data.message }));
+                const el = document.getElementsByName(nextField)[0];
                 if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
             } else {
                 addToast(data.message || 'Failed to register patient.', 'error');
@@ -291,6 +320,8 @@ export default function SecretaryAddPatient() {
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
+    const duplicateSections = getPatientDuplicateSections(duplicateSummary);
+
     return (
         <div className={styles.page}>
             {/* Page Header */}
@@ -306,6 +337,29 @@ export default function SecretaryAddPatient() {
 
             <div className={styles.formCard}>
                 <form onSubmit={handleSubmit} noValidate>
+                    {duplicateSections.length > 0 && (
+                        <div style={{ marginBottom: '18px', padding: '16px 18px', borderRadius: '16px', border: '1px solid #f8d7a8', background: '#fff8e8' }}>
+                            <strong style={{ display: 'block', color: '#8a5b00', marginBottom: '6px' }}>
+                                {duplicateSummary?.hasStrongMatch ? 'Possible existing patient found' : 'Possible duplicate details found'}
+                            </strong>
+                            <span style={{ display: 'block', color: '#7a5b20', fontSize: '13px', lineHeight: '1.5' }}>
+                                Review the existing patient matches below before creating a new record.
+                            </span>
+                            {errors.duplicateCheck && <span className={styles.errorText}>{errors.duplicateCheck}</span>}
+                            {duplicateSections.map((section) => (
+                                <div key={section.key} style={{ marginTop: '10px' }}>
+                                    <div style={{ color: '#6b4f1d', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{section.label}</div>
+                                    <ul style={{ margin: '6px 0 0 18px', padding: 0, color: '#5c4520' }}>
+                                        {section.items.slice(0, 3).map((patient) => (
+                                            <li key={`${section.key}-${patient.id}`} style={{ marginBottom: '4px' }}>
+                                                {formatPatientDuplicateLine(patient)}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Profile Photo */}
                     <div className={styles.uploadSection}>

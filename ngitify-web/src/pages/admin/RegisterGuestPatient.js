@@ -7,6 +7,7 @@ import { authFetch } from '../../utils/api';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
+import { formatPatientDuplicateLine, getPatientDuplicateSections } from '../../utils/patientDuplicateWarnings';
 import {
     ALLERGY_OPTIONS,
     MEDICAL_CONDITION_OPTIONS,
@@ -95,6 +96,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [errors, setErrors] = useState({});
+    const [duplicateSummary, setDuplicateSummary] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
     const [registrationMode, setRegistrationMode] = useState('create-new');
@@ -248,11 +250,18 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         fetchBranches();
     }, []);
 
+    useEffect(() => {
+        setDuplicateSummary(null);
+        setErrors((prev) => {
+            if (!prev.duplicateCheck) return prev;
+            const next = { ...prev };
+            delete next.duplicateCheck;
+            return next;
+        });
+    }, [formData.firstName, formData.lastName, formData.birthdate, formData.email, formData.phone, registrationMode]);
+
     const validateEmail = (email) => {
-        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formatRegex.test(email)) return false;
-        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
-        return allowedDomains.includes(email.split('@')[1].toLowerCase());
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
     };
 
     const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
@@ -277,7 +286,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         let newError = '';
         if (name === 'email') {
             if (!value) newError = 'Required';
-            else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)';
+            else if (!validateEmail(value)) newError = 'Enter a valid email address.';
         } else if (name === 'phone' || name === 'guardianContact') {
             if (!value) newError = 'Required';
             else if (!isValidMobileNumber(value)) newError = 'Invalid format (9xxxxxxxxx)';
@@ -432,7 +441,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
 
         if (isLinkMode) {
             if (formData.email && !validateEmail(formData.email)) {
-                nextErrors.email = 'Invalid domain';
+                nextErrors.email = 'Invalid email address.';
                 isValid = false;
             }
             setErrors(nextErrors);
@@ -464,7 +473,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         }
 
         if (formData.email && !validateEmail(formData.email)) {
-            nextErrors.email = 'Invalid domain';
+            nextErrors.email = 'Invalid email address.';
             isValid = false;
         }
         if (!formData.consentAcknowledgement.acknowledged) {
@@ -560,7 +569,6 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         e.preventDefault();
         if (!validateForm()) return;
 
-        setIsLoading(true);
         const payload = {
             name: {
                 first: formData.firstName,
@@ -646,8 +654,29 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             currentAddress: { country: 'Philippines', ...formData.currentAddress },
             permanentAddress: { country: 'Philippines', ...formData.currentAddress },
         };
+        setIsLoading(true);
 
         try {
+            if (!isLinkMode) {
+                const duplicateResponse = await authFetch('/patients/duplicate-check', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        firstName: formData.firstName.trim(),
+                        lastName: formData.lastName.trim(),
+                        birthdate: formData.birthdate,
+                        email: formData.email.trim(),
+                        contactNumber: payload.contactNumber,
+                    }),
+                });
+                const duplicateData = await duplicateResponse.json().catch(() => ({}));
+                if (duplicateResponse.ok && duplicateData?.hasStrongMatch) {
+                    setDuplicateSummary(duplicateData);
+                    setErrors((prev) => ({ ...prev, duplicateCheck: 'Possible existing patient found. Review the duplicate warning before creating a new record.' }));
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
             const response = await authFetch(`/admin/appointments/${appointment.id}/register-guest`, {
                 method: 'POST',
                 body: JSON.stringify(payload),
@@ -658,7 +687,11 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 setSuccessMessage(data.message || 'Guest appointment registered successfully.');
                 setShowSuccessModal(true);
             } else if ([404, 409].includes(response.status)) {
-                setErrors((prev) => ({ ...prev, email: data.message || 'Email already exists.' }));
+                if (data.duplicateSummary) setDuplicateSummary(data.duplicateSummary);
+                setErrors((prev) => ({
+                    ...prev,
+                    [data.field || (isLinkMode ? 'email' : 'duplicateCheck')]: data.message || 'Email already exists.',
+                }));
             } else {
                 alert(data.message || 'Failed to register guest patient.');
             }
@@ -687,6 +720,8 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         navigate(patientRecordPath);
     };
 
+    const duplicateSections = getPatientDuplicateSections(duplicateSummary);
+
     return (
         <div className={styles.mainOverlay}>
             <div className={styles.overlayBackground} onClick={!isLoading && !showSuccessModal ? onClose : undefined} />
@@ -703,6 +738,30 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 </div>
 
                 <form onSubmit={handleSubmit} noValidate>
+                    {duplicateSections.length > 0 && !isLinkMode && (
+                        <div style={{ marginBottom: '18px', padding: '16px 18px', borderRadius: '16px', border: '1px solid #f8d7a8', background: '#fff8e8' }}>
+                            <strong style={{ display: 'block', color: '#8a5b00', marginBottom: '6px' }}>
+                                {duplicateSummary?.hasStrongMatch ? 'Possible existing patient found' : 'Possible duplicate details found'}
+                            </strong>
+                            <span style={{ display: 'block', color: '#7a5b20', fontSize: '13px', lineHeight: '1.5' }}>
+                                Review the existing patient matches below before creating a new patient account from this guest booking.
+                            </span>
+                            {errors.duplicateCheck && <span className={styles.errorText}>{errors.duplicateCheck}</span>}
+                            {duplicateSections.map((section) => (
+                                <div key={section.key} style={{ marginTop: '10px' }}>
+                                    <div style={{ color: '#6b4f1d', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{section.label}</div>
+                                    <ul style={{ margin: '6px 0 0 18px', padding: 0, color: '#5c4520' }}>
+                                        {section.items.slice(0, 3).map((patient) => (
+                                            <li key={`${section.key}-${patient.id}`} style={{ marginBottom: '4px' }}>
+                                                {formatPatientDuplicateLine(patient)}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className={styles.addressSection}>
                         <h3 className={styles.mainSectionTitle}>Conversion Flow</h3>
                         <p className={styles.sectionSubtitle}>

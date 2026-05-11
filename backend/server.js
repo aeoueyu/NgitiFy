@@ -1516,6 +1516,7 @@ const sendPasswordResetOtpEmail = async ({ email, code }) => {
 };
 
 const normalizeEmail = (email = '') => email.trim().toLowerCase();
+const isValidEmailAddress = (email = '') => GUEST_EMAIL_REGEX.test(normalizeEmail(email));
 
 const normalizePhoneNumber = (phone = '') => {
     const digits = String(phone).replace(/\D/g, '');
@@ -1524,6 +1525,121 @@ const normalizePhoneNumber = (phone = '') => {
     if (digits.startsWith('0') && digits.length === 11) return `+63${digits.slice(1)}`;
     if (digits.startsWith('9') && digits.length === 10) return `+63${digits}`;
     return phone.trim();
+};
+
+const normalizeComparableText = (value = '') => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+const normalizeComparableBirthdate = (value = '') => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return new Date(parsed.getTime() - (parsed.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+};
+
+const getPhoneDigits = (value = '') => String(value || '').replace(/\D/g, '');
+
+const formatDuplicatePatientSummary = (patient) => ({
+    id: patient._id,
+    name: [patient.name?.first || '', patient.name?.last || ''].filter(Boolean).join(' ').trim() || patient.email || 'Unknown Patient',
+    email: patient.email || '',
+    contactNumber: patient.contactNumber || '',
+    birthdate: patient.birthdate ? new Date(patient.birthdate).toISOString().split('T')[0] : '',
+    assignedBranch: patient.assignedBranch || patient.assignedBranches?.[0] || '',
+    status: patient.status || '',
+});
+
+const buildDuplicatePatientSummary = async ({
+    email = '',
+    contactNumber = '',
+    firstName = '',
+    lastName = '',
+    birthdate = '',
+    excludePatientId = '',
+    branchScope = '',
+}) => {
+    const normalizedEmail = normalizeEmail(email || '');
+    const normalizedContactNumber = normalizePhoneNumber(contactNumber || '');
+    const normalizedPhoneDigits = getPhoneDigits(normalizedContactNumber);
+    const normalizedFirstName = normalizeComparableText(firstName || '');
+    const normalizedLastName = normalizeComparableText(lastName || '');
+    const normalizedBirthdate = normalizeComparableBirthdate(birthdate || '');
+    const trimmedBranchScope = String(branchScope || '').trim();
+
+    const emptyResponse = {
+        hasStrongMatch: false,
+        hasAnyMatch: false,
+        exactEmailMatches: [],
+        exactPhoneMatches: [],
+        sameFullNameBirthdateMatches: [],
+        sameLastNameBirthdateMatches: [],
+    };
+
+    const shouldCheckIdentity = normalizedLastName && normalizedBirthdate;
+    const shouldCheckFullIdentity = normalizedFirstName && normalizedLastName && normalizedBirthdate;
+    if (!normalizedEmail && !normalizedPhoneDigits && !shouldCheckIdentity) {
+        return emptyResponse;
+    }
+
+    const candidateFilter = { role: 'patient' };
+    if (trimmedBranchScope) {
+        candidateFilter.assignedBranches = { $in: [trimmedBranchScope] };
+    }
+    if (excludePatientId && mongoose.Types.ObjectId.isValid(excludePatientId)) {
+        candidateFilter._id = { $ne: excludePatientId };
+    }
+
+    const candidateClauses = [];
+    if (normalizedEmail) {
+        candidateClauses.push({ email: normalizedEmail });
+    }
+    if (normalizedPhoneDigits) {
+        candidateClauses.push({ contactNumber: { $regex: `${normalizedPhoneDigits}$` } });
+    }
+    if (normalizedBirthdate) {
+        const birthdateStart = new Date(`${normalizedBirthdate}T00:00:00.000Z`);
+        const birthdateEnd = new Date(`${normalizedBirthdate}T23:59:59.999Z`);
+        candidateClauses.push({ birthdate: { $gte: birthdateStart, $lte: birthdateEnd } });
+    }
+
+    const candidates = await User.find({
+        ...candidateFilter,
+        $or: candidateClauses,
+    })
+        .select('name email contactNumber birthdate assignedBranch assignedBranches status')
+        .limit(30)
+        .lean();
+
+    const exactEmailMatches = normalizedEmail
+        ? candidates.filter((patient) => normalizeEmail(patient.email || '') === normalizedEmail)
+        : [];
+    const exactPhoneMatches = normalizedPhoneDigits
+        ? candidates.filter((patient) => getPhoneDigits(patient.contactNumber || '') === normalizedPhoneDigits)
+        : [];
+    const sameFullNameBirthdateMatches = shouldCheckFullIdentity
+        ? candidates.filter((patient) => (
+            normalizeComparableText(patient.name?.first || '') === normalizedFirstName
+            && normalizeComparableText(patient.name?.last || '') === normalizedLastName
+            && normalizeComparableBirthdate(patient.birthdate) === normalizedBirthdate
+        ))
+        : [];
+    const sameLastNameBirthdateMatches = shouldCheckIdentity
+        ? candidates.filter((patient) => (
+            normalizeComparableText(patient.name?.last || '') === normalizedLastName
+            && normalizeComparableBirthdate(patient.birthdate) === normalizedBirthdate
+        ))
+        : [];
+
+    return {
+        hasStrongMatch: exactEmailMatches.length > 0 || sameFullNameBirthdateMatches.length > 0,
+        hasAnyMatch: exactEmailMatches.length > 0
+            || exactPhoneMatches.length > 0
+            || sameFullNameBirthdateMatches.length > 0
+            || sameLastNameBirthdateMatches.length > 0,
+        exactEmailMatches: exactEmailMatches.map(formatDuplicatePatientSummary),
+        exactPhoneMatches: exactPhoneMatches.map(formatDuplicatePatientSummary),
+        sameFullNameBirthdateMatches: sameFullNameBirthdateMatches.map(formatDuplicatePatientSummary),
+        sameLastNameBirthdateMatches: sameLastNameBirthdateMatches.map(formatDuplicatePatientSummary),
+    };
 };
 
 const verifyTurnstileToken = async ({ token, remoteIp }) => {
@@ -2143,7 +2259,12 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             return res.status(403).json({ message: "Access denied." });
         }
         const { email, assignedBranch = '', assignedBranches = [], ...otherData } = req.body;
+        const normalizedEmail = normalizeEmail(email || '');
         const scopedBranch = getScopedBranchForUser(req.user);
+
+        if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
+            return res.status(400).json({ field: 'email', message: 'A valid email address is required before registering a patient.' });
+        }
 
         let normalizedAssignedBranch = assignedBranch;
         let normalizedAssignedBranches = assignedBranch ? [assignedBranch] : assignedBranches;
@@ -2156,8 +2277,24 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             normalizedAssignedBranches = [scopedBranch];
         }
 
-        const existing = await User.findOne({ email });
+        const existing = await User.findOne({ email: normalizedEmail });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
+
+        const duplicateSummary = await buildDuplicatePatientSummary({
+            email: normalizedEmail,
+            contactNumber: otherData.contactNumber || '',
+            firstName: otherData.name?.first || '',
+            lastName: otherData.name?.last || '',
+            birthdate: otherData.birthdate || '',
+            branchScope: isBranchScopedStaff(req.user.role) ? scopedBranch : '',
+        });
+        if (duplicateSummary.hasStrongMatch) {
+            return res.status(409).json({
+                field: 'duplicateCheck',
+                message: 'Possible existing patient found. Review the duplicate warning before creating a new record.',
+                duplicateSummary,
+            });
+        }
 
         const tempPassword = crypto.randomBytes(4).toString('hex');
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
@@ -2166,7 +2303,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
 
         const newUser = new User({
             ...otherData,
-            email,
+            email: normalizedEmail,
             assignedBranch: normalizedAssignedBranch,
             assignedBranches: normalizedAssignedBranches,
             password: hashedPassword,
@@ -2182,7 +2319,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             action: "CREATE_PATIENT",
             user: req.user?.email || req.user?.id || "SYSTEM",
             role: req.user?.role || "SYSTEM",
-            details: `Created new patient: ${email}`
+            details: `Created new patient: ${normalizedEmail}`
         });
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
@@ -2191,7 +2328,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
         console.log(`🔗 Activation link: ${activationLink}`);
 
         try {
-            await sendActivationEmail(email, 'Patient', tempPassword, activationLink);
+            await sendActivationEmail(normalizedEmail, 'Patient', tempPassword, activationLink);
             console.log(`✅ Email sent successfully to: ${email}`);
             res.status(201).json({ message: 'Patient added successfully. Activation email sent.' });
         } catch (emailError) {
@@ -2366,6 +2503,35 @@ app.get('/api/patients', verifyToken, async (req, res) => {
     }
 });
 
+app.post('/api/patients/duplicate-check', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    try {
+        const scopedBranch = isBranchScopedStaff(req.user.role) ? getScopedBranchForUser(req.user) : '';
+        if (isBranchScopedStaff(req.user.role) && !scopedBranch) {
+            return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
+        }
+
+        const responsePayload = await buildDuplicatePatientSummary({
+            email: req.body.email || '',
+            contactNumber: req.body.contactNumber || req.body.phone || '',
+            firstName: req.body.firstName || req.body.name?.first || '',
+            lastName: req.body.lastName || req.body.name?.last || '',
+            birthdate: req.body.birthdate || '',
+            excludePatientId: String(req.body.excludePatientId || req.body.patientId || '').trim(),
+            branchScope: scopedBranch,
+        });
+
+        return res.json(responsePayload);
+    } catch (error) {
+        console.error('Error checking patient duplicates:', error);
+        return res.status(500).json({ message: 'Server error checking patient duplicates.' });
+    }
+});
+
 app.get('/api/patients/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
@@ -2402,6 +2568,7 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
 app.put('/api/patients/:id', verifyToken, async (req, res) => {
     try {
         const { email } = req.body;
+        const normalizedRequestedEmail = email !== undefined ? normalizeEmail(email) : undefined;
         const patientId = req.params.id;
 
         const currentPatient = await User.findById(patientId);
@@ -2500,10 +2667,16 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             updateData.assignedBranch = assignedBranches[0] || '';
         }
 
-        if (email && email !== currentPatient.email) {
-            const emailExists = await User.findOne({ email, _id: { $ne: patientId } });
+        if (email !== undefined) {
+            if (!normalizedRequestedEmail || !isValidEmailAddress(normalizedRequestedEmail)) {
+                return res.status(400).json({ message: 'A valid patient email address is required.' });
+            }
+        }
+
+        if (normalizedRequestedEmail && normalizedRequestedEmail !== currentPatient.email) {
+            const emailExists = await User.findOne({ email: normalizedRequestedEmail, _id: { $ne: patientId } });
             if (emailExists) return res.status(409).json({ message: "This email address is already in use by another account." });
-            updateData.email = email;
+            updateData.email = normalizedRequestedEmail;
         }
 
         const updatedPatient = await User.findByIdAndUpdate(
@@ -3615,6 +3788,19 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
                 return res.status(400).json({ message: 'A valid guest contact number is required for a phone call booking without a linked patient.' });
             }
 
+            const duplicateSummary = await buildDuplicatePatientSummary({
+                email: guestEmail,
+                contactNumber: guestPhone,
+                branchScope: isBranchScopedStaff(req.user.role) ? getScopedBranchForUser(req.user) : '',
+            });
+            if (duplicateSummary.exactEmailMatches.length > 0 || duplicateSummary.exactPhoneMatches.length > 0) {
+                return res.status(409).json({
+                    field: 'patient',
+                    message: 'This phone number or email already belongs to an existing patient. Select that patient account instead of creating a guest phone call booking.',
+                    duplicateSummary,
+                });
+            }
+
             surgeryData.guestName = guestName;
             surgeryData.guestEmail = guestEmail;
             surgeryData.guestPhone = guestPhone;
@@ -3850,6 +4036,9 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
         if (!patientPayload.email) {
             return res.status(400).json({ message: 'Patient email is required.' });
         }
+        if (!isValidEmailAddress(patientPayload.email)) {
+            return res.status(400).json({ message: 'A valid patient email address is required.' });
+        }
         if (!patientPayload.contactNumber) {
             return res.status(400).json({ message: 'Patient contact number is required.' });
         }
@@ -3858,6 +4047,22 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
         }
         if (!patientPayload.assignedBranch) {
             return res.status(400).json({ message: 'Assigned branch is required.' });
+        }
+
+        const duplicateSummary = await buildDuplicatePatientSummary({
+            email: patientPayload.email,
+            contactNumber: patientPayload.contactNumber || '',
+            firstName: patientPayload.name?.first || '',
+            lastName: patientPayload.name?.last || '',
+            birthdate: patientPayload.birthdate || '',
+            branchScope: isBranchScopedStaff(req.user.role) ? assignedBranchOverride : '',
+        });
+        if (duplicateSummary.hasStrongMatch) {
+            return res.status(409).json({
+                field: 'duplicateCheck',
+                message: 'Possible existing patient found. Review the duplicate warning before creating a new record.',
+                duplicateSummary,
+            });
         }
 
         const tempPassword = crypto.randomBytes(4).toString('hex');
@@ -3955,6 +4160,10 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         const existing = await Surgery.findById(req.params.id);
         if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
 
+        if (['completed', 'cancelled'].includes(String(existing.status || '').toLowerCase())) {
+            return res.status(400).json({ message: 'Completed and cancelled schedules can no longer be edited.' });
+        }
+
         if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);
             if (!scopedBranch) {
@@ -4009,6 +4218,47 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             const currentStamp = getCurrentScheduleStamp();
             updateData.date = currentStamp.date;
             updateData.time = currentStamp.time;
+        }
+
+        const isUnlinkedPhoneCall = String(existing.source || '').trim() === 'Phone Call' && !existing.patient;
+        const touchesGuestIdentity = ['guestName', 'guestEmail', 'guestPhone', 'contactNumber'].some((field) => updateData[field] !== undefined);
+        if (isUnlinkedPhoneCall && touchesGuestIdentity) {
+            const nextGuestName = String(updateData.guestName !== undefined ? updateData.guestName : existing.guestName || '').trim();
+            const nextGuestEmail = normalizeEmail(updateData.guestEmail !== undefined ? updateData.guestEmail : existing.guestEmail || '');
+            const nextGuestPhone = normalizePhoneNumber(
+                updateData.guestPhone !== undefined
+                    ? updateData.guestPhone
+                    : (updateData.contactNumber !== undefined ? updateData.contactNumber : existing.guestPhone || '')
+            );
+            const nextGuestPhoneDigits = nextGuestPhone.replace(/\D/g, '');
+
+            if (!nextGuestName) {
+                return res.status(400).json({ message: 'Guest name is required for a phone call booking without a linked patient.' });
+            }
+            if (!nextGuestEmail || !GUEST_EMAIL_REGEX.test(nextGuestEmail)) {
+                return res.status(400).json({ message: 'A valid guest email is required for a phone call booking without a linked patient.' });
+            }
+            if (!nextGuestPhone || !/^(63\d{10}|9\d{9})$/.test(nextGuestPhoneDigits)) {
+                return res.status(400).json({ message: 'A valid guest contact number is required for a phone call booking without a linked patient.' });
+            }
+
+            const duplicateSummary = await buildDuplicatePatientSummary({
+                email: nextGuestEmail,
+                contactNumber: nextGuestPhone,
+                branchScope: isBranchScopedStaff(req.user.role) ? getScopedBranchForUser(req.user) : '',
+            });
+            if (duplicateSummary.exactEmailMatches.length > 0 || duplicateSummary.exactPhoneMatches.length > 0) {
+                return res.status(409).json({
+                    field: 'patient',
+                    message: 'This phone number or email already belongs to an existing patient. Select that patient account instead of keeping this as a guest phone call booking.',
+                    duplicateSummary,
+                });
+            }
+
+            updateData.guestName = nextGuestName;
+            updateData.guestEmail = nextGuestEmail;
+            updateData.guestPhone = nextGuestPhone;
+            delete updateData.contactNumber;
         }
 
         const updatedSurgery = await Surgery.findByIdAndUpdate(req.params.id, updateData, { new: true })
@@ -5195,12 +5445,8 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
     try {
         const { date, time, procedure, notes, branch } = req.body;
 
-        if (!date || !procedure) {
-            return res.status(400).json({ message: 'Date and procedure are required.' });
-        }
-
-        if (!branch) {
-            return res.status(400).json({ message: 'Branch is required. Please select a clinic branch.' });
+        if (!date || !time || !procedure) {
+            return res.status(400).json({ message: 'Date, time, and procedure are required.' });
         }
 
         const patientUser = await User.findById(req.user.id).select('name email role assignedBranch assignedBranches');
@@ -5230,16 +5476,33 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Patients may only book a general check-up or prophylaxis online. Additional procedures are recorded by the clinic after assessment or treatment.' });
         }
 
-        if (time) {
-            const allowedSlots = await getClinicAllowedSlots();
-            if (!allowedSlots.includes(time)) {
-                return res.status(400).json({ message: 'Please select a valid appointment time.' });
-            }
+        const appointmentDate = new Date(`${date}T12:00:00`);
+        if (Number.isNaN(appointmentDate.getTime())) {
+            return res.status(400).json({ message: 'Please select a valid appointment date.' });
+        }
+        if (appointmentDate.getDay() === 0) {
+            return res.status(400).json({ message: 'Appointments cannot be requested on Sundays.' });
+        }
 
-            const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranch });
-            if (takenSlots.includes(time)) {
-                return res.status(409).json({ message: 'That time slot is already taken. Please choose another time.' });
-            }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (appointmentDate < today) {
+            return res.status(400).json({ message: 'Please select today or a future date.' });
+        }
+
+        const allowedSlots = await getClinicAllowedSlots();
+        if (!allowedSlots.includes(time)) {
+            return res.status(400).json({ message: 'Please select a valid appointment time.' });
+        }
+
+        const requestedDateTime = new Date(`${date}T${time}:00`);
+        if (requestedDateTime.getTime() <= Date.now() + (30 * 60 * 1000)) {
+            return res.status(400).json({ message: 'Please choose a later appointment time.' });
+        }
+
+        const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranch });
+        if (takenSlots.includes(time)) {
+            return res.status(409).json({ message: 'That time slot is already taken. Please choose another time.' });
         }
 
         const newSurgery = new Surgery({
@@ -5342,7 +5605,7 @@ app.get('/api/appointments/my-active', verifyToken, async (req, res) => {
 
         const activeAppointment = await Surgery.findOne({
             patient: req.user.id,
-            status: { $in: ['pending', 'confirmed'] },
+            status: { $in: ['pending', 'confirmed', 'in-clinic'] },
         })
             .select('date time procedure status branch')
             .sort({ date: 1 })
@@ -7236,6 +7499,10 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
             if (!scopedBranch || existingEntry.branch !== scopedBranch) {
                 return res.status(403).json({ message: 'Access denied. This queue entry belongs to a different branch.' });
             }
+        }
+
+        if (['completed', 'cancelled'].includes(String(existingEntry.status || '').toLowerCase())) {
+            return res.status(400).json({ message: 'Completed and cancelled schedules can no longer be edited.' });
         }
 
         const {

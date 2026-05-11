@@ -107,6 +107,7 @@ export default function AppointmentBookingScreen({ navigation }) {
     const [duplicateAppt, setDuplicateAppt] = useState(null);
 
     const assignedBranch = userInfo?.assignedBranch || '';
+    const hasActiveRequest = Boolean(duplicateAppt);
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const today = getTodayString();
 
@@ -270,20 +271,6 @@ export default function AppointmentBookingScreen({ navigation }) {
             return;
         }
 
-        if (step === 3 && duplicateAppt) {
-            const apptDateStr = duplicateAppt.date ? new Date(duplicateAppt.date).toISOString().split('T')[0] : '';
-            const apptDate = apptDateStr ? formatDisplayDate(apptDateStr) : 'a scheduled date';
-            Alert.alert(
-                'Existing Appointment Found',
-                `You already have a ${duplicateAppt.status} appointment for "${duplicateAppt.procedure}" on ${apptDate} at ${duplicateAppt.branch}.\n\nDo you still want to continue?`,
-                [
-                    { text: 'Go Back', style: 'cancel' },
-                    { text: 'Continue', onPress: () => setStep(4) },
-                ],
-            );
-            return;
-        }
-
         if (step < 4) setStep((prev) => prev + 1);
     };
 
@@ -343,6 +330,38 @@ export default function AppointmentBookingScreen({ navigation }) {
     const handleModalClose = () => {
         setModalVisible(false);
         if (modalType === 'success') navigation.navigate('PatientTabs', { screen: 'PatientDashboardMain' });
+    };
+
+    const renderDuplicateState = () => {
+        const apptDateStr = duplicateAppt?.date ? new Date(duplicateAppt.date).toISOString().split('T')[0] : '';
+        return (
+            <View style={styles.duplicateCard}>
+                <View style={styles.duplicateIconWrap}>
+                    <Ionicons name="calendar-clear-outline" size={20} color="#9a6700" />
+                </View>
+                <Text style={styles.duplicateTitle}>You already have an active appointment request</Text>
+                <Text style={styles.duplicateText}>
+                    Dentime only allows one active mobile appointment request at a time so the clinic can manage your slot accurately.
+                </Text>
+                <View style={styles.duplicateSummary}>
+                    <SummaryRow label="Status" value={duplicateAppt?.status || 'Pending'} />
+                    <SummaryRow label="Procedure" value={duplicateAppt?.procedure || 'Clinic Appointment'} />
+                    <SummaryRow label="Date" value={apptDateStr ? formatDisplayDate(apptDateStr) : 'Scheduled date'} />
+                    <SummaryRow label="Time" value={duplicateAppt?.time ? to12h(duplicateAppt.time) : 'To be confirmed'} />
+                    <SummaryRow label="Branch" value={duplicateAppt?.branch || assignedBranch || 'Assigned branch'} />
+                </View>
+                <Text style={styles.duplicateHint}>
+                    Wait until this appointment is completed or cancelled before sending another booking request.
+                </Text>
+                <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={() => navigation.navigate('PatientTabs', { screen: 'PatientDashboardMain' })}
+                    activeOpacity={0.82}
+                >
+                    <Text style={styles.primaryBtnText}>Back to Dashboard</Text>
+                </TouchableOpacity>
+            </View>
+        );
     };
 
     const renderDateStep = () => (
@@ -646,13 +665,19 @@ export default function AppointmentBookingScreen({ navigation }) {
                 <View style={{ width: 70 }} />
             </View>
 
-            <StepIndicator current={step} />
+            {!hasActiveRequest && <StepIndicator current={step} />}
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {step === 1 && renderDateStep()}
-                {step === 2 && renderTimeStep()}
-                {step === 3 && renderProcedureStep()}
-                {step === 4 && renderConfirmStep()}
+                {hasActiveRequest
+                    ? renderDuplicateState()
+                    : (
+                        <>
+                            {step === 1 && renderDateStep()}
+                            {step === 2 && renderTimeStep()}
+                            {step === 3 && renderProcedureStep()}
+                            {step === 4 && renderConfirmStep()}
+                        </>
+                    )}
             </ScrollView>
 
             <PatientBottomNav navigation={navigation} activeKey="visits" />
@@ -765,6 +790,12 @@ const styles = StyleSheet.create({
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
     summaryLabel: { color: '#607d8b', fontWeight: '700', flex: 1 },
     summaryValue: { color: '#284b63', flex: 1.4, textAlign: 'right' },
+    duplicateCard: { backgroundColor: 'white', borderRadius: 18, padding: 20, gap: 14, borderWidth: 1, borderColor: '#f4d48b' },
+    duplicateIconWrap: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff8e1', alignItems: 'center', justifyContent: 'center' },
+    duplicateTitle: { color: '#8a5b00', fontSize: 20, fontWeight: '800' },
+    duplicateText: { color: '#6d4c41', lineHeight: 20 },
+    duplicateSummary: { backgroundColor: '#fffdf7', borderRadius: 14, padding: 14, gap: 10, borderWidth: 1, borderColor: '#f5e6b7' },
+    duplicateHint: { color: '#607d8b', fontSize: 13, lineHeight: 18 },
     disclaimerCard: { backgroundColor: '#fff8e1', borderRadius: 14, padding: 14, marginBottom: 16 },
     disclaimerText: { color: '#6d4c41', lineHeight: 19 },
     privacyCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: 'white', borderRadius: 14, padding: 14, borderWidth: 1.2, borderColor: '#d8e2e8', marginBottom: 16 },
