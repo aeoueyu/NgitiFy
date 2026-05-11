@@ -16,6 +16,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const crypto = require('crypto');
+const { spawn } = require('child_process');
+const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
@@ -66,6 +68,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const anthropic = process.env.ANTHROPIC_API_KEY
     ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     : null;
+const RADIOGRAPH_ENHANCER_SCRIPT = path.join(__dirname, 'python', 'radiograph_enhance.py');
 
 const ensureAiConfigured = (res) => {
     if (anthropic) {
@@ -73,6 +76,104 @@ const ensureAiConfigured = (res) => {
     }
     res.status(503).json({ message: 'AI features are not enabled.' });
     return false;
+};
+
+const parseBase64ImageDataUrl = (value) => {
+    const match = String(value || '').trim().match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) {
+        throw Object.assign(new Error('The stored radiograph image is not a supported base64 data URL.'), { statusCode: 400 });
+    }
+    return {
+        mediaType: match[1],
+        imageBase64: match[2],
+    };
+};
+
+const getRadiographEnhancerCommands = () => {
+    const configuredCommand = String(process.env.OPENCV_PYTHON_BIN || '').trim();
+    if (configuredCommand) {
+        return [{
+            command: configuredCommand,
+            args: [],
+        }];
+    }
+    if (process.platform === 'win32') {
+        return [
+            { command: 'python', args: [] },
+            { command: 'py', args: ['-3'] },
+        ];
+    }
+    return [
+        { command: 'python3', args: [] },
+        { command: 'python', args: [] },
+    ];
+};
+
+const spawnRadiographEnhancer = ({ command, args, imageBase64, mediaType }) => {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, [...args, RADIOGRAPH_ENHANCER_SCRIPT], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        child.stdout.on('data', (chunk) => {
+            stdout += chunk.toString();
+        });
+        child.stderr.on('data', (chunk) => {
+            stderr += chunk.toString();
+        });
+        child.on('error', (error) => {
+            reject(Object.assign(
+                new Error(`Could not start the OpenCV enhancer with "${command}". Install Python dependencies or set OPENCV_PYTHON_BIN.`),
+                { cause: error }
+            ));
+        });
+        child.on('close', (code) => {
+            if (code !== 0) {
+                const detail = stderr.trim() || stdout.trim() || `Enhancer exited with code ${code}.`;
+                return reject(new Error(`OpenCV enhancement failed. ${detail}`));
+            }
+            try {
+                const parsed = JSON.parse(stdout);
+                if (!parsed?.imageBase64 || !parsed?.mediaType) {
+                    throw new Error('Enhancer returned an incomplete payload.');
+                }
+                resolve({
+                    mediaType: parsed.mediaType,
+                    imageBase64: parsed.imageBase64,
+                });
+            } catch (error) {
+                reject(new Error(`Could not parse enhancer output. ${error.message}`));
+            }
+        });
+
+        child.stdin.end(JSON.stringify({ imageBase64, mediaType }));
+    });
+};
+
+const runRadiographEnhancer = async (imageDataUrl) => {
+    const { mediaType, imageBase64 } = parseBase64ImageDataUrl(imageDataUrl);
+    const commands = getRadiographEnhancerCommands();
+    let lastError = null;
+
+    for (const commandConfig of commands) {
+        try {
+            return await spawnRadiographEnhancer({
+                ...commandConfig,
+                imageBase64,
+                mediaType,
+            });
+        } catch (error) {
+            lastError = error;
+            if (!String(error.message || '').startsWith('Could not start the OpenCV enhancer')) {
+                throw error;
+            }
+        }
+    }
+
+    throw lastError || new Error('Could not start the OpenCV enhancer.');
 };
 
 const INVENTORY_READ_ROLES = ['administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
@@ -6268,6 +6369,9 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             date: new Date(date),
             radiographNumber: String(radiographNumber || '').trim(),
             url: url || null,
+            enhancedUrl: '',
+            enhancedAt: null,
+            enhancedBy: null,
             findings: String(findings || '').trim(),
             notes: notes || '',
             uploadedBy: req.user?.id || null,
@@ -7174,63 +7278,75 @@ app.delete('/api/material-usage/:id', verifyToken, async (req, res) => {
 });
 
 // -------------------------------------------------------
-// AI RADIOGRAPH ENHANCER
+// OPENCV RADIOGRAPH ENHANCER
 // -------------------------------------------------------
-const ENHANCE_ALLOWED = [
-    'dentist', 'administrator', 'branch-manager', 'owner'
-];
+const ENHANCE_ALLOWED = ['dentist'];
 app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
     try {
-        if (!ensureAiConfigured(res)) return;
         if (!ENHANCE_ALLOWED.includes(req.user.role)) {
-            return res.status(403).json({ message: 'Access denied.' });
-        }
-        if (req.user.role === 'owner' && !req.user.isDentist) {
-            return res.status(403).json({ message: 'Access denied. Dentist access required.' });
+            return res.status(403).json({ message: 'Access denied. Only dentists can enhance radiographs.' });
         }
 
-        const { imageBase64, mediaType = 'image/jpeg', patientId } = req.body;
-        if (!imageBase64) {
-            return res.status(400).json({ message: 'imageBase64 is required.' });
+        const { patientId, radiographId } = req.body;
+        if (!patientId || !radiographId) {
+            return res.status(400).json({ message: 'patientId and radiographId are required.' });
         }
 
-        const response = await anthropic.messages.create({
-            model: 'claude-opus-4-6',
-            max_tokens: 1024,
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'image',
-                            source: {
-                                type: 'base64',
-                                media_type: mediaType,
-                                data: imageBase64,
-                            },
-                        },
-                        {
-                            type: 'text',
-                            text: 'You are a dental radiology AI assistant. Analyze this dental radiograph and provide: 1) A detailed clinical description of what is visible, 2) Any notable findings (cavities, bone loss, root issues, calculus, etc.), 3) Recommendations for the dentist. Be concise and clinically precise. Format your response with clear sections.',
-                        },
-                    ],
-                },
-            ],
-        });
+        const patient = await User.findById(patientId).select('role radiographs');
+        if (!patient || patient.role !== 'patient') {
+            return res.status(404).json({ message: 'Patient not found.' });
+        }
 
-        const analysis = response.content[0]?.text || 'No analysis available.';
+        const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+        if (!canAccess) {
+            return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+        }
+
+        const radiograph = (patient.radiographs || []).find(
+            (entry) => String(entry._id) === String(radiographId)
+        );
+        if (!radiograph) {
+            return res.status(404).json({ message: 'Radiograph entry not found.' });
+        }
+        if (!radiograph.url) {
+            return res.status(400).json({ message: 'This radiograph does not have an image to enhance.' });
+        }
+
+        const result = await runRadiographEnhancer(radiograph.url);
+        const enhancedUrl = `data:${result.mediaType};base64,${result.imageBase64}`;
+
+        radiograph.enhancedUrl = enhancedUrl;
+        radiograph.enhancedAt = new Date();
+        radiograph.enhancedBy = req.user.id;
+        patient.markModified('radiographs');
+        await patient.save();
 
         await AuditLog.create({
             action: 'RADIOGRAPH_ENHANCED',
             user: req.user.email,
             role: req.user.role,
-            details: `AI radiograph analysis performed${patientId ? ` for patient ID: ${patientId}` : ''}.`,
+            details: `OpenCV radiograph enhancement saved for radiograph ID ${radiographId} on patient ID ${patientId}.`,
         });
 
-        res.json({ analysis, enhanced: true });
+        res.json({
+            message: 'Radiograph enhanced successfully.',
+            enhanced: true,
+            radiograph: {
+                _id: radiograph._id,
+                label: radiograph.label,
+                date: radiograph.date,
+                radiographNumber: radiograph.radiographNumber || '',
+                url: radiograph.url || '',
+                enhancedUrl: radiograph.enhancedUrl || '',
+                findings: radiograph.findings || '',
+                notes: radiograph.notes || '',
+                enhancedAt: radiograph.enhancedAt || null,
+                enhancedBy: radiograph.enhancedBy || null,
+            },
+        });
     } catch (error) {
         console.error('Radiograph enhance error:', error);
-        res.status(500).json({ message: 'Server error during radiograph analysis.' });
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server error during radiograph enhancement.' });
     }
 });
 

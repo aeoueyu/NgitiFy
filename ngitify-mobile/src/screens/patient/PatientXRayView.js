@@ -19,6 +19,7 @@ export default function PatientXRayView({ navigation, route }) {
 
     // Radiograph object passed from MedicalRecordsScreen (Radiographs tab)
     const radiograph = route?.params?.radiograph || null;
+    const displayRadiographUrl = radiograph?.enhancedUrl || radiograph?.url || '';
 
     const dateStr = radiograph?.date
         ? new Date(radiograph.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -70,7 +71,7 @@ export default function PatientXRayView({ navigation, route }) {
 
                 {/* Image Viewer Card */}
                 <View style={styles.viewerCard}>
-                    {radiograph?.url ? (
+                    {displayRadiographUrl ? (
                         <View style={styles.imageWrapper}>
                             {imageLoading && !imageError && (
                                 <View style={styles.imageLoader}>
@@ -80,7 +81,7 @@ export default function PatientXRayView({ navigation, route }) {
                             )}
                             {!imageError ? (
                                 <Image
-                                    source={{ uri: radiograph.url }}
+                                    source={{ uri: displayRadiographUrl }}
                                     style={[styles.xrayImage, imageLoading && { opacity: 0 }]}
                                     resizeMode="contain"
                                     onLoad={() => setImageLoading(false)}

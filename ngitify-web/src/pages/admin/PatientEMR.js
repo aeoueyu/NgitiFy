@@ -113,6 +113,26 @@ const formatListValue = (value) => {
 };
 const normalizeTextValue = (value) => value ? String(value) : 'Not specified';
 const buildDetailRows = (pairs = []) => pairs.map(([label, value]) => [label, value || 'Not specified']);
+const getPreferredRadiographUrl = (radiograph, showOriginal = false) => {
+    if (!radiograph) return '';
+    const originalUrl = radiograph.url || radiograph.imageUrl || '';
+    if (showOriginal) return originalUrl;
+    return radiograph.enhancedUrl || originalUrl;
+};
+const normalizeRadiographRecord = (radiograph = {}) => {
+    const rawDateValue = radiograph.date || radiograph.rawDate || radiograph.uploadedAt || radiograph.createdAt || 0;
+    return {
+        ...radiograph,
+        id: radiograph._id || radiograph.id,
+        rawDate: new Date(rawDateValue),
+        type: radiograph.label || radiograph.type || 'Radiograph',
+        url: radiograph.url || radiograph.imageUrl || '',
+        enhancedUrl: radiograph.enhancedUrl || '',
+        radiographNumber: radiograph.radiographNumber || '',
+        findings: radiograph.findings || '',
+        notes: radiograph.notes || '',
+    };
+};
 const sanitizeFilenamePart = (value) => String(value || '')
     .replace(/[^a-z0-9]/gi, '')
     .trim();
@@ -227,6 +247,7 @@ export default function PatientEMR({
     const canEditMedical = !isReadOnly;
     const canAddTreatmentLog = !isReadOnly;
     const canUploadRadiograph = !isReadOnly;
+    const canEnhanceRadiograph = effectiveRole === 'dentist';
     
     // Core States
     const [activeTab, setActiveTab] = useState('overview');
@@ -266,7 +287,7 @@ export default function PatientEMR({
     const [radiographs, setRadiographs] = useState([]);
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
-    const [isEnhanced, setIsEnhanced] = useState(false);
+    const [showOriginalRadiograph, setShowOriginalRadiograph] = useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [uploadForm, setUploadForm] = useState({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
     const [uploadPreview, setUploadPreview] = useState(null);
@@ -371,15 +392,7 @@ export default function PatientEMR({
                 const radRes = await authFetch(`/patients/${activePatientId}/radiographs`);
                 if (radRes.ok) {
                     const radData = await radRes.json();
-                    const normalizedRads = radData.map(r => ({
-                        ...r,
-                        id: r._id || r.id,
-                        rawDate: new Date(r.date || r.uploadedAt || r.createdAt),
-                        type: r.label || r.type || 'Radiograph',
-                        url: r.url || r.imageUrl,
-                        radiographNumber: r.radiographNumber || '',
-                        findings: r.findings || '',
-                    }));
+                    const normalizedRads = radData.map(normalizeRadiographRecord);
                     setRadiographs(normalizedRads);
                 }
 
@@ -514,6 +527,7 @@ export default function PatientEMR({
                 .sort((a, b) => b.rawDate - a.rawDate)
                 .map((radiograph) => ({
                 ...radiograph,
+                displayUrl: getPreferredRadiographUrl(radiograph),
                 formattedDate: formatShortDate(radiograph.rawDate),
                 displayType: normalizeTextValue(radiograph.type || radiograph.label),
                 displayNumber: normalizeTextValue(radiograph.radiographNumber),
@@ -715,9 +729,9 @@ export default function PatientEMR({
                                                 {section.records.map((radiograph, radiographIndex) => (
                                                     <article key={radiograph.id || `${section.title}-${radiographIndex}`} className={styles.printRadiographCard}>
                                                         <div className={styles.printRadiographMedia}>
-                                                            {radiograph.url ? (
+                                                            {radiograph.displayUrl ? (
                                                                 <img
-                                                                    src={radiograph.url}
+                                                                    src={radiograph.displayUrl}
                                                                     alt={`${radiograph.displayType} radiograph`}
                                                                     className={styles.printRadiographImage}
                                                                 />
@@ -1806,13 +1820,13 @@ export default function PatientEMR({
     const openRadiograph = (img) => {
         setSelectedRadiograph(img);
         setIsEnhancing(false);
-        setIsEnhanced(false);
+        setShowOriginalRadiograph(false);
     };
 
     const closeImageModal = () => {
         setSelectedRadiograph(null);
         setIsEnhancing(false);
-        setIsEnhanced(false);
+        setShowOriginalRadiograph(false);
     };
 
     const handleFileSelect = (e) => {
@@ -1853,15 +1867,18 @@ export default function PatientEMR({
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Upload failed.');
             const saved = await res.json();
-            setRadiographs(prev => [{
-                ...saved,
-                id: saved._id || saved.id,
-                rawDate: new Date(saved.date || uploadForm.date),
-                type: saved.label || uploadForm.label,
-                url: saved.url || uploadPreview,
-                radiographNumber: saved.radiographNumber || uploadForm.radiographNumber,
-                findings: saved.findings || uploadForm.findings,
-            }, ...prev]);
+            setRadiographs(prev => [
+                normalizeRadiographRecord({
+                    ...saved,
+                    date: saved.date || uploadForm.date,
+                    label: saved.label || uploadForm.label,
+                    url: saved.url || uploadPreview,
+                    radiographNumber: saved.radiographNumber || uploadForm.radiographNumber,
+                    findings: saved.findings || uploadForm.findings,
+                    notes: saved.notes || uploadForm.notes,
+                }),
+                ...prev,
+            ]);
             setIsUploadModalOpen(false);
             setUploadForm({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
             setUploadPreview(null);
@@ -1873,14 +1890,42 @@ export default function PatientEMR({
         }
     };
 
-    const handleAIEnhance = () => {
-        if (isEnhanced) { setIsEnhanced(false); return; }
+    const handleAIEnhance = async () => {
+        if (!selectedRadiograph?.id) {
+            addToast('Select a radiograph first.', 'error');
+            return;
+        }
+
+        if (selectedRadiograph.enhancedUrl) {
+            setShowOriginalRadiograph((current) => !current);
+            return;
+        }
+
         setIsEnhancing(true);
-        setTimeout(() => {
+        try {
+            const { authFetch } = await import('../../utils/api');
+            const res = await authFetch('/radiographs/enhance', {
+                method: 'POST',
+                body: JSON.stringify({
+                    patientId: activePatientId,
+                    radiographId: selectedRadiograph.id,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Enhancement failed.');
+
+            const normalizedRadiograph = normalizeRadiographRecord(data.radiograph || {});
+            setRadiographs((prev) => prev.map((entry) => (
+                entry.id === normalizedRadiograph.id ? normalizedRadiograph : entry
+            )));
+            setSelectedRadiograph(normalizedRadiograph);
+            setShowOriginalRadiograph(false);
+            addToast('Enhanced radiograph saved to the patient record.', 'success');
+        } catch (err) {
+            addToast(err.message || 'Failed to enhance radiograph.', 'error');
+        } finally {
             setIsEnhancing(false);
-            setIsEnhanced(true);
-            addToast("AI Enhancement applied successfully.", "success");
-        }, 1500);
+        }
     };
 
     const renderRadiographs = () => {
@@ -1905,33 +1950,37 @@ export default function PatientEMR({
 
                         <div className={styles.largeRadiographWrapper}>
                             <img 
-                                src={selectedRadiograph.url} 
+                                src={getPreferredRadiographUrl(selectedRadiograph, showOriginalRadiograph)} 
                                 alt={selectedRadiograph.type} 
-                                className={`${styles.largeRadiograph} ${isEnhanced ? styles.enhancedImage : ''}`}
+                                className={styles.largeRadiograph}
                             />
                             {isEnhancing && (
                                 <div className={styles.loadingOverlay}>
                                     <FaRobot className={styles.spinningIcon} />
-                                    <span>AI is clarifying image...</span>
+                                    <span>Enhancing radiograph...</span>
                                 </div>
                             )}
                         </div>
 
-                        <div className={styles.imageViewerControls}>
-                            <button 
-                                className={styles.aiEnhanceBtn} 
-                                onClick={handleAIEnhance}
-                                disabled={isEnhancing}
-                            >
-                                {isEnhancing ? (
-                                    <>Processing...</>
-                                ) : isEnhanced ? (
-                                    <><FaMagic /> Revert to Original</>
-                                ) : (
-                                    <><FaMagic /> AI Enhance Clarity</>
-                                )}
-                            </button>
-                        </div>
+                        {canEnhanceRadiograph && selectedRadiograph.url ? (
+                            <div className={styles.imageViewerControls}>
+                                <button 
+                                    className={styles.aiEnhanceBtn} 
+                                    onClick={handleAIEnhance}
+                                    disabled={isEnhancing}
+                                >
+                                    {isEnhancing ? (
+                                        <>Processing...</>
+                                    ) : selectedRadiograph.enhancedUrl ? (
+                                        showOriginalRadiograph
+                                            ? <><FaMagic /> Show Enhanced Image</>
+                                            : <><FaMagic /> Show Original Image</>
+                                    ) : (
+                                        <><FaMagic /> Enhance and Save to Record</>
+                                    )}
+                                </button>
+                            </div>
+                        ) : null}
                         {(selectedRadiograph.findings || selectedRadiograph.notes) && (
                             <div style={{ marginTop: '16px', display: 'grid', gap: '12px' }}>
                                 {selectedRadiograph.findings ? (
@@ -1969,7 +2018,7 @@ export default function PatientEMR({
                         {radiographs.map(img => (
                             <div key={img.id} className={styles.radioCard} onClick={() => openRadiograph(img)}>
                                 <div className={styles.radioThumbnailWrapper}>
-                                    <img src={img.url} alt={img.type} className={styles.radioThumbnail} />
+                                    <img src={getPreferredRadiographUrl(img)} alt={img.type} className={styles.radioThumbnail} />
                                 </div>
                                 <div className={styles.radioMeta}>
                                     <h4 className={styles.radioType}>{img.type}</h4>

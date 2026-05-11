@@ -36,6 +36,9 @@ const radiographSchema = new mongoose.Schema({
     date: { type: Date, required: true },
     radiographNumber: { type: String, default: '' },
     url: { type: String },       // base64 image data or external URL
+    enhancedUrl: { type: String, default: '' },
+    enhancedAt: { type: Date, default: null },
+    enhancedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     findings: { type: String, default: '' },
     notes: { type: String },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
