@@ -252,6 +252,10 @@ export default function PreRegisterPage() {
     }, [token]);
 
     const patientAge = useMemo(() => getAge(appointmentInfo?.guestBirthdate), [appointmentInfo?.guestBirthdate]);
+    const isPhoneCallPreRegistration = useMemo(
+        () => String(appointmentInfo?.source || '').trim() === 'Phone Call',
+        [appointmentInfo?.source]
+    );
     const isMinor = patientAge !== null && patientAge < 18;
 
     const validateAddress = (address, prefix) => {
@@ -292,7 +296,7 @@ export default function PreRegisterPage() {
             if (!guardian.name.trim()) nextErrors.guardian_name = 'Required';
             if (!guardian.relationship.trim()) nextErrors.guardian_relationship = 'Required';
         }
-        if (!medicalHistory.inGoodHealth) nextErrors.medicalHistory_inGoodHealth = 'Required';
+        if (!isPhoneCallPreRegistration && !medicalHistory.inGoodHealth) nextErrors.medicalHistory_inGoodHealth = 'Required';
 
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
@@ -524,6 +528,11 @@ export default function PreRegisterPage() {
                                 <p className={styles.bodyText}>
                                     The information you provide here will be used to complete your patient registration at NgitiFy Dental Clinic, in accordance with our Privacy Policy and Republic Act No. 10173.
                                 </p>
+                                {isPhoneCallPreRegistration && (
+                                    <div className={styles.successBanner} style={{ marginTop: '16px' }}>
+                                        For phone-call bookings, only your personal information is needed right now. The clinic will complete the medical history, dental history, physician details, and consent forms when you arrive.
+                                    </div>
+                                )}
                                 <div className={styles.formGrid} style={{ marginTop: '16px' }}>
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Birthdate</label>
@@ -666,7 +675,8 @@ export default function PreRegisterPage() {
                                 </div>
                             )}
 
-                            <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                            {!isPhoneCallPreRegistration && (
+                                <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
                                 <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Dental History</h3>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup}>
@@ -694,9 +704,11 @@ export default function PreRegisterPage() {
                                         </label>
                                     </div>
                                 </div>
-                            </div>
+                                </div>
+                            )}
 
-                            <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                            {!isPhoneCallPreRegistration && (
+                                <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
                                 <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Medical History</h3>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup}>
@@ -819,9 +831,11 @@ export default function PreRegisterPage() {
                                         <textarea className={styles.fieldTextarea} value={medicalHistory.notes} onChange={(e) => handleMedicalChange('notes', e.target.value)} />
                                     </div>
                                 </div>
-                            </div>
+                                </div>
+                            )}
 
-                            <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                            {!isPhoneCallPreRegistration && (
+                                <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
                                 <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Physician Information</h3>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup}>
@@ -845,7 +859,8 @@ export default function PreRegisterPage() {
                                         {errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}
                                     </div>
                                 </div>
-                            </div>
+                                </div>
+                            )}
 
                             <div className={styles.buttonRow}>
                                 <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>

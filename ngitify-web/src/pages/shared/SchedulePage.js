@@ -145,13 +145,40 @@ const EDIT_MODE_CONFIG = {
     },
 };
 
-const getTodayString = () => new Date().toISOString().split('T')[0];
+const MANILA_TIME_ZONE = 'Asia/Manila';
+const dateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MANILA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+});
+
+const formatDateKey = (value = new Date()) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = Object.fromEntries(
+        dateKeyFormatter.formatToParts(date).map((part) => [part.type, part.value])
+    );
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const getTodayString = () => formatDateKey(new Date());
 
 const addDaysToDateString = (dateString, daysToAdd) => {
     const baseDate = new Date(`${dateString}T12:00:00`);
     if (Number.isNaN(baseDate.getTime())) return dateString;
     baseDate.setDate(baseDate.getDate() + daysToAdd);
-    return baseDate.toISOString().split('T')[0];
+    return formatDateKey(baseDate);
+};
+
+const findNextAvailableDate = (startDate, blockedDateList = [], maxDaysToCheck = 90) => {
+    const blockedSet = new Set(Array.isArray(blockedDateList) ? blockedDateList : []);
+    let candidate = startDate || getTodayString();
+    for (let index = 0; index <= maxDaysToCheck; index += 1) {
+        if (!blockedSet.has(candidate)) return candidate;
+        candidate = addDaysToDateString(candidate, 1);
+    }
+    return startDate || getTodayString();
 };
 
 const subtractDaysFromDateString = (dateString, daysToSubtract) => (
@@ -160,9 +187,7 @@ const subtractDaysFromDateString = (dateString, daysToSubtract) => (
 
 const formatDateInput = (value) => {
     if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toISOString().split('T')[0];
+    return formatDateKey(value);
 };
 
 const formatDateLabel = (value) => {
@@ -170,6 +195,7 @@ const formatDateLabel = (value) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '-';
     return date.toLocaleDateString('en-PH', {
+        timeZone: MANILA_TIME_ZONE,
         month: 'short',
         day: 'numeric',
         year: 'numeric',
@@ -261,6 +287,7 @@ const normalizeScheduleStatus = (status) => {
 };
 
 const isScheduleLocked = (entry) => LOCKED_SCHEDULE_STATUSES.has(normalizeScheduleStatus(entry?.status));
+const isScheduleEditable = (entry) => !['in-clinic', 'completed', 'cancelled'].includes(normalizeScheduleStatus(entry?.status));
 const areStatusSetsEqual = (left = [], right = []) => (
     left.length === right.length && left.every((value) => right.includes(value))
 );
@@ -270,6 +297,13 @@ const deriveWorkflowFilterFromStatuses = (statuses = []) => {
     return matchedPreset?.value || 'custom';
 };
 const normalizePhoneDigits = (value = '') => String(value || '').replace(/\D/g, '');
+const normalizeSchedulePhoneInput = (value = '') => {
+    const digits = normalizePhoneDigits(value);
+    if (digits.startsWith('63')) return digits.slice(2, 12);
+    if (digits.startsWith('0')) return digits.slice(1, 11);
+    if (digits.startsWith('9')) return digits.slice(0, 10);
+    return digits.slice(-10);
+};
 
 const normalizeAppointment = (appointment) => {
     const normalizedSource = String(appointment.source || '').trim().toLowerCase();
@@ -386,6 +420,12 @@ const getBadgeClass = (entry) => {
     }
 };
 
+const getSourceBadgeClass = (entry) => {
+    if (entry?.sourceKind === 'walkin') return styles.sourceBadgeWalkin;
+    if (entry?.sourceKind === 'phonecall') return styles.sourceBadgePhone;
+    return styles.sourceBadgeAppointment;
+};
+
 const extractCollection = (payload, fallbackKey) => {
     if (Array.isArray(payload)) return payload;
     if (Array.isArray(payload?.[fallbackKey])) return payload[fallbackKey];
@@ -469,6 +509,7 @@ export default function SchedulePage() {
     const [completionError, setCompletionError] = useState('');
     const [allowedSlots, setAllowedSlots] = useState([]);
     const [takenSlots, setTakenSlots] = useState([]);
+    const [blockedDates, setBlockedDates] = useState([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [slotError, setSlotError] = useState('');
 
@@ -679,6 +720,40 @@ export default function SchedulePage() {
 
     useEffect(() => {
         if (formState.formType !== 'appointment') {
+            setBlockedDates([]);
+            return;
+        }
+
+        const activeBranch = formState.branch || assignedBranch;
+        if (!activeBranch) {
+            setBlockedDates([]);
+            return;
+        }
+
+        const activeMonth = formState.date ? formState.date.slice(0, 7) : '';
+        const fetchBlockedDates = async () => {
+            try {
+                const blockedDatesUrl = activeMonth
+                    ? `/public/appointments/blocked-dates?branch=${encodeURIComponent(activeBranch)}&month=${activeMonth}`
+                    : `/public/appointments/blocked-dates?branch=${encodeURIComponent(activeBranch)}`;
+                const response = await publicFetch(
+                    blockedDatesUrl
+                );
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.message || 'Could not load blocked dates.');
+                }
+                setBlockedDates(Array.isArray(data.blockedDates) ? data.blockedDates : []);
+            } catch {
+                setBlockedDates([]);
+            }
+        };
+
+        fetchBlockedDates();
+    }, [assignedBranch, formState.branch, formState.date, formState.formType, todayString]);
+
+    useEffect(() => {
+        if (formState.formType !== 'appointment') {
             setAllowedSlots([]);
             setTakenSlots([]);
             setSlotError('');
@@ -717,6 +792,19 @@ export default function SchedulePage() {
 
         fetchSlots();
     }, [assignedBranch, formState.branch, formState.date, formState.formType]);
+
+    const minBookableDate = useMemo(
+        () => findNextAvailableDate(todayString, blockedDates),
+        [blockedDates, todayString]
+    );
+
+    useEffect(() => {
+        if (formState.formType !== 'appointment') return;
+        if (!formState.date) return;
+        if (formState.date < minBookableDate) {
+            setFormState((prev) => ({ ...prev, date: minBookableDate, time: '' }));
+        }
+    }, [formState.date, formState.formType, minBookableDate]);
 
     const availableSlots = useMemo(() => {
         const visible = allowedSlots.filter((slot) => !takenSlots.includes(slot));
@@ -880,6 +968,15 @@ export default function SchedulePage() {
     };
 
     const openEditModal = (entry, mode = 'full') => {
+        if (!isScheduleEditable(entry)) {
+            addToast(
+                normalizeScheduleStatus(entry?.status) === 'in-clinic'
+                    ? 'In-clinic schedules can no longer be edited. Use the complete action to finish the visit.'
+                    : 'Completed and cancelled schedules can no longer be edited.',
+                'info'
+            );
+            return;
+        }
         if (isScheduleLocked(entry)) {
             addToast('Completed and cancelled schedules can no longer be edited.', 'info');
             return;
@@ -902,7 +999,7 @@ export default function SchedulePage() {
             source: entry.sourceKind === 'walkin'
                 ? 'walkin'
                 : (entry.sourceKind === 'phonecall' ? 'phonecall' : 'appointment'),
-            contactNumber: entry.contactNumber || '',
+            contactNumber: normalizeSchedulePhoneInput(entry.contactNumber || ''),
             guestEmail: entry?.raw?.guestEmail || '',
             assignedDentist: entry.sourceKind === 'walkin' ? (entry.dentistName === 'Unassigned' ? '' : entry.dentistName) : '',
         };
@@ -937,11 +1034,14 @@ export default function SchedulePage() {
     const handleFormFieldChange = (event) => {
         const { name, value } = event.target;
         setFormState((prev) => {
-            const next = { ...prev, [name]: value };
+            const nextValue = name === 'contactNumber'
+                ? normalizeSchedulePhoneInput(value)
+                : (name === 'guestEmail' ? String(value || '').trim().toLowerCase() : value);
+            const next = { ...prev, [name]: nextValue };
             const applyMatchedPatient = (matchedPatient) => {
                 next.patientId = matchedPatient.id;
                 next.patientName = matchedPatient.name;
-                next.contactNumber = matchedPatient.contactNumber;
+                next.contactNumber = normalizeSchedulePhoneInput(matchedPatient.contactNumber);
                 next.guestEmail = '';
 
                 if (matchedPatient.branch && matchedPatient.branch !== next.branch) {
@@ -951,6 +1051,10 @@ export default function SchedulePage() {
                     next.assignedDentist = '';
                 }
             };
+            const matchPatientByIdentity = ({ email = '', phone = '' }) => patientOptions.find((entry) => (
+                (email && String(entry.email || '').trim().toLowerCase() === String(email).trim().toLowerCase())
+                || (phone && normalizePhoneDigits(entry.contactNumber) === normalizePhoneDigits(phone))
+            )) || null;
 
             if (name === 'source') {
                 const nextType = value === 'walkin' ? 'walkin' : 'appointment';
@@ -959,6 +1063,7 @@ export default function SchedulePage() {
                     next.status = 'in-clinic';
                 } else if (value === 'phonecall') {
                     next.status = 'confirmed';
+                    next.contactNumber = '';
                 } else {
                     next.status = 'pending';
                     next.guestEmail = '';
@@ -977,14 +1082,23 @@ export default function SchedulePage() {
             }
             if (name === 'patientName') {
                 const matchedPatient = patientOptions.find((entry) => (
-                    value === entry.name
-                    || value === entry.email
-                    || value === `${entry.name}${entry.email ? ` (${entry.email})` : ''}`
+                    nextValue === entry.name
+                    || nextValue === entry.email
+                    || nextValue === `${entry.name}${entry.email ? ` (${entry.email})` : ''}`
                 ));
                 if (matchedPatient) {
                     applyMatchedPatient(matchedPatient);
                 } else if (prev.formType === 'walkin' || prev.source === 'phonecall') {
                     next.patientId = '';
+                }
+            }
+            if (prev.source === 'phonecall' && !prev.patientId && (name === 'guestEmail' || name === 'contactNumber')) {
+                const matchedPatient = matchPatientByIdentity({
+                    email: name === 'guestEmail' ? nextValue : next.guestEmail,
+                    phone: name === 'contactNumber' ? nextValue : next.contactNumber,
+                });
+                if (matchedPatient) {
+                    applyMatchedPatient(matchedPatient);
                 }
             }
             if (name === 'dentistId') {
@@ -1028,6 +1142,14 @@ export default function SchedulePage() {
             if (requiresIdentityFields && isPhoneCallGuest && !formState.patientName.trim()) nextErrors.patientName = 'Enter the caller or patient name.';
             if (requiresDentistField && !formState.dentistId && canChooseDentist) nextErrors.dentistId = 'Select a dentist.';
             if (requiresDateFields && !formState.date) nextErrors.date = 'Choose an appointment date.';
+            if (requiresDateFields && formState.date && blockedDates.includes(formState.date)) {
+                nextErrors.date = formState.date === todayString
+                    ? 'Same-day booking is no longer available for today. Please choose another date.'
+                    : 'That appointment date is no longer available. Please choose another date.';
+            }
+            if (requiresDateFields && formState.date && formState.date < minBookableDate) {
+                nextErrors.date = 'Choose the next available appointment date.';
+            }
             if (requiresDateFields && !formState.time) nextErrors.time = 'Choose an appointment time.';
             if (requiresDateFields && formState.status !== 'in-clinic' && formState.time && !availableSlots.includes(formState.time)) {
                 nextErrors.time = 'Choose one of the available time slots.';
@@ -1496,15 +1618,19 @@ export default function SchedulePage() {
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Contact Number <span className={styles.requiredMark}>*</span></label>
                                     <div className={styles.helperText} style={{ marginBottom: '8px' }}>Use the caller&apos;s mobile number in 9xxxxxxxxx format so they can complete registration later.</div>
-                                    <input
-                                        type="text"
-                                        name="contactNumber"
-                                        className={styles.formControl}
-                                        value={formState.contactNumber}
-                                        onChange={handleFormFieldChange}
-                                        placeholder="9xxxxxxxxx"
-                                        maxLength={10}
-                                    />
+                                    <div className={`${styles.phoneInputGroup} ${formErrors.contactNumber ? styles.errorBorder : ''}`}>
+                                        <span className={styles.phonePrefix}>+63</span>
+                                        <input
+                                            type="text"
+                                            name="contactNumber"
+                                            className={styles.phoneField}
+                                            value={formState.contactNumber}
+                                            onChange={handleFormFieldChange}
+                                            placeholder="9xxxxxxxxx"
+                                            maxLength={10}
+                                            inputMode="numeric"
+                                        />
+                                    </div>
                                     {formErrors.contactNumber && <span className={styles.errorText}>{formErrors.contactNumber}</span>}
                                 </div>
                             )}
@@ -1530,8 +1656,11 @@ export default function SchedulePage() {
                                         className={styles.formControl}
                                         value={formState.date}
                                         onChange={handleFormFieldChange}
-                                        min={todayString}
+                                        min={minBookableDate}
                                     />
+                                    {blockedDates.includes(todayString) && minBookableDate !== todayString && (
+                                        <span className={styles.helperText}>Today is no longer bookable because all remaining clinic slots have passed or are already taken.</span>
+                                    )}
                                     {formErrors.date && <span className={styles.errorText}>{formErrors.date}</span>}
                                 </div>
                             ) : null}
@@ -1780,7 +1909,7 @@ export default function SchedulePage() {
                                     </div>
                                 </div>
                             )}
-                            {canEditSchedule && !isScheduleLocked(viewEntry) && (
+                            {canEditSchedule && isScheduleEditable(viewEntry) && (
                                 <div className={styles.workflowActionPanel}>
                                     <div className={styles.workflowActionHeader}>
                                         <strong>Quick Update Actions</strong>
@@ -2044,7 +2173,7 @@ export default function SchedulePage() {
                                 <th style={{ width: '118px' }}>SOURCE</th>
                                 <th>DENTIST</th>
                                 <th style={{ width: '118px' }}>STATUS</th>
-                                <th style={{ width: '152px', textAlign: 'center' }}>ACTIONS</th>
+                                <th style={{ width: '188px', textAlign: 'center' }}>ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2071,7 +2200,7 @@ export default function SchedulePage() {
                                             </div>
                                         </td>
                                         <td>
-                                            <span className={`${wideTable.statusBadge} ${entry.sourceKind === 'walkin' ? wideTable.statusGray : wideTable.statusBlue}`}>
+                                            <span className={`${wideTable.statusBadge} ${getSourceBadgeClass(entry)}`}>
                                                 {entry.sourceLabel || 'Appointment'}
                                             </span>
                                         </td>
@@ -2092,7 +2221,7 @@ export default function SchedulePage() {
                                                 >
                                                     <FaEye />
                                                 </button>
-                                                {canEditSchedule && !isScheduleLocked(entry) && (
+                                                {canEditSchedule && isScheduleEditable(entry) && (
                                                     <button
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.editIconButton}`}

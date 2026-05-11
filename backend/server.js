@@ -750,17 +750,128 @@ const isClinicProcedureAllowed = async (procedure = '') => {
     return procedures.some((entry) => String(entry || '').trim().toLowerCase() === normalizedProcedure);
 };
 
-const getTakenSlotsForDate = async ({ date, branch }) => {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(23, 59, 59, 999);
+const MANILA_TIME_ZONE = 'Asia/Manila';
+
+const getManilaDateParts = (value = new Date()) => Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+        timeZone: MANILA_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).formatToParts(new Date(value)).map((part) => [part.type, part.value])
+);
+
+const getManilaDateKey = (value = new Date()) => {
+    const parts = getManilaDateParts(value);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const getManilaWeekday = (value) => new Intl.DateTimeFormat('en-US', {
+    timeZone: MANILA_TIME_ZONE,
+    weekday: 'short',
+}).format(new Date(value));
+
+const parseScheduleDateKey = (dateKey, time = '12:00') => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || '').trim())) return null;
+    if (!/^\d{2}:\d{2}$/.test(String(time || '').trim())) return null;
+    const parsed = new Date(`${dateKey}T${time}:00+08:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const timeToMinutes = (time = '') => {
+    const [hourText, minuteText] = String(time || '').split(':');
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+    return (hour * 60) + minute;
+};
+
+const getBookableAllowedSlotsForDate = ({ date, allowedSlots = [], leadMinutes = 30 }) => {
+    const dateKey = typeof date === 'string' ? String(date || '').trim() : getManilaDateKey(date);
+    const safeSlots = Array.isArray(allowedSlots) ? allowedSlots.filter(Boolean) : [];
+    if (!dateKey || safeSlots.length === 0) return [];
+
+    const nowParts = getManilaDateParts(new Date());
+    const todayKey = `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
+    if (dateKey !== todayKey) return safeSlots;
+
+    const cutoffMinutes = (Number(nowParts.hour) * 60) + Number(nowParts.minute) + leadMinutes;
+    return safeSlots.filter((slot) => {
+        const slotMinutes = timeToMinutes(slot);
+        return slotMinutes !== null && slotMinutes > cutoffMinutes;
+    });
+};
+
+const validateBookableAppointmentSlot = async ({
+    date,
+    time,
+    branch = '',
+    excludeAppointmentId = '',
+    allowCurrentSlot = false,
+}) => {
+    const dateKey = typeof date === 'string' ? String(date || '').trim() : getManilaDateKey(date);
+    const normalizedTime = String(time || '').trim();
+
+    if (!dateKey) {
+        return { ok: false, statusCode: 400, message: 'Please select a valid appointment date.' };
+    }
+
+    const parsedDate = parseScheduleDateKey(dateKey, '12:00');
+    if (!parsedDate) {
+        return { ok: false, statusCode: 400, message: 'Please select a valid appointment date.' };
+    }
+
+    if (getManilaWeekday(parsedDate) === 'Sun') {
+        return { ok: false, statusCode: 400, message: 'Appointments cannot be requested on Sundays.' };
+    }
+
+    if (dateKey < getManilaDateKey(new Date())) {
+        return { ok: false, statusCode: 400, message: 'Please select today or a future date.' };
+    }
+
+    const allowedSlots = await getClinicAllowedSlots();
+    if (!allowedSlots.includes(normalizedTime)) {
+        return { ok: false, statusCode: 400, message: 'Please select a valid appointment time.' };
+    }
+
+    const bookableSlots = getBookableAllowedSlotsForDate({ date: dateKey, allowedSlots });
+    if (!bookableSlots.includes(normalizedTime) && !allowCurrentSlot) {
+        return { ok: false, statusCode: 400, message: 'Please choose a later appointment time.' };
+    }
+
+    const takenSlots = await getTakenSlotsForDate({ date: dateKey, branch, excludeAppointmentId });
+    if (takenSlots.includes(normalizedTime) && !allowCurrentSlot) {
+        return { ok: false, statusCode: 409, message: 'That time slot is no longer available. Please choose another time.' };
+    }
+
+    return {
+        ok: true,
+        dateKey,
+        normalizedTime,
+        parsedDate,
+        allowedSlots,
+        takenSlots,
+    };
+};
+
+const getTakenSlotsForDate = async ({ date, branch, excludeAppointmentId = '' }) => {
+    const dateKey = typeof date === 'string' ? String(date || '').trim() : getManilaDateKey(date);
+    const start = parseScheduleDateKey(dateKey, '00:00');
+    const end = parseScheduleDateKey(dateKey, '23:59');
+    if (!start || !end) return [];
 
     const query = {
         date: { $gte: start, $lte: end },
-        status: { $in: ['pending', 'confirmed', 'in-clinic', 'completed'] },
+        status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+        isArchived: false,
     };
     if (branch) query.branch = branch;
+    if (excludeAppointmentId && mongoose.Types.ObjectId.isValid(excludeAppointmentId)) {
+        query._id = { $ne: excludeAppointmentId };
+    }
 
     const surgeries = await Surgery.find(query).select('time status');
     return surgeries.map((s) => s.time).filter(Boolean);
@@ -783,26 +894,40 @@ const getBlockedDatesForMonth = async ({ branch, month }) => {
     }
 
     const allowedSlots = await getClinicAllowedSlots();
-    const totalSlots = allowedSlots.length;
 
     const query = {
         date: { $gte: start, $lte: end },
         status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+        isArchived: false,
     };
     if (branch) query.branch = branch;
 
     const appointments = await Surgery.find(query).select('date time');
-    const countByDate = new Map();
+    const takenByDate = new Map();
 
     for (const appt of appointments) {
-        const key = new Date(appt.date).toISOString().split('T')[0];
-        const nextCount = (countByDate.get(key) || 0) + 1;
-        countByDate.set(key, nextCount);
+        const key = getManilaDateKey(appt.date);
+        const nextSet = takenByDate.get(key) || new Set();
+        if (appt.time) nextSet.add(appt.time);
+        takenByDate.set(key, nextSet);
     }
 
-    return [...countByDate.entries()]
-        .filter(([, count]) => count >= totalSlots)
-        .map(([dateString]) => dateString);
+    const blockedDates = [];
+    const cursor = new Date(start);
+    while (cursor <= end) {
+        const dateKey = getManilaDateKey(cursor);
+        if (getManilaWeekday(cursor) === 'Sun') {
+            blockedDates.push(dateKey);
+        } else {
+            const bookableSlots = getBookableAllowedSlotsForDate({ date: dateKey, allowedSlots });
+            const takenSet = takenByDate.get(dateKey) || new Set();
+            const hasOpenSlot = bookableSlots.some((slot) => !takenSet.has(slot));
+            if (!hasOpenSlot) blockedDates.push(dateKey);
+        }
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return blockedDates;
 };
 
 const getScopedBranchForUser = (user) => {
@@ -1026,35 +1151,15 @@ const canTransitionAppointmentStatus = ({ currentStatus = '', nextStatus = '' })
 };
 
 const getCurrentScheduleStamp = () => {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Manila',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-    });
-
-    const parts = Object.fromEntries(
-        formatter.formatToParts(new Date()).map((part) => [part.type, part.value])
-    );
+    const parts = getManilaDateParts(new Date());
 
     return {
-        date: new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00+08:00`),
+        date: parseScheduleDateKey(`${parts.year}-${parts.month}-${parts.day}`, '12:00'),
         time: `${parts.hour}:${parts.minute}`,
     };
 };
 
-const getManilaDayKey = (value = new Date()) => {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Manila',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    });
-    return formatter.format(new Date(value));
-};
+const getManilaDayKey = (value = new Date()) => getManilaDateKey(value);
 
 const getStartOfManilaDay = (value = new Date()) => {
     const dayKey = getManilaDayKey(value);
@@ -3846,6 +3951,19 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
             }
         }
 
+        if (surgeryData.source !== 'Walk-in') {
+            const slotCheck = await validateBookableAppointmentSlot({
+                date: surgeryData.date,
+                time: surgeryData.time,
+                branch: surgeryData.branch,
+            });
+            if (!slotCheck.ok) {
+                return res.status(slotCheck.statusCode).json({ message: slotCheck.message });
+            }
+            surgeryData.date = slotCheck.parsedDate;
+            surgeryData.time = slotCheck.normalizedTime;
+        }
+
         const newSurgery = new Surgery(surgeryData);
         await newSurgery.save();
 
@@ -4160,8 +4278,8 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         const existing = await Surgery.findById(req.params.id);
         if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
 
-        if (['completed', 'cancelled'].includes(String(existing.status || '').toLowerCase())) {
-            return res.status(400).json({ message: 'Completed and cancelled schedules can no longer be edited.' });
+        if (['in-clinic', 'completed', 'cancelled'].includes(String(existing.status || '').toLowerCase())) {
+            return res.status(400).json({ message: 'In-clinic, completed, and cancelled schedules can no longer be edited.' });
         }
 
         if (isBranchScopedStaff(req.user.role)) {
@@ -4187,7 +4305,9 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         delete updateData.patient;
         delete updateData.source;
         delete updateData.branch;
-        const nextDate = updateData.date ? new Date(updateData.date) : existing.date;
+        const currentDateKey = getManilaDayKey(existing.date);
+        const requestedDateKey = updateData.date ? String(updateData.date).trim() : currentDateKey;
+        const nextDate = updateData.date ? parseScheduleDateKey(requestedDateKey, '12:00') : existing.date;
         const nextTime = updateData.time !== undefined ? updateData.time : existing.time;
         const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
 
@@ -4218,6 +4338,22 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             const currentStamp = getCurrentScheduleStamp();
             updateData.date = currentStamp.date;
             updateData.time = currentStamp.time;
+        }
+
+        const touchesScheduleSlot = (updateData.date !== undefined || updateData.time !== undefined) && updateData.status !== 'in-clinic';
+        if (String(existing.source || '').trim() !== 'Walk-in' && touchesScheduleSlot) {
+            const slotCheck = await validateBookableAppointmentSlot({
+                date: requestedDateKey,
+                time: nextTime,
+                branch: existing.branch,
+                excludeAppointmentId: existing._id,
+                allowCurrentSlot: requestedDateKey === currentDateKey && String(nextTime || '') === String(existing.time || ''),
+            });
+            if (!slotCheck.ok) {
+                return res.status(slotCheck.statusCode).json({ message: slotCheck.message });
+            }
+            updateData.date = slotCheck.parsedDate;
+            updateData.time = slotCheck.normalizedTime;
         }
 
         const isUnlinkedPhoneCall = String(existing.source || '').trim() === 'Phone Call' && !existing.patient;
@@ -4549,7 +4685,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             });
         }
 
-        const nextDate = date ? new Date(date) : currentSurgery.date;
+        const nextDate = date ? (parseScheduleDateKey(String(date).trim(), '12:00') || new Date(date)) : currentSurgery.date;
         const nextTime = time !== undefined ? time : currentSurgery.time;
         const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
         const updateFields = { status };
@@ -4830,6 +4966,7 @@ app.get('/api/pre-register/:token', async (req, res) => {
             guestName: surgery.guestName || 'Guest',
             guestBirthdate: surgery.guestBirthdate || null,
             guestGender: surgery.guestGender || '',
+            source: surgery.source || '',
             appointmentDate: surgery.date,
             procedure: surgery.procedure,
             branch: surgery.branch,
@@ -4876,32 +5013,29 @@ app.post('/api/appointments/:id/reschedule', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
         }
 
-        const parsedDate = new Date(`${newDate}T12:00:00`);
-        if (Number.isNaN(parsedDate.getTime())) {
-            return res.status(400).json({ message: 'Please provide a valid reschedule date.' });
-        }
-
-        const allowedSlots = await getClinicAllowedSlots();
-        if (!allowedSlots.includes(newTime)) {
-            return res.status(400).json({ message: 'Please provide a valid reschedule time.' });
-        }
-
-        const takenSlots = await getTakenSlotsForDate({ date: newDate, branch: appointment.branch });
-        const currentDateKey = new Date(appointment.date).toISOString().split('T')[0];
-        const isSameSlot = currentDateKey === newDate && (appointment.time || '') === newTime;
-        if (!isSameSlot && takenSlots.includes(newTime)) {
-            return res.status(409).json({ message: 'That time slot is already taken. Please choose another time.' });
+        const currentDateKey = getManilaDayKey(appointment.date);
+        const normalizedTime = String(newTime || '').trim();
+        const isSameSlot = currentDateKey === String(newDate).trim() && (appointment.time || '') === normalizedTime;
+        const slotCheck = await validateBookableAppointmentSlot({
+            date: newDate,
+            time: normalizedTime,
+            branch: appointment.branch,
+            excludeAppointmentId: appointment._id,
+            allowCurrentSlot: isSameSlot,
+        });
+        if (!slotCheck.ok) {
+            return res.status(slotCheck.statusCode).json({ message: slotCheck.message });
         }
 
         appointment.rescheduleHistory = appendRescheduleHistoryEntry({
             appointment,
-            nextDate: parsedDate,
-            nextTime: newTime,
+            nextDate: slotCheck.parsedDate,
+            nextTime: slotCheck.normalizedTime,
             actor: req.user,
             reason,
         });
-        appointment.date = parsedDate;
-        appointment.time = newTime;
+        appointment.date = slotCheck.parsedDate;
+        appointment.time = slotCheck.normalizedTime;
         appointment.status = appointment.status === 'cancelled' ? 'confirmed' : appointment.status;
         appointment.autoCancelledAt = null;
         appointment.cancellationReason = '';
@@ -5071,13 +5205,14 @@ app.post('/api/pre-register/:token', async (req, res) => {
         if (!isAddressComplete(currentAddress) || !isAddressComplete(permanentAddress)) {
             return res.status(400).json({ message: 'Current and permanent addresses are required.' });
         }
+        const isPhoneCallPreRegistration = String(surgery.source || '').trim() === 'Phone Call';
         if (!guestProfile?.occupation || !guestEmergencyContact?.name || !guestEmergencyContact?.relationship || !guestEmergencyContact?.contactNumber) {
             return res.status(400).json({ message: 'Occupation and emergency contact details are required.' });
         }
-        if (!guestDentalHistory?.chiefComplaint) {
+        if (!isPhoneCallPreRegistration && !guestDentalHistory?.chiefComplaint) {
             return res.status(400).json({ message: 'Reason for consultation is required.' });
         }
-        if (guestMedicalHistory?.inGoodHealth === undefined) {
+        if (!isPhoneCallPreRegistration && guestMedicalHistory?.inGoodHealth === undefined) {
             return res.status(400).json({ message: 'Please complete the basic medical history section.' });
         }
 
@@ -5183,7 +5318,10 @@ app.get('/api/public/appointments/slots', async (req, res) => {
             return res.status(400).json({ message: 'date query parameter is required.' });
         }
 
-        const allowedSlots = await getClinicAllowedSlots();
+        const allowedSlots = getBookableAllowedSlotsForDate({
+            date,
+            allowedSlots: await getClinicAllowedSlots(),
+        });
         const takenSlots = await getTakenSlotsForDate({ date, branch });
 
         res.json({ allowedSlots, takenSlots });
@@ -5230,7 +5368,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
         const fallbackFullName = String(fullName || '').trim().replace(/\s+/g, ' ');
         const normalizedName = [normalizedFirstName, normalizedMiddleName, normalizedLastName].filter(Boolean).join(' ') || fallbackFullName;
 
-        if (!normalizedName || !phone || !email || !branch || !date || !time || !procedure || !notes || !birthdate || !gender) {
+        if (!normalizedName || !phone || !email || !branch || !date || !time || !procedure || !birthdate || !gender) {
             return res.status(400).json({ message: 'All appointment request fields are required.' });
         }
         if (!turnstileToken) {
@@ -5244,7 +5382,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
         const normalizedEmail = String(email).trim().toLowerCase();
         const normalizedBranch = String(branch).trim();
         const normalizedProcedure = String(procedure).trim();
-        const normalizedNotes = String(notes).trim();
+        const normalizedNotes = String(notes || '').trim();
         const normalizedGender = String(gender).trim();
         const matchedPatient = await User.findOne({
             email: normalizedEmail,
@@ -5311,21 +5449,6 @@ app.post('/api/public/appointments/request', async (req, res) => {
             return res.status(400).json({ message: 'Captcha verification failed. Please try again.' });
         }
 
-        const appointmentDate = new Date(`${date}T12:00:00`);
-        if (Number.isNaN(appointmentDate.getTime())) {
-            return res.status(400).json({ message: 'Please select a valid appointment date.' });
-        }
-
-        if (appointmentDate.getDay() === 0) {
-            return res.status(400).json({ message: 'Appointments cannot be requested on Sundays.' });
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (appointmentDate < today) {
-            return res.status(400).json({ message: 'Please select today or a future date.' });
-        }
-
         const guestBirthdate = new Date(`${birthdate}T12:00:00`);
         if (Number.isNaN(guestBirthdate.getTime())) {
             return res.status(400).json({ message: 'Please provide a valid birthdate.' });
@@ -5344,20 +5467,13 @@ app.post('/api/public/appointments/request', async (req, res) => {
             });
         }
 
-        const allowedSlots = await getClinicAllowedSlots();
-        if (!allowedSlots.includes(time)) {
-            return res.status(400).json({ message: 'Please select a valid appointment time.' });
-        }
-
-        const requestedDateTime = new Date(`${date}T${time}:00`);
-        const now = new Date();
-        if (requestedDateTime.getTime() <= now.getTime() + (30 * 60 * 1000)) {
-            return res.status(400).json({ message: 'Please choose a later appointment time.' });
-        }
-
-        const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranchName });
-        if (takenSlots.includes(time)) {
-            return res.status(409).json({ message: 'That time slot is no longer available. Please choose another time.' });
+        const slotCheck = await validateBookableAppointmentSlot({
+            date,
+            time,
+            branch: resolvedBranchName,
+        });
+        if (!slotCheck.ok) {
+            return res.status(slotCheck.statusCode).json({ message: slotCheck.message });
         }
 
         const newSurgery = new Surgery({
@@ -5367,16 +5483,16 @@ app.post('/api/public/appointments/request', async (req, res) => {
             guestEmail: matchedPatient ? undefined : normalizedEmail,
             guestBirthdate: matchedPatient ? undefined : guestBirthdate,
             guestGender: matchedPatient ? undefined : normalizedGender,
-            guestProfile: {
+            guestProfile: matchedPatient ? undefined : {
                 nationality: 'Filipino',
-                reasonForConsultation: normalizedNotes,
+                reasonForConsultation: normalizedNotes || normalizedProcedure,
             },
-            guestDentalHistory: {
-                chiefComplaint: normalizedNotes,
+            guestDentalHistory: matchedPatient ? undefined : {
+                chiefComplaint: normalizedNotes || normalizedProcedure,
             },
             branch: resolvedBranchName,
-            date: new Date(date),
-            time,
+            date: slotCheck.parsedDate,
+            time: slotCheck.normalizedTime,
             procedure: normalizedProcedure,
             notes: normalizedNotes,
             status: 'pending',
@@ -5393,14 +5509,14 @@ app.post('/api/public/appointments/request', async (req, res) => {
             action: 'GUEST_APPOINTMENT_REQUEST',
             user: normalizedEmail,
             role: 'guest',
-            details: `Guest ${normalizedName} requested ${normalizedProcedure} on ${new Date(date).toDateString()} at ${resolvedBranchName}.`,
+            details: `Guest ${normalizedName} requested ${normalizedProcedure} on ${formatEmailDateLabel(slotCheck.parsedDate)} at ${resolvedBranchName}.`,
         });
 
         await notifyAppointmentManagers({
             appointmentId: newSurgery._id,
             patientName: normalizedName,
             procedure: normalizedProcedure,
-            date,
+            date: slotCheck.dateKey,
             branch: resolvedBranchName,
         });
 
@@ -5408,8 +5524,8 @@ app.post('/api/public/appointments/request', async (req, res) => {
             email: normalizedEmail,
             name: normalizedName,
             branch: resolvedBranchName,
-            date,
-            time,
+            date: slotCheck.parsedDate,
+            time: slotCheck.normalizedTime,
             procedure: normalizedProcedure,
         });
 
@@ -5428,6 +5544,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
 
         res.status(201).json({
             message: 'Appointment request submitted successfully. The clinic will email you once it is confirmed.',
+            existingPatientMatched: Boolean(matchedPatient?._id),
             surgery: newSurgery,
         });
     } catch (error) {
@@ -5476,41 +5593,21 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Patients may only book a general check-up or prophylaxis online. Additional procedures are recorded by the clinic after assessment or treatment.' });
         }
 
-        const appointmentDate = new Date(`${date}T12:00:00`);
-        if (Number.isNaN(appointmentDate.getTime())) {
-            return res.status(400).json({ message: 'Please select a valid appointment date.' });
-        }
-        if (appointmentDate.getDay() === 0) {
-            return res.status(400).json({ message: 'Appointments cannot be requested on Sundays.' });
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (appointmentDate < today) {
-            return res.status(400).json({ message: 'Please select today or a future date.' });
-        }
-
-        const allowedSlots = await getClinicAllowedSlots();
-        if (!allowedSlots.includes(time)) {
-            return res.status(400).json({ message: 'Please select a valid appointment time.' });
-        }
-
-        const requestedDateTime = new Date(`${date}T${time}:00`);
-        if (requestedDateTime.getTime() <= Date.now() + (30 * 60 * 1000)) {
-            return res.status(400).json({ message: 'Please choose a later appointment time.' });
-        }
-
-        const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranch });
-        if (takenSlots.includes(time)) {
-            return res.status(409).json({ message: 'That time slot is already taken. Please choose another time.' });
+        const slotCheck = await validateBookableAppointmentSlot({
+            date,
+            time,
+            branch: resolvedBranch,
+        });
+        if (!slotCheck.ok) {
+            return res.status(slotCheck.statusCode).json({ message: slotCheck.message });
         }
 
         const newSurgery = new Surgery({
             patient: req.user.id,
             dentist: req.body.dentistId || null,
             branch: resolvedBranch,
-            date: new Date(date),
-            time: time || '',
+            date: slotCheck.parsedDate,
+            time: slotCheck.normalizedTime,
             procedure,
             notes: notes || '',
             status: 'pending',
@@ -5524,14 +5621,14 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             action: 'APPOINTMENT_REQUEST',
             user: patientUser.email,
             role: 'patient',
-            details: `Patient ${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${new Date(date).toDateString()}`
+            details: `Patient ${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${formatEmailDateLabel(slotCheck.parsedDate)}`
         });
 
         await notifyAppointmentManagers({
             appointmentId: newSurgery._id,
             patientName: `${patientUser.name.first} ${patientUser.name.last}`.trim(),
             procedure,
-            date,
+            date: slotCheck.dateKey,
             branch: resolvedBranch,
         });
 
@@ -5540,8 +5637,8 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
                 email: patientUser.email,
                 name: `${patientUser.name.first} ${patientUser.name.last}`.trim(),
                 branch: resolvedBranch,
-                date,
-                time,
+                date: slotCheck.parsedDate,
+                time: slotCheck.normalizedTime,
                 procedure,
             });
         }
@@ -5584,7 +5681,10 @@ app.get('/api/appointments/slots', verifyToken, async (req, res) => {
             resolvedBranch = getScopedBranchForUser(req.user) || resolvedBranch;
         }
 
-        const allowedSlots = await getClinicAllowedSlots();
+        const allowedSlots = getBookableAllowedSlotsForDate({
+            date,
+            allowedSlots: await getClinicAllowedSlots(),
+        });
         const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranch });
 
         res.json({ allowedSlots, takenSlots, branch: resolvedBranch });

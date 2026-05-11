@@ -70,7 +70,7 @@ export default function WebsiteShell({ children }) {
                 node.style.removeProperty('--reveal-delay');
             });
         };
-    }, [children]);
+    }, [location.pathname]);
 
     return (
         <div className={styles.page}>

@@ -32,8 +32,38 @@ const buildInitialForm = () => ({
 
 const TURNSTILE_SITE_KEY = process.env.REACT_APP_TURNSTILE_SITE_KEY || '';
 
-const getTodayString = () => new Date().toISOString().split('T')[0];
-const toMonthString = (dateString) => (dateString ? dateString.slice(0, 7) : new Date().toISOString().slice(0, 7));
+const MANILA_TIME_ZONE = 'Asia/Manila';
+const dateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MANILA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+});
+const formatDateKey = (value = new Date()) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = Object.fromEntries(
+        dateKeyFormatter.formatToParts(date).map((part) => [part.type, part.value])
+    );
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+const getTodayString = () => formatDateKey(new Date());
+const toMonthString = (dateString) => (dateString ? dateString.slice(0, 7) : getTodayString().slice(0, 7));
+const addDaysToDateString = (dateString, daysToAdd) => {
+    const baseDate = new Date(`${dateString}T12:00:00`);
+    if (Number.isNaN(baseDate.getTime())) return dateString;
+    baseDate.setDate(baseDate.getDate() + daysToAdd);
+    return formatDateKey(baseDate);
+};
+const findNextAvailableDate = (startDate, blockedDateList = [], maxDaysToCheck = 90) => {
+    const blockedSet = new Set(Array.isArray(blockedDateList) ? blockedDateList : []);
+    let candidate = startDate || getTodayString();
+    for (let index = 0; index <= maxDaysToCheck; index += 1) {
+        if (!blockedSet.has(candidate)) return candidate;
+        candidate = addDaysToDateString(candidate, 1);
+    }
+    return startDate || getTodayString();
+};
 const to12h = (time24) => {
     if (!time24) return '';
     const [hourText, minute] = time24.split(':');
@@ -42,14 +72,16 @@ const to12h = (time24) => {
     const hour12 = hour % 12 || 12;
     return `${hour12}:${minute} ${suffix}`;
 };
-
-const isSlotPast = (slot24, dateStr) => {
-    if (!slot24 || !dateStr || dateStr !== getTodayString()) return false;
-    const now = new Date();
-    const [hour, minute] = slot24.split(':').map(Number);
-    const slotMinutes = hour * 60 + minute;
-    const bufferMinutes = now.getHours() * 60 + now.getMinutes() + 30;
-    return slotMinutes <= bufferMinutes;
+const formatReadableDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(`${dateString}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('en-PH', {
+        timeZone: MANILA_TIME_ZONE,
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
 };
 
 const personNameRegex = /^[A-Za-z][A-Za-z\s.'-]{0,49}$/;
@@ -71,6 +103,8 @@ export default function WebsiteAppointment() {
     const [errors, setErrors] = useState({});
     const [submittedMessage, setSubmittedMessage] = useState('');
     const [submitState, setSubmitState] = useState('idle');
+    const [successModalMessage, setSuccessModalMessage] = useState('');
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [slotsError, setSlotsError] = useState('');
     const [allowedSlots, setAllowedSlots] = useState([]);
@@ -156,7 +190,10 @@ export default function WebsiteAppointment() {
     const fetchBlockedDates = useCallback(async (branch, month) => {
         if (!branch) return;
         try {
-            const response = await publicFetch(`/public/appointments/blocked-dates?branch=${encodeURIComponent(branch)}&month=${month}`);
+            const blockedDatesUrl = month
+                ? `/public/appointments/blocked-dates?branch=${encodeURIComponent(branch)}&month=${month}`
+                : `/public/appointments/blocked-dates?branch=${encodeURIComponent(branch)}`;
+            const response = await publicFetch(blockedDatesUrl);
             if (response.status === 404) {
                 setBlockedDates([]);
                 return;
@@ -195,7 +232,7 @@ export default function WebsiteAppointment() {
     }, []);
 
     useEffect(() => {
-        fetchBlockedDates(formData.branch, toMonthString(formData.preferredDate));
+        fetchBlockedDates(formData.branch, formData.preferredDate ? toMonthString(formData.preferredDate) : '');
     }, [fetchBlockedDates, formData.branch, formData.preferredDate]);
 
     useEffect(() => {
@@ -207,9 +244,21 @@ export default function WebsiteAppointment() {
         fetchSlots(formData.preferredDate, formData.branch);
     }, [fetchSlots, formData.branch, formData.preferredDate]);
 
+    const minBookableDate = useMemo(
+        () => findNextAvailableDate(getTodayString(), blockedDates),
+        [blockedDates]
+    );
+
+    useEffect(() => {
+        if (!formData.preferredDate) return;
+        if (formData.preferredDate < minBookableDate) {
+            setFormData((prev) => ({ ...prev, preferredDate: minBookableDate, preferredTime: '' }));
+        }
+    }, [formData.preferredDate, minBookableDate]);
+
     const visibleSlots = useMemo(
-        () => allowedSlots.filter((slot) => !takenSlots.includes(slot) && !isSlotPast(slot, formData.preferredDate)),
-        [allowedSlots, formData.preferredDate, takenSlots]
+        () => allowedSlots.filter((slot) => !takenSlots.includes(slot)),
+        [allowedSlots, takenSlots]
     );
 
     const validate = useCallback((data) => {
@@ -255,7 +304,12 @@ export default function WebsiteAppointment() {
             if (Number.isNaN(selectedDate.getTime())) nextErrors.preferredDate = 'Choose a valid date.';
             else if (selectedDate < today) nextErrors.preferredDate = 'Choose today or a future date.';
             else if (selectedDate.getDay() === 0) nextErrors.preferredDate = 'Sunday appointments are not available.';
-            else if (blockedDates.includes(data.preferredDate)) nextErrors.preferredDate = 'That date is already fully booked.';
+            else if (data.preferredDate < minBookableDate) nextErrors.preferredDate = 'Choose the next available appointment date.';
+            else if (blockedDates.includes(data.preferredDate)) {
+                nextErrors.preferredDate = data.preferredDate === getTodayString()
+                    ? 'Same-day booking is no longer available for today. Please choose another date.'
+                    : 'That date is already fully booked.';
+            }
         }
 
         if (!data.preferredTime) nextErrors.preferredTime = 'Preferred time is required.';
@@ -264,11 +318,10 @@ export default function WebsiteAppointment() {
         if (!data.procedure) nextErrors.procedure = 'Procedure is required.';
         else if (!appointmentProcedures.includes(data.procedure)) nextErrors.procedure = 'Choose a valid procedure.';
 
-        if (!trimmedNotes) nextErrors.notes = 'Please tell the clinic about your concern.';
-        else if (trimmedNotes.length < 10) nextErrors.notes = 'Please provide a bit more detail.';
+        if (trimmedNotes && trimmedNotes.length < 10) nextErrors.notes = 'Please provide a bit more detail or leave this blank.';
 
         return nextErrors;
-    }, [blockedDates, visibleSlots]);
+    }, [blockedDates, minBookableDate, visibleSlots]);
 
     const handleChange = (event) => {
         const { name, type, value, checked } = event.target;
@@ -297,6 +350,7 @@ export default function WebsiteAppointment() {
 
         setSubmittedMessage('');
         setSubmitState('idle');
+        setIsSuccessModalOpen(false);
         if (name === 'phone') {
             setErrors((prev) => {
                 const nextErrors = { ...prev };
@@ -318,6 +372,7 @@ export default function WebsiteAppointment() {
         setFormData((prev) => ({ ...prev, preferredTime: slot }));
         setErrors((prev) => ({ ...prev, preferredTime: '' }));
         setSubmittedMessage('');
+        setIsSuccessModalOpen(false);
     };
 
     const handleSubmit = async (event) => {
@@ -368,11 +423,18 @@ export default function WebsiteAppointment() {
                 return;
             }
 
-            setSubmittedMessage(
-                `Your appointment request for ${formData.branch} on ${formData.preferredDate} at ${to12h(formData.preferredTime)} has been sent. The clinic will email you once it is confirmed.`
+            setSuccessModalMessage(
+                data.existingPatientMatched
+                    ? `Your appointment request for ${formData.branch} on ${formatReadableDate(formData.preferredDate)} at ${to12h(formData.preferredTime)} has been sent using your existing patient record. The clinic will email you once it is confirmed.`
+                    : `Your appointment request for ${formData.branch} on ${formatReadableDate(formData.preferredDate)} at ${to12h(formData.preferredTime)} has been sent. The clinic will email you once it is confirmed.`
             );
             setSubmitState('success');
-            setFormData(buildInitialForm());
+            setIsSuccessModalOpen(true);
+            setSubmittedMessage('');
+            setFormData({
+                ...buildInitialForm(),
+                branch: branchOptions[0] || buildInitialForm().branch,
+            });
             setErrors({});
             setAllowedSlots([]);
             setTakenSlots([]);
@@ -434,8 +496,8 @@ export default function WebsiteAppointment() {
                             )}
                         </div>
 
-                        {submittedMessage && (
-                            <div className={submitState === 'error' ? styles.errorBanner : styles.successBanner}>
+                        {submittedMessage && submitState === 'error' && (
+                            <div className={styles.errorBanner}>
                                 {submittedMessage}
                             </div>
                         )}
@@ -564,10 +626,13 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldInput} ${errors.preferredDate ? styles.errorBorder : ''}`}
                                     value={formData.preferredDate}
                                     onChange={handleChange}
-                                    min={getTodayString()}
+                                    min={minBookableDate}
                                     required
                                 />
                                 {errors.preferredDate && <span className={styles.errorText}>{errors.preferredDate}</span>}
+                                {blockedDates.includes(getTodayString()) && minBookableDate !== getTodayString() && (
+                                    <span className={styles.helperText}>Same-day online booking is no longer available for today. Please choose the next available date.</span>
+                                )}
                             </div>
 
                             <div className={styles.fieldGroup}>
@@ -621,7 +686,7 @@ export default function WebsiteAppointment() {
                             </div>
 
                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                <label className={styles.fieldLabel} htmlFor="notes">Concern / Message</label>
+                                <label className={styles.fieldLabel} htmlFor="notes">Concern / Message (Optional)</label>
                                 <textarea
                                     id="notes"
                                     name="notes"
@@ -629,9 +694,9 @@ export default function WebsiteAppointment() {
                                     value={formData.notes}
                                     onChange={handleChange}
                                     placeholder="Tell the clinic about your concern, symptoms, or anything important for your visit."
-                                    required
                                 />
                                 {errors.notes && <span className={styles.errorText}>{errors.notes}</span>}
+                                <span className={styles.helperText}>You may leave this blank if you only want to reserve a consultation slot.</span>
                             </div>
 
                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
@@ -740,6 +805,24 @@ export default function WebsiteAppointment() {
                         <div className={styles.privacyModalFooter}>
                             <button type="button" className={styles.primaryBtn} onClick={() => setIsPrivacyModalOpen(false)}>
                                 I Understand
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isSuccessModalOpen && successModalMessage && (
+                <div className={styles.bookingSuccessOverlay} role="dialog" aria-modal="true" aria-labelledby="booking-success-title">
+                    <div className={styles.bookingSuccessModal}>
+                        <p className={styles.eyebrow}>Appointment Sent</p>
+                        <h3 id="booking-success-title" className={styles.privacyModalTitle}>Request received</h3>
+                        <p className={styles.bodyText}>{successModalMessage}</p>
+                        <div className={styles.bookingSuccessActions}>
+                            <button type="button" className={styles.secondaryBtn} onClick={() => setIsSuccessModalOpen(false)}>
+                                Close
+                            </button>
+                            <button type="button" className={styles.primaryBtn} onClick={() => setIsSuccessModalOpen(false)}>
+                                Book Another Appointment
                             </button>
                         </div>
                     </div>
