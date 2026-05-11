@@ -245,6 +245,7 @@ const normalizeAppointment = (appointment) => {
         status: appointment.status || 'pending',
         statusLabel: APPOINTMENT_STATUS_LABELS[appointment.status] || 'Pending',
         createdAt: appointment.createdAt || appointment.updatedAt || appointment.date,
+        contactNumber: appointment.patient?.contactNumber || appointment.guestPhone || '',
         source: appointment.source || 'Walk-in',
         sourceKind,
         sourceLabel,
@@ -253,10 +254,10 @@ const normalizeAppointment = (appointment) => {
     };
 };
 
-const isGuestWebsiteAppointmentEntry = (entry) => (
+const isGuestAppointmentEntry = (entry) => (
     entry?.type === 'appointment'
     && !entry?.patientId
-    && (entry?.raw?.source === 'Smile Hub (Online)' || entry?.source === 'Smile Hub (Online)')
+    && ['Smile Hub (Online)', 'Phone Call'].includes(entry?.raw?.source || entry?.source)
 );
 
 const isAddressComplete = (address) => (
@@ -278,7 +279,7 @@ const hasCompleteGuestIntake = (appointment) => (
 );
 
 const getGuestPreRegistrationMeta = (appointment) => {
-    if (!isGuestWebsiteAppointmentEntry(appointment)) return null;
+    if (!isGuestAppointmentEntry(appointment)) return null;
     if (appointment?.raw?.preRegistrationCompleted) {
         return { label: 'Ready to Register', tone: 'ready' };
     }
@@ -353,6 +354,7 @@ const buildInitialForm = ({ assignedBranch, currentUserId, role }) => ({
     status: 'pending',
     source: '',
     contactNumber: '',
+    guestEmail: '',
     assignedDentist: '',
 });
 
@@ -727,7 +729,11 @@ export default function SchedulePage() {
         return rows
             .filter((entry) => {
                 const matchesType = typeFilter === 'all'
-                    || (typeFilter === 'walkin' ? entry.sourceKind === 'walkin' : entry.sourceKind !== 'walkin');
+                    || (typeFilter === 'walkin'
+                        ? entry.sourceKind === 'walkin'
+                        : (typeFilter === 'phonecall'
+                            ? entry.sourceKind === 'phonecall'
+                            : entry.sourceKind === 'appointment'));
                 const matchesStatus = statusFilter.length === 0 || statusFilter.includes(entry.status);
                 if (!normalizedQuery) return matchesType && matchesStatus;
 
@@ -787,6 +793,7 @@ export default function SchedulePage() {
                 ? 'walkin'
                 : (entry.sourceKind === 'phonecall' ? 'phonecall' : 'appointment'),
             contactNumber: entry.contactNumber || '',
+            guestEmail: entry?.raw?.guestEmail || '',
             assignedDentist: entry.sourceKind === 'walkin' ? (entry.dentistName === 'Unassigned' ? '' : entry.dentistName) : '',
         };
         setFormState(nextState);
@@ -823,6 +830,7 @@ export default function SchedulePage() {
                 next.patientId = matchedPatient.id;
                 next.patientName = matchedPatient.name;
                 next.contactNumber = matchedPatient.contactNumber;
+                next.guestEmail = '';
 
                 if (matchedPatient.branch && matchedPatient.branch !== next.branch) {
                     next.branch = matchedPatient.branch;
@@ -841,6 +849,7 @@ export default function SchedulePage() {
                     next.status = 'confirmed';
                 } else {
                     next.status = 'pending';
+                    next.guestEmail = '';
                 }
                 next.date = nextType === 'walkin' ? todayString : prev.date || todayString;
                 next.time = '';
@@ -862,7 +871,7 @@ export default function SchedulePage() {
                 ));
                 if (matchedPatient) {
                     applyMatchedPatient(matchedPatient);
-                } else if (prev.formType === 'walkin') {
+                } else if (prev.formType === 'walkin' || prev.source === 'phonecall') {
                     next.patientId = '';
                 }
             }
@@ -888,12 +897,14 @@ export default function SchedulePage() {
     const validateForm = () => {
         const nextErrors = {};
         const activeBranch = formState.branch || assignedBranch;
-        const isGuestWebsiteAppointment = isGuestWebsiteAppointmentEntry(editingEntry);
+        const isGuestAppointment = isGuestAppointmentEntry(editingEntry);
+        const isPhoneCallGuest = formState.source === 'phonecall' && !formState.patientId;
 
         if (!activeBranch) nextErrors.branch = 'Select a branch.';
         if (!formState.source) nextErrors.source = 'Select a source.';
         if (formState.formType === 'appointment') {
-            if (!formState.patientId && !isGuestWebsiteAppointment) nextErrors.patientId = 'Select a patient.';
+            if (!formState.patientId && !isGuestAppointment && !isPhoneCallGuest) nextErrors.patientId = 'Select a patient.';
+            if (isPhoneCallGuest && !formState.patientName.trim()) nextErrors.patientName = 'Enter the caller or patient name.';
             if (!formState.dentistId && canChooseDentist) nextErrors.dentistId = 'Select a dentist.';
             if (!formState.date) nextErrors.date = 'Choose an appointment date.';
             if (!formState.time) nextErrors.time = 'Choose an appointment time.';
@@ -901,6 +912,18 @@ export default function SchedulePage() {
                 nextErrors.time = 'Choose one of the available time slots.';
             }
             if (!formState.procedure) nextErrors.procedure = 'Select a procedure.';
+            if (isPhoneCallGuest) {
+                if (!formState.contactNumber.trim()) {
+                    nextErrors.contactNumber = 'Enter the caller contact number.';
+                } else if (!/^9\d{9}$/.test(formState.contactNumber.trim())) {
+                    nextErrors.contactNumber = 'Use the 9xxxxxxxxx mobile format.';
+                }
+                if (!formState.guestEmail.trim()) {
+                    nextErrors.guestEmail = 'Enter the caller email address.';
+                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.guestEmail.trim())) {
+                    nextErrors.guestEmail = 'Enter a valid email address.';
+                }
+            }
         } else {
             if (!formState.patientName.trim()) nextErrors.patientName = 'Enter the walk-in patient name.';
             if (!formState.procedure.trim()) nextErrors.procedure = 'Select a procedure.';
@@ -915,10 +938,11 @@ export default function SchedulePage() {
         setIsSubmitting(true);
         try {
             if (formState.formType === 'appointment') {
-                const isGuestWebsiteAppointment = isGuestWebsiteAppointmentEntry(editingEntry);
+                const isGuestAppointment = isGuestAppointmentEntry(editingEntry);
+                const isPhoneCallGuest = formState.source === 'phonecall' && !formState.patientId;
                 const mappedSource = formState.source === 'phonecall'
                     ? 'Phone Call'
-                    : (isGuestWebsiteAppointment ? 'Smile Hub (Online)' : 'Appointment');
+                    : (isGuestAppointment ? (editingEntry?.raw?.source || 'Smile Hub (Online)') : 'Appointment');
                 const payload = {
                     patient: formState.patientId || null,
                     dentist: canChooseDentist ? formState.dentistId : currentUserId,
@@ -929,7 +953,12 @@ export default function SchedulePage() {
                     notes: formState.notes,
                     status: formState.status,
                     source: mappedSource,
-                    ...(isGuestWebsiteAppointment ? { guestName: formState.patientName.trim() || editingEntry?.raw?.guestName || '' } : {}),
+                    ...(isGuestAppointment ? { guestName: formState.patientName.trim() || editingEntry?.raw?.guestName || '' } : {}),
+                    ...(isPhoneCallGuest ? {
+                        guestName: formState.patientName.trim(),
+                        guestPhone: formState.contactNumber.trim(),
+                        guestEmail: formState.guestEmail.trim().toLowerCase(),
+                    } : {}),
                 };
 
                 const response = await authFetch(
@@ -1153,7 +1182,11 @@ export default function SchedulePage() {
 
         const activeBranch = formState.branch || assignedBranch;
         const showWalkInFields = formState.formType === 'walkin';
-        const isGuestWebsiteAppointment = isGuestWebsiteAppointmentEntry(editingEntry);
+        const isGuestAppointment = isGuestAppointmentEntry(editingEntry);
+        const isPhoneCallGuest = formState.source === 'phonecall' && !formState.patientId;
+        const canEditUnlinkedGuestIdentity = !editingEntry
+            || (editingEntry?.type === 'appointment' && !editingEntry?.patientId && editingEntry?.sourceKind === 'phonecall');
+        const autoStatusLabel = APPOINTMENT_STATUS_LABELS[formState.status] || 'Pending';
         const patientManagementPath = {
             administrator: '/admin/patients',
             owner: '/owner/patients',
@@ -1219,8 +1252,8 @@ export default function SchedulePage() {
 
                             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                 <label className={styles.formLabel}>
-                                    {editingEntry ? 'Patient Name' : (isGuestWebsiteAppointment ? 'Guest / Patient' : 'Select Patient')}
-                                    {!isGuestWebsiteAppointment && <span className={styles.requiredMark}>*</span>}
+                                    {editingEntry ? 'Patient Name' : ((isGuestAppointment || formState.source === 'phonecall') ? 'Guest / Patient' : 'Select Patient')}
+                                    {!isGuestAppointment && !isPhoneCallGuest && <span className={styles.requiredMark}>*</span>}
                                 </label>
                                 <div className={styles.patientSearchRow}>
                                     <div>
@@ -1229,12 +1262,14 @@ export default function SchedulePage() {
                                             type="text"
                                             name="patientName"
                                             className={styles.formControl}
-                                            value={showWalkInFields ? formState.patientName : (formState.patientId ? `${formState.patientName}${patientOptions.find((entry) => entry.id === formState.patientId)?.email ? ` (${patientOptions.find((entry) => entry.id === formState.patientId)?.email})` : ''}` : formState.patientName)}
+                                            value={showWalkInFields || isPhoneCallGuest
+                                                ? formState.patientName
+                                                : (formState.patientId ? `${formState.patientName}${patientOptions.find((entry) => entry.id === formState.patientId)?.email ? ` (${patientOptions.find((entry) => entry.id === formState.patientId)?.email})` : ''}` : formState.patientName)}
                                             onChange={handleFormFieldChange}
-                                            placeholder={editingEntry ? 'Patient name' : (isGuestWebsiteAppointment ? 'Guest name or linked patient' : 'Search patient name or email')}
-                                            disabled={!!editingEntry}
+                                            placeholder={editingEntry ? 'Patient name' : ((isGuestAppointment || formState.source === 'phonecall') ? 'Guest name or linked patient' : 'Search patient name or email')}
+                                            disabled={!canEditUnlinkedGuestIdentity}
                                         />
-                                        {!editingEntry && (
+                                        {canEditUnlinkedGuestIdentity && (
                                             <datalist id="schedule-patient-search">
                                                 {patientSearchOptions.map((option) => (
                                                     <option key={option} value={option} />
@@ -1290,6 +1325,23 @@ export default function SchedulePage() {
                                 </div>
                             )}
 
+                            {isPhoneCallGuest && (
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Contact Number <span className={styles.requiredMark}>*</span></label>
+                                    <div className={styles.helperText} style={{ marginBottom: '8px' }}>Use the caller&apos;s mobile number in 9xxxxxxxxx format so they can complete registration later.</div>
+                                    <input
+                                        type="text"
+                                        name="contactNumber"
+                                        className={styles.formControl}
+                                        value={formState.contactNumber}
+                                        onChange={handleFormFieldChange}
+                                        placeholder="9xxxxxxxxx"
+                                        maxLength={10}
+                                    />
+                                    {formErrors.contactNumber && <span className={styles.errorText}>{formErrors.contactNumber}</span>}
+                                </div>
+                            )}
+
                             {showWalkInFields ? (
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Contact Number</label>
@@ -1317,28 +1369,51 @@ export default function SchedulePage() {
                                 </div>
                             )}
 
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Status <span className={styles.requiredMark}>*</span></label>
-                                <select
-                                    name="status"
-                                    className={styles.formControl}
-                                    value={formState.status}
-                                    onChange={handleFormFieldChange}
-                                    disabled={statusFieldDisabled}
-                                >
-                                    {editableStatusOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                {statusFieldDisabled && editingEntry && editingBaseStatus === 'in-clinic' && (
-                                    <span className={styles.helperText}>Use the complete action to mark an in-clinic schedule as completed.</span>
-                                )}
-                                {statusFieldDisabled && editingEntry && ['completed', 'cancelled'].includes(editingBaseStatus) && (
-                                    <span className={styles.helperText}>Completed and cancelled schedules can no longer change status.</span>
-                                )}
-                            </div>
+                            {editingEntry ? (
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Status <span className={styles.requiredMark}>*</span></label>
+                                    <select
+                                        name="status"
+                                        className={styles.formControl}
+                                        value={formState.status}
+                                        onChange={handleFormFieldChange}
+                                        disabled={statusFieldDisabled}
+                                    >
+                                        {editableStatusOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {statusFieldDisabled && editingEntry && editingBaseStatus === 'in-clinic' && (
+                                        <span className={styles.helperText}>Use the complete action to mark an in-clinic schedule as completed.</span>
+                                    )}
+                                    {statusFieldDisabled && editingEntry && ['completed', 'cancelled'].includes(editingBaseStatus) && (
+                                        <span className={styles.helperText}>Completed and cancelled schedules can no longer change status.</span>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Status</label>
+                                    <div className={styles.helperText}>This entry will be created as <strong>{autoStatusLabel}</strong> based on the selected source.</div>
+                                </div>
+                            )}
+
+                            {isPhoneCallGuest && (
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Email Address <span className={styles.requiredMark}>*</span></label>
+                                    <div className={styles.helperText} style={{ marginBottom: '8px' }}>We&apos;ll use this to send the pre-registration link after the booking is saved.</div>
+                                    <input
+                                        type="email"
+                                        name="guestEmail"
+                                        className={styles.formControl}
+                                        value={formState.guestEmail}
+                                        onChange={handleFormFieldChange}
+                                        placeholder="name@example.com"
+                                    />
+                                    {formErrors.guestEmail && <span className={styles.errorText}>{formErrors.guestEmail}</span>}
+                                </div>
+                            )}
 
                             <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                 <label className={styles.formLabel}>
@@ -1495,7 +1570,7 @@ export default function SchedulePage() {
                                     <dd>{viewEntry.notes || 'No notes recorded.'}</dd>
                                 </div>
                             </dl>
-                            {isGuestWebsiteAppointmentEntry(viewEntry) && (
+                            {isGuestAppointmentEntry(viewEntry) && (
                                 <div style={{ display: 'grid', gap: '10px', marginTop: '18px' }}>
                                     <div className={styles.detailItem}>
                                         <dt>Guest Registration Status</dt>
@@ -1518,7 +1593,7 @@ export default function SchedulePage() {
                                                 className={styles.primaryButton}
                                                 onClick={() => setGuestRegistrationTarget(viewEntry)}
                                             >
-                                                Register Guest
+                                                Register / Link Patient
                                             </button>
                                         )}
                                         {viewEntry.status === 'confirmed' && guestPreRegistrationMeta?.label !== 'Ready to Register' && (
@@ -1583,7 +1658,7 @@ export default function SchedulePage() {
                     <div>
                         <h1 className={styles.pageTitle}>Schedule Management</h1>
                         <p className={styles.pageSubtitle}>
-                            Appointments and walk-ins are shown in one schedule view, with branch-aware dentist filtering and a patient search flow that matches registration.
+                            Appointments, phone calls, and walk-ins are shown in one schedule view, with branch-aware dentist filtering and a patient search flow that matches registration.
                         </p>
                     </div>
                     {canCreateSchedule && (
@@ -1625,6 +1700,7 @@ export default function SchedulePage() {
                             <select className={styles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                                 <option value="all">All Types</option>
                                 <option value="appointment">Appointments</option>
+                                <option value="phonecall">Phone Calls</option>
                                 {canViewQueue && <option value="walkin">Walk-ins</option>}
                             </select>
                         </label>

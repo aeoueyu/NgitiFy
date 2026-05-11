@@ -79,9 +79,9 @@ export default function QueueManagement() {
     }, [fetchQueue]);
 
     // ── Column splitters ───────────────────────────────────────
-    const waiting  = queue.filter(e => e.status === 'waiting');
-    const serving  = queue.filter(e => e.status === 'serving');
-    const finished = queue.filter(e => e.status === 'done' || e.status === 'skipped');
+    const waiting  = queue.filter(e => e.status === 'pending');
+    const serving  = queue.filter(e => e.status === 'in-clinic');
+    const finished = queue.filter(e => e.status === 'completed' || e.status === 'cancelled');
 
     // ── Status update ──────────────────────────────────────────
     const updateStatus = async (id, status) => {
@@ -94,7 +94,7 @@ export default function QueueManagement() {
             if (res.ok) {
                 const updated = await res.json();
                 setQueue(prev => prev.map(e => e._id === id ? updated : e));
-                const labels = { serving: 'called', done: 'marked as done', skipped: 'skipped' };
+                const labels = { 'in-clinic': 'called in', completed: 'marked as completed', cancelled: 'cancelled' };
                 addToast(`Ticket #${updated.ticketNumber} ${labels[status]}.`, 'success');
             } else {
                 const err = await res.json();
@@ -159,10 +159,10 @@ export default function QueueManagement() {
 
     // ── Ticket card ────────────────────────────────────────────
     const TicketCard = ({ entry }) => {
-        const isWaiting  = entry.status === 'waiting';
-        const isServing  = entry.status === 'serving';
-        const isDone     = entry.status === 'done';
-        const isSkipped  = entry.status === 'skipped';
+        const isWaiting  = entry.status === 'pending';
+        const isServing  = entry.status === 'in-clinic';
+        const isDone     = entry.status === 'completed';
+        const isSkipped  = entry.status === 'cancelled';
 
         return (
             <div className={`${styles.card} ${styles[entry.status]}`}>
@@ -196,16 +196,16 @@ export default function QueueManagement() {
                 <div className={styles.cardActions}>
                     {isWaiting && (
                         <>
-                            <button className={`${styles.actionBtn} ${styles.callBtn}`} onClick={() => updateStatus(entry._id, 'serving')} title="Call next">
+                            <button className={`${styles.actionBtn} ${styles.callBtn}`} onClick={() => updateStatus(entry._id, 'in-clinic')} title="Call next">
                                 <MdOutlineQueuePlayNext /> Call
                             </button>
-                            <button className={`${styles.actionBtn} ${styles.skipBtn}`} onClick={() => updateStatus(entry._id, 'skipped')} title="Skip">
+                            <button className={`${styles.actionBtn} ${styles.skipBtn}`} onClick={() => updateStatus(entry._id, 'cancelled')} title="Skip">
                                 <FaForward /> Skip
                             </button>
                         </>
                     )}
                     {isServing && (
-                        <button className={`${styles.actionBtn} ${styles.doneBtn}`} onClick={() => updateStatus(entry._id, 'done')} title="Mark done">
+                        <button className={`${styles.actionBtn} ${styles.doneBtn}`} onClick={() => updateStatus(entry._id, 'completed')} title="Mark done">
                             <FaCheckCircle /> Done
                         </button>
                     )}

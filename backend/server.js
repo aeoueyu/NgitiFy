@@ -894,6 +894,21 @@ const doesPatientIdentityMatchWebsiteRequest = (patientUser, {
     return isSameCalendarDay(patientBirthdate, requestBirthdate);
 };
 
+const GUEST_PRE_REGISTRATION_SOURCES = new Set(['Smile Hub (Online)', 'Phone Call']);
+
+const isGuestPreRegistrationAppointment = (appointment) => (
+    Boolean(appointment)
+    && GUEST_PRE_REGISTRATION_SOURCES.has(String(appointment?.source || '').trim())
+    && !appointment?.patient
+    && Boolean(appointment?.guestEmail)
+);
+
+const buildGuestPreRegistrationFields = () => ({
+    preRegistrationToken: crypto.randomBytes(32).toString('hex'),
+    preRegistrationTokenExpiry: new Date(Date.now() + (72 * 60 * 60 * 1000)),
+    preRegistrationCompleted: false,
+});
+
 const buildPatientAppointmentStatusNotification = ({ appointment, status, dentistName = '' }) => {
     const normalizedStatus = String(status || appointment?.status || '').trim().toLowerCase();
     const procedure = appointment?.performedProcedure || appointment?.procedure || 'appointment';
@@ -1132,7 +1147,6 @@ const getNextQueueTicketNumber = async ({ branch, day }) => {
 
 const syncQueueEntryForAppointment = async (appointmentLike) => {
     if (!appointmentLike?._id) return null;
-    if (!['Walk-in', 'Phone Call'].includes(appointmentLike.source)) return null;
 
     const appointment = appointmentLike.populate
         ? appointmentLike
@@ -1141,6 +1155,21 @@ const syncQueueEntryForAppointment = async (appointmentLike) => {
             .populate('dentist', 'name');
 
     if (!appointment) return null;
+
+    const normalizedSource = String(appointment.source || '').trim();
+    const nextStatus = mapAppointmentStatusToQueueStatus(appointment.status);
+    const existingEntry = await Queue.findOne({ linkedAppointment: appointment._id });
+    const shouldKeepQueueEntry = (
+        normalizedSource === 'Walk-in'
+        || (normalizedSource === 'Phone Call' && ['in-clinic', 'completed', 'cancelled'].includes(nextStatus))
+    );
+
+    if (!shouldKeepQueueEntry) {
+        if (existingEntry) {
+            await Queue.findByIdAndDelete(existingEntry._id);
+        }
+        return null;
+    }
 
     const patientName = appointment.patient?.name
         ? `${appointment.patient.name.first || ''} ${appointment.patient.name.last || ''}`.trim()
@@ -1151,8 +1180,6 @@ const syncQueueEntryForAppointment = async (appointmentLike) => {
     const assignedDentist = appointment.dentist && appointment.dentist.name
         ? getDentistDisplayName(appointment.dentist)
         : '';
-    const nextStatus = mapAppointmentStatusToQueueStatus(appointment.status);
-    const existingEntry = await Queue.findOne({ linkedAppointment: appointment._id });
 
     const basePayload = {
         linkedAppointment: appointment._id,
@@ -3572,6 +3599,27 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
             surgeryData.status = 'pending';
         }
 
+        if (surgeryData.source === 'Phone Call' && !surgeryData.patient) {
+            const guestName = String(surgeryData.guestName || '').trim();
+            const guestEmail = normalizeEmail(surgeryData.guestEmail || '');
+            const guestPhone = normalizePhoneNumber(surgeryData.guestPhone || surgeryData.contactNumber || '');
+            const guestPhoneDigits = guestPhone.replace(/\D/g, '');
+
+            if (!guestName) {
+                return res.status(400).json({ message: 'Guest name is required for a phone call booking without a linked patient.' });
+            }
+            if (!guestEmail || !GUEST_EMAIL_REGEX.test(guestEmail)) {
+                return res.status(400).json({ message: 'A valid guest email is required for a phone call booking without a linked patient.' });
+            }
+            if (!guestPhone || !/^(63\d{10}|9\d{9})$/.test(guestPhoneDigits)) {
+                return res.status(400).json({ message: 'A valid guest contact number is required for a phone call booking without a linked patient.' });
+            }
+
+            surgeryData.guestName = guestName;
+            surgeryData.guestEmail = guestEmail;
+            surgeryData.guestPhone = guestPhone;
+        }
+
         if (!(await isClinicProcedureAllowed(surgeryData.procedure))) {
             return res.status(400).json({ message: 'Please select a valid clinic procedure.' });
         }
@@ -3617,6 +3665,28 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
 
         if (['Walk-in', 'Phone Call'].includes(newSurgery.source)) {
             await runPostSaveSideEffect('syncQueueEntryForAppointment:create', () => syncQueueEntryForAppointment(newSurgery));
+        }
+
+        if (newSurgery.source === 'Phone Call' && isGuestPreRegistrationAppointment(newSurgery) && !newSurgery.preRegistrationCompleted) {
+            Object.assign(newSurgery, buildGuestPreRegistrationFields());
+            await newSurgery.save();
+
+            await runPostSaveSideEffect('audit:preRegistrationLinkSent:phoneCall', () => AuditLog.create({
+                action: 'PRE_REGISTRATION_LINK_SENT',
+                user: req.user?.email || req.user?.id || 'SYSTEM',
+                role: req.user?.role || 'SYSTEM',
+                details: `Pre-registration link sent for phone call appointment ${newSurgery._id}.`,
+            }));
+
+            await runPostSaveSideEffect('email:preRegistration:phoneCall', () => sendPreRegistrationEmail({
+                email: newSurgery.guestEmail,
+                name: newSurgery.guestName,
+                branch: newSurgery.branch,
+                date: newSurgery.date,
+                time: newSurgery.time,
+                procedure: newSurgery.procedure,
+                token: newSurgery.preRegistrationToken,
+            }));
         }
 
         await runPostSaveSideEffect('audit:createSurgery', () => AuditLog.create({
@@ -3675,8 +3745,8 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             return res.status(400).json({ message: 'This appointment is already linked to a patient account.' });
         }
 
-        if (surgery.source !== 'Smile Hub (Online)') {
-            return res.status(400).json({ message: 'Only website guest appointments can be registered through this flow.' });
+        if (!GUEST_PRE_REGISTRATION_SOURCES.has(String(surgery.source || '').trim())) {
+            return res.status(400).json({ message: 'Only guest website and phone call appointments can be registered through this flow.' });
         }
 
         if (isBranchScopedStaff(req.user.role)) {
@@ -3686,11 +3756,32 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             }
         }
 
+        const registrationMode = String(req.body.registrationMode || '').trim().toLowerCase();
         const duplicateCheckEmail = normalizeEmail(req.body.email || surgery.guestEmail || '');
         const existingUser = duplicateCheckEmail ? await User.findOne({ email: duplicateCheckEmail }) : null;
         if (existingUser) {
             if (existingUser.role !== 'patient') {
                 return res.status(409).json({ message: 'This email is already used by a non-patient account.' });
+            }
+
+            if (registrationMode === 'create-new') {
+                return res.status(409).json({ message: 'An existing patient already uses this email. Use the link existing patient flow instead.' });
+            }
+
+            const fallbackName = splitGuestFullName(surgery.guestName || '');
+            const requestFirstName = req.body.name?.first || req.body.firstName || fallbackName.first;
+            const requestLastName = req.body.name?.last || req.body.lastName || fallbackName.last;
+            const requestBirthdate = req.body.birthdate
+                || (surgery.guestBirthdate ? new Date(surgery.guestBirthdate).toISOString().split('T')[0] : '');
+
+            if (!doesPatientIdentityMatchWebsiteRequest(existingUser, {
+                firstName: requestFirstName,
+                lastName: requestLastName,
+                birthdate: requestBirthdate,
+            })) {
+                return res.status(409).json({
+                    message: 'This email belongs to an existing patient, but the provided name or birthdate does not match that patient account.',
+                });
             }
 
             surgery.patient = existingUser._id;
@@ -3737,6 +3828,10 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
                 surgery,
                 linkedExisting: true,
             });
+        }
+
+        if (registrationMode === 'link-existing') {
+            return res.status(404).json({ message: 'No existing patient account was found for this email. Create a new patient account instead.' });
         }
 
         const assignedBranchOverride = isBranchScopedStaff(req.user.role)
@@ -4178,9 +4273,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         if (!currentSurgery) return res.status(404).json({ message: 'Dental treatment not found.' });
         const shouldSendGuestDeclineEmail = (
             status === 'cancelled' &&
-            currentSurgery.source === 'Smile Hub (Online)' &&
-            !currentSurgery.patient &&
-            !!currentSurgery.guestEmail
+            isGuestPreRegistrationAppointment(currentSurgery)
         );
 
         if (isBranchScopedStaff(req.user.role)) {
@@ -4210,7 +4303,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         const nextTime = time !== undefined ? time : currentSurgery.time;
         const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
         const updateFields = { status };
-        const isGuestWebsiteAppointment = currentSurgery.source === 'Smile Hub (Online)' && !currentSurgery.patient && !!currentSurgery.guestEmail;
+        const isGuestPreRegistrationEntry = isGuestPreRegistrationAppointment(currentSurgery);
         if (status === 'completed' && currentSurgery.status !== 'in-clinic' && nextDateTime && nextDateTime > new Date()) {
             return res.status(400).json({ message: 'Appointments can only be marked completed after their scheduled date and time.' });
         }
@@ -4279,10 +4372,8 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             updateFields.statusReminderSentAt = null;
             updateFields.statusReminderDayKey = '';
         }
-        if (currentSurgery.status !== 'confirmed' && status === 'confirmed' && isGuestWebsiteAppointment && !currentSurgery.preRegistrationCompleted) {
-            updateFields.preRegistrationToken = crypto.randomBytes(32).toString('hex');
-            updateFields.preRegistrationTokenExpiry = new Date(Date.now() + (72 * 60 * 60 * 1000));
-            updateFields.preRegistrationCompleted = false;
+        if (currentSurgery.status !== 'confirmed' && status === 'confirmed' && isGuestPreRegistrationEntry && !currentSurgery.preRegistrationCompleted) {
+            Object.assign(updateFields, buildGuestPreRegistrationFields());
         }
 
         const updatedSurgery = await Surgery.findByIdAndUpdate(
@@ -4312,7 +4403,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 }));
             }
 
-            if (isGuestWebsiteAppointment && updatedSurgery.preRegistrationToken) {
+            if (isGuestPreRegistrationEntry && updatedSurgery.preRegistrationToken) {
                 await runPostSaveSideEffect('email:preRegistration', () => sendPreRegistrationEmail({
                     email: updatedSurgery.guestEmail,
                     name: updatedSurgery.guestName,
@@ -4784,8 +4875,8 @@ app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/
         const appointmentId = req.params.appointmentId || req.params.surgeryId;
         const surgery = await Surgery.findById(appointmentId);
         if (!surgery || surgery.isArchived) return res.status(404).json({ message: 'Guest appointment not found.' });
-        if (surgery.patient || surgery.source !== 'Smile Hub (Online)' || !surgery.guestEmail) {
-            return res.status(400).json({ message: 'Only guest website appointments can receive a pre-registration link.' });
+        if (!isGuestPreRegistrationAppointment(surgery)) {
+            return res.status(400).json({ message: 'Only guest website and phone call appointments can receive a pre-registration link.' });
         }
         if (surgery.preRegistrationCompleted) {
             return res.status(409).json({ message: 'This guest has already completed pre-registration.' });
@@ -4797,9 +4888,7 @@ app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/
             }
         }
 
-        surgery.preRegistrationToken = crypto.randomBytes(32).toString('hex');
-        surgery.preRegistrationTokenExpiry = new Date(Date.now() + (72 * 60 * 60 * 1000));
-        surgery.preRegistrationCompleted = false;
+        Object.assign(surgery, buildGuestPreRegistrationFields());
         await surgery.save();
 
         await AuditLog.create({

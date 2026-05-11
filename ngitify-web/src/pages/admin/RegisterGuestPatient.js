@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/AddPatient.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
 import successIcon from '../../assets/alert/success.svg';
@@ -87,6 +88,7 @@ const getTodayDate = () => new Date().toISOString().split('T')[0];
 
 export default function RegisterGuestPatient({ appointment, onClose, onSuccess }) {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const isBranchScopedStaff = user?.role === 'branch-manager' || user?.role === 'secretary';
     const isSecretary = user?.role === 'secretary';
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -95,6 +97,8 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
+    const [registrationMode, setRegistrationMode] = useState('create-new');
+    const [registeredPatient, setRegisteredPatient] = useState(null);
 
     const nameParts = useMemo(() => splitFullName(appointment?.patientName || appointment?.guestName || ''), [appointment]);
 
@@ -255,6 +259,18 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
     const getMaxDate = () => new Date().toISOString().split('T')[0];
     const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
+    const isLinkMode = registrationMode === 'link-existing';
+    const patientRecordPath = useMemo(() => {
+        const patientId = registeredPatient?._id || registeredPatient?.id;
+        if (!patientId) return '';
+        const role = user?.role || '';
+        if (role === 'administrator') return `/admin/patients/${patientId}/emr`;
+        if (role === 'owner') return `/owner/patients/${patientId}/emr`;
+        if (role === 'branch-manager') return `/branch-manager/patients/${patientId}/emr`;
+        if (role === 'secretary') return `/secretary/patients/${patientId}/emr`;
+        if (role === 'dentist') return `/dentist/patients/${patientId}/emr`;
+        return '';
+    }, [registeredPatient, user?.role]);
 
     const handleBlur = (e) => {
         const { name, value } = e.target;
@@ -373,20 +389,6 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         });
     };
 
-    const handleNestedPhoneChange = (section, field) => (e) => {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        if (value.length > 10) return;
-        const errorKey = `${section}_${field}`;
-        if (errors[errorKey]) {
-            setErrors((prev) => {
-                const next = { ...prev };
-                delete next[errorKey];
-                return next;
-            });
-        }
-        handleNestedChange(section, field, value);
-    };
-
     const handleNestedLandlineChange = (section, field) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 8) return;
@@ -418,13 +420,24 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     const validateForm = () => {
         const nextErrors = {};
         let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
+        const required = isLinkMode
+            ? ['firstName', 'lastName', 'birthdate', 'email']
+            : ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
         required.forEach((field) => {
             if (!formData[field]) {
                 nextErrors[field] = 'Required';
                 isValid = false;
             }
         });
+
+        if (isLinkMode) {
+            if (formData.email && !validateEmail(formData.email)) {
+                nextErrors.email = 'Invalid domain';
+                isValid = false;
+            }
+            setErrors(nextErrors);
+            return isValid;
+        }
 
         if (!formData.phone) {
             nextErrors.phone = 'Required';
@@ -554,6 +567,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 middle: formData.middleName,
                 last: formData.lastName,
             },
+            registrationMode,
             email: formData.email.trim(),
             contactNumber: toMobilePayload(formData.phone),
             birthdate: formData.birthdate,
@@ -640,9 +654,10 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             });
             const data = await response.json();
             if (response.ok) {
+                setRegisteredPatient(data.patient || null);
                 setSuccessMessage(data.message || 'Guest appointment registered successfully.');
                 setShowSuccessModal(true);
-            } else if (response.status === 409) {
+            } else if ([404, 409].includes(response.status)) {
                 setErrors((prev) => ({ ...prev, email: data.message || 'Email already exists.' }));
             } else {
                 alert(data.message || 'Failed to register guest patient.');
@@ -657,8 +672,19 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
 
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
-        onSuccess?.();
+        onSuccess?.(registeredPatient);
         onClose?.();
+    };
+
+    const handleOpenPatientRecord = () => {
+        if (!patientRecordPath) {
+            handleSuccessClose();
+            return;
+        }
+        setShowSuccessModal(false);
+        onSuccess?.(registeredPatient);
+        onClose?.();
+        navigate(patientRecordPath);
     };
 
     return (
@@ -677,6 +703,42 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 </div>
 
                 <form onSubmit={handleSubmit} noValidate>
+                    <div className={styles.addressSection}>
+                        <h3 className={styles.mainSectionTitle}>Conversion Flow</h3>
+                        <p className={styles.sectionSubtitle}>
+                            Choose whether this appointment should link to an existing patient account or create a new patient account.
+                        </p>
+                        <div className={styles.radioGroup}>
+                            <button
+                                type="button"
+                                className={`${styles.radioOption} ${!isLinkMode ? styles.radioOptionActive : ''}`}
+                                onClick={() => {
+                                    setRegistrationMode('create-new');
+                                    setErrors({});
+                                }}
+                                disabled={isLoading}
+                            >
+                                Create New Patient
+                            </button>
+                            <button
+                                type="button"
+                                className={`${styles.radioOption} ${isLinkMode ? styles.radioOptionActive : ''}`}
+                                onClick={() => {
+                                    setRegistrationMode('link-existing');
+                                    setErrors({});
+                                }}
+                                disabled={isLoading}
+                            >
+                                Link Existing Patient
+                            </button>
+                        </div>
+                        <p className={styles.sectionSubtitle} style={{ marginTop: '12px', marginBottom: 0 }}>
+                            {isLinkMode
+                                ? 'Only the matching patient identity fields are required. If the email is not already a patient account, no new account will be created.'
+                                : 'Create a full patient account from this guest appointment. Pre-registered details stay prefilled so staff only needs to review and complete the missing fields.'}
+                        </p>
+                    </div>
+
                     <h3 className={styles.mainSectionTitle}>Patient Details</h3>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} disabled={isLoading} /></div>
@@ -686,13 +748,13 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                        <div className={styles.formGroup}><label>GENDER <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
+                        <div className={styles.formGroup}><label>GENDER {!isLinkMode && <span style={{ color: 'red' }}>*</span>}</label><select className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                     </div>
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} disabled={isLoading} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
                         <div className={styles.formGroup}>
-                            <label>MOBILE <span style={{ color: 'red' }}>*</span></label>
+                            <label>MOBILE {!isLinkMode && <span style={{ color: 'red' }}>*</span>}</label>
                             <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
                                 <span className={styles.phonePrefix}>+63</span>
                                 <input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange('phone')} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading} />
@@ -701,6 +763,8 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         </div>
                     </div>
 
+                    {!isLinkMode && (
+                        <>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>CIVIL STATUS</label><select className={styles.inputField} name="civilStatus" value={formData.civilStatus} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option><option value="Divorced">Divorced</option></select></div>
@@ -1007,10 +1071,16 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         </div>
                         {errors.consentAcknowledgement_acknowledged && <span className={styles.errorText}>{errors.consentAcknowledgement_acknowledged}</span>}
                     </div>
+                        </>
+                    )}
 
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
-                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>{isLoading ? 'REGISTERING...' : 'REGISTER PATIENT'}</button>
+                        <button type="submit" className={styles.submitBtn} disabled={isLoading}>
+                            {isLoading
+                                ? (isLinkMode ? 'LINKING...' : 'REGISTERING...')
+                                : (isLinkMode ? 'LINK PATIENT' : 'REGISTER PATIENT')}
+                        </button>
                     </div>
                 </form>
             </div>
@@ -1021,7 +1091,18 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
                         <h3 className={styles.modalTitle}>Success!</h3>
                         <p className={styles.modalMessage}>{successMessage}</p>
-                        <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                            {patientRecordPath && (
+                                <button className={styles.modalButton} onClick={handleOpenPatientRecord}>OPEN PATIENT RECORD</button>
+                            )}
+                            <button
+                                className={styles.modalButton}
+                                onClick={handleSuccessClose}
+                                style={patientRecordPath ? { background: '#e2e8f0', color: '#1e293b', boxShadow: 'none' } : undefined}
+                            >
+                                DONE
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

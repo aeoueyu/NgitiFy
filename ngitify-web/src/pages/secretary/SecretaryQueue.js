@@ -81,9 +81,9 @@ export default function SecretaryQueue() {
         return () => clearInterval(interval);
     }, [fetchQueue]);
 
-    const waiting = queue.filter((entry) => entry.status === 'waiting');
-    const serving = queue.filter((entry) => entry.status === 'serving');
-    const finished = queue.filter((entry) => entry.status === 'done' || entry.status === 'skipped');
+    const waiting = queue.filter((entry) => entry.status === 'pending');
+    const serving = queue.filter((entry) => entry.status === 'in-clinic');
+    const finished = queue.filter((entry) => entry.status === 'completed' || entry.status === 'cancelled');
 
     const updateStatus = async (id, status, ticketNumber) => {
         try {
@@ -96,7 +96,7 @@ export default function SecretaryQueue() {
             if (res.ok) {
                 const updated = await res.json();
                 setQueue((prev) => prev.map((entry) => (entry._id === id ? updated : entry)));
-                const labels = { serving: 'called in', done: 'marked as done', skipped: 'skipped' };
+                const labels = { 'in-clinic': 'called in', completed: 'marked as completed', cancelled: 'cancelled' };
                 addToast(`Ticket #${String(ticketNumber).padStart(3, '0')} ${labels[status] || 'updated'}.`, 'success');
             } else {
                 const error = await res.json();
@@ -183,10 +183,10 @@ export default function SecretaryQueue() {
     };
 
     const TicketCard = ({ entry }) => {
-        const isWaiting = entry.status === 'waiting';
-        const isServing = entry.status === 'serving';
-        const isDone = entry.status === 'done';
-        const isSkipped = entry.status === 'skipped';
+        const isWaiting = entry.status === 'pending';
+        const isServing = entry.status === 'in-clinic';
+        const isDone = entry.status === 'completed';
+        const isSkipped = entry.status === 'cancelled';
 
         return (
             <div className={`${styles.card} ${styles[entry.status]}`}>
@@ -240,14 +240,14 @@ export default function SecretaryQueue() {
                         <>
                             <button
                                 className={`${styles.actionBtn} ${styles.callBtn}`}
-                                onClick={() => updateStatus(entry._id, 'serving', entry.ticketNumber)}
+                                onClick={() => updateStatus(entry._id, 'in-clinic', entry.ticketNumber)}
                                 title="Call patient"
                             >
                                 <MdOutlineQueuePlayNext /> Call
                             </button>
                             <button
                                 className={`${styles.actionBtn} ${styles.skipBtn}`}
-                                onClick={() => updateStatus(entry._id, 'skipped', entry.ticketNumber)}
+                                onClick={() => updateStatus(entry._id, 'cancelled', entry.ticketNumber)}
                                 title="Skip patient"
                             >
                                 <FaForward /> Skip
@@ -257,7 +257,7 @@ export default function SecretaryQueue() {
                     {isServing && (
                         <button
                             className={`${styles.actionBtn} ${styles.doneBtn}`}
-                            onClick={() => updateStatus(entry._id, 'done', entry.ticketNumber)}
+                            onClick={() => updateStatus(entry._id, 'completed', entry.ticketNumber)}
                             title="Mark as done"
                         >
                             <FaCheckCircle /> Done

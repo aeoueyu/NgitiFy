@@ -135,7 +135,7 @@ const normalizeSurgery = (surgery) => ({
     source: surgery.source || 'Walk-in',
     rawDate: new Date(surgery.date),
     branch: surgery.branch || '',
-    isGuest: !surgery.patient && surgery.source === 'Smile Hub (Online)',
+    isGuest: !surgery.patient && ['Smile Hub (Online)', 'Phone Call'].includes(surgery.source),
     consentGiven: Boolean(surgery.consentGiven),
     consentTimestamp: surgery.consentTimestamp || '',
     consentVersion: surgery.consentVersion || '',
@@ -874,7 +874,7 @@ export default function AdminAppointments() {
                                             title="Register guest as patient"
                                             style={{ background: '#01538b', color: '#fff' }}
                                         >
-                                            Register Guest
+                                            Register / Link Patient
                                         </button>
                                     )}
 

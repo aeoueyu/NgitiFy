@@ -206,10 +206,14 @@
 
 .card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
 
-.card.waiting  { border-left-color: #3b82f6; }
-.card.serving  { border-left-color: #f97316; }
-.card.done     { border-left-color: #22c55e; opacity: 0.85; }
-.card.skipped  { border-left-color: #94a3b8; opacity: 0.75; }
+.card.waiting,
+.card.pending  { border-left-color: #3b82f6; }
+.card.serving,
+.card.in-clinic  { border-left-color: #f97316; }
+.card.done,
+.card.completed  { border-left-color: #22c55e; opacity: 0.85; }
+.card.skipped,
+.card.cancelled  { border-left-color: #94a3b8; opacity: 0.75; }
 
 .cardHeader {
     display: flex;
@@ -226,10 +230,14 @@
     letter-spacing: 0.5px;
 }
 
-.badge_waiting  { background: #dbeafe; color: #1d4ed8; }
-.badge_serving  { background: #ffedd5; color: #c2410c; }
-.badge_done     { background: #dcfce7; color: #15803d; }
-.badge_skipped  { background: #f1f5f9; color: #64748b; }
+.badge_waiting,
+.badge_pending  { background: #dbeafe; color: #1d4ed8; }
+.badge_serving,
+.badge_in-clinic  { background: #ffedd5; color: #c2410c; }
+.badge_done,
+.badge_completed     { background: #dcfce7; color: #15803d; }
+.badge_skipped,
+.badge_cancelled  { background: #f1f5f9; color: #64748b; }
 
 .skippedTag {
     font-size: 11px;
