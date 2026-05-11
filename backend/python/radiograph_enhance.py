@@ -15,18 +15,91 @@ def decode_base64_image(image_base64):
     return image
 
 
+def to_float32(image):
+    return image.astype(np.float32) / 255.0
+
+
+def percentile_rescale(image, low=0.8, high=99.2):
+    low_value, high_value = np.percentile(image, [low, high])
+    if high_value - low_value < 1e-6:
+        return np.clip(image, 0.0, 1.0)
+    scaled = (image - low_value) / (high_value - low_value)
+    return np.clip(scaled, 0.0, 1.0)
+
+
+def float_to_uint8(image):
+    return np.clip(image * 255.0, 0, 255).astype(np.uint8)
+
+
+def apply_multi_scale_clahe(image):
+    image_u8 = float_to_uint8(image)
+    fine = cv2.createCLAHE(clipLimit=1.4, tileGridSize=(8, 8)).apply(image_u8)
+    medium = cv2.createCLAHE(clipLimit=1.2, tileGridSize=(16, 16)).apply(image_u8)
+    coarse = cv2.createCLAHE(clipLimit=1.1, tileGridSize=(24, 24)).apply(image_u8)
+
+    fine_f = to_float32(fine)
+    medium_f = to_float32(medium)
+    coarse_f = to_float32(coarse)
+    return np.clip((0.5 * fine_f) + (0.3 * medium_f) + (0.2 * coarse_f), 0.0, 1.0)
+
+
+def unsharp_mask(image, sigma, amount, clip_limit=0.075):
+    blurred = cv2.GaussianBlur(image, (0, 0), sigmaX=sigma, sigmaY=sigma)
+    detail = np.clip(image - blurred, -clip_limit, clip_limit)
+    return np.clip(image + (amount * detail), 0.0, 1.0)
+
+
 def enhance_radiograph(image):
-    denoised = cv2.fastNlMeansDenoising(image, None, 7, 7, 21)
-    normalized = cv2.normalize(denoised, None, 0, 255, cv2.NORM_MINMAX)
+    # Stage 1: robust tonal normalization without blowing highlights.
+    base = percentile_rescale(to_float32(image), 0.6, 99.4)
 
-    clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(8, 8))
-    contrast = clahe.apply(normalized)
+    # Stage 2: stronger denoising for grainy radiographs.
+    denoised = cv2.fastNlMeansDenoising(
+        float_to_uint8(base),
+        None,
+        h=11,
+        templateWindowSize=7,
+        searchWindowSize=31,
+    )
+    denoised = to_float32(denoised)
 
-    blur = cv2.GaussianBlur(contrast, (0, 0), 1.1)
-    sharpened = cv2.addWeighted(contrast, 1.35, blur, -0.35, 0)
+    # Stage 3: preserve edges while reducing remaining noise.
+    bilateral = cv2.bilateralFilter(
+        float_to_uint8(denoised),
+        d=7,
+        sigmaColor=22,
+        sigmaSpace=7,
+    )
+    bilateral = to_float32(bilateral)
 
-    final_image = cv2.normalize(sharpened, None, 0, 255, cv2.NORM_MINMAX)
-    return final_image.astype(np.uint8)
+    # Stage 4: gently flatten uneven exposure instead of globally brightening the image.
+    background = cv2.GaussianBlur(bilateral, (0, 0), sigmaX=14, sigmaY=14)
+    flattened = np.clip(
+        bilateral - (0.22 * (background - float(np.mean(background)))),
+        0.0,
+        1.0,
+    )
+
+    # Stage 5: layered local contrast enhancement.
+    local_contrast = apply_multi_scale_clahe(flattened)
+
+    # Stage 6: multi-scale sharpening aimed at root/bone boundaries while clipping halos.
+    detailed = unsharp_mask(local_contrast, sigma=0.9, amount=0.9, clip_limit=0.055)
+    detailed = unsharp_mask(detailed, sigma=2.1, amount=0.55, clip_limit=0.045)
+
+    # Stage 7: blend back some base information so the result stays natural.
+    blended = np.clip((0.58 * detailed) + (0.27 * flattened) + (0.15 * base), 0.0, 1.0)
+
+    # Stage 8: compress bright restorations slightly so the image doesn't look washed out.
+    tone_mapped = np.power(blended, 1.08)
+
+    # Stage 9: final dynamic range cleanup with mild micro-contrast.
+    final_float = percentile_rescale(tone_mapped, 0.9, 99.1)
+    micro_blur = cv2.GaussianBlur(final_float, (0, 0), sigmaX=0.8, sigmaY=0.8)
+    micro_detail = np.clip(final_float - micro_blur, -0.03, 0.03)
+    final_float = np.clip(final_float + (0.28 * micro_detail), 0.0, 1.0)
+
+    return float_to_uint8(final_float)
 
 
 def encode_png_base64(image):

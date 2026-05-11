@@ -1896,11 +1896,6 @@ export default function PatientEMR({
             return;
         }
 
-        if (selectedRadiograph.enhancedUrl) {
-            setShowOriginalRadiograph((current) => !current);
-            return;
-        }
-
         setIsEnhancing(true);
         try {
             const { authFetch } = await import('../../utils/api');
@@ -1926,6 +1921,11 @@ export default function PatientEMR({
         } finally {
             setIsEnhancing(false);
         }
+    };
+
+    const handleToggleRadiographVersion = () => {
+        if (!selectedRadiograph?.enhancedUrl) return;
+        setShowOriginalRadiograph((current) => !current);
     };
 
     const renderRadiographs = () => {
@@ -1963,18 +1963,30 @@ export default function PatientEMR({
                         </div>
 
                         {canEnhanceRadiograph && selectedRadiograph.url ? (
-                            <div className={styles.imageViewerControls}>
+                            <div className={styles.imageViewerControls} style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                {selectedRadiograph.enhancedUrl ? (
+                                    <button 
+                                        className={styles.aiEnhanceBtn}
+                                        type="button"
+                                        onClick={handleToggleRadiographVersion}
+                                        disabled={isEnhancing}
+                                        style={{ background: showOriginalRadiograph ? '#0f766e' : undefined }}
+                                    >
+                                        {showOriginalRadiograph
+                                            ? <><FaMagic /> Show Enhanced Image</>
+                                            : <><FaMagic /> Show Original Image</>}
+                                    </button>
+                                ) : null}
                                 <button 
                                     className={styles.aiEnhanceBtn} 
                                     onClick={handleAIEnhance}
                                     disabled={isEnhancing}
+                                    type="button"
                                 >
                                     {isEnhancing ? (
                                         <>Processing...</>
                                     ) : selectedRadiograph.enhancedUrl ? (
-                                        showOriginalRadiograph
-                                            ? <><FaMagic /> Show Enhanced Image</>
-                                            : <><FaMagic /> Show Original Image</>
+                                        <><FaMagic /> Re-enhance and Replace Saved Version</>
                                     ) : (
                                         <><FaMagic /> Enhance and Save to Record</>
                                     )}
