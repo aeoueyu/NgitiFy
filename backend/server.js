@@ -1079,6 +1079,326 @@ const patientBelongsToBranch = (patient, branch) => {
     return patientBranches.includes(branch);
 };
 
+const PATIENT_AI_SCHEDULING_KEYWORDS = [
+    'appointment', 'appointments', 'schedule', 'scheduled', 'booking', 'book', 'reschedule',
+    'cancel', 'slot', 'slots', 'available', 'availability', 'calendar',
+    'open time', 'visit', 'checkup', 'cleaning', 'iskedyul', 'oras', 'bakante', 'libre',
+    'appointment ko', 'appointment nako', 'schedule ko', 'schedule nako', 'available ba',
+];
+
+const PATIENT_AI_TODAY_KEYWORDS = ['today', 'ngayon', 'karon'];
+const PATIENT_AI_TOMORROW_KEYWORDS = ['tomorrow', 'bukas', 'ugma'];
+const PATIENT_AI_THIS_WEEK_KEYWORDS = ['this week', 'ngayong linggo', 'karong semanaha'];
+const PATIENT_AI_NEXT_WEEK_KEYWORDS = ['next week', 'susunod na linggo', 'sunod na linggo', 'sunod semana'];
+
+const includesKeyword = (text, keywords = []) => {
+    const lowerText = String(text || '').toLowerCase();
+    return keywords.some((keyword) => lowerText.includes(String(keyword || '').toLowerCase()));
+};
+
+const shiftManilaDateKey = (dateKey, days = 0) => {
+    const parsedDate = parseScheduleDateKey(dateKey, '12:00');
+    if (!parsedDate) return '';
+    parsedDate.setUTCDate(parsedDate.getUTCDate() + Number(days || 0));
+    return getManilaDateKey(parsedDate);
+};
+
+const getManilaDateLabel = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('en-PH', {
+        timeZone: MANILA_TIME_ZONE,
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    }).format(date);
+};
+
+const formatPatientAiAppointment = (appointment) => {
+    if (!appointment) return null;
+
+    const dateKey = getManilaDateKey(appointment.date);
+    return {
+        id: String(appointment._id || ''),
+        procedure: appointment.procedure || '',
+        status: appointment.status || '',
+        branch: appointment.branch || '',
+        time: appointment.time || '',
+        date: dateKey,
+        dateLabel: dateKey ? getManilaDateLabel(parseScheduleDateKey(dateKey, '12:00')) : '',
+    };
+};
+
+const getTakenSlotsMapForRange = async ({ branch, startDateKey, endDateKey }) => {
+    const start = parseScheduleDateKey(startDateKey, '00:00');
+    const end = parseScheduleDateKey(endDateKey, '23:59');
+    if (!start || !end) return new Map();
+
+    const query = {
+        date: { $gte: start, $lte: end },
+        status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+        isArchived: false,
+    };
+    if (branch) query.branch = branch;
+
+    const appointments = await Surgery.find(query).select('date time').lean();
+    const takenSlotsMap = new Map();
+
+    for (const appointment of appointments) {
+        const dateKey = getManilaDateKey(appointment.date);
+        const nextSet = takenSlotsMap.get(dateKey) || new Set();
+        if (appointment.time) nextSet.add(appointment.time);
+        takenSlotsMap.set(dateKey, nextSet);
+    }
+
+    return takenSlotsMap;
+};
+
+const summarizeAvailabilityForDate = ({ dateKey, allowedSlots, takenSlotsMap, maxPreviewSlots = 4 }) => {
+    const parsedDate = parseScheduleDateKey(dateKey, '12:00');
+    if (!parsedDate) return null;
+
+    const weekday = getManilaWeekday(parsedDate);
+    const todayKey = getManilaDateKey(new Date());
+    const isPastDate = dateKey < todayKey;
+    const takenSlots = Array.from(takenSlotsMap.get(dateKey) || []);
+    const bookableSlots = weekday === 'Sun' || isPastDate
+        ? []
+        : getBookableAllowedSlotsForDate({ date: dateKey, allowedSlots });
+    const openSlots = bookableSlots.filter((slot) => !takenSlots.includes(slot));
+
+    return {
+        date: dateKey,
+        dateLabel: getManilaDateLabel(parsedDate),
+        weekday,
+        isSunday: weekday === 'Sun',
+        isPastDate,
+        openSlotCount: openSlots.length,
+        firstOpenSlots: openSlots.slice(0, maxPreviewSlots),
+        takenSlotCount: takenSlots.length,
+        fullyBooked: !isPastDate && weekday !== 'Sun' && openSlots.length === 0,
+        closed: weekday === 'Sun',
+    };
+};
+
+const getWeekRangeFromDateKey = (dateKey, weekOffset = 0) => {
+    const parsedDate = parseScheduleDateKey(dateKey, '12:00');
+    if (!parsedDate) return null;
+
+    const utcDay = parsedDate.getUTCDay();
+    const daysFromMonday = utcDay === 0 ? 6 : utcDay - 1;
+    const startDate = new Date(parsedDate);
+    startDate.setUTCDate(startDate.getUTCDate() - daysFromMonday + (weekOffset * 7));
+
+    const startDateKey = getManilaDateKey(startDate);
+    return {
+        startDateKey,
+        endDateKey: shiftManilaDateKey(startDateKey, 6),
+    };
+};
+
+const buildPatientAiAvailabilitySnapshot = async ({ queryText, branch }) => {
+    if (!branch) {
+        return {
+            unavailableReason: 'This patient does not have an assigned branch yet. They must contact the clinic before booking an appointment.',
+        };
+    }
+
+    const todayKey = getManilaDateKey(new Date());
+    const nextTwoWeeksEndKey = shiftManilaDateKey(todayKey, 13);
+    const [allowedSlots, nextTwoWeeksTakenSlots] = await Promise.all([
+        getClinicAllowedSlots(),
+        getTakenSlotsMapForRange({
+            branch,
+            startDateKey: todayKey,
+            endDateKey: nextTwoWeeksEndKey,
+        }),
+    ]);
+
+    const nextOpenDates = [];
+    for (let offset = 0; offset < 14 && nextOpenDates.length < 7; offset += 1) {
+        const dateKey = shiftManilaDateKey(todayKey, offset);
+        const daySummary = summarizeAvailabilityForDate({
+            dateKey,
+            allowedSlots,
+            takenSlotsMap: nextTwoWeeksTakenSlots,
+        });
+        if (daySummary && daySummary.openSlotCount > 0) {
+            nextOpenDates.push(daySummary);
+        }
+    }
+
+    const requestedDateKeys = [];
+    const isoDateMatches = String(queryText || '').match(/\b\d{4}-\d{2}-\d{2}\b/g) || [];
+    isoDateMatches.forEach((value) => requestedDateKeys.push(value));
+
+    if (includesKeyword(queryText, PATIENT_AI_TODAY_KEYWORDS)) {
+        requestedDateKeys.push(todayKey);
+    }
+    if (includesKeyword(queryText, PATIENT_AI_TOMORROW_KEYWORDS)) {
+        requestedDateKeys.push(shiftManilaDateKey(todayKey, 1));
+    }
+
+    const requestedAvailability = [];
+    const uniqueRequestedDateKeys = [...new Set(requestedDateKeys)].filter(Boolean).slice(0, 3);
+    let requestedTakenSlotsMap = nextTwoWeeksTakenSlots;
+    if (uniqueRequestedDateKeys.length > 0) {
+        const sortedRequestedDates = [...uniqueRequestedDateKeys].sort();
+        const requestedStartDateKey = sortedRequestedDates[0];
+        const requestedEndDateKey = sortedRequestedDates[sortedRequestedDates.length - 1];
+        const needsCustomRange = requestedStartDateKey < todayKey || requestedEndDateKey > nextTwoWeeksEndKey;
+
+        if (needsCustomRange) {
+            requestedTakenSlotsMap = await getTakenSlotsMapForRange({
+                branch,
+                startDateKey: requestedStartDateKey,
+                endDateKey: requestedEndDateKey,
+            });
+        }
+    }
+
+    uniqueRequestedDateKeys.forEach((dateKey) => {
+        const summary = summarizeAvailabilityForDate({
+            dateKey,
+            allowedSlots,
+            takenSlotsMap: requestedTakenSlotsMap,
+        });
+        if (summary) requestedAvailability.push(summary);
+    });
+
+    const requestedAvailabilityWindows = [];
+    const weekWindows = [];
+    if (includesKeyword(queryText, PATIENT_AI_THIS_WEEK_KEYWORDS)) {
+        weekWindows.push({ label: 'This week', range: getWeekRangeFromDateKey(todayKey, 0) });
+    }
+    if (includesKeyword(queryText, PATIENT_AI_NEXT_WEEK_KEYWORDS)) {
+        weekWindows.push({ label: 'Next week', range: getWeekRangeFromDateKey(todayKey, 1) });
+    }
+
+    for (const windowInfo of weekWindows) {
+        if (!windowInfo.range) continue;
+        const takenSlotsMap = await getTakenSlotsMapForRange({
+            branch,
+            startDateKey: windowInfo.range.startDateKey,
+            endDateKey: windowInfo.range.endDateKey,
+        });
+
+        const days = [];
+        for (let offset = 0; offset < 7; offset += 1) {
+            const dateKey = shiftManilaDateKey(windowInfo.range.startDateKey, offset);
+            const daySummary = summarizeAvailabilityForDate({
+                dateKey,
+                allowedSlots,
+                takenSlotsMap,
+                maxPreviewSlots: 3,
+            });
+            if (daySummary) {
+                days.push(daySummary);
+            }
+        }
+
+        requestedAvailabilityWindows.push({
+            label: windowInfo.label,
+            startDate: windowInfo.range.startDateKey,
+            endDate: windowInfo.range.endDateKey,
+            days,
+        });
+    }
+
+    return {
+        branch,
+        asOfDate: todayKey,
+        bookingRules: {
+            directBookableProcedures: DIRECT_BOOKING_PROCEDURES,
+            oneActiveAppointmentLimit: true,
+            note: 'Patients may only request appointments through their assigned branch, and slot availability can change before booking is confirmed.',
+        },
+        nextOpenDates,
+        requestedAvailability,
+        requestedAvailabilityWindows,
+    };
+};
+
+const buildPatientAiLiveContext = async ({ userId, messages, assistantContext }) => {
+    const queryText = String(messages?.at(-1)?.content || '').trim();
+    const patient = await User.findById(userId)
+        .select('name email assignedBranch assignedBranches')
+        .lean();
+
+    const assignedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || '';
+    const [branch, activeAppointment, recentAppointments] = await Promise.all([
+        assignedBranch
+            ? Branch.findOne({ name: assignedBranch }).select('name address addressDetails contactNumber isActive').lean()
+            : Promise.resolve(null),
+        Surgery.findOne({
+            patient: userId,
+            status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+            isArchived: false,
+        })
+            .select('date time procedure status branch')
+            .sort({ date: 1 })
+            .lean(),
+        Surgery.find({
+            patient: userId,
+            isArchived: false,
+        })
+            .select('date time procedure status branch')
+            .sort({ date: -1 })
+            .limit(5)
+            .lean(),
+    ]);
+
+    const liveContext = {
+        patientSession: {
+            requestedAt: new Date().toISOString(),
+            todayDate: getManilaDateKey(new Date()),
+            patientName: patient?.name
+                ? `${patient.name.first || ''} ${patient.name.last || ''}`.trim()
+                : '',
+            assignedBranch,
+        },
+        branchInfo: branch
+            ? {
+                name: branch.name || '',
+                contactNumber: branch.contactNumber || '',
+                address: branch.address || '',
+                addressDetails: branch.addressDetails || {},
+                isActive: branch.isActive !== false,
+            }
+            : {
+                name: assignedBranch,
+                isActive: false,
+            },
+        appointmentsSnapshot: {
+            activeAppointment: formatPatientAiAppointment(activeAppointment),
+            recentAppointments: recentAppointments.map(formatPatientAiAppointment).filter(Boolean),
+        },
+    };
+
+    if (includesKeyword(queryText, PATIENT_AI_SCHEDULING_KEYWORDS)) {
+        liveContext.appointmentAvailability = await buildPatientAiAvailabilitySnapshot({
+            queryText,
+            branch: assignedBranch,
+        });
+    }
+
+    if (!assistantContext) {
+        return liveContext;
+    }
+
+    if (typeof assistantContext !== 'object' || Array.isArray(assistantContext)) {
+        return {
+            ...liveContext,
+            clientSuppliedContext: assistantContext,
+        };
+    }
+
+    return {
+        ...liveContext,
+        ...assistantContext,
+    };
+};
+
 const dentistCanAccessPatient = async (dentistId, patientId) => {
     if (!dentistId || !patientId) return false;
 
@@ -7611,15 +7931,25 @@ const handlePatientAiChat = async (req, res) => {
         const geminiService = await ensureAiConfigured(res);
         if (!geminiService) return;
 
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
         const { messages, assistantContext } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ message: 'Messages array is required.' });
         }
 
+        const mergedAssistantContext = await buildPatientAiLiveContext({
+            userId: req.user.id,
+            messages,
+            assistantContext,
+        });
+
         const reply = await geminiService.generateScopedReply({
             scope: 'patient',
             messages,
-            additionalContext: assistantContext,
+            additionalContext: mergedAssistantContext,
         });
 
         res.json({ reply });

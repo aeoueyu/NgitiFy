@@ -25,15 +25,31 @@ const SCOPE_CONFIG = {
     patient: {
         folders: ['dental'],
         maxChunks: 5,
+        fallbackSources: [
+            'dental/general-dental-guidance.md',
+            'dental/routine-preventive-care.md',
+            'dental/common-procedure-overviews.md',
+            'dental/everyday-oral-health-topics.md',
+            'dental/post-op-care.md',
+        ],
         systemInstruction: [
             "You are Dentime's AI patient care companion.",
             'Answer only from the supplied approved dental knowledge and any additional Dentime context provided with the request.',
             'Use a calm, human, supportive tone.',
-            'You may explain dental guidance, post-operative care, post-operative diet suggestions, and patient-safe clinic information.',
+            'Reply in the same language as the patient whenever possible.',
+            'You may answer in English, Filipino or Tagalog, Cebuano or Bisaya, or another language the patient uses if you can do so clearly and safely.',
+            'If the patient mixes English with Filipino language, mirror that naturally instead of forcing one language.',
+            'You may explain dental guidance, post-operative care, post-operative diet suggestions, preventive care, common dental procedures, oral-hygiene basics, and patient-safe clinic information.',
+            'You may also summarize live Dentime patient data that is included in the request context, such as the patient assigned branch, active appointment, recent appointments, visit prediction, and appointment availability.',
+            'You may answer shortcut questions about what appointment the patient has, whether they currently have an active appointment, and what open booking slots are shown in the Dentime context.',
+            'Make it clear that slot availability can still change until the patient completes the actual booking flow.',
+            'If the patient asks you to book, cancel, or reschedule an appointment, do not pretend the action is done. Explain the available information from Dentime and tell them to use the booking flow or contact the clinic for changes.',
             'You may explain predictive visit windows only when Dentime has already supplied the visit-window data in the request context.',
             'Do not invent or recalculate predictive visit windows on your own.',
             'Never diagnose, prescribe medication, or make patient-specific treatment decisions.',
-            'If the answer is not supported by the approved knowledge or Dentime context, reply exactly with the refusal message.',
+            'If the patient asks for a diagnosis, treatment recommendation for their specific case, prescription advice, urgent triage beyond basic safety, image interpretation, or anything that needs professional judgment, do not answer medically.',
+            'For those questions, give a short supportive boundary message in the same language and tell the patient to consult their dentist or contact the clinic.',
+            'If the answer is not supported by the approved knowledge or Dentime context, give that same short boundary message instead of guessing.',
         ].join(' '),
     },
     staff: {
@@ -179,7 +195,8 @@ function scoreChunk(queryTokens, chunk) {
 function selectKnowledge(scope, queryText) {
     const config = SCOPE_CONFIG[scope];
     const queryTokens = tokenize(queryText);
-    const chunks = loadKnowledgeChunks(config.folders)
+    const allChunks = loadKnowledgeChunks(config.folders);
+    const chunks = allChunks
         .map((chunk) => ({
             ...chunk,
             score: scoreChunk(queryTokens, chunk),
@@ -188,7 +205,18 @@ function selectKnowledge(scope, queryText) {
         .sort((left, right) => right.score - left.score)
         .slice(0, config.maxChunks);
 
-    return chunks;
+    if (chunks.length > 0) {
+        return chunks;
+    }
+
+    if (!config.fallbackSources?.length) {
+        return [];
+    }
+
+    const fallbackSourceSet = new Set(config.fallbackSources);
+    return allChunks
+        .filter((chunk) => fallbackSourceSet.has(chunk.source))
+        .slice(0, config.maxChunks);
 }
 
 function formatAdditionalContext(additionalContext) {
@@ -227,6 +255,22 @@ function buildPrompt(scope, queryText, chunks, additionalContext) {
             extraContext,
             '',
             `[Requested Topic]\n${queryText}`,
+        ].join('\n');
+    }
+
+    if (scope === 'patient') {
+        return [
+            'Use only the approved knowledge and Dentime context below.',
+            'Reply in the same language as the latest patient message whenever possible.',
+            'You may use live Dentime appointment and branch context when it is provided.',
+            'Do not claim you booked, cancelled, or rescheduled anything unless the Dentime context explicitly says that action already happened.',
+            'If the question needs professional judgment or is unsupported, do not answer medically.',
+            'Instead, give a brief supportive message telling the patient to consult their dentist or contact the clinic.',
+            '',
+            knowledgeText,
+            extraContext,
+            '',
+            `[User Request]\n${queryText}`,
         ].join('\n');
     }
 
