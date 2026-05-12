@@ -8,7 +8,7 @@ import {
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
 import { AuthContext } from '../../context/AuthContext';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 const { width } = Dimensions.get('window');
 
@@ -137,7 +137,6 @@ export default function PatientXRayView({ navigation, route }) {
                     </Text>
                 </View>
             </Animated.ScrollView>
-            <PatientBottomNav navigation={navigation} activeKey="records" />
         </View>
     );
 }
@@ -146,7 +145,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f3f7f9' },
 
     header: {
-        backgroundColor: 'white', padding: 20, paddingTop: 50,
+        backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         elevation: 3, zIndex: 10
     },
@@ -154,7 +153,7 @@ const styles = StyleSheet.create({
     backText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
 
-    content: { padding: 20, paddingBottom: 150 },
+    content: { padding: 20, paddingBottom: 48 },
 
     xrayLabel: { fontSize: 20, fontWeight: 'bold', color: '#01538b', marginBottom: 4 },
     xrayDate: { fontSize: 13, color: '#888', marginBottom: 18 },

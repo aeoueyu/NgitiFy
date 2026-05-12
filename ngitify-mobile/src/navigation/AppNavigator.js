@@ -17,6 +17,7 @@ import MyProfileScreen from '../screens/patient/MyProfileScreen';
 import MedicalRecordsScreen from '../screens/patient/MedicalRecordsScreen';
 import ChatbotScreen from '../screens/patient/ChatbotScreen';
 import AiPatientCareCompanionScreen from '../screens/patient/AIPatientCareCompanionScreen';
+import OralCareInsightsScreen from '../screens/patient/OralCareInsightsScreen';
 import PatientXRayView from '../screens/patient/PatientXRayView';
 import PreOpInstructionsScreen from '../screens/patient/PreOpInstructionsScreen';
 import AppointmentBookingScreen from '../screens/patient/AppointmentBookingScreen';
@@ -57,6 +58,7 @@ function PatientTabsNavigator() {
             tabBar={(props) => <PatientBottomNav {...props} />}
         >
             <PatientTabs.Screen name="PatientDashboardMain" component={PatientDashboard} />
+            <PatientTabs.Screen name="OralCareInsights" component={OralCareInsightsScreen} />
             <PatientTabs.Screen name="MyAppointments" component={PatientAppointmentsScreen} />
             <PatientTabs.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
             <PatientTabs.Screen name="MyProfile" component={MyProfileScreen} />

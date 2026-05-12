@@ -7,7 +7,7 @@ import TimeIcon from '../../assets/icons/Time.svg';
 import PatientIcon from '../../assets/icons/Patient.svg';
 import SurgeryProcedureIcon from '../../assets/icons/SurgeryProcedure.svg';
 import DentistIcon from '../../assets/icons/Dentist.svg';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 const DUMMY_SCHEDULES = {
     '2026-02-20': [
@@ -110,21 +110,20 @@ export default function SurgerySchedulesScreen({ navigation }) {
                     showsVerticalScrollIndicator={false}
                 />
             </View>
-            <PatientBottomNav navigation={navigation} activeKey="visits" />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f3f7f9' },
-    header: { backgroundColor: 'white', padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 3, zIndex: 10 },
+    header: { backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 3, zIndex: 10 },
     backBtn: { padding: 5, width: 60 },
     backText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
     
     calendar: { marginBottom: 10, elevation: 2 },
     
-    listContainer: { flex: 1, padding: 20, paddingTop: 10, paddingBottom: 110 },
+    listContainer: { flex: 1, padding: 20, paddingTop: 10, paddingBottom: 40 },
     listTitle: { fontSize: 16, fontWeight: 'bold', color: '#555', marginBottom: 15 },
     emptyText: { textAlign: 'center', color: '#888', marginTop: 20, fontStyle: 'italic' },
 

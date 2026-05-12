@@ -10,7 +10,7 @@ import { AuthContext } from '../../context/AuthContext';
 import CustomModal from '../../components/CustomModal';
 import BackIcon from '../../assets/icons/Back.svg';
 import Calendar from '../../assets/images/calendar.svg';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 // Address JSON data
 import regionsData   from '../../utils/json/region.json';
@@ -873,7 +873,6 @@ export default function EditProfileScreen({ navigation }) {
                 <View style={{ height: 40 }} />
             </ScrollView>
 
-            <PatientBottomNav navigation={navigation} activeKey="profile" />
 
             {/* ── Date Picker (Android) ── */}
             {showDatePicker && Platform.OS === 'android' && (
@@ -973,7 +972,7 @@ const styles = StyleSheet.create({
     loadingText:  { marginTop: 12, color: '#888', fontSize: 14 },
 
     header: {
-        backgroundColor: 'white', padding: 20, paddingTop: 50,
+        backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset,
         flexDirection: 'row', alignItems: 'center',
         justifyContent: 'space-between', elevation: 3, zIndex: 10,
     },
@@ -983,7 +982,7 @@ const styles = StyleSheet.create({
     editBtn:     { width: 60, alignItems: 'flex-end', padding: 5 },
     editBtnText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
 
-    formContainer: { padding: 20, paddingBottom: 152 },
+    formContainer: { padding: 20, paddingBottom: 48 },
 
     // Error / retry
     errorBanner: {

@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import { getVisitPredictionFromHistory } from '../../utils/visitPrediction';
 import LogoutModal from '../../components/LogoutModal';
 import {
   Screen,
@@ -27,6 +26,7 @@ import {
   StatusChip,
 } from '../../components/mobile/MobileUI';
 import { mobileTheme } from '../../theme/mobileTheme';
+import { getStaticOralCarePreview } from '../../utils/oralCarePreview';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'Not scheduled';
@@ -81,49 +81,71 @@ const toDateKey = (value) => {
   return `${year}-${month}-${day}`;
 };
 
-const buildStaticPredictiveWindow = (prediction) => {
-  const anchorDate = prediction?.nextDate ? new Date(prediction.nextDate) : new Date();
-  if (Number.isNaN(anchorDate.getTime())) return null;
+const parseDateKey = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim())) return null;
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
-  if (!prediction?.nextDate) {
-    anchorDate.setDate(anchorDate.getDate() + 28);
-  }
+const buildStaticPredictiveWindow = (prediction, previewData) => {
+  const resolvedWindowStart = prediction?.windowStartKey || prediction?.windowStart
+    ? parseDateKey(prediction?.windowStartKey) || new Date(prediction?.windowStart)
+    : previewData?.windowStart;
+  const resolvedWindowEnd = prediction?.windowEndKey || prediction?.windowEnd
+    ? parseDateKey(prediction?.windowEndKey) || new Date(prediction?.windowEnd)
+    : previewData?.windowEnd;
+  const resolvedRecommendedDate = prediction?.recommendedDateKey || prediction?.recommendedDate
+    ? parseDateKey(prediction?.recommendedDateKey)
+      || (prediction?.recommendedDate ? new Date(prediction?.recommendedDate) : null)
+    : previewData?.recommendedDate;
 
-  const windowStart = new Date(anchorDate);
-  windowStart.setDate(anchorDate.getDate() - 2);
+  const windowStart = resolvedWindowStart;
+  const windowEnd = resolvedWindowEnd;
+  const recommendedDate = resolvedRecommendedDate;
+  if (Number.isNaN(windowStart.getTime()) || Number.isNaN(windowEnd.getTime())) return null;
 
-  const windowEnd = new Date(anchorDate);
-  windowEnd.setDate(anchorDate.getDate() + 2);
+  const stripStart = new Date(windowStart);
+  stripStart.setDate(stripStart.getDate() - 2);
 
-  const stripStart = new Date(anchorDate);
-  stripStart.setDate(anchorDate.getDate() - 3);
+  const stripEnd = new Date(windowEnd);
+  stripEnd.setDate(stripEnd.getDate() + 2);
 
-  const days = Array.from({ length: 8 }, (_, index) => {
-    const dayDate = new Date(stripStart);
-    dayDate.setDate(stripStart.getDate() + index);
+  const days = [];
+  const cursor = new Date(stripStart);
+  const recommendedKey = recommendedDate && !Number.isNaN(recommendedDate.getTime())
+    ? toDateKey(recommendedDate)
+    : '';
+
+  while (cursor <= stripEnd) {
+    const dayDate = new Date(cursor);
+    const isoDate = toDateKey(dayDate);
     const inWindow = dayDate >= windowStart && dayDate <= windowEnd;
 
-    return {
+    days.push({
       key: dayDate.toISOString(),
       weekday: dayDate.toLocaleDateString('en-PH', { weekday: 'short' }).slice(0, 1),
       day: dayDate.getDate(),
       inWindow,
-      isoDate: toDateKey(dayDate),
-    };
-  });
+      isRecommended: isoDate === recommendedKey,
+      isoDate,
+    });
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
 
   return {
-    label: prediction?.label || 'AI Preview',
-    rangeText: `${formatMonthDay(windowStart)} - ${formatMonthDay(windowEnd)}`,
-    detail: prediction
-      ? `Based on ${prediction.historyCount || 1} recorded treatment${prediction.historyCount === 1 ? '' : 's'} and your recent visit pattern.`
-      : 'Static AI preview for an ideal preventive check-up window.',
+    label: prediction?.label || previewData?.hero?.statusLabel || 'Preview',
+    rangeText: prediction?.windowLabel || previewData?.hero?.windowLabel || `${formatMonthDay(windowStart)} - ${formatMonthDay(windowEnd)}`,
+    detail: prediction?.recommendationReason
+      || previewData?.hero?.whyThisShowing
+      || 'Based on your recorded treatment history and recommended oral care follow-up.',
     color: prediction?.color || mobileTheme.colors.secondaryDark,
     bg: prediction?.bg || mobileTheme.colors.secondarySoft,
     days,
     windowStart,
     windowEnd,
-    selectedDate: prediction?.nextDate ? toDateKey(prediction.nextDate) : toDateKey(anchorDate),
+    selectedDate: prediction?.recommendedDateKey || recommendedKey || toDateKey(windowStart),
+    badgeText: previewData?.isPreviewOnly ? 'Preview' : 'Care',
   };
 };
 
@@ -258,10 +280,10 @@ export default function PatientDashboard({ navigation }) {
 
     try {
       const authHeader = { Authorization: `Bearer ${userToken}` };
-      const [apptRes, notifRes, treatRes] = await Promise.allSettled([
+      const [apptRes, notifRes, predictionRes] = await Promise.allSettled([
         fetch(`${API_BASE_URL}/api/appointments?patientId=${userId}`, { headers: authHeader }),
         fetch(`${API_BASE_URL}/api/notifications`, { headers: authHeader }),
-        fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers: authHeader }),
+        fetch(`${API_BASE_URL}/api/my/visit-prediction`, { headers: authHeader }),
       ]);
 
       if (apptRes.status === 'fulfilled' && apptRes.value.ok) {
@@ -281,9 +303,9 @@ export default function PatientDashboard({ navigation }) {
         setNotifications(Array.isArray(data) ? data : []);
       }
 
-      if (treatRes.status === 'fulfilled' && treatRes.value.ok) {
-        const logs = await treatRes.value.json();
-        setVisitPrediction(getVisitPredictionFromHistory(logs));
+      if (predictionRes.status === 'fulfilled' && predictionRes.value.ok) {
+        const data = await predictionRes.value.json();
+        setVisitPrediction(data?.prediction || null);
       }
     } catch (error) {
       console.warn('Dashboard fetch error:', error);
@@ -324,7 +346,8 @@ export default function PatientDashboard({ navigation }) {
   const firstName = userInfo?.firstName || 'Patient';
   const initials = [userInfo?.firstName?.[0], userInfo?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'P';
   const dentistName = getAppointmentDentistLabel(upcomingAppt);
-  const predictiveWindow = buildStaticPredictiveWindow(visitPrediction);
+  const oralCarePreview = getStaticOralCarePreview(visitPrediction);
+  const predictiveWindow = buildStaticPredictiveWindow(visitPrediction, oralCarePreview);
 
   return (
     <Screen>
@@ -471,26 +494,25 @@ export default function PatientDashboard({ navigation }) {
             )}
           </SurfaceCard>
 
-          <SectionLabel title="Predictive Visit Window" style={styles.sectionHeading} />
+          <SectionLabel title="Preventive Care Window" style={styles.sectionHeading} />
           <SurfaceCard style={styles.predictiveSectionCard}>
             {predictiveWindow ? (
               <TouchableOpacity
                 activeOpacity={0.88}
                 onPress={() =>
-                  navigation.navigate('AiPatientCareCompanion', {
-                    initialSection: 'visitWindow',
-                    focusDate: predictiveWindow.selectedDate,
+                  navigation.navigate('OralCareInsights', {
+                    visitPrediction,
                   })
                 }
               >
                 <View style={styles.predictiveSectionTop}>
                   <View style={{ flex: 1, paddingRight: 10 }}>
-                    <Text style={styles.predictiveSectionEyebrow}>AI-Powered Care Timing</Text>
+                    <Text style={styles.predictiveSectionEyebrow}>Oral Care Preview</Text>
                     <Text style={styles.predictiveSectionTitle}>{predictiveWindow.rangeText}</Text>
                   </View>
                   <View style={styles.predictiveSectionBadge}>
                     <Ionicons name="sparkles-outline" size={13} color={mobileTheme.colors.primaryDark} />
-                    <Text style={styles.predictiveSectionBadgeText}>AI</Text>
+                    <Text style={styles.predictiveSectionBadgeText}>{predictiveWindow.badgeText}</Text>
                   </View>
                 </View>
 
@@ -506,12 +528,7 @@ export default function PatientDashboard({ navigation }) {
                       key={day.key}
                       activeOpacity={0.84}
                       style={[styles.predictiveMiniCard, day.inWindow && styles.predictiveMiniCardActive]}
-                      onPress={() =>
-                        navigation.navigate('AiPatientCareCompanion', {
-                          initialSection: 'visitWindow',
-                          focusDate: day.isoDate,
-                        })
-                      }
+                      onPress={() => navigation.navigate('OralCareInsights', { visitPrediction })}
                     >
                       <Text style={[styles.predictiveMiniWeek, day.inWindow && styles.predictiveMiniWeekActive]}>
                         {day.weekday}
@@ -520,14 +537,14 @@ export default function PatientDashboard({ navigation }) {
                         {day.day}
                       </Text>
                       <Text style={[styles.predictiveMiniHint, day.inWindow && styles.predictiveMiniHintActive]}>
-                        {day.inWindow ? 'Window' : 'Near'}
+                        {day.isRecommended ? 'Ideal' : day.inWindow ? 'Window' : 'Near'}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
 
                 <View style={styles.predictiveOpenRow}>
-                  <Text style={styles.predictiveOpenText}>Open calendar and visit window details</Text>
+                  <Text style={styles.predictiveOpenText}>Open care window, factors, and quick logs</Text>
                   <Ionicons name="chevron-forward" size={16} color={mobileTheme.colors.primaryDark} />
                 </View>
               </TouchableOpacity>
@@ -564,6 +581,13 @@ export default function PatientDashboard({ navigation }) {
               sublabel="Ask care questions"
               onPress={() => navigation.navigate('AiPatientCareCompanion')}
               tone="primary"
+            />
+            <QuickAction
+              icon="sparkles-outline"
+              label="Oral Care"
+              sublabel="Preview care window"
+              onPress={() => navigation.navigate('OralCareInsights', { visitPrediction })}
+              tone="secondary"
             />
             <QuickAction
               icon="settings-outline"

@@ -6,7 +6,7 @@ import BackIcon from '../../assets/icons/Back.svg';
 import TimeIcon from '../../assets/icons/Time.svg';
 import DentistIcon from '../../assets/icons/Dentist.svg';
 import SurgeryProcedureIcon from '../../assets/icons/SurgeryProcedure.svg';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 export default function PreOpInstructionsScreen({ navigation }) {
     const [isChecked, setIsChecked] = useState(false);
@@ -91,19 +91,18 @@ export default function PreOpInstructionsScreen({ navigation }) {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
-            <PatientBottomNav navigation={navigation} activeKey="visits" />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f3f7f9' },
-    header: { backgroundColor: 'white', padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 3, zIndex: 10 },
+    header: { backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 3, zIndex: 10 },
     backBtn: { flexDirection: 'row', alignItems: 'center', width: 60, padding: 5 },
     backText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
     
-    content: { padding: 20, paddingBottom: 150 },
+    content: { padding: 20, paddingBottom: 48 },
     
     card: { backgroundColor: 'white', padding: 20, borderRadius: 15, elevation: 2, marginBottom: 20, borderTopWidth: 5, borderTopColor: '#01538b' },
     cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },

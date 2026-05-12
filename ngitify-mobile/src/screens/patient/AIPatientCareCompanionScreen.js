@@ -7,10 +7,9 @@ import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import { getVisitPredictionFromHistory } from '../../utils/visitPrediction';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 // ─── DENTAL HEALTH EDUCATION CONTENT ────────────────────────────────────────
 const EDUCATION_ARTICLES = [
@@ -89,21 +88,23 @@ const toDateKey = (value) => {
     return `${year}-${month}-${day}`;
 };
 
+const parseDateKey = (value) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim())) return null;
+    const date = new Date(`${value}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
 const buildVisitWindowMarkedDates = (visitInfo, selectedDate) => {
-    if (!visitInfo?.nextDate) return {};
+    if ((!visitInfo?.windowStart && !visitInfo?.windowStartKey)
+        || (!visitInfo?.windowEnd && !visitInfo?.windowEndKey)) return {};
 
-    const anchorDate = new Date(visitInfo.nextDate);
-    if (Number.isNaN(anchorDate.getTime())) return {};
-
-    const windowStart = new Date(anchorDate);
-    windowStart.setDate(anchorDate.getDate() - 2);
-
-    const windowEnd = new Date(anchorDate);
-    windowEnd.setDate(anchorDate.getDate() + 2);
+    const windowStart = parseDateKey(visitInfo.windowStartKey) || new Date(visitInfo.windowStart);
+    const windowEnd = parseDateKey(visitInfo.windowEndKey) || new Date(visitInfo.windowEnd);
+    if (Number.isNaN(windowStart.getTime()) || Number.isNaN(windowEnd.getTime())) return {};
 
     const markedDates = {};
     const cursor = new Date(windowStart);
-    const selectedKey = selectedDate || toDateKey(anchorDate);
+    const selectedKey = selectedDate || visitInfo.recommendedDateKey || toDateKey(windowStart);
 
     while (cursor <= windowEnd) {
         const key = toDateKey(cursor);
@@ -166,12 +167,18 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
     const fetchLastVisit = useCallback(async () => {
         setLoadingVisit(true);
         try {
-            const res  = await fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers: authHeader });
-            if (!res.ok) throw new Error();
-            const logs = await res.json();
+            const [logsRes, predictionRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers: authHeader }),
+                fetch(`${API_BASE_URL}/api/my/visit-prediction`, { headers: authHeader }),
+            ]);
+
+            if (!logsRes.ok || !predictionRes.ok) throw new Error();
+
+            const logs = await logsRes.json();
+            const predictionPayload = await predictionRes.json();
             const safeLogs = Array.isArray(logs) ? logs : [];
             setTreatmentHistory(safeLogs);
-            setVisitInfo(getVisitPredictionFromHistory(safeLogs));
+            setVisitInfo(predictionPayload?.prediction || null);
         } catch {
             setTreatmentHistory([]);
             setVisitInfo(null);
@@ -295,7 +302,7 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
                     >
                         <View style={{ flex: 1 }}>
                             <Text style={[styles.visitBannerLabel, { color: visitInfo.color }]}>Next Visit Prediction</Text>
-                            <Text style={styles.visitBannerDate}>{visitInfo.nextDate}</Text>
+                            <Text style={styles.visitBannerDate}>{visitInfo.windowLabel || visitInfo.nextDate}</Text>
                         </View>
                         <View style={[styles.visitTag, { backgroundColor: visitInfo.color }]}>
                             <Text style={styles.visitTagText}>{visitInfo.label}</Text>
@@ -457,7 +464,7 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
 
     const renderVisitWindow = () => {
         const markedDates = buildVisitWindowMarkedDates(visitInfo, selectedVisitDate);
-        const calendarFocusDate = selectedVisitDate || toDateKey(visitInfo?.nextDate);
+        const calendarFocusDate = selectedVisitDate || visitInfo?.recommendedDateKey || visitInfo?.windowStartKey;
 
         if (loadingVisit) {
             return (
@@ -502,11 +509,18 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
 
                 <View style={[styles.visitMainCard, { backgroundColor: visitInfo.bg, borderColor: visitInfo.color }]}>
                     <Text style={[styles.visitStatus, { color: visitInfo.color }]}>{visitInfo.label}</Text>
-                    <Text style={styles.visitNextDate}>{visitInfo.nextDate}</Text>
-                    {visitInfo.label === 'Overdue'
-                        ? <Text style={[styles.visitDaysText, { color: '#d32f2f' }]}>{visitInfo.days} day(s) overdue</Text>
-                        : <Text style={styles.visitDaysText}>{visitInfo.days} days from today</Text>
-                    }
+                    <Text style={styles.visitNextDate}>{visitInfo.windowLabel || visitInfo.nextDate}</Text>
+                    {visitInfo.label === 'Overdue' ? (
+                        <Text style={[styles.visitDaysText, { color: '#d32f2f' }]}>
+                            {visitInfo.daysPastWindow || visitInfo.days} day(s) past the recommended window
+                        </Text>
+                    ) : visitInfo.label === 'Window Open' ? (
+                        <Text style={styles.visitDaysText}>Your recommended visit window is open now</Text>
+                    ) : (
+                        <Text style={styles.visitDaysText}>
+                            {visitInfo.daysUntilWindowStart} day(s) until the recommended window starts
+                        </Text>
+                    )}
                 </View>
 
                 <Calendar
@@ -554,12 +568,24 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
                         </View>
                     ) : null}
                     <View style={styles.visitDetailRow}>
+                        <Text style={styles.visitDetailLabel}>Recommended Window:</Text>
+                        <Text style={styles.visitDetailValue}>{visitInfo.windowLabel}</Text>
+                    </View>
+                    <View style={styles.visitDetailRow}>
+                        <Text style={styles.visitDetailLabel}>Recommended Visit:</Text>
+                        <Text style={styles.visitDetailValue}>{visitInfo.recommendedDateLabel || visitInfo.nextDate}</Text>
+                    </View>
+                    <View style={styles.visitDetailRow}>
                         <Text style={styles.visitDetailLabel}>Treatment Records Used:</Text>
                         <Text style={styles.visitDetailValue}>{visitInfo.historyCount}</Text>
                     </View>
                     <View style={styles.visitDetailRow}>
                         <Text style={styles.visitDetailLabel}>Recommended Interval:</Text>
-                        <Text style={styles.visitDetailValue}>Every 6 months</Text>
+                        <Text style={styles.visitDetailValue}>{visitInfo.intervalLabel || 'Every 6 months'}</Text>
+                    </View>
+                    <View style={styles.visitDetailRow}>
+                        <Text style={styles.visitDetailLabel}>Recommendation Basis:</Text>
+                        <Text style={styles.visitDetailValue}>{visitInfo.recommendationReason}</Text>
                     </View>
                 </View>
 
@@ -655,7 +681,6 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
                 {activeSection === 'visitWindow' && renderVisitWindow()}
             </Animated.ScrollView>
 
-            <PatientBottomNav navigation={navigation} activeKey="home" />
 
             {/* Article Detail Modal */}
             <Modal
@@ -700,7 +725,7 @@ const styles = StyleSheet.create({
 
     // Header
     header: {
-        backgroundColor: 'white', padding: 20, paddingTop: 50,
+        backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset,
         flexDirection: 'row', alignItems: 'center',
         justifyContent: 'space-between', elevation: 3, zIndex: 10,
     },
@@ -710,14 +735,14 @@ const styles = StyleSheet.create({
 
     // Tabs
     tabBar:        { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee', elevation: 1 },
-    tabScroll:     { paddingHorizontal: 10, paddingBottom: 120 },
+    tabScroll:     { paddingHorizontal: 10 },
     tab:           { paddingVertical: 12, paddingHorizontal: 14, marginRight: 2 },
     tabActive:     { borderBottomWidth: 3, borderBottomColor: '#01538b' },
     tabText:       { fontSize: 13, color: '#888', fontWeight: '600' },
     tabTextActive: { color: '#01538b' },
 
     // Content
-    content:     { padding: 20, paddingBottom: 150 },
+    content:     { padding: 20, paddingBottom: 48 },
     welcomeText: { fontSize: 14, color: '#666', lineHeight: 20, marginBottom: 20 },
 
     // Feature grid

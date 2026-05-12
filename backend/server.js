@@ -18,6 +18,7 @@ const { Resend } = require('resend');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
@@ -64,18 +65,24 @@ const backupRoutes = require('./routes/backup');
 const integrityRoutes = require('./routes/integrity');
 // ADD this line with the other model imports (after the AuditLog import)
 const MaterialUsageLog = require('./models/MaterialUsageLog');
-const Anthropic = require('@anthropic-ai/sdk');
-const anthropic = process.env.ANTHROPIC_API_KEY
-    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-    : null;
 const RADIOGRAPH_ENHANCER_SCRIPT = path.join(__dirname, 'python', 'radiograph_enhance.py');
+const GEMINI_SERVICE_PATH = pathToFileURL(path.join(__dirname, 'ai', 'geminiService.mjs')).href;
+let geminiServicePromise = null;
 
-const ensureAiConfigured = (res) => {
-    if (anthropic) {
-        return true;
+const loadGeminiService = () => {
+    if (!geminiServicePromise) {
+        geminiServicePromise = import(GEMINI_SERVICE_PATH);
+    }
+    return geminiServicePromise;
+};
+
+const ensureAiConfigured = async (res) => {
+    const geminiService = await loadGeminiService();
+    if (geminiService.isAiConfigured()) {
+        return geminiService;
     }
     res.status(503).json({ message: 'AI features are not enabled.' });
-    return false;
+    return null;
 };
 
 const parseBase64ImageDataUrl = (value) => {
@@ -683,6 +690,24 @@ const formatEmailDateLabel = (value) => {
     return date.toDateString();
 };
 
+const addDaysToDate = (value, days) => {
+    const date = new Date(value);
+    date.setDate(date.getDate() + days);
+    return date;
+};
+
+const addMonthsToDate = (value, months) => {
+    const date = new Date(value);
+    date.setMonth(date.getMonth() + months);
+    return date;
+};
+
+const toValidTreatmentLogs = (logs = []) => (
+    (Array.isArray(logs) ? logs : [])
+        .filter((log) => log?.date && !Number.isNaN(new Date(log.date).getTime()))
+        .sort((left, right) => new Date(right.date) - new Date(left.date))
+);
+
 const buildDentimeEmailTemplate = ({
     clinic = {},
     title = '',
@@ -775,6 +800,10 @@ const DEFAULT_CLINIC_PROCEDURES = [
 ];
 const AUTO_CANCELLATION_REASON = 'Auto-cancelled: patient did not check in within 15 minutes of the appointment time.';
 const APPOINTMENT_CHECKIN_GRACE_MINUTES = 15;
+const PREDICTIVE_VISIT_DEFAULT_MONTHS = 6;
+const PREDICTIVE_VISIT_WINDOW_DAYS = 7;
+const PREDICTIVE_VISIT_DUE_SOON_DAYS = 14;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const getAppointmentGraceDeadline = (appointment) => {
     if (!appointment?.date || !appointment?.time) return null;
@@ -1271,6 +1300,99 @@ const getManilaDayKey = (value = new Date()) => getManilaDateKey(value);
 const getStartOfManilaDay = (value = new Date()) => {
     const dayKey = getManilaDayKey(value);
     return new Date(`${dayKey}T00:00:00+08:00`);
+};
+
+const getWholeDayDiff = (targetDate, baseDate = new Date()) => {
+    const targetStart = getStartOfManilaDay(targetDate);
+    const baseStart = getStartOfManilaDay(baseDate);
+    return Math.round((targetStart - baseStart) / DAY_IN_MS);
+};
+
+const getPredictiveVisitPalette = (label = '') => {
+    switch (String(label || '').trim()) {
+        case 'Overdue':
+            return { color: '#d32f2f', bg: '#ffebee' };
+        case 'Window Open':
+            return { color: '#01538b', bg: '#dceffc' };
+        case 'Due Soon':
+            return { color: '#e65100', bg: '#fff3e0' };
+        case 'On Track':
+        default:
+            return { color: '#2e7d32', bg: '#e8f5e9' };
+    }
+};
+
+const getPredictiveVisitWindowFromTreatmentHistory = (treatmentLogs = [], today = new Date()) => {
+    const validLogs = toValidTreatmentLogs(treatmentLogs);
+    if (!validLogs.length) return null;
+
+    const latest = validLogs[0];
+    const latestDate = new Date(latest.date);
+    if (Number.isNaN(latestDate.getTime())) return null;
+
+    const loggedFollowUpDate = latest.nextAppointment ? new Date(latest.nextAppointment) : null;
+    const hasLoggedFollowUpDate = Boolean(loggedFollowUpDate && !Number.isNaN(loggedFollowUpDate.getTime()));
+    const recommendedDate = hasLoggedFollowUpDate
+        ? loggedFollowUpDate
+        : addMonthsToDate(latestDate, PREDICTIVE_VISIT_DEFAULT_MONTHS);
+
+    const windowStart = addDaysToDate(recommendedDate, -PREDICTIVE_VISIT_WINDOW_DAYS);
+    const windowEnd = addDaysToDate(recommendedDate, PREDICTIVE_VISIT_WINDOW_DAYS);
+    const daysUntilWindowStart = getWholeDayDiff(windowStart, today);
+    const daysUntilWindowEnd = getWholeDayDiff(windowEnd, today);
+    const daysUntilRecommendedDate = getWholeDayDiff(recommendedDate, today);
+    const daysPastWindow = daysUntilWindowEnd < 0 ? Math.abs(daysUntilWindowEnd) : 0;
+
+    let label = 'On Track';
+    if (daysUntilWindowEnd < 0) {
+        label = 'Overdue';
+    } else if (daysUntilWindowStart <= 0) {
+        label = 'Window Open';
+    } else if (daysUntilWindowStart <= PREDICTIVE_VISIT_DUE_SOON_DAYS) {
+        label = 'Due Soon';
+    }
+
+    const palette = getPredictiveVisitPalette(label);
+    const intervalLabel = hasLoggedFollowUpDate
+        ? 'Clinic follow-up date'
+        : `Every ${PREDICTIVE_VISIT_DEFAULT_MONTHS} months`;
+    const recommendationReason = hasLoggedFollowUpDate
+        ? 'Based on the follow-up date recorded after your latest treatment.'
+        : 'Based on your most recent recorded treatment and the clinic standard preventive follow-up interval.';
+
+    return {
+        label,
+        color: palette.color,
+        bg: palette.bg,
+        days: label === 'Overdue' ? daysPastWindow : Math.max(daysUntilRecommendedDate, 0),
+        daysPastWindow,
+        daysUntilWindowStart,
+        daysUntilWindowEnd,
+        daysUntilRecommendedDate,
+        nextDate: recommendedDate.toDateString(),
+        recommendedDate: recommendedDate.toISOString(),
+        recommendedDateLabel: formatEmailDateLabel(recommendedDate),
+        recommendedDateKey: getManilaDayKey(recommendedDate),
+        windowStart: windowStart.toISOString(),
+        windowEnd: windowEnd.toISOString(),
+        windowStartLabel: formatEmailDateLabel(windowStart),
+        windowEndLabel: formatEmailDateLabel(windowEnd),
+        windowLabel: `${formatEmailDateLabel(windowStart)} - ${formatEmailDateLabel(windowEnd)}`,
+        windowStartKey: getManilaDayKey(windowStart),
+        windowEndKey: getManilaDayKey(windowEnd),
+        historyCount: validLogs.length,
+        lastVisitDate: latest.date,
+        lastProcedure: latest.procedure || null,
+        recommendationBasis: hasLoggedFollowUpDate ? 'dentist-follow-up' : 'preventive-care',
+        recommendationReason,
+        intervalLabel,
+        isFollowUpRecommendation: hasLoggedFollowUpDate,
+        recentProcedures: validLogs.slice(0, 5).map((log, index) => ({
+            id: log._id || `${log.date}-${log.procedure || 'procedure'}-${index}`,
+            date: log.date,
+            procedure: log.procedure || 'Treatment recorded',
+        })),
+    };
 };
 
 const isSameCalendarDay = (leftDate, rightDate) => {
@@ -5307,6 +5429,98 @@ const remindIncompleteSchedulesForStaff = async () => {
     }
 };
 
+const remindPatientsAboutPredictiveVisitWindows = async () => {
+    const patients = await User.find({
+        role: 'patient',
+        isArchived: false,
+        notifVisitWindow: { $ne: false },
+        'treatmentLogs.0': { $exists: true },
+    }).select('name treatmentLogs predictiveVisitReminder');
+
+    for (const patient of patients) {
+        const prediction = getPredictiveVisitWindowFromTreatmentHistory(patient.treatmentLogs || []);
+        if (!prediction) continue;
+
+        const hasUpcomingAppointment = await Surgery.exists({
+            patient: patient._id,
+            status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+            isArchived: false,
+            date: { $gte: getStartOfManilaDay() },
+        });
+        if (hasUpcomingAppointment) continue;
+
+        const reminderState = patient.predictiveVisitReminder || {};
+        let dueWindowKey = reminderState.dueWindowKey || '';
+        let overdueWindowKey = reminderState.overdueWindowKey || '';
+        let shouldSaveState = false;
+
+        if ((prediction.label === 'Due Soon' || prediction.label === 'Window Open')
+            && dueWindowKey !== prediction.recommendedDateKey) {
+            const title = prediction.label === 'Window Open'
+                ? 'Your visit window is now open'
+                : 'Your visit window is coming up';
+            const message = prediction.isFollowUpRecommendation
+                ? `The clinic recommended a follow-up visit around ${prediction.recommendedDateLabel}. Your ideal visit window is ${prediction.windowLabel}.`
+                : `Based on your recent treatment history, your next recommended clinic visit window is ${prediction.windowLabel}.`;
+
+            await Notification.create({
+                type: 'PREDICTIVE_VISIT_DUE',
+                title,
+                message,
+                recipientId: patient._id,
+                recipientRole: 'patient',
+                relatedId: patient._id,
+            });
+
+            dueWindowKey = prediction.recommendedDateKey;
+            shouldSaveState = true;
+
+            await AuditLog.create({
+                action: 'PREDICTIVE_VISIT_DUE_SENT',
+                user: 'SYSTEM',
+                role: 'SYSTEM',
+                details: `Sent predictive visit due reminder to patient ${patient._id} for window ${prediction.windowLabel}.`,
+            });
+        }
+
+        if (prediction.label === 'Overdue' && overdueWindowKey !== prediction.recommendedDateKey) {
+            const message = prediction.isFollowUpRecommendation
+                ? `Your clinic follow-up window (${prediction.windowLabel}) has passed. Please contact the clinic to schedule your visit.`
+                : `Your recommended clinic visit window (${prediction.windowLabel}) has passed. Please book your next check-up.`;
+
+            await Notification.create({
+                type: 'PREDICTIVE_VISIT_OVERDUE',
+                title: 'Your visit window is overdue',
+                message,
+                recipientId: patient._id,
+                recipientRole: 'patient',
+                relatedId: patient._id,
+            });
+
+            overdueWindowKey = prediction.recommendedDateKey;
+            shouldSaveState = true;
+
+            await AuditLog.create({
+                action: 'PREDICTIVE_VISIT_OVERDUE_SENT',
+                user: 'SYSTEM',
+                role: 'SYSTEM',
+                details: `Sent predictive visit overdue reminder to patient ${patient._id} for window ${prediction.windowLabel}.`,
+            });
+        }
+
+        if (shouldSaveState) {
+            await User.findByIdAndUpdate(patient._id, {
+                $set: {
+                    predictiveVisitReminder: {
+                        dueWindowKey,
+                        overdueWindowKey,
+                    },
+                },
+            });
+        }
+    }
+};
+
 app.post('/api/pre-register/:token', async (req, res) => {
     try {
         const token = String(req.params.token || '').trim();
@@ -6471,6 +6685,29 @@ app.get('/api/my/treatment-logs', verifyToken, async (req, res) => {
     }
 });
 
+app.get('/api/my/visit-prediction', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        await reconcilePatientTreatmentLogsFromCompletedAppointments(req.user.id);
+
+        const patient = await User.findById(req.user.id).select('treatmentLogs notifVisitWindow');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const prediction = getPredictiveVisitWindowFromTreatmentHistory(patient.treatmentLogs || []);
+
+        return res.json({
+            prediction,
+            notificationsEnabled: patient.notifVisitWindow ?? true,
+        });
+    } catch (error) {
+        console.error('Error fetching predictive visit window:', error);
+        return res.status(500).json({ message: 'Server error.' });
+    }
+});
+
 app.get('/api/my/odontogram', verifyToken, async (req, res) => {
     try {
         if (req.user.role !== 'patient') {
@@ -7369,28 +7606,31 @@ const aiChatLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-app.post('/api/ai/chat', verifyToken, aiChatLimiter, async (req, res) => {
+const handlePatientAiChat = async (req, res) => {
     try {
-        if (!ensureAiConfigured(res)) return;
-        const { messages, systemPrompt } = req.body;
+        const geminiService = await ensureAiConfigured(res);
+        if (!geminiService) return;
+
+        const { messages, assistantContext } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ message: 'Messages array is required.' });
         }
 
-        const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 1024,
-            system: systemPrompt || 'You are NgitiFy\'s AI dental care companion. You help patients understand dental health, answer questions about dental procedures, and provide general oral health guidance. Always recommend consulting a dentist for specific medical advice. Be friendly, clear, and supportive.',
-            messages: messages.map(m => ({ role: m.role, content: m.content })),
+        const reply = await geminiService.generateScopedReply({
+            scope: 'patient',
+            messages,
+            additionalContext: assistantContext,
         });
 
-        const reply = response.content[0]?.text || 'I could not generate a response. Please try again.';
         res.json({ reply });
     } catch (error) {
         console.error('AI chat error:', error);
         res.status(500).json({ message: 'Server error processing AI request.' });
     }
-});
+};
+
+app.post('/api/ai/chat', verifyToken, aiChatLimiter, handlePatientAiChat);
+app.post('/api/chatbot/message', verifyToken, aiChatLimiter, handlePatientAiChat);
 
 // -------------------------------------------------------
 // AI STAFF CHAT ASSISTANT — Streaming SSE (Phase 4)
@@ -7399,12 +7639,13 @@ const STAFF_CHAT_ALLOWED = ['dentist', 'administrator', 'branch-manager', 'secre
 
 app.post('/api/ai/staff-chat', verifyToken, aiChatLimiter, async (req, res) => {
     try {
-        if (!ensureAiConfigured(res)) return;
+        const geminiService = await ensureAiConfigured(res);
+        if (!geminiService) return;
         if (!STAFF_CHAT_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
-        const { messages } = req.body;
+        const { messages, assistantContext } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ message: 'Messages array is required.' });
         }
@@ -7440,24 +7681,24 @@ Strict rules:
         res.setHeader('Connection', 'keep-alive');
         res.flushHeaders();
 
-        const stream = anthropic.messages.stream({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 1024,
-            system: systemPrompt,
-            messages: messages.map(m => ({ role: m.role, content: m.content })),
+        const stream = await geminiService.generateScopedStream({
+            scope: 'staff',
+            messages,
+            additionalContext: assistantContext,
         });
 
-        stream.on('text', (text) => {
-            res.write(`data: ${JSON.stringify({ text })}\n\n`);
-        });
-
-        stream.on('error', (err) => {
-            console.error('Staff chat stream error:', err);
-            res.write(`data: ${JSON.stringify({ error: 'Stream error occurred.' })}\n\n`);
+        if (!stream) {
+            res.write(`data: ${JSON.stringify({ text: geminiService.getRefusalText() })}\n\n`);
+            res.write('data: [DONE]\n\n');
             res.end();
-        });
+            return;
+        }
 
-        await stream.finalMessage();
+        for await (const chunk of stream) {
+            if (chunk?.text) {
+                res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+            }
+        }
 
         res.write('data: [DONE]\n\n');
         res.end();
@@ -7486,7 +7727,8 @@ Strict rules:
 // -------------------------------------------------------
 app.post('/api/ai/education', verifyToken, async (req, res) => {
     try {
-        if (!ensureAiConfigured(res)) return;
+        const geminiService = await ensureAiConfigured(res);
+        if (!geminiService) return;
         const EDU_ALLOWED = ['dentist', 'administrator', 'branch-manager', 'secretary', 'owner'];
         if (!EDU_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
@@ -7494,19 +7736,12 @@ app.post('/api/ai/education', verifyToken, async (req, res) => {
         const { topic } = req.body;
         if (!topic) return res.status(400).json({ message: 'Topic is required.' });
 
-        const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 1024,
-            system: 'You are a dental health educator. Write clear, patient-friendly educational content about dental topics. Use simple language, avoid jargon, and include practical tips. Format with a short intro, key points, and a helpful tip at the end.',
+        const content = await geminiService.generateScopedReply({
+            scope: 'education',
             messages: [
-                {
-                    role: 'user',
-                    content: `Write an educational article about: ${topic}`,
-                },
+                { role: 'user', content: `Write a patient-friendly educational article about: ${topic}` },
             ],
         });
-
-        const content = response.content[0]?.text || 'Content unavailable.';
         res.json({ content, topic });
     } catch (error) {
         console.error('AI education error:', error);
@@ -8368,6 +8603,9 @@ setInterval(() => {
     remindIncompleteSchedulesForStaff().catch((error) => {
         console.error('Schedule reminder worker error:', error);
     });
+    remindPatientsAboutPredictiveVisitWindows().catch((error) => {
+        console.error('Predictive visit reminder worker error:', error);
+    });
 }, 60 * 1000);
 
 autoCancelOverdueAppointments().catch((error) => {
@@ -8375,6 +8613,9 @@ autoCancelOverdueAppointments().catch((error) => {
 });
 remindIncompleteSchedulesForStaff().catch((error) => {
     console.error('Initial schedule reminder worker error:', error);
+});
+remindPatientsAboutPredictiveVisitWindows().catch((error) => {
+    console.error('Initial predictive visit reminder worker error:', error);
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

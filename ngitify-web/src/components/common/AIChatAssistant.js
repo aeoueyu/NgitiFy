@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import styles from './AIChatAssistant.module.css';
 import { FaTimes, FaRobot, FaPaperPlane, FaTrash, FaChevronDown } from 'react-icons/fa';
-import { BASE_URL } from '../../utils/api';
+import { useAuth } from '../../hooks/useAuth';
+import { authFetch, BASE_URL } from '../../utils/api';
 
 const QUICK_PROMPTS = [
     'What materials are needed for a tooth extraction?',
@@ -17,7 +19,58 @@ const WELCOME_MESSAGE = {
     isStreaming: false,
 };
 
+const NOTIFICATION_KEYWORDS = ['notification', 'notifications', 'alert', 'alerts', 'unread', 'reminder', 'reminders'];
+const INVENTORY_KEYWORDS = ['inventory', 'stock', 'low stock', 'material', 'materials', 'supply', 'supplies'];
+const APPOINTMENT_KEYWORDS = ['appointment', 'appointments', 'schedule', 'scheduled', 'calendar', 'pending', 'walk-in', 'walk in', 'queue'];
+const ACTIVITY_KEYWORDS = ['activity log', 'activity logs', 'audit log', 'audit logs', 'audit trail', 'recent actions'];
+
+const includesKeyword = (text, keywords) => {
+    const lowerText = String(text || '').toLowerCase();
+    return keywords.some((keyword) => lowerText.includes(keyword));
+};
+
+const formatRoleLabel = (role = '') => ({
+    administrator: 'Administrator',
+    owner: 'Owner',
+    'branch-manager': 'Branch Manager',
+    dentist: 'Dentist',
+    secretary: 'Secretary',
+})[role] || role || 'Staff';
+
+const getModuleLabel = (pathname = '') => {
+    if (pathname.includes('/material-usage')) return 'Material Usage Log';
+    if (pathname.includes('/notifications')) return 'Notifications';
+    if (pathname.includes('/activity-logs')) return 'Activity Logs';
+    if (pathname.includes('/audit-trail') || pathname.includes('/audit-logs')) return 'Audit Logs';
+    if (pathname.includes('/patients')) return 'Manage Patients';
+    if (pathname.includes('/manage-users')) return 'Manage Users';
+    if (pathname.includes('/schedule')) return 'Schedule';
+    if (pathname.includes('/inventory')) return 'Inventory';
+    if (pathname.includes('/dashboard')) return 'Dashboard';
+    if (pathname.includes('/emr')) return 'Patient EMR';
+    if (pathname.includes('/odontogram')) return 'Odontogram';
+    return 'Dentime';
+};
+
+const normalizeAppointmentContext = (item) => ({
+    id: item._id,
+    patientName: item.patient?.name
+        ? `${item.patient.name.first || ''} ${item.patient.name.last || ''}`.trim()
+        : (item.guestName || 'Unknown Patient'),
+    dentistName: item.dentist?.name
+        ? `Dr. ${item.dentist.name.first || ''} ${item.dentist.name.last || ''}`.trim()
+        : 'Unassigned',
+    procedure: item.procedure || 'Unspecified Procedure',
+    date: item.date || '',
+    time: item.time || '',
+    status: item.status || 'pending',
+    branch: item.branch || '',
+    source: item.source || '',
+});
+
 export default function AIChatAssistant({ isOpen, onClose }) {
+    const { user } = useAuth();
+    const location = useLocation();
     const [messages, setMessages] = useState([WELCOME_MESSAGE]);
     const [input, setInput] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
@@ -48,6 +101,148 @@ export default function AIChatAssistant({ isOpen, onClose }) {
         setShowScrollBtn(distFromBottom > 120);
     };
 
+    const buildAssistantContext = useCallback(async (userText) => {
+        const baseContext = {
+            staffSession: {
+                role: user?.role || '',
+                roleLabel: formatRoleLabel(user?.role),
+                assignedBranch: user?.assignedBranch || '',
+                currentPath: location.pathname,
+                currentModule: getModuleLabel(location.pathname),
+                requestedAt: new Date().toISOString(),
+            },
+        };
+
+        const contextLoaders = [];
+
+        if (includesKeyword(userText, NOTIFICATION_KEYWORDS)) {
+            contextLoaders.push((async () => {
+                try {
+                    const response = await authFetch('/notifications');
+                    if (!response.ok) return {};
+                    const items = await response.json();
+                    const safeItems = Array.isArray(items) ? items : [];
+                    const unreadItems = safeItems.filter((item) => !item.isRead);
+
+                    return {
+                        notificationsSnapshot: {
+                            unreadCount: unreadItems.length,
+                            recentUnread: unreadItems.slice(0, 10).map((item) => ({
+                                id: item._id,
+                                title: item.title || '',
+                                message: item.message || '',
+                                type: item.type || '',
+                                createdAt: item.createdAt || item.timestamp || '',
+                            })),
+                        },
+                    };
+                } catch {
+                    return {};
+                }
+            })());
+        }
+
+        if (includesKeyword(userText, INVENTORY_KEYWORDS)) {
+            contextLoaders.push((async () => {
+                try {
+                    const response = await authFetch('/inventory');
+                    if (!response.ok) return {};
+                    const items = await response.json();
+                    const safeItems = Array.isArray(items) ? items : [];
+                    const lowStockItems = safeItems
+                        .filter((item) => {
+                            const current = Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0));
+                            const threshold = Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0));
+                            return current <= threshold;
+                        })
+                        .sort((left, right) => (
+                            Number(left.quantity !== undefined ? left.quantity : (left.currentStock || 0))
+                            - Number(right.quantity !== undefined ? right.quantity : (right.currentStock || 0))
+                        ));
+
+                    return {
+                        inventorySnapshot: {
+                            totalItems: safeItems.length,
+                            lowStockCount: lowStockItems.length,
+                            lowStockItems: lowStockItems.slice(0, 10).map((item) => ({
+                                id: item._id,
+                                name: item.itemName || item.name || 'Unknown Item',
+                                currentStock: Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0)),
+                                threshold: Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0)),
+                                unit: item.unit || 'pcs',
+                                branch: item.branch || '',
+                            })),
+                        },
+                    };
+                } catch {
+                    return {};
+                }
+            })());
+        }
+
+        if (includesKeyword(userText, APPOINTMENT_KEYWORDS)) {
+            contextLoaders.push((async () => {
+                try {
+                    const response = await authFetch('/appointments');
+                    if (!response.ok) return {};
+                    const items = await response.json();
+                    const safeItems = Array.isArray(items) ? items : [];
+                    const normalized = safeItems
+                        .map(normalizeAppointmentContext)
+                        .sort((left, right) => new Date(left.date || 0) - new Date(right.date || 0));
+
+                    const pendingStatuses = new Set(['pending', 'confirmed', 'in-clinic']);
+                    const actionable = normalized.filter((item) => pendingStatuses.has(String(item.status || '').toLowerCase()));
+
+                    return {
+                        appointmentsSnapshot: {
+                            totalAppointments: normalized.length,
+                            actionableCount: actionable.length,
+                            upcomingAppointments: actionable.slice(0, 10),
+                        },
+                    };
+                } catch {
+                    return {};
+                }
+            })());
+        }
+
+        if (includesKeyword(userText, ACTIVITY_KEYWORDS)) {
+            contextLoaders.push((async () => {
+                try {
+                    const response = await authFetch('/audit-logs?limit=50');
+                    if (!response.ok) return {};
+                    const items = await response.json();
+                    const safeItems = Array.isArray(items) ? items : [];
+
+                    return {
+                        activitySnapshot: {
+                            recentLogs: safeItems.slice(0, 10).map((item) => ({
+                                id: item._id,
+                                action: item.action || '',
+                                role: item.role || '',
+                                user: typeof item.user === 'object'
+                                    ? `${item.user?.name?.first || ''} ${item.user?.name?.last || ''}`.trim() || item.user?.email || 'System'
+                                    : (item.user || 'System'),
+                                details: item.details || '',
+                                timestamp: item.timestamp || item.createdAt || '',
+                            })),
+                        },
+                    };
+                } catch {
+                    return {};
+                }
+            })());
+        }
+
+        if (!contextLoaders.length) {
+            return baseContext;
+        }
+
+        const resolvedContexts = await Promise.all(contextLoaders);
+        return Object.assign(baseContext, ...resolvedContexts);
+    }, [location.pathname, user?.assignedBranch, user?.role]);
+
     const sendMessage = useCallback(async (text) => {
         const userText = (text || input).trim();
         if (!userText || isStreaming) return;
@@ -71,6 +266,7 @@ export default function AIChatAssistant({ isOpen, onClose }) {
             const token = localStorage.getItem('token');
             const controller = new AbortController();
             abortRef.current = controller;
+            const assistantContext = await buildAssistantContext(userText);
 
             const response = await fetch(`${BASE_URL}/api/ai/staff-chat`, {
                 method: 'POST',
@@ -78,7 +274,10 @@ export default function AIChatAssistant({ isOpen, onClose }) {
                     'Content-Type': 'application/json',
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-                body: JSON.stringify({ messages: history }),
+                body: JSON.stringify({
+                    messages: history,
+                    assistantContext,
+                }),
                 signal: controller.signal,
             });
 
@@ -137,7 +336,7 @@ export default function AIChatAssistant({ isOpen, onClose }) {
             setIsStreaming(false);
             abortRef.current = null;
         }
-    }, [input, isStreaming, messages]);
+    }, [buildAssistantContext, input, isStreaming, messages]);
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {

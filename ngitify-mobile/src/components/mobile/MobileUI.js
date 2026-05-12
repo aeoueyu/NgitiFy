@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import { mobileTheme, statusPalette } from '../../theme/mobileTheme';
 
+export const mobilePageTopInset = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 18 : 18;
+
 export function Screen({ children, style }) {
   return <View style={[styles.screen, style]}>{children}</View>;
 }
@@ -107,7 +109,7 @@ const styles = StyleSheet.create({
     ...mobileTheme.shadows.card,
   },
   headerWrap: {
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 18 : 18,
+    paddingTop: mobilePageTopInset,
     paddingHorizontal: 18,
     paddingBottom: 8,
   },

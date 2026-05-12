@@ -232,6 +232,10 @@ const userSchema = new mongoose.Schema({
     notifAppointments:  { type: Boolean, default: true  }, // Appointment confirmation/reminder alerts
     notifVisitWindow:   { type: Boolean, default: true  }, // Predictive visit due/overdue alerts
     notifHealthTips:    { type: Boolean, default: true  }, // Weekly dental health tip notifications
+    predictiveVisitReminder: {
+        dueWindowKey: { type: String, default: '' },
+        overdueWindowKey: { type: String, default: '' },
+    },
 
 }, { timestamps: true });
 

@@ -9,7 +9,7 @@ import { AuthContext } from '../../context/AuthContext';
 import LogoutModal from '../../components/LogoutModal';
 import BackIcon from '../../assets/icons/Back.svg';
 import { Ionicons } from '@expo/vector-icons';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 const DARK_MODE_KEY = 'ngitify_darkMode';
 
@@ -425,7 +425,6 @@ export default function SettingsScreen({ navigation }) {
                 <View style={{ height: 40 }} />
             </ScrollView>
 
-            <PatientBottomNav navigation={navigation} activeKey="profile" />
 
             {/* ── Logout Modal ── */}
             <LogoutModal
@@ -637,7 +636,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f3f7f9' },
 
     header: {
-        backgroundColor: 'white', padding: 20, paddingTop: 50,
+        backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset,
         flexDirection: 'row', alignItems: 'center',
         justifyContent: 'space-between', elevation: 3, zIndex: 10,
     },
@@ -660,7 +659,7 @@ const styles = StyleSheet.create({
     profileName:  { fontSize: 16, fontWeight: 'bold', color: '#222', marginBottom: 3 },
     profileEmail: { fontSize: 13, color: '#888' },
 
-    content: { padding: 16, paddingBottom: 152 },
+    content: { padding: 16, paddingBottom: 48 },
 
     sectionTitle: {
         fontSize: 12, fontWeight: '700', color: '#888',

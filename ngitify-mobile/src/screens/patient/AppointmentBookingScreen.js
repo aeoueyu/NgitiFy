@@ -9,7 +9,7 @@ import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 import CustomModal from '../../components/CustomModal';
 import { logActivity } from '../../utils/logActivity';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 const DIRECT_BOOKING_PROCEDURES = [
     'General Check-up / Initial Consultation',
@@ -680,7 +680,6 @@ export default function AppointmentBookingScreen({ navigation }) {
                     )}
             </ScrollView>
 
-            <PatientBottomNav navigation={navigation} activeKey="visits" />
 
             <CustomModal
                 visible={modalVisible}
@@ -735,11 +734,11 @@ const indicator = StyleSheet.create({
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f3f7f9' },
-    header: { backgroundColor: 'white', padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 3, zIndex: 10 },
+    header: { backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 3, zIndex: 10 },
     backBtn: { padding: 5, width: 70 },
     backText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b' },
-    content: { padding: 20, paddingBottom: 150 },
+    content: { padding: 20, paddingBottom: 48 },
     stepHeading: { fontSize: 20, fontWeight: 'bold', color: '#01538b', marginBottom: 4, marginTop: 4 },
     stepSub: { fontSize: 13, color: '#888', marginBottom: 16 },
     branchBanner: { backgroundColor: '#e8f1f8', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 14 },

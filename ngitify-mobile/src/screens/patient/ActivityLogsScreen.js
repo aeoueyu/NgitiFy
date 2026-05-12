@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';                  // ← added
 import { MaterialCommunityIcons } from '@expo/vector-icons';    // ← added
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -272,7 +272,6 @@ export default function ActivityLogsScreen({ navigation }) {
                     showsVerticalScrollIndicator={false}
                 />
             )}
-            <PatientBottomNav navigation={navigation} activeKey="profile" />
         </View>
     );
 }
@@ -284,7 +283,7 @@ const styles = StyleSheet.create({
 
     // Header
     header: {
-        backgroundColor: 'white', paddingTop: 50, paddingBottom: 16,
+        backgroundColor: 'white', paddingTop: mobilePageTopInset, paddingBottom: 16,
         paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center',
         justifyContent: 'space-between', elevation: 3,
     },
@@ -303,7 +302,7 @@ const styles = StyleSheet.create({
     // Loading
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     loadingText:      { marginTop: 12, color: '#888', fontSize: 14 },
-    listContent:      { paddingBottom: 130 },
+    listContent:      { paddingBottom: 40 },
 
     // List header
     listHeader: {

@@ -9,7 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,10 +54,14 @@ function NotifIcon({ type, size = 22 }) {
 }
 
 const getNavTarget = (type = '') => {
-    if (type.includes('APPOINTMENT'))  return 'MyAppointments';
-    if (type.includes('RADIOGRAPH'))   return 'MedicalRecords';
-    if (type.includes('TICKET') || type.includes('INQUIRY')) return 'AiPatientCareCompanion';
-    if (type.includes('VISIT'))        return 'AiPatientCareCompanion';
+    if (type.includes('APPOINTMENT')) return { screen: 'PatientTabs', params: { screen: 'MyAppointments' } };
+    if (type.includes('RADIOGRAPH')) return { screen: 'PatientTabs', params: { screen: 'MedicalRecords' } };
+    if (type.includes('TICKET') || type.includes('INQUIRY')) {
+        return { screen: 'AiPatientCareCompanion' };
+    }
+    if (type.includes('VISIT')) {
+        return { screen: 'PatientTabs', params: { screen: 'OralCareInsights' } };
+    }
     return null;
 };
 
@@ -172,7 +176,7 @@ export default function NotificationsScreen({ navigation }) {
             userToken, API_BASE_URL
         );
         const target = getNavTarget(item.type);
-        if (target) navigation.navigate(target);
+        if (target?.screen) navigation.navigate(target.screen, target.params);
     };
 
     // ── Mark all as read ──
@@ -310,7 +314,6 @@ export default function NotificationsScreen({ navigation }) {
                     showsVerticalScrollIndicator={false}
                 />
             )}
-            <PatientBottomNav navigation={navigation} activeKey="profile" />
         </View>
     );
 }
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
 
     // Header
     header: {
-        backgroundColor: 'white', paddingTop: 50, paddingBottom: 16,
+        backgroundColor: 'white', paddingTop: mobilePageTopInset, paddingBottom: 16,
         paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center',
         justifyContent: 'space-between', elevation: 3,
     },
@@ -340,7 +343,7 @@ const styles = StyleSheet.create({
     // Loading
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     loadingText:      { marginTop: 12, color: '#888', fontSize: 14 },
-    listContent:      { paddingBottom: 130 },
+    listContent:      { paddingBottom: 40 },
 
     // List header
     listHeader: {

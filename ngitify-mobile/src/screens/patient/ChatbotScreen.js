@@ -1,11 +1,11 @@
-import React, { useState, useRef, useContext } from 'react';
+import React, { useState, useRef, useContext, useEffect } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
     FlatList, KeyboardAvoidingView, Platform, ActivityIndicator
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
-import PatientBottomNav from '../../components/mobile/PatientBottomNav';
+import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
 const INITIAL_MESSAGES = [
     {
@@ -24,7 +24,39 @@ export default function ChatbotScreen({ navigation }) {
     const [messages, setMessages] = useState(INITIAL_MESSAGES);
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [visitPrediction, setVisitPrediction] = useState(null);
     const listRef = useRef(null);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchVisitPrediction = async () => {
+            if (!userToken) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/my/visit-prediction`, {
+                    headers: { Authorization: `Bearer ${userToken}` }
+                });
+
+                if (!response.ok) return;
+
+                const payload = await response.json();
+                if (!isMounted) return;
+
+                setVisitPrediction(payload?.prediction || null);
+            } catch {
+                if (isMounted) {
+                    setVisitPrediction(null);
+                }
+            }
+        };
+
+        fetchVisitPrediction();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [API_BASE_URL, userToken]);
 
     const scrollToBottom = () => {
         setTimeout(() => {
@@ -54,13 +86,30 @@ export default function ChatbotScreen({ navigation }) {
             const history = buildConversationHistory([...messages, userMsg]);
 
             // ← was: `${API_URL}/api/chatbot/message`
-            const response = await fetch(`${API_BASE_URL}/api/chatbot/message`, {
+            const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${userToken}`
                 },
-                body: JSON.stringify({ messages: history })
+                body: JSON.stringify({
+                    messages: history,
+                    assistantContext: visitPrediction
+                        ? {
+                            patientVisitWindow: {
+                                status: visitPrediction.label,
+                                daysUntilWindow: visitPrediction.daysUntilWindowStart,
+                                nextDate: visitPrediction.recommendedDateLabel || visitPrediction.nextDate,
+                                windowStart: visitPrediction.windowStartLabel,
+                                windowEnd: visitPrediction.windowEndLabel,
+                                historyCount: visitPrediction.historyCount,
+                                lastVisitDate: visitPrediction.lastVisitDate,
+                                lastProcedure: visitPrediction.lastProcedure,
+                                recommendationReason: visitPrediction.recommendationReason,
+                            }
+                        }
+                        : null
+                })
             });
 
             if (!response.ok) throw new Error('Network response was not ok');
@@ -193,7 +242,6 @@ export default function ChatbotScreen({ navigation }) {
                     <Text style={styles.sendBtnText}>Send</Text>
                 </TouchableOpacity>
             </View>
-            <PatientBottomNav navigation={navigation} activeKey="home" />
         </KeyboardAvoidingView>
     );
 }
@@ -202,7 +250,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f3f7f9' },
 
     header: {
-        backgroundColor: 'white', padding: 20, paddingTop: 50,
+        backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         elevation: 3, zIndex: 10
     },
@@ -212,7 +260,7 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#01538b', marginRight: 6 },
     onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4caf50' },
 
-    chatContainer: { padding: 15, paddingBottom: 120 },
+    chatContainer: { padding: 15, paddingBottom: 24 },
 
     messageBubble: { flexDirection: 'row', marginBottom: 16, alignItems: 'flex-end' },
     userBubble: { justifyContent: 'flex-end' },
@@ -247,7 +295,7 @@ const styles = StyleSheet.create({
 
     inputContainer: {
         flexDirection: 'row', padding: 12, backgroundColor: 'white',
-        borderTopWidth: 1, borderTopColor: '#eee', alignItems: 'center', marginBottom: 86
+        borderTopWidth: 1, borderTopColor: '#eee', alignItems: 'center'
     },
     inputBox: {
         flex: 1, backgroundColor: '#f5f5f5', paddingHorizontal: 16,
