@@ -3,25 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { FaArrowRight, FaRegCircleCheck, FaRegClock } from 'react-icons/fa6';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
-import heroImage from '../../assets/images/dentime-dental-clinic-home.svg';
-import clinicLifestyleImage from '../../assets/images/clinic-lifestyle-image.jpg';
-import estheticsImage from '../../assets/images/esthetics-image.jpg';
-import generalDentistryImage from '../../assets/images/general-dentistry-image.jpg';
-import oralSurgeryImage from '../../assets/images/oral-surgery-image.jpg';
-import orthodonticsImage from '../../assets/images/orthodontics-image.jpg';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
-
-const serviceImages = {
-    'General Dentistry': generalDentistryImage,
-    Orthodontics: orthodonticsImage,
-    Esthetics: estheticsImage,
-    'Oral Surgery': oralSurgeryImage,
-};
 
 export default function WebsiteHome() {
     const navigate = useNavigate();
     const { clinicInfo, locationCards, serviceHighlights, websiteContent } = usePublicClinicConfig();
     const homeContent = websiteContent.home;
+    const media = websiteContent.media;
     const journeyIcons = [FaRegCircleCheck, FaRegClock];
 
     return (
@@ -46,7 +34,7 @@ export default function WebsiteHome() {
                 </div>
 
                 <div className={styles.heroImageCard}>
-                    <img src={heroImage} alt="Dentime Dental Clinic" className={styles.heroImage} />
+                    <img src={media.homeHeroImageUrl} alt={clinicInfo.name} className={styles.heroImage} />
                 </div>
             </section>
 
@@ -54,7 +42,7 @@ export default function WebsiteHome() {
                 <div className={styles.referenceIntroGrid}>
                     <article className={styles.referenceImageCard}>
                         <div className={styles.referenceThumb}>
-                            <img src={clinicLifestyleImage} alt="Clinic lifestyle at Dentime Dental Clinic" className={styles.placeholderImage} />
+                            <img src={media.homeIntroImageUrl} alt={`${clinicInfo.name} clinic lifestyle`} className={styles.placeholderImage} />
                         </div>
                         <div className={styles.referenceCopy}>
                             <p className={styles.referenceKicker}>{homeContent.introKicker}</p>
@@ -120,7 +108,7 @@ export default function WebsiteHome() {
                             {serviceHighlights.map((service) => (
                                 <article key={service.category} className={styles.serviceShowcaseCard}>
                                     <div className={styles.serviceImageFrame}>
-                                        <img src={serviceImages[service.category] || generalDentistryImage} alt={service.category} className={styles.placeholderImage} />
+                                        <img src={service.imageUrl} alt={service.category} className={styles.placeholderImage} />
                                     </div>
                             <div className={styles.serviceShowcaseBody}>
                                 <span className={styles.serviceTag}>{service.category}</span>
@@ -172,7 +160,7 @@ export default function WebsiteHome() {
 
                     <article className={styles.journeyImageCard}>
                         <div className={styles.journeyImageFrame}>
-                            <img src={estheticsImage} alt="Dentime treatment planning" className={styles.placeholderImage} />
+                            <img src={media.homeJourneyImageUrl} alt={`${clinicInfo.name} treatment planning`} className={styles.placeholderImage} />
                         </div>
                         <p className={styles.journeyImageCaption}>{homeContent.journeyCaption}</p>
                     </article>

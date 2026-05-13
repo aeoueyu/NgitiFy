@@ -2,19 +2,14 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
-import aboutHeroImage from '../../assets/images/about-hero-image.jpg';
-import featureImage1 from '../../assets/images/feature-image-1.jpg';
-import featureImage2 from '../../assets/images/feature-image-2.jpg';
-import featureImage3 from '../../assets/images/feature-image-3.jpg';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
-
-const featureImages = [featureImage1, featureImage2, featureImage3];
 
 export default function WebsiteAbout() {
     const navigate = useNavigate();
     const { clinicInfo, locationCards, websiteContent } = usePublicClinicConfig();
     const aboutContent = websiteContent.about;
     const locationsContent = websiteContent.locationsPage;
+    const media = websiteContent.media;
     const getMapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
     return (
@@ -29,7 +24,7 @@ export default function WebsiteAbout() {
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
-                        <img src={aboutHeroImage} alt="About Dentime Dental Clinic" className={styles.placeholderImage} />
+                        <img src={media.aboutHeroImageUrl} alt={`About ${clinicInfo.name}`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -40,8 +35,8 @@ export default function WebsiteAbout() {
                         <article key={index} className={`${styles.infoCard} ${styles.whiteSurfaceCard}`}>
                             <div className={styles.squarePlaceholder}>
                                 <img
-                                    src={featureImages[index % featureImages.length] || featureImages[0]}
-                                    alt={`Dentime feature ${index + 1}`}
+                                    src={media.aboutHighlightImageUrls[index] || media.aboutHighlightImageUrls[media.aboutHighlightImageUrls.length - 1] || media.aboutHeroImageUrl}
+                                    alt={`${clinicInfo.name} feature ${index + 1}`}
                                     className={styles.placeholderImage}
                                 />
                             </div>
@@ -63,7 +58,7 @@ export default function WebsiteAbout() {
                     {locationCards.map((location) => (
                         <article key={location.name} className={styles.locationCard}>
                             <div className={styles.bannerPlaceholder}>
-                                <span className={styles.placeholderLabel}>{location.name} Image Placeholder</span>
+                                <img src={media.locationCardImageUrl} alt={location.name} className={styles.placeholderImage} />
                             </div>
                             <span className={styles.statusPill}>{location.status}</span>
                             <h2 className={styles.cardTitle}>{location.name}</h2>

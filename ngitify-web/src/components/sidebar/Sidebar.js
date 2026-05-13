@@ -7,17 +7,21 @@ import {
     FaBell,
     FaBoxes,
     FaCalendarAlt,
+    FaCalendarPlus,
     FaChevronRight,
     FaClipboardList,
+    FaComments,
     FaCodeBranch,
     FaCog,
     FaDatabase,
     FaHistory,
     FaHeadset,
+    FaNotesMedical,
     FaRobot,
     FaShieldAlt,
     FaSignOutAlt,
     FaTachometerAlt,
+    FaTooth,
     FaUserCircle,
     FaUserInjured,
     FaUsers,
@@ -27,6 +31,8 @@ import UserAvatar from '../common/UserAvatar';
 import ConfirmModal from '../common/ConfirmModal';
 import AIChatAssistant from '../common/AIChatAssistant';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
+
+const PROFILE_REFRESH_EVENT = 'ngitify-profile-updated';
 
 export default function Sidebar() {
     const { logout, user } = useAuth();
@@ -40,6 +46,7 @@ export default function Sidebar() {
     const isBranchManager = user?.role === 'branch-manager';
     const isSecretary = user?.role === 'secretary';
     const isOwner = user?.role === 'owner';
+    const isPatient = user?.role === 'patient';
     const isDentistUser = user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist);
     const isChatSupportEnabled = systemConfig?.featureToggles?.chatSupport === true;
 
@@ -65,10 +72,19 @@ export default function Sidebar() {
         };
 
         fetchProfile();
+
+        const handleRefresh = () => fetchProfile();
+        window.addEventListener('focus', handleRefresh);
+        window.addEventListener(PROFILE_REFRESH_EVENT, handleRefresh);
+
+        return () => {
+            window.removeEventListener('focus', handleRefresh);
+            window.removeEventListener(PROFILE_REFRESH_EVENT, handleRefresh);
+        };
     }, [user]);
 
     useEffect(() => {
-        if (!isAdmin && !isBranchManager && !isOwner && !isSecretary && !isDentistUser) return;
+        if (!isAdmin && !isBranchManager && !isOwner && !isSecretary && !isDentistUser && !isPatient) return;
 
         const fetchNotifCount = async () => {
             try {
@@ -83,9 +99,10 @@ export default function Sidebar() {
         fetchNotifCount();
         const interval = setInterval(fetchNotifCount, 60000);
         return () => clearInterval(interval);
-    }, [isAdmin, isBranchManager, isOwner, isSecretary, isDentistUser]);
+    }, [isAdmin, isBranchManager, isOwner, isSecretary, isDentistUser, isPatient]);
 
     const getBasePath = () => {
+        if (user?.role === 'patient') return '/patient';
         if (user?.role === 'dentist') return '/dentist';
         if (user?.role === 'secretary') return '/secretary';
         if (user?.role === 'branch-manager') return '/branch-manager';
@@ -96,7 +113,7 @@ export default function Sidebar() {
 
     const basePath = getBasePath();
     const dashboardPath = `${basePath}/dashboard`;
-    const schedulePath = `${basePath}/schedule`;
+    const schedulePath = isPatient ? '/patient/appointments' : `${basePath}/schedule`;
     const settingsPath = `${basePath}/settings`;
     const inventoryPath = `${basePath}/inventory`;
     const profilePath = `${basePath}/profile`;
@@ -169,8 +186,11 @@ export default function Sidebar() {
             : styles['nav-item'];
     };
 
-    const getFooterNavClass = (path) =>
-        location.pathname === path ? `${styles['settings-link']} ${styles.active}` : styles['settings-link'];
+    const getFooterNavClass = (path) => (
+        location.pathname === path || location.pathname.startsWith(path + '/')
+            ? `${styles['settings-link']} ${styles.active}`
+            : styles['settings-link']
+    );
 
     const displayFirst = sidebarProfile?.name?.first || user?.firstName || '';
     const displayLast = sidebarProfile?.name?.last || user?.lastName || '';
@@ -187,6 +207,7 @@ export default function Sidebar() {
         dentist: 'Dentist',
         secretary: 'Secretary',
         owner: 'Owner',
+        patient: 'Patient',
     }[user?.role] || '';
 
     const renderBadge = (count, extraClassName = '') => {
@@ -221,6 +242,8 @@ export default function Sidebar() {
 
     const aiAssistantActive = isDentistUser
         ? location.pathname === '/dentist/ai-assistant'
+        : isPatient
+            ? location.pathname.startsWith('/patient/ai-companion')
         : isOwner
             ? location.pathname === '/owner/ai-assistant'
             : isBranchManager
@@ -271,11 +294,26 @@ export default function Sidebar() {
                     {sectionLabel('Main')}
                     {navItem(dashboardPath, FaTachometerAlt, 'Dashboard')}
 
-                    {sectionLabel('Clinic')}
-                    {navItem(schedulePath, FaCalendarAlt, 'Schedule')}
-
-                    {sectionLabel('Patients')}
-                    {(isAdmin || isOwner || isBranchManager || isSecretary || isDentistUser) && navItem(managePatientsPath, FaUserInjured, 'Manage Patients')}
+                    {isPatient ? (
+                        <>
+                            {navItem(schedulePath, FaCalendarAlt, 'My Appointments')}
+                            {navItem('/patient/book', FaCalendarPlus, 'Book Appointment')}
+                            {sectionLabel('Care')}
+                            {navItem('/patient/records', FaNotesMedical, 'Medical Records')}
+                            {navItem('/patient/oral-care', FaTooth, 'Oral Care')}
+                            {sectionLabel('Support')}
+                            {navItem('/patient/notifications', FaBell, 'Notifications', notifBadge)}
+                            {navItem('/patient/activity-logs', FaHistory, 'Activity Logs')}
+                            {navItem('/patient/chatbot', FaComments, 'NgitiBot')}
+                        </>
+                    ) : (
+                        <>
+                            {sectionLabel('Clinic')}
+                            {navItem(schedulePath, FaCalendarAlt, 'Schedule')}
+                            {sectionLabel('Patients')}
+                            {(isAdmin || isOwner || isBranchManager || isSecretary || isDentistUser) && navItem(managePatientsPath, FaUserInjured, 'Manage Patients')}
+                        </>
+                    )}
 
                     {isBranchManager && (
                         <>
@@ -388,6 +426,10 @@ export default function Sidebar() {
                     <div
                         className={`${styles['settings-link']} ${aiAssistantActive ? styles.active : ''}`}
                         onClick={() => {
+                            if (isPatient) {
+                                handleNavigate('/patient/ai-companion');
+                                return;
+                            }
                             if (isDentistUser && !isOwner) {
                                 handleNavigate('/dentist/ai-assistant');
                                 return;

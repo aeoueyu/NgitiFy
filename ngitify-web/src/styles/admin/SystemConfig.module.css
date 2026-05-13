@@ -84,6 +84,77 @@
     padding: 18px;
     background: linear-gradient(180deg, #f9fcff 0%, #ffffff 100%);
 }
+.mediaGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 18px;
+}
+.mediaFieldCard {
+    border: 1px solid #dbe7f3;
+    border-radius: 14px;
+    padding: 16px;
+    background: #f8fbff;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.mediaPreviewFrame {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.mediaPreviewImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.mediaPreviewFallback {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+}
+.mediaActions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.mediaUploadBtn,
+.mediaResetBtn {
+    border: none;
+    border-radius: 999px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.mediaUploadBtn {
+    background: #01538b;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.mediaUploadBtn:hover {
+    background: #013f6a;
+}
+.mediaResetBtn {
+    background: #e8f4fd;
+    color: #01538b;
+}
+.mediaResetBtn:hover {
+    background: #d7ecfb;
+}
+.hiddenFileInput {
+    display: none;
+}
 .serviceHighlightHeader {
     display: flex;
     justify-content: space-between;
@@ -255,6 +326,7 @@
     .sectionNav { width: 100%; position: static; flex-direction: row; overflow-x: auto; }
     .procedureRow { grid-template-columns: 1fr; }
     .fieldsGrid { grid-template-columns: 1fr; }
+    .mediaGrid { grid-template-columns: 1fr; }
     .serviceHighlightHeader {
         flex-direction: column;
         align-items: flex-start;

@@ -99,6 +99,7 @@ export default function WebsiteAppointment() {
         websiteContent,
     } = usePublicClinicConfig();
     const appointmentContent = websiteContent.appointmentPage;
+    const media = websiteContent.media;
     const branchOptions = useMemo(
         () => locationCards.map((location) => location.name).filter(Boolean),
         [locationCards]
@@ -565,7 +566,7 @@ export default function WebsiteAppointment() {
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
-                        <span className={styles.placeholderLabel}>Appointment Hero Image Placeholder</span>
+                        <img src={media.appointmentHeroImageUrl} alt={`${clinicInfo.name} appointment`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -852,7 +853,7 @@ export default function WebsiteAppointment() {
                         </article>
 
                         <div className={styles.bannerPlaceholder}>
-                            <span className={styles.placeholderLabel}>Booking Guide Image Placeholder</span>
+                            <img src={media.appointmentGuideImageUrl} alt="Booking guide" className={styles.placeholderImage} />
                         </div>
                     </div>
                 </div>
@@ -867,7 +868,7 @@ export default function WebsiteAppointment() {
                     {locationCards.map((location) => (
                         <article key={location.name} className={styles.locationCard}>
                             <div className={styles.bannerPlaceholder}>
-                                <span className={styles.placeholderLabel}>{location.name} Placeholder</span>
+                                <img src={media.appointmentBranchImageUrl} alt={location.name} className={styles.placeholderImage} />
                             </div>
                             <span className={styles.statusPill}>{location.status}</span>
                             <h3 className={styles.cardTitle}>{location.name}</h3>

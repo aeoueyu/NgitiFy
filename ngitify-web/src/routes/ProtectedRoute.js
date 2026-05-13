@@ -32,6 +32,9 @@ const ProtectedRoute = ({ allowedRoles }) => {
       case 'secretary':
           fallbackPath = '/secretary/dashboard';
           break;
+      case 'patient':
+          fallbackPath = '/patient/dashboard';
+          break;
       default:
           fallbackPath = '/login';
     }

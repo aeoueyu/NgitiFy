@@ -3,6 +3,7 @@ import { authFetch } from '../utils/api';
 import {
     cloneWebsiteContentDefaults,
 } from '../data/websiteContent';
+import { getDefaultServiceImage } from '../data/websiteMediaDefaults';
 
 const SYSTEM_CONFIG_UPDATED_EVENT = 'ngitify-system-config-updated';
 
@@ -57,8 +58,15 @@ const normalizeStringList = (entries = [], fallback = []) => {
 
 const cloneServiceHighlightList = (services = []) => services.map((service) => ({
     ...service,
+    imageUrl: service?.imageUrl || getDefaultServiceImage(service?.category),
     items: Array.isArray(service?.items) ? [...service.items] : [],
 }));
+
+const normalizeWebsiteMedia = (media = {}, fallbackMedia = {}) => ({
+    ...fallbackMedia,
+    ...(media || {}),
+    aboutHighlightImageUrls: normalizeStringList(media?.aboutHighlightImageUrls, fallbackMedia.aboutHighlightImageUrls || []),
+});
 
 const normalizeServiceHighlightList = (services = [], fallback = []) => {
     const normalized = (Array.isArray(services) ? services : [])
@@ -67,6 +75,7 @@ const normalizeServiceHighlightList = (services = [], fallback = []) => {
             return {
                 category: String(service?.category ?? '').trim() || fallbackService.category || '',
                 description: String(service?.description ?? '').trim() || fallbackService.description || '',
+                imageUrl: String(service?.imageUrl || fallbackService.imageUrl || getDefaultServiceImage(service?.category || fallbackService.category)).trim(),
                 items: normalizeStringList(service?.items, fallbackService.items || []),
             };
         })
@@ -107,6 +116,7 @@ const normalizeWebsiteContent = (value = {}) => {
             ...fallback.contactPage,
             ...(value?.contactPage || {}),
         },
+        media: normalizeWebsiteMedia(value?.media, fallback.media),
         appointmentPage: {
             ...fallback.appointmentPage,
             ...(value?.appointmentPage || {}),

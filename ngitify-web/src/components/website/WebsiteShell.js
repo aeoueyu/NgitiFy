@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaXmark } from 'react-icons/fa6';
 import { FaRegComments, FaPaperPlane } from 'react-icons/fa';
-import logo from '../../assets/images/logo-dentime.svg';
 import styles from '../../styles/website/WebsiteShell.module.css';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 
@@ -17,10 +16,11 @@ const navItems = [
 export default function WebsiteShell({ children }) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { clinicInfo, featureToggles } = usePublicClinicConfig();
+    const { clinicInfo, featureToggles, websiteContent } = usePublicClinicConfig();
     const [menuOpen, setMenuOpen] = useState(false);
     const [chatOpen, setChatOpen] = useState(false);
     const isChatSupportEnabled = featureToggles?.chatSupport === true;
+    const logoUrl = websiteContent?.media?.logoUrl || '';
 
     useEffect(() => {
         setMenuOpen(false);
@@ -99,7 +99,7 @@ export default function WebsiteShell({ children }) {
             <header className={styles.topBar}>
                 <div className={styles.brandRow}>
                     <button className={styles.logoButton} onClick={() => navigate('/')} type="button">
-                        <img src={logo} alt="Dentime Logo" className={styles.logo} />
+                        <img src={logoUrl} alt={`${clinicInfo.name} logo`} className={styles.logo} />
                     </button>
 
                     <button

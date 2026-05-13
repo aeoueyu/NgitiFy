@@ -1,6 +1,13 @@
 import websiteContentDefaults from './websiteContentDefaults.json';
+import { getDefaultServiceImage, websiteMediaDefaults } from './websiteMediaDefaults';
 
-const cloneWebsiteContentDefaults = () => JSON.parse(JSON.stringify(websiteContentDefaults));
+const cloneWebsiteContentDefaults = () => ({
+    ...JSON.parse(JSON.stringify(websiteContentDefaults)),
+    media: {
+        ...websiteMediaDefaults,
+        aboutHighlightImageUrls: [...websiteMediaDefaults.aboutHighlightImageUrls],
+    },
+});
 
 export const clinicInfo = {
     name: 'Dentime Dental Clinic',
@@ -33,6 +40,7 @@ export const defaultWebsiteContent = cloneWebsiteContentDefaults();
 export const aboutHighlights = [...defaultWebsiteContent.about.highlights];
 export const serviceHighlights = defaultWebsiteContent.serviceHighlights.map((service) => ({
     ...service,
+    imageUrl: service.imageUrl || getDefaultServiceImage(service.category),
     items: [...service.items],
 }));
 export const appointmentSteps = [...defaultWebsiteContent.appointmentPage.steps];

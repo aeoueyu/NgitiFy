@@ -25,7 +25,8 @@ export default function ActivateAccountPage() {
 
         if (role === 'patient') {
           setIsPatient(true);
-          setMessage('Your account has been activated! Please log in using the NgitiFy mobile app.');
+          setMessage('Your account has been activated! You can now log in on the website or the NgitiFy mobile app.');
+          setTimeout(() => navigate('/login'), 3000);
         } else {
           setMessage(data.message || 'Account activated successfully!');
           setTimeout(() => navigate('/login'), 3000);
@@ -50,7 +51,7 @@ export default function ActivateAccountPage() {
           <p>{message}</p>
           {isPatient ? (
             <p style={{ color: '#888', fontSize: '14px', marginTop: '10px' }}>
-              You can now close this page and open the NgitiFy mobile app to log in.
+              Redirecting you to the login page so you can continue on web if you want to.
             </p>
           ) : (
             <p style={{ color: '#888', fontSize: '14px' }}>Redirecting you to the login page...</p>

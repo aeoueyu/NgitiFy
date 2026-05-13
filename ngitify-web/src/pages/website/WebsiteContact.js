@@ -8,6 +8,7 @@ export default function WebsiteContact() {
     const navigate = useNavigate();
     const { clinicInfo, locationCards, websiteContent } = usePublicClinicConfig();
     const contactContent = websiteContent.contactPage;
+    const media = websiteContent.media;
     const primaryLocation = locationCards[0] || { name: 'Dentime Branch', status: 'Now Open', address: clinicInfo.address || '' };
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(primaryLocation.address)}`;
 
@@ -30,7 +31,7 @@ export default function WebsiteContact() {
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
-                        <span className={styles.placeholderLabel}>Contact Hero Image Placeholder</span>
+                        <img src={media.contactHeroImageUrl} alt={`${clinicInfo.name} contact`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -39,7 +40,7 @@ export default function WebsiteContact() {
                 <div className={styles.gridThree}>
                     <article className={styles.contactCard}>
                         <div className={styles.squarePlaceholder}>
-                            <span className={styles.placeholderLabel}>Phone Card Image Placeholder</span>
+                            <img src={media.contactPhoneImageUrl} alt="Phone contact" className={styles.placeholderImage} />
                         </div>
                         <h2 className={styles.cardTitle}>{contactContent.phoneCardTitle}</h2>
                         <span className={styles.contactValue}>{clinicInfo.contactNumber}</span>
@@ -50,7 +51,7 @@ export default function WebsiteContact() {
 
                     <article className={styles.contactCard}>
                         <div className={styles.squarePlaceholder}>
-                            <span className={styles.placeholderLabel}>Facebook Card Image Placeholder</span>
+                            <img src={media.contactFacebookImageUrl} alt="Facebook contact" className={styles.placeholderImage} />
                         </div>
                         <h2 className={styles.cardTitle}>{contactContent.facebookCardTitle}</h2>
                         <p>{clinicInfo.facebookName}</p>
@@ -66,7 +67,7 @@ export default function WebsiteContact() {
 
                     <article className={styles.contactCard}>
                         <div className={styles.squarePlaceholder}>
-                            <span className={styles.placeholderLabel}>Instagram Card Image Placeholder</span>
+                            <img src={media.contactInstagramImageUrl} alt="Instagram contact" className={styles.placeholderImage} />
                         </div>
                         <h2 className={styles.cardTitle}>{contactContent.instagramCardTitle}</h2>
                         <span className={styles.contactValue}>@{clinicInfo.instagramHandle}</span>
@@ -99,7 +100,7 @@ export default function WebsiteContact() {
                     </article>
 
                     <div className={styles.bannerPlaceholder}>
-                        <span className={styles.placeholderLabel}>Map or Clinic Front Placeholder</span>
+                        <img src={media.contactMapImageUrl} alt={`${primaryLocation.name} map or clinic front`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>

@@ -76,8 +76,7 @@ export default function LoginPage() {
                 } else if (data.role === 'secretary') {
                     navigate('/secretary/dashboard');
                 } else if (data.role === 'patient') {
-                    setErrorMessage('Patient access is only available on the mobile app.');
-                    localStorage.removeItem('token');
+                    navigate('/patient/dashboard');
                 } else {
                     setErrorMessage('Unrecognized user role.');
                 }

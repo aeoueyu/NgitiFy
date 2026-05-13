@@ -88,6 +88,20 @@ const BranchManagerAIAssistant = lazy(() => import('./pages/branch-manager/Branc
 const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
 const OwnerAIAssistant = lazy(() => import('./pages/owner/OwnerAIAssistant'));
 
+// Pages - Patient
+const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
+const PatientAppointments = lazy(() => import('./pages/patient/PatientAppointments'));
+const PatientBooking = lazy(() => import('./pages/patient/PatientBooking'));
+const PatientMedicalRecords = lazy(() => import('./pages/patient/PatientMedicalRecords'));
+const PatientOralCare = lazy(() => import('./pages/patient/PatientOralCare'));
+const PatientNotifications = lazy(() => import('./pages/patient/PatientNotifications'));
+const PatientProfile = lazy(() => import('./pages/patient/PatientProfile'));
+const PatientEditProfile = lazy(() => import('./pages/patient/PatientEditProfile'));
+const PatientSettings = lazy(() => import('./pages/patient/PatientSettings'));
+const PatientActivityLogs = lazy(() => import('./pages/patient/PatientActivityLogs'));
+const PatientAiCompanion = lazy(() => import('./pages/patient/PatientAiCompanion'));
+const PatientChatbot = lazy(() => import('./pages/patient/PatientChatbot'));
+
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#f4f7f6', color: '#01538b', fontFamily: 'sans-serif' }}>
@@ -122,6 +136,25 @@ function App() {
               <Route path="/new-password" element={<NewPasswordPage />} />
               <Route path="/password-reset-success" element={<NewPasswordRedirectPage />} />
               <Route path="/activate-account/:token" element={<ActivateAccountPage />} />
+
+              {/* Protected Routes - Patient Area */}
+              <Route element={<ProtectedRoute allowedRoles={['patient']} />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/patient" element={<Navigate to="/patient/dashboard" replace />} />
+                  <Route path="/patient/dashboard" element={<PatientDashboard />} />
+                  <Route path="/patient/appointments" element={<PatientAppointments />} />
+                  <Route path="/patient/book" element={<PatientBooking />} />
+                  <Route path="/patient/records" element={<PatientMedicalRecords />} />
+                  <Route path="/patient/oral-care" element={<PatientOralCare />} />
+                  <Route path="/patient/notifications" element={<PatientNotifications />} />
+                  <Route path="/patient/profile" element={<PatientProfile />} />
+                  <Route path="/patient/profile/edit" element={<PatientEditProfile />} />
+                  <Route path="/patient/settings" element={<PatientSettings />} />
+                  <Route path="/patient/activity-logs" element={<PatientActivityLogs />} />
+                  <Route path="/patient/ai-companion" element={<PatientAiCompanion />} />
+                  <Route path="/patient/chatbot" element={<PatientChatbot />} />
+                </Route>
+              </Route>
 
               {/* Protected Routes - Dentist Area */}
               <Route element={<ProtectedRoute allowedRoles={['dentist']}/>}>

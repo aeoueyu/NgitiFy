@@ -2,13 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
-import locationsHeroImage from '../../assets/images/locations-hero-image.jpg';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 
 export default function WebsiteLocations() {
     const navigate = useNavigate();
     const { clinicInfo, locationCards, websiteContent } = usePublicClinicConfig();
     const locationsContent = websiteContent.locationsPage;
+    const media = websiteContent.media;
     const getMapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
     return (
@@ -22,7 +22,7 @@ export default function WebsiteLocations() {
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
-                        <img src={locationsHeroImage} alt="Dentime branch locations" className={styles.placeholderImage} />
+                        <img src={media.locationsHeroImageUrl} alt={`${clinicInfo.name} branch locations`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -32,7 +32,7 @@ export default function WebsiteLocations() {
                     {locationCards.map((location) => (
                         <article key={location.name} className={styles.locationCard}>
                             <div className={styles.bannerPlaceholder}>
-                                <span className={styles.placeholderLabel}>{location.name} Image Placeholder</span>
+                                <img src={media.locationCardImageUrl} alt={location.name} className={styles.placeholderImage} />
                             </div>
                             <span className={styles.statusPill}>{location.status}</span>
                             <h2 className={styles.cardTitle}>{location.name}</h2>

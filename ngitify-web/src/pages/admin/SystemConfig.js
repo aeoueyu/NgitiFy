@@ -4,6 +4,7 @@ import styles from '../../styles/admin/SystemConfig.module.css';
 import { invalidateSystemConfigCache, SYSTEM_CONFIG_UPDATED_EVENT } from '../../hooks/useSystemConfig';
 import { invalidatePublicClinicConfigCache } from '../../hooks/usePublicClinicConfig';
 import { cloneWebsiteContentDefaults } from '../../data/websiteContent';
+import { getDefaultServiceImage, websiteMediaDefaults } from '../../data/websiteMediaDefaults';
 
 const DEFAULT_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 const DEFAULT_ONLINE_BOOKING_PROCEDURES = [
@@ -55,7 +56,15 @@ const joinMultilineValue = (list = []) => (Array.isArray(list) ? list.join('\n')
 const buildEmptyServiceHighlight = () => ({
     category: '',
     description: '',
+    imageUrl: '',
     items: [''],
+});
+
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Failed to read the selected image.'));
+    reader.readAsDataURL(file);
 });
 
 const mergeWebsiteContent = (value = {}) => {
@@ -84,6 +93,7 @@ const mergeWebsiteContent = (value = {}) => {
             ? value.serviceHighlights.map((service) => ({
                 category: service?.category || '',
                 description: service?.description || '',
+                imageUrl: service?.imageUrl || getDefaultServiceImage(service?.category),
                 items: Array.isArray(service?.items) && service.items.length ? service.items : [''],
             }))
             : fallback.serviceHighlights,
@@ -94,6 +104,13 @@ const mergeWebsiteContent = (value = {}) => {
         contactPage: {
             ...fallback.contactPage,
             ...(value?.contactPage || {}),
+        },
+        media: {
+            ...fallback.media,
+            ...(value?.media || {}),
+            aboutHighlightImageUrls: Array.isArray(value?.media?.aboutHighlightImageUrls) && value.media.aboutHighlightImageUrls.length
+                ? value.media.aboutHighlightImageUrls
+                : fallback.media.aboutHighlightImageUrls,
         },
         appointmentPage: {
             ...fallback.appointmentPage,
@@ -240,6 +257,72 @@ const SystemConfig = () => {
         }));
     };
 
+    const handleWebsiteMediaFieldChange = (field, value) => {
+        setConfig((prev) => ({
+            ...prev,
+            websiteContent: {
+                ...prev.websiteContent,
+                media: {
+                    ...prev.websiteContent.media,
+                    [field]: value,
+                },
+            },
+        }));
+    };
+
+    const handleWebsiteMediaListItemChange = (field, index, value) => {
+        setConfig((prev) => ({
+            ...prev,
+            websiteContent: {
+                ...prev.websiteContent,
+                media: {
+                    ...prev.websiteContent.media,
+                    [field]: (prev.websiteContent.media?.[field] || []).map((entry, entryIndex) => (
+                        entryIndex === index ? value : entry
+                    )),
+                },
+            },
+        }));
+    };
+
+    const handleImageUpload = async ({ file, onChange }) => {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            setErrorMsg('Please select a valid image file.');
+            return;
+        }
+
+        try {
+            const dataUrl = await readFileAsDataUrl(file);
+            onChange(dataUrl);
+            setErrorMsg('');
+        } catch (error) {
+            setErrorMsg(error.message || 'Failed to read the selected image.');
+        }
+    };
+
+    const handleWebsiteMediaUpload = async (field, file) => {
+        await handleImageUpload({
+            file,
+            onChange: (value) => handleWebsiteMediaFieldChange(field, value),
+        });
+    };
+
+    const handleAboutHighlightUpload = async (index, file) => {
+        await handleImageUpload({
+            file,
+            onChange: (value) => handleWebsiteMediaListItemChange('aboutHighlightImageUrls', index, value),
+        });
+    };
+
+    const handleWebsiteMediaReset = (field) => {
+        handleWebsiteMediaFieldChange(field, websiteMediaDefaults[field] || '');
+    };
+
+    const handleAboutHighlightReset = (index) => {
+        handleWebsiteMediaListItemChange('aboutHighlightImageUrls', index, websiteMediaDefaults.aboutHighlightImageUrls[index] || websiteMediaDefaults.aboutHighlightImageUrls[0] || '');
+    };
+
     const handleAddServiceHighlight = () => {
         setConfig((prev) => ({
             ...prev,
@@ -363,6 +446,91 @@ const SystemConfig = () => {
         value: joinMultilineValue(config.websiteContent?.[section]?.[field] || []),
         onChange: (value) => handleWebsiteMultilineChange(section, field, value),
     });
+
+    const renderMediaField = ({ label, field, helpText = '', placeholder = 'Paste an image URL or upload a file.' }) => {
+        const value = config.websiteContent?.media?.[field] || '';
+        return (
+            <div className={styles.mediaFieldCard}>
+                <div className={styles.mediaPreviewFrame}>
+                    {value ? (
+                        <img src={value} alt={label} className={styles.mediaPreviewImage} />
+                    ) : (
+                        <div className={styles.mediaPreviewFallback}>No image selected</div>
+                    )}
+                </div>
+                <div className={styles.formGroup}>
+                    <label className={styles.label}>{label}</label>
+                    {helpText ? <p className={styles.helpText}>{helpText}</p> : null}
+                    <input
+                        type="text"
+                        className={styles.input}
+                        value={value}
+                        onChange={(event) => handleWebsiteMediaFieldChange(field, event.target.value)}
+                        placeholder={placeholder}
+                    />
+                </div>
+                <div className={styles.mediaActions}>
+                    <label className={styles.mediaUploadBtn}>
+                        Upload Image
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className={styles.hiddenFileInput}
+                            onChange={(event) => {
+                                handleWebsiteMediaUpload(field, event.target.files?.[0]);
+                                event.target.value = '';
+                            }}
+                        />
+                    </label>
+                    <button type="button" className={styles.mediaResetBtn} onClick={() => handleWebsiteMediaReset(field)}>
+                        Reset Default
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const renderAboutHighlightMediaField = (index) => {
+        const value = config.websiteContent?.media?.aboutHighlightImageUrls?.[index] || '';
+        return (
+            <div className={styles.mediaFieldCard}>
+                <div className={styles.mediaPreviewFrame}>
+                    {value ? (
+                        <img src={value} alt={`About highlight ${index + 1}`} className={styles.mediaPreviewImage} />
+                    ) : (
+                        <div className={styles.mediaPreviewFallback}>No image selected</div>
+                    )}
+                </div>
+                <div className={styles.formGroup}>
+                    <label className={styles.label}>About Highlight Image {index + 1}</label>
+                    <input
+                        type="text"
+                        className={styles.input}
+                        value={value}
+                        onChange={(event) => handleWebsiteMediaListItemChange('aboutHighlightImageUrls', index, event.target.value)}
+                        placeholder="Paste an image URL or upload a file."
+                    />
+                </div>
+                <div className={styles.mediaActions}>
+                    <label className={styles.mediaUploadBtn}>
+                        Upload Image
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className={styles.hiddenFileInput}
+                            onChange={(event) => {
+                                handleAboutHighlightUpload(index, event.target.files?.[0]);
+                                event.target.value = '';
+                            }}
+                        />
+                    </label>
+                    <button type="button" className={styles.mediaResetBtn} onClick={() => handleAboutHighlightReset(index)}>
+                        Reset Default
+                    </button>
+                </div>
+            </div>
+        );
+    };
 
     if (isLoading) {
         return <div className={styles.loadingContainer}><p>Loading system configuration...</p></div>;
@@ -625,10 +793,22 @@ const SystemConfig = () => {
                                         helpText: 'Used by the website contact and appointment pages.',
                                     })}
                                 </div>
+                                <div className={styles.mediaGrid}>
+                                    {renderMediaField({
+                                        label: 'Website Logo',
+                                        field: 'logoUrl',
+                                        helpText: 'Used in the public website header.',
+                                    })}
+                                </div>
                             </div>
 
                             <div className={styles.subsection}>
                                 <h3 className={styles.subsectionTitle}>Home Page</h3>
+                                <div className={styles.mediaGrid}>
+                                    {renderMediaField({ label: 'Home Hero Image', field: 'homeHeroImageUrl' })}
+                                    {renderMediaField({ label: 'Comfort Section Image', field: 'homeIntroImageUrl' })}
+                                    {renderMediaField({ label: 'Journey Section Image', field: 'homeJourneyImageUrl' })}
+                                </div>
                                 <div className={styles.fieldsGrid}>
                                     {renderWebsiteTextField('home', 'heroEyebrow', { label: 'Hero Eyebrow' })}
                                     {renderWebsiteTextField('home', 'heroTitleLead', { label: 'Hero Title Line 1' })}
@@ -682,6 +862,13 @@ const SystemConfig = () => {
 
                             <div className={styles.subsection}>
                                 <h3 className={styles.subsectionTitle}>About Page</h3>
+                                <div className={styles.mediaGrid}>
+                                    {renderMediaField({ label: 'About Hero Image', field: 'aboutHeroImageUrl' })}
+                                    {renderMediaField({ label: 'Location Card Image', field: 'locationCardImageUrl' })}
+                                    {renderAboutHighlightMediaField(0)}
+                                    {renderAboutHighlightMediaField(1)}
+                                    {renderAboutHighlightMediaField(2)}
+                                </div>
                                 <div className={styles.fieldsGrid}>
                                     {renderWebsiteTextField('about', 'eyebrow', { label: 'Eyebrow' })}
                                     {renderWebsiteTextField('about', 'highlightCardTitle', { label: 'Highlight Card Title' })}
@@ -697,6 +884,9 @@ const SystemConfig = () => {
 
                             <div className={styles.subsection}>
                                 <h3 className={styles.subsectionTitle}>Services Page</h3>
+                                <div className={styles.mediaGrid}>
+                                    {renderMediaField({ label: 'Services Hero Image', field: 'servicesHeroImageUrl' })}
+                                </div>
                                 <div className={styles.fieldsGrid}>
                                     {renderWebsiteTextField('servicesPage', 'eyebrow', { label: 'Eyebrow' })}
                                     {renderWebsiteTextField('servicesPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
@@ -731,6 +921,12 @@ const SystemConfig = () => {
                                                     rows: 3,
                                                 })}
                                                 {renderTextField({
+                                                    label: 'Service Image URL',
+                                                    helpText: 'You can paste a URL or use the upload button below.',
+                                                    value: service.imageUrl,
+                                                    onChange: (value) => handleWebsiteServiceChange(index, 'imageUrl', value),
+                                                })}
+                                                {renderTextField({
                                                     label: 'Items',
                                                     helpText: 'One service item per line.',
                                                     value: joinMultilineValue(service.items),
@@ -738,6 +934,39 @@ const SystemConfig = () => {
                                                     textarea: true,
                                                     rows: 6,
                                                 })}
+                                            </div>
+                                            <div className={styles.mediaFieldCard}>
+                                                <div className={styles.mediaPreviewFrame}>
+                                                    {service.imageUrl ? (
+                                                        <img src={service.imageUrl} alt={service.category || `Service ${index + 1}`} className={styles.mediaPreviewImage} />
+                                                    ) : (
+                                                        <div className={styles.mediaPreviewFallback}>No image selected</div>
+                                                    )}
+                                                </div>
+                                                <div className={styles.mediaActions}>
+                                                    <label className={styles.mediaUploadBtn}>
+                                                        Upload Image
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className={styles.hiddenFileInput}
+                                                            onChange={(event) => {
+                                                                handleImageUpload({
+                                                                    file: event.target.files?.[0],
+                                                                    onChange: (value) => handleWebsiteServiceChange(index, 'imageUrl', value),
+                                                                });
+                                                                event.target.value = '';
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.mediaResetBtn}
+                                                        onClick={() => handleWebsiteServiceChange(index, 'imageUrl', getDefaultServiceImage(service.category))}
+                                                    >
+                                                        Reset Default
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -749,6 +978,9 @@ const SystemConfig = () => {
 
                             <div className={styles.subsection}>
                                 <h3 className={styles.subsectionTitle}>About Page Locations Section</h3>
+                                <div className={styles.mediaGrid}>
+                                    {renderMediaField({ label: 'Locations Hero Image', field: 'locationsHeroImageUrl' })}
+                                </div>
                                 <div className={styles.fieldsGrid}>
                                     {renderWebsiteTextField('locationsPage', 'eyebrow', { label: 'Eyebrow' })}
                                     {renderWebsiteTextField('locationsPage', 'bookCtaLabel', { label: 'Book CTA Label' })}
@@ -761,6 +993,13 @@ const SystemConfig = () => {
 
                             <div className={styles.subsection}>
                                 <h3 className={styles.subsectionTitle}>Contact Page</h3>
+                                <div className={styles.mediaGrid}>
+                                    {renderMediaField({ label: 'Contact Hero Image', field: 'contactHeroImageUrl' })}
+                                    {renderMediaField({ label: 'Phone Card Image', field: 'contactPhoneImageUrl' })}
+                                    {renderMediaField({ label: 'Facebook Card Image', field: 'contactFacebookImageUrl' })}
+                                    {renderMediaField({ label: 'Instagram Card Image', field: 'contactInstagramImageUrl' })}
+                                    {renderMediaField({ label: 'Map / Clinic Front Image', field: 'contactMapImageUrl' })}
+                                </div>
                                 <div className={styles.fieldsGrid}>
                                     {renderWebsiteTextField('contactPage', 'eyebrow', { label: 'Eyebrow' })}
                                     {renderWebsiteTextField('contactPage', 'primaryCtaLabel', { label: 'Primary CTA Label' })}
@@ -780,6 +1019,11 @@ const SystemConfig = () => {
 
                             <div className={styles.subsection}>
                                 <h3 className={styles.subsectionTitle}>Appointment Page</h3>
+                                <div className={styles.mediaGrid}>
+                                    {renderMediaField({ label: 'Appointment Hero Image', field: 'appointmentHeroImageUrl' })}
+                                    {renderMediaField({ label: 'Booking Guide Image', field: 'appointmentGuideImageUrl' })}
+                                    {renderMediaField({ label: 'Appointment Branch Image', field: 'appointmentBranchImageUrl' })}
+                                </div>
                                 <div className={styles.fieldsGrid}>
                                     {renderWebsiteTextField('appointmentPage', 'eyebrow', { label: 'Hero Eyebrow' })}
                                     {renderWebsiteTextField('appointmentPage', 'facebookCtaLabel', { label: 'Facebook CTA Label' })}

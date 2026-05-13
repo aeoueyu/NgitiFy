@@ -537,6 +537,9 @@ const isLargePayloadRoute = (req) => {
     if (req.method === 'POST' && req.path === '/api/radiographs/enhance') {
         return true;
     }
+    if (req.method === 'PUT' && req.path === '/api/system-config') {
+        return true;
+    }
     return false;
 };
 
@@ -953,9 +956,38 @@ const normalizeStringList = (entries = [], fallback = []) => {
     return normalized.length > 0 ? normalized : [...fallback];
 };
 
+const WEBSITE_MEDIA_FIELDS = [
+    'logoUrl',
+    'homeHeroImageUrl',
+    'homeIntroImageUrl',
+    'homeJourneyImageUrl',
+    'aboutHeroImageUrl',
+    'servicesHeroImageUrl',
+    'locationsHeroImageUrl',
+    'locationCardImageUrl',
+    'contactHeroImageUrl',
+    'contactPhoneImageUrl',
+    'contactFacebookImageUrl',
+    'contactInstagramImageUrl',
+    'contactMapImageUrl',
+    'appointmentHeroImageUrl',
+    'appointmentGuideImageUrl',
+    'appointmentBranchImageUrl',
+];
+
+const normalizeWebsiteMedia = (media = {}) => {
+    const normalized = {};
+    WEBSITE_MEDIA_FIELDS.forEach((field) => {
+        normalized[field] = String(media?.[field] || '').trim();
+    });
+    normalized.aboutHighlightImageUrls = normalizeStringList(media?.aboutHighlightImageUrls, []).slice(0, 12);
+    return normalized;
+};
+
 const cloneServiceHighlightList = (services = []) => services.map((service) => ({
     category: String(service?.category ?? '').trim(),
     description: String(service?.description ?? '').trim(),
+    imageUrl: String(service?.imageUrl || '').trim(),
     items: Array.isArray(service?.items) ? [...service.items] : [],
 }));
 
@@ -967,6 +999,7 @@ const normalizeServiceHighlightList = (services = [], fallback = []) => {
             return {
                 category: normalizeRequiredText(service?.category, fallbackService.category || ''),
                 description: normalizeRequiredText(service?.description, fallbackService.description || ''),
+                imageUrl: String(service?.imageUrl || '').trim(),
                 items,
             };
         })
@@ -1058,6 +1091,7 @@ const normalizeWebsiteContent = (content = {}) => {
             locationPrimaryCtaLabel: normalizeRequiredText(content?.contactPage?.locationPrimaryCtaLabel, fallback.contactPage.locationPrimaryCtaLabel),
             locationSecondaryCtaLabel: normalizeRequiredText(content?.contactPage?.locationSecondaryCtaLabel, fallback.contactPage.locationSecondaryCtaLabel),
         },
+        media: normalizeWebsiteMedia(content?.media),
         appointmentPage: {
             eyebrow: normalizeRequiredText(content?.appointmentPage?.eyebrow, fallback.appointmentPage.eyebrow),
             title: normalizeRequiredText(content?.appointmentPage?.title, fallback.appointmentPage.title),
@@ -2976,13 +3010,7 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
         // This mirrors the behavior of a non-existent email (prevents role enumeration).
         const isMobileNonPatient = source === 'mobile' && user && user.role !== 'patient';
 
-        // Web requests: patient accounts must NOT receive a code.
-        // Patients only exist in the mobile app — the web portal does not support the patient role.
-        // We still navigate the user to the verification page on the frontend (anti-enumeration),
-        // but we silently skip sending the OTP here.
-        const isWebPatient = source !== 'mobile' && user && user.role === 'patient';
-
-        if (user && !isMobileNonPatient && !isWebPatient) {
+        if (user && !isMobileNonPatient) {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             user.resetPasswordOtp = code;
             user.resetPasswordExpires = Date.now() + 3600000;
@@ -3736,6 +3764,10 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
 
 app.get('/api/user/:id', verifyToken, async (req, res) => {
     try {
+        if (req.user.role === 'patient' && String(req.params.id) !== String(req.user.id)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
         const user = await User.findById(req.params.id).select('-password');
         if (!user) return res.status(404).json({ message: "User not found" });
         res.json(user);
@@ -3949,6 +3981,10 @@ app.put('/api/user/app-consent', verifyToken, async (req, res) => {
 
 app.put('/api/user/:id', verifyToken, async (req, res) => {
     try {
+        if (req.user.role === 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
         const { password, email, role, isVerified, activationToken, isPasswordChanged, status, ...updateData } = req.body;
         const userId = req.params.id;
         const currentUser = await User.findById(userId);

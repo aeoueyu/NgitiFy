@@ -153,6 +153,11 @@
     color: #0f766e;
 }
 
+.role-patient {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
 .nav-menu,
 .footer-section {
     display: flex;

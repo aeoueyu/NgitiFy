@@ -32,6 +32,7 @@ export default function PasswordChangeWarning() {
         if (user?.role === 'branch-manager') return '/branch-manager/settings';
         if (user?.role === 'secretary') return '/secretary/settings';
         if (user?.role === 'dentist') return '/dentist/settings';
+        if (user?.role === 'patient') return '/patient/settings';
         return '/login';
     }, [user?.role]);
 
