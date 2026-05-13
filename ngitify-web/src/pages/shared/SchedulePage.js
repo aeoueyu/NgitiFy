@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fa';
 import { authFetch, publicFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
+import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
 import PatientEMR from '../admin/PatientEMR';
 import RegisterGuestPatient from '../admin/RegisterGuestPatient';
@@ -458,6 +459,7 @@ export default function SchedulePage() {
     const { user } = useAuth();
     const { addToast } = useToast();
     const navigate = useNavigate();
+    const { config: systemConfig, loading: systemConfigLoading } = useSystemConfig();
 
     const role = user?.role || '';
     const currentUserId = user?.userId || user?.id || user?._id || '';
@@ -468,9 +470,10 @@ export default function SchedulePage() {
     const isBranchManager = role === 'branch-manager';
     const isSecretary = role === 'secretary';
     const isDentist = role === 'dentist';
+    const isQueueEnabled = systemConfig?.featureToggles?.queueManagement !== false;
 
-    const canManageQueue = isAdmin || isBranchManager || isSecretary;
-    const canViewQueue = canManageQueue || isDentist;
+    const canManageQueue = isQueueEnabled && (isAdmin || isBranchManager || isSecretary);
+    const canViewQueue = isQueueEnabled && (canManageQueue || isDentist);
     const canCreateSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
     const canEditSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
     const canChooseBranch = isAdmin || isOwner;
@@ -586,6 +589,9 @@ export default function SchedulePage() {
     }, [statusFilter]);
 
     const fetchPageData = useCallback(async ({ silent = false, suppressErrorToast = false } = {}) => {
+        if (systemConfigLoading) {
+            return;
+        }
         if (!silent) {
             setLoading(true);
         }
@@ -694,7 +700,7 @@ export default function SchedulePage() {
                 setLoading(false);
             }
         }
-    }, [addToast, assignedBranch, canChooseBranch, canViewQueue, selectedDateRange.from, selectedDateRange.to]);
+    }, [addToast, assignedBranch, canChooseBranch, canViewQueue, selectedDateRange.from, selectedDateRange.to, systemConfigLoading]);
 
     useEffect(() => {
         fetchPageData();

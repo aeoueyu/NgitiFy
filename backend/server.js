@@ -22,6 +22,7 @@ const { pathToFileURL } = require('url');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
+const defaultWebsiteContent = require('../ngitify-web/src/data/websiteContentDefaults.json');
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 5;
@@ -726,7 +727,7 @@ const buildDentimeEmailTemplate = ({
             <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;border:1px solid #d9edf7;box-shadow:0 10px 28px rgba(1,83,139,0.08);">
                 <div style="background:linear-gradient(135deg,#01538b 0%,#2dccf6 100%);padding:28px 28px 22px 28px;color:#ffffff;">
                     <img src="${getDentimeLogoUrl()}" alt="${clinicName}" style="width:64px;height:64px;display:block;margin-bottom:16px;background:#ffffff;border-radius:18px;padding:8px;" />
-                    <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.92;margin-bottom:8px;">Dentime Dental Clinic</div>
+                    <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.92;margin-bottom:8px;">${clinicName}</div>
                     <h1 style="margin:0;font-size:28px;line-height:1.2;">${title}</h1>
                     ${intro ? `<p style="margin:12px 0 0 0;font-size:15px;line-height:1.6;color:rgba(255,255,255,0.92);">${intro}</p>` : ''}
                 </div>
@@ -752,8 +753,30 @@ const buildDentimeEmailTemplate = ({
     `;
 };
 
+const escapeHtml = (value = '') => String(value || '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+}[character] || character));
+
+const formatConfiguredEmailCopy = (value = '', fallback = '') => {
+    const text = String(value || fallback || '').trim() || String(fallback || '').trim();
+    if (!text) return '';
+    return escapeHtml(text).replace(/\r?\n/g, '<br />');
+};
+
+const getSystemEmailTemplates = async () => (await getNormalizedSystemConfig()).emailTemplates;
+
 const sendActivationEmail = async (email, role, tempPassword, activationLink) => {
     const clinic = await getClinicContactDetails();
+    const emailTemplates = await getSystemEmailTemplates();
+    const activationCopy = formatConfiguredEmailCopy(
+        emailTemplates?.activation,
+        DEFAULT_SYSTEM_EMAIL_TEMPLATES.activation
+    );
+
     await resend.emails.send({
         from: 'NgitiFy Admin <noreply@ngitify.com>',
         to: email,
@@ -761,9 +784,10 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
         html: buildDentimeEmailTemplate({
             clinic,
             title: 'Welcome to NgitiFy',
-            intro: 'Your Dentime Dental Clinic account is ready. Please activate it to continue.',
+            intro: 'Please review your account details and activate your access to continue.',
             bodyHtml: `
                 <p style="margin:0 0 14px 0;">Hello,</p>
+                ${activationCopy ? `<p style="margin:0 0 14px 0;">${activationCopy}</p>` : ''}
                 <p style="margin:0 0 14px 0;">Your <strong>${role}</strong> account has been successfully created.</p>
                 ${tempPassword ? `
                     <div style="background:#f4fbff;border:1px solid #cfeffc;border-radius:16px;padding:16px;margin:18px 0;">
@@ -798,6 +822,23 @@ const DEFAULT_CLINIC_PROCEDURES = [
     'Dentures/Crowns',
     'Retainers',
 ];
+const DEFAULT_ALLOWED_TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+const DEFAULT_SYSTEM_FEATURE_TOGGLES = {
+    queueManagement: true,
+    radiographUploads: true,
+    chatSupport: false,
+    sessionTimeout: true,
+};
+const DEFAULT_SYSTEM_EMAIL_TEMPLATES = {
+    activation: 'Your Dentime Dental Clinic account is ready. Please activate it to continue.',
+    appointmentReminder: 'This is a reminder for your upcoming appointment at Dentime Dental Clinic.',
+};
+const SYSTEM_FEATURE_DISABLED_MESSAGES = {
+    queueManagement: 'Queue management is currently disabled in System Configuration.',
+    radiographUploads: 'Radiograph uploads are currently disabled in System Configuration.',
+    chatSupport: 'Chat support is currently disabled in System Configuration.',
+    sessionTimeout: 'Session timeout is currently disabled in System Configuration.',
+};
 const AUTO_CANCELLATION_REASON = 'Auto-cancelled: patient did not check in within 15 minutes of the appointment time.';
 const APPOINTMENT_CHECKIN_GRACE_MINUTES = 15;
 const PREDICTIVE_VISIT_DEFAULT_MONTHS = 6;
@@ -844,13 +885,7 @@ const GUEST_FULL_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
 const GUEST_PERSON_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{0,49}$/;
 const GUEST_PHONE_REGEX = /^9\d{9}$/;
 const GUEST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const getClinicAllowedSlots = async () => {
-    let config = await SystemConfig.findOne();
-    if (!config) config = await SystemConfig.create({});
-    return config.allowedTimeSlots ||
-        ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
-};
+const cloneWebsiteContentDefaults = () => JSON.parse(JSON.stringify(defaultWebsiteContent));
 
 const normalizeProcedureList = (procedures = []) => {
     const seen = new Set();
@@ -865,24 +900,315 @@ const normalizeProcedureList = (procedures = []) => {
         });
 };
 
-const getClinicProcedureCatalog = async () => {
-    let config = await SystemConfig.findOne();
-    if (!config) config = await SystemConfig.create({});
+const normalizeTimeSlotList = (slots = []) => Array.from(
+    new Set(
+        (Array.isArray(slots) ? slots : [])
+            .map((entry) => String(entry || '').trim())
+            .filter((entry) => /^\d{2}:\d{2}$/.test(entry))
+    )
+).sort();
 
-    const normalized = normalizeProcedureList(config.clinicProcedures);
-    if (normalized.length > 0) {
-        return normalized;
+const normalizeIntegerInRange = (value, { fallback, min, max }) => {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return fallback;
+    const roundedValue = Math.round(numericValue);
+    return Math.min(Math.max(roundedValue, min), max);
+};
+
+const normalizeBooleanValue = (value, fallback = false) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'true') return true;
+        if (normalized === 'false') return false;
+    }
+    if (value === undefined || value === null) return fallback;
+    return Boolean(value);
+};
+
+const normalizeEmailTemplateMap = (templates = {}) => ({
+    activation: String(templates?.activation || DEFAULT_SYSTEM_EMAIL_TEMPLATES.activation).trim()
+        || DEFAULT_SYSTEM_EMAIL_TEMPLATES.activation,
+    appointmentReminder: String(templates?.appointmentReminder || DEFAULT_SYSTEM_EMAIL_TEMPLATES.appointmentReminder).trim()
+        || DEFAULT_SYSTEM_EMAIL_TEMPLATES.appointmentReminder,
+});
+
+const normalizeFeatureToggleMap = (featureToggles = {}) => ({
+    queueManagement: normalizeBooleanValue(featureToggles?.queueManagement, DEFAULT_SYSTEM_FEATURE_TOGGLES.queueManagement),
+    radiographUploads: normalizeBooleanValue(featureToggles?.radiographUploads, DEFAULT_SYSTEM_FEATURE_TOGGLES.radiographUploads),
+    chatSupport: normalizeBooleanValue(featureToggles?.chatSupport, DEFAULT_SYSTEM_FEATURE_TOGGLES.chatSupport),
+    sessionTimeout: normalizeBooleanValue(featureToggles?.sessionTimeout, DEFAULT_SYSTEM_FEATURE_TOGGLES.sessionTimeout),
+});
+
+const normalizeRequiredText = (value, fallback = '') => {
+    const normalized = String(value ?? '').trim();
+    return normalized || fallback;
+};
+
+const normalizeStringList = (entries = [], fallback = []) => {
+    const normalized = (Array.isArray(entries) ? entries : [])
+        .map((entry) => String(entry ?? '').trim())
+        .filter(Boolean);
+
+    return normalized.length > 0 ? normalized : [...fallback];
+};
+
+const cloneServiceHighlightList = (services = []) => services.map((service) => ({
+    category: String(service?.category ?? '').trim(),
+    description: String(service?.description ?? '').trim(),
+    items: Array.isArray(service?.items) ? [...service.items] : [],
+}));
+
+const normalizeServiceHighlightList = (services = [], fallback = []) => {
+    const normalized = (Array.isArray(services) ? services : [])
+        .map((service, index) => {
+            const fallbackService = fallback[index] || { category: '', description: '', items: [] };
+            const items = normalizeStringList(service?.items, fallbackService.items || []);
+            return {
+                category: normalizeRequiredText(service?.category, fallbackService.category || ''),
+                description: normalizeRequiredText(service?.description, fallbackService.description || ''),
+                items,
+            };
+        })
+        .filter((service) => service.category || service.description || service.items.length > 0);
+
+    return normalized.length > 0 ? normalized : cloneServiceHighlightList(fallback);
+};
+
+const normalizeWebsiteContent = (content = {}) => {
+    const fallback = cloneWebsiteContentDefaults();
+
+    return {
+        branding: {
+            tagline: normalizeRequiredText(content?.branding?.tagline, fallback.branding.tagline),
+            owner: normalizeRequiredText(content?.branding?.owner, fallback.branding.owner),
+            facebookUrl: normalizeRequiredText(content?.branding?.facebookUrl, fallback.branding.facebookUrl),
+            facebookName: normalizeRequiredText(content?.branding?.facebookName, fallback.branding.facebookName),
+            instagramHandle: normalizeRequiredText(
+                String(content?.branding?.instagramHandle ?? '').replace(/^@+/, ''),
+                fallback.branding.instagramHandle
+            ),
+        },
+        home: {
+            heroEyebrow: normalizeRequiredText(content?.home?.heroEyebrow, fallback.home.heroEyebrow),
+            heroTitleLead: normalizeRequiredText(content?.home?.heroTitleLead, fallback.home.heroTitleLead),
+            heroTitleAccent: normalizeRequiredText(content?.home?.heroTitleAccent, fallback.home.heroTitleAccent),
+            heroDescription: normalizeRequiredText(content?.home?.heroDescription, fallback.home.heroDescription),
+            primaryCtaLabel: normalizeRequiredText(content?.home?.primaryCtaLabel, fallback.home.primaryCtaLabel),
+            secondaryCtaLabel: normalizeRequiredText(content?.home?.secondaryCtaLabel, fallback.home.secondaryCtaLabel),
+            introKicker: normalizeRequiredText(content?.home?.introKicker, fallback.home.introKicker),
+            introDescription: normalizeRequiredText(content?.home?.introDescription, fallback.home.introDescription),
+            quoteText: normalizeRequiredText(content?.home?.quoteText, fallback.home.quoteText),
+            quoteMeta: normalizeRequiredText(content?.home?.quoteMeta, fallback.home.quoteMeta),
+            quickVisitEyebrow: normalizeRequiredText(content?.home?.quickVisitEyebrow, fallback.home.quickVisitEyebrow),
+            quickVisitTitle: normalizeRequiredText(content?.home?.quickVisitTitle, fallback.home.quickVisitTitle),
+            quickVisitCtaLabel: normalizeRequiredText(content?.home?.quickVisitCtaLabel, fallback.home.quickVisitCtaLabel),
+            editorialMiniCopy: normalizeRequiredText(content?.home?.editorialMiniCopy, fallback.home.editorialMiniCopy),
+            editorialTitle: normalizeRequiredText(content?.home?.editorialTitle, fallback.home.editorialTitle),
+            editorialDescription: normalizeRequiredText(content?.home?.editorialDescription, fallback.home.editorialDescription),
+            coreCareAreasLabel: normalizeRequiredText(content?.home?.coreCareAreasLabel, fallback.home.coreCareAreasLabel),
+            coreCareAreasDescription: normalizeRequiredText(content?.home?.coreCareAreasDescription, fallback.home.coreCareAreasDescription),
+            activeBranchesLabel: normalizeRequiredText(content?.home?.activeBranchesLabel, fallback.home.activeBranchesLabel),
+            activeBranchesDescription: normalizeRequiredText(content?.home?.activeBranchesDescription, fallback.home.activeBranchesDescription),
+            editorialStatement: normalizeRequiredText(content?.home?.editorialStatement, fallback.home.editorialStatement),
+            servicesEyebrow: normalizeRequiredText(content?.home?.servicesEyebrow, fallback.home.servicesEyebrow),
+            servicesTitle: normalizeRequiredText(content?.home?.servicesTitle, fallback.home.servicesTitle),
+            servicesCtaLabel: normalizeRequiredText(content?.home?.servicesCtaLabel, fallback.home.servicesCtaLabel),
+            journeyEyebrow: normalizeRequiredText(content?.home?.journeyEyebrow, fallback.home.journeyEyebrow),
+            journeyTitle: normalizeRequiredText(content?.home?.journeyTitle, fallback.home.journeyTitle),
+            journeyPills: normalizeStringList(content?.home?.journeyPills, fallback.home.journeyPills),
+            journeyCardTitle: normalizeRequiredText(content?.home?.journeyCardTitle, fallback.home.journeyCardTitle),
+            journeyDescription: normalizeRequiredText(content?.home?.journeyDescription, fallback.home.journeyDescription),
+            journeyHighlights: normalizeStringList(content?.home?.journeyHighlights, fallback.home.journeyHighlights),
+            journeyCaption: normalizeRequiredText(content?.home?.journeyCaption, fallback.home.journeyCaption),
+        },
+        about: {
+            eyebrow: normalizeRequiredText(content?.about?.eyebrow, fallback.about.eyebrow),
+            title: normalizeRequiredText(content?.about?.title, fallback.about.title),
+            description: normalizeRequiredText(content?.about?.description, fallback.about.description),
+            highlightCardTitle: normalizeRequiredText(content?.about?.highlightCardTitle, fallback.about.highlightCardTitle),
+            highlights: normalizeStringList(content?.about?.highlights, fallback.about.highlights),
+        },
+        servicesPage: {
+            eyebrow: normalizeRequiredText(content?.servicesPage?.eyebrow, fallback.servicesPage.eyebrow),
+            title: normalizeRequiredText(content?.servicesPage?.title, fallback.servicesPage.title),
+            description: normalizeRequiredText(content?.servicesPage?.description, fallback.servicesPage.description),
+        },
+        serviceHighlights: normalizeServiceHighlightList(content?.serviceHighlights, fallback.serviceHighlights),
+        locationsPage: {
+            eyebrow: normalizeRequiredText(content?.locationsPage?.eyebrow, fallback.locationsPage.eyebrow),
+            title: normalizeRequiredText(content?.locationsPage?.title, fallback.locationsPage.title),
+            description: normalizeRequiredText(content?.locationsPage?.description, fallback.locationsPage.description),
+            bookCtaLabel: normalizeRequiredText(content?.locationsPage?.bookCtaLabel, fallback.locationsPage.bookCtaLabel),
+            callCtaLabel: normalizeRequiredText(content?.locationsPage?.callCtaLabel, fallback.locationsPage.callCtaLabel),
+            mapCtaLabel: normalizeRequiredText(content?.locationsPage?.mapCtaLabel, fallback.locationsPage.mapCtaLabel),
+        },
+        contactPage: {
+            eyebrow: normalizeRequiredText(content?.contactPage?.eyebrow, fallback.contactPage.eyebrow),
+            title: normalizeRequiredText(content?.contactPage?.title, fallback.contactPage.title),
+            description: normalizeRequiredText(content?.contactPage?.description, fallback.contactPage.description),
+            primaryCtaLabel: normalizeRequiredText(content?.contactPage?.primaryCtaLabel, fallback.contactPage.primaryCtaLabel),
+            secondaryCtaLabel: normalizeRequiredText(content?.contactPage?.secondaryCtaLabel, fallback.contactPage.secondaryCtaLabel),
+            phoneCardTitle: normalizeRequiredText(content?.contactPage?.phoneCardTitle, fallback.contactPage.phoneCardTitle),
+            phoneCardCtaLabel: normalizeRequiredText(content?.contactPage?.phoneCardCtaLabel, fallback.contactPage.phoneCardCtaLabel),
+            facebookCardTitle: normalizeRequiredText(content?.contactPage?.facebookCardTitle, fallback.contactPage.facebookCardTitle),
+            facebookCardCtaLabel: normalizeRequiredText(content?.contactPage?.facebookCardCtaLabel, fallback.contactPage.facebookCardCtaLabel),
+            instagramCardTitle: normalizeRequiredText(content?.contactPage?.instagramCardTitle, fallback.contactPage.instagramCardTitle),
+            instagramCardCtaLabel: normalizeRequiredText(content?.contactPage?.instagramCardCtaLabel, fallback.contactPage.instagramCardCtaLabel),
+            locationPrimaryCtaLabel: normalizeRequiredText(content?.contactPage?.locationPrimaryCtaLabel, fallback.contactPage.locationPrimaryCtaLabel),
+            locationSecondaryCtaLabel: normalizeRequiredText(content?.contactPage?.locationSecondaryCtaLabel, fallback.contactPage.locationSecondaryCtaLabel),
+        },
+        appointmentPage: {
+            eyebrow: normalizeRequiredText(content?.appointmentPage?.eyebrow, fallback.appointmentPage.eyebrow),
+            title: normalizeRequiredText(content?.appointmentPage?.title, fallback.appointmentPage.title),
+            description: normalizeRequiredText(content?.appointmentPage?.description, fallback.appointmentPage.description),
+            facebookCtaLabel: normalizeRequiredText(content?.appointmentPage?.facebookCtaLabel, fallback.appointmentPage.facebookCtaLabel),
+            callCtaLabel: normalizeRequiredText(content?.appointmentPage?.callCtaLabel, fallback.appointmentPage.callCtaLabel),
+            formEyebrow: normalizeRequiredText(content?.appointmentPage?.formEyebrow, fallback.appointmentPage.formEyebrow),
+            formTitle: normalizeRequiredText(content?.appointmentPage?.formTitle, fallback.appointmentPage.formTitle),
+            formDescription: normalizeRequiredText(content?.appointmentPage?.formDescription, fallback.appointmentPage.formDescription),
+            procedureHelperText: normalizeRequiredText(content?.appointmentPage?.procedureHelperText, fallback.appointmentPage.procedureHelperText),
+            notesHelperText: normalizeRequiredText(content?.appointmentPage?.notesHelperText, fallback.appointmentPage.notesHelperText),
+            submitButtonLabel: normalizeRequiredText(content?.appointmentPage?.submitButtonLabel, fallback.appointmentPage.submitButtonLabel),
+            submittingButtonLabel: normalizeRequiredText(content?.appointmentPage?.submittingButtonLabel, fallback.appointmentPage.submittingButtonLabel),
+            guideEyebrow: normalizeRequiredText(content?.appointmentPage?.guideEyebrow, fallback.appointmentPage.guideEyebrow),
+            guideTitle: normalizeRequiredText(content?.appointmentPage?.guideTitle, fallback.appointmentPage.guideTitle),
+            steps: normalizeStringList(content?.appointmentPage?.steps, fallback.appointmentPage.steps),
+            branchEyebrow: normalizeRequiredText(content?.appointmentPage?.branchEyebrow, fallback.appointmentPage.branchEyebrow),
+            branchTitle: normalizeRequiredText(content?.appointmentPage?.branchTitle, fallback.appointmentPage.branchTitle),
+        },
+    };
+};
+
+const normalizeOnlineBookingProcedures = ({ clinicProcedures = [], onlineBookingProcedures = [] }) => {
+    const clinicProcedureMap = new Map(
+        clinicProcedures.map((procedure) => [String(procedure || '').trim().toLowerCase(), procedure])
+    );
+
+    const requestedProcedures = normalizeProcedureList(
+        Array.isArray(onlineBookingProcedures) && onlineBookingProcedures.length
+            ? onlineBookingProcedures
+            : DIRECT_BOOKING_PROCEDURES
+    );
+
+    const matchedRequestedProcedures = requestedProcedures
+        .map((procedure) => clinicProcedureMap.get(String(procedure || '').trim().toLowerCase()) || null)
+        .filter(Boolean);
+
+    if (matchedRequestedProcedures.length > 0) {
+        return matchedRequestedProcedures;
     }
 
-    config.clinicProcedures = DEFAULT_CLINIC_PROCEDURES;
-    await config.save();
-    return [...DEFAULT_CLINIC_PROCEDURES];
+    const fallbackProcedures = DIRECT_BOOKING_PROCEDURES
+        .map((procedure) => clinicProcedureMap.get(String(procedure || '').trim().toLowerCase()) || null)
+        .filter(Boolean);
+
+    if (fallbackProcedures.length > 0) {
+        return fallbackProcedures;
+    }
+
+    return clinicProcedures.slice(0, 2);
+};
+
+const normalizeSystemConfigPayload = (source = {}) => {
+    const clinicProcedures = normalizeProcedureList(
+        Array.isArray(source?.clinicProcedures) && source.clinicProcedures.length
+            ? source.clinicProcedures
+            : DEFAULT_CLINIC_PROCEDURES
+    );
+    const allowedTimeSlots = normalizeTimeSlotList(
+        Array.isArray(source?.allowedTimeSlots) && source.allowedTimeSlots.length
+            ? source.allowedTimeSlots
+            : DEFAULT_ALLOWED_TIME_SLOTS
+    );
+
+    return {
+        clinicName: String(source?.clinicName || 'Dentime Dental Clinic').trim() || 'Dentime Dental Clinic',
+        clinicLogo: String(source?.clinicLogo || '').trim(),
+        clinicContact: String(source?.clinicContact || '').trim(),
+        clinicAddress: String(source?.clinicAddress || '').trim(),
+        clinicEmail: String(source?.clinicEmail || '').trim(),
+        maxAppointmentsPerDay: normalizeIntegerInRange(source?.maxAppointmentsPerDay, {
+            fallback: 20,
+            min: 1,
+            max: 200,
+        }),
+        allowedTimeSlots: allowedTimeSlots.length > 0 ? allowedTimeSlots : [...DEFAULT_ALLOWED_TIME_SLOTS],
+        clinicProcedures: clinicProcedures.length > 0 ? clinicProcedures : [...DEFAULT_CLINIC_PROCEDURES],
+        onlineBookingProcedures: normalizeOnlineBookingProcedures({
+            clinicProcedures: clinicProcedures.length > 0 ? clinicProcedures : [...DEFAULT_CLINIC_PROCEDURES],
+            onlineBookingProcedures: source?.onlineBookingProcedures,
+        }),
+        emailTemplates: normalizeEmailTemplateMap(source?.emailTemplates),
+        featureToggles: normalizeFeatureToggleMap(source?.featureToggles),
+        websiteContent: normalizeWebsiteContent(source?.websiteContent),
+        sessionTimeoutMinutes: normalizeIntegerInRange(source?.sessionTimeoutMinutes, {
+            fallback: 30,
+            min: 5,
+            max: 240,
+        }),
+        updatedBy: String(source?.updatedBy || '').trim(),
+    };
+};
+
+const normalizeSystemConfigResponse = (source = {}) => {
+    const normalized = normalizeSystemConfigPayload(
+        typeof source?.toObject === 'function' ? source.toObject() : source
+    );
+    return {
+        ...normalized,
+        _id: source?._id || undefined,
+        createdAt: source?.createdAt || undefined,
+        updatedAt: source?.updatedAt || undefined,
+    };
+};
+
+const getOrCreateSystemConfig = async () => {
+    let config = await SystemConfig.findOne();
+    if (!config) {
+        config = await SystemConfig.create({});
+    }
+    return config;
+};
+
+const getNormalizedSystemConfig = async () => normalizeSystemConfigResponse(await getOrCreateSystemConfig());
+
+const getClinicAllowedSlots = async () => (await getNormalizedSystemConfig()).allowedTimeSlots;
+
+const getClinicMaxAppointmentsPerDay = async () => (await getNormalizedSystemConfig()).maxAppointmentsPerDay;
+
+const getClinicProcedureCatalog = async () => (await getNormalizedSystemConfig()).clinicProcedures;
+
+const getOnlineBookingProcedures = async () => (await getNormalizedSystemConfig()).onlineBookingProcedures;
+
+const getSystemFeatureToggles = async () => (await getNormalizedSystemConfig()).featureToggles;
+
+const isSystemFeatureEnabled = async (featureKey) => {
+    const featureToggles = await getSystemFeatureToggles();
+    return featureToggles?.[featureKey] !== false;
+};
+
+const assertSystemFeatureEnabled = async (res, featureKey) => {
+    if (await isSystemFeatureEnabled(featureKey)) {
+        return true;
+    }
+    res.status(503).json({
+        message: SYSTEM_FEATURE_DISABLED_MESSAGES[featureKey] || 'This feature is currently disabled in System Configuration.',
+    });
+    return false;
 };
 
 const isClinicProcedureAllowed = async (procedure = '') => {
     const normalizedProcedure = String(procedure || '').trim().toLowerCase();
     if (!normalizedProcedure) return false;
     const procedures = await getClinicProcedureCatalog();
+    return procedures.some((entry) => String(entry || '').trim().toLowerCase() === normalizedProcedure);
+};
+
+const isOnlineBookingProcedureAllowed = async (procedure = '') => {
+    const normalizedProcedure = String(procedure || '').trim().toLowerCase();
+    if (!normalizedProcedure) return false;
+    const procedures = await getOnlineBookingProcedures();
     return procedures.some((entry) => String(entry || '').trim().toLowerCase() === normalizedProcedure);
 };
 
@@ -983,6 +1309,16 @@ const validateBookableAppointmentSlot = async ({
         return { ok: false, statusCode: 409, message: 'That time slot is no longer available. Please choose another time.' };
     }
 
+    const maxAppointmentsPerDay = await getClinicMaxAppointmentsPerDay();
+    const appointmentCount = await getActiveAppointmentCountForDate({ date: dateKey, branch, excludeAppointmentId });
+    if (appointmentCount >= maxAppointmentsPerDay) {
+        return {
+            ok: false,
+            statusCode: 409,
+            message: `This date has already reached the maximum of ${maxAppointmentsPerDay} appointments. Please choose another date.`,
+        };
+    }
+
     return {
         ok: true,
         dateKey,
@@ -990,6 +1326,8 @@ const validateBookableAppointmentSlot = async ({
         parsedDate,
         allowedSlots,
         takenSlots,
+        maxAppointmentsPerDay,
+        appointmentCount,
     };
 };
 
@@ -1013,6 +1351,25 @@ const getTakenSlotsForDate = async ({ date, branch, excludeAppointmentId = '' })
     return surgeries.map((s) => s.time).filter(Boolean);
 };
 
+const getActiveAppointmentCountForDate = async ({ date, branch, excludeAppointmentId = '' }) => {
+    const dateKey = typeof date === 'string' ? String(date || '').trim() : getManilaDateKey(date);
+    const start = parseScheduleDateKey(dateKey, '00:00');
+    const end = parseScheduleDateKey(dateKey, '23:59');
+    if (!start || !end) return 0;
+
+    const query = {
+        date: { $gte: start, $lte: end },
+        status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+        isArchived: false,
+    };
+    if (branch) query.branch = branch;
+    if (excludeAppointmentId && mongoose.Types.ObjectId.isValid(excludeAppointmentId)) {
+        query._id = { $ne: excludeAppointmentId };
+    }
+
+    return Surgery.countDocuments(query);
+};
+
 const getBlockedDatesForMonth = async ({ branch, month }) => {
     let start;
     let end;
@@ -1029,7 +1386,10 @@ const getBlockedDatesForMonth = async ({ branch, month }) => {
         end.setHours(23, 59, 59, 999);
     }
 
-    const allowedSlots = await getClinicAllowedSlots();
+    const [allowedSlots, maxAppointmentsPerDay] = await Promise.all([
+        getClinicAllowedSlots(),
+        getClinicMaxAppointmentsPerDay(),
+    ]);
 
     const query = {
         date: { $gte: start, $lte: end },
@@ -1040,12 +1400,14 @@ const getBlockedDatesForMonth = async ({ branch, month }) => {
 
     const appointments = await Surgery.find(query).select('date time');
     const takenByDate = new Map();
+    const countByDate = new Map();
 
     for (const appt of appointments) {
         const key = getManilaDateKey(appt.date);
         const nextSet = takenByDate.get(key) || new Set();
         if (appt.time) nextSet.add(appt.time);
         takenByDate.set(key, nextSet);
+        countByDate.set(key, (countByDate.get(key) || 0) + 1);
     }
 
     const blockedDates = [];
@@ -1057,8 +1419,9 @@ const getBlockedDatesForMonth = async ({ branch, month }) => {
         } else {
             const bookableSlots = getBookableAllowedSlotsForDate({ date: dateKey, allowedSlots });
             const takenSet = takenByDate.get(dateKey) || new Set();
+            const appointmentCount = countByDate.get(dateKey) || 0;
             const hasOpenSlot = bookableSlots.some((slot) => !takenSet.has(slot));
-            if (!hasOpenSlot) blockedDates.push(dateKey);
+            if (!hasOpenSlot || appointmentCount >= maxAppointmentsPerDay) blockedDates.push(dateKey);
         }
         cursor.setDate(cursor.getDate() + 1);
     }
@@ -1309,7 +1672,7 @@ const buildPatientAiAvailabilitySnapshot = async ({ queryText, branch }) => {
         branch,
         asOfDate: todayKey,
         bookingRules: {
-            directBookableProcedures: DIRECT_BOOKING_PROCEDURES,
+            directBookableProcedures: await getOnlineBookingProcedures(),
             oneActiveAppointmentLimit: true,
             note: 'Patients may only request appointments through their assigned branch, and slot availability can change before booking is confirmed.',
         },
@@ -1419,7 +1782,7 @@ const dentistCanAccessPatient = async (dentistId, patientId) => {
 };
 
 const getClinicContactDetails = async () => {
-    const config = await SystemConfig.findOne().lean();
+    const config = await getNormalizedSystemConfig();
     return {
         clinicName: config?.clinicName || 'Dentime Dental Clinic',
         clinicContact: config?.clinicContact || 'N/A',
@@ -2065,6 +2428,11 @@ const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, 
 
     const safeName = name || 'Patient';
     const clinic = await getClinicContactDetails();
+    const emailTemplates = await getSystemEmailTemplates();
+    const reminderCopy = formatConfiguredEmailCopy(
+        emailTemplates?.appointmentReminder,
+        DEFAULT_SYSTEM_EMAIL_TEMPLATES.appointmentReminder
+    );
 
     await resend.emails.send({
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
@@ -2083,6 +2451,7 @@ const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, 
                     <p style="margin:0 0 8px 0;"><strong>Procedure:</strong> ${procedure}</p>
                     <p style="margin:0;"><strong>Assigned Dentist:</strong> ${dentistName || 'To be assigned by the clinic'}</p>
                 </div>
+                ${reminderCopy ? `<p style="margin:0 0 14px 0;">${reminderCopy}</p>` : ''}
                 <p style="margin:0;">If you need to update your appointment, please contact the clinic directly.</p>
             `,
         }),
@@ -2123,6 +2492,11 @@ const sendAppointmentRescheduledEmail = async ({ email, name, branch, date, time
 
     const safeName = name || 'Patient';
     const clinic = await getClinicContactDetails();
+    const emailTemplates = await getSystemEmailTemplates();
+    const reminderCopy = formatConfiguredEmailCopy(
+        emailTemplates?.appointmentReminder,
+        DEFAULT_SYSTEM_EMAIL_TEMPLATES.appointmentReminder
+    );
 
     await resend.emails.send({
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
@@ -2140,6 +2514,7 @@ const sendAppointmentRescheduledEmail = async ({ email, name, branch, date, time
                     <p style="margin:0 0 8px 0;"><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
                     <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
+                ${reminderCopy ? `<p style="margin:0 0 14px 0;">${reminderCopy}</p>` : ''}
                 <p style="margin:0;">If you need help with the new schedule, please contact the clinic directly.</p>
             `,
         }),
@@ -2479,6 +2854,11 @@ const sendPreRegistrationEmail = async ({ email, name, branch, date, time, proce
 
     const safeName = name || 'Patient';
     const clinic = await getClinicContactDetails();
+    const emailTemplates = await getSystemEmailTemplates();
+    const reminderCopy = formatConfiguredEmailCopy(
+        emailTemplates?.appointmentReminder,
+        DEFAULT_SYSTEM_EMAIL_TEMPLATES.appointmentReminder
+    );
     const preRegistrationUrl = buildPreRegistrationUrl(token);
 
     await resend.emails.send({
@@ -2497,6 +2877,7 @@ const sendPreRegistrationEmail = async ({ email, name, branch, date, time, proce
                     <p style="margin:0 0 8px 0;"><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
                     <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
+                ${reminderCopy ? `<p style="margin:0 0 14px 0;">${reminderCopy}</p>` : ''}
                 <p style="margin:0;">This secure link will expire in 72 hours.</p>
             `,
             ctaLabel: 'Complete Your Registration',
@@ -4463,9 +4844,9 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
         if (!(await isClinicProcedureAllowed(surgeryData.procedure))) {
             return res.status(400).json({ message: 'Please select a valid clinic procedure.' });
         }
-        if (surgeryData.source !== 'Walk-in' && !DIRECT_BOOKING_PROCEDURES.includes(String(surgeryData.procedure || '').trim())) {
+        if (surgeryData.source !== 'Walk-in' && !(await isOnlineBookingProcedureAllowed(surgeryData.procedure))) {
             return res.status(400).json({
-                message: 'Booked appointments may only use General Check-up / Initial Consultation or Prophylaxis / Dental Cleaning.',
+                message: 'Booked appointments may only use one of the configured online-booking procedures.',
             });
         }
 
@@ -4872,10 +5253,10 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             updateData.procedure !== undefined
             && String(existing.source || '').trim() !== 'Walk-in'
             && String(updateData.procedure || '').trim() !== String(existing.procedure || '').trim()
-            && !DIRECT_BOOKING_PROCEDURES.includes(String(updateData.procedure || '').trim())
+            && !(await isOnlineBookingProcedureAllowed(updateData.procedure))
         ) {
             return res.status(400).json({
-                message: 'Booked appointments may only use General Check-up / Initial Consultation or Prophylaxis / Dental Cleaning.',
+                message: 'Booked appointments may only use one of the configured online-booking procedures.',
             });
         }
 
@@ -5961,11 +6342,46 @@ app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/
 
 app.get('/api/public/branches', async (req, res) => {
     try {
-        const branches = await Branch.find({ isActive: true }).sort({ name: 1 }).select('name');
+        const branches = await Branch.find({ isActive: true })
+            .sort({ name: 1 })
+            .select('name address contactNumber')
+            .lean();
         res.json(branches);
     } catch (error) {
         console.error('Error fetching public branches:', error);
         res.status(500).json({ message: 'Server error fetching public branches.' });
+    }
+});
+
+app.get('/api/public/system-config', async (req, res) => {
+    try {
+        const [config, branches] = await Promise.all([
+            getNormalizedSystemConfig(),
+            Branch.find({ isActive: true }).sort({ name: 1 }).select('name address contactNumber').lean(),
+        ]);
+
+        res.json({
+            clinicInfo: {
+                name: config.clinicName,
+                contactNumber: config.clinicContact,
+                email: config.clinicEmail,
+                address: config.clinicAddress,
+            },
+            appointmentProcedures: config.onlineBookingProcedures,
+            featureToggles: {
+                chatSupport: config.featureToggles?.chatSupport !== false,
+            },
+            websiteContent: config.websiteContent,
+            branches: branches.map((branch) => ({
+                name: branch.name,
+                address: branch.address || '',
+                contactNumber: branch.contactNumber || '',
+                status: 'Now Open',
+            })),
+        });
+    } catch (error) {
+        console.error('Error fetching public system config:', error);
+        res.status(500).json({ message: 'Server error fetching public system config.' });
     }
 });
 
@@ -5977,13 +6393,22 @@ app.get('/api/public/appointments/slots', async (req, res) => {
             return res.status(400).json({ message: 'date query parameter is required.' });
         }
 
-        const allowedSlots = getBookableAllowedSlotsForDate({
-            date,
-            allowedSlots: await getClinicAllowedSlots(),
-        });
-        const takenSlots = await getTakenSlotsForDate({ date, branch });
+        const [rawAllowedSlots, takenSlots, appointmentCount, maxAppointmentsPerDay] = await Promise.all([
+            getClinicAllowedSlots(),
+            getTakenSlotsForDate({ date, branch }),
+            getActiveAppointmentCountForDate({ date, branch }),
+            getClinicMaxAppointmentsPerDay(),
+        ]);
 
-        res.json({ allowedSlots, takenSlots });
+        const dayCapacityReached = appointmentCount >= maxAppointmentsPerDay;
+        const allowedSlots = dayCapacityReached
+            ? []
+            : getBookableAllowedSlotsForDate({
+                date,
+                allowedSlots: rawAllowedSlots,
+            });
+
+        res.json({ allowedSlots, takenSlots, dayCapacityReached, maxAppointmentsPerDay, appointmentCount });
     } catch (error) {
         console.error('Error fetching public appointment slots:', error);
         res.status(500).json({ message: 'Server error fetching appointment slots.' });
@@ -6077,7 +6502,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
             return res.status(400).json({ message: 'Please enter a valid email address.' });
         }
 
-        if (!DIRECT_BOOKING_PROCEDURES.includes(normalizedProcedure)) {
+        if (!(await isOnlineBookingProcedureAllowed(normalizedProcedure))) {
             return res.status(400).json({ message: 'Please select a valid procedure.' });
         }
 
@@ -6248,8 +6673,8 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(409).json({ message: 'You already have an active appointment request. Please wait for it to be completed or cancelled before booking another one.' });
         }
 
-        if (!DIRECT_BOOKING_PROCEDURES.includes(procedure)) {
-            return res.status(400).json({ message: 'Patients may only book a general check-up or prophylaxis online. Additional procedures are recorded by the clinic after assessment or treatment.' });
+        if (!(await isOnlineBookingProcedureAllowed(procedure))) {
+            return res.status(400).json({ message: 'Patients may only book one of the configured online-booking procedures. Additional procedures are recorded by the clinic after assessment or treatment.' });
         }
 
         const slotCheck = await validateBookableAppointmentSlot({
@@ -6340,13 +6765,29 @@ app.get('/api/appointments/slots', verifyToken, async (req, res) => {
             resolvedBranch = getScopedBranchForUser(req.user) || resolvedBranch;
         }
 
-        const allowedSlots = getBookableAllowedSlotsForDate({
-            date,
-            allowedSlots: await getClinicAllowedSlots(),
-        });
-        const takenSlots = await getTakenSlotsForDate({ date, branch: resolvedBranch });
+        const [rawAllowedSlots, takenSlots, appointmentCount, maxAppointmentsPerDay] = await Promise.all([
+            getClinicAllowedSlots(),
+            getTakenSlotsForDate({ date, branch: resolvedBranch }),
+            getActiveAppointmentCountForDate({ date, branch: resolvedBranch }),
+            getClinicMaxAppointmentsPerDay(),
+        ]);
 
-        res.json({ allowedSlots, takenSlots, branch: resolvedBranch });
+        const dayCapacityReached = appointmentCount >= maxAppointmentsPerDay;
+        const allowedSlots = dayCapacityReached
+            ? []
+            : getBookableAllowedSlotsForDate({
+                date,
+                allowedSlots: rawAllowedSlots,
+            });
+
+        res.json({
+            allowedSlots,
+            takenSlots,
+            branch: resolvedBranch,
+            dayCapacityReached,
+            maxAppointmentsPerDay,
+            appointmentCount,
+        });
     } catch (error) {
         console.error('Error fetching appointment slots:', error);
         res.status(500).json({ message: 'Server error fetching appointment slots.' });
@@ -6885,6 +7326,9 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
     if (req.user.role === 'secretary') {
         return res.status(403).json({ message: 'Access denied. Secretaries cannot upload radiographs.' });
     }
+    if (!(await assertSystemFeatureEnabled(res, 'radiographUploads'))) {
+        return;
+    }
     try {
         const { label, date, url, notes, findings, radiographNumber } = req.body;
 
@@ -6945,6 +7389,9 @@ app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, re
     // Phase 5: Secretary has read-only access to EMR — block delete
     if (req.user.role === 'secretary') {
         return res.status(403).json({ message: 'Access denied. Secretaries cannot delete radiographs.' });
+    }
+    if (!(await assertSystemFeatureEnabled(res, 'radiographUploads'))) {
+        return;
     }
     try {
         const patient = await User.findById(req.params.id);
@@ -7590,12 +8037,7 @@ app.get('/api/system-config', verifyToken, async (req, res) => {
         if (!CONFIG_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
-        // Get the single config doc (or create a default one on first access)
-        let config = await SystemConfig.findOne();
-        if (!config) {
-            config = await SystemConfig.create({});
-        }
-        res.json(config);
+        res.json(await getNormalizedSystemConfig());
     } catch (error) {
         console.error('Error fetching system config:', error);
         res.status(500).json({ message: 'Server error fetching system config.' });
@@ -7608,16 +8050,16 @@ app.put('/api/system-config', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied. Admin only.' });
         }
  
-        const payload = {
+        const payload = normalizeSystemConfigPayload({
             ...req.body,
-            clinicProcedures: normalizeProcedureList(req.body?.clinicProcedures?.length ? req.body.clinicProcedures : DEFAULT_CLINIC_PROCEDURES),
-        };
+            updatedBy: req.user?.email,
+        });
 
         let config = await SystemConfig.findOne();
         if (!config) {
-            config = new SystemConfig({ ...payload, updatedBy: req.user?.email });
+            config = new SystemConfig(payload);
         } else {
-            Object.assign(config, payload, { updatedBy: req.user?.email });
+            Object.assign(config, payload);
         }
         await config.save();
  
@@ -7628,7 +8070,7 @@ app.put('/api/system-config', verifyToken, async (req, res) => {
             details: 'System configuration updated.'
         });
  
-        res.json(config);
+        res.json(normalizeSystemConfigResponse(config));
     } catch (error) {
         console.error('Error updating system config:', error);
         res.status(500).json({ message: 'Server error updating system config.' });
@@ -7846,6 +8288,9 @@ app.delete('/api/material-usage/:id', verifyToken, async (req, res) => {
 const ENHANCE_ALLOWED = ['dentist'];
 app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
     try {
+        if (!(await assertSystemFeatureEnabled(res, 'radiographUploads'))) {
+            return;
+        }
         if (!ENHANCE_ALLOWED.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied. Only dentists can enhance radiographs.' });
         }
@@ -8128,6 +8573,9 @@ app.post('/api/activity-logs', verifyToken, async (req, res) => {
 });
 
 app.post('/api/queue', verifyToken, async (req, res) => {
+    if (!(await assertSystemFeatureEnabled(res, 'queueManagement'))) {
+        return;
+    }
     try {
         const allowed = ['administrator', 'branch-manager', 'secretary'];
         if (!allowed.includes(req.user.role)) {
@@ -8207,6 +8655,9 @@ app.post('/api/queue', verifyToken, async (req, res) => {
  
 // GET /api/queue — get all active queue entries, optionally filtered by branch
 app.get('/api/queue', verifyToken, async (req, res) => {
+    if (!(await assertSystemFeatureEnabled(res, 'queueManagement'))) {
+        return;
+    }
     try {
         const allowed = ['administrator', 'branch-manager', 'secretary', 'dentist'];
         if (!allowed.includes(req.user.role)) {
@@ -8288,6 +8739,9 @@ app.get('/api/queue', verifyToken, async (req, res) => {
 });
 
 app.put('/api/queue/:id', verifyToken, async (req, res) => {
+    if (!(await assertSystemFeatureEnabled(res, 'queueManagement'))) {
+        return;
+    }
     try {
         const allowed = ['administrator', 'branch-manager', 'secretary'];
         if (!allowed.includes(req.user.role)) {
@@ -8429,6 +8883,9 @@ app.put('/api/queue/:id', verifyToken, async (req, res) => {
  
 // PATCH /api/queue/:id/status — update queue entry status
 app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
+    if (!(await assertSystemFeatureEnabled(res, 'queueManagement'))) {
+        return;
+    }
     try {
         const allowed = ['administrator', 'branch-manager', 'secretary'];
         if (!allowed.includes(req.user.role)) {
@@ -8524,6 +8981,9 @@ app.patch('/api/queue/:id/status', verifyToken, async (req, res) => {
  
 // DELETE /api/queue/:id — remove a queue entry
 app.delete('/api/queue/:id', verifyToken, async (req, res) => {
+    if (!(await assertSystemFeatureEnabled(res, 'queueManagement'))) {
+        return;
+    }
     try {
         const allowed = ['administrator', 'branch-manager', 'secretary'];
         if (!allowed.includes(req.user.role)) {
@@ -8736,6 +9196,9 @@ app.get('/api/analytics/branches', verifyToken, async (req, res) => {
 
 // POST /api/support-tickets — Patient or any authenticated user creates a ticket
 app.post('/api/support-tickets', verifyToken, async (req, res) => {
+    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
+        return;
+    }
     try {
         const { subject, message } = req.body;
         if (!subject || !message) {
@@ -8797,6 +9260,9 @@ app.get('/api/support-tickets', verifyToken, async (req, res) => {
     if (!['administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
+    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
+        return;
+    }
     try {
         const { status, priority, page = 1, limit = 20 } = req.query;
         const filter = {};
@@ -8823,6 +9289,9 @@ app.get('/api/support-tickets', verifyToken, async (req, res) => {
 
 // GET /api/support-tickets/:id — Full ticket with message thread
 app.get('/api/support-tickets/:id', verifyToken, async (req, res) => {
+    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
+        return;
+    }
     try {
         const ticket = await SupportTicket.findById(req.params.id);
         if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
@@ -8843,6 +9312,9 @@ app.get('/api/support-tickets/:id', verifyToken, async (req, res) => {
 
 // POST /api/support-tickets/:id/messages — Admin or patient adds a reply
 app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
+    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
+        return;
+    }
     try {
         const { content } = req.body;
         if (!content?.trim()) {
@@ -8887,6 +9359,9 @@ app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
 app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
     if (!['administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
+    }
+    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
+        return;
     }
     try {
         const { status, priority, assignedTo, assignedToName } = req.body;

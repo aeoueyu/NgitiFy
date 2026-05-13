@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from '../sidebar/Sidebar';
 import SessionWarningModal from '../common/SessionWarningModal';
@@ -6,49 +6,31 @@ import styles from './DashboardLayout.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { useSessionTimeout } from '../../hooks/useSessionTimeout';
 import { authFetch } from '../../utils/api';
+import { useSystemConfig } from '../../hooks/useSystemConfig';
 
 export default function DashboardLayout() {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const [showWarning, setShowWarning] = useState(false);
+    const { config } = useSystemConfig();
 
-    // ── Fetch session timeout duration from SystemConfig ──────────────────
-    // This ensures the configured value in System Config applies to all dashboard roles.
-    const [timeoutMinutes, setTimeoutMinutes] = useState(30); // safe default while loading
-
-    useEffect(() => {
-        const fetchConfig = async () => {
-            try {
-                const res = await authFetch('/system-config');
-                if (res.ok) {
-                    const config = await res.json();
-                    const minutes = config?.sessionTimeoutMinutes;
-                    if (typeof minutes === 'number' && minutes > 0) {
-                        setTimeoutMinutes(minutes);
-                    }
-                }
-            } catch {
-                // Silent — fallback to default 30 minutes
-            }
-        };
-        fetchConfig();
-    }, []);
-
-    // ─────────────────────────────────────────────────────────────────────
+    const timeoutMinutes = config?.sessionTimeoutMinutes || 30;
+    const isSessionTimeoutEnabled = config?.featureToggles?.sessionTimeout !== false;
 
     const handleTimeout = useCallback(async () => {
         setShowWarning(false);
-        // Log the session timeout reason before logging out
         try {
             await authFetch('/logout', {
                 method: 'POST',
                 body: JSON.stringify({
                     email: user?.email,
                     role: user?.role,
-                    reason: 'session_timeout'
-                })
+                    reason: 'session_timeout',
+                }),
             });
-        } catch { /* silent */ }
+        } catch {
+            // Silent fallback during automatic logout.
+        }
         logout();
         navigate('/login');
     }, [logout, navigate, user]);
@@ -63,15 +45,15 @@ export default function DashboardLayout() {
 
     const handleStayLoggedIn = useCallback(() => {
         setShowWarning(false);
-        // Dispatching any event resets the timer inside useSessionTimeout
         window.dispatchEvent(new MouseEvent('mousemove'));
     }, []);
 
     useSessionTimeout({
-        onTimeout:   handleTimeout,
-        onWarn:      handleWarn,
+        onTimeout: handleTimeout,
+        onWarn: handleWarn,
         onResetWarn: handleResetWarn,
-        timeoutMinutes,             // ← now driven by SystemConfig
+        timeoutMinutes,
+        enabled: isSessionTimeoutEnabled,
     });
 
     return (

@@ -6,7 +6,7 @@ import generalDentistryImage from '../../assets/images/general-dentistry-image.j
 import oralSurgeryImage from '../../assets/images/oral-surgery-image.jpg';
 import orthodonticsImage from '../../assets/images/orthodontics-image.jpg';
 import servicesHeroImage from '../../assets/images/services-hero-image.jpg';
-import { serviceHighlights } from '../../data/websiteContent';
+import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 
 const serviceImages = {
     'General Dentistry': generalDentistryImage,
@@ -16,17 +16,17 @@ const serviceImages = {
 };
 
 export default function WebsiteServices() {
+    const { serviceHighlights, websiteContent } = usePublicClinicConfig();
+    const servicesContent = websiteContent.servicesPage;
+
     return (
         <WebsiteShell>
             <section className={`${styles.section} ${styles.pageHeroSection}`}>
                 <div className={styles.splitSection}>
                     <article className={`${styles.infoCard} ${styles.pageHeroCard}`}>
-                        <p className={styles.eyebrow}>Services</p>
-                        <h1 className={styles.sectionTitle}>Comprehensive dental services for everyday care and long-term smile support</h1>
-                        <p className={styles.bodyText}>
-                            Dentime Dental Clinic offers a focused set of dental services across General Dentistry,
-                            Orthodontics, Esthetics, and Oral Surgery.
-                        </p>
+                        <p className={styles.eyebrow}>{servicesContent.eyebrow}</p>
+                        <h1 className={styles.sectionTitle}>{servicesContent.title}</h1>
+                        <p className={styles.bodyText}>{servicesContent.description}</p>
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
@@ -40,7 +40,7 @@ export default function WebsiteServices() {
                     {serviceHighlights.map((service) => (
                         <article key={service.category} className={styles.serviceCard}>
                             <div className={styles.bannerPlaceholder}>
-                                <img src={serviceImages[service.category]} alt={service.category} className={styles.placeholderImage} />
+                                <img src={serviceImages[service.category] || generalDentistryImage} alt={service.category} className={styles.placeholderImage} />
                             </div>
                             <span className={styles.serviceTag}>{service.category}</span>
                             <h2 className={styles.cardTitle}>{service.category}</h2>

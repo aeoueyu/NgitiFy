@@ -3,13 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './routes/ProtectedRoute';
+import FeatureRoute from './routes/FeatureRoute';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 
 import WebsiteHome from './pages/website/WebsiteHome';
 import WebsiteAbout from './pages/website/WebsiteAbout';
 import WebsiteServices from './pages/website/WebsiteServices';
-import WebsiteLocations from './pages/website/WebsiteLocations';
 import WebsiteContact from './pages/website/WebsiteContact';
 import WebsiteAppointment from './pages/website/WebsiteAppointment';
 import PreRegisterPage from './pages/PreRegisterPage';
@@ -112,7 +112,7 @@ function App() {
               <Route path="/" element={<WebsiteHome />} />
               <Route path="/about" element={<WebsiteAbout />} />
               <Route path="/services" element={<WebsiteServices />} />
-              <Route path="/locations" element={<WebsiteLocations />} />
+              <Route path="/locations" element={<Navigate to="/about#locations" replace />} />
               <Route path="/contact-us" element={<WebsiteContact />} />
               <Route path="/appointment" element={<WebsiteAppointment />} />
               <Route path="/pre-register" element={<PreRegisterPage />} />
@@ -155,7 +155,14 @@ function App() {
                   <Route path="/branch-manager/manage-users/secretaries" element={<ManageSecretaries />} />
                   <Route path="/branch-manager/patients"     element={<ManagePatients />} />
                   <Route path="/branch-manager/queue"        element={<Navigate to="/branch-manager/schedule" replace />} />
-                  <Route path="/branch-manager/chat-support" element={<BranchManagerChatSupport />} />
+                  <Route
+                    path="/branch-manager/chat-support"
+                    element={(
+                      <FeatureRoute featureKey="chatSupport" fallbackPath="/branch-manager/dashboard">
+                        <BranchManagerChatSupport />
+                      </FeatureRoute>
+                    )}
+                  />
                   <Route path="/branch-manager/branches"     element={<Navigate to="/branch-manager/dashboard" replace />} />
                   <Route path="/branch-manager/analytics"    element={<BranchManagerAnalytics />} />
                   <Route path="/branch-manager/activity-logs" element={<BranchManagerActivityLogs />} />
@@ -211,7 +218,14 @@ function App() {
                   <Route path="/secretary/patient-emr"                 element={<Navigate to="/secretary/patients" replace />} />
                   <Route path="/secretary/patients/:patientId/emr"      element={<SecretaryPatientEMR />} />
                   <Route path="/secretary/queue"                        element={<Navigate to="/secretary/schedule" replace />} />
-                  <Route path="/secretary/chat-support"                 element={<SecretaryChatSupport />} />
+                  <Route
+                    path="/secretary/chat-support"
+                    element={(
+                      <FeatureRoute featureKey="chatSupport" fallbackPath="/secretary/dashboard">
+                        <SecretaryChatSupport />
+                      </FeatureRoute>
+                    )}
+                  />
                   <Route path="/secretary/notifications"                element={<SecretaryNotifications />} />
                   <Route path="/secretary/activity-logs"                element={<SecretaryActivityLogs />} />
                   <Route path="/secretary/profile"                      element={<AdminProfile />} />
@@ -260,7 +274,14 @@ function App() {
                   <Route path="/admin/branches/analytics" element={<BranchAnalytics />} />
                   <Route path="/admin/roles" element={<RolesPermissions />} />
                   <Route path="/admin/backup" element={<DatabaseBackup />} />
-                  <Route path="/admin/chat-support" element={<ChatSupport />} />
+                  <Route
+                    path="/admin/chat-support"
+                    element={(
+                      <FeatureRoute featureKey="chatSupport" fallbackPath="/admin/dashboard">
+                        <ChatSupport />
+                      </FeatureRoute>
+                    )}
+                  />
                   <Route path="/admin/integrity" element={<IntegrityTools />} />
                   <Route path="/admin/activity-logs" element={<ActivityLogs />} />
                   <Route path="/admin/ai-assistant" element={<AdminAIAssistant />} />

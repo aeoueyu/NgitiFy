@@ -1,9 +1,18 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { mobileTheme, statusPalette } from '../../theme/mobileTheme';
 
-export const mobilePageTopInset = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 18 : 18;
+const initialSafeAreaTop = initialWindowMetrics?.insets?.top || 0;
+
+// Keep custom page headers clear of the native status bar/notch on both
+// platforms, including iPhone layouts where a flat constant was too small.
+export const mobilePageTopInset = Platform.select({
+  android: (StatusBar.currentHeight || 0) + 18,
+  ios: Math.max(initialSafeAreaTop, 20) + 10,
+  default: 28,
+});
 
 export function Screen({ children, style }) {
   return <View style={[styles.screen, style]}>{children}</View>;

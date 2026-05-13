@@ -3,7 +3,7 @@ import { useEffect, useRef, useCallback } from 'react';
 const WARNING_BEFORE_MS = 5 * 60 * 1000; // Always warn 5 minutes before timeout
 const DEFAULT_TIMEOUT_MINUTES = 30;
 
-export function useSessionTimeout({ onTimeout, onWarn, onResetWarn, timeoutMinutes }) {
+export function useSessionTimeout({ onTimeout, onWarn, onResetWarn, timeoutMinutes, enabled = true }) {
     const timeoutRef = useRef(null);
     const warningRef = useRef(null);
     const warnedRef  = useRef(false);
@@ -40,6 +40,16 @@ export function useSessionTimeout({ onTimeout, onWarn, onResetWarn, timeoutMinut
     }, [onTimeout, onWarn, onResetWarn, timeoutMs]);
 
     useEffect(() => {
+        if (!enabled) {
+            clearTimeout(timeoutRef.current);
+            clearTimeout(warningRef.current);
+            if (warnedRef.current) {
+                warnedRef.current = false;
+                onResetWarn?.();
+            }
+            return undefined;
+        }
+
         const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
 
         // Throttle so it doesn't fire hundreds of times per second
@@ -61,5 +71,5 @@ export function useSessionTimeout({ onTimeout, onWarn, onResetWarn, timeoutMinut
             clearTimeout(warningRef.current);
             if (throttleTimer) clearTimeout(throttleTimer);
         };
-    }, [resetTimer]);
+    }, [enabled, onResetWarn, resetTimer]);
 }

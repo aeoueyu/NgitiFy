@@ -26,11 +26,13 @@ import { authFetch } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import ConfirmModal from '../common/ConfirmModal';
 import AIChatAssistant from '../common/AIChatAssistant';
+import { useSystemConfig } from '../../hooks/useSystemConfig';
 
 export default function Sidebar() {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+    const { config: systemConfig } = useSystemConfig();
 
     const { canReadInventory } = usePermissions();
 
@@ -39,6 +41,7 @@ export default function Sidebar() {
     const isSecretary = user?.role === 'secretary';
     const isOwner = user?.role === 'owner';
     const isDentistUser = user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist);
+    const isChatSupportEnabled = systemConfig?.featureToggles?.chatSupport === true;
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -279,7 +282,7 @@ export default function Sidebar() {
                             {sectionLabel('Management')}
                             {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
-                            {navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
+                            {isChatSupportEnabled && navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/branch-manager/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
@@ -299,7 +302,7 @@ export default function Sidebar() {
                         <>
                             {sectionLabel('Management')}
                             {navItem('/secretary/notifications', FaBell, 'Notifications', notifBadge)}
-                            {navItem('/secretary/chat-support', FaHeadset, 'Chat Support')}
+                            {isChatSupportEnabled && navItem('/secretary/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/secretary/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
@@ -323,7 +326,7 @@ export default function Sidebar() {
                             {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/admin/notifications', FaBell, 'Notifications', notifBadge)}
                             {sectionLabel('System')}
-                            {navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
+                            {isChatSupportEnabled && navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
                             {navItem('/admin/activity-logs', FaHistory, 'Activity Logs')}
                             {navItem('/admin/audit-trail', FaClipboardList, 'Audit Trail')}

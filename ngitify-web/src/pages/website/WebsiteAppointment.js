@@ -2,19 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
 import {
-    appointmentProcedures,
-    appointmentSteps,
-    clinicInfo,
-    locationCards,
-} from '../../data/websiteContent';
-import {
     privacyPolicySections,
     privacyPolicyUpdatedAt,
     privacyPolicyVersion,
 } from '../../data/consentDocument';
 import { publicFetch } from '../../utils/api';
+import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 
-const buildInitialForm = () => ({
+const buildInitialForm = ({ branchOptions = [], appointmentProcedureOptions = [] } = {}) => ({
     firstName: '',
     lastName: '',
     phone: '',
@@ -23,10 +18,10 @@ const buildInitialForm = () => ({
     gender: '',
     privacyConsent: false,
     turnstileToken: '',
-    branch: locationCards[0]?.name || '',
+    branch: branchOptions[0] || '',
     preferredDate: '',
     preferredTime: '',
-    procedure: appointmentProcedures[0] || '',
+    procedure: appointmentProcedureOptions[0] || '',
     notes: '',
 });
 
@@ -97,9 +92,20 @@ const buildFullName = ({ firstName, lastName }) => (
 );
 
 export default function WebsiteAppointment() {
+    const {
+        clinicInfo,
+        locationCards,
+        appointmentProcedures: appointmentProcedureOptions,
+        websiteContent,
+    } = usePublicClinicConfig();
+    const appointmentContent = websiteContent.appointmentPage;
+    const branchOptions = useMemo(
+        () => locationCards.map((location) => location.name).filter(Boolean),
+        [locationCards]
+    );
     const turnstileContainerRef = useRef(null);
     const turnstileWidgetIdRef = useRef(null);
-    const [formData, setFormData] = useState(buildInitialForm);
+    const [formData, setFormData] = useState(() => buildInitialForm({ branchOptions, appointmentProcedureOptions }));
     const [errors, setErrors] = useState({});
     const [submittedMessage, setSubmittedMessage] = useState('');
     const [submitState, setSubmitState] = useState('idle');
@@ -112,7 +118,6 @@ export default function WebsiteAppointment() {
     const [allowedSlots, setAllowedSlots] = useState([]);
     const [takenSlots, setTakenSlots] = useState([]);
     const [blockedDates, setBlockedDates] = useState([]);
-    const [branchOptions, setBranchOptions] = useState(locationCards.map((location) => location.name));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [captchaReady, setCaptchaReady] = useState(false);
     const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
@@ -163,31 +168,16 @@ export default function WebsiteAppointment() {
     }, [renderTurnstile]);
 
     useEffect(() => {
-        let isMounted = true;
-        const fetchBranches = async () => {
-            try {
-                const response = await publicFetch('/public/branches');
-                if (!response.ok) return;
-                const data = await response.json();
-                const names = (Array.isArray(data) ? data : [])
-                    .map((branch) => branch?.name)
-                    .filter(Boolean);
-                if (!isMounted || names.length === 0) return;
-                setBranchOptions(names);
-                setFormData((prev) => ({
-                    ...prev,
-                    branch: names.includes(prev.branch) ? prev.branch : names[0],
-                }));
-            } catch {
-                // Keep the website fallback branch list when the public branch route is unavailable.
-            }
-        };
+        if (branchOptions.length === 0 && appointmentProcedureOptions.length === 0) return;
 
-        fetchBranches();
-        return () => {
-            isMounted = false;
-        };
-    }, []);
+        setFormData((prev) => ({
+            ...prev,
+            branch: branchOptions.includes(prev.branch) ? prev.branch : (branchOptions[0] || ''),
+            procedure: appointmentProcedureOptions.includes(prev.procedure)
+                ? prev.procedure
+                : (appointmentProcedureOptions[0] || ''),
+        }));
+    }, [appointmentProcedureOptions, branchOptions]);
 
     const fetchBlockedDates = useCallback(async (branch, month) => {
         if (!branch) return;
@@ -263,67 +253,104 @@ export default function WebsiteAppointment() {
         [allowedSlots, takenSlots]
     );
 
-    const validate = useCallback((data) => {
-        const nextErrors = {};
+    const getFieldError = useCallback((fieldName, data, { live = false } = {}) => {
         const trimmedFirstName = data.firstName.trim();
         const trimmedLastName = data.lastName.trim();
         const trimmedEmail = data.email.trim();
+        const trimmedPhone = data.phone.trim();
         const trimmedNotes = data.notes.trim();
 
-        if (!trimmedFirstName) nextErrors.firstName = 'First name is required.';
-        else if (!personNameRegex.test(trimmedFirstName)) nextErrors.firstName = 'Enter a valid first name.';
-
-        if (!trimmedLastName) nextErrors.lastName = 'Last name is required.';
-        else if (!personNameRegex.test(trimmedLastName)) nextErrors.lastName = 'Enter a valid last name.';
-
-        if (!data.phone.trim()) nextErrors.phone = 'Phone number is required.';
-        else if (!phoneRegex.test(data.phone.trim())) nextErrors.phone = 'Use the same format as registration: 9xxxxxxxxx.';
-
-        if (!trimmedEmail) nextErrors.email = 'Email address is required.';
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) nextErrors.email = 'Enter a valid email address.';
-
-        if (!data.birthdate) nextErrors.birthdate = 'Birthdate is required.';
-        else {
+        switch (fieldName) {
+        case 'firstName':
+            if (!trimmedFirstName) return 'First name is required.';
+            if (!personNameRegex.test(trimmedFirstName)) return 'Enter a valid first name.';
+            return '';
+        case 'lastName':
+            if (!trimmedLastName) return 'Last name is required.';
+            if (!personNameRegex.test(trimmedLastName)) return 'Enter a valid last name.';
+            return '';
+        case 'phone':
+            if (!trimmedPhone) return 'Phone number is required.';
+            if (live && !trimmedPhone.startsWith('9')) return 'Phone number must start with 9.';
+            if (live && trimmedPhone.startsWith('9') && trimmedPhone.length < 10) return '';
+            if (!phoneRegex.test(trimmedPhone)) return 'Use the same format as registration: 9xxxxxxxxx.';
+            return '';
+        case 'email':
+            if (!trimmedEmail) return 'Email address is required.';
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) return 'Enter a valid email address.';
+            return '';
+        case 'birthdate': {
+            if (!data.birthdate) return 'Birthdate is required.';
             const selectedBirthdate = new Date(`${data.birthdate}T12:00:00`);
-            if (Number.isNaN(selectedBirthdate.getTime())) nextErrors.birthdate = 'Choose a valid birthdate.';
-            else if (selectedBirthdate >= new Date()) nextErrors.birthdate = 'Birthdate must be in the past.';
+            if (Number.isNaN(selectedBirthdate.getTime())) return 'Choose a valid birthdate.';
+            if (selectedBirthdate >= new Date()) return 'Birthdate must be in the past.';
+            return '';
         }
-
-        if (!data.gender) nextErrors.gender = 'Gender is required.';
-
-        if (!data.privacyConsent) nextErrors.privacyConsent = 'Please agree to the data privacy notice before submitting.';
-
-        if (!TURNSTILE_SITE_KEY) nextErrors.turnstileToken = 'Captcha is not configured yet. Please contact the clinic.';
-        else if (!data.turnstileToken) nextErrors.turnstileToken = 'Please complete the captcha before submitting.';
-
-        if (!data.branch) nextErrors.branch = 'Branch is required.';
-
-        if (!data.preferredDate) nextErrors.preferredDate = 'Preferred date is required.';
-        else {
+        case 'gender':
+            return data.gender ? '' : 'Gender is required.';
+        case 'privacyConsent':
+            return data.privacyConsent ? '' : 'Please agree to the data privacy notice before submitting.';
+        case 'turnstileToken':
+            if (!TURNSTILE_SITE_KEY) return 'Captcha is not configured yet. Please contact the clinic.';
+            return data.turnstileToken ? '' : 'Please complete the captcha before submitting.';
+        case 'branch':
+            return data.branch ? '' : 'Branch is required.';
+        case 'preferredDate': {
+            if (!data.preferredDate) return 'Preferred date is required.';
             const selectedDate = new Date(`${data.preferredDate}T12:00:00`);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            if (Number.isNaN(selectedDate.getTime())) nextErrors.preferredDate = 'Choose a valid date.';
-            else if (selectedDate < today) nextErrors.preferredDate = 'Choose today or a future date.';
-            else if (selectedDate.getDay() === 0) nextErrors.preferredDate = 'Sunday appointments are not available.';
-            else if (data.preferredDate < minBookableDate) nextErrors.preferredDate = 'Choose the next available appointment date.';
-            else if (blockedDates.includes(data.preferredDate)) {
-                nextErrors.preferredDate = data.preferredDate === getTodayString()
+            if (Number.isNaN(selectedDate.getTime())) return 'Choose a valid date.';
+            if (selectedDate < today) return 'Choose today or a future date.';
+            if (selectedDate.getDay() === 0) return 'Sunday appointments are not available.';
+            if (data.preferredDate < minBookableDate) return 'Choose the next available appointment date.';
+            if (blockedDates.includes(data.preferredDate)) {
+                return data.preferredDate === getTodayString()
                     ? 'Same-day booking is no longer available for today. Please choose another date.'
                     : 'That date is already fully booked.';
             }
+            return '';
         }
+        case 'preferredTime':
+            if (!data.preferredTime) return 'Preferred time is required.';
+            if (!visibleSlots.includes(data.preferredTime)) return 'Choose an available time slot.';
+            return '';
+        case 'procedure':
+            if (!data.procedure) return 'Procedure is required.';
+            if (!appointmentProcedureOptions.includes(data.procedure)) return 'Choose a valid procedure.';
+            return '';
+        case 'notes':
+            if (trimmedNotes && trimmedNotes.length < 10) return 'Please provide a bit more detail or leave this blank.';
+            return '';
+        default:
+            return '';
+        }
+    }, [appointmentProcedureOptions, blockedDates, minBookableDate, visibleSlots]);
 
-        if (!data.preferredTime) nextErrors.preferredTime = 'Preferred time is required.';
-        else if (!visibleSlots.includes(data.preferredTime)) nextErrors.preferredTime = 'Choose an available time slot.';
-
-        if (!data.procedure) nextErrors.procedure = 'Procedure is required.';
-        else if (!appointmentProcedures.includes(data.procedure)) nextErrors.procedure = 'Choose a valid procedure.';
-
-        if (trimmedNotes && trimmedNotes.length < 10) nextErrors.notes = 'Please provide a bit more detail or leave this blank.';
-
+    const validate = useCallback((data) => {
+        const nextErrors = {};
+        [
+            'firstName',
+            'lastName',
+            'phone',
+            'email',
+            'birthdate',
+            'gender',
+            'privacyConsent',
+            'turnstileToken',
+            'branch',
+            'preferredDate',
+            'preferredTime',
+            'procedure',
+            'notes',
+        ].forEach((fieldName) => {
+            const fieldError = getFieldError(fieldName, data);
+            if (fieldError) {
+                nextErrors[fieldName] = fieldError;
+            }
+        });
         return nextErrors;
-    }, [blockedDates, minBookableDate, visibleSlots]);
+    }, [getFieldError]);
 
     const handleChange = (event) => {
         const { name, type, value, checked } = event.target;
@@ -354,30 +381,80 @@ export default function WebsiteAppointment() {
         setSubmitState('idle');
         setIsSuccessModalOpen(false);
         setIsErrorModalOpen(false);
-        if (name === 'phone') {
-            setErrors((prev) => {
-                const nextErrors = { ...prev };
-                if (!nextValue) nextErrors.phone = '';
-                else if (!nextValue.startsWith('9')) nextErrors.phone = 'Phone number must start with 9.';
-                else if (nextValue.length === 10 && !phoneRegex.test(nextValue)) nextErrors.phone = 'Use the same format as registration: 9xxxxxxxxx.';
-                else nextErrors.phone = '';
-                return nextErrors;
-            });
-        } else if (errors[name]) {
-            setErrors((prev) => ({ ...prev, [name]: '' }));
-        }
-        if (name === 'branch' || name === 'preferredDate') {
-            setErrors((prev) => ({ ...prev, preferredDate: '', preferredTime: '' }));
-        }
+
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+            const liveError = getFieldError(name, {
+                ...formData,
+                ...(name === 'branch' ? { branch: nextValue, preferredDate: '', preferredTime: '' } : {}),
+                ...(name === 'preferredDate' ? { preferredDate: nextValue, preferredTime: '' } : {}),
+                [name]: nextValue,
+            }, { live: true });
+
+            if (liveError) nextErrors[name] = liveError;
+            else delete nextErrors[name];
+
+            if (name === 'branch' || name === 'preferredDate') {
+                delete nextErrors.preferredDate;
+                delete nextErrors.preferredTime;
+            }
+
+            return nextErrors;
+        });
+    };
+
+    const handleBlur = (event) => {
+        const { name } = event.target;
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+            const fieldError = getFieldError(name, formData, { live: true });
+            if (fieldError) nextErrors[name] = fieldError;
+            else delete nextErrors[name];
+            return nextErrors;
+        });
     };
 
     const handleTimeSelect = (slot) => {
-        setFormData((prev) => ({ ...prev, preferredTime: slot }));
-        setErrors((prev) => ({ ...prev, preferredTime: '' }));
+        const nextState = { ...formData, preferredTime: slot };
+        setFormData(nextState);
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+            const fieldError = getFieldError('preferredTime', nextState, { live: true });
+            if (fieldError) nextErrors.preferredTime = fieldError;
+            else delete nextErrors.preferredTime;
+            return nextErrors;
+        });
         setSubmittedMessage('');
         setIsSuccessModalOpen(false);
         setIsErrorModalOpen(false);
     };
+
+    useEffect(() => {
+        const liveValidationState = {
+            preferredDate: formData.preferredDate,
+            preferredTime: formData.preferredTime,
+        };
+
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+            const nextPreferredDateError = getFieldError('preferredDate', liveValidationState, { live: true });
+            const nextPreferredTimeError = getFieldError('preferredTime', liveValidationState, { live: true });
+
+            if (formData.preferredDate || prev.preferredDate) {
+                if (nextPreferredDateError) nextErrors.preferredDate = nextPreferredDateError;
+                else delete nextErrors.preferredDate;
+            }
+
+            if (formData.preferredTime || prev.preferredTime) {
+                if (nextPreferredTimeError) nextErrors.preferredTime = nextPreferredTimeError;
+                else delete nextErrors.preferredTime;
+            }
+
+            const changedKeys = Array.from(new Set([...Object.keys(prev), ...Object.keys(nextErrors)]));
+            const hasChanges = changedKeys.some((key) => prev[key] !== nextErrors[key]);
+            return hasChanges ? nextErrors : prev;
+        });
+    }, [blockedDates, formData.preferredDate, formData.preferredTime, getFieldError, minBookableDate, visibleSlots]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -450,10 +527,7 @@ export default function WebsiteAppointment() {
             setSubmitState('success');
             setIsSuccessModalOpen(true);
             setSubmittedMessage('');
-            setFormData({
-                ...buildInitialForm(),
-                branch: branchOptions[0] || buildInitialForm().branch,
-            });
+            setFormData(buildInitialForm({ branchOptions, appointmentProcedureOptions }));
             setErrors({});
             setAllowedSlots([]);
             setTakenSlots([]);
@@ -477,18 +551,15 @@ export default function WebsiteAppointment() {
             <section className={`${styles.section} ${styles.pageHeroSection}`}>
                 <div className={styles.splitSection}>
                     <article className={`${styles.infoCard} ${styles.pageHeroCard}`}>
-                        <p className={styles.eyebrow}>Appointment</p>
-                        <h1 className={styles.sectionTitle}>Send your appointment request</h1>
-                        <p className={styles.bodyText}>
-                            Guests can request an appointment here even if they are not yet official clinic patients.
-                            Once the clinic confirms your schedule, a confirmation email will be sent to you automatically.
-                        </p>
+                        <p className={styles.eyebrow}>{appointmentContent.eyebrow}</p>
+                        <h1 className={styles.sectionTitle}>{appointmentContent.title}</h1>
+                        <p className={styles.bodyText}>{appointmentContent.description}</p>
                         <div className={styles.buttonRow}>
                             <a href={clinicInfo.facebookUrl} target="_blank" rel="noreferrer" className={styles.secondaryBtn}>
-                                Message on Facebook
+                                {appointmentContent.facebookCtaLabel}
                             </a>
                             <a href={`tel:${clinicInfo.contactNumber}`} className={styles.secondaryBtn}>
-                                Call the Clinic
+                                {appointmentContent.callCtaLabel}
                             </a>
                         </div>
                     </article>
@@ -503,11 +574,9 @@ export default function WebsiteAppointment() {
                 <div className={styles.splitSection}>
                     <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
                         <div>
-                            <p className={styles.eyebrow}>Request Form</p>
-                            <h2 className={styles.sectionTitle}>Book with Dentime</h2>
-                            <p className={styles.bodyText}>
-                                Required fields should match the same patient registration details used by the clinic.
-                            </p>
+                            <p className={styles.eyebrow}>{appointmentContent.formEyebrow}</p>
+                            <h2 className={styles.sectionTitle}>{appointmentContent.formTitle}</h2>
+                            <p className={styles.bodyText}>{appointmentContent.formDescription}</p>
                             {!TURNSTILE_SITE_KEY && (
                                 <p className={styles.errorText}>
                                     Captcha is not configured yet. Add `REACT_APP_TURNSTILE_SITE_KEY` before using the public booking form.
@@ -530,6 +599,7 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldInput} ${errors.firstName ? styles.errorBorder : ''}`}
                                     value={formData.firstName}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     placeholder="Enter your first name"
                                     required
                                 />
@@ -544,6 +614,7 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldInput} ${errors.lastName ? styles.errorBorder : ''}`}
                                     value={formData.lastName}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     placeholder="Enter your last name"
                                     required
                                 />
@@ -560,6 +631,7 @@ export default function WebsiteAppointment() {
                                         className={styles.phoneField}
                                         value={formData.phone}
                                         onChange={handleChange}
+                                        onBlur={handleBlur}
                                         inputMode="numeric"
                                         maxLength={10}
                                         placeholder="9xxxxxxxxx"
@@ -578,6 +650,7 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldInput} ${errors.email ? styles.errorBorder : ''}`}
                                     value={formData.email}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     placeholder="name@example.com"
                                     required
                                 />
@@ -593,6 +666,7 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldInput} ${errors.birthdate ? styles.errorBorder : ''}`}
                                     value={formData.birthdate}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     max={getTodayString()}
                                     required
                                 />
@@ -607,6 +681,7 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldSelect} ${errors.gender ? styles.errorBorder : ''}`}
                                     value={formData.gender}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     required
                                 >
                                     <option value="" disabled>Select gender</option>
@@ -626,6 +701,7 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldSelect} ${errors.branch ? styles.errorBorder : ''}`}
                                     value={formData.branch}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     required
                                 >
                                     <option value="" disabled>Select a branch</option>
@@ -645,6 +721,7 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldInput} ${errors.preferredDate ? styles.errorBorder : ''}`}
                                     value={formData.preferredDate}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     min={minBookableDate}
                                     required
                                 />
@@ -662,16 +739,15 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldSelect} ${errors.procedure ? styles.errorBorder : ''}`}
                                     value={formData.procedure}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     required
                                 >
-                                    {appointmentProcedures.map((procedure) => (
+                                    {appointmentProcedureOptions.map((procedure) => (
                                         <option key={procedure} value={procedure}>{procedure}</option>
                                     ))}
                                 </select>
                                 {errors.procedure && <span className={styles.errorText}>{errors.procedure}</span>}
-                                <p className={styles.helperText}>
-                                    For all other procedures, please book a consultation first so the dentist can assess the best treatment plan for you.
-                                </p>
+                                <p className={styles.helperText}>{appointmentContent.procedureHelperText}</p>
                             </div>
 
                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
@@ -712,10 +788,11 @@ export default function WebsiteAppointment() {
                                     className={`${styles.fieldTextarea} ${errors.notes ? styles.errorBorder : ''}`}
                                     value={formData.notes}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     placeholder="Tell the clinic about your concern, symptoms, or anything important for your visit."
                                 />
                                 {errors.notes && <span className={styles.errorText}>{errors.notes}</span>}
-                                <span className={styles.helperText}>You may leave this blank if you only want to reserve a consultation slot.</span>
+                                <span className={styles.helperText}>{appointmentContent.notesHelperText}</span>
                             </div>
 
                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
@@ -730,6 +807,7 @@ export default function WebsiteAppointment() {
                                         className={styles.consentCheckbox}
                                         checked={formData.privacyConsent}
                                         onChange={handleChange}
+                                        onBlur={handleBlur}
                                         required
                                     />
                                     <span className={styles.consentText}>
@@ -758,16 +836,16 @@ export default function WebsiteAppointment() {
                         </div>
 
                         <button type="submit" className={styles.primaryBtn} disabled={isSubmitting || (!TURNSTILE_SITE_KEY)}>
-                            {isSubmitting ? 'Sending Request...' : 'Send Appointment Request'}
+                            {isSubmitting ? appointmentContent.submittingButtonLabel : appointmentContent.submitButtonLabel}
                         </button>
                     </form>
 
                     <div className={styles.stack}>
                         <article className={styles.infoCard}>
-                            <p className={styles.eyebrow}>How It Works</p>
-                            <h2 className={styles.sectionTitle}>Guest appointment guide</h2>
+                            <p className={styles.eyebrow}>{appointmentContent.guideEyebrow}</p>
+                            <h2 className={styles.sectionTitle}>{appointmentContent.guideTitle}</h2>
                             <ul className={styles.bulletList}>
-                                {appointmentSteps.map((step) => (
+                                {appointmentContent.steps.map((step) => (
                                     <li key={step}>{step}</li>
                                 ))}
                             </ul>
@@ -782,8 +860,8 @@ export default function WebsiteAppointment() {
 
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>
-                    <p className={styles.eyebrow}>Choose a Branch</p>
-                    <h2 className={styles.sectionTitle}>Where would you like to visit?</h2>
+                    <p className={styles.eyebrow}>{appointmentContent.branchEyebrow}</p>
+                    <h2 className={styles.sectionTitle}>{appointmentContent.branchTitle}</h2>
                 </div>
                 <div className={styles.gridTwo}>
                     {locationCards.map((location) => (

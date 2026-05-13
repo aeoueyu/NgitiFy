@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/SystemConfig.module.css';
+import { invalidateSystemConfigCache, SYSTEM_CONFIG_UPDATED_EVENT } from '../../hooks/useSystemConfig';
+import { invalidatePublicClinicConfigCache } from '../../hooks/usePublicClinicConfig';
+import { cloneWebsiteContentDefaults } from '../../data/websiteContent';
 
-const DEFAULT_SLOTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+const DEFAULT_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+const DEFAULT_ONLINE_BOOKING_PROCEDURES = [
+    'General Check-up / Initial Consultation',
+    'Prophylaxis / Dental Cleaning',
+];
 const DEFAULT_PROCEDURES = [
     'General Check-up / Initial Consultation',
     'Prophylaxis / Dental Cleaning',
@@ -19,33 +26,90 @@ const DEFAULT_PROCEDURES = [
     'Retainers',
 ];
 
+const buildInitialConfig = () => ({
+    clinicName: '',
+    clinicContact: '',
+    clinicAddress: '',
+    clinicEmail: '',
+    maxAppointmentsPerDay: 20,
+    allowedTimeSlots: [],
+    onlineBookingProcedures: DEFAULT_ONLINE_BOOKING_PROCEDURES,
+    clinicProcedures: DEFAULT_PROCEDURES,
+    emailTemplates: {
+        activation: '',
+        appointmentReminder: '',
+    },
+    featureToggles: {
+        queueManagement: true,
+        radiographUploads: true,
+        chatSupport: false,
+        sessionTimeout: true,
+    },
+    websiteContent: cloneWebsiteContentDefaults(),
+    sessionTimeoutMinutes: 30,
+});
+
+const splitMultilineValue = (value) => String(value || '').split(/\r?\n/);
+const joinMultilineValue = (list = []) => (Array.isArray(list) ? list.join('\n') : '');
+
+const buildEmptyServiceHighlight = () => ({
+    category: '',
+    description: '',
+    items: [''],
+});
+
+const mergeWebsiteContent = (value = {}) => {
+    const fallback = cloneWebsiteContentDefaults();
+    return {
+        branding: {
+            ...fallback.branding,
+            ...(value?.branding || {}),
+        },
+        home: {
+            ...fallback.home,
+            ...(value?.home || {}),
+            journeyPills: Array.isArray(value?.home?.journeyPills) ? value.home.journeyPills : fallback.home.journeyPills,
+            journeyHighlights: Array.isArray(value?.home?.journeyHighlights) ? value.home.journeyHighlights : fallback.home.journeyHighlights,
+        },
+        about: {
+            ...fallback.about,
+            ...(value?.about || {}),
+            highlights: Array.isArray(value?.about?.highlights) ? value.about.highlights : fallback.about.highlights,
+        },
+        servicesPage: {
+            ...fallback.servicesPage,
+            ...(value?.servicesPage || {}),
+        },
+        serviceHighlights: Array.isArray(value?.serviceHighlights) && value.serviceHighlights.length
+            ? value.serviceHighlights.map((service) => ({
+                category: service?.category || '',
+                description: service?.description || '',
+                items: Array.isArray(service?.items) && service.items.length ? service.items : [''],
+            }))
+            : fallback.serviceHighlights,
+        locationsPage: {
+            ...fallback.locationsPage,
+            ...(value?.locationsPage || {}),
+        },
+        contactPage: {
+            ...fallback.contactPage,
+            ...(value?.contactPage || {}),
+        },
+        appointmentPage: {
+            ...fallback.appointmentPage,
+            ...(value?.appointmentPage || {}),
+            steps: Array.isArray(value?.appointmentPage?.steps) ? value.appointmentPage.steps : fallback.appointmentPage.steps,
+        },
+    };
+};
+
 const SystemConfig = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [activeSection, setActiveSection] = useState('clinic');
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
-
-    const [config, setConfig] = useState({
-        clinicName: '',
-        clinicContact: '',
-        clinicAddress: '',
-        clinicEmail: '',
-        maxAppointmentsPerDay: 20,
-        allowedTimeSlots: [],
-        clinicProcedures: DEFAULT_PROCEDURES,
-        emailTemplates: {
-            activation: '',
-            appointmentReminder: ''
-        },
-        featureToggles: {
-            queueManagement: true,
-            radiographUploads: true,
-            chatSupport: false,
-            sessionTimeout: true
-        },
-        sessionTimeoutMinutes: 30
-    });
+    const [config, setConfig] = useState(buildInitialConfig);
 
     useEffect(() => {
         const fetchConfig = async () => {
@@ -54,69 +118,145 @@ const SystemConfig = () => {
                 const res = await authFetch('/system-config');
                 if (res.ok) {
                     const data = await res.json();
-                    setConfig(prev => ({ ...prev, ...data }));
+                    setConfig((prev) => ({
+                        ...prev,
+                        ...data,
+                        onlineBookingProcedures: Array.isArray(data?.onlineBookingProcedures) && data.onlineBookingProcedures.length
+                            ? data.onlineBookingProcedures
+                            : prev.onlineBookingProcedures,
+                        clinicProcedures: Array.isArray(data?.clinicProcedures) && data.clinicProcedures.length
+                            ? data.clinicProcedures
+                            : prev.clinicProcedures,
+                        emailTemplates: { ...prev.emailTemplates, ...(data?.emailTemplates || {}) },
+                        featureToggles: { ...prev.featureToggles, ...(data?.featureToggles || {}) },
+                        websiteContent: mergeWebsiteContent(data?.websiteContent || prev.websiteContent),
+                    }));
                 }
-            } catch (e) {
+            } catch {
                 setErrorMsg('Failed to load system configuration.');
             } finally {
                 setIsLoading(false);
             }
         };
+
         fetchConfig();
-    }, []); // FIX: Removed authFetch from dependency array
+    }, []);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setConfig(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        setConfig((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
     const handleTemplateChange = (e) => {
         const { name, value } = e.target;
-        setConfig(prev => ({
+        setConfig((prev) => ({
             ...prev,
-            emailTemplates: { ...prev.emailTemplates, [name]: value }
+            emailTemplates: { ...prev.emailTemplates, [name]: value },
         }));
     };
 
     const handleToggleChange = (key) => {
-        setConfig(prev => ({
+        setConfig((prev) => ({
             ...prev,
-            featureToggles: { ...prev.featureToggles, [key]: !prev.featureToggles[key] }
+            featureToggles: { ...prev.featureToggles, [key]: !prev.featureToggles[key] },
         }));
     };
 
     const handleSlotToggle = (slot) => {
-        setConfig(prev => {
-            const has = prev.allowedTimeSlots.includes(slot);
+        setConfig((prev) => {
+            const hasSlot = prev.allowedTimeSlots.includes(slot);
             return {
                 ...prev,
-                allowedTimeSlots: has
-                    ? prev.allowedTimeSlots.filter(s => s !== slot)
-                    : [...prev.allowedTimeSlots, slot].sort()
+                allowedTimeSlots: hasSlot
+                    ? prev.allowedTimeSlots.filter((entry) => entry !== slot)
+                    : [...prev.allowedTimeSlots, slot].sort(),
             };
         });
     };
 
-    const handleProcedureInputChange = (index, value) => {
-        setConfig(prev => ({
+    const handleListInputChange = (listKey, index, value) => {
+        setConfig((prev) => ({
             ...prev,
-            clinicProcedures: prev.clinicProcedures.map((procedure, procedureIndex) => (
-                procedureIndex === index ? value : procedure
-            )),
+            [listKey]: (prev[listKey] || []).map((entry, entryIndex) => (entryIndex === index ? value : entry)),
         }));
     };
 
-    const handleAddProcedure = () => {
-        setConfig(prev => ({
+    const handleAddListItem = (listKey) => {
+        setConfig((prev) => ({
             ...prev,
-            clinicProcedures: [...(prev.clinicProcedures || []), ''],
+            [listKey]: [...(prev[listKey] || []), ''],
         }));
     };
 
-    const handleRemoveProcedure = (index) => {
-        setConfig(prev => ({
+    const handleRemoveListItem = (listKey, index) => {
+        setConfig((prev) => ({
             ...prev,
-            clinicProcedures: prev.clinicProcedures.filter((_, procedureIndex) => procedureIndex !== index),
+            [listKey]: (prev[listKey] || []).filter((_, entryIndex) => entryIndex !== index),
+        }));
+    };
+
+    const handleWebsiteFieldChange = (section, field, value) => {
+        setConfig((prev) => ({
+            ...prev,
+            websiteContent: {
+                ...prev.websiteContent,
+                [section]: {
+                    ...prev.websiteContent[section],
+                    [field]: value,
+                },
+            },
+        }));
+    };
+
+    const handleWebsiteMultilineChange = (section, field, value) => {
+        handleWebsiteFieldChange(section, field, splitMultilineValue(value));
+    };
+
+    const handleWebsiteServiceChange = (index, field, value) => {
+        setConfig((prev) => ({
+            ...prev,
+            websiteContent: {
+                ...prev.websiteContent,
+                serviceHighlights: prev.websiteContent.serviceHighlights.map((service, serviceIndex) => (
+                    serviceIndex === index
+                        ? { ...service, [field]: value }
+                        : service
+                )),
+            },
+        }));
+    };
+
+    const handleWebsiteServiceItemsChange = (index, value) => {
+        setConfig((prev) => ({
+            ...prev,
+            websiteContent: {
+                ...prev.websiteContent,
+                serviceHighlights: prev.websiteContent.serviceHighlights.map((service, serviceIndex) => (
+                    serviceIndex === index
+                        ? { ...service, items: splitMultilineValue(value) }
+                        : service
+                )),
+            },
+        }));
+    };
+
+    const handleAddServiceHighlight = () => {
+        setConfig((prev) => ({
+            ...prev,
+            websiteContent: {
+                ...prev.websiteContent,
+                serviceHighlights: [...prev.websiteContent.serviceHighlights, buildEmptyServiceHighlight()],
+            },
+        }));
+    };
+
+    const handleRemoveServiceHighlight = (index) => {
+        setConfig((prev) => ({
+            ...prev,
+            websiteContent: {
+                ...prev.websiteContent,
+                serviceHighlights: prev.websiteContent.serviceHighlights.filter((_, serviceIndex) => serviceIndex !== index),
+            },
         }));
     };
 
@@ -124,13 +264,22 @@ const SystemConfig = () => {
         setIsSaving(true);
         setSuccessMsg('');
         setErrorMsg('');
+
         try {
             const normalizedProcedures = Array.from(
                 new Set((config.clinicProcedures || []).map((procedure) => String(procedure || '').trim()).filter(Boolean))
             );
+            const normalizedOnlineBookingProcedures = Array.from(
+                new Set((config.onlineBookingProcedures || []).map((procedure) => String(procedure || '').trim()).filter(Boolean))
+            );
 
             if (normalizedProcedures.length === 0) {
                 setErrorMsg('Add at least one clinic procedure before saving.');
+                setIsSaving(false);
+                return;
+            }
+            if (normalizedOnlineBookingProcedures.length === 0) {
+                setErrorMsg('Add at least one online-booking procedure before saving.');
                 setIsSaving(false);
                 return;
             }
@@ -140,24 +289,80 @@ const SystemConfig = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...config,
+                    onlineBookingProcedures: normalizedOnlineBookingProcedures,
                     clinicProcedures: normalizedProcedures,
-                })
+                }),
             });
+
             if (res.ok) {
                 const savedConfig = await res.json();
-                setConfig(prev => ({ ...prev, ...savedConfig }));
+                invalidateSystemConfigCache();
+                invalidatePublicClinicConfigCache();
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event(SYSTEM_CONFIG_UPDATED_EVENT));
+                }
+                setConfig((prev) => ({
+                    ...prev,
+                    ...savedConfig,
+                    websiteContent: mergeWebsiteContent(savedConfig?.websiteContent || prev.websiteContent),
+                }));
                 setSuccessMsg('System configuration saved successfully.');
                 setTimeout(() => setSuccessMsg(''), 4000);
             } else {
-                const d = await res.json();
-                setErrorMsg(d.message || 'Failed to save configuration.');
+                const data = await res.json().catch(() => ({}));
+                setErrorMsg(data.message || 'Failed to save configuration.');
             }
-        } catch (e) {
+        } catch {
             setErrorMsg('Network error. Please try again.');
         } finally {
             setIsSaving(false);
         }
     };
+
+    const renderTextField = ({
+        label,
+        value,
+        onChange,
+        helpText = '',
+        textarea = false,
+        rows = 3,
+        placeholder = '',
+    }) => (
+        <div className={styles.formGroup}>
+            <label className={styles.label}>{label}</label>
+            {helpText ? <p className={styles.helpText}>{helpText}</p> : null}
+            {textarea ? (
+                <textarea
+                    className={styles.textarea}
+                    rows={rows}
+                    value={value || ''}
+                    onChange={(event) => onChange(event.target.value)}
+                    placeholder={placeholder}
+                />
+            ) : (
+                <input
+                    type="text"
+                    className={styles.input}
+                    value={value || ''}
+                    onChange={(event) => onChange(event.target.value)}
+                    placeholder={placeholder}
+                />
+            )}
+        </div>
+    );
+
+    const renderWebsiteTextField = (section, field, options) => renderTextField({
+        ...options,
+        value: config.websiteContent?.[section]?.[field] || '',
+        onChange: (value) => handleWebsiteFieldChange(section, field, value),
+    });
+
+    const renderWebsiteListField = (section, field, options) => renderTextField({
+        ...options,
+        textarea: true,
+        value: joinMultilineValue(config.websiteContent?.[section]?.[field] || []),
+        onChange: (value) => handleWebsiteMultilineChange(section, field, value),
+    });
 
     if (isLoading) {
         return <div className={styles.loadingContainer}><p>Loading system configuration...</p></div>;
@@ -167,7 +372,8 @@ const SystemConfig = () => {
         { key: 'clinic', label: 'Clinic Info' },
         { key: 'appointments', label: 'Appointment Settings' },
         { key: 'emails', label: 'Email Templates' },
-        { key: 'features', label: 'Feature Toggles' }
+        { key: 'features', label: 'Feature Toggles' },
+        { key: 'website', label: 'Website Content' },
     ];
 
     return (
@@ -181,23 +387,19 @@ const SystemConfig = () => {
             {errorMsg && <div className={styles.errorAlert}>{errorMsg}</div>}
 
             <div className={styles.layout}>
-                {/* Sidebar nav */}
                 <nav className={styles.sectionNav}>
-                    {SECTIONS.map(s => (
+                    {SECTIONS.map((section) => (
                         <button
-                            key={s.key}
-                            className={`${styles.navBtn} ${activeSection === s.key ? styles.navBtnActive : ''}`}
-                            onClick={() => setActiveSection(s.key)}
+                            key={section.key}
+                            className={`${styles.navBtn} ${activeSection === section.key ? styles.navBtnActive : ''}`}
+                            onClick={() => setActiveSection(section.key)}
                         >
-                            {s.label}
+                            {section.label}
                         </button>
                     ))}
                 </nav>
 
-                {/* Content */}
                 <div className={styles.content}>
-
-                    {/* ── CLINIC INFO ── */}
                     {activeSection === 'clinic' && (
                         <div className={styles.section}>
                             <h2 className={styles.sectionTitle}>Clinic Information</h2>
@@ -205,28 +407,23 @@ const SystemConfig = () => {
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Clinic Name</label>
-                                <input type="text" name="clinicName" value={config.clinicName}
-                                    onChange={handleChange} className={styles.input} />
+                                <input type="text" name="clinicName" value={config.clinicName} onChange={handleChange} className={styles.input} />
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Contact Number</label>
-                                <input type="text" name="clinicContact" value={config.clinicContact}
-                                    onChange={handleChange} className={styles.input} />
+                                <input type="text" name="clinicContact" value={config.clinicContact} onChange={handleChange} className={styles.input} />
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Email Address</label>
-                                <input type="email" name="clinicEmail" value={config.clinicEmail}
-                                    onChange={handleChange} className={styles.input} />
+                                <input type="email" name="clinicEmail" value={config.clinicEmail} onChange={handleChange} className={styles.input} />
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Address</label>
-                                <textarea name="clinicAddress" value={config.clinicAddress}
-                                    onChange={handleChange} className={styles.textarea} rows={3} />
+                                <textarea name="clinicAddress" value={config.clinicAddress} onChange={handleChange} className={styles.textarea} rows={3} />
                             </div>
                         </div>
                     )}
 
-                    {/* ── APPOINTMENT SETTINGS ── */}
                     {activeSection === 'appointments' && (
                         <div className={styles.section}>
                             <h2 className={styles.sectionTitle}>Appointment Settings</h2>
@@ -234,26 +431,62 @@ const SystemConfig = () => {
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Max Appointments Per Day</label>
-                                <input type="number" name="maxAppointmentsPerDay"
+                                <input
+                                    type="number"
+                                    name="maxAppointmentsPerDay"
                                     value={config.maxAppointmentsPerDay}
-                                    onChange={handleChange} className={styles.inputSmall}
-                                    min={1} max={100} />
+                                    onChange={handleChange}
+                                    className={styles.inputSmall}
+                                    min={1}
+                                    max={100}
+                                />
                             </div>
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Allowed Time Slots</label>
                                 <p className={styles.helpText}>Check the time slots patients can book appointments.</p>
                                 <div className={styles.slotGrid}>
-                                    {DEFAULT_SLOTS.map(slot => (
+                                    {DEFAULT_SLOTS.map((slot) => (
                                         <label key={slot} className={`${styles.slotChip} ${config.allowedTimeSlots.includes(slot) ? styles.slotChipActive : ''}`}>
-                                            <input type="checkbox"
+                                            <input
+                                                type="checkbox"
                                                 checked={config.allowedTimeSlots.includes(slot)}
                                                 onChange={() => handleSlotToggle(slot)}
-                                                style={{ marginRight: '6px' }} />
+                                                style={{ marginRight: '6px' }}
+                                            />
                                             {slot}
                                         </label>
                                     ))}
                                 </div>
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Online Booking Procedures</label>
+                                <p className={styles.helpText}>Only these procedures will appear in the public website and patient online-booking flow.</p>
+                                <div className={styles.procedureList}>
+                                    {(config.onlineBookingProcedures || []).map((procedure, index) => (
+                                        <div key={`online-procedure-${index}`} className={styles.procedureRow}>
+                                            <input
+                                                type="text"
+                                                value={procedure}
+                                                onChange={(e) => handleListInputChange('onlineBookingProcedures', index, e.target.value)}
+                                                className={styles.input}
+                                                placeholder="Enter bookable procedure name"
+                                            />
+                                            <button
+                                                type="button"
+                                                className={styles.removeProcedureBtn}
+                                                onClick={() => handleRemoveListItem('onlineBookingProcedures', index)}
+                                                disabled={(config.onlineBookingProcedures || []).length <= 1}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button type="button" className={styles.addProcedureBtn} onClick={() => handleAddListItem('onlineBookingProcedures')}>
+                                    Add Online Booking Procedure
+                                </button>
                             </div>
 
                             <div className={styles.formGroup}>
@@ -265,14 +498,14 @@ const SystemConfig = () => {
                                             <input
                                                 type="text"
                                                 value={procedure}
-                                                onChange={(e) => handleProcedureInputChange(index, e.target.value)}
+                                                onChange={(e) => handleListInputChange('clinicProcedures', index, e.target.value)}
                                                 className={styles.input}
                                                 placeholder="Enter procedure name"
                                             />
                                             <button
                                                 type="button"
                                                 className={styles.removeProcedureBtn}
-                                                onClick={() => handleRemoveProcedure(index)}
+                                                onClick={() => handleRemoveListItem('clinicProcedures', index)}
                                                 disabled={(config.clinicProcedures || []).length <= 1}
                                             >
                                                 Remove
@@ -280,18 +513,13 @@ const SystemConfig = () => {
                                         </div>
                                     ))}
                                 </div>
-                                <button
-                                    type="button"
-                                    className={styles.addProcedureBtn}
-                                    onClick={handleAddProcedure}
-                                >
+                                <button type="button" className={styles.addProcedureBtn} onClick={() => handleAddListItem('clinicProcedures')}>
                                     Add Procedure
                                 </button>
                             </div>
                         </div>
                     )}
 
-                    {/* ── EMAIL TEMPLATES ── */}
                     {activeSection === 'emails' && (
                         <div className={styles.section}>
                             <h2 className={styles.sectionTitle}>Email Templates</h2>
@@ -300,45 +528,50 @@ const SystemConfig = () => {
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Account Activation Email</label>
                                 <p className={styles.helpText}>Sent when a new staff account is created.</p>
-                                <textarea name="activation"
+                                <textarea
+                                    name="activation"
                                     value={config.emailTemplates?.activation || ''}
                                     onChange={handleTemplateChange}
-                                    className={styles.textarea} rows={5} />
+                                    className={styles.textarea}
+                                    rows={5}
+                                />
                             </div>
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Appointment Reminder Email</label>
                                 <p className={styles.helpText}>Sent to patients before their scheduled appointment.</p>
-                                <textarea name="appointmentReminder"
+                                <textarea
+                                    name="appointmentReminder"
                                     value={config.emailTemplates?.appointmentReminder || ''}
                                     onChange={handleTemplateChange}
-                                    className={styles.textarea} rows={5} />
+                                    className={styles.textarea}
+                                    rows={5}
+                                />
                             </div>
                         </div>
                     )}
 
-                    {/* ── FEATURE TOGGLES ── */}
                     {activeSection === 'features' && (
                         <div className={styles.section}>
                             <h2 className={styles.sectionTitle}>Feature Toggles</h2>
                             <p className={styles.sectionDesc}>Enable or disable system modules.</p>
 
                             {[
-                                { key: 'queueManagement',   label: 'Queue Management',   desc: 'Walk-in patient queue module.' },
+                                { key: 'queueManagement', label: 'Queue Management', desc: 'Walk-in patient queue module.' },
                                 { key: 'radiographUploads', label: 'Radiograph Uploads', desc: 'Allow radiograph image uploads in patient EMR.' },
-                                { key: 'chatSupport',       label: 'Chat Support',        desc: 'Enable the chat/ticket support system.' },
-                                { key: 'sessionTimeout',    label: 'Session Timeout',     desc: 'Auto logout after inactivity.' }
-                            ].map(f => (
-                                <div key={f.key} className={styles.toggleRow}>
+                                { key: 'chatSupport', label: 'Chat Support', desc: 'Enable the chat/ticket support system.' },
+                                { key: 'sessionTimeout', label: 'Session Timeout', desc: 'Auto logout after inactivity.' },
+                            ].map((feature) => (
+                                <div key={feature.key} className={styles.toggleRow}>
                                     <div className={styles.toggleInfo}>
-                                        <span className={styles.toggleLabel}>{f.label}</span>
-                                        <span className={styles.toggleDesc}>{f.desc}</span>
+                                        <span className={styles.toggleLabel}>{feature.label}</span>
+                                        <span className={styles.toggleDesc}>{feature.desc}</span>
                                     </div>
                                     <button
-                                        className={`${styles.toggleSwitch} ${config.featureToggles?.[f.key] ? styles.toggleOn : styles.toggleOff}`}
-                                        onClick={() => handleToggleChange(f.key)}
+                                        className={`${styles.toggleSwitch} ${config.featureToggles?.[feature.key] ? styles.toggleOn : styles.toggleOff}`}
+                                        onClick={() => handleToggleChange(feature.key)}
                                     >
-                                        {config.featureToggles?.[f.key] ? 'ON' : 'OFF'}
+                                        {config.featureToggles?.[feature.key] ? 'ON' : 'OFF'}
                                     </button>
                                 </div>
                             ))}
@@ -346,22 +579,236 @@ const SystemConfig = () => {
                             {config.featureToggles?.sessionTimeout && (
                                 <div className={styles.formGroup} style={{ marginTop: '20px' }}>
                                     <label className={styles.label}>Session Timeout Duration (minutes)</label>
-                                    <input type="number" name="sessionTimeoutMinutes"
+                                    <input
+                                        type="number"
+                                        name="sessionTimeoutMinutes"
                                         value={config.sessionTimeoutMinutes}
                                         onChange={handleChange}
-                                        className={styles.inputSmall} min={5} max={120} />
+                                        className={styles.inputSmall}
+                                        min={5}
+                                        max={120}
+                                    />
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* Save Button */}
+                    {activeSection === 'website' && (
+                        <div className={styles.section}>
+                            <h2 className={styles.sectionTitle}>Website Content</h2>
+                            <p className={styles.sectionDesc}>
+                                Manage the copy shown on the public website. Clinic name, phone number, email, and address still come from the Clinic Info section above.
+                            </p>
+
+                            <div className={styles.subsection}>
+                                <h3 className={styles.subsectionTitle}>Branding and Social Links</h3>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('branding', 'tagline', {
+                                        label: 'Website Tagline',
+                                        helpText: 'Short supporting line for the brand.',
+                                    })}
+                                    {renderWebsiteTextField('branding', 'owner', {
+                                        label: 'Owner / Lead Dentist',
+                                        helpText: 'Shown on the About page intro.',
+                                    })}
+                                    {renderWebsiteTextField('branding', 'facebookName', {
+                                        label: 'Facebook Page Name',
+                                    })}
+                                    {renderWebsiteTextField('branding', 'instagramHandle', {
+                                        label: 'Instagram Handle',
+                                        helpText: 'Enter without the @ symbol if possible.',
+                                    })}
+                                </div>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('branding', 'facebookUrl', {
+                                        label: 'Facebook Page URL',
+                                        helpText: 'Used by the website contact and appointment pages.',
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className={styles.subsection}>
+                                <h3 className={styles.subsectionTitle}>Home Page</h3>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('home', 'heroEyebrow', { label: 'Hero Eyebrow' })}
+                                    {renderWebsiteTextField('home', 'heroTitleLead', { label: 'Hero Title Line 1' })}
+                                    {renderWebsiteTextField('home', 'heroTitleAccent', { label: 'Hero Title Accent' })}
+                                    {renderWebsiteTextField('home', 'primaryCtaLabel', { label: 'Primary CTA Label' })}
+                                    {renderWebsiteTextField('home', 'secondaryCtaLabel', { label: 'Secondary CTA Label' })}
+                                    {renderWebsiteTextField('home', 'quickVisitEyebrow', { label: 'Quick Visit Eyebrow' })}
+                                    {renderWebsiteTextField('home', 'quickVisitTitle', { label: 'Quick Visit Title' })}
+                                    {renderWebsiteTextField('home', 'quickVisitCtaLabel', { label: 'Quick Visit CTA Label' })}
+                                    {renderWebsiteTextField('home', 'servicesEyebrow', { label: 'Services Eyebrow' })}
+                                    {renderWebsiteTextField('home', 'servicesTitle', { label: 'Services Section Title' })}
+                                    {renderWebsiteTextField('home', 'servicesCtaLabel', { label: 'Services CTA Label' })}
+                                    {renderWebsiteTextField('home', 'journeyEyebrow', { label: 'Journey Eyebrow' })}
+                                    {renderWebsiteTextField('home', 'journeyTitle', { label: 'Journey Section Title' })}
+                                    {renderWebsiteTextField('home', 'journeyCardTitle', { label: 'Journey Card Title' })}
+                                    {renderWebsiteTextField('home', 'coreCareAreasLabel', { label: 'Core Care Areas Label' })}
+                                    {renderWebsiteTextField('home', 'activeBranchesLabel', { label: 'Active Branches Label' })}
+                                </div>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('home', 'heroDescription', { label: 'Hero Description', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'introDescription', { label: 'Comfort Description', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'quoteText', { label: 'Quote Text', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'quoteMeta', { label: 'Quote Meta', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'editorialMiniCopy', { label: 'Editorial Mini Copy', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'editorialTitle', { label: 'Editorial Title', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'editorialDescription', { label: 'Editorial Description', textarea: true, rows: 4 })}
+                                    {renderWebsiteTextField('home', 'coreCareAreasDescription', { label: 'Core Care Areas Description', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'activeBranchesDescription', { label: 'Active Branches Description', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'editorialStatement', { label: 'Editorial Statement', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('home', 'journeyDescription', { label: 'Journey Description', textarea: true, rows: 4 })}
+                                    {renderWebsiteTextField('home', 'journeyCaption', { label: 'Journey Image Caption', textarea: true, rows: 3 })}
+                                </div>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('home', 'introKicker', {
+                                        label: 'Comfort Kicker',
+                                        textarea: true,
+                                        rows: 2,
+                                    })}
+                                    {renderWebsiteListField('home', 'journeyPills', {
+                                        label: 'Journey Pills',
+                                        helpText: 'One pill label per line.',
+                                        rows: 4,
+                                    })}
+                                    {renderWebsiteListField('home', 'journeyHighlights', {
+                                        label: 'Journey Highlights',
+                                        helpText: 'One highlight per line.',
+                                        rows: 4,
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className={styles.subsection}>
+                                <h3 className={styles.subsectionTitle}>About Page</h3>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('about', 'eyebrow', { label: 'Eyebrow' })}
+                                    {renderWebsiteTextField('about', 'highlightCardTitle', { label: 'Highlight Card Title' })}
+                                    {renderWebsiteTextField('about', 'title', { label: 'Title', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('about', 'description', { label: 'Description', textarea: true, rows: 4 })}
+                                    {renderWebsiteListField('about', 'highlights', {
+                                        label: 'Highlights',
+                                        helpText: 'One highlight per line.',
+                                        rows: 6,
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className={styles.subsection}>
+                                <h3 className={styles.subsectionTitle}>Services Page</h3>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('servicesPage', 'eyebrow', { label: 'Eyebrow' })}
+                                    {renderWebsiteTextField('servicesPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('servicesPage', 'description', { label: 'Description', textarea: true, rows: 4 })}
+                                </div>
+
+                                <div className={styles.serviceHighlightList}>
+                                    {config.websiteContent.serviceHighlights.map((service, index) => (
+                                        <div key={`service-highlight-${index}`} className={styles.serviceHighlightCard}>
+                                            <div className={styles.serviceHighlightHeader}>
+                                                <h4 className={styles.cardEditorTitle}>Service Card {index + 1}</h4>
+                                                <button
+                                                    type="button"
+                                                    className={styles.removeProcedureBtn}
+                                                    onClick={() => handleRemoveServiceHighlight(index)}
+                                                    disabled={config.websiteContent.serviceHighlights.length <= 1}
+                                                >
+                                                    Remove Card
+                                                </button>
+                                            </div>
+                                            <div className={styles.fieldsGrid}>
+                                                {renderTextField({
+                                                    label: 'Category',
+                                                    value: service.category,
+                                                    onChange: (value) => handleWebsiteServiceChange(index, 'category', value),
+                                                })}
+                                                {renderTextField({
+                                                    label: 'Description',
+                                                    value: service.description,
+                                                    onChange: (value) => handleWebsiteServiceChange(index, 'description', value),
+                                                    textarea: true,
+                                                    rows: 3,
+                                                })}
+                                                {renderTextField({
+                                                    label: 'Items',
+                                                    helpText: 'One service item per line.',
+                                                    value: joinMultilineValue(service.items),
+                                                    onChange: (value) => handleWebsiteServiceItemsChange(index, value),
+                                                    textarea: true,
+                                                    rows: 6,
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button type="button" className={styles.addProcedureBtn} onClick={handleAddServiceHighlight}>
+                                    Add Service Card
+                                </button>
+                            </div>
+
+                            <div className={styles.subsection}>
+                                <h3 className={styles.subsectionTitle}>About Page Locations Section</h3>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('locationsPage', 'eyebrow', { label: 'Eyebrow' })}
+                                    {renderWebsiteTextField('locationsPage', 'bookCtaLabel', { label: 'Book CTA Label' })}
+                                    {renderWebsiteTextField('locationsPage', 'callCtaLabel', { label: 'Call CTA Label' })}
+                                    {renderWebsiteTextField('locationsPage', 'mapCtaLabel', { label: 'Map CTA Label' })}
+                                    {renderWebsiteTextField('locationsPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('locationsPage', 'description', { label: 'Description', textarea: true, rows: 4 })}
+                                </div>
+                            </div>
+
+                            <div className={styles.subsection}>
+                                <h3 className={styles.subsectionTitle}>Contact Page</h3>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('contactPage', 'eyebrow', { label: 'Eyebrow' })}
+                                    {renderWebsiteTextField('contactPage', 'primaryCtaLabel', { label: 'Primary CTA Label' })}
+                                    {renderWebsiteTextField('contactPage', 'secondaryCtaLabel', { label: 'Secondary CTA Label' })}
+                                    {renderWebsiteTextField('contactPage', 'phoneCardTitle', { label: 'Phone Card Title' })}
+                                    {renderWebsiteTextField('contactPage', 'phoneCardCtaLabel', { label: 'Phone Card CTA Label' })}
+                                    {renderWebsiteTextField('contactPage', 'facebookCardTitle', { label: 'Facebook Card Title' })}
+                                    {renderWebsiteTextField('contactPage', 'facebookCardCtaLabel', { label: 'Facebook Card CTA Label' })}
+                                    {renderWebsiteTextField('contactPage', 'instagramCardTitle', { label: 'Instagram Card Title' })}
+                                    {renderWebsiteTextField('contactPage', 'instagramCardCtaLabel', { label: 'Instagram Card CTA Label' })}
+                                    {renderWebsiteTextField('contactPage', 'locationPrimaryCtaLabel', { label: 'Location Primary CTA Label' })}
+                                    {renderWebsiteTextField('contactPage', 'locationSecondaryCtaLabel', { label: 'Location Secondary CTA Label' })}
+                                    {renderWebsiteTextField('contactPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('contactPage', 'description', { label: 'Description', textarea: true, rows: 4 })}
+                                </div>
+                            </div>
+
+                            <div className={styles.subsection}>
+                                <h3 className={styles.subsectionTitle}>Appointment Page</h3>
+                                <div className={styles.fieldsGrid}>
+                                    {renderWebsiteTextField('appointmentPage', 'eyebrow', { label: 'Hero Eyebrow' })}
+                                    {renderWebsiteTextField('appointmentPage', 'facebookCtaLabel', { label: 'Facebook CTA Label' })}
+                                    {renderWebsiteTextField('appointmentPage', 'callCtaLabel', { label: 'Call CTA Label' })}
+                                    {renderWebsiteTextField('appointmentPage', 'formEyebrow', { label: 'Form Eyebrow' })}
+                                    {renderWebsiteTextField('appointmentPage', 'formTitle', { label: 'Form Title' })}
+                                    {renderWebsiteTextField('appointmentPage', 'submitButtonLabel', { label: 'Submit Button Label' })}
+                                    {renderWebsiteTextField('appointmentPage', 'submittingButtonLabel', { label: 'Submitting Button Label' })}
+                                    {renderWebsiteTextField('appointmentPage', 'guideEyebrow', { label: 'Guide Eyebrow' })}
+                                    {renderWebsiteTextField('appointmentPage', 'guideTitle', { label: 'Guide Title' })}
+                                    {renderWebsiteTextField('appointmentPage', 'branchEyebrow', { label: 'Branch Eyebrow' })}
+                                    {renderWebsiteTextField('appointmentPage', 'branchTitle', { label: 'Branch Title', textarea: true, rows: 2 })}
+                                    {renderWebsiteTextField('appointmentPage', 'title', { label: 'Hero Title', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('appointmentPage', 'description', { label: 'Hero Description', textarea: true, rows: 4 })}
+                                    {renderWebsiteTextField('appointmentPage', 'formDescription', { label: 'Form Description', textarea: true, rows: 3 })}
+                                    {renderWebsiteTextField('appointmentPage', 'procedureHelperText', { label: 'Procedure Helper Text', textarea: true, rows: 4 })}
+                                    {renderWebsiteTextField('appointmentPage', 'notesHelperText', { label: 'Notes Helper Text', textarea: true, rows: 3 })}
+                                    {renderWebsiteListField('appointmentPage', 'steps', {
+                                        label: 'Guest Appointment Steps',
+                                        helpText: 'One step per line.',
+                                        rows: 6,
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className={styles.saveRow}>
-                        <button
-                            className={styles.saveBtn}
-                            onClick={handleSave}
-                            disabled={isSaving}
-                        >
+                        <button className={styles.saveBtn} onClick={handleSave} disabled={isSaving}>
                             {isSaving ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>

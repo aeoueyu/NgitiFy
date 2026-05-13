@@ -2,29 +2,29 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
-import { clinicInfo, locationCards } from '../../data/websiteContent';
+import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 
 export default function WebsiteContact() {
     const navigate = useNavigate();
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationCards[0].address)}`;
+    const { clinicInfo, locationCards, websiteContent } = usePublicClinicConfig();
+    const contactContent = websiteContent.contactPage;
+    const primaryLocation = locationCards[0] || { name: 'Dentime Branch', status: 'Now Open', address: clinicInfo.address || '' };
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(primaryLocation.address)}`;
 
     return (
         <WebsiteShell>
             <section className={`${styles.section} ${styles.pageHeroSection}`}>
                 <div className={styles.splitSection}>
                     <article className={`${styles.infoCard} ${styles.pageHeroCard}`}>
-                        <p className={styles.eyebrow}>Contact Us</p>
-                        <h1 className={styles.sectionTitle}>Reach the clinic through call or social media</h1>
-                        <p className={styles.bodyText}>
-                            Dentime currently accommodates patients through regular scheduled appointments and walk-ins.
-                            You may also follow the clinic through its social channels for updates and inquiries.
-                        </p>
+                        <p className={styles.eyebrow}>{contactContent.eyebrow}</p>
+                        <h1 className={styles.sectionTitle}>{contactContent.title}</h1>
+                        <p className={styles.bodyText}>{contactContent.description}</p>
                         <div className={styles.buttonRow}>
                             <button className={styles.primaryBtn} onClick={() => navigate('/appointment')} type="button">
-                                Book an Appointment
+                                {contactContent.primaryCtaLabel}
                             </button>
                             <a href={`tel:${clinicInfo.contactNumber}`} className={styles.secondaryBtn}>
-                                Call the Clinic
+                                {contactContent.secondaryCtaLabel}
                             </a>
                         </div>
                     </article>
@@ -41,10 +41,10 @@ export default function WebsiteContact() {
                         <div className={styles.squarePlaceholder}>
                             <span className={styles.placeholderLabel}>Phone Card Image Placeholder</span>
                         </div>
-                        <h2 className={styles.cardTitle}>Phone Number</h2>
+                        <h2 className={styles.cardTitle}>{contactContent.phoneCardTitle}</h2>
                         <span className={styles.contactValue}>{clinicInfo.contactNumber}</span>
                         <a href={`tel:${clinicInfo.contactNumber}`} className={styles.socialBtn}>
-                            Call Now
+                            {contactContent.phoneCardCtaLabel}
                         </a>
                     </article>
 
@@ -52,7 +52,7 @@ export default function WebsiteContact() {
                         <div className={styles.squarePlaceholder}>
                             <span className={styles.placeholderLabel}>Facebook Card Image Placeholder</span>
                         </div>
-                        <h2 className={styles.cardTitle}>Facebook</h2>
+                        <h2 className={styles.cardTitle}>{contactContent.facebookCardTitle}</h2>
                         <p>{clinicInfo.facebookName}</p>
                         <a
                             href={clinicInfo.facebookUrl}
@@ -60,7 +60,7 @@ export default function WebsiteContact() {
                             rel="noreferrer"
                             className={styles.socialBtn}
                         >
-                            Open Facebook Page
+                            {contactContent.facebookCardCtaLabel}
                         </a>
                     </article>
 
@@ -68,7 +68,7 @@ export default function WebsiteContact() {
                         <div className={styles.squarePlaceholder}>
                             <span className={styles.placeholderLabel}>Instagram Card Image Placeholder</span>
                         </div>
-                        <h2 className={styles.cardTitle}>Instagram</h2>
+                        <h2 className={styles.cardTitle}>{contactContent.instagramCardTitle}</h2>
                         <span className={styles.contactValue}>@{clinicInfo.instagramHandle}</span>
                         <a
                             href={`https://www.instagram.com/${clinicInfo.instagramHandle}/`}
@@ -76,7 +76,7 @@ export default function WebsiteContact() {
                             rel="noreferrer"
                             className={styles.socialBtn}
                         >
-                            Open Instagram
+                            {contactContent.instagramCardCtaLabel}
                         </a>
                     </article>
                 </div>
@@ -85,15 +85,15 @@ export default function WebsiteContact() {
             <section className={styles.section}>
                 <div className={styles.splitSection}>
                     <article className={styles.locationCard}>
-                        <span className={styles.statusPill}>{locationCards[0].status}</span>
-                        <h3 className={styles.cardTitle}>{locationCards[0].name}</h3>
-                        <p>{locationCards[0].address}</p>
+                        <span className={styles.statusPill}>{primaryLocation.status}</span>
+                        <h3 className={styles.cardTitle}>{primaryLocation.name}</h3>
+                        <p>{primaryLocation.address}</p>
                         <div className={styles.contactActionRow}>
                             <a href={mapUrl} target="_blank" rel="noreferrer" className={styles.primaryBtn}>
-                                Open Map
+                                {contactContent.locationPrimaryCtaLabel}
                             </a>
-                            <button className={styles.secondaryBtn} onClick={() => navigate('/locations')} type="button">
-                                View All Branches
+                            <button className={styles.secondaryBtn} onClick={() => navigate('/about#locations')} type="button">
+                                {contactContent.locationSecondaryCtaLabel}
                             </button>
                         </div>
                     </article>

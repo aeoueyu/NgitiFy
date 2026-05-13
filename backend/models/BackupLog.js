@@ -4,37 +4,84 @@ const backupLogSchema = new mongoose.Schema({
     filename: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
     },
 
-    // File size in bytes — stored as Number for easy formatting on the frontend
     size: {
         type: Number,
-        default: 0
+        default: 0,
     },
 
     status: {
         type: String,
-        enum: ['success', 'failed'],
-        default: 'success'
+        enum: ['running', 'success', 'failed'],
+        default: 'running',
     },
 
-    // Optional error message if the backup failed
+    triggerType: {
+        type: String,
+        enum: ['manual', 'scheduled'],
+        default: 'manual',
+    },
+
+    checksumSha256: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+
+    durationMs: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+
+    startedAt: {
+        type: Date,
+        default: Date.now,
+    },
+
+    completedAt: {
+        type: Date,
+        default: null,
+    },
+
+    toolVersion: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+
+    retentionDeletedAt: {
+        type: Date,
+        default: null,
+    },
+
+    retentionReason: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+
     errorMessage: {
         type: String,
-        default: null
+        default: null,
     },
 
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        default: null,
     },
+
     createdByName: {
         type: String,
-        required: true
-    }
-
+        required: true,
+        trim: true,
+    },
 }, { timestamps: true });
+
+backupLogSchema.index({ createdAt: -1 });
+backupLogSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('BackupLog', backupLogSchema);

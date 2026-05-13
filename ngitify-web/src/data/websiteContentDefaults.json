@@ -1,0 +1,154 @@
+{
+  "branding": {
+    "tagline": "Affordable smiles, always.",
+    "owner": "Dr. Michael Edwin Tamayo, DMD",
+    "facebookUrl": "https://web.facebook.com/dentimedentalclinic",
+    "facebookName": "Dentime Dental Clinic - Marikina City",
+    "instagramHandle": "dentimedentalclinicmarikina"
+  },
+  "home": {
+    "heroEyebrow": "Specialized Dental Care",
+    "heroTitleLead": "Bright smiles start with",
+    "heroTitleAccent": "care that feels easy to trust.",
+    "heroDescription": "Dentime Dental Clinic delivers approachable, affordable dental care for patients and families, with services ranging from routine cleaning to braces, esthetics, and oral surgery.",
+    "primaryCtaLabel": "Book an Appointment",
+    "secondaryCtaLabel": "View Services",
+    "introKicker": "Created for your comfort",
+    "introDescription": "Gentle care, clear guidance, and a calm clinic experience designed for patients and families.",
+    "quoteText": "Every smile is unique. Your treatment should feel just as personal.",
+    "quoteMeta": "Approachable dental care guided by comfort, clarity, and real needs.",
+    "quickVisitEyebrow": "Quick Visit",
+    "quickVisitTitle": "Book a consultation with ease",
+    "quickVisitCtaLabel": "Consultation",
+    "editorialMiniCopy": "Modern dental care shaped around comfort, precision, and easier visits.",
+    "editorialTitle": "Dental care that feels clearer, calmer, and easier to trust.",
+    "editorialDescription": "Dentime focuses on approachable treatment planning, friendly communication, and practical care for everyday needs, smile improvement, and more advanced dental concerns.",
+    "coreCareAreasLabel": "Core Care Areas",
+    "coreCareAreasDescription": "General Dentistry, Orthodontics, Esthetics, and Oral Surgery.",
+    "activeBranchesLabel": "Active Branches",
+    "activeBranchesDescription": "Serving patients through the clinic's active branches.",
+    "editorialStatement": "Clear steps, modern tools, and support that makes dental visits feel less overwhelming.",
+    "servicesEyebrow": "Orthodontic Services",
+    "servicesTitle": "Care options designed for modern smiles",
+    "servicesCtaLabel": "Explore Services",
+    "journeyEyebrow": "Why Patients Choose Dentime",
+    "journeyTitle": "A smoother path from first inquiry to in-clinic care",
+    "journeyPills": [
+      "Scan",
+      "Plan",
+      "Treat",
+      "Follow-up"
+    ],
+    "journeyCardTitle": "Treatment support that stays clear and guided",
+    "journeyDescription": "We make it easier to understand what comes next, whether you are visiting for cleaning, braces, restorative work, or a consultation for a bigger treatment plan.",
+    "journeyHighlights": [
+      "Welcoming clinic experience",
+      "Flexible appointment requests"
+    ],
+    "journeyCaption": "Each visit is handled with practical care, friendly support, and treatment planning that feels easier to follow."
+  },
+  "about": {
+    "eyebrow": "About Dentime",
+    "title": "Dental care that feels warm, modern, and approachable",
+    "description": "Dentime Dental Clinic is a growing clinic focused on making quality dental care easier to access and more comfortable to experience.",
+    "highlightCardTitle": "Why Patients Visit",
+    "highlights": [
+      "Personalized dental care in a clean, welcoming clinic environment.",
+      "Professional support for routine care, smile enhancement, and more advanced treatment needs.",
+      "A growing practice preparing to serve more communities through branch expansion."
+    ]
+  },
+  "servicesPage": {
+    "eyebrow": "Services",
+    "title": "Comprehensive dental services for everyday care and long-term smile support",
+    "description": "Dentime Dental Clinic offers a focused set of dental services across General Dentistry, Orthodontics, Esthetics, and Oral Surgery."
+  },
+  "serviceHighlights": [
+    {
+      "category": "General Dentistry",
+      "description": "Routine and restorative care for day-to-day dental health.",
+      "items": [
+        "Free consultation",
+        "Free digital X-ray",
+        "Oral prophylaxis (teeth cleaning)",
+        "Fluoride application",
+        "Tooth restoration / filling",
+        "Pit and fissure sealant",
+        "Root canal treatment",
+        "Dentures / crowns"
+      ]
+    },
+    {
+      "category": "Orthodontics",
+      "description": "Treatment options for bite alignment and smile correction.",
+      "items": [
+        "Braces",
+        "Retainers",
+        "Orthodontic follow-up care"
+      ]
+    },
+    {
+      "category": "Esthetics",
+      "description": "Smile-focused services for brighter, more confident results.",
+      "items": [
+        "Teeth whitening",
+        "Smile-enhancing treatment planning"
+      ]
+    },
+    {
+      "category": "Oral Surgery",
+      "description": "Treatment support for extraction and surgical dental needs.",
+      "items": [
+        "Tooth extraction",
+        "Odontectomy (wisdom tooth removal)"
+      ]
+    }
+  ],
+  "locationsPage": {
+    "eyebrow": "Locations",
+    "title": "Visit Dentime at the branch nearest to you",
+    "description": "Dentime is currently serving patients through its active clinic branches.",
+    "bookCtaLabel": "Book at This Branch",
+    "callCtaLabel": "Call the Clinic",
+    "mapCtaLabel": "Open in Maps"
+  },
+  "contactPage": {
+    "eyebrow": "Contact Us",
+    "title": "Reach the clinic through call or social media",
+    "description": "Dentime currently accommodates patients through regular scheduled appointments and walk-ins. You may also follow the clinic through its social channels for updates and inquiries.",
+    "primaryCtaLabel": "Book an Appointment",
+    "secondaryCtaLabel": "Call the Clinic",
+    "phoneCardTitle": "Phone Number",
+    "phoneCardCtaLabel": "Call Now",
+    "facebookCardTitle": "Facebook",
+    "facebookCardCtaLabel": "Open Facebook Page",
+    "instagramCardTitle": "Instagram",
+    "instagramCardCtaLabel": "Open Instagram",
+    "locationPrimaryCtaLabel": "Open Map",
+    "locationSecondaryCtaLabel": "View All Branches"
+  },
+  "appointmentPage": {
+    "eyebrow": "Appointment",
+    "title": "Send your appointment request",
+    "description": "Guests can request an appointment here even if they are not yet official clinic patients. Once the clinic confirms your schedule, a confirmation email will be sent to you automatically.",
+    "facebookCtaLabel": "Message on Facebook",
+    "callCtaLabel": "Call the Clinic",
+    "formEyebrow": "Request Form",
+    "formTitle": "Book with Dentime",
+    "formDescription": "Required fields should match the same patient registration details used by the clinic.",
+    "procedureHelperText": "For all other procedures, please book a consultation first so the dentist can assess the best treatment plan for you.",
+    "notesHelperText": "You may leave this blank if you only want to reserve a consultation slot.",
+    "submitButtonLabel": "Send Appointment Request",
+    "submittingButtonLabel": "Sending Request...",
+    "guideEyebrow": "How It Works",
+    "guideTitle": "Guest appointment guide",
+    "steps": [
+      "Choose the branch that is most convenient for you.",
+      "Prepare your name, contact number, email address, and preferred visit schedule.",
+      "Send your request and wait for clinic confirmation.",
+      "Visit the clinic for your consultation or scheduled appointment."
+    ],
+    "branchEyebrow": "Choose a Branch",
+    "branchTitle": "Where would you like to visit?"
+  }
+}

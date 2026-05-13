@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import styles from '../../styles/website/WebsitePages.module.css';
 import locationsHeroImage from '../../assets/images/locations-hero-image.jpg';
-import { clinicInfo, locationCards } from '../../data/websiteContent';
+import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 
 export default function WebsiteLocations() {
     const navigate = useNavigate();
+    const { clinicInfo, locationCards, websiteContent } = usePublicClinicConfig();
+    const locationsContent = websiteContent.locationsPage;
     const getMapUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
     return (
@@ -14,11 +16,9 @@ export default function WebsiteLocations() {
             <section className={`${styles.section} ${styles.pageHeroSection}`}>
                 <div className={styles.splitSection}>
                     <article className={`${styles.infoCard} ${styles.pageHeroCard}`}>
-                        <p className={styles.eyebrow}>Locations</p>
-                        <h1 className={styles.sectionTitle}>Visit Dentime at the branch nearest to you</h1>
-                        <p className={styles.bodyText}>
-                            Dentime is currently serving patients in Marikina City and Rodriguez, Rizal through its active branches.
-                        </p>
+                        <p className={styles.eyebrow}>{locationsContent.eyebrow}</p>
+                        <h1 className={styles.sectionTitle}>{locationsContent.title}</h1>
+                        <p className={styles.bodyText}>{locationsContent.description}</p>
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
@@ -40,10 +40,10 @@ export default function WebsiteLocations() {
                             <p className={styles.bodyText}>{location.note}</p>
                             <div className={styles.contactActionRow}>
                                 <button className={styles.primaryBtn} onClick={() => navigate('/appointment')} type="button">
-                                    Book at This Branch
+                                    {locationsContent.bookCtaLabel}
                                 </button>
                                 <a href={`tel:${clinicInfo.contactNumber}`} className={styles.secondaryBtn}>
-                                    Call the Clinic
+                                    {locationsContent.callCtaLabel}
                                 </a>
                                 <a
                                     href={getMapUrl(location.address)}
@@ -51,7 +51,7 @@ export default function WebsiteLocations() {
                                     rel="noreferrer"
                                     className={styles.socialBtn}
                                 >
-                                    Open in Maps
+                                    {locationsContent.mapCtaLabel}
                                 </a>
                             </div>
                         </article>

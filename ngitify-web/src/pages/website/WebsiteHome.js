@@ -9,7 +9,7 @@ import estheticsImage from '../../assets/images/esthetics-image.jpg';
 import generalDentistryImage from '../../assets/images/general-dentistry-image.jpg';
 import oralSurgeryImage from '../../assets/images/oral-surgery-image.jpg';
 import orthodonticsImage from '../../assets/images/orthodontics-image.jpg';
-import { clinicInfo, serviceHighlights } from '../../data/websiteContent';
+import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 
 const serviceImages = {
     'General Dentistry': generalDentistryImage,
@@ -20,26 +20,27 @@ const serviceImages = {
 
 export default function WebsiteHome() {
     const navigate = useNavigate();
+    const { clinicInfo, locationCards, serviceHighlights, websiteContent } = usePublicClinicConfig();
+    const homeContent = websiteContent.home;
+    const journeyIcons = [FaRegCircleCheck, FaRegClock];
 
     return (
         <WebsiteShell>
             <section className={styles.hero}>
                 <div className={styles.heroCard}>
-                    <p className={styles.eyebrow}>Specialized Dental Care</p>
+                    <p className={styles.eyebrow}>{homeContent.heroEyebrow}</p>
                     <h1 className={styles.heroTitle}>
-                        Bright smiles start with
-                        <span className={styles.heroTitleAccent}> care that feels easy to trust.</span>
+                        {homeContent.heroTitleLead}
+                        <span className={styles.heroTitleAccent}> {homeContent.heroTitleAccent}</span>
                     </h1>
-                    <p className={styles.heroText}>
-                        {clinicInfo.name} delivers approachable, affordable dental care for patients and families,
-                        with services ranging from routine cleaning to braces, esthetics, and oral surgery.
-                    </p>
+                    <p className={styles.heroText}>{homeContent.heroDescription}</p>
+                    <p className={styles.referenceMeta}>{clinicInfo.tagline}</p>
                     <div className={styles.buttonRow}>
                         <button className={styles.primaryBtn} onClick={() => navigate('/appointment')} type="button">
-                            Book an Appointment
+                            {homeContent.primaryCtaLabel}
                         </button>
                         <button className={styles.secondaryBtn} onClick={() => navigate('/services')} type="button">
-                            View Services
+                            {homeContent.secondaryCtaLabel}
                         </button>
                     </div>
                 </div>
@@ -56,27 +57,23 @@ export default function WebsiteHome() {
                             <img src={clinicLifestyleImage} alt="Clinic lifestyle at Dentime Dental Clinic" className={styles.placeholderImage} />
                         </div>
                         <div className={styles.referenceCopy}>
-                            <p className={styles.referenceKicker}>Created for your comfort</p>
-                            <p className={styles.bodyText}>
-                                Gentle care, clear guidance, and a calm clinic experience designed for patients and families.
-                            </p>
+                            <p className={styles.referenceKicker}>{homeContent.introKicker}</p>
+                            <p className={styles.bodyText}>{homeContent.introDescription}</p>
                         </div>
                     </article>
 
                     <article className={styles.referenceQuoteCard}>
-                        <p className={styles.referenceQuote}>
-                            Every smile is unique. Your treatment should feel just as personal.
-                        </p>
-                        <p className={styles.referenceMeta}>Approachable dental care guided by comfort, clarity, and real needs.</p>
+                        <p className={styles.referenceQuote}>{homeContent.quoteText}</p>
+                        <p className={styles.referenceMeta}>{homeContent.quoteMeta}</p>
                     </article>
 
                     <article className={styles.referenceActionCard}>
                         <div>
-                            <p className={styles.eyebrow}>Quick Visit</p>
-                            <h3 className={styles.cardTitle}>Book a consultation with ease</h3>
+                            <p className={styles.eyebrow}>{homeContent.quickVisitEyebrow}</p>
+                            <h3 className={styles.cardTitle}>{homeContent.quickVisitTitle}</h3>
                         </div>
                         <button className={styles.consultChip} onClick={() => navigate('/appointment')} type="button">
-                            Consultation <FaArrowRight />
+                            {homeContent.quickVisitCtaLabel} <FaArrowRight />
                         </button>
                     </article>
                 </div>
@@ -84,31 +81,26 @@ export default function WebsiteHome() {
 
             <section className={`${styles.section} ${styles.editorialSection}`}>
                 <div className={styles.editorialIntro}>
-                    <p className={styles.featureMiniCopy}>Modern dental care shaped around comfort, precision, and easier visits.</p>
+                    <p className={styles.featureMiniCopy}>{homeContent.editorialMiniCopy}</p>
                     <div className={styles.editorialHeadlineBlock}>
-                        <h2 className={styles.editorialTitle}>Dental care that feels clearer, calmer, and easier to trust.</h2>
-                        <p className={styles.featureDisplayText}>
-                            Dentime focuses on approachable treatment planning, friendly communication, and practical care for
-                            everyday needs, smile improvement, and more advanced dental concerns.
-                        </p>
+                        <h2 className={styles.editorialTitle}>{homeContent.editorialTitle}</h2>
+                        <p className={styles.featureDisplayText}>{homeContent.editorialDescription}</p>
                     </div>
                 </div>
 
                 <div className={styles.editorialGrid}>
                     <article className={styles.editorialStatCard}>
-                        <span className={styles.featureStatValue}>4</span>
-                        <span className={styles.featureStatLabel}>Core Care Areas</span>
-                        <p className={styles.featureStatText}>General Dentistry, Orthodontics, Esthetics, and Oral Surgery.</p>
+                        <span className={styles.featureStatValue}>{serviceHighlights.length}</span>
+                        <span className={styles.featureStatLabel}>{homeContent.coreCareAreasLabel}</span>
+                        <p className={styles.featureStatText}>{homeContent.coreCareAreasDescription}</p>
                     </article>
                     <article className={styles.editorialStatCard}>
-                        <span className={styles.featureStatValue}>2</span>
-                        <span className={styles.featureStatLabel}>Active Branches</span>
-                        <p className={styles.featureStatText}>Serving patients in both Marikina City and Rodriguez, Rizal.</p>
+                        <span className={styles.featureStatValue}>{locationCards.length}</span>
+                        <span className={styles.featureStatLabel}>{homeContent.activeBranchesLabel}</span>
+                        <p className={styles.featureStatText}>{homeContent.activeBranchesDescription}</p>
                     </article>
                     <article className={styles.editorialStatementCard}>
-                        <p className={styles.editorialStatement}>
-                            Clear steps, modern tools, and support that makes dental visits feel less overwhelming.
-                        </p>
+                        <p className={styles.editorialStatement}>{homeContent.editorialStatement}</p>
                     </article>
                 </div>
             </section>
@@ -116,20 +108,20 @@ export default function WebsiteHome() {
             <section className={`${styles.section} ${styles.servicesSpotlightSection}`}>
                 <div className={styles.servicesSpotlightHeader}>
                     <div>
-                        <p className={styles.eyebrow}>Orthodontic Services</p>
-                        <h2 className={styles.sectionTitle}>Care options designed for modern smiles</h2>
+                        <p className={styles.eyebrow}>{homeContent.servicesEyebrow}</p>
+                        <h2 className={styles.sectionTitle}>{homeContent.servicesTitle}</h2>
                     </div>
                     <button className={styles.consultChip} onClick={() => navigate('/services')} type="button">
-                        Explore Services <FaArrowRight />
+                        {homeContent.servicesCtaLabel} <FaArrowRight />
                     </button>
                 </div>
 
                 <div className={styles.servicesShowcaseGrid}>
-                    {serviceHighlights.map((service) => (
-                        <article key={service.category} className={styles.serviceShowcaseCard}>
-                            <div className={styles.serviceImageFrame}>
-                                <img src={serviceImages[service.category]} alt={service.category} className={styles.placeholderImage} />
-                            </div>
+                            {serviceHighlights.map((service) => (
+                                <article key={service.category} className={styles.serviceShowcaseCard}>
+                                    <div className={styles.serviceImageFrame}>
+                                        <img src={serviceImages[service.category] || generalDentistryImage} alt={service.category} className={styles.placeholderImage} />
+                                    </div>
                             <div className={styles.serviceShowcaseBody}>
                                 <span className={styles.serviceTag}>{service.category}</span>
                                 <h3 className={styles.cardTitle}>{service.category}</h3>
@@ -151,33 +143,30 @@ export default function WebsiteHome() {
             <section className={`${styles.section} ${styles.journeySection}`}>
                 <div className={styles.journeyHeader}>
                     <div>
-                        <p className={styles.eyebrow}>Why Patients Choose Dentime</p>
-                        <h2 className={styles.sectionTitle}>A smoother path from first inquiry to in-clinic care</h2>
+                        <p className={styles.eyebrow}>{homeContent.journeyEyebrow}</p>
+                        <h2 className={styles.sectionTitle}>{homeContent.journeyTitle}</h2>
                     </div>
                     <div className={styles.journeyPills}>
-                        <span className={styles.journeyPill}>Scan</span>
-                        <span className={styles.journeyPill}>Plan</span>
-                        <span className={styles.journeyPill}>Treat</span>
-                        <span className={styles.journeyPill}>Follow-up</span>
+                        {homeContent.journeyPills.map((pill) => (
+                            <span key={pill} className={styles.journeyPill}>{pill}</span>
+                        ))}
                     </div>
                 </div>
 
                 <div className={styles.journeyGrid}>
                     <div className={styles.journeyStepsColumn}>
-                        <h3 className={styles.journeyTitle}>Treatment support that stays clear and guided</h3>
-                        <p className={styles.bodyText}>
-                            We make it easier to understand what comes next, whether you are visiting for cleaning, braces,
-                            restorative work, or a consultation for a bigger treatment plan.
-                        </p>
+                        <h3 className={styles.journeyTitle}>{homeContent.journeyCardTitle}</h3>
+                        <p className={styles.bodyText}>{homeContent.journeyDescription}</p>
                         <div className={styles.journeyHighlights}>
-                            <div className={styles.journeyHighlightItem}>
-                                <FaRegCircleCheck />
-                                <span>Welcoming clinic experience</span>
-                            </div>
-                            <div className={styles.journeyHighlightItem}>
-                                <FaRegClock />
-                                <span>Flexible appointment requests</span>
-                            </div>
+                            {homeContent.journeyHighlights.map((highlight, index) => {
+                                const Icon = journeyIcons[index] || FaRegCircleCheck;
+                                return (
+                                    <div key={highlight} className={styles.journeyHighlightItem}>
+                                        <Icon />
+                                        <span>{highlight}</span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -185,9 +174,7 @@ export default function WebsiteHome() {
                         <div className={styles.journeyImageFrame}>
                             <img src={estheticsImage} alt="Dentime treatment planning" className={styles.placeholderImage} />
                         </div>
-                        <p className={styles.journeyImageCaption}>
-                            Each visit is handled with practical care, friendly support, and treatment planning that feels easier to follow.
-                        </p>
+                        <p className={styles.journeyImageCaption}>{homeContent.journeyCaption}</p>
                     </article>
                 </div>
             </section>

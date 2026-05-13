@@ -1,197 +1,410 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    FaDatabase, FaDownload, FaPlus, FaCheckCircle,
-    FaTimesCircle, FaSyncAlt, FaExclamationTriangle
+    FaCheckCircle,
+    FaClock,
+    FaDatabase,
+    FaDownload,
+    FaExclamationTriangle,
+    FaPlus,
+    FaShieldAlt,
+    FaSyncAlt,
+    FaTimesCircle,
 } from 'react-icons/fa';
+
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import styles from '../../styles/admin/DatabaseBackup.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
 const formatBytes = (bytes) => {
-    if (!bytes || bytes === 0) return '0 B';
+    if (!bytes || bytes <= 0) return '0 B';
     const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+    const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
+    return `${(bytes / Math.pow(1024, index)).toFixed(1)} ${sizes[index]}`;
 };
 
-const formatDate = (iso) =>
-    new Date(iso).toLocaleString('en-PH', {
-        month: 'short', day: 'numeric', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-    });
+const formatDate = (value) => {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
 
-// ── Main Component ────────────────────────────────────────────────────────────
+    return parsed.toLocaleString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
+const formatDuration = (durationMs) => {
+    const duration = Number(durationMs);
+    if (!Number.isFinite(duration) || duration <= 0) return '-';
+
+    const totalSeconds = Math.round(duration / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) return `${seconds}s`;
+    return `${minutes}m ${seconds}s`;
+};
+
+const shortenChecksum = (value) => {
+    const checksum = String(value || '').trim();
+    if (!checksum) return '-';
+    if (checksum.length <= 18) return checksum;
+    return `${checksum.slice(0, 10)}...${checksum.slice(-8)}`;
+};
+
+const getTriggerLabel = (triggerType) => (
+    String(triggerType || '').trim().toLowerCase() === 'scheduled'
+        ? 'Scheduled'
+        : 'Manual'
+);
+
+const getStatusMeta = (backup) => {
+    const normalized = String(backup?.status || '').trim().toLowerCase();
+    if (normalized === 'running') {
+        return { label: 'Running', className: styles.statusRunning, icon: FaSyncAlt };
+    }
+    if (normalized === 'success') {
+        return { label: 'Success', className: styles.statusSuccess, icon: FaCheckCircle };
+    }
+    return { label: 'Failed', className: styles.statusFailed, icon: FaTimesCircle };
+};
+
+const getFileMeta = (backup) => {
+    if (backup?.fileState === 'pruned') {
+        return { label: 'Pruned by retention', className: styles.filePruned };
+    }
+    if (backup?.fileState === 'available') {
+        return { label: 'Available', className: styles.fileAvailable };
+    }
+    if (backup?.fileState === 'missing') {
+        return { label: 'Missing', className: styles.fileMissing };
+    }
+    return { label: 'N/A', className: styles.fileNeutral };
+};
 
 export default function DatabaseBackup() {
     const { addToast } = useToast();
 
-    const [backups, setBackups]           = useState([]);
-    const [loading, setLoading]           = useState(true);
-    const [creating, setCreating]         = useState(false);
-    const [downloading, setDownloading]   = useState(null); // filename currently downloading
+    const [status, setStatus] = useState(null);
+    const [backups, setBackups] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [creating, setCreating] = useState(false);
+    const [downloading, setDownloading] = useState(null);
 
-    // ── Fetch backup list ─────────────────────────────────────────────────────
+    const loadData = useCallback(async ({ silent = false } = {}) => {
+        if (silent) {
+            setRefreshing(true);
+        } else {
+            setLoading(true);
+        }
 
-    const fetchBackups = useCallback(async () => {
-        setLoading(true);
         try {
-            const res = await authFetch('/backup/list');
-            if (res.ok) {
-                const data = await res.json();
-                setBackups(data);
+            const [statusRes, listRes] = await Promise.all([
+                authFetch('/backup/status'),
+                authFetch('/backup/list'),
+            ]);
+
+            let hadError = false;
+
+            if (statusRes.ok) {
+                setStatus(await statusRes.json());
             } else {
-                addToast('Failed to load backup list.', 'error');
+                hadError = true;
+                addToast('Failed to load backup status.', 'error');
             }
-        } catch (err) {
-            console.error('Error fetching backups:', err);
-            addToast('Network error loading backups.', 'error');
+
+            if (listRes.ok) {
+                setBackups(await listRes.json());
+            } else {
+                hadError = true;
+                addToast('Failed to load backup history.', 'error');
+            }
+
+            if (silent && !hadError) {
+                addToast('Backup status refreshed.', 'success');
+            }
+        } catch (error) {
+            console.error('Error loading backup data:', error);
+            addToast('Network error loading backup tools.', 'error');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     }, [addToast]);
 
-    useEffect(() => { fetchBackups(); }, [fetchBackups]);
-
-    // ── Create backup ─────────────────────────────────────────────────────────
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const handleCreate = async () => {
         if (creating) return;
         setCreating(true);
-        addToast('Creating backup… this may take a moment.', 'info');
+        addToast('Creating backup. This may take a moment.', 'info');
+
         try {
             const res = await authFetch('/backup/create', { method: 'POST' });
+            const data = await res.json().catch(() => ({}));
+
             if (res.ok) {
-                addToast('Backup created successfully!', 'success');
-                fetchBackups();
-            } else {
-                const data = await res.json().catch(() => ({}));
-                addToast(data.message || 'Backup creation failed.', 'error');
+                const prunedCount = Number(data?.retention?.deletedCount || 0);
+                addToast(
+                    prunedCount > 0
+                        ? `Backup created successfully. Retention pruned ${prunedCount} older backup(s).`
+                        : 'Backup created successfully.',
+                    'success'
+                );
+                await loadData();
+                return;
             }
-        } catch (err) {
+
+            if (res.status === 409) {
+                addToast(data.message || 'A backup is already running.', 'warning');
+                await loadData({ silent: false });
+                return;
+            }
+
+            addToast(data.message || 'Backup creation failed.', 'error');
+        } catch (error) {
+            console.error('Backup create error:', error);
             addToast('Network error. Backup could not be created.', 'error');
         } finally {
             setCreating(false);
         }
     };
 
-    // ── Download backup ───────────────────────────────────────────────────────
-
     const handleDownload = async (filename) => {
         setDownloading(filename);
         try {
             const res = await authFetch(`/backup/download/${encodeURIComponent(filename)}`);
             if (!res.ok) {
-                addToast('Download failed. File may no longer exist on the server.', 'error');
+                addToast('Download failed. The file may no longer exist on the server.', 'error');
                 return;
             }
-            // Stream the blob and trigger a browser download
+
             const blob = await res.blob();
-            const url  = window.URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href     = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
-        } catch (err) {
+        } catch (error) {
+            console.error('Backup download error:', error);
             addToast('Download error. Please try again.', 'error');
         } finally {
             setDownloading(null);
         }
     };
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    const summary = status?.summary || {};
+    const scheduler = status?.scheduler || {};
+    const mongodump = status?.mongodump || {};
+    const activeBackup = status?.activeBackup || null;
 
-    const successCount = backups.filter(b => b.status === 'success').length;
-    const failedCount  = backups.filter(b => b.status === 'failed').length;
+    const createDisabled = creating || loading || Boolean(activeBackup) || mongodump.available === false;
 
     return (
         <div className={styles.container}>
-
-            {/* ── Page Header ─────────────────────────────────────────────── */}
             <div className={styles.pageHeader}>
                 <div className={styles.headerLeft}>
                     <div>
                         <h1 className={styles.pageTitle}>Database Backup</h1>
                         <p className={styles.pageSubtitle}>
-                            Create and download MongoDB backups for disaster recovery.
+                            Create verified MongoDB backup archives, monitor scheduler readiness, and track local retention from one admin control center.
                         </p>
                     </div>
                 </div>
-                <button
-                    className={styles.createBtn}
-                    onClick={handleCreate}
-                    disabled={creating}
-                >
-                    {creating
-                        ? <><FaSyncAlt className={styles.spinning} /> Creating…</>
-                        : <><FaPlus /> Create Backup Now</>
-                    }
-                </button>
+
+                <div className={styles.headerActions}>
+                    <button
+                        className={styles.secondaryBtn}
+                        onClick={() => loadData({ silent: true })}
+                        disabled={loading || refreshing || creating}
+                    >
+                        <FaSyncAlt className={refreshing ? styles.spinning : ''} />
+                        Refresh
+                    </button>
+
+                    <button
+                        className={styles.createBtn}
+                        onClick={handleCreate}
+                        disabled={createDisabled}
+                    >
+                        {creating
+                            ? <><FaSyncAlt className={styles.spinning} /> Creating...</>
+                            : activeBackup
+                                ? <><FaClock /> Backup Running...</>
+                                : <><FaPlus /> Create Backup Now</>
+                        }
+                    </button>
+                </div>
             </div>
 
-            {/* ── Info Banner ──────────────────────────────────────────────── */}
-            <div className={styles.infoBanner}>
-                <FaExclamationTriangle className={styles.infoIcon} />
-                <p>
-                    Backups are stored on the server in <code>/backend/backups/</code>.
-                    Download and store copies off-site regularly.
-                    Requires <code>mongodump</code> to be installed on the server.
-                </p>
+            <div className={styles.bannerGrid}>
+                <div className={`${styles.bannerCard} ${mongodump.available ? styles.bannerReady : styles.bannerWarning}`}>
+                    <div className={styles.bannerIcon}>
+                        {mongodump.available ? <FaCheckCircle /> : <FaExclamationTriangle />}
+                    </div>
+                    <div>
+                        <h2 className={styles.bannerTitle}>
+                            {mongodump.available ? 'Backup binary ready' : 'Backup binary unavailable'}
+                        </h2>
+                        <p className={styles.bannerCopy}>
+                            {mongodump.available
+                                ? `${mongodump.version || status?.binary || 'mongodump'}`
+                                : (mongodump.error || 'The server could not execute mongodump.')}
+                        </p>
+                    </div>
+                </div>
+
+                <div className={styles.bannerCard}>
+                    <div className={styles.bannerIcon}>
+                        <FaShieldAlt />
+                    </div>
+                    <div>
+                        <h2 className={styles.bannerTitle}>Local protection only</h2>
+                        <p className={styles.bannerCopy}>
+                            Backups are stored in <code>{status?.backupDir || 'backend/backups'}</code>. Keep downloading copies off-server until off-site sync is added.
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {/* ── Stats Row ────────────────────────────────────────────────── */}
+            {activeBackup && (
+                <div className={styles.jobBanner}>
+                    <FaSyncAlt className={styles.spinning} />
+                    <div>
+                        <strong>{activeBackup.filename}</strong> is currently running.
+                        Started {formatDate(activeBackup.startedAt)} by {activeBackup.createdByName || getTriggerLabel(activeBackup.triggerType)}.
+                    </div>
+                </div>
+            )}
+
             <div className={styles.statsRow}>
                 <div className={styles.statCard}>
-                    <span className={styles.statValue}>{backups.length}</span>
-                    <span className={styles.statLabel}>Total Backups</span>
+                    <span className={styles.statValue}>{summary.totalRuns ?? backups.length}</span>
+                    <span className={styles.statLabel}>Total Runs</span>
                 </div>
                 <div className={styles.statCard}>
-                    <span className={`${styles.statValue} ${styles.statGreen}`}>{successCount}</span>
+                    <span className={`${styles.statValue} ${styles.statGreen}`}>{summary.successfulRuns ?? backups.filter((backup) => backup.status === 'success').length}</span>
                     <span className={styles.statLabel}>Successful</span>
                 </div>
                 <div className={styles.statCard}>
-                    <span className={`${styles.statValue} ${styles.statRed}`}>{failedCount}</span>
+                    <span className={`${styles.statValue} ${styles.statRed}`}>{summary.failedRuns ?? backups.filter((backup) => backup.status === 'failed').length}</span>
                     <span className={styles.statLabel}>Failed</span>
                 </div>
-                {backups.length > 0 && (
-                    <div className={styles.statCard}>
-                        <span className={styles.statValue} style={{ fontSize: 15 }}>
-                            {formatDate(backups[0].createdAt)}
-                        </span>
-                        <span className={styles.statLabel}>Last Backup</span>
-                    </div>
-                )}
+                <div className={styles.statCard}>
+                    <span className={styles.statValue}>{scheduler.enabled ? `${scheduler.intervalHours || 24}h` : 'Off'}</span>
+                    <span className={styles.statLabel}>Auto Backup</span>
+                </div>
+                <div className={styles.statCard}>
+                    <span className={styles.statValue}>{scheduler.retentionCount > 0 ? scheduler.retentionCount : 'Off'}</span>
+                    <span className={styles.statLabel}>Local Retention</span>
+                </div>
             </div>
 
-            {/* ── Backup Table ─────────────────────────────────────────────── */}
+            <div className={styles.detailsGrid}>
+                <div className={styles.detailCard}>
+                    <div className={styles.detailHeader}>
+                        <FaClock />
+                        <h2>Scheduler</h2>
+                    </div>
+                    <div className={styles.detailList}>
+                        <div className={styles.detailRow}>
+                            <span>Automatic backups</span>
+                            <strong>{scheduler.enabled ? 'Enabled' : 'Disabled'}</strong>
+                        </div>
+                        <div className={styles.detailRow}>
+                            <span>Interval</span>
+                            <strong>{scheduler.enabled ? `${scheduler.intervalHours || 24} hour(s)` : 'Manual only'}</strong>
+                        </div>
+                        <div className={styles.detailRow}>
+                            <span>Next automatic run</span>
+                            <strong>{scheduler.enabled ? formatDate(scheduler.nextAutomaticBackupAt) : '-'}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div className={styles.detailCard}>
+                    <div className={styles.detailHeader}>
+                        <FaDatabase />
+                        <h2>Retention</h2>
+                    </div>
+                    <div className={styles.detailList}>
+                        <div className={styles.detailRow}>
+                            <span>Local retention limit</span>
+                            <strong>{scheduler.retentionCount > 0 ? `${scheduler.retentionCount} successful backups` : 'Disabled'}</strong>
+                        </div>
+                        <div className={styles.detailRow}>
+                            <span>Pruning behavior</span>
+                            <strong>{scheduler.retentionCount > 0 ? 'Older local files are deleted automatically' : 'No automatic pruning'}</strong>
+                        </div>
+                        <div className={styles.detailRow}>
+                            <span>Storage strategy</span>
+                            <strong>Server local only</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div className={styles.detailCard}>
+                    <div className={styles.detailHeader}>
+                        <FaDatabase />
+                        <h2>Verification</h2>
+                    </div>
+                    <div className={styles.detailList}>
+                        <div className={styles.detailRow}>
+                            <span>Archive format</span>
+                            <strong>`mongodump --archive --gzip`</strong>
+                        </div>
+                        <div className={styles.detailRow}>
+                            <span>Integrity metadata</span>
+                            <strong>SHA-256 + duration saved per run</strong>
+                        </div>
+                        <div className={styles.detailRow}>
+                            <span>Binary path</span>
+                            <strong>{status?.binary || 'mongodump'}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.infoBanner}>
+                <FaExclamationTriangle className={styles.infoIcon} />
+                <p>
+                    Automatic backups use environment settings:
+                    <code>BACKUP_AUTO_ENABLED</code>,
+                    <code>BACKUP_AUTO_INTERVAL_HOURS</code>,
+                    <code>BACKUP_RETENTION_COUNT</code>,
+                    and optional <code>MONGODUMP_BIN</code>.
+                    Restore is still intentionally manual and should be done outside the live admin UI.
+                </p>
+            </div>
+
             <div className={styles.tableCard}>
                 <div className={styles.tableHeader}>
-                    <h2 className={styles.tableTitle}>Backup History</h2>
-                    <button
-                        className={styles.refreshBtn}
-                        onClick={fetchBackups}
-                        disabled={loading}
-                        title="Refresh list"
-                    >
-                        <FaSyncAlt className={loading ? styles.spinning : ''} />
-                        Refresh
-                    </button>
+                    <div>
+                        <h2 className={styles.tableTitle}>Backup History</h2>
+                        <p className={styles.tableSubtitle}>
+                            Recent runs include runtime status, checksum, trigger source, and local file state.
+                        </p>
+                    </div>
                 </div>
 
                 {loading ? (
                     <div className={styles.loadingState}>
                         <FaSyncAlt className={styles.spinning} />
-                        <span>Loading backups…</span>
+                        <span>Loading backup tools...</span>
                     </div>
                 ) : backups.length === 0 ? (
                     <div className={styles.emptyState}>
                         <FaDatabase className={styles.emptyIcon} />
-                        <p>No backups yet. Click <strong>Create Backup Now</strong> to get started.</p>
+                        <p>No backups yet. Click <strong>Create Backup Now</strong> to start the first verified archive.</p>
                     </div>
                 ) : (
                     <div className={`${styles.tableWrapper} ${tblStyles.tableWrapper}`}>
@@ -199,76 +412,88 @@ export default function DatabaseBackup() {
                             <thead>
                                 <tr>
                                     <th>Filename</th>
+                                    <th>Trigger</th>
                                     <th>Size</th>
+                                    <th>Duration</th>
+                                    <th>Checksum</th>
+                                    <th>File</th>
                                     <th>Status</th>
                                     <th>Created By</th>
-                                    <th>Date</th>
+                                    <th>Completed</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {backups.map((backup) => (
-                                    <tr key={backup._id}>
-                                        {/* Filename */}
-                                        <td>
-                                            <span className={styles.filename}>{backup.filename}</span>
-                                        </td>
+                                {backups.map((backup) => {
+                                    const statusMeta = getStatusMeta(backup);
+                                    const fileMeta = getFileMeta(backup);
+                                    const StatusIcon = statusMeta.icon;
+                                    const canDownload = backup.status === 'success' && backup.fileState === 'available';
 
-                                        {/* Size */}
-                                        <td className={styles.sizeCell}>
-                                            {backup.status === 'success'
-                                                ? formatBytes(backup.size)
-                                                : '—'
-                                            }
-                                        </td>
-
-                                        {/* Status */}
-                                        <td>
-                                            {backup.status === 'success' ? (
-                                                <span className={`${styles.statusBadge} ${styles.statusSuccess}`}>
-                                                    <FaCheckCircle /> Success
+                                    return (
+                                        <tr key={backup._id}>
+                                            <td>
+                                                <span className={styles.filename}>{backup.filename}</span>
+                                            </td>
+                                            <td>
+                                                <span className={styles.neutralBadge}>{getTriggerLabel(backup.triggerType)}</span>
+                                            </td>
+                                            <td className={styles.sizeCell}>
+                                                {backup.status === 'success' ? formatBytes(backup.size) : '-'}
+                                            </td>
+                                            <td className={styles.sizeCell}>
+                                                {formatDuration(backup.durationMs)}
+                                            </td>
+                                            <td title={backup.checksumSha256 || ''}>
+                                                <span className={styles.checksumCell}>{shortenChecksum(backup.checksumSha256)}</span>
+                                            </td>
+                                            <td>
+                                                <span className={`${styles.fileBadge} ${fileMeta.className}`}>
+                                                    {fileMeta.label}
                                                 </span>
-                                            ) : (
-                                                <span className={`${styles.statusBadge} ${styles.statusFailed}`}
-                                                    title={backup.errorMessage || 'Unknown error'}
+                                            </td>
+                                            <td>
+                                                <span
+                                                    className={`${styles.statusBadge} ${statusMeta.className} ${backup.status === 'running' ? styles.statusAnimated : ''}`}
+                                                    title={backup.errorMessage || ''}
                                                 >
-                                                    <FaTimesCircle /> Failed
+                                                    <StatusIcon className={backup.status === 'running' ? styles.spinning : ''} />
+                                                    {statusMeta.label}
                                                 </span>
-                                            )}
-                                        </td>
-
-                                        {/* Created By */}
-                                        <td className={styles.createdByCell}>
-                                            {backup.createdByName || '—'}
-                                        </td>
-
-                                        {/* Date */}
-                                        <td className={styles.dateCell}>
-                                            {formatDate(backup.createdAt)}
-                                        </td>
-
-                                        {/* Download */}
-                                        <td>
-                                            {backup.status === 'success' && backup.fileExists ? (
-                                                <button
-                                                    className={styles.downloadBtn}
-                                                    onClick={() => handleDownload(backup.filename)}
-                                                    disabled={downloading === backup.filename}
-                                                >
-                                                    {downloading === backup.filename ? (
-                                                        <><FaSyncAlt className={styles.spinning} /> Downloading…</>
-                                                    ) : (
-                                                        <><FaDownload /> Download</>
-                                                    )}
-                                                </button>
-                                            ) : (
-                                                <span className={styles.unavailable}>
-                                                    {backup.status === 'failed' ? 'N/A' : 'File missing'}
-                                                </span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className={styles.createdByCell}>
+                                                {backup.createdByName || '-'}
+                                            </td>
+                                            <td className={styles.dateCell}>
+                                                {formatDate(backup.completedAt || backup.createdAt)}
+                                            </td>
+                                            <td>
+                                                {canDownload ? (
+                                                    <button
+                                                        className={styles.downloadBtn}
+                                                        onClick={() => handleDownload(backup.filename)}
+                                                        disabled={downloading === backup.filename}
+                                                    >
+                                                        {downloading === backup.filename
+                                                            ? <><FaSyncAlt className={styles.spinning} /> Downloading...</>
+                                                            : <><FaDownload /> Download</>
+                                                        }
+                                                    </button>
+                                                ) : (
+                                                    <span className={styles.unavailable}>
+                                                        {backup.fileState === 'pruned'
+                                                            ? 'Pruned'
+                                                            : backup.status === 'failed'
+                                                                ? 'N/A'
+                                                                : backup.status === 'running'
+                                                                    ? 'Pending'
+                                                                    : 'Unavailable'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

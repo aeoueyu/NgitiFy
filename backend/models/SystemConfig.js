@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const defaultWebsiteContent = require('../../ngitify-web/src/data/websiteContentDefaults.json');
 
 const DEFAULT_CLINIC_PROCEDURES = [
     'General Check-up / Initial Consultation',
@@ -17,7 +18,7 @@ const DEFAULT_CLINIC_PROCEDURES = [
 ];
 
 const systemConfigSchema = new mongoose.Schema({
-    clinicName: { type: String, default: 'NgitiFy Dental Clinic' },
+    clinicName: { type: String, default: 'Dentime Dental Clinic' },
     clinicLogo: { type: String, default: '' },
     clinicContact: { type: String, default: '' },
     clinicAddress: { type: String, default: '' },
@@ -26,6 +27,13 @@ const systemConfigSchema = new mongoose.Schema({
     allowedTimeSlots: {
         type: [String],
         default: ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00']
+    },
+    onlineBookingProcedures: {
+        type: [String],
+        default: [
+            'General Check-up / Initial Consultation',
+            'Prophylaxis / Dental Cleaning',
+        ],
     },
     clinicProcedures: {
         type: [String],
@@ -46,6 +54,10 @@ const systemConfigSchema = new mongoose.Schema({
         radiographUploads: { type: Boolean, default: true },
         chatSupport:       { type: Boolean, default: false },
         sessionTimeout:    { type: Boolean, default: true }
+    },
+    websiteContent: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => JSON.parse(JSON.stringify(defaultWebsiteContent)),
     },
     sessionTimeoutMinutes: { type: Number, default: 30 },
     updatedBy: { type: String, default: '' }

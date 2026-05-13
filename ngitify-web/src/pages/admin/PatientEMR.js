@@ -7,6 +7,7 @@ import wideTable from '../../styles/wideTable.module.css';
 import clinicLogo from '../../assets/images/logo-dentime.svg';
 
 import { useAuth } from '../../hooks/useAuth';
+import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
 import { formatDateLong, formatDateShort } from '../../utils/dateUtils';
 import { regions, provinces, cities } from '../../utils/addressData';
@@ -241,13 +242,15 @@ export default function PatientEMR({
     
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { config: systemConfig } = useSystemConfig();
     const { addToast } = useToast();
     const effectiveRole = roleOverride || user?.role || 'administrator';
     const isReadOnly = forceReadOnly || effectiveRole === 'secretary';
+    const radiographUploadsEnabled = systemConfig?.featureToggles?.radiographUploads !== false;
     const canEditMedical = !isReadOnly;
     const canAddTreatmentLog = !isReadOnly;
-    const canUploadRadiograph = !isReadOnly;
-    const canEnhanceRadiograph = effectiveRole === 'dentist';
+    const canUploadRadiograph = !isReadOnly && radiographUploadsEnabled;
+    const canEnhanceRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;
     
     // Core States
     const [activeTab, setActiveTab] = useState('overview');

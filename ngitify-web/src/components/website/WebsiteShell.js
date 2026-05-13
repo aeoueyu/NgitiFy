@@ -3,14 +3,13 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaXmark } from 'react-icons/fa6';
 import { FaRegComments, FaPaperPlane } from 'react-icons/fa';
 import logo from '../../assets/images/logo-dentime.svg';
-import { clinicInfo } from '../../data/websiteContent';
 import styles from '../../styles/website/WebsiteShell.module.css';
+import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 
 const navItems = [
     { label: 'Home', path: '/' },
     { label: 'About', path: '/about' },
     { label: 'Services', path: '/services' },
-    { label: 'Locations', path: '/locations' },
     { label: 'Contact Us', path: '/contact-us' },
     { label: 'Appointment', path: '/appointment' },
 ];
@@ -18,8 +17,10 @@ const navItems = [
 export default function WebsiteShell({ children }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const { clinicInfo, featureToggles } = usePublicClinicConfig();
     const [menuOpen, setMenuOpen] = useState(false);
     const [chatOpen, setChatOpen] = useState(false);
+    const isChatSupportEnabled = featureToggles?.chatSupport === true;
 
     useEffect(() => {
         setMenuOpen(false);
@@ -28,6 +29,27 @@ export default function WebsiteShell({ children }) {
     useEffect(() => {
         setChatOpen(false);
     }, [location.pathname]);
+
+    useEffect(() => {
+        if (!location.hash) {
+            window.scrollTo(0, 0);
+            return undefined;
+        }
+
+        const scrollToHashTarget = () => {
+            const target = document.getElementById(location.hash.replace('#', ''));
+            if (!target) return false;
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return true;
+        };
+
+        if (scrollToHashTarget()) {
+            return undefined;
+        }
+
+        const timeoutId = window.setTimeout(scrollToHashTarget, 120);
+        return () => window.clearTimeout(timeoutId);
+    }, [location.hash, location.pathname]);
 
     useEffect(() => {
         document.body.style.overflow = menuOpen ? 'hidden' : '';
@@ -125,13 +147,14 @@ export default function WebsiteShell({ children }) {
                 <button className={styles.mobileQuickAction} type="button" onClick={() => navigate('/appointment')}>
                     Book
                 </button>
-                <button className={styles.mobileQuickAction} type="button" onClick={() => navigate('/locations')}>
+                <button className={styles.mobileQuickAction} type="button" onClick={() => navigate('/about#locations')}>
                     Branches
                 </button>
             </div>
 
-            <div className={styles.chatbotLayer}>
-                {chatOpen ? (
+            {isChatSupportEnabled && (
+                <div className={styles.chatbotLayer}>
+                    {chatOpen ? (
                     <div className={styles.chatbotPanel}>
                         <div className={styles.chatbotHeader}>
                             <div>
@@ -172,17 +195,18 @@ export default function WebsiteShell({ children }) {
                             </button>
                         </div>
                     </div>
-                ) : null}
+                    ) : null}
 
-                <button
-                    className={styles.chatbotFab}
-                    type="button"
-                    aria-label={chatOpen ? 'Hide chat support' : 'Open chat support'}
-                    onClick={() => setChatOpen((prev) => !prev)}
-                >
-                    <FaRegComments />
-                </button>
-            </div>
+                    <button
+                        className={styles.chatbotFab}
+                        type="button"
+                        aria-label={chatOpen ? 'Hide chat support' : 'Open chat support'}
+                        onClick={() => setChatOpen((prev) => !prev)}
+                    >
+                        <FaRegComments />
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
