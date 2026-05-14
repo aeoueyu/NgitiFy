@@ -5,6 +5,20 @@ import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg'; 
 import { authFetch } from '../../utils/api'; // FIX 2: added authFetch import
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
+import {
+    addRequiredAddressErrors,
+    getMaxDateForMinimumAge,
+    getStaffFieldError,
+    isAllowedPersonNameInput,
+    isValidStaffEmail,
+    isValidStaffLicenseNumber,
+    isValidStaffPhone,
+    meetsMinimumAge,
+    sanitizeLicenseNumber,
+    sanitizeStaffPhone,
+    scrollToFirstInvalidField,
+    toTitleCaseName,
+} from '../../utils/staffAccountFormUtils';
 
 const specializationOptions = [ "General Dentist", "Orthodontist", "Pediatric Dentist (Pedodontist)", "Periodontist", "Endodontist", "Oral & Maxillofacial Surgeon", "Prosthodontist", "Cosmetic Dentist" ];
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
@@ -122,36 +136,9 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
 
     const hasChanges = initialData ? (JSON.stringify(formData) !== JSON.stringify(initialData)) || (profileImage !== initialProfileImage) : false;
 
-    // --- HELPER FUNCTIONS ---
-    const validateEmail = (email) => {
-        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formatRegex.test(email)) return false;
-        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
-        return allowedDomains.includes(email.split('@')[1].toLowerCase());
-    };
-
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
-    const getAge = (d) => { const today=new Date(); const birth=new Date(d); let age=today.getFullYear()-birth.getFullYear(); const m=today.getMonth()-birth.getMonth(); if(m<0||(m===0&&today.getDate()<birth.getDate()))age--; return age; };
-    const getMaxDate = () => { const t=new Date(); t.setFullYear(t.getFullYear()-21); return t.toISOString().split('T')[0]; };
-
     const handleBlur = (e) => {
         const { name, value } = e.target;
-        let newError = "";
-        switch (name) {
-            case 'email':
-                if (!value) newError = "Required";
-                else if (!validateEmail(value)) newError = "Invalid domain (e.g. gmail.com)";
-                break;
-            case 'phone':
-                if (!value) newError = "Required";
-                else if (value.length !== 10 || value[0] !== '9') newError = "Invalid format (9xxxxxxxxx)";
-                break;
-            case 'licenseNumber':
-                if (!value) newError = "Required";
-                else if (value.length !== 7) newError = "Must be 7 digits";
-                break;
-            default: break;
-        }
+        const newError = getStaffFieldError(name, value);
         setErrors(prev => ({ ...prev, [name]: newError }));
     };
 
@@ -162,23 +149,20 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n={...prev}; delete n[name]; return n; });
         if (['firstName', 'middleName', 'lastName'].includes(name)) {
-            if (value===''||/^[a-zA-Z\s.-]+$/.test(value)) setFormData({...formData, [name]: toTitleCase(value)});
+            if (isAllowedPersonNameInput(value)) setFormData({...formData, [name]: toTitleCaseName(value)});
             return;
         }
         setFormData({ ...formData, [name]: value });
     };
 
     const handlePhoneChange = (e) => {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        if (value.length > 10) return;
         if (errors.phone) setErrors(prev => { const n={...prev}; delete n.phone; return n; });
-        setFormData({ ...formData, phone: value });
+        setFormData({ ...formData, phone: sanitizeStaffPhone(e.target.value) });
     };
 
     const handleLicenseChange = (e) => {
-        const val = e.target.value.replace(/[^0-9]/g, '');
         if (errors.licenseNumber) setErrors(prev => { const n={...prev}; delete n.licenseNumber; return n; });
-        setFormData({...formData, licenseNumber: val});
+        setFormData({...formData, licenseNumber: sanitizeLicenseNumber(e.target.value)});
     };
 
     const handleAddressChange = (type, field, value) => {
@@ -195,30 +179,26 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
     };
 
     const validateForm = () => {
-        let newErrors = {}; let isValid = true;
-        // FIX 3: added 'gender' to required fields
+        const newErrors = {};
         const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email', 'assignedBranch'];
-        required.forEach(f => { if(!formData[f]) { newErrors[f] = "Required"; isValid = false; }});
-        if(!formData.phone) { newErrors.phone="Required"; isValid=false; }
-        else if(formData.phone.length!==10 || formData.phone[0]!=='9') { newErrors.phone="Invalid format"; isValid=false; }
-        if(formData.email && !validateEmail(formData.email)) { newErrors.email = "Invalid domain"; isValid=false; }
-        if(formData.birthdate && getAge(formData.birthdate)<21) { newErrors.birthdate="Min age 21"; isValid=false; }
-        if(formData.licenseNumber && formData.licenseNumber.length !== 7) { newErrors.licenseNumber="Must be 7 digits"; isValid=false; }
 
-        const validateAddr = (addr, prefix) => {
-            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
-                if(!addr[f]) { newErrors[`${prefix}_${f}`]="Required"; isValid=false; }
-            });
-        };
-        validateAddr(formData.currentAddress, 'current');
-        if(!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
+        required.forEach((field) => {
+            if (!formData[field]) newErrors[field] = 'Required';
+        });
+
+        if (!formData.phone) newErrors.phone = 'Required';
+        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
+
+        if (formData.email && !isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
+        if (formData.birthdate && !meetsMinimumAge(formData.birthdate, 21)) newErrors.birthdate = 'Min age 21';
+        if (formData.licenseNumber && !isValidStaffLicenseNumber(formData.licenseNumber)) newErrors.licenseNumber = 'Must be 7 digits';
+
+        addRequiredAddressErrors(newErrors, formData.currentAddress, 'current');
+        if (!isSameAddress) addRequiredAddressErrors(newErrors, formData.permanentAddress, 'permanent');
 
         setErrors(newErrors);
-        if (!isValid) {
-            const el = document.getElementsByName(Object.keys(newErrors)[0])[0];
-            if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-        }
-        return isValid;
+        if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
@@ -324,7 +304,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
                             </div>
                             {/* Row 2: Demographics */}
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                                <div className={styles.formGroup}><label>BIRTHDATE <span style={{color:'red'}}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate?styles.errorBorder:''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDateForMinimumAge(21)} disabled={isSaving} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
                                 <div className={styles.formGroup}><label>GENDER <span style={{color:'red'}}>*</span></label><select className={`${styles.inputField} ${errors.gender?styles.errorBorder:''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
                             {/* Row 3: Professional */}

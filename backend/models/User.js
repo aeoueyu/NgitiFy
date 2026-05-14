@@ -215,6 +215,14 @@ const userSchema = new mongoose.Schema({
 
     status: { type: String, enum: ['active', 'inactive'], default: 'inactive' },
     isArchived: { type: Boolean, default: false },
+    archivedAt: { type: Date, default: null },
+    archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    archiveReason: { type: String, default: '' },
+    restoredAt: { type: Date, default: null },
+    restoredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    deactivatedAt: { type: Date, default: null },
+    deactivatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    deactivationReason: { type: String, default: '' },
     isAdminAccess: { type: Boolean, default: false },
 
     // ✅ PHASE 3: Owner-as-Dentist flag

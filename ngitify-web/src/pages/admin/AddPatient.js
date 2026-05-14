@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/AddPatient.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import successIcon from '../../assets/alert/success.svg';
@@ -6,7 +7,11 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
-import { formatPatientDuplicateLine, getPatientDuplicateSections } from '../../utils/patientDuplicateWarnings';
+import {
+    formatPatientDuplicateLine,
+    getPatientDuplicateCandidates,
+    getPatientDuplicateSections,
+} from '../../utils/patientDuplicateWarnings';
 import {
     ALLERGY_OPTIONS,
     MEDICAL_CONDITION_OPTIONS,
@@ -69,8 +74,32 @@ const selectToBool = (value) => {
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
+const INTAKE_STEPS = [
+    {
+        key: 'identity',
+        label: 'Identity',
+        description: 'Core patient details, address, and contact identity fields.',
+    },
+    {
+        key: 'contacts',
+        label: 'Contacts & Branch',
+        description: 'Emergency details, guardian information, and registration branch.',
+    },
+    {
+        key: 'medical',
+        label: 'Medical & Dental',
+        description: 'Dental history, physician details, and medical questionnaire.',
+    },
+    {
+        key: 'consent',
+        label: 'Consent & Review',
+        description: 'Final consent review before creating the patient account.',
+    },
+];
+
 export default function AddPatient({ onClose, onSuccess }) {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const isBranchScopedStaff = user?.role === 'branch-manager' || user?.role === 'secretary';
     const isSecretary = user?.role === 'secretary';
 
@@ -80,9 +109,11 @@ export default function AddPatient({ onClose, onSuccess }) {
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [errors, setErrors] = useState({});
     const [duplicateSummary, setDuplicateSummary] = useState(null);
+    const [softDuplicateConfirmed, setSoftDuplicateConfirmed] = useState(false);
     const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
+    const [currentStep, setCurrentStep] = useState(0);
 
     const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -124,6 +155,8 @@ export default function AddPatient({ onClose, onSuccess }) {
     const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
     const getMaxDate = () => new Date().toISOString().split('T')[0];
     const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
+    const duplicateSections = getPatientDuplicateSections(duplicateSummary);
+    const duplicateCandidatePatients = getPatientDuplicateCandidates(duplicateSummary);
 
     const handleBlur = (e) => {
         const { name, value } = e.target;
@@ -320,6 +353,7 @@ export default function AddPatient({ onClose, onSuccess }) {
 
     useEffect(() => {
         setDuplicateSummary(null);
+        setSoftDuplicateConfirmed(false);
         setErrors((prev) => {
             if (!prev.duplicateCheck) return prev;
             const next = { ...prev };
@@ -333,14 +367,130 @@ export default function AddPatient({ onClose, onSuccess }) {
         setErrors(newErrors);
         const isValid = Object.keys(newErrors).length === 0;
         if (!isValid) {
-            const el = document.getElementsByName(Object.keys(newErrors)[0])[0];
-            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+            const firstErrorField = Object.keys(newErrors)[0];
+            if (
+                firstErrorField.startsWith('dataPrivacyConsent_')
+                || firstErrorField.startsWith('consentAcknowledgement_')
+            ) {
+                setCurrentStep(3);
+            } else if (
+                firstErrorField === 'bloodType'
+                || firstErrorField.startsWith('medicalHistory_')
+                || firstErrorField.startsWith('dentalHistory_')
+                || firstErrorField.startsWith('physician_')
+            ) {
+                setCurrentStep(2);
+            } else if (
+                firstErrorField.startsWith('emergencyContact')
+                || firstErrorField.startsWith('guardian')
+                || firstErrorField === 'referredBy'
+                || firstErrorField === 'reasonForConsultation'
+                || firstErrorField === 'assignedBranch'
+            ) {
+                setCurrentStep(1);
+            } else {
+                setCurrentStep(0);
+            }
+
+            window.setTimeout(() => {
+                const el = document.getElementsByName(firstErrorField)[0];
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.focus();
+                }
+            }, 0);
         }
         return isValid;
     };
 
     const hasFormErrors = Object.keys(getValidationErrors(formData)).length > 0;
-    const duplicateSections = getPatientDuplicateSections(duplicateSummary);
+
+    const getPatientRecordPath = (patientId) => {
+        if (!patientId) return '';
+        if (user?.role === 'administrator') return `/admin/patients/${patientId}/emr`;
+        if (user?.role === 'owner') return `/owner/patients/${patientId}/emr`;
+        if (user?.role === 'branch-manager') return `/branch-manager/patients/${patientId}/emr`;
+        if (user?.role === 'secretary') return `/secretary/patients/${patientId}/emr`;
+        if (user?.role === 'dentist') return `/dentist/patients/${patientId}/emr`;
+        return '';
+    };
+
+    const openExistingPatientRecord = (patientId) => {
+        const path = getPatientRecordPath(patientId);
+        if (!path) return;
+        onClose();
+        navigate(path);
+    };
+
+    const runDuplicateCheck = async ({ enforceIdentity = false, allowSoftContinue = false } = {}) => {
+        const firstName = formData.firstName.trim();
+        const lastName = formData.lastName.trim();
+        const birthdate = formData.birthdate;
+        const email = formData.email.trim();
+        const contactNumber = toMobilePayload(formData.phone);
+
+        if (enforceIdentity && (!firstName || !lastName || !birthdate || !email || !formData.phone || !validateEmail(email) || !isValidMobileNumber(formData.phone))) {
+            setErrors((prev) => ({
+                ...prev,
+                duplicateCheck: 'Enter first name, last name, birthdate, email, and mobile first so Dentime can check for existing patient records.',
+            }));
+            setCurrentStep(0);
+            return { blocked: true, summary: null };
+        }
+
+        const duplicateResponse = await authFetch('/patients/duplicate-check', {
+            method: 'POST',
+            body: JSON.stringify({
+                firstName,
+                lastName,
+                birthdate,
+                email,
+                contactNumber,
+            }),
+        });
+        const duplicateData = await duplicateResponse.json().catch(() => ({}));
+
+        if (!duplicateResponse.ok) {
+            return { blocked: false, summary: null };
+        }
+
+        setDuplicateSummary(duplicateData?.hasAnyMatch ? duplicateData : null);
+
+        if (duplicateData?.hasAnyMatch) {
+            const nextMessage = duplicateData.hasStrongMatch
+                ? 'Possible existing patient found. Review the duplicate warning before creating a new record.'
+                : duplicateData.exactPhoneMatchCount > 1
+                    ? 'This mobile number is already used by multiple patient records. Review the duplicate warning before creating a new patient record.'
+                    : 'This mobile number already appears on an existing patient record. Review the duplicate warning before creating a new patient record.';
+
+            if (duplicateData.hasStrongMatch || !allowSoftContinue) {
+                setErrors((prev) => ({ ...prev, duplicateCheck: nextMessage }));
+                setCurrentStep(0);
+                return { blocked: true, summary: duplicateData };
+            }
+        }
+
+        setErrors((prev) => {
+            if (!prev.duplicateCheck) return prev;
+            const next = { ...prev };
+            delete next.duplicateCheck;
+            return next;
+        });
+
+        return { blocked: false, summary: duplicateData };
+    };
+
+    const handleReviewExistingPatients = async () => {
+        setCurrentStep(0);
+        setIsLoading(true);
+        try {
+            await runDuplicateCheck({ enforceIdentity: true, allowSoftContinue: false });
+        } catch (error) {
+            console.error('Error checking patient duplicates:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -422,23 +572,11 @@ export default function AddPatient({ onClose, onSuccess }) {
         };
         setIsLoading(true);
         try {
-            const duplicateResponse = await authFetch('/patients/duplicate-check', {
-                method: 'POST',
-                body: JSON.stringify({
-                    firstName: formData.firstName.trim(),
-                    lastName: formData.lastName.trim(),
-                    birthdate: formData.birthdate,
-                    email: formData.email.trim(),
-                    contactNumber: finalData.contactNumber,
-                }),
+            const duplicateCheck = await runDuplicateCheck({
+                enforceIdentity: false,
+                allowSoftContinue: softDuplicateConfirmed,
             });
-            const duplicateData = await duplicateResponse.json().catch(() => ({}));
-            if (duplicateResponse.ok && duplicateData?.hasStrongMatch) {
-                setDuplicateSummary(duplicateData);
-                setErrors((prev) => ({ ...prev, duplicateCheck: 'Possible existing patient found. Review the duplicate warning before creating a new record.' }));
-                setIsLoading(false);
-                return;
-            }
+            if (duplicateCheck.blocked) return;
 
             const response = await authFetch('/add-patient', { method: 'POST', body: JSON.stringify(finalData) });
             const data = await response.json();
@@ -447,8 +585,14 @@ export default function AddPatient({ onClose, onSuccess }) {
                 if (data.duplicateSummary) setDuplicateSummary(data.duplicateSummary);
                 const nextField = data.field || 'duplicateCheck';
                 setErrors(prev => ({ ...prev, [nextField]: data.message }));
-                const el = document.getElementsByName(nextField)[0];
-                if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+                if (nextField === 'duplicateCheck') setCurrentStep(0);
+                window.setTimeout(() => {
+                    const el = document.getElementsByName(nextField)[0];
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.focus();
+                    }
+                }, 0);
             } else alert(data.message || 'Failed to add patient');
         } catch (error) { console.error(error); alert('Cannot connect to server.'); }
         finally { setIsLoading(false); }
@@ -547,6 +691,48 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} disabled={isLoading} />
                     </div>
 
+                    <div className={styles.flowSteps}>
+                        {INTAKE_STEPS.map((step, index) => {
+                            const isActive = currentStep === index;
+                            const isComplete = currentStep > index;
+                            return (
+                                <button
+                                    key={step.key}
+                                    type="button"
+                                    className={`${styles.flowStep} ${isActive ? styles.flowStepActive : ''} ${isComplete ? styles.flowStepComplete : ''}`.trim()}
+                                    onClick={() => setCurrentStep(index)}
+                                    disabled={isLoading}
+                                >
+                                    <span className={styles.flowStepCount}>{index + 1}</span>
+                                    <span className={styles.flowStepText}>
+                                        <strong>{step.label}</strong>
+                                        <span>{step.description}</span>
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className={styles.flowSummaryCard}>
+                        <div>
+                            <span className={styles.flowSummaryEyebrow}>Step {currentStep + 1} of {INTAKE_STEPS.length}</span>
+                            <strong className={styles.flowSummaryTitle}>{INTAKE_STEPS[currentStep].label}</strong>
+                            <span className={styles.flowSummaryText}>{INTAKE_STEPS[currentStep].description}</span>
+                        </div>
+                        {currentStep === 0 && (
+                            <button
+                                type="button"
+                                className={styles.flowSecondaryButton}
+                                onClick={handleReviewExistingPatients}
+                                disabled={isLoading}
+                            >
+                                Check Existing Patient Records
+                            </button>
+                        )}
+                    </div>
+
+                    {currentStep === 0 && (
+                        <>
                     <h3 className={styles.mainSectionTitle}>Patient Details</h3>
                     {duplicateSections.length > 0 && (
                         <div style={{ marginBottom: '18px', padding: '16px 18px', borderRadius: '16px', border: '1px solid #f8d7a8', background: '#fff8e8' }}>
@@ -557,6 +743,77 @@ export default function AddPatient({ onClose, onSuccess }) {
                                 Review the existing patient matches below before creating a new record.
                             </span>
                             {errors.duplicateCheck && <span className={styles.errorText}>{errors.duplicateCheck}</span>}
+                            {duplicateSummary?.hasAnyMatch && !duplicateSummary?.hasStrongMatch && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSoftDuplicateConfirmed(true);
+                                            setErrors((prev) => {
+                                                const next = { ...prev };
+                                                delete next.duplicateCheck;
+                                                return next;
+                                            });
+                                        }}
+                                        style={{
+                                            border: '1px solid #0f766e',
+                                            background: softDuplicateConfirmed ? '#0f766e' : '#ecfdf5',
+                                            color: softDuplicateConfirmed ? '#fff' : '#0f766e',
+                                            borderRadius: '999px',
+                                            padding: '10px 16px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {softDuplicateConfirmed ? 'Ready to Continue' : 'Continue Anyway'}
+                                    </button>
+                                </div>
+                            )}
+                            {softDuplicateConfirmed && duplicateSummary?.hasAnyMatch && !duplicateSummary?.hasStrongMatch && (
+                                <span style={{ display: 'block', color: '#166534', fontSize: '13px', marginTop: '10px' }}>
+                                    Duplicate review noted. If this is a different patient who shares the same mobile number, submit again to continue.
+                                </span>
+                            )}
+                            {duplicateCandidatePatients.length > 0 && (
+                                <div style={{ marginTop: '14px', display: 'grid', gap: '10px' }}>
+                                    {duplicateCandidatePatients.slice(0, 3).map((patient) => (
+                                        <div
+                                            key={patient.id}
+                                            style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                gap: '12px',
+                                                alignItems: 'center',
+                                                flexWrap: 'wrap',
+                                                padding: '12px 14px',
+                                                borderRadius: '14px',
+                                                border: '1px solid #f2c27b',
+                                                background: '#fffdfa',
+                                            }}
+                                        >
+                                            <div style={{ display: 'grid', gap: '4px' }}>
+                                                <strong style={{ color: '#7c4a03' }}>{patient.name || 'Existing Patient'}</strong>
+                                                <span style={{ color: '#6b4f1d', fontSize: '13px' }}>{formatPatientDuplicateLine(patient)}</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => openExistingPatientRecord(patient.id)}
+                                                style={{
+                                                    border: '1px solid #bfdbfe',
+                                                    background: '#eff6ff',
+                                                    color: '#01538b',
+                                                    borderRadius: '999px',
+                                                    padding: '10px 16px',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                Open Existing Record
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             {duplicateSections.map((section) => (
                                 <div key={section.key} style={{ marginTop: '10px' }}>
                                     <div style={{ color: '#6b4f1d', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{section.label}</div>
@@ -640,7 +897,15 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} /></div>
                         <div className={styles.formGroup} />
                     </div>
+                    <div className={styles.buttonGroup}>
+                        <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>Cancel</button>
+                        <button type="button" className={styles.submitBtn} onClick={() => setCurrentStep(1)} disabled={isLoading}>Continue to Contacts</button>
+                    </div>
+                    </>
+                    )}
 
+                    {currentStep === 1 && (
+                        <>
                     <hr className={styles.divider} style={{ marginTop: '10px' }} />
                     <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
                     <div className={styles.row}>
@@ -720,7 +985,15 @@ export default function AddPatient({ onClose, onSuccess }) {
                             )}
                         </>
                     )}
+                    <div className={styles.buttonGroup}>
+                        <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(0)} disabled={isLoading}>Back to Identity</button>
+                        <button type="button" className={styles.submitBtn} onClick={() => setCurrentStep(2)} disabled={isLoading}>Continue to Medical</button>
+                    </div>
+                    </>
+                    )}
 
+                    {currentStep === 2 && (
+                        <>
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Dental History</h3>
                     <div className={styles.row}>
@@ -829,7 +1102,36 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup}><label>MEDICAL NOTES</label><textarea className={styles.textArea} value={formData.medicalHistory.notes} onChange={(e) => handleNestedChange('medicalHistory', 'notes', e.target.value)} rows={3} disabled={isLoading} /></div>
                         <div className={styles.formGroup} />
                     </div>
+                    <div className={styles.buttonGroup}>
+                        <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(1)} disabled={isLoading}>Back to Contacts</button>
+                        <button type="button" className={styles.submitBtn} onClick={() => setCurrentStep(3)} disabled={isLoading}>Continue to Consent</button>
+                    </div>
+                    </>
+                    )}
 
+                    {currentStep === 3 && (
+                        <>
+                    <div className={styles.reviewPanel}>
+                        <strong className={styles.reviewPanelTitle}>Quick Review</strong>
+                        <div className={styles.reviewGrid}>
+                            <div>
+                                <span>Patient</span>
+                                <strong>{`${formData.firstName} ${formData.lastName}`.trim() || 'Not yet filled'}</strong>
+                            </div>
+                            <div>
+                                <span>Registered Branch</span>
+                                <strong>{(isBranchScopedStaff ? user?.assignedBranch : formData.assignedBranch) || 'Not selected'}</strong>
+                            </div>
+                            <div>
+                                <span>Mobile</span>
+                                <strong>{formData.phone ? `+63${formData.phone}` : 'Not yet filled'}</strong>
+                            </div>
+                            <div>
+                                <span>Emergency Contact</span>
+                                <strong>{formData.emergencyContactName || 'Not yet filled'}</strong>
+                            </div>
+                        </div>
+                    </div>
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Data Privacy Act</h3>
                     <div className={styles.addressSection}>
@@ -929,9 +1231,12 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
 
                     <div className={styles.buttonGroup}>
-                        <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>CANCEL</button>
+                        <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(2)} disabled={isLoading}>Back to Medical</button>
+                        <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>Cancel</button>
                         <button type="submit" className={styles.submitBtn} disabled={isLoading || hasFormErrors}>{isLoading ? 'ADDING PATIENT...' : 'ADD PATIENT'}</button>
                     </div>
+                    </>
+                    )}
                 </form>
             </div>
 

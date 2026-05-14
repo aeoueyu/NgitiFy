@@ -1,10 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
-import styles from '../../styles/admin/AddSecretary.module.css';
+import styles from '../../styles/admin/AddDentist.module.css';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
+import {
+    addRequiredAddressErrors,
+    getMaxDateForMinimumAge,
+    getStaffFieldError,
+    isAllowedPersonNameInput,
+    isValidStaffEmail,
+    isValidStaffPhone,
+    meetsMinimumAge,
+    sanitizeStaffPhone,
+    scrollToFirstInvalidField,
+    toTitleCaseName,
+} from '../../utils/staffAccountFormUtils';
 
 export default function AddSecretary({ onClose, onSuccess }) {
     const { user } = useAuth();
@@ -30,21 +42,9 @@ export default function AddSecretary({ onClose, onSuccess }) {
         assignedBranch: '',
     });
 
-    const validateEmail = (email) => {
-        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formatRegex.test(email)) return false;
-        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
-        return allowedDomains.includes(email.split('@')[1].toLowerCase());
-    };
-
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, c => c.toUpperCase());
-    const getMaxDate = () => { const t = new Date(); t.setFullYear(t.getFullYear() - 18); return t.toISOString().split('T')[0]; };
-
     const handleBlur = (e) => {
         const { name, value } = e.target;
-        let newError = '';
-        if (name === 'email') { if (!value) newError = 'Required'; else if (!validateEmail(value)) newError = 'Invalid domain (e.g. gmail.com)'; }
-        else if (name === 'phone') { if (!value) newError = 'Required'; else if (value.length !== 10 || value[0] !== '9') newError = 'Invalid format (9xxxxxxxxx)'; }
+        const newError = getStaffFieldError(name, value);
         setErrors(prev => ({ ...prev, [name]: newError }));
     };
 
@@ -55,17 +55,15 @@ export default function AddSecretary({ onClose, onSuccess }) {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
         if (['firstName', 'middleName', 'lastName'].includes(name)) {
-            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) setFormData({ ...formData, [name]: toTitleCase(value) });
+            if (isAllowedPersonNameInput(value)) setFormData({ ...formData, [name]: toTitleCaseName(value) });
             return;
         }
         setFormData({ ...formData, [name]: value });
     };
 
     const handlePhoneChange = (e) => {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        if (value.length > 10) return;
         if (errors.phone) setErrors(prev => { const n = { ...prev }; delete n.phone; return n; });
-        setFormData({ ...formData, phone: value });
+        setFormData({ ...formData, phone: sanitizeStaffPhone(e.target.value) });
     };
 
     const handleAddressChange = (type, field, value) => {
@@ -82,29 +80,28 @@ export default function AddSecretary({ onClose, onSuccess }) {
     };
 
     const validateForm = () => {
-        let newErrors = {}; let isValid = true;
-        const required = ['firstName', 'lastName', 'birthdate', 'email', 'assignedBranch'];
-        required.forEach(f => { if (!formData[f]) { newErrors[f] = 'Required'; isValid = false; } });
-        if (!formData.phone) { newErrors.phone = 'Required'; isValid = false; }
-        else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
-        if (formData.email && !validateEmail(formData.email)) { newErrors.email = 'Invalid domain'; isValid = false; }
-        if (formData.birthdate) {
-            const today = new Date(); const birth = new Date(formData.birthdate);
-            let age = today.getFullYear() - birth.getFullYear();
-            const m = today.getMonth() - birth.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-            if (age < 18) { newErrors.birthdate = 'Min age 18'; isValid = false; }
-        }
-        const validateAddr = (addr, prefix) => {
-            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
-                if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
-            });
-        };
-        validateAddr(formData.currentAddress, 'current');
-        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
+        const newErrors = {};
+        const required = ['firstName', 'lastName', 'birthdate', 'gender', 'email'];
+
+        required.forEach((field) => {
+            if (!formData[field]) newErrors[field] = 'Required';
+        });
+
+        if (!formData.phone) newErrors.phone = 'Required';
+        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
+
+        if (formData.email && !isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
+        if (formData.birthdate && !meetsMinimumAge(formData.birthdate, 18)) newErrors.birthdate = 'Min age 18';
+
+        const resolvedAssignedBranch = isBranchManager ? user?.assignedBranch : formData.assignedBranch;
+        if (!resolvedAssignedBranch) newErrors.assignedBranch = 'Required';
+
+        addRequiredAddressErrors(newErrors, formData.currentAddress, 'current');
+        if (!isSameAddress) addRequiredAddressErrors(newErrors, formData.permanentAddress, 'permanent');
+
         setErrors(newErrors);
-        if (!isValid) { const el = document.getElementsByName(Object.keys(newErrors)[0])[0]; if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); } }
-        return isValid;
+        if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
@@ -205,8 +202,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
                     </div>
 
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDate()} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
-                        <div className={styles.formGroup}><label>GENDER</label><select className={styles.inputField} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select></div>
+                        <div className={styles.formGroup}><label>BIRTHDATE <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthdate ? styles.errorBorder : ''}`} name="birthdate" value={formData.birthdate} onChange={handlePersonalChange} max={getMaxDateForMinimumAge(18)} disabled={isLoading} />{errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}</div>
+                        <div className={styles.formGroup}><label>GENDER <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isLoading}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                     </div>
 
                     <div className={styles.row}>
@@ -225,9 +222,12 @@ export default function AddSecretary({ onClose, onSuccess }) {
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
                     {isBranchManager ? (
-                        <div className={styles.branchLockedRow}>
-                            <span className={styles.branchLockedBadge}>{user.assignedBranch}</span>
-                            <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
+                        <div>
+                            <div className={styles.branchLockedRow}>
+                                <span className={styles.branchLockedBadge}>{user.assignedBranch}</span>
+                                <span className={styles.branchLockedNote}>Auto-assigned to your branch</span>
+                            </div>
+                            {errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}
                         </div>
                     ) : (
                         <>

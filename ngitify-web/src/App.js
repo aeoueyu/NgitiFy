@@ -28,6 +28,7 @@ const PatientEMRPage = lazy(() => import('./pages/shared/PatientEMRPage'));
 const ManageDentists = lazy(() => import('./pages/admin/ManageDentists'));
 const ManageSecretaries = lazy(() => import('./pages/admin/ManageSecretaries'));
 const ManagePatients = lazy(() => import('./pages/admin/ManagePatients'));
+const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
 const AuditTrail = lazy(() => import('./pages/admin/AuditTrail'));
 const AddDentist = lazy(() => import('./pages/admin/AddDentist'));
 const AddSecretary = lazy(() => import('./pages/admin/AddSecretary'));
@@ -216,7 +217,7 @@ function App() {
                   <Route path="/owner/dashboard"                    element={<OwnerDashboard />} />
                   <Route path="/owner/appointments"                 element={<Navigate to="/owner/schedule" replace />} />
                   <Route path="/owner/schedule"                     element={<SchedulePage />} />
-                  <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-users/secretaries" replace />} />
+                  <Route path="/owner/manage-users"                 element={<UserManagement />} />
                   <Route path="/owner/manage-users/dentists"        element={<ManageDentists />} />
                   <Route path="/owner/manage-users/secretaries"     element={<ManageSecretaries />} />
                   <Route path="/owner/manage-users/patients"        element={<Navigate to="/owner/patients" replace />} />
@@ -279,7 +280,7 @@ function App() {
                   <Route path="/admin/inventory" element={<InventoryTracker />} />
 
                   {/* User Management */}
-                  <Route path="/admin/manage-users" element={<Navigate to="/admin/manage-users/secretaries" replace />} />
+                  <Route path="/admin/manage-users" element={<UserManagement />} />
                   <Route path="/admin/manage-users/dentists" element={<ManageDentists />} />
                   <Route path="/admin/manage-users/secretaries" element={<ManageSecretaries />} />
                   <Route path="/admin/manage-users/patients" element={<Navigate to="/admin/patients" replace />} />

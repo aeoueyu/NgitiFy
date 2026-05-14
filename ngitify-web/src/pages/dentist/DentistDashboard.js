@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from '../../styles/dentist/DentistDashboard.module.css';
+import styles from '../../styles/secretary/SecretaryDashboard.module.css';
 import {
     FaBell,
     FaBoxes,
@@ -16,6 +16,7 @@ import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
 import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
+import { useAuth } from '../../hooks/useAuth';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -52,6 +53,7 @@ const formatStatus = (status) => {
 
 export default function DentistDashboard() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { addToast } = useToast();
 
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -74,8 +76,7 @@ export default function DentistDashboard() {
         const fetchDashboardData = async () => {
             setIsLoading(true);
             try {
-                const storedUser = JSON.parse(localStorage.getItem('ngitify_user') || '{}');
-                const userId = storedUser?.userId || storedUser?.id || storedUser?._id;
+                const userId = user?.userId || user?.id || user?._id;
 
                 const requests = [
                     userId ? authFetch(`/user/${userId}`) : Promise.resolve(null),
@@ -139,7 +140,7 @@ export default function DentistDashboard() {
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [addToast]);
+    }, [addToast, user]);
 
     const todayAppointments = useMemo(() => {
         const todayKey = startOfDay(new Date()).getTime();
@@ -184,7 +185,7 @@ export default function DentistDashboard() {
             value: `${patients.length} assigned patients`,
             action: () => navigate('/dentist/patients'),
             actionLabel: 'Open Patients',
-            icon: <FaFileMedical className={styles.widgetIcon} />,
+            icon: <FaFileMedical className={styles['widget-icon']} />,
         },
         {
             title: 'Material Usage',
@@ -192,7 +193,7 @@ export default function DentistDashboard() {
             value: `${materialLogsThisMonth} logs this month`,
             action: () => navigate('/dentist/material-usage'),
             actionLabel: 'View Logs',
-            icon: <FaBoxes className={styles.widgetIcon} />,
+            icon: <FaBoxes className={styles['widget-icon']} />,
         },
         {
             title: 'Notifications',
@@ -200,7 +201,7 @@ export default function DentistDashboard() {
             value: `${unreadNotifications} unread alerts`,
             action: () => navigate('/dentist/notifications'),
             actionLabel: 'Open Alerts',
-            icon: <FaBell className={styles.widgetIcon} />,
+            icon: <FaBell className={styles['widget-icon']} />,
         },
         {
             title: 'AI Assistant',
@@ -208,7 +209,7 @@ export default function DentistDashboard() {
             value: 'Frontend preview ready',
             action: () => navigate('/dentist/ai-assistant'),
             actionLabel: 'Open Preview',
-            icon: <FaRobot className={styles.widgetIcon} />,
+            icon: <FaRobot className={styles['widget-icon']} />,
         },
     ];
 
@@ -259,25 +260,40 @@ export default function DentistDashboard() {
         <>
             <main className={styles['main-content']}>
                 <header className={styles.header}>
-                    <div>
+                    <div className={styles['header-left']}>
                         <h1 className={styles.title}>Dentist Dashboard</h1>
                         <p className={styles.subtitle}>
-                            {formatWeekdayDate(currentTime)} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span>
-                            <strong style={{ color: '#01538b' }}>{formatTime(currentTime, true)}</strong>
+                            {formatWeekdayDate(currentTime)}
+                            <span className={styles.divider}>|</span>
+                            <strong className={styles['time-accent']}>{formatTime(currentTime, true)}</strong>
                         </p>
                         <p className={styles.subtitle} style={{ marginTop: '6px' }}>
                             {dentistName} overview for appointments, EMR access, materials, and clinical follow-ups.
                         </p>
                     </div>
+                    <div className={styles['header-right']}>
+                        <button
+                            className={styles['bell-btn']}
+                            onClick={() => navigate('/dentist/notifications')}
+                            aria-label="Notifications"
+                        >
+                            <FaBell className={styles['bell-icon']} />
+                            {unreadNotifications > 0 && (
+                                <span className={styles['bell-badge']}>
+                                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </header>
                 <PasswordChangeWarning />
 
-                <div className={styles['stats-grid']}>
+                <div className={`${styles['stats-grid']} ${styles.statsGridFour}`}>
                     <div className={styles['stat-card']}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Today&apos;s Appointments</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-blue']}`}>
-                                <FaRegCalendarCheck className={`${styles['stat-icon']} ${styles.raw}`} />
+                                <FaRegCalendarCheck className={styles['stat-icon']} />
                             </div>
                         </div>
                         <h2 className={styles['stat-value']}>{todayAppointments.length}</h2>
@@ -288,7 +304,7 @@ export default function DentistDashboard() {
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Assigned Patients</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}>
-                                <FaUserInjured className={`${styles['stat-icon']} ${styles.raw}`} />
+                                <FaUserInjured className={styles['stat-icon']} />
                             </div>
                         </div>
                         <h2 className={styles['stat-value']}>{patients.length}</h2>
@@ -299,7 +315,7 @@ export default function DentistDashboard() {
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Unread Notifications</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}>
-                                <FaBell className={`${styles['stat-icon']} ${styles.raw}`} />
+                                <FaBell className={styles['stat-icon']} />
                             </div>
                         </div>
                         <h2 className={styles['stat-value']}>{unreadNotifications}</h2>
@@ -310,7 +326,7 @@ export default function DentistDashboard() {
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Material Usage Logs</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-blue']}`}>
-                                <FaBoxes className={`${styles['stat-icon']} ${styles.raw}`} />
+                                <FaBoxes className={styles['stat-icon']} />
                             </div>
                         </div>
                         <h2 className={styles['stat-value']}>{materialLogsThisMonth}</h2>
@@ -321,9 +337,9 @@ export default function DentistDashboard() {
                 <div className={styles['main-grid']}>
                     <div className={styles['left-column']}>
                         <section className={styles['widget-card']}>
-                            <div className={styles.filterHeader}>
+                            <div className={styles['widget-header']}>
                                 <h2 className={styles['widget-title']}>
-                                    <FaCalendarAlt className={styles.widgetIcon} />
+                                    <FaCalendarAlt className={styles['widget-icon']} />
                                     Schedule for {formatDateShort(selectedDate)}
                                 </h2>
                             </div>
@@ -360,9 +376,9 @@ export default function DentistDashboard() {
                         </section>
 
                         <section className={styles['widget-card']}>
-                            <div className={styles.filterHeader}>
+                            <div className={styles['widget-header']}>
                                 <h2 className={styles['widget-title']}>
-                                    <FaClipboardList className={styles.widgetIcon} />
+                                    <FaClipboardList className={styles['widget-icon']} />
                                     Module Summary
                                 </h2>
                             </div>
@@ -428,9 +444,9 @@ export default function DentistDashboard() {
                         </section>
 
                         <section className={styles['widget-card']}>
-                            <div className={styles.filterHeader}>
+                            <div className={styles['widget-header']}>
                                 <h2 className={styles['widget-title']}>
-                                    <FaBell className={styles.widgetIcon} />
+                                    <FaBell className={styles['widget-icon']} />
                                     Notification Snapshot
                                 </h2>
                             </div>
@@ -453,9 +469,9 @@ export default function DentistDashboard() {
                         </section>
 
                         <section className={styles['widget-card']}>
-                            <div className={styles.filterHeader}>
+                            <div className={styles['widget-header']}>
                                 <h2 className={styles['widget-title']}>
-                                    <FaTooth className={styles.widgetIcon} />
+                                    <FaTooth className={styles['widget-icon']} />
                                     Recent Account Activity
                                 </h2>
                             </div>
@@ -476,9 +492,9 @@ export default function DentistDashboard() {
                         </section>
 
                         <section className={styles['widget-card']}>
-                            <div className={styles.filterHeader}>
+                            <div className={styles['widget-header']}>
                                 <h2 className={styles['widget-title']}>
-                                    <FaRegCalendarCheck className={styles.widgetIcon} />
+                                    <FaRegCalendarCheck className={styles['widget-icon']} />
                                     Upcoming Queue
                                 </h2>
                             </div>

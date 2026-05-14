@@ -21,11 +21,17 @@ const verifyToken = async (req, res, next) => {
         // This ensures that deactivating any user immediately invalidates
         // their active session without needing a token blacklist.
         const liveUser = await User.findById(decoded.id)
-            .select('status role email assignedBranch assignedBranches isDentist')
+            .select('status isArchived role email assignedBranch assignedBranches isDentist')
             .lean();
 
         if (!liveUser) {
             return res.status(401).json({ message: 'Account not found. Please log in again.' });
+        }
+
+        if (liveUser.isArchived) {
+            return res.status(401).json({
+                message: 'This account has been archived. Please contact your administrator.'
+            });
         }
 
         if (liveUser.status === 'inactive') {

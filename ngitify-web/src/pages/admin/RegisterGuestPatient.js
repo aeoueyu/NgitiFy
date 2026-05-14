@@ -7,7 +7,11 @@ import { authFetch } from '../../utils/api';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
-import { formatPatientDuplicateLine, getPatientDuplicateSections } from '../../utils/patientDuplicateWarnings';
+import {
+    formatPatientDuplicateLine,
+    getPatientDuplicateCandidates,
+    getPatientDuplicateSections,
+} from '../../utils/patientDuplicateWarnings';
 import {
     ALLERGY_OPTIONS,
     MEDICAL_CONDITION_OPTIONS,
@@ -101,6 +105,8 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     const [branchOptions, setBranchOptions] = useState([]);
     const [registrationMode, setRegistrationMode] = useState('create-new');
     const [registeredPatient, setRegisteredPatient] = useState(null);
+    const [selectedExistingPatientId, setSelectedExistingPatientId] = useState('');
+    const [softDuplicateConfirmed, setSoftDuplicateConfirmed] = useState(false);
 
     const nameParts = useMemo(() => splitFullName(appointment?.patientName || appointment?.guestName || ''), [appointment]);
 
@@ -250,16 +256,6 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         fetchBranches();
     }, []);
 
-    useEffect(() => {
-        setDuplicateSummary(null);
-        setErrors((prev) => {
-            if (!prev.duplicateCheck) return prev;
-            const next = { ...prev };
-            delete next.duplicateCheck;
-            return next;
-        });
-    }, [formData.firstName, formData.lastName, formData.birthdate, formData.email, formData.phone, registrationMode]);
-
     const validateEmail = (email) => {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
     };
@@ -280,6 +276,15 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         if (role === 'dentist') return `/dentist/patients/${patientId}/emr`;
         return '';
     }, [registeredPatient, user?.role]);
+    const duplicateCandidatePatients = useMemo(
+        () => getPatientDuplicateCandidates(duplicateSummary),
+        [duplicateSummary]
+    );
+    const selectedExistingPatient = useMemo(
+        () => duplicateCandidatePatients.find((patient) => patient.id === selectedExistingPatientId) || null,
+        [duplicateCandidatePatients, selectedExistingPatientId]
+    );
+    const hasSoftDuplicateWarning = Boolean(duplicateSummary?.hasAnyMatch && !duplicateSummary?.hasStrongMatch);
 
     const handleBlur = (e) => {
         const { name, value } = e.target;
@@ -296,8 +301,50 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         setErrors((prev) => ({ ...prev, [name]: newError }));
     };
 
+    const handleSelectExistingPatient = (patient) => {
+        if (!patient?.id) return;
+
+        const selectedNameParts = splitFullName(patient.name || '');
+        setRegistrationMode('link-existing');
+        setSelectedExistingPatientId(patient.id);
+        setSoftDuplicateConfirmed(false);
+        setFormData((prev) => ({
+            ...prev,
+            firstName: selectedNameParts.firstName || prev.firstName,
+            middleName: selectedNameParts.middleName || prev.middleName,
+            lastName: selectedNameParts.lastName || prev.lastName,
+            birthdate: patient.birthdate || prev.birthdate,
+            email: patient.email || prev.email,
+            phone: stripMobilePrefix(patient.contactNumber || prev.phone),
+            assignedBranch: isBranchScopedStaff
+                ? (user?.assignedBranch || appointment?.branch || prev.assignedBranch)
+                : (patient.assignedBranch || appointment?.branch || prev.assignedBranch),
+        }));
+        setErrors((prev) => {
+            const next = { ...prev };
+            delete next.duplicateCheck;
+            delete next.existingPatientId;
+            delete next.email;
+            return next;
+        });
+    };
+
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
+        if (['firstName', 'middleName', 'lastName', 'birthdate', 'email'].includes(name)) {
+            setDuplicateSummary(null);
+            setSoftDuplicateConfirmed(false);
+            setErrors((prev) => {
+                if (!prev.duplicateCheck && !prev.existingPatientId) return prev;
+                const next = { ...prev };
+                delete next.duplicateCheck;
+                delete next.existingPatientId;
+                return next;
+            });
+        }
+        if (selectedExistingPatientId && ['firstName', 'middleName', 'lastName', 'birthdate', 'email'].includes(name)) {
+            setSelectedExistingPatientId('');
+        }
         if (errors[name]) {
             setErrors((prev) => {
                 const next = { ...prev };
@@ -317,6 +364,20 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     const handlePhoneChange = (fieldName) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
+        if (fieldName === 'phone') {
+            setDuplicateSummary(null);
+            setSoftDuplicateConfirmed(false);
+            setErrors((prev) => {
+                if (!prev.duplicateCheck && !prev.existingPatientId) return prev;
+                const next = { ...prev };
+                delete next.duplicateCheck;
+                delete next.existingPatientId;
+                return next;
+            });
+        }
+        if (selectedExistingPatientId && fieldName === 'phone') {
+            setSelectedExistingPatientId('');
+        }
         if (errors[fieldName]) {
             setErrors((prev) => {
                 const next = { ...prev };
@@ -442,6 +503,10 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         if (isLinkMode) {
             if (formData.email && !validateEmail(formData.email)) {
                 nextErrors.email = 'Invalid email address.';
+                isValid = false;
+            }
+            if (duplicateSummary?.requiresManualSelection && !selectedExistingPatientId) {
+                nextErrors.existingPatientId = 'Select the correct existing patient account before linking this appointment.';
                 isValid = false;
             }
             setErrors(nextErrors);
@@ -576,6 +641,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 last: formData.lastName,
             },
             registrationMode,
+            existingPatientId: selectedExistingPatientId || undefined,
             email: formData.email.trim(),
             contactNumber: toMobilePayload(formData.phone),
             birthdate: formData.birthdate,
@@ -669,11 +735,23 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                     }),
                 });
                 const duplicateData = await duplicateResponse.json().catch(() => ({}));
-                if (duplicateResponse.ok && duplicateData?.hasStrongMatch) {
+                if (duplicateResponse.ok && duplicateData?.hasAnyMatch) {
                     setDuplicateSummary(duplicateData);
-                    setErrors((prev) => ({ ...prev, duplicateCheck: 'Possible existing patient found. Review the duplicate warning before creating a new record.' }));
-                    setIsLoading(false);
-                    return;
+                    if (duplicateData.hasStrongMatch) {
+                        setErrors((prev) => ({ ...prev, duplicateCheck: 'Possible existing patient found. Review the duplicate warning before creating a new record.' }));
+                        setIsLoading(false);
+                        return;
+                    }
+                    if (!softDuplicateConfirmed) {
+                        setErrors((prev) => ({
+                            ...prev,
+                            duplicateCheck: duplicateData.exactPhoneMatchCount > 1
+                                ? 'This mobile number is already used by multiple patient records. Review the duplicate list below before creating a new patient from this guest appointment.'
+                                : 'This mobile number already appears on an existing patient record. Review the duplicate list below before creating a new patient from this guest appointment.',
+                        }));
+                        setIsLoading(false);
+                        return;
+                    }
                 }
             }
 
@@ -747,6 +825,97 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                                 Review the existing patient matches below before creating a new patient account from this guest booking.
                             </span>
                             {errors.duplicateCheck && <span className={styles.errorText}>{errors.duplicateCheck}</span>}
+                            {hasSoftDuplicateWarning && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSoftDuplicateConfirmed(true);
+                                            setErrors((prev) => {
+                                                const next = { ...prev };
+                                                delete next.duplicateCheck;
+                                                return next;
+                                            });
+                                        }}
+                                        style={{
+                                            border: '1px solid #0f766e',
+                                            background: softDuplicateConfirmed ? '#0f766e' : '#ecfdf5',
+                                            color: softDuplicateConfirmed ? '#fff' : '#0f766e',
+                                            borderRadius: '999px',
+                                            padding: '10px 16px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {softDuplicateConfirmed ? 'Ready to Create New Patient' : 'Continue Creating New Patient'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRegistrationMode('link-existing')}
+                                        style={{
+                                            border: '1px solid #b45309',
+                                            background: '#fff7ed',
+                                            color: '#9a3412',
+                                            borderRadius: '999px',
+                                            padding: '10px 16px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        Review Existing Patient Accounts
+                                    </button>
+                                </div>
+                            )}
+                            {softDuplicateConfirmed && hasSoftDuplicateWarning && (
+                                <span style={{ display: 'block', color: '#166534', fontSize: '13px', marginTop: '10px' }}>
+                                    Duplicate review noted. If this guest is really a different person who shares the same mobile number, submit again to create the new patient account.
+                                </span>
+                            )}
+                            {duplicateCandidatePatients.length > 0 && (
+                                <div style={{ marginTop: '14px', display: 'grid', gap: '10px' }}>
+                                    {duplicateCandidatePatients.slice(0, 4).map((patient) => (
+                                        <div
+                                            key={patient.id}
+                                            style={{
+                                                border: '1px solid #f2c27b',
+                                                borderRadius: '14px',
+                                                padding: '12px 14px',
+                                                background: '#fffdfa',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                gap: '12px',
+                                                alignItems: 'center',
+                                                flexWrap: 'wrap',
+                                            }}
+                                        >
+                                            <div style={{ display: 'grid', gap: '4px', minWidth: '220px' }}>
+                                                <strong style={{ color: '#7c4a03' }}>{patient.name || 'Existing Patient'}</strong>
+                                                <span style={{ color: '#6b4f1d', fontSize: '13px' }}>{formatPatientDuplicateLine(patient)}</span>
+                                                {patient.matchLabels?.length > 0 && (
+                                                    <span style={{ color: '#8a5b00', fontSize: '12px', fontWeight: 700 }}>
+                                                        Matches: {patient.matchLabels.join(', ')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSelectExistingPatient(patient)}
+                                                style={{
+                                                    border: '1px solid #01538b',
+                                                    background: '#eff6ff',
+                                                    color: '#01538b',
+                                                    borderRadius: '999px',
+                                                    padding: '10px 16px',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                Link This Patient
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             {duplicateSections.map((section) => (
                                 <div key={section.key} style={{ marginTop: '10px' }}>
                                     <div style={{ color: '#6b4f1d', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{section.label}</div>
@@ -773,6 +942,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                                 className={`${styles.radioOption} ${!isLinkMode ? styles.radioOptionActive : ''}`}
                                 onClick={() => {
                                     setRegistrationMode('create-new');
+                                    setSelectedExistingPatientId('');
                                     setErrors({});
                                 }}
                                 disabled={isLoading}
@@ -796,6 +966,17 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                                 ? 'Only the matching patient identity fields are required. If the email is not already a patient account, no new account will be created.'
                                 : 'Create a full patient account from this guest appointment. Pre-registered details stay prefilled so staff only needs to review and complete the missing fields.'}
                         </p>
+                        {isLinkMode && selectedExistingPatient && (
+                            <div style={{ marginTop: '14px', padding: '14px 16px', borderRadius: '14px', background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                                <strong style={{ display: 'block', color: '#1d4ed8', marginBottom: '4px' }}>Selected Existing Patient</strong>
+                                <span style={{ color: '#1e3a8a', fontSize: '13px' }}>{formatPatientDuplicateLine(selectedExistingPatient)}</span>
+                            </div>
+                        )}
+                        {isLinkMode && errors.existingPatientId && (
+                            <span className={styles.errorText} style={{ display: 'block', marginTop: '10px' }}>
+                                {errors.existingPatientId}
+                            </span>
+                        )}
                     </div>
 
                     <h3 className={styles.mainSectionTitle}>Patient Details</h3>

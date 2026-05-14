@@ -841,17 +841,27 @@ export default function SchedulePage() {
         [patients]
     );
 
-    const phoneCallExistingPatientMatch = useMemo(() => {
-        if (formState.source !== 'phonecall' || formState.patientId) return null;
+    const phoneCallDuplicateMatches = useMemo(() => {
+        if (formState.source !== 'phonecall' || formState.patientId) return [];
 
         const normalizedEmail = String(formState.guestEmail || '').trim().toLowerCase();
         const normalizedPhone = normalizePhoneDigits(formState.contactNumber);
 
-        return patientOptions.find((entry) => (
-            (normalizedEmail && String(entry.email || '').trim().toLowerCase() === normalizedEmail)
-            || (normalizedPhone && normalizePhoneDigits(entry.contactNumber) === normalizedPhone)
-        )) || null;
+        const matches = patientOptions.filter((entry) => {
+            const emailMatch = normalizedEmail && String(entry.email || '').trim().toLowerCase() === normalizedEmail;
+            const phoneMatch = normalizedPhone && normalizePhoneDigits(entry.contactNumber) === normalizedPhone;
+            return emailMatch || phoneMatch;
+        });
+
+        return matches.sort((left, right) => {
+            const leftEmailMatch = normalizedEmail && String(left.email || '').trim().toLowerCase() === normalizedEmail;
+            const rightEmailMatch = normalizedEmail && String(right.email || '').trim().toLowerCase() === normalizedEmail;
+            if (leftEmailMatch && !rightEmailMatch) return -1;
+            if (!leftEmailMatch && rightEmailMatch) return 1;
+            return String(left.name || '').localeCompare(String(right.name || ''));
+        });
     }, [formState.contactNumber, formState.guestEmail, formState.patientId, formState.source, patientOptions]);
+    const phoneCallExistingPatientMatch = phoneCallDuplicateMatches?.[0] || null;
 
     const branchOptions = useMemo(() => {
         if (canChooseBranch) {
@@ -1056,6 +1066,35 @@ export default function SchedulePage() {
         setCompletionError('');
     };
 
+    const selectExistingPhoneCallPatient = useCallback((matchedPatient) => {
+        if (!matchedPatient?.id) return;
+
+        setFormState((prev) => {
+            const next = { ...prev };
+            next.patientId = matchedPatient.id;
+            next.patientName = matchedPatient.name;
+            next.contactNumber = normalizeSchedulePhoneInput(matchedPatient.contactNumber || '');
+            next.guestEmail = String(matchedPatient.email || '').trim().toLowerCase();
+
+            if (matchedPatient.branch && matchedPatient.branch !== next.branch) {
+                next.branch = matchedPatient.branch;
+                next.time = '';
+                next.dentistId = '';
+                next.assignedDentist = '';
+            }
+
+            return next;
+        });
+        setFormErrors((prev) => {
+            const next = { ...prev };
+            delete next.patientId;
+            delete next.patientName;
+            delete next.contactNumber;
+            delete next.guestEmail;
+            return next;
+        });
+    }, []);
+
     const handleFormFieldChange = (event) => {
         const { name, value } = event.target;
         setFormState((prev) => {
@@ -1191,8 +1230,10 @@ export default function SchedulePage() {
                 } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.guestEmail.trim())) {
                     nextErrors.guestEmail = 'Enter a valid email address.';
                 }
-                if (shouldCheckPhoneCallDuplicates && phoneCallExistingPatientMatch) {
-                    nextErrors.patientId = 'This phone number or email already belongs to an existing patient. Select that patient account instead of saving a new guest booking.';
+                if (shouldCheckPhoneCallDuplicates && phoneCallDuplicateMatches.length > 0) {
+                    nextErrors.patientId = phoneCallDuplicateMatches.length > 1
+                        ? 'This phone number or email matches multiple patient accounts. Select the correct existing patient account before saving this phone-call booking.'
+                        : 'This phone number or email already belongs to an existing patient. Select that patient account instead of saving a new guest booking.';
                 }
             }
         } else {
@@ -1602,11 +1643,44 @@ export default function SchedulePage() {
                                 {(formErrors.patientId || formErrors.patientName) && (
                                     <span className={styles.errorText}>{formErrors.patientId || formErrors.patientName}</span>
                                 )}
-                                {phoneCallExistingPatientMatch && (
-                                    <span className={styles.helperError}>
-                                        Possible duplicate found: {phoneCallExistingPatientMatch.name}
-                                        {phoneCallExistingPatientMatch.email ? ` (${phoneCallExistingPatientMatch.email})` : ''}. Select the existing patient account before saving this phone-call booking.
-                                    </span>
+                                {phoneCallDuplicateMatches.length > 0 && (
+                                    <div style={{ marginTop: '12px', display: 'grid', gap: '10px' }}>
+                                        <span className={styles.helperError}>
+                                            {phoneCallDuplicateMatches.length > 1
+                                                ? 'Multiple existing patient accounts use this caller mobile number or email. Select the correct patient before saving this phone-call booking.'
+                                                : `Possible duplicate found: ${phoneCallExistingPatientMatch?.name || 'Existing patient'}${phoneCallExistingPatientMatch?.email ? ` (${phoneCallExistingPatientMatch.email})` : ''}. Select the existing patient account before saving this phone-call booking.`}
+                                        </span>
+                                        {phoneCallDuplicateMatches.map((patient) => (
+                                            <div
+                                                key={patient.id}
+                                                style={{
+                                                    border: '1px solid #dbeafe',
+                                                    borderRadius: '14px',
+                                                    background: '#f8fbff',
+                                                    padding: '12px 14px',
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    gap: '12px',
+                                                    alignItems: 'center',
+                                                    flexWrap: 'wrap',
+                                                }}
+                                            >
+                                                <div style={{ display: 'grid', gap: '4px' }}>
+                                                    <strong style={{ color: '#0f172a' }}>{patient.name}</strong>
+                                                    <span style={{ color: '#475569', fontSize: '13px' }}>
+                                                        {[patient.email || '', patient.contactNumber ? `+63 ${normalizeSchedulePhoneInput(patient.contactNumber)}` : '', patient.branch || ''].filter(Boolean).join(' | ')}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className={styles.secondaryButton}
+                                                    onClick={() => selectExistingPhoneCallPatient(patient)}
+                                                >
+                                                    Use This Patient
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
 

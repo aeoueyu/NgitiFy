@@ -5,6 +5,18 @@ import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { useToast } from '../../context/ToastContext';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import {
+    addRequiredAddressErrors,
+    getMaxDateForMinimumAge,
+    getStaffFieldError,
+    isAllowedPersonNameInput,
+    isValidStaffEmail,
+    isValidStaffPhone,
+    meetsMinimumAge,
+    sanitizeStaffPhone,
+    scrollToFirstInvalidField,
+    toTitleCaseName,
+} from '../../utils/staffAccountFormUtils';
 
 export default function AddBranchManager({ onClose, onSuccess }) {
     const { addToast } = useToast();
@@ -46,38 +58,27 @@ export default function AddBranchManager({ onClose, onSuccess }) {
         fetchBranches();
     }, []);
 
-    const validateEmail = (email) => {
-        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formatRegex.test(email)) return false;
-        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
-        return allowedDomains.includes(email.split('@')[1].toLowerCase());
-    };
-
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, c => c.toUpperCase());
-
-    const getMaxDate = () => {
-        const t = new Date();
-        t.setFullYear(t.getFullYear() - 18);
-        return t.toISOString().split('T')[0];
-    };
-
     const handleChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
         if (['firstName', 'middleName', 'lastName'].includes(name)) {
-            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) {
-                setFormData(prev => ({ ...prev, [name]: toTitleCase(value) }));
+            if (isAllowedPersonNameInput(value)) {
+                setFormData(prev => ({ ...prev, [name]: toTitleCaseName(value) }));
             }
             return;
         }
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleBlur = (e) => {
+        const { name, value } = e.target;
+        const newError = getStaffFieldError(name, value);
+        setErrors(prev => ({ ...prev, [name]: newError }));
+    };
+
     const handlePhoneChange = (e) => {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        if (value.length > 10) return;
         if (errors.phone) setErrors(prev => { const n = { ...prev }; delete n.phone; return n; });
-        setFormData(prev => ({ ...prev, phone: value }));
+        setFormData(prev => ({ ...prev, phone: sanitizeStaffPhone(e.target.value) }));
     };
 
     const handleImageChange = (e) => {
@@ -108,22 +109,19 @@ export default function AddBranchManager({ onClose, onSuccess }) {
         if (!formData.firstName.trim()) newErrors.firstName = 'Required';
         if (!formData.lastName.trim())  newErrors.lastName  = 'Required';
         if (!formData.email)            newErrors.email     = 'Required';
-        else if (!validateEmail(formData.email)) newErrors.email = 'Invalid email domain (e.g. gmail.com)';
+        else if (!isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
         if (!formData.phone)            newErrors.phone     = 'Required';
-        else if (formData.phone.length !== 10 || formData.phone[0] !== '9') newErrors.phone = 'Invalid format (9xxxxxxxxx)';
+        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
         if (!formData.gender)           newErrors.gender    = 'Required';
         if (!formData.birthday)         newErrors.birthday  = 'Required';
+        else if (!meetsMinimumAge(formData.birthday, 18)) newErrors.birthday = 'Min age 18';
         if (!formData.assignedBranch)   newErrors.assignedBranch = 'Required';
 
-        const validateAddr = (addr, prefix) => {
-            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
-                if (!addr[f]) newErrors[`${prefix}_${f}`] = 'Required';
-            });
-        };
-        validateAddr(formData.currentAddress, 'current');
-        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
+        addRequiredAddressErrors(newErrors, formData.currentAddress, 'current');
+        if (!isSameAddress) addRequiredAddressErrors(newErrors, formData.permanentAddress, 'permanent');
 
         setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
@@ -260,7 +258,7 @@ export default function AddBranchManager({ onClose, onSuccess }) {
                                 type="date"
                                 className={`${styles.inputField} ${errors.birthday ? styles.errorBorder : ''}`}
                                 name="birthday" value={formData.birthday}
-                                onChange={handleChange} max={getMaxDate()} disabled={isLoading}
+                                onChange={handleChange} max={getMaxDateForMinimumAge(18)} disabled={isLoading}
                             />
                             {errors.birthday && <span className={styles.errorText}>{errors.birthday}</span>}
                         </div>
@@ -289,7 +287,7 @@ export default function AddBranchManager({ onClose, onSuccess }) {
                                 type="email"
                                 className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`}
                                 name="email" value={formData.email}
-                                onChange={handleChange} maxLength={100} disabled={isLoading}
+                                onChange={handleChange} onBlur={handleBlur} maxLength={100} disabled={isLoading}
                             />
                             {errors.email && <span className={styles.errorText}>{errors.email}</span>}
                         </div>
@@ -300,7 +298,7 @@ export default function AddBranchManager({ onClose, onSuccess }) {
                                 <input
                                     className={styles.phoneField}
                                     name="phone" value={formData.phone}
-                                    onChange={handlePhoneChange}
+                                    onChange={handlePhoneChange} onBlur={handleBlur}
                                     maxLength={10} placeholder="9xxxxxxxxx" disabled={isLoading}
                                 />
                             </div>

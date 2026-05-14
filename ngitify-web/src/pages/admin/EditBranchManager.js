@@ -6,6 +6,18 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { useToast } from '../../context/ToastContext';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
+import {
+    addRequiredAddressErrors,
+    getMaxDateForMinimumAge,
+    getStaffFieldError,
+    isAllowedPersonNameInput,
+    isValidStaffEmail,
+    isValidStaffPhone,
+    meetsMinimumAge,
+    sanitizeStaffPhone,
+    scrollToFirstInvalidField,
+    toTitleCaseName,
+} from '../../utils/staffAccountFormUtils';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -104,38 +116,27 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
         ? JSON.stringify(formData) !== JSON.stringify(initialData) || profileImage !== initialProfileImage
         : false;
 
-    const validateEmail = (email) => {
-        const formatRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!formatRegex.test(email)) return false;
-        const allowedDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
-        return allowedDomains.includes(email.split('@')[1].toLowerCase());
-    };
-
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, c => c.toUpperCase());
-
-    const getMaxDate = () => {
-        const t = new Date();
-        t.setFullYear(t.getFullYear() - 18);
-        return t.toISOString().split('T')[0];
-    };
-
     const handleChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
         if (['firstName', 'middleName', 'lastName'].includes(name)) {
-            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) {
-                setFormData(prev => ({ ...prev, [name]: toTitleCase(value) }));
+            if (isAllowedPersonNameInput(value)) {
+                setFormData(prev => ({ ...prev, [name]: toTitleCaseName(value) }));
             }
             return;
         }
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleBlur = (e) => {
+        const { name, value } = e.target;
+        const newError = getStaffFieldError(name, value);
+        setErrors(prev => ({ ...prev, [name]: newError }));
+    };
+
     const handlePhoneChange = (e) => {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        if (value.length > 10) return;
         if (errors.phone) setErrors(prev => { const n = { ...prev }; delete n.phone; return n; });
-        setFormData(prev => ({ ...prev, phone: value }));
+        setFormData(prev => ({ ...prev, phone: sanitizeStaffPhone(e.target.value) }));
     };
 
     const handleImageChange = (e) => {
@@ -166,22 +167,19 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
         if (!formData.firstName.trim()) newErrors.firstName = 'Required';
         if (!formData.lastName.trim()) newErrors.lastName = 'Required';
         if (!formData.email) newErrors.email = 'Required';
-        else if (!validateEmail(formData.email)) newErrors.email = 'Invalid email domain (e.g. gmail.com)';
+        else if (!isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
         if (!formData.phone) newErrors.phone = 'Required';
-        else if (formData.phone.length !== 10 || formData.phone[0] !== '9') newErrors.phone = 'Invalid format (9xxxxxxxxx)';
+        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
         if (!formData.gender) newErrors.gender = 'Required';
         if (!formData.birthday) newErrors.birthday = 'Required';
+        else if (!meetsMinimumAge(formData.birthday, 18)) newErrors.birthday = 'Min age 18';
         if (!formData.assignedBranch) newErrors.assignedBranch = 'Required';
 
-        const validateAddr = (addr, prefix) => {
-            ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
-                if (!addr[f]) newErrors[`${prefix}_${f}`] = 'Required';
-            });
-        };
-        validateAddr(formData.currentAddress, 'current');
-        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
+        addRequiredAddressErrors(newErrors, formData.currentAddress, 'current');
+        if (!isSameAddress) addRequiredAddressErrors(newErrors, formData.permanentAddress, 'permanent');
 
         setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
@@ -294,13 +292,13 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
                             </div>
 
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>BIRTHDAY <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthday ? styles.errorBorder : ''}`} name="birthday" value={formData.birthday} onChange={handleChange} max={getMaxDate()} disabled={isSaving} />{errors.birthday && <span className={styles.errorText}>{errors.birthday}</span>}</div>
+                                <div className={styles.formGroup}><label>BIRTHDAY <span style={{ color: 'red' }}>*</span></label><input type="date" className={`${styles.inputField} ${errors.birthday ? styles.errorBorder : ''}`} name="birthday" value={formData.birthday} onChange={handleChange} max={getMaxDateForMinimumAge(18)} disabled={isSaving} />{errors.birthday && <span className={styles.errorText}>{errors.birthday}</span>}</div>
                                 <div className={styles.formGroup}><label>GENDER <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} name="gender" value={formData.gender} onChange={handleChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
 
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handleChange} maxLength={100} disabled={isSaving} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
-                                <div className={styles.formGroup}><label>PHONE NUMBER <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.phone && <span className={styles.errorText}>{errors.phone}</span>}</div>
+                                <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handleChange} onBlur={handleBlur} maxLength={100} disabled={isSaving} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
+                                <div className={styles.formGroup}><label>PHONE NUMBER <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} name="phone" value={formData.phone} onChange={handlePhoneChange} onBlur={handleBlur} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.phone && <span className={styles.errorText}>{errors.phone}</span>}</div>
                             </div>
 
                             <hr className={styles.divider} />

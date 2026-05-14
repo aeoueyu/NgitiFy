@@ -20,6 +20,7 @@ export default function SecretaryAddPatient() {
     const [showSuccess, setShowSuccess]     = useState(false);
     const [errors, setErrors]               = useState({});
     const [duplicateSummary, setDuplicateSummary] = useState(null);
+    const [softDuplicateConfirmed, setSoftDuplicateConfirmed] = useState(false);
 
     const initialAddress = {
         country: 'Philippines', region: '', province: '',
@@ -168,6 +169,7 @@ export default function SecretaryAddPatient() {
 
     useEffect(() => {
         setDuplicateSummary(null);
+        setSoftDuplicateConfirmed(false);
         setErrors((prev) => {
             if (!prev.duplicateCheck) return prev;
             const next = { ...prev };
@@ -214,11 +216,23 @@ export default function SecretaryAddPatient() {
                 }),
             });
             const duplicateData = await duplicateResponse.json().catch(() => ({}));
-            if (duplicateResponse.ok && duplicateData?.hasStrongMatch) {
+            if (duplicateResponse.ok && duplicateData?.hasAnyMatch) {
                 setDuplicateSummary(duplicateData);
-                setErrors((prev) => ({ ...prev, duplicateCheck: 'Possible existing patient found. Review the duplicate warning before creating a new record.' }));
-                setIsLoading(false);
-                return;
+                if (duplicateData.hasStrongMatch) {
+                    setErrors((prev) => ({ ...prev, duplicateCheck: 'Possible existing patient found. Review the duplicate warning before creating a new record.' }));
+                    setIsLoading(false);
+                    return;
+                }
+                if (!softDuplicateConfirmed) {
+                    setErrors((prev) => ({
+                        ...prev,
+                        duplicateCheck: duplicateData.exactPhoneMatchCount > 1
+                            ? 'This mobile number is already used by multiple patient records. Review the duplicate warning before creating a new patient record.'
+                            : 'This mobile number already appears on an existing patient record. Review the duplicate warning before creating a new patient record.',
+                    }));
+                    setIsLoading(false);
+                    return;
+                }
             }
 
             const res  = await authFetch('/add-patient', { method: 'POST', body: JSON.stringify(payload) });
@@ -346,6 +360,37 @@ export default function SecretaryAddPatient() {
                                 Review the existing patient matches below before creating a new record.
                             </span>
                             {errors.duplicateCheck && <span className={styles.errorText}>{errors.duplicateCheck}</span>}
+                            {duplicateSummary?.hasAnyMatch && !duplicateSummary?.hasStrongMatch && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSoftDuplicateConfirmed(true);
+                                            setErrors((prev) => {
+                                                const next = { ...prev };
+                                                delete next.duplicateCheck;
+                                                return next;
+                                            });
+                                        }}
+                                        style={{
+                                            border: '1px solid #0f766e',
+                                            background: softDuplicateConfirmed ? '#0f766e' : '#ecfdf5',
+                                            color: softDuplicateConfirmed ? '#fff' : '#0f766e',
+                                            borderRadius: '999px',
+                                            padding: '10px 16px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {softDuplicateConfirmed ? 'Ready to Continue' : 'Continue Anyway'}
+                                    </button>
+                                </div>
+                            )}
+                            {softDuplicateConfirmed && duplicateSummary?.hasAnyMatch && !duplicateSummary?.hasStrongMatch && (
+                                <span style={{ display: 'block', color: '#166534', fontSize: '13px', marginTop: '10px' }}>
+                                    Duplicate review noted. If this is a different patient who shares the same mobile number, submit again to continue.
+                                </span>
+                            )}
                             {duplicateSections.map((section) => (
                                 <div key={section.key} style={{ marginTop: '10px' }}>
                                     <div style={{ color: '#6b4f1d', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{section.label}</div>

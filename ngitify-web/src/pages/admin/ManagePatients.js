@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/ManagePatients.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaDownload, FaFilePdf } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaDownload, FaFilePdf, FaArchive, FaUndo } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
@@ -10,9 +10,15 @@ import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
 
 import AddPatient from './AddPatient';
 import EditPatient from './EditPatient';
-import PatientProfile from './PatientProfile';
+import ViewPatient from './ViewPatient';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
+import {
+    countAccountsByLifecycle,
+    getAccountLifecycleKey,
+    getAccountLifecycleLabel,
+    matchesAccountLifecycleFilter,
+} from '../../utils/accountStatus';
 
 export default function ManagePatients() {
     const { user } = useAuth();
@@ -24,7 +30,7 @@ export default function ManagePatients() {
     const { addToast } = useToast();
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('Active');
+    const [statusFilter, setStatusFilter] = useState('active');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [patientsList, setPatientsList] = useState([]);
@@ -40,6 +46,8 @@ export default function ManagePatients() {
 
     const isSecretary = user?.role === 'secretary';
     const isDentist = user?.role === 'dentist';
+    const isBranchManager = user?.role === 'branch-manager';
+    const isBranchScopedList = isSecretary || isBranchManager;
 
     useEffect(() => {
         if (location.state?.openAddModal && canEditPatients) {
@@ -63,7 +71,7 @@ export default function ManagePatients() {
     const fetchPatients = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await authFetch('/patients');
+            const response = await authFetch('/patients?includeArchived=true');
 
             if (response.ok) {
                 const data = await response.json();
@@ -83,6 +91,7 @@ export default function ManagePatients() {
                         name: parsedName || 'Unknown',
                         email: patient.email || 'N/A',
                         rawStatus: patient.status || 'inactive',
+                        isArchived: Boolean(patient.isArchived),
                         isVerified: patient.isVerified,
                         profileImage: patient.profileImage,
                         assignedBranch: patient.assignedBranch || patient.assignedBranches?.[0] || '',
@@ -132,13 +141,32 @@ export default function ManagePatients() {
     const filteredPatients = patientsList.filter((patient) => {
         const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             patient.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const computedStatus = (!patient.isVerified || patient.rawStatus !== 'active') ? 'Inactive' : 'Active';
-        const matchesStatus = statusFilter === 'All' || computedStatus === statusFilter;
+        const matchesStatus = matchesAccountLifecycleFilter(patient, statusFilter);
         const matchesBranch = branchFilter === 'All' || patient.assignedBranch === branchFilter;
         return matchesSearch && matchesStatus && matchesBranch;
     });
 
+    const visibleCounts = {
+        total: filteredPatients.length,
+        active: countAccountsByLifecycle(filteredPatients, 'active'),
+        needsActivation: countAccountsByLifecycle(filteredPatients, 'needsActivation'),
+        inactive: countAccountsByLifecycle(filteredPatients, 'inactive'),
+        archived: countAccountsByLifecycle(filteredPatients, 'archived'),
+    };
+    const statusFilterLabel = {
+        active: 'Active',
+        needsActivation: 'Needs Activation',
+        inactive: 'Inactive',
+        archived: 'Archived',
+        all: 'All',
+    }[statusFilter] || 'All';
+
     const handleToggleStatus = (patient) => {
+        if (patient.isArchived) {
+            addToast(`Restore ${patient.name} from archive before changing activation status.`, 'error');
+            return;
+        }
+
         const newStatus = patient.status === 'Active' ? 'inactive' : 'active';
 
         if (newStatus === 'active' && !patient.isVerified) {
@@ -182,7 +210,60 @@ export default function ManagePatients() {
         }
     };
 
+    const handleArchiveToggle = (patient) => {
+        const nextArchivedState = !patient.isArchived;
+        setConfirmConfig({
+            title: nextArchivedState ? 'Archive Patient' : 'Restore Patient',
+            message: nextArchivedState
+                ? `Archive ${patient.name}? This will remove the patient from normal patient lists and lock the record for read-only history.`
+                : `Restore ${patient.name} from archive? The record will return as inactive until someone activates the account again.`,
+            confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
+            isDestructive: nextArchivedState,
+            onConfirm: () => executeArchiveToggle(patient.id, nextArchivedState, patient.name),
+            onCancel: () => setConfirmConfig(null),
+        });
+    };
+
+    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+        try {
+            const res = await authFetch(`/patient/archive/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ isArchived: nextArchivedState }),
+            });
+
+            if (res.ok) {
+                setPatientsList((prevList) => prevList.map((patient) => (
+                    patient.id === id
+                        ? {
+                            ...patient,
+                            isArchived: nextArchivedState,
+                            rawStatus: 'inactive',
+                        }
+                        : patient
+                )));
+                addToast(
+                    nextArchivedState
+                        ? `${name} has been archived successfully.`
+                        : `${name} has been restored from archive. Activate the account separately if needed.`,
+                    'success'
+                );
+            } else {
+                const data = await res.json();
+                addToast(data.message || 'Failed to update archive status.', 'error');
+            }
+        } catch (error) {
+            console.error('Error archiving patient:', error);
+            addToast('Cannot connect to server.', 'error');
+        } finally {
+            setConfirmConfig(null);
+        }
+    };
+
     const handleResendActivation = async (patient) => {
+        if (patient.isArchived) {
+            addToast(`Restore ${patient.name} from archive before resending activation.`, 'error');
+            return;
+        }
         try {
             const res = await authFetch(`/patient/resend-activation/${patient.id}`, { method: 'POST' });
             const data = await res.json();
@@ -209,11 +290,21 @@ export default function ManagePatients() {
         setIsViewModalOpen(true);
     };
 
+    const openPatientRecord = (id) => {
+        if (!id) return;
+
+        if (user?.role === 'administrator') navigate(`/admin/patients/${id}/emr`);
+        else if (user?.role === 'owner') navigate(`/owner/patients/${id}/emr`);
+        else if (user?.role === 'branch-manager') navigate(`/branch-manager/patients/${id}/emr`);
+        else if (user?.role === 'secretary') navigate(`/secretary/patients/${id}/emr`);
+        else if (user?.role === 'dentist') navigate(`/dentist/patients/${id}/emr`);
+    };
+
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedPatientId(null); };
     const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedPatientId(null); };
 
     const exportRows = filteredPatients.map((patient) => {
-        const computedStatus = (!patient.isVerified || patient.rawStatus !== 'active') ? 'Inactive' : 'Active';
+        const computedStatus = getAccountLifecycleLabel(patient);
         return [
             patient.name,
             patient.email,
@@ -237,7 +328,7 @@ export default function ManagePatients() {
             subtitle: 'Dentime Dental Clinic - NgitiFy',
             summaryItems: [
                 { label: 'Visible Patients', value: filteredPatients.length },
-                { label: 'Status Filter', value: statusFilter },
+                { label: 'Status Filter', value: statusFilterLabel },
                 { label: 'Branch Filter', value: branchFilter },
             ],
             sections: [
@@ -309,12 +400,14 @@ export default function ManagePatients() {
                     </div>
 
                     <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${statusFilter === 'Active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Active')}>Active</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'Inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Inactive')}>Inactive</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'needsActivation' ? styles.activePill : ''}`} onClick={() => setStatusFilter('needsActivation')}>Needs Activation</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('inactive')}>Inactive</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'archived' ? styles.activePill : ''}`} onClick={() => setStatusFilter('archived')}>Archived</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'all' ? styles.activePill : ''}`} onClick={() => setStatusFilter('all')}>All</button>
                     </div>
 
-                    {!isSecretary && !isDentist && (
+                    {!isBranchScopedList && !isDentist && (
                         <select
                             className={styles.filterSelect}
                             value={branchFilter}
@@ -326,6 +419,47 @@ export default function ManagePatients() {
                             ))}
                         </select>
                     )}
+                    {isBranchScopedList && user?.assignedBranch && (
+                        <div
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                minHeight: '46px',
+                                padding: '0 18px',
+                                borderRadius: '999px',
+                                background: '#eff6ff',
+                                border: '1px solid #bfdbfe',
+                                color: '#01538b',
+                                fontSize: '13px',
+                                fontWeight: 700,
+                            }}
+                        >
+                            Branch locked to {user.assignedBranch}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#f8fbff', border: '1px solid #dbe6f1', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#123e63', fontSize: '18px' }}>{visibleCounts.total}</strong>
+                    <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 700 }}>Visible Patients</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#ecfdf5', border: '1px solid #bbf7d0', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#166534', fontSize: '18px' }}>{visibleCounts.active}</strong>
+                    <span style={{ color: '#166534', fontSize: '12px', fontWeight: 700 }}>Active</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#fff7ed', border: '1px solid #fdba74', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#b45309', fontSize: '18px' }}>{visibleCounts.needsActivation}</strong>
+                    <span style={{ color: '#b45309', fontSize: '12px', fontWeight: 700 }}>Needs Activation</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#fef2f2', border: '1px solid #fecaca', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#991b1b', fontSize: '18px' }}>{visibleCounts.inactive}</strong>
+                    <span style={{ color: '#991b1b', fontSize: '12px', fontWeight: 700 }}>Inactive</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #cbd5e1', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#475569', fontSize: '18px' }}>{visibleCounts.archived}</strong>
+                    <span style={{ color: '#475569', fontSize: '12px', fontWeight: 700 }}>Archived</span>
                 </div>
             </div>
 
@@ -336,7 +470,7 @@ export default function ManagePatients() {
                             <th style={{ width: '34%' }}>Name</th>
                             <th style={{ width: '36%' }}>Email Address</th>
                             <th style={{ width: '110px' }}>Status</th>
-                            <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '168px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -344,20 +478,26 @@ export default function ManagePatients() {
                             <tr><td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredPatients.length > 0 ? (
                             filteredPatients.map((patient) => {
-                                const computedStatus = (!patient.isVerified || patient.rawStatus !== 'active') ? 'Inactive' : 'Active';
+                                const statusKey = getAccountLifecycleKey(patient);
+                                const computedStatus = getAccountLifecycleLabel(patient);
+                                const isArchivedRecord = statusKey === 'archived';
                                 return (
-                                <tr key={patient.id} style={{ opacity: computedStatus === 'Inactive' ? 0.6 : 1 }}>
+                                <tr key={patient.id} style={{ opacity: statusKey === 'inactive' || isArchivedRecord ? 0.6 : 1 }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>{patient.name}</span>
                                             <span style={{ color: '#6b7f92', fontSize: '12px' }}>{patient.assignedBranch || 'No branch'}</span>
                                         </div>
-                                        {!patient.isVerified && <span style={{ fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px' }}>Unverified Email</span>}
+                                        {isArchivedRecord ? (
+                                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '600', marginTop: '2px' }}>Archived record</span>
+                                        ) : (
+                                            !patient.isVerified && <span style={{ fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px' }}>Unverified Email</span>
+                                        )}
                                     </td>
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{patient.email}</span>
-                                            {!patient.isVerified && (
+                                            {!patient.isVerified && !isArchivedRecord && (
                                                 <button
                                                     type="button"
                                                     onClick={() => handleResendActivation(patient)}
@@ -369,25 +509,44 @@ export default function ManagePatients() {
                                         </div>
                                     </td>
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${computedStatus === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                        <span className={`${tblStyles.statusBadge} ${statusKey === 'active' ? tblStyles.statusGreen : statusKey === 'needsActivation' ? tblStyles.statusAmber : statusKey === 'archived' ? tblStyles.statusGray : tblStyles.statusRed}`}>
                                             {computedStatus}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
                                         <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
-                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(patient.id)} title="View Full EMR Profile"><FaEye /></button>
+                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(patient.id)} title="View Patient Summary"><FaEye /></button>
                                             {(canEditPatients || isDentist) && (
                                                 <>
-                                                    <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`} onClick={() => handleEditClick(patient.id)} title={isDentist ? 'Open Patient EMR' : 'Edit Quick Details'}><FaEdit /></button>
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`}
+                                                        onClick={() => handleEditClick(patient.id)}
+                                                        title={isArchivedRecord ? 'Archived records are read-only' : (isDentist ? 'Open Patient EMR' : 'Edit Quick Details')}
+                                                        disabled={isArchivedRecord}
+                                                    >
+                                                        <FaEdit />
+                                                    </button>
                                                     {!isDentist && (
-                                                        <button
-                                                            type="button"
-                                                            className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
-                                                            onClick={() => handleToggleStatus({ ...patient, status: computedStatus })}
-                                                            title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
-                                                        >
-                                                            {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
-                                                        </button>
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${statusKey !== 'active' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                                onClick={() => handleToggleStatus({ ...patient, status: computedStatus })}
+                                                                title={isArchivedRecord ? 'Restore before changing activation status' : statusKey === 'active' ? 'Deactivate Account' : 'Activate Account'}
+                                                                disabled={isArchivedRecord}
+                                                            >
+                                                                {statusKey === 'active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${isArchivedRecord ? styles.activateIconButton : styles.warningIconButton}`}
+                                                                onClick={() => handleArchiveToggle(patient)}
+                                                                title={isArchivedRecord ? 'Restore Patient' : 'Archive Patient'}
+                                                            >
+                                                                {isArchivedRecord ? <FaUndo /> : <FaArchive />}
+                                                            </button>
+                                                        </>
                                                     )}
                                                 </>
                                             )}
@@ -405,10 +564,15 @@ export default function ManagePatients() {
 
             {isAddModalOpen && <AddPatient onClose={() => setIsAddModalOpen(false)} onSuccess={fetchPatients} />}
             {isViewModalOpen && selectedPatientId && (
-                <PatientProfile
+                <ViewPatient
                     patientId={selectedPatientId}
                     onClose={handleCloseViewModal}
-                    onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                    onEdit={isDentist ? null : () => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                    onOpenRecord={() => {
+                        handleCloseViewModal();
+                        openPatientRecord(selectedPatientId);
+                    }}
+                    onResendActivation={handleResendActivation}
                 />
             )}
             {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}

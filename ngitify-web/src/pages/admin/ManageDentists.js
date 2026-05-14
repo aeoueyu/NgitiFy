@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaArchive, FaUndo } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -12,6 +12,11 @@ import EditDentist from './EditDentist';
 import ViewDentist from './ViewDentist';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
+import {
+    getAccountLifecycleKey,
+    getAccountLifecycleLabel,
+    matchesAccountLifecycleFilter,
+} from '../../utils/accountStatus';
 
 export default function ManageDentists() {
     const { addToast } = useToast();
@@ -19,7 +24,7 @@ export default function ManageDentists() {
     const isBranchManager = user?.role === 'branch-manager';
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('Active');
+    const [statusFilter, setStatusFilter] = useState('active');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [dentistsList, setDentistsList] = useState([]);
@@ -35,7 +40,7 @@ export default function ManageDentists() {
     const fetchDentists = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await authFetch('/users?role=dentist');
+            const response = await authFetch('/users?role=dentist&includeArchived=true');
             if (response.ok) {
                 const data = await response.json();
                 const mappedDentists = data
@@ -54,6 +59,7 @@ export default function ManageDentists() {
                             name: parsedName,
                             email: u.email || 'N/A',
                             rawStatus: u.status || 'inactive',
+                            isArchived: Boolean(u.isArchived),
                             isVerified: u.isVerified,
                             profileImage: u.profileImage,
                             // ✅ PHASE 2: Branch assignment
@@ -91,13 +97,17 @@ export default function ManageDentists() {
     const filteredDentists = dentistsList.filter(dentist => {
         const matchesSearch = dentist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             dentist.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const computedStatus = (!dentist.isVerified || dentist.rawStatus !== 'active') ? 'Inactive' : 'Active';
-        const matchesStatus = statusFilter === 'All' || computedStatus === statusFilter;
+        const matchesStatus = matchesAccountLifecycleFilter(dentist, statusFilter);
         const matchesBranch = branchFilter === 'All' || dentist.assignedBranches.includes(branchFilter);
         return matchesSearch && matchesStatus && matchesBranch;
     });
 
     const handleToggleStatus = (dentist) => {
+        if (dentist.isArchived) {
+            addToast(`Restore Dr. ${dentist.name} from archive before changing activation status.`, 'error');
+            return;
+        }
+
         const newStatus = dentist.status === 'Active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !dentist.isVerified) {
             addToast(`Cannot activate Dr. ${dentist.name}. Their email is not yet verified.`, 'error');
@@ -138,7 +148,53 @@ export default function ManageDentists() {
         }
     };
 
+    const handleArchiveToggle = (dentist) => {
+        const nextArchivedState = !dentist.isArchived;
+        setConfirmConfig({
+            title: nextArchivedState ? 'Archive Dentist' : 'Restore Dentist',
+            message: nextArchivedState
+                ? `Archive Dr. ${dentist.name}? This removes the account from normal staff lists and keeps the record read-only until restored.`
+                : `Restore Dr. ${dentist.name} from archive? The account will return as inactive until it is activated again.`,
+            confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
+            isDestructive: nextArchivedState,
+            onConfirm: () => executeArchiveToggle(dentist.id, nextArchivedState, dentist.name),
+            onCancel: () => setConfirmConfig(null)
+        });
+    };
+
+    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+        try {
+            const res = await authFetch(`/user/archive/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ isArchived: nextArchivedState })
+            });
+            if (res.ok) {
+                setDentistsList(prev => prev.map(d =>
+                    d.id === id ? { ...d, isArchived: nextArchivedState, rawStatus: 'inactive' } : d
+                ));
+                addToast(
+                    nextArchivedState
+                        ? `Dr. ${name} has been archived successfully.`
+                        : `Dr. ${name} has been restored from archive. Activate the account separately if needed.`,
+                    'success'
+                );
+            } else {
+                const data = await res.json();
+                addToast(data.message || 'Failed to update archive status.', 'error');
+            }
+        } catch (error) {
+            console.error('Error archiving dentist:', error);
+            addToast('Cannot connect to server.', 'error');
+        } finally {
+            setConfirmConfig(null);
+        }
+    };
+
     const handleResendActivation = async (dentist) => {
+        if (dentist.isArchived) {
+            addToast(`Restore Dr. ${dentist.name} from archive before resending activation.`, 'error');
+            return;
+        }
         try {
             const res = await authFetch(`/user/resend-activation/${dentist.id}`, { method: 'POST' });
             const data = await res.json();
@@ -183,21 +239,29 @@ export default function ManageDentists() {
                     </div>
 
                     <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${statusFilter === 'Active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Active')}>Active</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'Inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Inactive')}>Inactive</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'needsActivation' ? styles.activePill : ''}`} onClick={() => setStatusFilter('needsActivation')}>Needs Activation</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('inactive')}>Inactive</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'archived' ? styles.activePill : ''}`} onClick={() => setStatusFilter('archived')}>Archived</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'all' ? styles.activePill : ''}`} onClick={() => setStatusFilter('all')}>All</button>
                     </div>
 
-                    <select
-                        className={styles.filterSelect}
-                        value={branchFilter}
-                        onChange={(e) => setBranchFilter(e.target.value)}
-                    >
-                        <option value="All">All Branches</option>
-                        {allBranches.map(branch => (
-                            <option key={branch} value={branch}>{branch}</option>
-                        ))}
-                    </select>
+                    {!isBranchManager ? (
+                        <select
+                            className={styles.filterSelect}
+                            value={branchFilter}
+                            onChange={(e) => setBranchFilter(e.target.value)}
+                        >
+                            <option value="All">All Branches</option>
+                            {allBranches.map(branch => (
+                                <option key={branch} value={branch}>{branch}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', minHeight: '46px', padding: '0 18px', borderRadius: '999px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#01538b', fontSize: '13px', fontWeight: 700 }}>
+                            Branch locked to {user?.assignedBranch || 'your branch'}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -211,7 +275,7 @@ export default function ManageDentists() {
                             <th>Email Address</th>
                             {/* ✅ PHASE 2: Branch column */}
                             <th style={{ width: '110px' }}>Status</th>
-                            <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '168px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -219,9 +283,11 @@ export default function ManageDentists() {
                             <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredDentists.length > 0 ? (
                             filteredDentists.map((dentist) => {
-                                const computedStatus = (!dentist.isVerified || dentist.rawStatus !== 'active') ? 'Inactive' : 'Active';
+                                const statusKey = getAccountLifecycleKey(dentist);
+                                const computedStatus = getAccountLifecycleLabel(dentist);
+                                const isArchivedRecord = statusKey === 'archived';
                                 return (
-                                <tr key={dentist.id} style={{ opacity: computedStatus === 'Inactive' ? 0.6 : 1 }}>
+                                <tr key={dentist.id} style={{ opacity: statusKey === 'inactive' || isArchivedRecord ? 0.6 : 1 }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>Dr. {dentist.name}</span>
@@ -229,12 +295,16 @@ export default function ManageDentists() {
                                                 {dentist.assignedBranches.length > 0 ? dentist.assignedBranches.join(', ') : 'No branch'}
                                             </span>
                                         </div>
-                                        {!dentist.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
+                                        {isArchivedRecord ? (
+                                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '600', marginTop: '2px' }}>Archived record</span>
+                                        ) : (
+                                            !dentist.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>
+                                        )}
                                     </td>
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{dentist.email}</span>
-                                            {!dentist.isVerified && (
+                                            {!dentist.isVerified && !isArchivedRecord && (
                                                 <button
                                                     type="button"
                                                     onClick={() => handleResendActivation(dentist)}
@@ -247,21 +317,38 @@ export default function ManageDentists() {
                                     </td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${computedStatus === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                        <span className={`${tblStyles.statusBadge} ${statusKey === 'active' ? tblStyles.statusGreen : statusKey === 'needsActivation' ? tblStyles.statusAmber : statusKey === 'archived' ? tblStyles.statusGray : tblStyles.statusRed}`}>
                                             {computedStatus}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
                                         <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
                                             <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(dentist.id)} title="View Profile"><FaEye /></button>
-                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`} onClick={() => handleEditClick(dentist.id)} title="Edit Profile"><FaEdit /></button>
                                             <button
                                                 type="button"
-                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
-                                                onClick={() => handleToggleStatus({ ...dentist, status: computedStatus })}
-                                                title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`}
+                                                onClick={() => handleEditClick(dentist.id)}
+                                                title={isArchivedRecord ? 'Archived records are read-only' : 'Edit Profile'}
+                                                disabled={isArchivedRecord}
                                             >
-                                                {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                <FaEdit />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${statusKey !== 'active' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                onClick={() => handleToggleStatus({ ...dentist, status: computedStatus })}
+                                                title={isArchivedRecord ? 'Restore before changing activation status' : statusKey === 'active' ? 'Deactivate Account' : 'Activate Account'}
+                                                disabled={isArchivedRecord}
+                                            >
+                                                {statusKey === 'active' ? <FaToggleOn /> : <FaToggleOff />}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${isArchivedRecord ? styles.activateIconButton : styles.warningIconButton}`}
+                                                onClick={() => handleArchiveToggle(dentist)}
+                                                title={isArchivedRecord ? 'Restore Dentist' : 'Archive Dentist'}
+                                            >
+                                                {isArchivedRecord ? <FaUndo /> : <FaArchive />}
                                             </button>
                                         </div>
                                     </td>

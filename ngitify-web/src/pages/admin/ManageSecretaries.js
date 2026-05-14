@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from '../../styles/admin/ManageSecretaries.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaArchive, FaUndo } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -12,6 +12,11 @@ import EditSecretary from './EditSecretary';
 import ViewSecretary from './ViewSecretary';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
+import {
+    getAccountLifecycleKey,
+    getAccountLifecycleLabel,
+    matchesAccountLifecycleFilter,
+} from '../../utils/accountStatus';
 
 export default function ManageSecretaries() {
     const { addToast } = useToast();
@@ -19,7 +24,7 @@ export default function ManageSecretaries() {
     const isBranchManager = user?.role === 'branch-manager';
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('Active');
+    const [statusFilter, setStatusFilter] = useState('active');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [secretariesList, setSecretariesList] = useState([]);
@@ -35,7 +40,7 @@ export default function ManageSecretaries() {
     const fetchSecretaries = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await authFetch('/users?role=secretary');
+            const response = await authFetch('/users?role=secretary&includeArchived=true');
             if (response.ok) {
                 const data = await response.json();
                 const mappedSecretaries = data
@@ -54,6 +59,7 @@ export default function ManageSecretaries() {
                             name: parsedName,
                             email: u.email || 'N/A',
                             rawStatus: u.status || 'inactive',
+                            isArchived: Boolean(u.isArchived),
                             isVerified: u.isVerified,
                             profileImage: u.profileImage,
                             // ✅ PHASE 2: Branch assignment
@@ -91,13 +97,17 @@ export default function ManageSecretaries() {
     const filteredSecretaries = secretariesList.filter(secretary => {
         const matchesSearch = secretary.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             secretary.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const computedStatus = (!secretary.isVerified || secretary.rawStatus !== 'active') ? 'Inactive' : 'Active';
-        const matchesStatus = statusFilter === 'All' || computedStatus === statusFilter;
+        const matchesStatus = matchesAccountLifecycleFilter(secretary, statusFilter);
         const matchesBranch = branchFilter === 'All' || secretary.assignedBranches.includes(branchFilter);
         return matchesSearch && matchesStatus && matchesBranch;
     });
 
     const handleToggleStatus = (secretary) => {
+        if (secretary.isArchived) {
+            addToast(`Restore ${secretary.name} from archive before changing activation status.`, 'error');
+            return;
+        }
+
         const newStatus = secretary.status === 'Active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !secretary.isVerified) {
             addToast(`Cannot activate ${secretary.name}. Their email is not yet verified.`, 'error');
@@ -138,7 +148,53 @@ export default function ManageSecretaries() {
         }
     };
 
+    const handleArchiveToggle = (secretary) => {
+        const nextArchivedState = !secretary.isArchived;
+        setConfirmConfig({
+            title: nextArchivedState ? 'Archive Secretary' : 'Restore Secretary',
+            message: nextArchivedState
+                ? `Archive ${secretary.name}? This removes the account from normal staff lists and keeps the record read-only until restored.`
+                : `Restore ${secretary.name} from archive? The account will return as inactive until it is activated again.`,
+            confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
+            isDestructive: nextArchivedState,
+            onConfirm: () => executeArchiveToggle(secretary.id, nextArchivedState, secretary.name),
+            onCancel: () => setConfirmConfig(null)
+        });
+    };
+
+    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+        try {
+            const res = await authFetch(`/user/archive/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ isArchived: nextArchivedState })
+            });
+            if (res.ok) {
+                setSecretariesList(prev => prev.map(s =>
+                    s.id === id ? { ...s, isArchived: nextArchivedState, rawStatus: 'inactive' } : s
+                ));
+                addToast(
+                    nextArchivedState
+                        ? `${name} has been archived successfully.`
+                        : `${name} has been restored from archive. Activate the account separately if needed.`,
+                    'success'
+                );
+            } else {
+                const data = await res.json();
+                addToast(data.message || 'Failed to update archive status.', 'error');
+            }
+        } catch (error) {
+            console.error('Error archiving secretary:', error);
+            addToast('Cannot connect to server.', 'error');
+        } finally {
+            setConfirmConfig(null);
+        }
+    };
+
     const handleResendActivation = async (secretary) => {
+        if (secretary.isArchived) {
+            addToast(`Restore ${secretary.name} from archive before resending activation.`, 'error');
+            return;
+        }
         try {
             const res = await authFetch(`/user/resend-activation/${secretary.id}`, { method: 'POST' });
             const data = await res.json();
@@ -183,21 +239,29 @@ export default function ManageSecretaries() {
                     </div>
 
                     <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${statusFilter === 'Active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Active')}>Active</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'Inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Inactive')}>Inactive</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'needsActivation' ? styles.activePill : ''}`} onClick={() => setStatusFilter('needsActivation')}>Needs Activation</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('inactive')}>Inactive</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'archived' ? styles.activePill : ''}`} onClick={() => setStatusFilter('archived')}>Archived</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'all' ? styles.activePill : ''}`} onClick={() => setStatusFilter('all')}>All</button>
                     </div>
 
-                    <select
-                        className={styles.filterSelect}
-                        value={branchFilter}
-                        onChange={(e) => setBranchFilter(e.target.value)}
-                    >
-                        <option value="All">All Branches</option>
-                        {allBranches.map(branch => (
-                            <option key={branch} value={branch}>{branch}</option>
-                        ))}
-                    </select>
+                    {!isBranchManager ? (
+                        <select
+                            className={styles.filterSelect}
+                            value={branchFilter}
+                            onChange={(e) => setBranchFilter(e.target.value)}
+                        >
+                            <option value="All">All Branches</option>
+                            {allBranches.map(branch => (
+                                <option key={branch} value={branch}>{branch}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', minHeight: '46px', padding: '0 18px', borderRadius: '999px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#01538b', fontSize: '13px', fontWeight: 700 }}>
+                            Branch locked to {user?.assignedBranch || 'your branch'}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -211,7 +275,7 @@ export default function ManageSecretaries() {
                             <th>Email Address</th>
                             {/* ✅ PHASE 2: Branch column */}
                             <th style={{ width: '110px' }}>Status</th>
-                            <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '168px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -219,9 +283,11 @@ export default function ManageSecretaries() {
                             <tr><td colSpan="4" style={{textAlign: 'center', padding: '30px', color: '#64748b'}}>Loading records...</td></tr>
                         ) : filteredSecretaries.length > 0 ? (
                             filteredSecretaries.map((secretary) => {
-                                const computedStatus = (!secretary.isVerified || secretary.rawStatus !== 'active') ? 'Inactive' : 'Active';
+                                const statusKey = getAccountLifecycleKey(secretary);
+                                const computedStatus = getAccountLifecycleLabel(secretary);
+                                const isArchivedRecord = statusKey === 'archived';
                                 return (
-                                <tr key={secretary.id} style={{ opacity: computedStatus === 'Inactive' ? 0.6 : 1 }}>
+                                <tr key={secretary.id} style={{ opacity: statusKey === 'inactive' || isArchivedRecord ? 0.6 : 1 }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>{secretary.name}</span>
@@ -229,12 +295,16 @@ export default function ManageSecretaries() {
                                                 {secretary.assignedBranches.length > 0 ? secretary.assignedBranches.join(', ') : 'No branch'}
                                             </span>
                                         </div>
-                                        {!secretary.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>}
+                                        {isArchivedRecord ? (
+                                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '600', marginTop: '2px' }}>Archived record</span>
+                                        ) : (
+                                            !secretary.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>
+                                        )}
                                     </td>
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{secretary.email}</span>
-                                            {!secretary.isVerified && (
+                                            {!secretary.isVerified && !isArchivedRecord && (
                                                 <button
                                                     type="button"
                                                     onClick={() => handleResendActivation(secretary)}
@@ -247,21 +317,38 @@ export default function ManageSecretaries() {
                                     </td>
                                     {/* ✅ PHASE 2: Show assigned branches */}
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${computedStatus === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                        <span className={`${tblStyles.statusBadge} ${statusKey === 'active' ? tblStyles.statusGreen : statusKey === 'needsActivation' ? tblStyles.statusAmber : statusKey === 'archived' ? tblStyles.statusGray : tblStyles.statusRed}`}>
                                             {computedStatus}
                                         </span>
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
                                         <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
                                             <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(secretary.id)} title="View Profile"><FaEye /></button>
-                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`} onClick={() => handleEditClick(secretary.id)} title="Edit Profile"><FaEdit /></button>
                                             <button
                                                 type="button"
-                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
-                                                onClick={() => handleToggleStatus({ ...secretary, status: computedStatus })}
-                                                title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`}
+                                                onClick={() => handleEditClick(secretary.id)}
+                                                title={isArchivedRecord ? 'Archived records are read-only' : 'Edit Profile'}
+                                                disabled={isArchivedRecord}
                                             >
-                                                {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                <FaEdit />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${statusKey !== 'active' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                onClick={() => handleToggleStatus({ ...secretary, status: computedStatus })}
+                                                title={isArchivedRecord ? 'Restore before changing activation status' : statusKey === 'active' ? 'Deactivate Account' : 'Activate Account'}
+                                                disabled={isArchivedRecord}
+                                            >
+                                                {statusKey === 'active' ? <FaToggleOn /> : <FaToggleOff />}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${isArchivedRecord ? styles.activateIconButton : styles.warningIconButton}`}
+                                                onClick={() => handleArchiveToggle(secretary)}
+                                                title={isArchivedRecord ? 'Restore Secretary' : 'Archive Secretary'}
+                                            >
+                                                {isArchivedRecord ? <FaUndo /> : <FaArchive />}
                                             </button>
                                         </div>
                                     </td>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaEdit, FaEye, FaSearch, FaToggleOn, FaToggleOff, FaUserPlus } from 'react-icons/fa';
+import { FaArchive, FaEdit, FaEye, FaSearch, FaToggleOn, FaToggleOff, FaUndo, FaUserPlus } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/ManageDentists.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
@@ -9,6 +9,11 @@ import ViewBranchManager from './ViewBranchManager';
 import UserTabs from './UserTabs';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
+import {
+    getAccountLifecycleKey,
+    getAccountLifecycleLabel,
+    matchesAccountLifecycleFilter,
+} from '../../utils/accountStatus';
 
 const ManageBranchManagers = () => {
     const { addToast } = useToast();
@@ -16,7 +21,7 @@ const ManageBranchManagers = () => {
     const [managers, setManagers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('Active');
+    const [statusFilter, setStatusFilter] = useState('active');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -28,7 +33,7 @@ const ManageBranchManagers = () => {
     const fetchManagers = useCallback(async () => {
         setIsLoading(true);
         try {
-            const res = await authFetch('/users?role=branch-manager');
+            const res = await authFetch('/users?role=branch-manager&includeArchived=true');
             if (res.ok) {
                 const data = await res.json();
                 setManagers(data.map((u) => ({
@@ -36,6 +41,7 @@ const ManageBranchManagers = () => {
                     name: `${u.name?.first || ''} ${u.name?.last || ''}`.trim() || 'Unknown',
                     email: u.email || 'N/A',
                     rawStatus: u.status || 'inactive',
+                    isArchived: Boolean(u.isArchived),
                     isVerified: u.isVerified,
                     profileImage: u.profileImage,
                     assignedBranch: u.assignedBranch || u.assignedBranches?.[0] || '',
@@ -72,8 +78,7 @@ const ManageBranchManagers = () => {
     const filteredManagers = managers.filter((m) => {
         const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             m.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const computedStatus = (!m.isVerified || m.rawStatus !== 'active') ? 'Inactive' : 'Active';
-        const matchesStatus = statusFilter === 'All' || computedStatus === statusFilter;
+        const matchesStatus = matchesAccountLifecycleFilter(m, statusFilter);
         const matchesBranch = branchFilter === 'All' || m.assignedBranch === branchFilter;
         return matchesSearch && matchesStatus && matchesBranch;
     });
@@ -90,6 +95,11 @@ const ManageBranchManagers = () => {
     };
 
     const handleToggleStatus = (manager) => {
+        if (manager.isArchived) {
+            addToast(`Restore ${manager.name} from archive before changing activation status.`, 'error');
+            return;
+        }
+
         const newStatus = manager.status === 'Active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !manager.isVerified) {
             addToast(`Cannot activate ${manager.name}. Their email is not yet verified.`, 'error');
@@ -133,7 +143,56 @@ const ManageBranchManagers = () => {
         }
     };
 
+    const handleArchiveToggle = (manager) => {
+        const nextArchivedState = !manager.isArchived;
+        setConfirmConfig({
+            title: nextArchivedState ? 'Archive Branch Manager' : 'Restore Branch Manager',
+            message: nextArchivedState
+                ? `Archive ${manager.name}? This removes the account from normal staff lists and keeps the record read-only until restored.`
+                : `Restore ${manager.name} from archive? The account will return as inactive until it is activated again.`,
+            confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
+            isDestructive: nextArchivedState,
+            onConfirm: () => executeArchiveToggle(manager.id, nextArchivedState, manager.name),
+            onCancel: () => setConfirmConfig(null),
+        });
+    };
+
+    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+        try {
+            const res = await authFetch(`/user/archive/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ isArchived: nextArchivedState }),
+            });
+
+            if (res.ok) {
+                setManagers((prev) => prev.map((manager) =>
+                    manager.id === id
+                        ? { ...manager, isArchived: nextArchivedState, rawStatus: 'inactive' }
+                        : manager
+                ));
+                addToast(
+                    nextArchivedState
+                        ? `${name} has been archived successfully.`
+                        : `${name} has been restored from archive. Activate the account separately if needed.`,
+                    'success'
+                );
+            } else {
+                const data = await res.json();
+                addToast(data.message || 'Failed to update archive status.', 'error');
+            }
+        } catch (error) {
+            console.error('Error archiving branch manager:', error);
+            addToast('Cannot connect to server.', 'error');
+        } finally {
+            setConfirmConfig(null);
+        }
+    };
+
     const handleResendActivation = async (manager) => {
+        if (manager.isArchived) {
+            addToast(`Restore ${manager.name} from archive before resending activation.`, 'error');
+            return;
+        }
         try {
             const res = await authFetch(`/user/resend-activation/${manager.id}`, { method: 'POST' });
             const data = await res.json();
@@ -173,9 +232,11 @@ const ManageBranchManagers = () => {
                     </div>
 
                     <div className={styles.pillGroup}>
-                        <button className={`${styles.filterPill} ${statusFilter === 'Active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Active')}>Active</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'Inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('Inactive')}>Inactive</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'All' ? styles.activePill : ''}`} onClick={() => setStatusFilter('All')}>All</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'needsActivation' ? styles.activePill : ''}`} onClick={() => setStatusFilter('needsActivation')}>Needs Activation</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('inactive')}>Inactive</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'archived' ? styles.activePill : ''}`} onClick={() => setStatusFilter('archived')}>Archived</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'all' ? styles.activePill : ''}`} onClick={() => setStatusFilter('all')}>All</button>
                     </div>
 
                     <select
@@ -200,7 +261,7 @@ const ManageBranchManagers = () => {
                             <th style={{ width: '34%' }}>Name</th>
                             <th style={{ width: '36%' }}>Email Address</th>
                             <th style={{ width: '110px' }}>Status</th>
-                            <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '168px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -208,9 +269,11 @@ const ManageBranchManagers = () => {
                             <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredManagers.length > 0 ? (
                             filteredManagers.map((manager) => {
-                                const computedStatus = (!manager.isVerified || manager.rawStatus !== 'active') ? 'Inactive' : 'Active';
+                                const statusKey = getAccountLifecycleKey(manager);
+                                const computedStatus = getAccountLifecycleLabel(manager);
+                                const isArchivedRecord = statusKey === 'archived';
                                 return (
-                                <tr key={manager.id} style={{ opacity: computedStatus === 'Inactive' ? 0.6 : 1 }}>
+                                <tr key={manager.id} style={{ opacity: statusKey === 'inactive' || isArchivedRecord ? 0.6 : 1 }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>{manager.name}</span>
@@ -218,16 +281,21 @@ const ManageBranchManagers = () => {
                                                 {manager.assignedBranch || 'No branch'}
                                             </span>
                                         </div>
-                                        {!manager.isVerified && (
+                                        {isArchivedRecord ? (
+                                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '600', marginTop: '2px' }}>
+                                                Archived record
+                                            </span>
+                                        ) : (
+                                        !manager.isVerified && (
                                             <span style={{ fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px' }}>
                                                 Unverified Email
                                             </span>
-                                        )}
+                                        ))}
                                     </td>
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{manager.email}</span>
-                                            {!manager.isVerified && (
+                                            {!manager.isVerified && !isArchivedRecord && (
                                                 <button
                                                     type="button"
                                                     onClick={() => handleResendActivation(manager)}
@@ -239,7 +307,7 @@ const ManageBranchManagers = () => {
                                         </div>
                                     </td>
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${computedStatus === 'Active' ? tblStyles.statusGreen : tblStyles.statusRed}`}>
+                                        <span className={`${tblStyles.statusBadge} ${statusKey === 'active' ? tblStyles.statusGreen : statusKey === 'needsActivation' ? tblStyles.statusAmber : statusKey === 'archived' ? tblStyles.statusGray : tblStyles.statusRed}`}>
                                             {computedStatus}
                                         </span>
                                     </td>
@@ -257,17 +325,27 @@ const ManageBranchManagers = () => {
                                                 type="button"
                                                 className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`}
                                                 onClick={() => openManagerModal(manager.id)}
-                                                title="Edit Branch Manager"
+                                                title={isArchivedRecord ? 'Archived records are read-only' : 'Edit Branch Manager'}
+                                                disabled={isArchivedRecord}
                                             >
                                                 <FaEdit />
                                             </button>
                                             <button
                                                 type="button"
-                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${computedStatus === 'Inactive' ? styles.activateIconButton : styles.deactivateIconButton}`}
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${statusKey !== 'active' ? styles.activateIconButton : styles.deactivateIconButton}`}
                                                 onClick={() => handleToggleStatus({ ...manager, status: computedStatus })}
-                                                title={computedStatus === 'Active' ? 'Deactivate Account' : 'Activate Account'}
+                                                title={isArchivedRecord ? 'Restore before changing activation status' : statusKey === 'active' ? 'Deactivate Account' : 'Activate Account'}
+                                                disabled={isArchivedRecord}
                                             >
-                                                {computedStatus === 'Active' ? <FaToggleOn /> : <FaToggleOff />}
+                                                {statusKey === 'active' ? <FaToggleOn /> : <FaToggleOff />}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`${styles.actionIconButton} ${tblStyles.iconAction} ${isArchivedRecord ? styles.activateIconButton : styles.warningIconButton}`}
+                                                onClick={() => handleArchiveToggle(manager)}
+                                                title={isArchivedRecord ? 'Restore Branch Manager' : 'Archive Branch Manager'}
+                                            >
+                                                {isArchivedRecord ? <FaUndo /> : <FaArchive />}
                                             </button>
                                         </div>
                                     </td>

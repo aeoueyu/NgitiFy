@@ -3,6 +3,7 @@ import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/StaffModals.module.css';
 import { regions, provinces, cities } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
+import { getAccountLifecycleLabel } from '../../utils/accountStatus';
 
 const formatDateLong = (value) => {
     if (!value) return 'Not provided';
@@ -35,7 +36,7 @@ const formatYesNo = (value) => {
 
 const renderArray = (value) => Array.isArray(value) && value.length > 0 ? value.join(', ') : 'None reported';
 
-export default function ViewPatient({ patientId, onClose, onEdit }) {
+export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, onResendActivation }) {
     const [patient, setPatient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -77,6 +78,12 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
     const age = getAge(birthRaw);
     const isMinor = age !== null && age < 18;
     const bloodType = patient?.bloodType || patient?.medicalHistory?.bloodType || 'Not provided';
+    const accountLifecycleLabel = getAccountLifecycleLabel({
+        isArchived: patient?.isArchived,
+        isVerified: patient?.isVerified,
+        rawStatus: patient?.status || 'inactive',
+    });
+    const assignedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || 'Not assigned';
 
     const infoBox = (label, value, extraClass = '') => (
         <div className={`${styles.infoBox} ${extraClass}`.trim()}>
@@ -102,7 +109,6 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                                     <h2>Patient <span className={styles.highlight}>Profile</span></h2>
                                 </div>
                             </div>
-                            <button className={styles.editActionBtn} onClick={onEdit}>EDIT PROFILE</button>
                         </div>
 
                         <div className={styles.profileHeader}>
@@ -116,6 +122,33 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                                 <p className={`${styles.profileRole} ${styles.statusRole}`}>Registered Patient</p>
                             </div>
                         </div>
+
+                        <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Account Overview</h3>
+                        <div className={styles.infoGrid}>
+                            {infoBox('Assigned Branch', assignedBranch)}
+                            {infoBox('Account Status', accountLifecycleLabel)}
+                            {infoBox('Verification', patient?.isArchived ? 'Archived Record' : patient?.isVerified ? 'Verified Email' : 'Pending Activation')}
+                            {infoBox('Patient ID', patient?._id || patientId)}
+                        </div>
+                        {!patient?.isVerified && !patient?.isArchived && onResendActivation && (
+                            <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => onResendActivation(patient)}
+                                    style={{
+                                        border: '1px solid #bfdbfe',
+                                        background: '#eff6ff',
+                                        color: '#01538b',
+                                        borderRadius: '999px',
+                                        padding: '10px 16px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Resend Activation Email
+                                </button>
+                            </div>
+                        )}
 
                         <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Core Information</h3>
                         <div className={styles.infoGrid}>
@@ -191,6 +224,58 @@ export default function ViewPatient({ patientId, onClose, onEdit }) {
                                 </div>
                             </>
                         )}
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px', flexWrap: 'wrap' }}>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                style={{
+                                    border: '1px solid #cbd5e1',
+                                    background: '#ffffff',
+                                    color: '#334155',
+                                    borderRadius: '999px',
+                                    padding: '12px 18px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Close
+                            </button>
+                            {onOpenRecord && !patient?.isArchived && (
+                                <button
+                                    type="button"
+                                    onClick={onOpenRecord}
+                                    style={{
+                                        border: '1px solid #bfdbfe',
+                                        background: '#eff6ff',
+                                        color: '#01538b',
+                                        borderRadius: '999px',
+                                        padding: '12px 18px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Open Full EMR
+                                </button>
+                            )}
+                            {onEdit && !patient?.isArchived && (
+                                <button
+                                    type="button"
+                                    onClick={onEdit}
+                                    style={{
+                                        border: 'none',
+                                        background: '#01538b',
+                                        color: '#ffffff',
+                                        borderRadius: '999px',
+                                        padding: '12px 18px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Edit Patient
+                                </button>
+                            )}
+                        </div>
                     </>
                 ) : (
                     <div className={styles.errorState}>Profile not found.</div>

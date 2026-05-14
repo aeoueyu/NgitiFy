@@ -267,10 +267,29 @@ select.inputField {
     font-weight: 700;
     margin-bottom: 20px;
 }
+.branchLockedRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.branchLockedRow .branchLockedBadge {
+    margin-bottom: 0;
+}
 .branchLockedNote {
     color: #94a3b8;
     font-size: 12px;
     margin-left: 10px;
+}
+.hiddenFileInput {
+    display: none;
+}
+.loadingState {
+    text-align: center;
+    padding: 50px;
+    color: #01538b;
+    font-weight: 700;
 }
 
 /* ─── BUTTONS ──────────────────────────────────────────────────────── */

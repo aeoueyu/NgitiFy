@@ -1470,6 +1470,102 @@ const getScopedBranchForUser = (user) => {
 
 const isBranchScopedStaff = (role) => ['branch-manager', 'secretary'].includes(role);
 
+const getAssignedBranchList = (user) => {
+    if (!user) return [];
+    if (Array.isArray(user.assignedBranches) && user.assignedBranches.length > 0) {
+        return user.assignedBranches.filter(Boolean);
+    }
+    return user.assignedBranch ? [user.assignedBranch] : [];
+};
+
+const userBelongsToBranch = (user, branch) => {
+    if (!branch) return false;
+    return getAssignedBranchList(user).includes(branch);
+};
+
+const parseBooleanQueryFlag = (value) => ['true', '1', 'yes'].includes(String(value || '').trim().toLowerCase());
+
+const applyArchiveVisibilityFilter = (query = {}, { includeArchived = false, archivedOnly = false } = {}) => {
+    if (archivedOnly) {
+        return { ...query, isArchived: true };
+    }
+
+    if (includeArchived) {
+        return { ...query };
+    }
+
+    return { ...query, isArchived: { $ne: true } };
+};
+
+const canManageStaffLifecycle = ({ actor, target }) => {
+    if (!actor || !target) {
+        return { allowed: false, message: 'Access denied.' };
+    }
+
+    if (target.role === 'administrator') {
+        return { allowed: false, message: 'Administrator accounts cannot be modified here.' };
+    }
+
+    if (target.role === 'patient') {
+        return { allowed: false, message: 'Use the patient lifecycle controls for patient accounts.' };
+    }
+
+    if (actor.role === 'administrator') {
+        return { allowed: true };
+    }
+
+    if (actor.role === 'owner') {
+        if (!['dentist', 'secretary', 'branch-manager'].includes(target.role)) {
+            return { allowed: false, message: 'Owners can only manage dentists, secretaries, and branch managers.' };
+        }
+        return { allowed: true };
+    }
+
+    if (actor.role === 'branch-manager') {
+        if (!['dentist', 'secretary'].includes(target.role)) {
+            return { allowed: false, message: 'Branch managers can only manage dentists and secretaries assigned to their branch.' };
+        }
+
+        const scopedBranch = getScopedBranchForUser(actor);
+        if (!scopedBranch) {
+            return { allowed: false, message: 'Branch manager has no assigned branch.' };
+        }
+
+        if (!userBelongsToBranch(target, scopedBranch)) {
+            return { allowed: false, message: 'Access denied. This staff account belongs to a different branch.' };
+        }
+
+        return { allowed: true };
+    }
+
+    return { allowed: false, message: 'Access denied.' };
+};
+
+const canManagePatientLifecycle = ({ actor, patient }) => {
+    if (!actor || !patient || patient.role !== 'patient') {
+        return { allowed: false, message: 'Patient not found.' };
+    }
+
+    if (['administrator', 'owner'].includes(actor.role)) {
+        return { allowed: true };
+    }
+
+    if (isBranchScopedStaff(actor.role)) {
+        const scopedBranch = getScopedBranchForUser(actor);
+        if (!scopedBranch) {
+            return { allowed: false, message: `${actor.role} has no assigned branch.` };
+        }
+
+        if (!patientBelongsToBranch(patient, scopedBranch)) {
+            return { allowed: false, message: 'Access denied. This patient belongs to a different branch.' };
+        }
+
+        return { allowed: true };
+    }
+
+    return { allowed: false, message: 'Access denied.' };
+};
+
 const patientBelongsToBranch = (patient, branch) => {
     if (!patient || !branch) return false;
     const patientBranches = patient.assignedBranches || (patient.assignedBranch ? [patient.assignedBranch] : []);
@@ -2608,7 +2704,8 @@ const formatDuplicatePatientSummary = (patient) => ({
     contactNumber: patient.contactNumber || '',
     birthdate: patient.birthdate ? new Date(patient.birthdate).toISOString().split('T')[0] : '',
     assignedBranch: patient.assignedBranch || patient.assignedBranches?.[0] || '',
-    status: patient.status || '',
+    status: patient.isArchived ? 'archived' : (patient.status || ''),
+    isArchived: Boolean(patient.isArchived),
 });
 
 const buildDuplicatePatientSummary = async ({
@@ -2631,6 +2728,12 @@ const buildDuplicatePatientSummary = async ({
     const emptyResponse = {
         hasStrongMatch: false,
         hasAnyMatch: false,
+        softPhoneDuplicate: false,
+        requiresManualSelection: false,
+        exactEmailMatchCount: 0,
+        exactPhoneMatchCount: 0,
+        sameFullNameBirthdateMatchCount: 0,
+        sameLastNameBirthdateMatchCount: 0,
         exactEmailMatches: [],
         exactPhoneMatches: [],
         sameFullNameBirthdateMatches: [],
@@ -2668,7 +2771,7 @@ const buildDuplicatePatientSummary = async ({
         ...candidateFilter,
         $or: candidateClauses,
     })
-        .select('name email contactNumber birthdate assignedBranch assignedBranches status')
+        .select('name email contactNumber birthdate assignedBranch assignedBranches status isArchived')
         .limit(30)
         .lean();
 
@@ -2692,12 +2795,22 @@ const buildDuplicatePatientSummary = async ({
         ))
         : [];
 
+    const hasExactEmailMatch = exactEmailMatches.length > 0;
+    const hasExactPhoneMatch = exactPhoneMatches.length > 0;
+    const hasIdentityMatch = sameFullNameBirthdateMatches.length > 0;
+
     return {
-        hasStrongMatch: exactEmailMatches.length > 0 || sameFullNameBirthdateMatches.length > 0,
-        hasAnyMatch: exactEmailMatches.length > 0
-            || exactPhoneMatches.length > 0
-            || sameFullNameBirthdateMatches.length > 0
+        hasStrongMatch: hasExactEmailMatch || hasIdentityMatch,
+        hasAnyMatch: hasExactEmailMatch
+            || hasExactPhoneMatch
+            || hasIdentityMatch
             || sameLastNameBirthdateMatches.length > 0,
+        softPhoneDuplicate: hasExactPhoneMatch && !hasExactEmailMatch && !hasIdentityMatch,
+        requiresManualSelection: exactPhoneMatches.length > 1,
+        exactEmailMatchCount: exactEmailMatches.length,
+        exactPhoneMatchCount: exactPhoneMatches.length,
+        sameFullNameBirthdateMatchCount: sameFullNameBirthdateMatches.length,
+        sameLastNameBirthdateMatchCount: sameLastNameBirthdateMatches.length,
         exactEmailMatches: exactEmailMatches.map(formatDuplicatePatientSummary),
         exactPhoneMatches: exactPhoneMatches.map(formatDuplicatePatientSummary),
         sameFullNameBirthdateMatches: sameFullNameBirthdateMatches.map(formatDuplicatePatientSummary),
@@ -3475,6 +3588,8 @@ const BRANCH_MANAGER_ALLOWED_ROLES = ['patient', 'dentist', 'secretary'];
 app.get('/api/users', verifyToken, async (req, res) => {
     try {
         const { role } = req.query;
+        const includeArchived = parseBooleanQueryFlag(req.query.includeArchived);
+        const archivedOnly = parseBooleanQueryFlag(req.query.archivedOnly);
 
         // SECURITY CHECK: Restrict what secretaries can query
         if (req.user.role === 'secretary') {
@@ -3502,8 +3617,7 @@ app.get('/api/users', verifyToken, async (req, res) => {
             }
         }
 
-        let query = {};
-        if (role) query.role = role;
+        let query = applyArchiveVisibilityFilter(role ? { role } : {}, { includeArchived, archivedOnly });
 
         // Branch managers and secretaries can only see users in their own branch
         if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
@@ -3530,8 +3644,9 @@ app.get('/api/patients', verifyToken, async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 50;
         const skip = (page - 1) * limit;
-
-        const baseFilter = { role: 'patient' };
+        const includeArchived = parseBooleanQueryFlag(req.query.includeArchived);
+        const archivedOnly = parseBooleanQueryFlag(req.query.archivedOnly);
+        const baseFilter = applyArchiveVisibilityFilter({ role: 'patient' }, { includeArchived, archivedOnly });
 
         // Branch-scoped staff only see patients in their assigned branch
         if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
@@ -3636,6 +3751,9 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
 
         const currentPatient = await User.findById(patientId);
         if (!currentPatient) return res.status(404).json({ message: "Patient not found" });
+        if (currentPatient.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived patient before editing the record.' });
+        }
 
         if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
             if (!req.user.assignedBranch) {
@@ -3778,9 +3896,21 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
+        const normalizedStatus = String(status || '').trim().toLowerCase();
+
+        if (!['active', 'inactive'].includes(normalizedStatus)) {
+            return res.status(400).json({ message: 'Status must be either active or inactive.' });
+        }
 
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: "User not found." });
+        const lifecyclePermission = canManageStaffLifecycle({ actor: req.user, target: user });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+        if (user.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived account before changing activation status.' });
+        }
 
         // ── Administrator Account Guard ──────────────────────────────────────
         // Only an administrator may activate or deactivate the administrator account.
@@ -3789,13 +3919,22 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
         }
         // ────────────────────────────────────────────────────────────────────
 
-        if (status === 'active' && !user.isVerified) {
+        if (normalizedStatus === 'active' && !user.isVerified) {
             return res.status(400).json({
                 message: "Cannot activate user. Email is not yet verified."
             });
         }
 
-        user.status = status;
+        user.status = normalizedStatus;
+        if (normalizedStatus === 'inactive') {
+            user.deactivatedAt = new Date();
+            user.deactivatedBy = req.user.id;
+            user.deactivationReason = String(req.body.reason || '').trim();
+        } else {
+            user.deactivatedAt = null;
+            user.deactivatedBy = null;
+            user.deactivationReason = '';
+        }
         await user.save();
 
         await AuditLog.create({
@@ -3806,10 +3945,10 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
             actorRole: req.user?.role,
             targetId: user._id,
             targetModel: 'User',
-            details: `Changed status of user ${user.email} to ${status}`
+            details: `Changed status of user ${user.email} to ${normalizedStatus}`
         });
 
-        res.json({ message: `User marked as ${status}.`, user });
+        res.json({ message: `User marked as ${normalizedStatus}.`, user });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error." });
@@ -3825,27 +3964,53 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
 
         const { id } = req.params;
         const { status } = req.body;
+        const normalizedStatus = String(status || '').trim().toLowerCase();
+
+        if (!['active', 'inactive'].includes(normalizedStatus)) {
+            return res.status(400).json({ message: 'Status must be either active or inactive.' });
+        }
 
         const patient = await User.findById(id);
         if (!patient) return res.status(404).json({ message: "Patient not found." });
+        if (patient.role !== 'patient') return res.status(404).json({ message: 'Patient not found.' });
+        const lifecyclePermission = canManagePatientLifecycle({ actor: req.user, patient });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+        if (patient.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived patient before changing activation status.' });
+        }
 
-        if (status === 'active' && !patient.isVerified) {
+        if (normalizedStatus === 'active' && !patient.isVerified) {
             return res.status(400).json({
                 message: "Cannot activate patient. Email is not yet verified."
             });
         }
 
-        patient.status = status;
+        patient.status = normalizedStatus;
+        if (normalizedStatus === 'inactive') {
+            patient.deactivatedAt = new Date();
+            patient.deactivatedBy = req.user.id;
+            patient.deactivationReason = String(req.body.reason || '').trim();
+        } else {
+            patient.deactivatedAt = null;
+            patient.deactivatedBy = null;
+            patient.deactivationReason = '';
+        }
         await patient.save();
 
         await AuditLog.create({
             action: "STATUS_CHANGE",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "administrator",
-            details: `Changed status of patient ${patient.email} to ${status}`
+            actorId: req.user?.id,
+            actorRole: req.user?.role,
+            targetId: patient._id,
+            targetModel: 'User',
+            details: `Changed status of patient ${patient.email} to ${normalizedStatus}`
         });
 
-        res.json({ message: `Patient marked as ${status}.`, patient });
+        res.json({ message: `Patient marked as ${normalizedStatus}.`, patient });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error." });
@@ -3854,9 +4019,27 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
 
 app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => {
     try {
+        const allowedRoles = ['administrator', 'owner', 'branch-manager', 'secretary'];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
         const patient = await User.findById(req.params.id);
         if (!patient) {
             return res.status(404).json({ message: "Patient not found." });
+        }
+        if (patient.role !== 'patient') {
+            return res.status(404).json({ message: 'Patient not found.' });
+        }
+        const lifecyclePermission = canManagePatientLifecycle({ actor: req.user, patient });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+        if (patient.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived patient before resending activation.' });
+        }
+        if (patient.isVerified) {
+            return res.status(400).json({ message: 'This patient account is already verified.' });
         }
 
         const activationToken = crypto.randomBytes(32).toString('hex');
@@ -3891,6 +4074,16 @@ app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
         const staffUser = await User.findById(req.params.id);
         if (!staffUser) {
             return res.status(404).json({ message: 'User not found.' });
+        }
+        const lifecyclePermission = canManageStaffLifecycle({ actor: req.user, target: staffUser });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+        if (staffUser.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived account before resending activation.' });
+        }
+        if (staffUser.isVerified) {
+            return res.status(400).json({ message: 'This account is already verified.' });
         }
 
         const activationToken = crypto.randomBytes(32).toString('hex');
@@ -3989,6 +4182,9 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
         const userId = req.params.id;
         const currentUser = await User.findById(userId);
         if (!currentUser) return res.status(404).json({ message: "User not found" });
+        if (currentUser.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived account before editing the record.' });
+        }
 
         if (updateData.assignedBranch !== undefined) {
             updateData.assignedBranches = updateData.assignedBranch ? [updateData.assignedBranch] : [];
@@ -5032,15 +5228,53 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
         }
 
         const registrationMode = String(req.body.registrationMode || '').trim().toLowerCase();
+        const requestedExistingPatientId = String(req.body.existingPatientId || '').trim();
         const duplicateCheckEmail = normalizeEmail(req.body.email || surgery.guestEmail || '');
-        const existingUser = duplicateCheckEmail ? await User.findOne({ email: duplicateCheckEmail }) : null;
+
+        let existingUser = null;
+        if (requestedExistingPatientId && mongoose.Types.ObjectId.isValid(requestedExistingPatientId)) {
+            existingUser = await User.findById(requestedExistingPatientId)
+                .select('name email birthdate role assignedBranch assignedBranches');
+        }
+        if (!existingUser && duplicateCheckEmail) {
+            existingUser = await User.findOne({ email: duplicateCheckEmail })
+                .select('name email birthdate role assignedBranch assignedBranches');
+        }
+
+        if (requestedExistingPatientId && !existingUser) {
+            return res.status(404).json({
+                field: 'existingPatientId',
+                message: 'The selected patient account could not be found. Choose a valid existing patient or create a new patient record instead.',
+            });
+        }
+
         if (existingUser) {
             if (existingUser.role !== 'patient') {
-                return res.status(409).json({ message: 'This email is already used by a non-patient account.' });
+                return res.status(409).json({
+                    field: requestedExistingPatientId ? 'existingPatientId' : 'email',
+                    message: requestedExistingPatientId
+                        ? 'The selected account is not a patient account.'
+                        : 'This email is already used by a non-patient account.',
+                });
+            }
+
+            const existingPatientBranches = existingUser.assignedBranches?.length
+                ? existingUser.assignedBranches
+                : (existingUser.assignedBranch ? [existingUser.assignedBranch] : []);
+            if (existingPatientBranches.length > 0 && !existingPatientBranches.includes(surgery.branch)) {
+                return res.status(409).json({
+                    field: requestedExistingPatientId ? 'existingPatientId' : 'email',
+                    message: 'The selected patient belongs to a different branch. Choose a patient account assigned to this appointment branch.',
+                });
             }
 
             if (registrationMode === 'create-new') {
-                return res.status(409).json({ message: 'An existing patient already uses this email. Use the link existing patient flow instead.' });
+                return res.status(409).json({
+                    field: requestedExistingPatientId ? 'existingPatientId' : 'email',
+                    message: requestedExistingPatientId
+                        ? 'The selected patient already exists. Use the link existing patient flow instead of creating a new patient.'
+                        : 'An existing patient already uses this email. Use the link existing patient flow instead.',
+                });
             }
 
             const fallbackName = splitGuestFullName(surgery.guestName || '');
@@ -7757,39 +7991,158 @@ app.patch('/api/inventory/deduct', verifyToken, async (req, res) => {
 
 app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
     try {
-        const ARCHIVE_ALLOWED = ['administrator', 'owner'];
-        if (!ARCHIVE_ALLOWED.includes(req.user.role)) {
-            return res.status(403).json({ message: 'Access denied.' });
-        }
-        const { isArchived } = req.body;
+        const { isArchived, reason } = req.body;
+        const nextArchivedState = Boolean(isArchived);
 
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: 'User not found.' });
-
-        const archivableRoles = ['dentist', 'secretary', 'branch-manager'];
-        if (!archivableRoles.includes(user.role)) {
-            return res.status(403).json({ message: 'Only dentists, secretaries, and branch managers can be archived.' });
+        const lifecyclePermission = canManageStaffLifecycle({ actor: req.user, target: user });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
         }
 
-        user.isArchived = Boolean(isArchived);
-        if (user.isArchived) user.status = 'inactive';
+        if (Boolean(user.isArchived) === nextArchivedState) {
+            return res.json({
+                message: `User is already ${nextArchivedState ? 'archived' : 'restored'}.`,
+                user: {
+                    _id: user._id,
+                    email: user.email,
+                    isArchived: user.isArchived,
+                    status: user.status,
+                    archivedAt: user.archivedAt,
+                    restoredAt: user.restoredAt,
+                }
+            });
+        }
+
+        user.isArchived = nextArchivedState;
+        user.status = 'inactive';
+        if (nextArchivedState) {
+            user.archivedAt = new Date();
+            user.archivedBy = req.user.id;
+            user.archiveReason = String(reason || '').trim();
+            user.restoredAt = null;
+            user.restoredBy = null;
+            user.deactivatedAt = new Date();
+            user.deactivatedBy = req.user.id;
+            user.deactivationReason = String(reason || '').trim();
+        } else {
+            user.restoredAt = new Date();
+            user.restoredBy = req.user.id;
+            user.deactivatedAt = null;
+            user.deactivatedBy = null;
+            user.deactivationReason = '';
+        }
 
         await user.save();
 
         await AuditLog.create({
-            action: user.isArchived ? 'ARCHIVE_USER' : 'RESTORE_USER',
+            action: nextArchivedState ? 'ARCHIVE_USER' : 'RESTORE_USER',
             user: req.user?.email,
             role: req.user?.role,
-            details: `${user.role} ${user.email} was ${user.isArchived ? 'archived' : 'restored'}.`
+            actorId: req.user?.id,
+            actorRole: req.user?.role,
+            targetId: user._id,
+            targetModel: 'User',
+            details: `${user.role} ${user.email} was ${nextArchivedState ? 'archived' : 'restored'}.`
         });
 
         res.json({
-            message: `User ${user.isArchived ? 'archived' : 'restored'} successfully.`,
-            user: { _id: user._id, email: user.email, isArchived: user.isArchived, status: user.status }
+            message: `User ${nextArchivedState ? 'archived' : 'restored'} successfully.`,
+            user: {
+                _id: user._id,
+                email: user.email,
+                isArchived: user.isArchived,
+                status: user.status,
+                archivedAt: user.archivedAt,
+                restoredAt: user.restoredAt,
+            }
         });
     } catch (error) {
         console.error('Error archiving user:', error);
         res.status(500).json({ message: 'Server error archiving user.' });
+    }
+});
+
+app.put('/api/patient/archive/:id', verifyToken, async (req, res) => {
+    try {
+        const allowedRoles = ['administrator', 'owner', 'branch-manager', 'secretary'];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const { isArchived, reason } = req.body;
+        const nextArchivedState = Boolean(isArchived);
+        const patient = await User.findById(req.params.id);
+        if (!patient || patient.role !== 'patient') {
+            return res.status(404).json({ message: 'Patient not found.' });
+        }
+
+        const lifecyclePermission = canManagePatientLifecycle({ actor: req.user, patient });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+
+        if (Boolean(patient.isArchived) === nextArchivedState) {
+            return res.json({
+                message: `Patient is already ${nextArchivedState ? 'archived' : 'restored'}.`,
+                patient: {
+                    _id: patient._id,
+                    email: patient.email,
+                    isArchived: patient.isArchived,
+                    status: patient.status,
+                    archivedAt: patient.archivedAt,
+                    restoredAt: patient.restoredAt,
+                }
+            });
+        }
+
+        patient.isArchived = nextArchivedState;
+        patient.status = 'inactive';
+        if (nextArchivedState) {
+            patient.archivedAt = new Date();
+            patient.archivedBy = req.user.id;
+            patient.archiveReason = String(reason || '').trim();
+            patient.restoredAt = null;
+            patient.restoredBy = null;
+            patient.deactivatedAt = new Date();
+            patient.deactivatedBy = req.user.id;
+            patient.deactivationReason = String(reason || '').trim();
+        } else {
+            patient.restoredAt = new Date();
+            patient.restoredBy = req.user.id;
+            patient.deactivatedAt = null;
+            patient.deactivatedBy = null;
+            patient.deactivationReason = '';
+        }
+
+        await patient.save();
+
+        await AuditLog.create({
+            action: nextArchivedState ? 'ARCHIVE_PATIENT' : 'RESTORE_PATIENT',
+            user: req.user?.email,
+            role: req.user?.role,
+            actorId: req.user?.id,
+            actorRole: req.user?.role,
+            targetId: patient._id,
+            targetModel: 'User',
+            details: `Patient ${patient.email} was ${nextArchivedState ? 'archived' : 'restored'}.`
+        });
+
+        res.json({
+            message: `Patient ${nextArchivedState ? 'archived' : 'restored'} successfully.`,
+            patient: {
+                _id: patient._id,
+                email: patient.email,
+                isArchived: patient.isArchived,
+                status: patient.status,
+                archivedAt: patient.archivedAt,
+                restoredAt: patient.restoredAt,
+            }
+        });
+    } catch (error) {
+        console.error('Error archiving patient:', error);
+        res.status(500).json({ message: 'Server error archiving patient.' });
     }
 });
 
@@ -8131,16 +8484,24 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Cannot delete an administrator account.' });
         }
 
+        if (!user.isArchived) {
+            return res.status(409).json({ message: 'Archive the account before permanently deleting it.' });
+        }
+
         await User.findByIdAndDelete(req.params.id);
 
         await AuditLog.create({
             action: 'DELETE_USER',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Deleted user: ${user.email} (role: ${user.role})`
+            actorId: req.user?.id,
+            actorRole: req.user?.role,
+            targetId: user._id,
+            targetModel: 'User',
+            details: `Permanently deleted archived user: ${user.email} (role: ${user.role})`
         });
 
-        res.json({ message: 'User deleted successfully.' });
+        res.json({ message: 'Archived user deleted successfully.' });
     } catch (error) {
         console.error('Error deleting user:', error);
         res.status(500).json({ message: 'Server error deleting user.' });
