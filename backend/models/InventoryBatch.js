@@ -9,6 +9,7 @@ const inventoryBatchSchema = new mongoose.Schema({
     receivedDate: { type: Date, required: true, default: Date.now },
     supplierName: { type: String, default: '', trim: true },
     batchNumber: { type: String, default: '', trim: true },
+    stockInNumber: { type: String, default: '', trim: true },
     status: {
         type: String,
         enum: ['Active', 'Depleted', 'Expired'],
@@ -21,6 +22,13 @@ const inventoryBatchSchema = new mongoose.Schema({
 
 inventoryBatchSchema.index({ inventoryItem: 1, receivedDate: 1 });
 inventoryBatchSchema.index({ branch: 1, status: 1, expirationDate: 1 });
+inventoryBatchSchema.index(
+    { stockInNumber: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { stockInNumber: { $exists: true, $type: 'string', $ne: '' } },
+    }
+);
 inventoryBatchSchema.index(
     { legacyInventoryId: 1 },
     {

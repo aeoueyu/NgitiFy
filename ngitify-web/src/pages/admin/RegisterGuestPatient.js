@@ -4,7 +4,7 @@ import styles from '../../styles/admin/AddPatient.module.css';
 import BackIcon from '../../assets/icons/Back.svg';
 import successIcon from '../../assets/alert/success.svg';
 import { authFetch } from '../../utils/api';
-import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import { regions, provinces, cities, barangays, normalizeStoredAddressToCodes } from '../../utils/addressData';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
 import {
@@ -155,7 +155,12 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     });
 
     useEffect(() => {
-        const nextHomeAddress = { ...initialAddressState, ...(appointment?.guestHomeAddress || appointment?.guestCurrentAddress || appointment?.guestPermanentAddress || {}) };
+        const nextHomeAddress = {
+            ...initialAddressState,
+            ...normalizeStoredAddressToCodes(
+                appointment?.guestHomeAddress || appointment?.guestCurrentAddress || appointment?.guestPermanentAddress || {}
+            ),
+        };
         const guestProfile = appointment?.guestProfile || {};
         const guestEmergencyContact = appointment?.guestEmergencyContact || {};
         const guestGuardian = appointment?.guestGuardian || {};

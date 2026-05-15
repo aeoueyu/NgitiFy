@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../../styles/admin/AddPatient.module.css';
-import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import { regions, provinces, cities, barangays, normalizeStoredAddressToCodes } from '../../utils/addressData';
 import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
@@ -136,7 +136,10 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 }
 
                 const data = await response.json();
-                const homeAddress = { ...initialAddressState, ...(data.homeAddress || data.currentAddress || data.permanentAddress || {}) };
+                const homeAddress = {
+                    ...initialAddressState,
+                    ...normalizeStoredAddressToCodes(data.homeAddress || data.currentAddress || data.permanentAddress || {}),
+                };
                 const mapped = {
                     firstName: data.name?.first || '',
                     middleName: data.name?.middle || '',

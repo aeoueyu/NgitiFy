@@ -195,6 +195,7 @@ export default function InventoryTracker() {
                 item.name.toLowerCase().includes(query) ||
                 item.category.toLowerCase().includes(query) ||
                 item.batches.some((batch) =>
+                    String(batch.stockInNumber || '').toLowerCase().includes(query) ||
                     String(batch.brand || '').toLowerCase().includes(query) ||
                     String(batch.batchNumber || '').toLowerCase().includes(query)
                 );
@@ -393,7 +394,7 @@ export default function InventoryTracker() {
                         <FaSearch className={styles.searchIcon} />
                         <input
                             type="text"
-                            placeholder="Search items, categories, brands, or batch numbers..."
+                            placeholder="Search items, categories, stock-in numbers, brands, or batch numbers..."
                             className={styles.searchInput}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -516,12 +517,13 @@ export default function InventoryTracker() {
                                                         <div className={styles.batchPanel}>
                                                             <div className={styles.batchPanelHeader}>
                                                                 <h3 className={styles.batchPanelTitle}>Batch History</h3>
-                                                                <p className={styles.batchPanelSubtitle}>Each batch keeps its own quantity, supplier, and expiry for tracking.</p>
+                                                                <p className={styles.batchPanelSubtitle}>Each batch keeps its stock-in number, quantity, supplier, and expiry so staff can track receiving order clearly.</p>
                                                             </div>
                                                             <table className={styles.batchTable}>
                                                                 <thead>
                                                                     <tr>
                                                                         <th>Brand</th>
+                                                                        <th>Stock-In No.</th>
                                                                         <th>Batch No.</th>
                                                                         <th>Supplier</th>
                                                                         <th>Received</th>
@@ -535,6 +537,7 @@ export default function InventoryTracker() {
                                                                     {item.batches.map((batch) => (
                                                                         <tr key={batch.id}>
                                                                             <td>{batch.brand || 'Unspecified'}</td>
+                                                                            <td>{batch.stockInNumber || '-'}</td>
                                                                             <td>{batch.batchNumber || '-'}</td>
                                                                             <td>{batch.supplierName || '-'}</td>
                                                                             <td>{batch.receivedDate ? formatDateShort(batch.receivedDate) : '-'}</td>

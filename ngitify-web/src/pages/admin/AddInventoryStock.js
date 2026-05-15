@@ -26,6 +26,7 @@ export default function AddInventoryStock({ inventoryEntries = [], inventoryBatc
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [savedStockInNumber, setSavedStockInNumber] = useState('');
     const [errors, setErrors] = useState({});
     const [serverMessage, setServerMessage] = useState('');
     const [formData, setFormData] = useState({
@@ -116,6 +117,7 @@ export default function AddInventoryStock({ inventoryEntries = [], inventoryBatc
                 if (data.errors) setErrors((prev) => ({ ...prev, ...data.errors }));
                 return;
             }
+            setSavedStockInNumber(data.stockInNumber || '');
             setShowConfirmModal(false);
             setShowSuccessModal(true);
         } catch (error) {
@@ -211,6 +213,7 @@ export default function AddInventoryStock({ inventoryEntries = [], inventoryBatc
                         <div className={styles.formGroup}>
                             <label>RECEIVED DATE</label>
                             <input type="date" className={styles.inputField} name="receivedDate" value={formData.receivedDate} onChange={handleChange} disabled={isSaving} />
+                            <span className={styles.helperText}>The stock-in number will be generated automatically when this batch is saved.</span>
                         </div>
                     </div>
 
@@ -259,7 +262,10 @@ export default function AddInventoryStock({ inventoryEntries = [], inventoryBatc
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
                         <h3 className={styles.modalTitle}>Stock Added!</h3>
-                        <p className={styles.modalMessage}>The new supply batch has been added successfully.</p>
+                        <p className={styles.modalMessage}>
+                            The new supply batch has been added successfully.
+                            {savedStockInNumber ? ` Stock-in No.: ${savedStockInNumber}.` : ''}
+                        </p>
                         <button className={styles.modalButton} onClick={handleSuccessClose}>DONE</button>
                     </div>
                 </div>

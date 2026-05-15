@@ -69,3 +69,74 @@ export const barangays = rawBarangays.reduce((acc, brgy) => {
     
     return acc;
 }, {});
+
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
+
+const findRegionCode = (value) => {
+    if (!value) return '';
+    const normalized = normalizeText(value);
+    const match = rawRegions.find((region) => (
+        normalizeText(region.region_code) === normalized
+        || normalizeText(region.region_name) === normalized
+        || normalizeText(region.region_name.replace(/\(.*?\)/g, '').trim()) === normalized
+    ));
+    return match?.region_code || '';
+};
+
+const findProvinceCode = (value, regionCode = '') => {
+    if (!value) return '';
+    const normalized = normalizeText(value);
+    const match = rawProvinces.find((province) => {
+        const matchesRegion = !regionCode || province.region_code === regionCode;
+        return matchesRegion && (
+            normalizeText(province.province_code) === normalized
+            || normalizeText(province.province_name) === normalized
+        );
+    });
+    return match?.province_code || '';
+};
+
+const findCityCode = (value, provinceCode = '', regionCode = '') => {
+    if (!value) return '';
+    const normalized = normalizeText(value);
+    const match = rawCities.find((city) => {
+        const derivedProvinceCode = city.region_desc === 'National Capital Region (NCR)' ? 'MM' : city.province_code;
+        const matchesProvince = !provinceCode || derivedProvinceCode === provinceCode || city.province_code === provinceCode;
+        const matchesRegion = !regionCode || normalizeText(city.region_desc) === normalizeText(regionCode) || normalizeText(city.region_desc) === normalizeText(rawRegions.find((region) => region.region_code === regionCode)?.region_name);
+        return matchesProvince && matchesRegion && (
+            normalizeText(city.city_code) === normalized
+            || normalizeText(city.city_name) === normalized
+        );
+    });
+    return match?.city_code || '';
+};
+
+const findBarangayValue = (value, cityCode = '') => {
+    if (!value) return '';
+    const normalized = normalizeText(value);
+    const match = rawBarangays.find((barangay) => {
+        const matchesCity = !cityCode || barangay.city_code === cityCode;
+        return matchesCity && (
+            normalizeText(barangay.brgy_code) === normalized
+            || normalizeText(barangay.brgy_name) === normalized
+        );
+    });
+    return match?.brgy_name || '';
+};
+
+export const normalizeStoredAddressToCodes = (address = {}) => {
+    const region = findRegionCode(address.region);
+    const province = findProvinceCode(address.province, region) || (normalizeText(address.province) === 'metro manila' ? 'MM' : '');
+    const city = findCityCode(address.city, province, region);
+    const barangay = findBarangayValue(address.barangay, city);
+
+    return {
+        country: String(address.country || 'Philippines').trim() || 'Philippines',
+        region,
+        province,
+        city,
+        barangay,
+        houseNumber: String(address.houseNumber || '').trim(),
+        street: String(address.street || '').trim(),
+    };
+};

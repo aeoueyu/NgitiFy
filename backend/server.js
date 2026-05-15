@@ -310,6 +310,60 @@ const syncBatchStatus = (batch) => {
     return batch.status;
 };
 
+const INVENTORY_STOCK_IN_PREFIX = 'SI';
+const INVENTORY_STOCK_IN_SEQUENCE_WIDTH = 3;
+
+const formatInventoryStockInDateToken = (value = new Date()) => {
+    const date = new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
+};
+
+const buildInventoryStockInPrefix = (value = new Date()) => `${INVENTORY_STOCK_IN_PREFIX}-${formatInventoryStockInDateToken(value)}`;
+
+const getNextInventoryStockInNumber = async (receivedDate = new Date()) => {
+    const prefix = buildInventoryStockInPrefix(receivedDate);
+    const stockInPattern = new RegExp(`^${prefix}-(\\d+)$`);
+    const existing = await InventoryBatch.find({ stockInNumber: stockInPattern })
+        .select('stockInNumber')
+        .lean();
+
+    const maxSequence = existing.reduce((highest, batch) => {
+        const match = String(batch.stockInNumber || '').match(stockInPattern);
+        if (!match) return highest;
+        return Math.max(highest, Number(match[1] || 0));
+    }, 0);
+
+    return `${prefix}-${String(maxSequence + 1).padStart(INVENTORY_STOCK_IN_SEQUENCE_WIDTH, '0')}`;
+};
+
+const isDuplicateStockInNumberError = (error) => (
+    error?.code === 11000
+    && Object.prototype.hasOwnProperty.call(error?.keyPattern || {}, 'stockInNumber')
+);
+
+const saveInventoryBatchWithStockInNumber = async (batch, { maxAttempts = 5 } = {}) => {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (!String(batch.stockInNumber || '').trim()) {
+            batch.stockInNumber = await getNextInventoryStockInNumber(batch.receivedDate || batch.createdAt || new Date());
+        }
+        try {
+            await batch.save();
+            return batch;
+        } catch (error) {
+            if (isDuplicateStockInNumberError(error)) {
+                batch.stockInNumber = '';
+                continue;
+            }
+            throw error;
+        }
+    }
+
+    throw new Error('Could not generate a unique stock-in reference number.');
+};
+
 const flattenBatch = (batchDoc) => {
     const batch = batchDoc.toObject ? batchDoc.toObject() : batchDoc;
     const item = batch.inventoryItem || {};
@@ -340,6 +394,7 @@ const flattenBatch = (batchDoc) => {
         receivedDate: batch.receivedDate || null,
         supplierName: batch.supplierName || '',
         batchNumber: batch.batchNumber || '',
+        stockInNumber: batch.stockInNumber || '',
         isLowStock: quantityRemaining <= threshold,
         isExpired: Boolean(expiryDate && expiryDate < new Date()),
         isExpiringSoon: Boolean(expiryDate && daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 30),
@@ -399,7 +454,7 @@ const ensureInventoryMigration = async () => {
             });
 
             syncBatchStatus(batch);
-            await batch.save();
+            await saveInventoryBatchWithStockInNumber(batch);
         }
     })().catch((error) => {
         inventoryMigrationPromise = null;
@@ -524,7 +579,7 @@ const createInventoryBatchRecord = async (reqUser, payload) => {
     });
 
     syncBatchStatus(batch);
-    await batch.save();
+    await saveInventoryBatchWithStockInNumber(batch);
     await batch.populate('inventoryItem');
 
     return batch;
@@ -582,6 +637,7 @@ console.log('✅ Resend email client initialized');
 
 mongoose.connection.once('open', async () => {
     await ensureInventoryBatchIndexes();
+    await ensureInventoryStockInNumbers();
 });
 
 // ================= PUBLIC ROUTES ================= //
@@ -3054,6 +3110,25 @@ const ensureInventoryBatchIndexes = async () => {
         await InventoryBatch.syncIndexes();
     } catch (error) {
         console.error('Failed to ensure InventoryBatch indexes:', error.message);
+    }
+};
+
+const ensureInventoryStockInNumbers = async () => {
+    try {
+        const batchesMissingStockInNumbers = await InventoryBatch.find({
+            $or: [
+                { stockInNumber: { $exists: false } },
+                { stockInNumber: null },
+                { stockInNumber: '' },
+            ],
+        }).sort({ receivedDate: 1, createdAt: 1, _id: 1 });
+
+        for (const batch of batchesMissingStockInNumbers) {
+            syncBatchStatus(batch);
+            await saveInventoryBatchWithStockInNumber(batch);
+        }
+    } catch (error) {
+        console.error('Failed to backfill inventory stock-in numbers:', error.message);
     }
 };
 
