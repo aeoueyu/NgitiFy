@@ -4,6 +4,8 @@ import { FaBars, FaXmark } from 'react-icons/fa6';
 import { FaRegComments, FaPaperPlane } from 'react-icons/fa';
 import styles from '../../styles/website/WebsiteShell.module.css';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
+import { websiteMediaDefaults } from '../../data/websiteMediaDefaults';
+import WebsiteImage from './WebsiteImage';
 
 const navItems = [
     { label: 'Home', path: '/' },
@@ -99,7 +101,12 @@ export default function WebsiteShell({ children }) {
             <header className={styles.topBar}>
                 <div className={styles.brandRow}>
                     <button className={styles.logoButton} onClick={() => navigate('/')} type="button">
-                        <img src={logoUrl} alt={`${clinicInfo.name} logo`} className={styles.logo} />
+                        <WebsiteImage
+                            src={logoUrl}
+                            fallbackSrc={websiteMediaDefaults.logoUrl}
+                            alt={`${clinicInfo.name} logo`}
+                            className={styles.logo}
+                        />
                     </button>
 
                     <button

@@ -1,8 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebsiteShell from '../../components/website/WebsiteShell';
+import WebsiteImage from '../../components/website/WebsiteImage';
 import styles from '../../styles/website/WebsitePages.module.css';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
+import { websiteMediaDefaults } from '../../data/websiteMediaDefaults';
 
 export default function WebsiteContact() {
     const navigate = useNavigate();
@@ -31,7 +33,7 @@ export default function WebsiteContact() {
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
-                        <img src={media.contactHeroImageUrl} alt={`${clinicInfo.name} contact`} className={styles.placeholderImage} />
+                        <WebsiteImage src={media.contactHeroImageUrl} fallbackSrc={websiteMediaDefaults.contactHeroImageUrl} alt={`${clinicInfo.name} contact`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -40,7 +42,7 @@ export default function WebsiteContact() {
                 <div className={styles.gridThree}>
                     <article className={styles.contactCard}>
                         <div className={styles.squarePlaceholder}>
-                            <img src={media.contactPhoneImageUrl} alt="Phone contact" className={styles.placeholderImage} />
+                            <WebsiteImage src={media.contactPhoneImageUrl} fallbackSrc={websiteMediaDefaults.contactPhoneImageUrl} alt="Phone contact" className={styles.placeholderImage} />
                         </div>
                         <h2 className={styles.cardTitle}>{contactContent.phoneCardTitle}</h2>
                         <span className={styles.contactValue}>{clinicInfo.contactNumber}</span>
@@ -51,7 +53,7 @@ export default function WebsiteContact() {
 
                     <article className={styles.contactCard}>
                         <div className={styles.squarePlaceholder}>
-                            <img src={media.contactFacebookImageUrl} alt="Facebook contact" className={styles.placeholderImage} />
+                            <WebsiteImage src={media.contactFacebookImageUrl} fallbackSrc={websiteMediaDefaults.contactFacebookImageUrl} alt="Facebook contact" className={styles.placeholderImage} />
                         </div>
                         <h2 className={styles.cardTitle}>{contactContent.facebookCardTitle}</h2>
                         <p>{clinicInfo.facebookName}</p>
@@ -67,7 +69,7 @@ export default function WebsiteContact() {
 
                     <article className={styles.contactCard}>
                         <div className={styles.squarePlaceholder}>
-                            <img src={media.contactInstagramImageUrl} alt="Instagram contact" className={styles.placeholderImage} />
+                            <WebsiteImage src={media.contactInstagramImageUrl} fallbackSrc={websiteMediaDefaults.contactInstagramImageUrl} alt="Instagram contact" className={styles.placeholderImage} />
                         </div>
                         <h2 className={styles.cardTitle}>{contactContent.instagramCardTitle}</h2>
                         <span className={styles.contactValue}>@{clinicInfo.instagramHandle}</span>
@@ -100,7 +102,7 @@ export default function WebsiteContact() {
                     </article>
 
                     <div className={styles.bannerPlaceholder}>
-                        <img src={media.contactMapImageUrl} alt={`${primaryLocation.name} map or clinic front`} className={styles.placeholderImage} />
+                        <WebsiteImage src={media.contactMapImageUrl} fallbackSrc={websiteMediaDefaults.contactMapImageUrl} alt={`${primaryLocation.name} map or clinic front`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>

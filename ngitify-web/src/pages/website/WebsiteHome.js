@@ -2,8 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowRight, FaRegCircleCheck, FaRegClock } from 'react-icons/fa6';
 import WebsiteShell from '../../components/website/WebsiteShell';
+import WebsiteImage from '../../components/website/WebsiteImage';
 import styles from '../../styles/website/WebsitePages.module.css';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
+import { getDefaultServiceImage, websiteMediaDefaults } from '../../data/websiteMediaDefaults';
 
 export default function WebsiteHome() {
     const navigate = useNavigate();
@@ -34,7 +36,7 @@ export default function WebsiteHome() {
                 </div>
 
                 <div className={styles.heroImageCard}>
-                    <img src={media.homeHeroImageUrl} alt={clinicInfo.name} className={styles.heroImage} />
+                    <WebsiteImage src={media.homeHeroImageUrl} fallbackSrc={websiteMediaDefaults.homeHeroImageUrl} alt={clinicInfo.name} className={styles.heroImage} />
                 </div>
             </section>
 
@@ -42,7 +44,7 @@ export default function WebsiteHome() {
                 <div className={styles.referenceIntroGrid}>
                     <article className={styles.referenceImageCard}>
                         <div className={styles.referenceThumb}>
-                            <img src={media.homeIntroImageUrl} alt={`${clinicInfo.name} clinic lifestyle`} className={styles.placeholderImage} />
+                            <WebsiteImage src={media.homeIntroImageUrl} fallbackSrc={websiteMediaDefaults.homeIntroImageUrl} alt={`${clinicInfo.name} clinic lifestyle`} className={styles.placeholderImage} />
                         </div>
                         <div className={styles.referenceCopy}>
                             <p className={styles.referenceKicker}>{homeContent.introKicker}</p>
@@ -108,7 +110,7 @@ export default function WebsiteHome() {
                             {serviceHighlights.map((service) => (
                                 <article key={service.category} className={styles.serviceShowcaseCard}>
                                     <div className={styles.serviceImageFrame}>
-                                        <img src={service.imageUrl} alt={service.category} className={styles.placeholderImage} />
+                                        <WebsiteImage src={service.imageUrl} fallbackSrc={getDefaultServiceImage(service.category)} alt={service.category} className={styles.placeholderImage} />
                                     </div>
                             <div className={styles.serviceShowcaseBody}>
                                 <span className={styles.serviceTag}>{service.category}</span>
@@ -160,7 +162,7 @@ export default function WebsiteHome() {
 
                     <article className={styles.journeyImageCard}>
                         <div className={styles.journeyImageFrame}>
-                            <img src={media.homeJourneyImageUrl} alt={`${clinicInfo.name} treatment planning`} className={styles.placeholderImage} />
+                            <WebsiteImage src={media.homeJourneyImageUrl} fallbackSrc={websiteMediaDefaults.homeJourneyImageUrl} alt={`${clinicInfo.name} treatment planning`} className={styles.placeholderImage} />
                         </div>
                         <p className={styles.journeyImageCaption}>{homeContent.journeyCaption}</p>
                     </article>

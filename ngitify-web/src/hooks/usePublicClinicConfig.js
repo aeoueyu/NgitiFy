@@ -28,11 +28,22 @@ const cloneServiceHighlightList = (services = []) => services.map((service) => (
     items: Array.isArray(service?.items) ? [...service.items] : [],
 }));
 
-const normalizeWebsiteMedia = (media = {}, fallbackMedia = {}) => ({
-    ...fallbackMedia,
-    ...(media || {}),
-    aboutHighlightImageUrls: normalizeStringList(media?.aboutHighlightImageUrls, fallbackMedia.aboutHighlightImageUrls || []),
-});
+const normalizeWebsiteMedia = (media = {}, fallbackMedia = {}) => {
+    const normalized = { ...fallbackMedia };
+
+    Object.keys(fallbackMedia || {}).forEach((field) => {
+        if (field === 'aboutHighlightImageUrls') return;
+        const nextValue = String(media?.[field] ?? '').trim();
+        normalized[field] = nextValue || fallbackMedia[field] || '';
+    });
+
+    normalized.aboutHighlightImageUrls = normalizeStringList(
+        media?.aboutHighlightImageUrls,
+        fallbackMedia.aboutHighlightImageUrls || []
+    );
+
+    return normalized;
+};
 
 const normalizeServiceHighlightList = (services = [], fallback = []) => {
     const normalized = (Array.isArray(services) ? services : [])

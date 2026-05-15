@@ -1,8 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebsiteShell from '../../components/website/WebsiteShell';
+import WebsiteImage from '../../components/website/WebsiteImage';
 import styles from '../../styles/website/WebsitePages.module.css';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
+import { websiteMediaDefaults } from '../../data/websiteMediaDefaults';
 
 export default function WebsiteLocations() {
     const navigate = useNavigate();
@@ -22,7 +24,7 @@ export default function WebsiteLocations() {
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
-                        <img src={media.locationsHeroImageUrl} alt={`${clinicInfo.name} branch locations`} className={styles.placeholderImage} />
+                        <WebsiteImage src={media.locationsHeroImageUrl} fallbackSrc={websiteMediaDefaults.locationsHeroImageUrl} alt={`${clinicInfo.name} branch locations`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -32,7 +34,7 @@ export default function WebsiteLocations() {
                     {locationCards.map((location) => (
                         <article key={location.name} className={styles.locationCard}>
                             <div className={styles.bannerPlaceholder}>
-                                <img src={media.locationCardImageUrl} alt={location.name} className={styles.placeholderImage} />
+                                <WebsiteImage src={media.locationCardImageUrl} fallbackSrc={websiteMediaDefaults.locationCardImageUrl} alt={location.name} className={styles.placeholderImage} />
                             </div>
                             <span className={styles.statusPill}>{location.status}</span>
                             <h2 className={styles.cardTitle}>{location.name}</h2>

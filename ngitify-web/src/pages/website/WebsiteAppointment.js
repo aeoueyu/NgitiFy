@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WebsiteShell from '../../components/website/WebsiteShell';
+import WebsiteImage from '../../components/website/WebsiteImage';
 import styles from '../../styles/website/WebsitePages.module.css';
 import {
     privacyPolicySections,
@@ -8,6 +9,7 @@ import {
 } from '../../data/consentDocument';
 import { publicFetch } from '../../utils/api';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
+import { websiteMediaDefaults } from '../../data/websiteMediaDefaults';
 
 const buildInitialForm = ({ branchOptions = [], appointmentProcedureOptions = [] } = {}) => ({
     firstName: '',
@@ -566,7 +568,7 @@ export default function WebsiteAppointment() {
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
-                        <img src={media.appointmentHeroImageUrl} alt={`${clinicInfo.name} appointment`} className={styles.placeholderImage} />
+                        <WebsiteImage src={media.appointmentHeroImageUrl} fallbackSrc={websiteMediaDefaults.appointmentHeroImageUrl} alt={`${clinicInfo.name} appointment`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -853,7 +855,7 @@ export default function WebsiteAppointment() {
                         </article>
 
                         <div className={styles.bannerPlaceholder}>
-                            <img src={media.appointmentGuideImageUrl} alt="Booking guide" className={styles.placeholderImage} />
+                            <WebsiteImage src={media.appointmentGuideImageUrl} fallbackSrc={websiteMediaDefaults.appointmentGuideImageUrl} alt="Booking guide" className={styles.placeholderImage} />
                         </div>
                     </div>
                 </div>
@@ -868,7 +870,7 @@ export default function WebsiteAppointment() {
                     {locationCards.map((location) => (
                         <article key={location.name} className={styles.locationCard}>
                             <div className={styles.bannerPlaceholder}>
-                                <img src={media.appointmentBranchImageUrl} alt={location.name} className={styles.placeholderImage} />
+                                <WebsiteImage src={media.appointmentBranchImageUrl} fallbackSrc={websiteMediaDefaults.appointmentBranchImageUrl} alt={location.name} className={styles.placeholderImage} />
                             </div>
                             <span className={styles.statusPill}>{location.status}</span>
                             <h3 className={styles.cardTitle}>{location.name}</h3>

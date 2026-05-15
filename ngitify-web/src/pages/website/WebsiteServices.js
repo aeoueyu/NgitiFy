@@ -1,7 +1,9 @@
 import React from 'react';
 import WebsiteShell from '../../components/website/WebsiteShell';
+import WebsiteImage from '../../components/website/WebsiteImage';
 import styles from '../../styles/website/WebsitePages.module.css';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
+import { getDefaultServiceImage, websiteMediaDefaults } from '../../data/websiteMediaDefaults';
 
 export default function WebsiteServices() {
     const { serviceHighlights, websiteContent, clinicInfo } = usePublicClinicConfig();
@@ -19,7 +21,7 @@ export default function WebsiteServices() {
                     </article>
 
                     <div className={`${styles.portraitPlaceholder} ${styles.pageHeroMedia}`}>
-                        <img src={media.servicesHeroImageUrl} alt={`${clinicInfo.name} services`} className={styles.placeholderImage} />
+                        <WebsiteImage src={media.servicesHeroImageUrl} fallbackSrc={websiteMediaDefaults.servicesHeroImageUrl} alt={`${clinicInfo.name} services`} className={styles.placeholderImage} />
                     </div>
                 </div>
             </section>
@@ -29,7 +31,7 @@ export default function WebsiteServices() {
                     {serviceHighlights.map((service) => (
                         <article key={service.category} className={styles.serviceCard}>
                             <div className={styles.bannerPlaceholder}>
-                                <img src={service.imageUrl} alt={service.category} className={styles.placeholderImage} />
+                                <WebsiteImage src={service.imageUrl} fallbackSrc={getDefaultServiceImage(service.category)} alt={service.category} className={styles.placeholderImage} />
                             </div>
                             <span className={styles.serviceTag}>{service.category}</span>
                             <h2 className={styles.cardTitle}>{service.category}</h2>
