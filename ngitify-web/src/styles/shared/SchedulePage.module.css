@@ -16,6 +16,14 @@
     margin-bottom: 30px;
 }
 
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .pageTitle {
     color: #01538b;
     font-size: 26px;
@@ -136,6 +144,12 @@
     border: 1px solid #e2e8f0;
 }
 
+.rangeHint {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .dateField {
     display: flex;
     flex-direction: column;
@@ -253,6 +267,57 @@
 
 .filterSelectWrap .filterSelect {
     padding-left: 42px;
+}
+
+.reportFilterPanel {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding: 18px 20px;
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid #dbe5ef;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+}
+
+.reportFilterHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.reportFilterHeader strong {
+    display: block;
+    color: #0f172a;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.reportFilterHeader span {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.reportFilterGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.filterField {
+    display: grid;
+    gap: 6px;
+}
+
+.filterField span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .queueNote {
@@ -552,10 +617,18 @@
     border-radius: 8px;
     font-weight: 500;
     transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .secondaryButton:hover {
     background-color: #e2e8f0;
+}
+
+.secondaryButton:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .addPatientButton {
@@ -1033,8 +1106,18 @@
     }
 
     .customDateRange,
-    .pillGroup {
+    .pillGroup,
+    .headerActions,
+    .reportFilterHeader {
         width: 100%;
+    }
+
+    .headerActions {
+        justify-content: flex-start;
+    }
+
+    .reportFilterGrid {
+        grid-template-columns: 1fr;
     }
 
     .formGrid,

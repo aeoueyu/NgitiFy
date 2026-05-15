@@ -10392,6 +10392,8 @@ app.get('/api/queue', verifyToken, async (req, res) => {
             filter.branch = req.query.branch;
         }
  
+        const includeHistory = String(req.query.includeHistory || '').trim().toLowerCase() === 'true';
+
         if (req.query.dateFrom || req.query.dateTo) {
             const createdAtFilter = {};
 
@@ -10414,7 +10416,7 @@ app.get('/api/queue', verifyToken, async (req, res) => {
             if (Object.keys(createdAtFilter).length > 0) {
                 filter.createdAt = createdAtFilter;
             }
-        } else {
+        } else if (!includeHistory) {
             // Keep today's queue as the default behavior for queue-only screens.
             const startOfDay = new Date();
             startOfDay.setHours(0, 0, 0, 0);

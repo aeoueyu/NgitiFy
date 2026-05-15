@@ -5,11 +5,13 @@ import {
     FaEye,
     FaFilter,
     FaCheck,
+    FaFileExport,
     FaPlus,
     FaSearch,
     FaTimes,
 } from 'react-icons/fa';
 import { authFetch, publicFetch } from '../../utils/api';
+import { downloadCsvFile } from '../../utils/exportHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
@@ -487,6 +489,10 @@ export default function SchedulePage() {
     const [statusFilter, setStatusFilter] = useState(NEEDS_ACTION_STATUS_VALUES);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
     const [typeFilter, setTypeFilter] = useState('all');
+    const [patientFilter, setPatientFilter] = useState('');
+    const [procedureFilter, setProcedureFilter] = useState('');
+    const [dentistFilter, setDentistFilter] = useState('');
+    const [branchFilter, setBranchFilter] = useState('');
 
     const [formState, setFormState] = useState(buildInitialForm({ assignedBranch, currentUserId, role }));
     const [formErrors, setFormErrors] = useState({});
@@ -604,6 +610,7 @@ export default function SchedulePage() {
                 const queueParams = new URLSearchParams();
                 if (selectedDateRange.from) queueParams.set('dateFrom', selectedDateRange.from);
                 if (selectedDateRange.to) queueParams.set('dateTo', selectedDateRange.to);
+                queueParams.set('includeHistory', 'true');
                 requests.push(authFetch(queueParams.toString() ? `/queue?${queueParams.toString()}` : '/queue'));
             }
 
@@ -864,6 +871,28 @@ export default function SchedulePage() {
             ? baseList.filter((entry) => !entry.branch || entry.branch === formState.branch)
             : baseList;
     }, [currentUserId, dentists, formState.branch, isDentist]);
+    const reportBranchOptions = useMemo(() => (
+        [...new Set([
+            ...branches.map((entry) => entry.name),
+            ...appointments.map((entry) => entry.branch),
+            ...queueEntries.map((entry) => entry.branch),
+            assignedBranch,
+        ].filter(Boolean))].sort()
+    ), [appointments, assignedBranch, branches, queueEntries]);
+    const reportDentistOptions = useMemo(() => (
+        [...new Set([
+            ...dentistOptions.map((entry) => entry.name),
+            ...appointments.map((entry) => entry.dentistName),
+            ...queueEntries.map((entry) => entry.dentistName),
+        ].filter(Boolean))].sort()
+    ), [appointments, dentistOptions, queueEntries]);
+    const reportProcedureOptions = useMemo(() => (
+        [...new Set([
+            ...clinicProcedureOptions,
+            ...appointments.map((entry) => entry.procedure),
+            ...queueEntries.map((entry) => entry.procedure),
+        ].filter(Boolean))].sort((left, right) => left.localeCompare(right))
+    ), [appointments, clinicProcedureOptions, queueEntries]);
 
     const scheduleProcedureOptions = useMemo(() => {
         const savedProcedure = String(formState.procedure || '').trim();
@@ -906,9 +935,25 @@ export default function SchedulePage() {
         () => patientOptions.map((patient) => `${patient.name}${patient.email ? ` (${patient.email})` : ''}`),
         [patientOptions]
     );
+    const resetReportFilters = useCallback(() => {
+        setPatientFilter('');
+        setProcedureFilter('');
+        setDentistFilter('');
+        setBranchFilter('');
+        setTypeFilter('all');
+        setSearchQuery('');
+        setDateFilter('all');
+        setCustomDateFrom(todayString);
+        setCustomDateTo(todayString);
+        applyWorkflowFilter('all');
+    }, [applyWorkflowFilter, todayString]);
 
     const rowsBeforeStatusFilter = useMemo(() => {
         const normalizedQuery = searchQuery.trim().toLowerCase();
+        const normalizedPatientFilter = patientFilter.trim().toLowerCase();
+        const normalizedProcedureFilter = procedureFilter.trim().toLowerCase();
+        const normalizedDentistFilter = dentistFilter.trim().toLowerCase();
+        const normalizedBranchFilter = branchFilter.trim().toLowerCase();
         const rows = [
             ...appointments,
             ...queueEntries.filter((entry) => !entry.linkedAppointmentId),
@@ -921,7 +966,14 @@ export default function SchedulePage() {
                     : (typeFilter === 'phonecall'
                         ? entry.sourceKind === 'phonecall'
                         : entry.sourceKind === 'appointment'));
-            if (!normalizedQuery) return matchesType;
+            const matchesPatient = !normalizedPatientFilter || String(entry.patientName || '').toLowerCase().includes(normalizedPatientFilter);
+            const matchesProcedure = !normalizedProcedureFilter || String(entry.procedure || '').toLowerCase() === normalizedProcedureFilter;
+            const matchesDentist = !normalizedDentistFilter || String(entry.dentistName || '').toLowerCase() === normalizedDentistFilter;
+            const matchesBranch = !normalizedBranchFilter || String(entry.branch || '').toLowerCase() === normalizedBranchFilter;
+            if (!matchesType || !matchesPatient || !matchesProcedure || !matchesDentist || !matchesBranch) {
+                return false;
+            }
+            if (!normalizedQuery) return true;
 
             const haystack = [
                 entry.patientName,
@@ -935,9 +987,9 @@ export default function SchedulePage() {
                 .join(' ')
                 .toLowerCase();
 
-            return matchesType && haystack.includes(normalizedQuery);
+            return haystack.includes(normalizedQuery);
         });
-    }, [appointments, queueEntries, searchQuery, typeFilter]);
+    }, [appointments, branchFilter, dentistFilter, patientFilter, procedureFilter, queueEntries, searchQuery, typeFilter]);
 
     const statusSummary = useMemo(() => {
         const counts = rowsBeforeStatusFilter.reduce((accumulator, entry) => {
@@ -972,6 +1024,28 @@ export default function SchedulePage() {
                 return 0;
             })
     ), [rowsBeforeStatusFilter, statusFilter]);
+    const exportRows = useMemo(() => (
+        combinedRows.map((entry) => ([
+            entry.patientName || 'Unknown Patient',
+            formatDateLabel(entry.date),
+            entry.time ? to12h(entry.time) : 'Walk-in entry',
+            entry.sourceLabel || 'Appointment',
+            entry.dentistName || 'Unassigned',
+            entry.branch || 'No branch',
+            entry.procedure || '-',
+            entry.statusLabel || 'Pending',
+            entry.contactNumber ? `+63 ${normalizeSchedulePhoneInput(entry.contactNumber)}` : '',
+            entry.notes || '',
+            formatCreatedAt(entry.createdAt),
+        ]))
+    ), [combinedRows]);
+    const handleExportCsv = useCallback(() => {
+        downloadCsvFile(
+            `schedule_records_${new Date().toISOString().slice(0, 10)}.csv`,
+            ['Patient Name', 'Date', 'Time', 'Source', 'Dentist', 'Branch', 'Procedure', 'Status', 'Contact Number', 'Notes', 'Created At'],
+            exportRows,
+        );
+    }, [exportRows]);
 
     const openCreateModal = () => {
         resetFormState();
@@ -2086,15 +2160,26 @@ export default function SchedulePage() {
                     <div>
                         <h1 className={styles.pageTitle}>Schedule Management</h1>
                         <p className={styles.pageSubtitle}>
-                            Appointments, phone calls, and walk-ins are shown in one schedule view, with branch-aware dentist filtering and a patient search flow that matches registration.
+                            Appointments, phone calls, and walk-ins are shown in one schedule view, with branch-aware dentist filtering, multi-filter record exports, and a patient search flow that matches registration.
                         </p>
                     </div>
-                    {canCreateSchedule && (
-                        <button type="button" className={styles.primaryButton} onClick={openCreateModal}>
-                            <FaPlus />
-                            Add Schedule Entry
+                    <div className={styles.headerActions}>
+                        <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={handleExportCsv}
+                            disabled={combinedRows.length === 0}
+                        >
+                            <FaFileExport />
+                            Export CSV
                         </button>
-                    )}
+                        {canCreateSchedule && (
+                            <button type="button" className={styles.primaryButton} onClick={openCreateModal}>
+                                <FaPlus />
+                                Add Schedule Entry
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className={styles.toolbar}>
@@ -2235,9 +2320,73 @@ export default function SchedulePage() {
                                     className={styles.filterSelect}
                                 />
                             </label>
+                            <span className={styles.rangeHint}>Use the same From and To date for a single-day schedule export.</span>
                         </div>
                     </div>
                 )}
+
+                <div className={styles.reportFilterPanel}>
+                    <div className={styles.reportFilterHeader}>
+                        <div>
+                            <strong>Schedule Record Filters</strong>
+                            <span>Combine patient, procedure, dentist, branch, source, date, and status before exporting.</span>
+                        </div>
+                        <button type="button" className={styles.secondaryButton} onClick={resetReportFilters}>
+                            Clear Filters
+                        </button>
+                    </div>
+                    <div className={styles.reportFilterGrid}>
+                        <label className={styles.filterField}>
+                            <span>Patient Name</span>
+                            <input
+                                type="search"
+                                value={patientFilter}
+                                onChange={(event) => setPatientFilter(event.target.value)}
+                                placeholder="Filter by patient name"
+                                className={styles.searchInput}
+                            />
+                        </label>
+                        <label className={styles.filterField}>
+                            <span>Procedure</span>
+                            <select
+                                className={styles.filterSelect}
+                                value={procedureFilter}
+                                onChange={(event) => setProcedureFilter(event.target.value)}
+                            >
+                                <option value="">All Procedures</option>
+                                {reportProcedureOptions.map((procedure) => (
+                                    <option key={procedure} value={procedure}>{procedure}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className={styles.filterField}>
+                            <span>Dentist</span>
+                            <select
+                                className={styles.filterSelect}
+                                value={dentistFilter}
+                                onChange={(event) => setDentistFilter(event.target.value)}
+                            >
+                                <option value="">All Dentists</option>
+                                {reportDentistOptions.map((dentistName) => (
+                                    <option key={dentistName} value={dentistName}>{dentistName}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className={styles.filterField}>
+                            <span>Branch</span>
+                            <select
+                                className={styles.filterSelect}
+                                value={branchFilter}
+                                onChange={(event) => setBranchFilter(event.target.value)}
+                            >
+                                <option value="">All Branches</option>
+                                {reportBranchOptions.map((branchName) => (
+                                    <option key={branchName} value={branchName}>{branchName}</option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+                </div>
 
                 <div className={`${styles.tableContainer} ${wideTable.tableWrapper}`}>
                     <table className={`${styles.userTable} ${wideTable.table}`}>
