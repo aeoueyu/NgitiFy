@@ -133,9 +133,7 @@ const SystemConfig = () => {
     const [websiteActionMessage, setWebsiteActionMessage] = useState('');
     const [activeSection, setActiveSection] = useState('clinic');
     const [activeWebsiteTab, setActiveWebsiteTab] = useState('branding');
-    const [successMsg, setSuccessMsg] = useState('');
-    const [errorMsg, setErrorMsg] = useState('');
-    const [modalErrorMessage, setModalErrorMessage] = useState('');
+    const [feedbackModal, setFeedbackModal] = useState(null);
     const [config, setConfig] = useState(buildInitialConfig);
 
     useEffect(() => {
@@ -160,7 +158,12 @@ const SystemConfig = () => {
                     }));
                 }
             } catch {
-                setErrorMsg('Failed to load system configuration.');
+                setFeedbackModal({
+                    tone: 'error',
+                    title: 'Could not load settings',
+                    eyebrow: 'System Config Error',
+                    message: 'Failed to load system configuration.',
+                });
             } finally {
                 setIsLoading(false);
             }
@@ -295,9 +298,22 @@ const SystemConfig = () => {
         }));
     };
 
-    const showErrorModal = (message) => {
-        setErrorMsg(message);
-        setModalErrorMessage(message);
+    const showErrorModal = (message, title = 'Could not complete this action') => {
+        setFeedbackModal({
+            tone: 'error',
+            title,
+            eyebrow: 'System Config Error',
+            message,
+        });
+    };
+
+    const showSuccessModal = (message, title = 'Success') => {
+        setFeedbackModal({
+            tone: 'success',
+            title,
+            eyebrow: 'Website Editor Updated',
+            message,
+        });
     };
 
     const handleImageUpload = async ({ file, onChange, label = 'image' }) => {
@@ -322,7 +338,7 @@ const SystemConfig = () => {
             setWebsiteActionMessage('Uploading image...');
             const dataUrl = await readFileAsDataUrl(file);
             onChange(dataUrl);
-            setErrorMsg('');
+            showSuccessModal(`${label} uploaded successfully. Save changes to publish it on the website.`, 'Upload complete');
         } catch (error) {
             showErrorModal(error.message || 'Failed to read the selected image.');
         } finally {
@@ -376,8 +392,6 @@ const SystemConfig = () => {
 
     const handleSave = async () => {
         setIsSaving(true);
-        setSuccessMsg('');
-        setErrorMsg('');
         setWebsiteActionMessage('Saving website changes...');
 
         try {
@@ -389,13 +403,13 @@ const SystemConfig = () => {
             );
 
             if (normalizedProcedures.length === 0) {
-                setErrorMsg('Add at least one clinic procedure before saving.');
+                showErrorModal('Add at least one clinic procedure before saving.', 'Missing clinic procedures');
                 setIsSaving(false);
                 setWebsiteActionMessage('');
                 return;
             }
             if (normalizedOnlineBookingProcedures.length === 0) {
-                setErrorMsg('Add at least one online-booking procedure before saving.');
+                showErrorModal('Add at least one online-booking procedure before saving.', 'Missing online booking procedures');
                 setIsSaving(false);
                 setWebsiteActionMessage('');
                 return;
@@ -423,14 +437,13 @@ const SystemConfig = () => {
                     ...savedConfig,
                     websiteContent: mergeWebsiteContent(savedConfig?.websiteContent || prev.websiteContent),
                 }));
-                setSuccessMsg('System configuration saved successfully.');
-                setTimeout(() => setSuccessMsg(''), 4000);
+                showSuccessModal('System configuration saved successfully.', 'Changes saved');
             } else {
                 const data = await res.json().catch(() => ({}));
-                setErrorMsg(data.message || 'Failed to save configuration.');
+                showErrorModal(data.message || 'Failed to save configuration.', 'Save failed');
             }
         } catch {
-            setErrorMsg('Network error. Please try again.');
+            showErrorModal('Network error. Please try again.', 'Connection problem');
         } finally {
             setIsSaving(false);
             setWebsiteActionMessage('');
@@ -892,23 +905,35 @@ const SystemConfig = () => {
                     </div>
                 </div>
             )}
-            {modalErrorMessage && (
+            {feedbackModal && (
                 <div
-                    className={styles.errorModalOverlay}
+                    className={styles.feedbackModalOverlay}
                     role="dialog"
                     aria-modal="true"
-                    aria-labelledby="system-config-error-title"
+                    aria-labelledby="system-config-feedback-title"
                 >
-                    <div className={styles.errorModalCard}>
-                        <p className={styles.errorModalEyebrow}>Website Upload Error</p>
-                        <h2 id="system-config-error-title" className={styles.errorModalTitle}>Could not use this file</h2>
-                        <p className={styles.errorModalText}>{modalErrorMessage}</p>
+                    <div
+                        className={`${styles.feedbackModalCard} ${
+                            feedbackModal.tone === 'success' ? styles.feedbackModalCardSuccess : styles.feedbackModalCardError
+                        }`}
+                    >
+                        <p
+                            className={`${styles.feedbackModalEyebrow} ${
+                                feedbackModal.tone === 'success' ? styles.feedbackModalEyebrowSuccess : styles.feedbackModalEyebrowError
+                            }`}
+                        >
+                            {feedbackModal.eyebrow}
+                        </p>
+                        <h2 id="system-config-feedback-title" className={styles.feedbackModalTitle}>{feedbackModal.title}</h2>
+                        <p className={styles.feedbackModalText}>{feedbackModal.message}</p>
                         <button
                             type="button"
-                            className={styles.errorModalBtn}
-                            onClick={() => setModalErrorMessage('')}
+                            className={`${styles.feedbackModalBtn} ${
+                                feedbackModal.tone === 'success' ? styles.feedbackModalBtnSuccess : styles.feedbackModalBtnError
+                            }`}
+                            onClick={() => setFeedbackModal(null)}
                         >
-                            I Understand
+                            OK
                         </button>
                     </div>
                 </div>
@@ -917,10 +942,6 @@ const SystemConfig = () => {
                 <h1 className={styles.pageTitle}>System Configuration</h1>
                 <p className={styles.pageSubtitle}>Manage global settings for NgitiFy Dental Management System.</p>
             </div>
-
-            {successMsg && <div className={styles.successAlert}>{successMsg}</div>}
-            {errorMsg && <div className={styles.errorAlert}>{errorMsg}</div>}
-
             <div className={styles.layout}>
                 <nav className={styles.sectionNav}>
                     {SECTIONS.map((section) => (

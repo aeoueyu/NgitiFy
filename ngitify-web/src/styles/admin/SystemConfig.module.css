@@ -48,7 +48,7 @@
     color: #64748b;
     line-height: 1.6;
 }
-.errorModalOverlay {
+.feedbackModalOverlay {
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.45);
@@ -59,38 +59,47 @@
     z-index: 1100;
     padding: 24px;
 }
-.errorModalCard {
+.feedbackModalCard {
     width: min(460px, 100%);
     background: #ffffff;
-    border: 1px solid #fecaca;
     border-radius: 24px;
     padding: 28px;
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
 }
-.errorModalEyebrow {
+.feedbackModalCardError {
+    border: 1px solid #fecaca;
+}
+.feedbackModalCardSuccess {
+    border: 1px solid #bfdbfe;
+}
+.feedbackModalEyebrow {
     margin: 0 0 10px;
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+}
+.feedbackModalEyebrowError {
     color: #b91c1c;
 }
-.errorModalTitle {
+.feedbackModalEyebrowSuccess {
+    color: #0369a1;
+}
+.feedbackModalTitle {
     margin: 0 0 10px;
     font-size: 24px;
     font-weight: 800;
-    color: #7f1d1d;
+    color: #0f172a;
 }
-.errorModalText {
+.feedbackModalText {
     margin: 0 0 20px;
     font-size: 14px;
     line-height: 1.7;
     color: #475569;
 }
-.errorModalBtn {
+.feedbackModalBtn {
     border: none;
     border-radius: 999px;
-    background: #b91c1c;
     color: #ffffff;
     padding: 11px 20px;
     font-size: 14px;
@@ -98,8 +107,17 @@
     cursor: pointer;
     transition: background 0.15s ease;
 }
-.errorModalBtn:hover {
+.feedbackModalBtnError {
+    background: #b91c1c;
+}
+.feedbackModalBtnError:hover {
     background: #991b1b;
+}
+.feedbackModalBtnSuccess {
+    background: #01538b;
+}
+.feedbackModalBtnSuccess:hover {
+    background: #013f6a;
 }
 @keyframes systemConfigSpin {
     to {
