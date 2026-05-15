@@ -25,7 +25,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.dentimedentalclinic.ngitify"
     },
     "web": {
       "bundler": "metro",
@@ -34,6 +35,11 @@
     "plugins": [
       "@react-native-community/datetimepicker",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f5848e34-f41e-4048-80c3-dcd94905fa2d"
+      }
+    }
   }
 }
