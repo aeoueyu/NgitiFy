@@ -48,6 +48,59 @@
     color: #64748b;
     line-height: 1.6;
 }
+.errorModalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 24px;
+}
+.errorModalCard {
+    width: min(460px, 100%);
+    background: #ffffff;
+    border: 1px solid #fecaca;
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+.errorModalEyebrow {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #b91c1c;
+}
+.errorModalTitle {
+    margin: 0 0 10px;
+    font-size: 24px;
+    font-weight: 800;
+    color: #7f1d1d;
+}
+.errorModalText {
+    margin: 0 0 20px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #475569;
+}
+.errorModalBtn {
+    border: none;
+    border-radius: 999px;
+    background: #b91c1c;
+    color: #ffffff;
+    padding: 11px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.errorModalBtn:hover {
+    background: #991b1b;
+}
 @keyframes systemConfigSpin {
     to {
         transform: rotate(360deg);

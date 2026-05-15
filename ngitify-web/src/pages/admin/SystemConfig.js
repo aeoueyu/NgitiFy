@@ -135,6 +135,7 @@ const SystemConfig = () => {
     const [activeWebsiteTab, setActiveWebsiteTab] = useState('branding');
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
+    const [modalErrorMessage, setModalErrorMessage] = useState('');
     const [config, setConfig] = useState(buildInitialConfig);
 
     useEffect(() => {
@@ -294,17 +295,22 @@ const SystemConfig = () => {
         }));
     };
 
+    const showErrorModal = (message) => {
+        setErrorMsg(message);
+        setModalErrorMessage(message);
+    };
+
     const handleImageUpload = async ({ file, onChange, label = 'image' }) => {
         if (!file) return;
         if (!file.type.startsWith('image/')) {
-            setErrorMsg('Please select a valid image file.');
+            showErrorModal('Please select a valid image file.');
             return;
         }
 
         const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '');
         const sizeLimit = isSvg ? MAX_WEBSITE_SVG_UPLOAD_BYTES : MAX_WEBSITE_IMAGE_UPLOAD_BYTES;
         if (file.size > sizeLimit) {
-            setErrorMsg(
+            showErrorModal(
                 isSvg
                     ? `${label} is too large at ${formatUploadSize(file.size)}. Please optimize the SVG to ${formatUploadSize(sizeLimit)} or smaller before uploading.`
                     : `${label} is too large at ${formatUploadSize(file.size)}. Please use an image that is ${formatUploadSize(sizeLimit)} or smaller.`
@@ -318,7 +324,7 @@ const SystemConfig = () => {
             onChange(dataUrl);
             setErrorMsg('');
         } catch (error) {
-            setErrorMsg(error.message || 'Failed to read the selected image.');
+            showErrorModal(error.message || 'Failed to read the selected image.');
         } finally {
             setWebsiteActionMessage('');
         }
@@ -878,6 +884,27 @@ const SystemConfig = () => {
                         <div className={styles.actionSpinner} />
                         <h2 className={styles.actionOverlayTitle}>{websiteActionMessage}</h2>
                         <p className={styles.actionOverlayText}>Please wait while Dentime updates the website editor.</p>
+                    </div>
+                </div>
+            )}
+            {modalErrorMessage && (
+                <div
+                    className={styles.errorModalOverlay}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="system-config-error-title"
+                >
+                    <div className={styles.errorModalCard}>
+                        <p className={styles.errorModalEyebrow}>Website Upload Error</p>
+                        <h2 id="system-config-error-title" className={styles.errorModalTitle}>Could not use this file</h2>
+                        <p className={styles.errorModalText}>{modalErrorMessage}</p>
+                        <button
+                            type="button"
+                            className={styles.errorModalBtn}
+                            onClick={() => setModalErrorMessage('')}
+                        >
+                            I Understand
+                        </button>
                     </div>
                 </div>
             )}
