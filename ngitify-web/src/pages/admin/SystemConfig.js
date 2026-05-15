@@ -11,8 +11,8 @@ const DEFAULT_ONLINE_BOOKING_PROCEDURES = [
     'General Check-up / Initial Consultation',
     'Prophylaxis / Dental Cleaning',
 ];
-const MAX_WEBSITE_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024;
-const MAX_WEBSITE_SVG_UPLOAD_BYTES = 512 * 1024;
+const MAX_WEBSITE_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_WEBSITE_SVG_UPLOAD_BYTES = 20 * 1024 * 1024;
 const DEFAULT_PROCEDURES = [
     'General Check-up / Initial Consultation',
     'Prophylaxis / Dental Cleaning',
@@ -595,9 +595,14 @@ const SystemConfig = () => {
             </div>
             <div className={styles.mediaGrid}>
                 {renderMediaField({
-                    label: 'Website Logo',
+                    label: 'Website Logo with Text',
                     field: 'logoUrl',
-                    helpText: 'Used in the public website header.',
+                    helpText: 'Recommended for the public website header.',
+                })}
+                {renderMediaField({
+                    label: 'Logo Icon Only',
+                    field: 'logoIconUrl',
+                    helpText: 'Standalone logo mark without the Dentime Dental Clinic text.',
                 })}
             </div>
         </div>

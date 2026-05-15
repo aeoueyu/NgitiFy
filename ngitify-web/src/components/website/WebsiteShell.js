@@ -22,7 +22,7 @@ export default function WebsiteShell({ children }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [chatOpen, setChatOpen] = useState(false);
     const isChatSupportEnabled = featureToggles?.chatSupport === true;
-    const logoUrl = websiteContent?.media?.logoUrl || '';
+    const logoUrl = websiteContent?.media?.logoUrl || websiteContent?.media?.logoIconUrl || '';
 
     useEffect(() => {
         setMenuOpen(false);
@@ -103,7 +103,7 @@ export default function WebsiteShell({ children }) {
                     <button className={styles.logoButton} onClick={() => navigate('/')} type="button">
                         <WebsiteImage
                             src={logoUrl}
-                            fallbackSrc={websiteMediaDefaults.logoUrl}
+                            fallbackSrc={websiteMediaDefaults.logoUrl || websiteMediaDefaults.logoIconUrl}
                             alt={`${clinicInfo.name} logo`}
                             className={styles.logo}
                         />

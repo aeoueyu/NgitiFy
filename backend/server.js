@@ -1025,6 +1025,7 @@ const normalizeStringList = (entries = [], fallback = []) => {
 
 const WEBSITE_MEDIA_FIELDS = [
     'logoUrl',
+    'logoIconUrl',
     'homeHeroImageUrl',
     'homeIntroImageUrl',
     'homeJourneyImageUrl',

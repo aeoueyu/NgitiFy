@@ -7,13 +7,15 @@ import featureImage2 from '../assets/images/feature-image-2.jpg';
 import featureImage3 from '../assets/images/feature-image-3.jpg';
 import generalDentistryImage from '../assets/images/general-dentistry-image.jpg';
 import locationsHeroImage from '../assets/images/locations-hero-image.jpg';
-import logoImage from '../assets/images/logo-dentime.svg';
+import logoIconImage from '../assets/images/logo.svg';
+import logoWordmarkImage from '../assets/images/logo-dentime.svg';
 import oralSurgeryImage from '../assets/images/oral-surgery-image.jpg';
 import orthodonticsImage from '../assets/images/orthodontics-image.jpg';
 import servicesHeroImage from '../assets/images/services-hero-image.jpg';
 
 export const websiteMediaDefaults = {
-    logoUrl: logoImage,
+    logoUrl: logoWordmarkImage,
+    logoIconUrl: logoIconImage,
     homeHeroImageUrl: heroImage,
     homeIntroImageUrl: clinicLifestyleImage,
     homeJourneyImageUrl: estheticsImage,
