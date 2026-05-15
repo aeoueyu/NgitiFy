@@ -255,11 +255,11 @@ export default function WebsiteAppointment() {
     );
 
     const getFieldError = useCallback((fieldName, data, { live = false } = {}) => {
-        const trimmedFirstName = data.firstName.trim();
-        const trimmedLastName = data.lastName.trim();
-        const trimmedEmail = data.email.trim();
-        const trimmedPhone = data.phone.trim();
-        const trimmedNotes = data.notes.trim();
+        const trimmedFirstName = String(data?.firstName || '').trim();
+        const trimmedLastName = String(data?.lastName || '').trim();
+        const trimmedEmail = String(data?.email || '').trim();
+        const trimmedPhone = String(data?.phone || '').trim();
+        const trimmedNotes = String(data?.notes || '').trim();
 
         switch (fieldName) {
         case 'firstName':
