@@ -14,7 +14,6 @@ import ViewPatient from './ViewPatient';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
-    countAccountsByLifecycle,
     getAccessRecoveryLabel,
     getAccountLifecycleKey,
     getAccountLifecycleLabel,
@@ -151,17 +150,6 @@ export default function ManagePatients() {
         return matchesSearch && matchesStatus && matchesBranch;
     });
 
-    const statusSummarySource = patientsList.filter((patient) => (
-        branchFilter === 'All' || patient.assignedBranch === branchFilter
-    ));
-
-    const summaryCounts = {
-        visible: filteredPatients.length,
-        active: countAccountsByLifecycle(statusSummarySource, 'active'),
-        needsActivation: countAccountsByLifecycle(statusSummarySource, 'needsActivation'),
-        inactive: countAccountsByLifecycle(statusSummarySource, 'inactive'),
-        archived: countAccountsByLifecycle(statusSummarySource, 'archived'),
-    };
     const statusFilterLabel = {
         active: 'Active',
         needsActivation: 'Needs Activation',
@@ -472,29 +460,6 @@ export default function ManagePatients() {
                             Branch locked to {user.assignedBranch}
                         </div>
                     )}
-                </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#f8fbff', border: '1px solid #dbe6f1', minWidth: '150px' }}>
-                    <strong style={{ display: 'block', color: '#123e63', fontSize: '18px' }}>{summaryCounts.visible}</strong>
-                    <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 700 }}>Visible Patients</span>
-                </div>
-                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#ecfdf5', border: '1px solid #bbf7d0', minWidth: '150px' }}>
-                    <strong style={{ display: 'block', color: '#166534', fontSize: '18px' }}>{summaryCounts.active}</strong>
-                    <span style={{ color: '#166534', fontSize: '12px', fontWeight: 700 }}>Active</span>
-                </div>
-                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#fff7ed', border: '1px solid #fdba74', minWidth: '150px' }}>
-                    <strong style={{ display: 'block', color: '#b45309', fontSize: '18px' }}>{summaryCounts.needsActivation}</strong>
-                    <span style={{ color: '#b45309', fontSize: '12px', fontWeight: 700 }}>Needs Activation</span>
-                </div>
-                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#fef2f2', border: '1px solid #fecaca', minWidth: '150px' }}>
-                    <strong style={{ display: 'block', color: '#991b1b', fontSize: '18px' }}>{summaryCounts.inactive}</strong>
-                    <span style={{ color: '#991b1b', fontSize: '12px', fontWeight: 700 }}>Inactive</span>
-                </div>
-                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #cbd5e1', minWidth: '150px' }}>
-                    <strong style={{ display: 'block', color: '#475569', fontSize: '18px' }}>{summaryCounts.archived}</strong>
-                    <span style={{ color: '#475569', fontSize: '12px', fontWeight: 700 }}>Archived</span>
                 </div>
             </div>
 
