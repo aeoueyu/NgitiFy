@@ -607,10 +607,10 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             });
         }
 
-        if (!user.isPasswordChanged && user.temporaryPasswordExpires && new Date() > user.temporaryPasswordExpires) {
+        if (hasExpiredTemporaryPassword(user)) {
             user.status = 'inactive';
             await user.save();
-            return res.status(403).json({ message: "Your temporary password has expired and your account has been deactivated. Please contact an administrator." });
+            return res.status(403).json({ message: "Your temporary password has expired and your account has been deactivated. Please contact an administrator to reissue access." });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -805,6 +805,68 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
                 ` : ''}
             `,
             ctaLabel: 'Activate Account',
+            ctaUrl: activationLink,
+        }),
+    });
+};
+
+const TEMP_PASSWORD_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+
+const hasExpiredTemporaryPassword = (account = {}) => {
+    if (account?.isPasswordChanged) return false;
+    if (!account?.temporaryPasswordExpires) return false;
+
+    const expiresAt = new Date(account.temporaryPasswordExpires);
+    if (Number.isNaN(expiresAt.getTime())) return false;
+
+    return Date.now() > expiresAt.getTime();
+};
+
+const issueTemporaryPasswordForAccount = async (account) => {
+    const tempPassword = crypto.randomBytes(4).toString('hex');
+    account.password = await bcrypt.hash(tempPassword, 10);
+    account.isPasswordChanged = false;
+    account.temporaryPasswordExpires = new Date(Date.now() + TEMP_PASSWORD_EXPIRY_MS);
+    account.resetPasswordOtp = undefined;
+    account.resetPasswordExpires = undefined;
+
+    return {
+        tempPassword,
+        temporaryPasswordExpires: account.temporaryPasswordExpires,
+    };
+};
+
+const sendAccessReissueEmail = async (email, role, tempPassword, activationLink = '') => {
+    const clinic = await getClinicContactDetails();
+    const needsActivation = Boolean(activationLink);
+
+    await resend.emails.send({
+        from: 'NgitiFy Admin <noreply@ngitify.com>',
+        to: email,
+        subject: needsActivation
+            ? 'NgitiFy Access Reissued - Activate Your Account'
+            : 'NgitiFy Access Reissued',
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Access Reissued',
+            intro: needsActivation
+                ? 'An administrator reissued your account access. Please activate your account again, then sign in with the temporary password below.'
+                : 'An administrator reissued your account access. Use the temporary password below to sign in and change your password immediately.',
+            bodyHtml: `
+                <p style="margin:0 0 14px 0;">Hello,</p>
+                <p style="margin:0 0 14px 0;">Your <strong>${role}</strong> account access has been reissued.</p>
+                <div style="background:#f4fbff;border:1px solid #cfeffc;border-radius:16px;padding:16px;margin:18px 0;">
+                    <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#01538b;margin-bottom:8px;">Temporary Password</div>
+                    <div style="font-size:20px;font-weight:800;color:#0f172a;">${tempPassword}</div>
+                </div>
+                <p style="margin:0 0 14px 0;">This temporary password will expire in 7 days.</p>
+                <p style="margin:0;">
+                    ${needsActivation
+                        ? 'Activate your account first, then sign in and change your password right away.'
+                        : 'Sign in and change your password right away.'}
+                </p>
+            `,
+            ctaLabel: needsActivation ? 'Activate Account' : '',
             ctaUrl: activationLink,
         }),
     });
@@ -3743,6 +3805,7 @@ app.post('/api/reset-password', otpLimiter, async (req, res) => {
         user.resetPasswordOtp = undefined;
         user.resetPasswordExpires = undefined;
         user.isPasswordChanged = true;
+        user.temporaryPasswordExpires = null;
         await user.save();
 
         await AuditLog.create({
@@ -4538,6 +4601,12 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
         }
         // ────────────────────────────────────────────────────────────────────
 
+        if (normalizedStatus === 'active' && hasExpiredTemporaryPassword(user)) {
+            return res.status(409).json({
+                message: 'This account still has an expired temporary password. Use Reissue Access Email instead of activating the account only.',
+            });
+        }
+
         if (normalizedStatus === 'active' && !user.isVerified) {
             return res.status(400).json({
                 message: "Cannot activate user. Email is not yet verified."
@@ -4622,6 +4691,12 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
         }
         if (patient.isArchived) {
             return res.status(409).json({ message: 'Restore this archived patient before changing activation status.' });
+        }
+
+        if (normalizedStatus === 'active' && hasExpiredTemporaryPassword(patient)) {
+            return res.status(409).json({
+                message: 'This patient account still has an expired temporary password. Use Reissue Access Email instead of activating the account only.',
+            });
         }
 
         if (normalizedStatus === 'active' && !patient.isVerified) {
@@ -4736,6 +4811,76 @@ app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => 
     }
 });
 
+app.post('/api/patient/reissue-access/:id', verifyToken, async (req, res) => {
+    try {
+        const allowedRoles = ['administrator', 'owner', 'branch-manager', 'secretary'];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const patient = await User.findById(req.params.id);
+        if (!patient || patient.role !== 'patient') {
+            return res.status(404).json({ message: 'Patient not found.' });
+        }
+
+        const lifecyclePermission = canManagePatientLifecycle({ actor: req.user, patient });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+        if (patient.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived patient before reissuing access.' });
+        }
+        if (patient.isPasswordChanged) {
+            return res.status(400).json({ message: 'This patient already changed their password. Use the normal password reset flow instead.' });
+        }
+
+        const needsActivation = !patient.isVerified;
+        const { tempPassword, temporaryPasswordExpires } = await issueTemporaryPasswordForAccount(patient);
+
+        if (needsActivation) {
+            patient.activationToken = crypto.randomBytes(32).toString('hex');
+            patient.status = 'inactive';
+        } else {
+            patient.status = 'active';
+            patient.activationToken = undefined;
+            patient.deactivatedAt = null;
+            patient.deactivatedBy = null;
+            patient.deactivationReason = '';
+        }
+
+        await patient.save();
+
+        const activationLink = needsActivation
+            ? `${process.env.FRONTEND_URL}/activate-account/${patient.activationToken}`
+            : '';
+
+        await sendAccessReissueEmail(patient.email, 'Patient', tempPassword, activationLink);
+
+        await AuditLog.create({
+            action: 'REISSUE_ACCESS',
+            user: req.user?.email || req.user?.id || 'ADMIN',
+            role: req.user?.role || 'administrator',
+            details: `Reissued access for patient ${patient.email}${needsActivation ? ' with a new activation link' : ' with a new temporary password'}.`
+        });
+
+        res.json({
+            message: needsActivation
+                ? 'A new activation email and temporary password have been sent to the patient.'
+                : 'A new temporary password has been sent and the patient account has been reactivated.',
+            account: {
+                _id: patient._id,
+                status: patient.status,
+                isVerified: patient.isVerified,
+                isPasswordChanged: patient.isPasswordChanged,
+                temporaryPasswordExpires,
+            },
+        });
+    } catch (error) {
+        console.error('Error reissuing patient access:', error);
+        res.status(500).json({ message: 'Server error while reissuing patient access.' });
+    }
+});
+
 app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
     try {
         const staffUser = await User.findById(req.params.id);
@@ -4777,6 +4922,71 @@ app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error resending staff activation email:', error);
         res.status(500).json({ message: 'Server error while resending activation email.' });
+    }
+});
+
+app.post('/api/user/reissue-access/:id', verifyToken, async (req, res) => {
+    try {
+        const staffUser = await User.findById(req.params.id);
+        if (!staffUser || staffUser.role === 'patient') {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const lifecyclePermission = canManageStaffLifecycle({ actor: req.user, target: staffUser });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+        if (staffUser.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived account before reissuing access.' });
+        }
+        if (staffUser.isPasswordChanged) {
+            return res.status(400).json({ message: 'This account already changed its password. Use the normal password reset flow instead.' });
+        }
+
+        const needsActivation = !staffUser.isVerified;
+        const { tempPassword, temporaryPasswordExpires } = await issueTemporaryPasswordForAccount(staffUser);
+
+        if (needsActivation) {
+            staffUser.activationToken = crypto.randomBytes(32).toString('hex');
+            staffUser.status = 'inactive';
+        } else {
+            staffUser.status = 'active';
+            staffUser.activationToken = undefined;
+            staffUser.deactivatedAt = null;
+            staffUser.deactivatedBy = null;
+            staffUser.deactivationReason = '';
+        }
+
+        await staffUser.save();
+
+        const activationLink = needsActivation
+            ? `${process.env.FRONTEND_URL}/activate-account/${staffUser.activationToken}`
+            : '';
+
+        await sendAccessReissueEmail(staffUser.email, staffUser.role, tempPassword, activationLink);
+
+        await AuditLog.create({
+            action: 'REISSUE_ACCESS',
+            user: req.user?.email || req.user?.id || 'ADMIN',
+            role: req.user?.role || 'administrator',
+            details: `Reissued access for ${staffUser.role} ${staffUser.email}${needsActivation ? ' with a new activation link' : ' with a new temporary password'}.`
+        });
+
+        res.json({
+            message: needsActivation
+                ? 'A new activation email and temporary password have been sent to the user.'
+                : 'A new temporary password has been sent and the account has been reactivated.',
+            account: {
+                _id: staffUser._id,
+                status: staffUser.status,
+                isVerified: staffUser.isVerified,
+                isPasswordChanged: staffUser.isPasswordChanged,
+                temporaryPasswordExpires,
+            },
+        });
+    } catch (error) {
+        console.error('Error reissuing staff access:', error);
+        res.status(500).json({ message: 'Server error while reissuing user access.' });
     }
 });
 
@@ -5167,6 +5377,7 @@ app.post('/api/change-password', verifyToken, async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
         user.isPasswordChanged = true;
+        user.temporaryPasswordExpires = null;
         await user.save();
 
         await AuditLog.create({

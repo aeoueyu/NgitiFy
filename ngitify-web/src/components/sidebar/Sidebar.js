@@ -131,11 +131,11 @@ export default function Sidebar() {
     const inventoryPath = `${basePath}/inventory`;
     const profilePath = `${basePath}/profile`;
     const userManagementPath = isAdmin
-        ? '/admin/manage-users'
+        ? '/admin/manage-users/secretaries'
         : isOwner
-            ? '/owner/manage-users'
+            ? '/owner/manage-users/secretaries'
             : isBranchManager
-                ? '/branch-manager/manage-users'
+                ? '/branch-manager/manage-users/secretaries'
                 : `${basePath}/patients`;
     const managePatientsPath = isAdmin
         ? '/admin/patients'

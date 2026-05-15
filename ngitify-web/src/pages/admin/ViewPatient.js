@@ -3,7 +3,7 @@ import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/StaffModals.module.css';
 import { regions, provinces, cities } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
-import { getAccountLifecycleLabel } from '../../utils/accountStatus';
+import { getAccountLifecycleLabel, getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import { getHomeAddress } from '../../utils/addressHelpers';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 
@@ -38,7 +38,7 @@ const formatYesNo = (value) => {
 
 const renderArray = (value) => Array.isArray(value) && value.length > 0 ? value.join(', ') : 'None reported';
 
-export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, onResendActivation }) {
+export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, onRecoverAccess }) {
     const [patient, setPatient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -94,6 +94,14 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
         </div>
     );
 
+    const handleRecoverAccessClick = async () => {
+        if (!patient || !onRecoverAccess) return;
+        const updatedAccount = await onRecoverAccess(patient);
+        if (updatedAccount) {
+            setPatient((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
+        }
+    };
+
     return (
         <div className={styles.mainOverlay}>
             <div className={styles.overlayBackground} onClick={onClose}></div>
@@ -133,11 +141,11 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                             {infoBox('Patient ID', patient?._id || patientId)}
                         </div>
                         <LifecycleHistoryPanel account={patient} entityLabel="patient account" />
-                        {!patient?.isVerified && !patient?.isArchived && onResendActivation && (
+                        {shouldShowAccessRecovery(patient) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
                                 <button
                                     type="button"
-                                    onClick={() => onResendActivation(patient)}
+                                    onClick={handleRecoverAccessClick}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -148,7 +156,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    Resend Activation Email
+                                    {getAccessRecoveryLabel(patient)}
                                 </button>
                             </div>
                         )}

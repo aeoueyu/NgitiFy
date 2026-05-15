@@ -5,9 +5,10 @@ import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
+import { getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 
-export default function ViewOwner({ ownerId, onClose, onEdit, onResendActivation }) {
+export default function ViewOwner({ ownerId, onClose, onEdit, onRecoverAccess }) {
     const [owner, setOwner] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -29,6 +30,14 @@ export default function ViewOwner({ ownerId, onClose, onEdit, onResendActivation
 
         if (ownerId) fetchOwner();
     }, [ownerId]);
+
+    const handleRecoverAccessClick = async () => {
+        if (!owner || !onRecoverAccess) return;
+        const updatedAccount = await onRecoverAccess(owner);
+        if (updatedAccount) {
+            setOwner((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
+        }
+    };
 
     return (
         <div className={styles.mainOverlay}>
@@ -101,11 +110,11 @@ export default function ViewOwner({ ownerId, onClose, onEdit, onResendActivation
                             )}
                         </div>
 
-                        {!owner?.isVerified && !owner?.isArchived && onResendActivation && (
+                        {shouldShowAccessRecovery(owner) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
                                 <button
                                     type="button"
-                                    onClick={() => onResendActivation(owner)}
+                                    onClick={handleRecoverAccessClick}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -116,7 +125,7 @@ export default function ViewOwner({ ownerId, onClose, onEdit, onResendActivation
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    Resend Activation Email
+                                    {getAccessRecoveryLabel(owner)}
                                 </button>
                             </div>
                         )}

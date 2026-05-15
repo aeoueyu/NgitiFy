@@ -111,7 +111,7 @@ export default function VerificationCodePage() {
             const data = await response.json();
 
             if (response.ok) { 
-                navigate('/new-password', { state: { email: userEmail } });
+                navigate('/new-password', { state: { email: userEmail, otp: fullCode } });
             } else { 
                 setErrorMessage(data.message || "Invalid or expired code.");
                 setCode(new Array(6).fill('')); 

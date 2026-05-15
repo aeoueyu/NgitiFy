@@ -7,9 +7,10 @@ import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
+import { getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 
-export default function ViewSecretary({ secretaryId, onClose, onEdit, onResendActivation }) {
+export default function ViewSecretary({ secretaryId, onClose, onEdit, onRecoverAccess }) {
     const [secretary, setSecretary] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -30,6 +31,14 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit, onResendAc
         };
         if (secretaryId) fetchSecretary();
     }, [secretaryId]);
+
+    const handleRecoverAccessClick = async () => {
+        if (!secretary || !onRecoverAccess) return;
+        const updatedAccount = await onRecoverAccess(secretary);
+        if (updatedAccount) {
+            setSecretary((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
+        }
+    };
 
     return (
         <div className={styles.mainOverlay}>
@@ -92,11 +101,11 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit, onResendAc
                             </div>
                         </div>
 
-                        {!secretary?.isVerified && !secretary?.isArchived && onResendActivation && (
+                        {shouldShowAccessRecovery(secretary) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
                                 <button
                                     type="button"
-                                    onClick={() => onResendActivation(secretary)}
+                                    onClick={handleRecoverAccessClick}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -107,7 +116,7 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit, onResendAc
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    Resend Activation Email
+                                    {getAccessRecoveryLabel(secretary)}
                                 </button>
                             </div>
                         )}

@@ -5,9 +5,10 @@ import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
+import { getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 
-export default function ViewBranchManager({ managerId, onClose, onEdit, onResendActivation }) {
+export default function ViewBranchManager({ managerId, onClose, onEdit, onRecoverAccess }) {
     const [manager, setManager] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -29,6 +30,14 @@ export default function ViewBranchManager({ managerId, onClose, onEdit, onResend
 
         if (managerId) fetchManager();
     }, [managerId]);
+
+    const handleRecoverAccessClick = async () => {
+        if (!manager || !onRecoverAccess) return;
+        const updatedAccount = await onRecoverAccess(manager);
+        if (updatedAccount) {
+            setManager((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
+        }
+    };
 
     return (
         <div className={styles.mainOverlay}>
@@ -89,11 +98,11 @@ export default function ViewBranchManager({ managerId, onClose, onEdit, onResend
                             </div>
                         </div>
 
-                        {!manager?.isVerified && !manager?.isArchived && onResendActivation && (
+                        {shouldShowAccessRecovery(manager) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
                                 <button
                                     type="button"
-                                    onClick={() => onResendActivation(manager)}
+                                    onClick={handleRecoverAccessClick}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -104,7 +113,7 @@ export default function ViewBranchManager({ managerId, onClose, onEdit, onResend
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    Resend Activation Email
+                                    {getAccessRecoveryLabel(manager)}
                                 </button>
                             </div>
                         )}

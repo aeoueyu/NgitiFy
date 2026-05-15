@@ -7,9 +7,10 @@ import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
+import { getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 
-export default function ViewDentist({ dentistId, onClose, onEdit, onResendActivation }) {
+export default function ViewDentist({ dentistId, onClose, onEdit, onRecoverAccess }) {
     const [dentist, setDentist] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -30,6 +31,14 @@ export default function ViewDentist({ dentistId, onClose, onEdit, onResendActiva
         };
         if (dentistId) fetchDentist();
     }, [dentistId]);
+
+    const handleRecoverAccessClick = async () => {
+        if (!dentist || !onRecoverAccess) return;
+        const updatedAccount = await onRecoverAccess(dentist);
+        if (updatedAccount) {
+            setDentist((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
+        }
+    };
 
     // TASK 2.2: Removed getInitials as UserAvatar handles this automatically
 
@@ -98,11 +107,11 @@ export default function ViewDentist({ dentistId, onClose, onEdit, onResendActiva
                             </div>
                         </div>
 
-                        {!dentist?.isVerified && !dentist?.isArchived && onResendActivation && (
+                        {shouldShowAccessRecovery(dentist) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
                                 <button
                                     type="button"
-                                    onClick={() => onResendActivation(dentist)}
+                                    onClick={handleRecoverAccessClick}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -113,7 +122,7 @@ export default function ViewDentist({ dentistId, onClose, onEdit, onResendActiva
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    Resend Activation Email
+                                    {getAccessRecoveryLabel(dentist)}
                                 </button>
                             </div>
                         )}

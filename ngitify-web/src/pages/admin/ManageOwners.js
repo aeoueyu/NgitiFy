@@ -10,9 +10,13 @@ import ViewOwner from './ViewOwner';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
+    countAccountsByLifecycle,
+    getAccessRecoveryLabel,
     getAccountLifecycleKey,
     getAccountLifecycleLabel,
+    hasExpiredTemporaryPassword,
     matchesAccountLifecycleFilter,
+    shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
 
 export default function ManageOwners() {
@@ -45,6 +49,8 @@ export default function ManageOwners() {
                             rawStatus: u.status || 'inactive',
                             isArchived: Boolean(u.isArchived),
                             isVerified: u.isVerified,
+                            isPasswordChanged: u.isPasswordChanged === true,
+                            temporaryPasswordExpires: u.temporaryPasswordExpires || null,
                             profileImage: u.profileImage,
                         }))
                 );
@@ -81,6 +87,14 @@ export default function ManageOwners() {
         return matchesSearch && matchesStatus;
     });
 
+    const summaryCounts = {
+        visible: filteredOwners.length,
+        active: countAccountsByLifecycle(ownersList, 'active'),
+        needsActivation: countAccountsByLifecycle(ownersList, 'needsActivation'),
+        inactive: countAccountsByLifecycle(ownersList, 'inactive'),
+        archived: countAccountsByLifecycle(ownersList, 'archived'),
+    };
+
     const handleToggleStatus = (owner) => {
         if (owner.isArchived) {
             addToast(`Restore ${owner.name} from archive before changing activation status.`, 'error');
@@ -89,6 +103,10 @@ export default function ManageOwners() {
         const newStatus = owner.rawStatus === 'active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !owner.isVerified) {
             addToast(`Cannot activate ${owner.name}. Their email is not yet verified.`, 'error');
+            return;
+        }
+        if (newStatus === 'active' && hasExpiredTemporaryPassword(owner)) {
+            addToast(`Temporary password expired for ${owner.name}. Use Reissue Access Email instead.`, 'error');
             return;
         }
         setLifecycleConfig({
@@ -175,19 +193,33 @@ export default function ManageOwners() {
         }
     };
 
-    const handleResendActivation = async (owner) => {
+    const handleRecoverAccess = async (owner) => {
         if (owner.isArchived) {
-            addToast(`Restore ${owner.name} from archive before resending activation.`, 'error');
-            return;
+            addToast(`Restore ${owner.name} from archive before reissuing access.`, 'error');
+            return null;
         }
         try {
-            const res = await authFetch(`/user/resend-activation/${owner.id}`, { method: 'POST' });
+            const res = await authFetch(`/user/reissue-access/${owner.id}`, { method: 'POST' });
             const data = await res.json();
-            if (res.ok) addToast(`Activation email resent to ${owner.email}.`, 'success');
-            else addToast(data.message || 'Failed to resend.', 'error');
+            if (res.ok) {
+                const updatedAccount = {
+                    status: data.account?.status || owner.rawStatus,
+                    rawStatus: data.account?.status || owner.rawStatus,
+                    isVerified: data.account?.isVerified ?? owner.isVerified,
+                    isPasswordChanged: data.account?.isPasswordChanged ?? owner.isPasswordChanged,
+                    temporaryPasswordExpires: data.account?.temporaryPasswordExpires || owner.temporaryPasswordExpires,
+                };
+                setOwnersList((prev) => prev.map((entry) => (
+                    entry.id === owner.id ? { ...entry, ...updatedAccount } : entry
+                )));
+                addToast(data.message || `${getAccessRecoveryLabel(owner)} sent to ${owner.email}.`, 'success');
+                return updatedAccount;
+            }
+            addToast(data.message || 'Failed to reissue access email.', 'error');
         } catch {
             addToast('Cannot connect to server.', 'error');
         }
+        return null;
     };
 
     const handleViewClick = (id) => {
@@ -236,6 +268,29 @@ export default function ManageOwners() {
                 </div>
             </div>
 
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#f8fbff', border: '1px solid #dbe6f1', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#123e63', fontSize: '18px' }}>{summaryCounts.visible}</strong>
+                    <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 700 }}>Visible Owners</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#ecfdf5', border: '1px solid #bbf7d0', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#166534', fontSize: '18px' }}>{summaryCounts.active}</strong>
+                    <span style={{ color: '#166534', fontSize: '12px', fontWeight: 700 }}>Active</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#fff7ed', border: '1px solid #fdba74', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#b45309', fontSize: '18px' }}>{summaryCounts.needsActivation}</strong>
+                    <span style={{ color: '#b45309', fontSize: '12px', fontWeight: 700 }}>Needs Activation</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#fef2f2', border: '1px solid #fecaca', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#991b1b', fontSize: '18px' }}>{summaryCounts.inactive}</strong>
+                    <span style={{ color: '#991b1b', fontSize: '12px', fontWeight: 700 }}>Inactive</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #cbd5e1', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#475569', fontSize: '18px' }}>{summaryCounts.archived}</strong>
+                    <span style={{ color: '#475569', fontSize: '12px', fontWeight: 700 }}>Archived</span>
+                </div>
+            </div>
+
             <UserTabs activeTab="owners" />
 
             <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
@@ -267,6 +322,10 @@ export default function ManageOwners() {
                                             <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '600', marginTop: '2px' }}>
                                                 Archived record
                                             </span>
+                                        ) : hasExpiredTemporaryPassword(owner) ? (
+                                            <span style={{ fontSize: '11px', color: '#b45309', display: 'block', fontWeight: '600', marginTop: '2px' }}>
+                                                Temporary password expired
+                                            </span>
                                         ) : (
                                         !owner.isVerified && (
                                             <span style={{ fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px' }}>
@@ -277,13 +336,13 @@ export default function ManageOwners() {
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{owner.email}</span>
-                                            {!owner.isVerified && !isArchivedRecord && (
+                                            {shouldShowAccessRecovery(owner) && !isArchivedRecord && (
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleResendActivation(owner)}
+                                                    onClick={() => handleRecoverAccess(owner)}
                                                     style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
                                                 >
-                                                    Resend Activation Link to email
+                                                    {getAccessRecoveryLabel(owner)}
                                                 </button>
                                             )}
                                         </div>
@@ -347,7 +406,7 @@ export default function ManageOwners() {
                     ownerId={selectedOwnerId}
                     onClose={() => { setIsViewModalOpen(false); setSelectedOwnerId(null); }}
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
-                    onResendActivation={handleResendActivation}
+                    onRecoverAccess={handleRecoverAccess}
                 />
             )}
             {isEditModalOpen && selectedOwnerId && (

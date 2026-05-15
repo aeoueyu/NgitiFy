@@ -26,13 +26,14 @@ export default function NewPasswordPage() {
     });
 
     const userEmail = location.state?.email;
+    const userOtp = location.state?.otp;
 
     // Redirect if accessed directly without going through the OTP flow
     useEffect(() => {
-        if (!userEmail) {
+        if (!userEmail || !userOtp) {
             navigate('/forgot-password');
         }
-    }, [userEmail, navigate]);
+    }, [userEmail, userOtp, navigate]);
 
     useEffect(() => {
         setValidations({
@@ -64,6 +65,7 @@ export default function NewPasswordPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     email: userEmail, 
+                    otp: userOtp,
                     newPassword 
                 }),
             });
@@ -83,7 +85,7 @@ export default function NewPasswordPage() {
         }
     };
 
-    if (!userEmail) return null; // Prevent flash before redirect
+    if (!userEmail || !userOtp) return null; // Prevent flash before redirect
 
     return (
         <div className={styles['main-container']}>

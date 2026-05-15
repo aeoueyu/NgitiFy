@@ -144,7 +144,9 @@ function MaterialUsageModal({ appointment, onClose, onSuccess }) {
             });
 
             addToast('Materials successfully logged and deducted from inventory.', 'success');
-            if (onSuccess) onSuccess();
+            if (onSuccess) {
+                await onSuccess();
+            }
             onClose();
         } catch (error) {
             addToast(error.message || 'Cannot connect to server.', 'error');
@@ -334,7 +336,9 @@ function LogNewEntryModal({ onClose, onSuccess, inventoryList }) {
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to save log.');
 
             addToast('Material usage log saved and inventory deducted.', 'success');
-            onSuccess();
+            if (onSuccess) {
+                await onSuccess();
+            }
             onClose();
         } catch (error) {
             addToast(error.message || 'Failed to save log.', 'error');
@@ -514,13 +518,21 @@ function MaterialUsagePage() {
         }
     }, [addToast]);
 
+    const fetchInventory = useCallback(async () => {
+        try {
+            const res = await authFetch('/inventory');
+            if (!res.ok) throw new Error('Failed to load inventory.');
+            const rows = await res.json();
+            setInventoryList(buildInventoryBatchOptions(rows));
+        } catch (error) {
+            addToast('Failed to load inventory data.', 'error');
+        }
+    }, [addToast]);
+
     useEffect(() => {
         fetchLogs();
-        // Fetch branch-filtered inventory for the dentist
-        authFetch('/inventory').then(res => {
-            if (res.ok) res.json().then((rows) => setInventoryList(buildInventoryBatchOptions(rows)));
-        }).catch(() => {});
-    }, [fetchLogs]);
+        fetchInventory();
+    }, [fetchInventory, fetchLogs]);
 
     const toggleExpand = (id) => setExpandedLogs(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -672,7 +684,7 @@ function MaterialUsagePage() {
             {isLogModalOpen && (
                 <LogNewEntryModal
                     onClose={() => setIsLogModalOpen(false)}
-                    onSuccess={() => { fetchLogs(); }}
+                    onSuccess={() => Promise.all([fetchLogs(), fetchInventory()])}
                     inventoryList={inventoryList}
                 />
             )}

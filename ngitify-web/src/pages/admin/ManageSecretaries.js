@@ -13,9 +13,13 @@ import ViewSecretary from './ViewSecretary';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
+    countAccountsByLifecycle,
+    getAccessRecoveryLabel,
     getAccountLifecycleKey,
     getAccountLifecycleLabel,
+    hasExpiredTemporaryPassword,
     matchesAccountLifecycleFilter,
+    shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
 
 export default function ManageSecretaries() {
@@ -61,6 +65,8 @@ export default function ManageSecretaries() {
                             rawStatus: u.status || 'inactive',
                             isArchived: Boolean(u.isArchived),
                             isVerified: u.isVerified,
+                            isPasswordChanged: u.isPasswordChanged === true,
+                            temporaryPasswordExpires: u.temporaryPasswordExpires || null,
                             profileImage: u.profileImage,
                             // ✅ PHASE 2: Branch assignment
                             assignedBranches: u.assignedBranches || []
@@ -102,6 +108,18 @@ export default function ManageSecretaries() {
         return matchesSearch && matchesStatus && matchesBranch;
     });
 
+    const statusSummarySource = secretariesList.filter((secretary) => (
+        branchFilter === 'All' || secretary.assignedBranches.includes(branchFilter)
+    ));
+
+    const summaryCounts = {
+        visible: filteredSecretaries.length,
+        active: countAccountsByLifecycle(statusSummarySource, 'active'),
+        needsActivation: countAccountsByLifecycle(statusSummarySource, 'needsActivation'),
+        inactive: countAccountsByLifecycle(statusSummarySource, 'inactive'),
+        archived: countAccountsByLifecycle(statusSummarySource, 'archived'),
+    };
+
     const handleToggleStatus = (secretary) => {
         if (secretary.isArchived) {
             addToast(`Restore ${secretary.name} from archive before changing activation status.`, 'error');
@@ -111,6 +129,10 @@ export default function ManageSecretaries() {
         const newStatus = secretary.rawStatus === 'active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !secretary.isVerified) {
             addToast(`Cannot activate ${secretary.name}. Their email is not yet verified.`, 'error');
+            return;
+        }
+        if (newStatus === 'active' && hasExpiredTemporaryPassword(secretary)) {
+            addToast(`Temporary password expired for ${secretary.name}. Use Reissue Access Email instead.`, 'error');
             return;
         }
         setLifecycleConfig({
@@ -198,22 +220,34 @@ export default function ManageSecretaries() {
         }
     };
 
-    const handleResendActivation = async (secretary) => {
+    const handleRecoverAccess = async (secretary) => {
         if (secretary.isArchived) {
-            addToast(`Restore ${secretary.name} from archive before resending activation.`, 'error');
-            return;
+            addToast(`Restore ${secretary.name} from archive before reissuing access.`, 'error');
+            return null;
         }
         try {
-            const res = await authFetch(`/user/resend-activation/${secretary.id}`, { method: 'POST' });
+            const res = await authFetch(`/user/reissue-access/${secretary.id}`, { method: 'POST' });
             const data = await res.json();
             if (res.ok) {
-                addToast(`Activation email resent to ${secretary.email}.`, 'success');
+                const updatedAccount = {
+                    status: data.account?.status || secretary.rawStatus,
+                    rawStatus: data.account?.status || secretary.rawStatus,
+                    isVerified: data.account?.isVerified ?? secretary.isVerified,
+                    isPasswordChanged: data.account?.isPasswordChanged ?? secretary.isPasswordChanged,
+                    temporaryPasswordExpires: data.account?.temporaryPasswordExpires || secretary.temporaryPasswordExpires,
+                };
+                setSecretariesList((prev) => prev.map((entry) => (
+                    entry.id === secretary.id ? { ...entry, ...updatedAccount } : entry
+                )));
+                addToast(data.message || `${getAccessRecoveryLabel(secretary)} sent to ${secretary.email}.`, 'success');
+                return updatedAccount;
             } else {
-                addToast(data.message || 'Failed to resend activation email.', 'error');
+                addToast(data.message || 'Failed to reissue access email.', 'error');
             }
         } catch {
             addToast('Cannot connect to server.', 'error');
         }
+        return null;
     };
 
     const handleEditClick = (id) => { setIsViewModalOpen(false); setSelectedSecretaryId(id); setIsEditModalOpen(true); };
@@ -273,6 +307,29 @@ export default function ManageSecretaries() {
                 </div>
             </div>
 
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#f8fbff', border: '1px solid #dbe6f1', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#123e63', fontSize: '18px' }}>{summaryCounts.visible}</strong>
+                    <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 700 }}>Visible Secretaries</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#ecfdf5', border: '1px solid #bbf7d0', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#166534', fontSize: '18px' }}>{summaryCounts.active}</strong>
+                    <span style={{ color: '#166534', fontSize: '12px', fontWeight: 700 }}>Active</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#fff7ed', border: '1px solid #fdba74', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#b45309', fontSize: '18px' }}>{summaryCounts.needsActivation}</strong>
+                    <span style={{ color: '#b45309', fontSize: '12px', fontWeight: 700 }}>Needs Activation</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#fef2f2', border: '1px solid #fecaca', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#991b1b', fontSize: '18px' }}>{summaryCounts.inactive}</strong>
+                    <span style={{ color: '#991b1b', fontSize: '12px', fontWeight: 700 }}>Inactive</span>
+                </div>
+                <div style={{ padding: '12px 14px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #cbd5e1', minWidth: '150px' }}>
+                    <strong style={{ display: 'block', color: '#475569', fontSize: '18px' }}>{summaryCounts.archived}</strong>
+                    <span style={{ color: '#475569', fontSize: '12px', fontWeight: 700 }}>Archived</span>
+                </div>
+            </div>
+
             {!isBranchManager && <UserTabs activeTab="secretaries" />}
 
             <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
@@ -305,6 +362,8 @@ export default function ManageSecretaries() {
                                         </div>
                                         {isArchivedRecord ? (
                                             <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '600', marginTop: '2px' }}>Archived record</span>
+                                        ) : hasExpiredTemporaryPassword(secretary) ? (
+                                            <span style={{ fontSize: '11px', color: '#b45309', display: 'block', fontWeight: '600', marginTop: '2px' }}>Temporary password expired</span>
                                         ) : (
                                             !secretary.isVerified && <span style={{fontSize: '11px', color: '#ef4444', display: 'block', fontWeight: '500', marginTop: '2px'}}>Unverified Email</span>
                                         )}
@@ -312,13 +371,13 @@ export default function ManageSecretaries() {
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{secretary.email}</span>
-                                            {!secretary.isVerified && !isArchivedRecord && (
+                                            {shouldShowAccessRecovery(secretary) && !isArchivedRecord && (
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleResendActivation(secretary)}
+                                                    onClick={() => handleRecoverAccess(secretary)}
                                                     style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
                                                 >
-                                                    Resend Activation Link to email
+                                                    {getAccessRecoveryLabel(secretary)}
                                                 </button>
                                             )}
                                         </div>
@@ -376,7 +435,7 @@ export default function ManageSecretaries() {
                     secretaryId={selectedSecretaryId}
                     onClose={handleCloseViewModal}
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
-                    onResendActivation={handleResendActivation}
+                    onRecoverAccess={handleRecoverAccess}
                 />
             )}
             {isEditModalOpen && selectedSecretaryId && <EditSecretary secretaryId={selectedSecretaryId} onClose={handleCloseEditModal} onSuccess={fetchSecretaries} />}
