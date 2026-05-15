@@ -658,7 +658,7 @@ export default function PatientEMR({
                                     </article>
                                     <article className={`${styles.printIdentityItem} ${styles.printIdentitySpanTwo}`}>
                                         <span className={styles.printIdentityLabel}>Home Address</span>
-                                        <strong className={styles.printIdentityValue}>{formatAddressDisplay(patient.currentAddress)}</strong>
+                                        <strong className={styles.printIdentityValue}>{formatAddressDisplay(patient.homeAddress || patient.currentAddress || patient.permanentAddress)}</strong>
                                     </article>
                                     <article className={`${styles.printIdentityItem} ${styles.printIdentitySpanTwo}`}>
                                         <span className={styles.printIdentityLabel}>Reason for Consultation</span>
@@ -833,6 +833,7 @@ export default function PatientEMR({
         const patientAge = patient?.birthdate
             ? Math.floor((new Date() - new Date(patient.birthdate)) / 31557600000)
             : null;
+        const homeAddress = patient?.homeAddress || patient?.currentAddress || patient?.permanentAddress || {};
 
         const infoItem = (label, value, icon = null) => (
             <div className={styles.infoBlock}>
@@ -928,18 +929,18 @@ export default function PatientEMR({
 
                 <h3 className={styles.sectionTitle} style={{ marginTop: '28px' }}>Home Address</h3>
                 <div className={styles.infoGrid}>
-                    {infoItem('House No.', patient?.currentAddress?.houseNumber)}
-                    {infoItem('Street', patient?.currentAddress?.street)}
-                    {infoItem('Barangay', patient?.currentAddress?.barangay)}
-                    {infoItem('City / Municipality', cities[patient?.currentAddress?.province]?.find(c => c.code === patient?.currentAddress?.city)?.name || patient?.currentAddress?.city)}
-                    {infoItem('Province', provinces[patient?.currentAddress?.region]?.find(p => p.code === patient?.currentAddress?.province)?.name || patient?.currentAddress?.province)}
-                    {infoItem('Region', regions.find(r => r.code === patient?.currentAddress?.region)?.name || patient?.currentAddress?.region)}
+                    {infoItem('House No.', homeAddress?.houseNumber)}
+                    {infoItem('Street', homeAddress?.street)}
+                    {infoItem('Barangay', homeAddress?.barangay)}
+                    {infoItem('City / Municipality', cities[homeAddress?.province]?.find(c => c.code === homeAddress?.city)?.name || homeAddress?.city)}
+                    {infoItem('Province', provinces[homeAddress?.region]?.find(p => p.code === homeAddress?.province)?.name || homeAddress?.province)}
+                    {infoItem('Region', regions.find(r => r.code === homeAddress?.region)?.name || homeAddress?.region)}
                 </div>
                 <div className={styles.infoBlock}>
                     <span className={styles.infoLabel}>Full Home Address</span>
                     <p className={styles.infoValue}>
                         <FaMapMarkerAlt style={{ color: '#94a3b8', marginRight: '6px' }} />
-                        {formatAddressDisplay(patient?.currentAddress)}
+                        {formatAddressDisplay(homeAddress)}
                     </p>
                 </div>
 

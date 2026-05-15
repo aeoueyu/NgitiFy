@@ -15,7 +15,6 @@ export default function SecretaryAddPatient() {
     const fileInputRef = useRef(null);
 
     const [profileImage, setProfileImage]   = useState(null);
-    const [isSameAddress, setIsSameAddress] = useState(false);
     const [isLoading, setIsLoading]         = useState(false);
     const [showSuccess, setShowSuccess]     = useState(false);
     const [errors, setErrors]               = useState({});
@@ -31,8 +30,7 @@ export default function SecretaryAddPatient() {
         firstName: '', middleName: '', lastName: '',
         birthdate: '', gender: '', email: '', phone: '',
         guardianName: '', guardianRelationship: '', guardianContact: '',
-        currentAddress:   { ...initialAddress },
-        permanentAddress: { ...initialAddress },
+        homeAddress: { ...initialAddress },
     });
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -98,33 +96,15 @@ export default function SecretaryAddPatient() {
         reader.readAsDataURL(file);
     };
 
-    const handleAddressChange = (type, field, value) => {
-        const prefix = type === 'currentAddress' ? 'current' : 'permanent';
-        clearError(`${prefix}_${field}`);
+    const handleAddressChange = (field, value) => {
+        clearError(`home_${field}`);
         setFormData(prev => {
-            const updated = { ...prev[type], [field]: value };
+            const updated = { ...prev.homeAddress, [field]: value };
             if (field === 'region')   { updated.province = ''; updated.city = ''; updated.barangay = ''; }
             if (field === 'province') { updated.city = ''; updated.barangay = ''; }
             if (field === 'city')     { updated.barangay = ''; }
-            if (type === 'currentAddress' && isSameAddress)
-                return { ...prev, currentAddress: updated, permanentAddress: updated };
-            return { ...prev, [type]: updated };
+            return { ...prev, homeAddress: updated };
         });
-    };
-
-    const handleSameAddressToggle = (e) => {
-        const checked = e.target.checked;
-        setIsSameAddress(checked);
-        if (checked) {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...prev.currentAddress } }));
-            setErrors(prev => {
-                const n = { ...prev };
-                Object.keys(n).forEach(k => { if (k.startsWith('permanent_')) delete n[k]; });
-                return n;
-            });
-        } else {
-            setFormData(prev => ({ ...prev, permanentAddress: { ...initialAddress } }));
-        }
     };
 
     // ── Validation ────────────────────────────────────────────────────────────
@@ -154,8 +134,7 @@ export default function SecretaryAddPatient() {
                 if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
             });
         };
-        validateAddr(formData.currentAddress, 'current');
-        if (!isSameAddress) validateAddr(formData.permanentAddress, 'permanent');
+        validateAddr(formData.homeAddress, 'home');
 
         setErrors(newErrors);
 
@@ -197,10 +176,7 @@ export default function SecretaryAddPatient() {
                 relationship:  formData.guardianRelationship,
                 contactNumber: `+63${formData.guardianContact}`,
             } : null,
-            currentAddress:   { country: 'Philippines', ...formData.currentAddress },
-            permanentAddress: isSameAddress
-                ? { country: 'Philippines', ...formData.currentAddress }
-                : { country: 'Philippines', ...formData.permanentAddress },
+            homeAddress: { country: 'Philippines', ...formData.homeAddress },
         };
         setIsLoading(true);
 
@@ -257,9 +233,9 @@ export default function SecretaryAddPatient() {
     };
 
     // ── Address section renderer ──────────────────────────────────────────────
-    const renderAddress = (type, title, disabled = false) => {
-        const addr   = formData[type];
-        const prefix = type === 'currentAddress' ? 'current' : 'permanent';
+    const renderAddress = (title, disabled = false) => {
+        const addr   = formData.homeAddress;
+        const prefix = 'home';
         const availProvinces  = addr.region   ? provinces[addr.region]    || [] : [];
         const availCities     = addr.province ? cities[addr.province]     || [] : [];
         const availBarangays  = addr.city     ? barangays[addr.city]      || [] : [];
@@ -273,7 +249,7 @@ export default function SecretaryAddPatient() {
                     <div className={styles.formGroup}>
                         <label>REGION <span className={styles.req}>*</span></label>
                         <select name={`${prefix}_region`} className={`${styles.inputField} ${ec('region')}`}
-                            value={addr.region} onChange={e => handleAddressChange(type, 'region', e.target.value)}
+                            value={addr.region} onChange={e => handleAddressChange('region', e.target.value)}
                             disabled={disabled || isLoading}>
                             <option value="" hidden>Select Region</option>
                             {regions.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
@@ -283,7 +259,7 @@ export default function SecretaryAddPatient() {
                     <div className={styles.formGroup}>
                         <label>PROVINCE <span className={styles.req}>*</span></label>
                         <select name={`${prefix}_province`} className={`${styles.inputField} ${ec('province')}`}
-                            value={addr.province} onChange={e => handleAddressChange(type, 'province', e.target.value)}
+                            value={addr.province} onChange={e => handleAddressChange('province', e.target.value)}
                             disabled={disabled || !addr.region || isLoading}>
                             <option value="" hidden>Select Province</option>
                             {availProvinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
@@ -295,7 +271,7 @@ export default function SecretaryAddPatient() {
                     <div className={styles.formGroup}>
                         <label>CITY / MUNICIPALITY <span className={styles.req}>*</span></label>
                         <select name={`${prefix}_city`} className={`${styles.inputField} ${ec('city')}`}
-                            value={addr.city} onChange={e => handleAddressChange(type, 'city', e.target.value)}
+                            value={addr.city} onChange={e => handleAddressChange('city', e.target.value)}
                             disabled={disabled || !addr.province || isLoading}>
                             <option value="" hidden>Select City</option>
                             {availCities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
@@ -305,7 +281,7 @@ export default function SecretaryAddPatient() {
                     <div className={styles.formGroup}>
                         <label>BARANGAY <span className={styles.req}>*</span></label>
                         <select name={`${prefix}_barangay`} className={`${styles.inputField} ${ec('barangay')}`}
-                            value={addr.barangay} onChange={e => handleAddressChange(type, 'barangay', e.target.value)}
+                            value={addr.barangay} onChange={e => handleAddressChange('barangay', e.target.value)}
                             disabled={disabled || !addr.city || isLoading}>
                             <option value="" hidden>Select Barangay</option>
                             {availBarangays.map(b => <option key={b} value={b}>{b}</option>)}
@@ -317,14 +293,14 @@ export default function SecretaryAddPatient() {
                     <div className={styles.formGroup}>
                         <label>STREET <span className={styles.req}>*</span></label>
                         <input name={`${prefix}_street`} className={`${styles.inputField} ${ec('street')}`}
-                            value={addr.street} onChange={e => handleAddressChange(type, 'street', e.target.value)}
+                            value={addr.street} onChange={e => handleAddressChange('street', e.target.value)}
                             disabled={disabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />
                         {err('street') && <span className={styles.errorText}>{err('street')}</span>}
                     </div>
                     <div className={styles.formGroup}>
                         <label>HOUSE NO. <span className={styles.req}>*</span></label>
                         <input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${ec('houseNumber')}`}
-                            value={addr.houseNumber} onChange={e => handleAddressChange(type, 'houseNumber', e.target.value)}
+                            value={addr.houseNumber} onChange={e => handleAddressChange('houseNumber', e.target.value)}
                             disabled={disabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />
                         {err('houseNumber') && <span className={styles.errorText}>{err('houseNumber')}</span>}
                     </div>
@@ -523,18 +499,7 @@ export default function SecretaryAddPatient() {
 
                     {/* ── Address ── */}
                     <hr className={styles.divider} />
-                    {renderAddress('currentAddress', 'Current Address')}
-
-                    <div className={styles.permanentHeader}>
-                        <h3 className={styles.sectionTitle}>Permanent Address</h3>
-                        <label className={styles.checkboxLabel}>
-                            <input type="checkbox" checked={isSameAddress} onChange={handleSameAddressToggle} disabled={isLoading} />
-                            Same as Current Address
-                        </label>
-                    </div>
-                    <div className={isSameAddress ? styles.disabledOverlay : undefined}>
-                        {renderAddress('permanentAddress', '', isSameAddress)}
-                    </div>
+                    {renderAddress('Home Address')}
 
                     {/* ── Buttons ── */}
                     <div className={styles.buttonRow}>

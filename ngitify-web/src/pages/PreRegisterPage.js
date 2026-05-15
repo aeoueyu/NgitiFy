@@ -189,14 +189,12 @@ export default function PreRegisterPage() {
     const token = searchParams.get('token') || '';
     const [appointmentInfo, setAppointmentInfo] = useState(null);
     const [profile, setProfile] = useState({ ...initialProfileState });
-    const [currentAddress, setCurrentAddress] = useState({ ...initialAddressState });
-    const [permanentAddress, setPermanentAddress] = useState({ ...initialAddressState });
+    const [homeAddress, setHomeAddress] = useState({ ...initialAddressState });
     const [emergencyContact, setEmergencyContact] = useState({ ...initialEmergencyContact });
     const [guardian, setGuardian] = useState({ ...initialGuardian });
     const [physician, setPhysician] = useState({ ...initialPhysician });
     const [dentalHistory, setDentalHistory] = useState({ ...initialDentalHistory });
     const [medicalHistory, setMedicalHistory] = useState({ ...initialMedicalHistory });
-    const [isSameAddress, setIsSameAddress] = useState(false);
     const [errors, setErrors] = useState({});
     const [state, setState] = useState('loading');
     const [message, setMessage] = useState('');
@@ -238,10 +236,8 @@ export default function PreRegisterPage() {
                     religion: getSelectValueWithOther(guestProfile.religion || '', RELIGION_OPTIONS),
                     religionOther: getOtherTextValue(guestProfile.religion || '', RELIGION_OPTIONS),
                 });
-                const nextCurrentAddress = { ...initialAddressState, ...(data.currentAddress || {}) };
-                const nextPermanentAddress = { ...initialAddressState, ...(data.permanentAddress || {}) };
-                setCurrentAddress(nextCurrentAddress);
-                setPermanentAddress(nextPermanentAddress);
+                const nextHomeAddress = { ...initialAddressState, ...(data.homeAddress || data.currentAddress || data.permanentAddress || {}) };
+                setHomeAddress(nextHomeAddress);
                 setEmergencyContact({
                     ...initialEmergencyContact,
                     ...(data.guestEmergencyContact || {}),
@@ -265,7 +261,6 @@ export default function PreRegisterPage() {
                 });
                 setDentalHistory(normalizeDentalHistoryState(data.guestDentalHistory || {}));
                 setMedicalHistory(normalizeMedicalHistoryState(data.guestMedicalHistory || {}));
-                setIsSameAddress(JSON.stringify(nextCurrentAddress) === JSON.stringify(nextPermanentAddress));
                 setState('ready');
             } catch (error) {
                 setState('invalid');
@@ -304,8 +299,7 @@ export default function PreRegisterPage() {
 
     const validateForm = () => {
         const nextErrors = {
-            ...validateAddress(currentAddress, 'current'),
-            ...validateAddress(isSameAddress ? currentAddress : permanentAddress, 'permanent'),
+            ...validateAddress(homeAddress, 'home'),
             ...validatePhoneField(emergencyContact.contactNumber, 'emergencyContact_contactNumber', true),
             ...validatePhoneField(profile.homePhone, 'profile_homePhone'),
             ...validatePhoneField(profile.workPhone, 'profile_workPhone'),
@@ -332,9 +326,8 @@ export default function PreRegisterPage() {
         return Object.keys(nextErrors).length === 0;
     };
 
-    const handleAddressChange = (type, field, value) => {
-        const setter = type === 'current' ? setCurrentAddress : setPermanentAddress;
-        setter((prev) => {
+    const handleAddressChange = (field, value) => {
+        setHomeAddress((prev) => {
             const next = { ...prev, [field]: value };
             if (field === 'region') { next.province = ''; next.city = ''; next.barangay = ''; }
             if (field === 'province') { next.city = ''; next.barangay = ''; }
@@ -342,20 +335,9 @@ export default function PreRegisterPage() {
             return next;
         });
 
-        if (type === 'current' && isSameAddress) {
-            setPermanentAddress((prev) => {
-                const next = { ...prev, [field]: value };
-                if (field === 'region') { next.province = ''; next.city = ''; next.barangay = ''; }
-                if (field === 'province') { next.city = ''; next.barangay = ''; }
-                if (field === 'city') { next.barangay = ''; }
-                return next;
-            });
-        }
-
         setErrors((prev) => {
             const next = { ...prev };
-            delete next[`${type}_${field}`];
-            if (type === 'current' && isSameAddress) delete next[`permanent_${field}`];
+            delete next[`home_${field}`];
             return next;
         });
     };
@@ -406,14 +388,8 @@ export default function PreRegisterPage() {
         setDentalHistory((prev) => ({ ...prev, [field]: value }));
     };
 
-    const handleSameAddressToggle = (event) => {
-        const checked = event.target.checked;
-        setIsSameAddress(checked);
-        if (checked) setPermanentAddress({ ...currentAddress });
-    };
-
-    const renderAddressSection = (type, title, address) => {
-        const prefix = type === 'current' ? 'current' : 'permanent';
+    const renderAddressSection = (title, address) => {
+        const prefix = 'home';
         const availableProvinces = address.region ? provinces[address.region] || [] : [];
         const availableCities = address.province ? cities[address.province] || [] : [];
         const availableBarangays = address.city ? barangays[address.city] || [] : [];
@@ -426,7 +402,7 @@ export default function PreRegisterPage() {
                 <div className={styles.formGrid}>
                     <div className={styles.fieldGroup}>
                         <label className={styles.fieldLabel}>Region</label>
-                        <select className={`${styles.fieldSelect} ${classFor('region')}`} value={address.region} onChange={(e) => handleAddressChange(type, 'region', e.target.value)}>
+                        <select className={`${styles.fieldSelect} ${classFor('region')}`} value={address.region} onChange={(e) => handleAddressChange('region', e.target.value)}>
                             <option value="">Select region</option>
                             {regions.map((region) => <option key={region.code} value={region.code}>{region.name}</option>)}
                         </select>
@@ -434,7 +410,7 @@ export default function PreRegisterPage() {
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.fieldLabel}>Province</label>
-                        <select className={`${styles.fieldSelect} ${classFor('province')}`} value={address.province} onChange={(e) => handleAddressChange(type, 'province', e.target.value)} disabled={!address.region}>
+                        <select className={`${styles.fieldSelect} ${classFor('province')}`} value={address.province} onChange={(e) => handleAddressChange('province', e.target.value)} disabled={!address.region}>
                             <option value="">Select province</option>
                             {availableProvinces.map((province) => <option key={province.code} value={province.code}>{province.name}</option>)}
                         </select>
@@ -442,7 +418,7 @@ export default function PreRegisterPage() {
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.fieldLabel}>City / Municipality</label>
-                        <select className={`${styles.fieldSelect} ${classFor('city')}`} value={address.city} onChange={(e) => handleAddressChange(type, 'city', e.target.value)} disabled={!address.province}>
+                        <select className={`${styles.fieldSelect} ${classFor('city')}`} value={address.city} onChange={(e) => handleAddressChange('city', e.target.value)} disabled={!address.province}>
                             <option value="">Select city</option>
                             {availableCities.map((city) => <option key={city.code} value={city.code}>{city.name}</option>)}
                         </select>
@@ -450,7 +426,7 @@ export default function PreRegisterPage() {
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.fieldLabel}>Barangay</label>
-                        <select className={`${styles.fieldSelect} ${classFor('barangay')}`} value={address.barangay} onChange={(e) => handleAddressChange(type, 'barangay', e.target.value)} disabled={!address.city}>
+                        <select className={`${styles.fieldSelect} ${classFor('barangay')}`} value={address.barangay} onChange={(e) => handleAddressChange('barangay', e.target.value)} disabled={!address.city}>
                             <option value="">Select barangay</option>
                             {availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}
                         </select>
@@ -458,12 +434,12 @@ export default function PreRegisterPage() {
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.fieldLabel}>Street</label>
-                        <input className={`${styles.fieldInput} ${classFor('street')}`} value={address.street} onChange={(e) => handleAddressChange(type, 'street', e.target.value)} />
+                        <input className={`${styles.fieldInput} ${classFor('street')}`} value={address.street} onChange={(e) => handleAddressChange('street', e.target.value)} />
                         {errorFor('street') && <span className={styles.errorText}>{errorFor('street')}</span>}
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.fieldLabel}>House Number</label>
-                        <input className={`${styles.fieldInput} ${classFor('houseNumber')}`} value={address.houseNumber} onChange={(e) => handleAddressChange(type, 'houseNumber', e.target.value)} />
+                        <input className={`${styles.fieldInput} ${classFor('houseNumber')}`} value={address.houseNumber} onChange={(e) => handleAddressChange('houseNumber', e.target.value)} />
                         {errorFor('houseNumber') && <span className={styles.errorText}>{errorFor('houseNumber')}</span>}
                     </div>
                 </div>
@@ -473,8 +449,6 @@ export default function PreRegisterPage() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        const finalPermanentAddress = isSameAddress ? currentAddress : permanentAddress;
-        if (isSameAddress) setPermanentAddress({ ...currentAddress });
         if (!validateForm()) return;
 
         setIsSubmitting(true);
@@ -482,8 +456,7 @@ export default function PreRegisterPage() {
             const response = await publicFetch(`/pre-register/${token}`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    currentAddress,
-                    permanentAddress: finalPermanentAddress,
+                    homeAddress,
                     guestProfile: {
                         ...profile,
                         nationality: profile.nationality === 'Other' ? profile.nationalityOther.trim() : profile.nationality,
@@ -670,14 +643,7 @@ export default function PreRegisterPage() {
                                 </div>
                             </div>
 
-                            {renderAddressSection('current', 'Current Address', currentAddress)}
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#536c7f', fontSize: '14px' }}>
-                                <input id="sameAddress" type="checkbox" checked={isSameAddress} onChange={handleSameAddressToggle} />
-                                <label htmlFor="sameAddress">Permanent address is the same as current address</label>
-                            </div>
-
-                            {renderAddressSection('permanent', 'Permanent Address', isSameAddress ? currentAddress : permanentAddress)}
+                            {renderAddressSection('Home Address', homeAddress)}
 
                             <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
                                 <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Emergency Contact</h3>

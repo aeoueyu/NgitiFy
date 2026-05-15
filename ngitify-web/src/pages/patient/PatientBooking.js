@@ -19,25 +19,49 @@ import {
 } from '../../components/patient/PatientFrame';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
+import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 import { authFetch } from '../../utils/api';
 import {
     DIRECT_BOOKING_PROCEDURES,
     formatDateDisplay,
     formatTime24,
-    toDateKey,
 } from '../../utils/patientPortal';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
 const STEP_LABELS = ['Date', 'Time', 'Procedure', 'Confirm'];
-
-const toMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const MANILA_TIME_ZONE = 'Asia/Manila';
+const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MANILA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+});
+const manilaDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MANILA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+});
+const getManilaDateParts = (value = new Date()) => Object.fromEntries(
+    manilaDateTimeFormatter.formatToParts(new Date(value)).map((part) => [part.type, part.value])
+);
+const getManilaDateKey = (value = new Date()) => {
+    const parts = Object.fromEntries(
+        manilaDateFormatter.formatToParts(new Date(value)).map((part) => [part.type, part.value])
+    );
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+const toMonthKey = (date) => getManilaDateKey(date).slice(0, 7);
 
 const isSlotPast = (timeValue, selectedDate, todayKey) => {
     if (!timeValue || selectedDate !== todayKey) return false;
-    const now = new Date();
+    const nowParts = getManilaDateParts(new Date());
     const [hours, minutes] = String(timeValue).split(':').map(Number);
     const slotMinutes = hours * 60 + minutes;
-    const nowWithBuffer = now.getHours() * 60 + now.getMinutes() + 30;
+    const nowWithBuffer = (Number(nowParts.hour) * 60) + Number(nowParts.minute) + 30;
     return slotMinutes <= nowWithBuffer;
 };
 
@@ -52,6 +76,7 @@ export default function PatientBooking() {
     const navigate = useNavigate();
     const { addToast } = useToast();
     const { user } = useAuth();
+    const { appointmentProcedures } = usePublicClinicConfig();
 
     const [step, setStep] = useState(1);
     const [selectedDate, setSelectedDate] = useState('');
@@ -69,8 +94,8 @@ export default function PatientBooking() {
     const [bookingError, setBookingError] = useState('');
     const [duplicateAppointment, setDuplicateAppointment] = useState(null);
     const [currentMonth, setCurrentMonth] = useState(() => {
-        const today = new Date();
-        return new Date(today.getFullYear(), today.getMonth(), 1);
+        const [year, month] = getManilaDateKey(new Date()).split('-').map(Number);
+        return new Date(year, month - 1, 1);
     });
     const [dayCapacityReached, setDayCapacityReached] = useState(false);
     const [appointmentCount, setAppointmentCount] = useState(0);
@@ -79,7 +104,25 @@ export default function PatientBooking() {
     const [successModal, setSuccessModal] = useState(false);
 
     const assignedBranch = user?.assignedBranch || '';
-    const todayKey = toDateKey(new Date());
+    const todayKey = getManilaDateKey(new Date());
+    const directBookingProcedures = useMemo(() => {
+        const configuredProcedures = (Array.isArray(appointmentProcedures)
+            ? appointmentProcedures
+            : [])
+            .map((procedure) => String(procedure || '').trim())
+            .filter(Boolean);
+
+        return configuredProcedures.length > 0
+            ? configuredProcedures
+            : DIRECT_BOOKING_PROCEDURES;
+    }, [appointmentProcedures]);
+    const directBookingCountLabel = `${directBookingProcedures.length} direct-book procedure${directBookingProcedures.length === 1 ? '' : 's'}`;
+
+    useEffect(() => {
+        if (selectedProcedure && !directBookingProcedures.includes(selectedProcedure)) {
+            setSelectedProcedure('');
+        }
+    }, [directBookingProcedures, selectedProcedure]);
 
     const fetchDuplicateAppointment = useCallback(async () => {
         setLoadingDuplicate(true);
@@ -271,14 +314,9 @@ export default function PatientBooking() {
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                if (response.status === 409) {
-                    setDuplicateAppointment(payload.appointment || {
-                        date: selectedDate,
-                        time: selectedTime,
-                        procedure: selectedProcedure,
-                        status: 'pending',
-                        branch: assignedBranch,
-                    });
+                if (response.status === 409 && payload.code === 'ACTIVE_APPOINTMENT_EXISTS' && payload.appointment) {
+                    setDuplicateAppointment(payload.appointment);
+                    return;
                 }
                 throw new Error(payload.message || 'Booking failed. Please try again.');
             }
@@ -394,7 +432,7 @@ export default function PatientBooking() {
                             </p>
                             <div className={styles.detailPills}>
                                 <span className={styles.detailPill}><FaShieldAlt /> One active request at a time</span>
-                                <span className={styles.detailPill}><FaStethoscope /> {DIRECT_BOOKING_PROCEDURES.length} direct-book procedures</span>
+                                <span className={styles.detailPill}><FaStethoscope /> {directBookingCountLabel}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
                                 {STEP_LABELS.map((label, index) => {
@@ -447,7 +485,7 @@ export default function PatientBooking() {
                                 ))}
                             </div>
                             <div className={styles.noticeBox} style={{ marginTop: '16px' }}>
-                                The clinic still confirms your request before it becomes final. Online patient booking stays limited to check-up or prophylaxis requests.
+                                The clinic still confirms your request before it becomes final. Online patient booking stays limited to the services currently enabled by the clinic.
                             </div>
                         </article>
                     </section>
@@ -552,10 +590,10 @@ export default function PatientBooking() {
                                     <PatientSectionHeader
                                         eyebrow="Step 3"
                                         title="Procedure and notes"
-                                        description="Patients can only request the same narrow online-booking procedures allowed on mobile."
+                                        description="Patients can only request the online-booking procedures currently enabled by the clinic."
                                     />
                                     <div style={{ display: 'grid', gap: '12px', marginBottom: '18px' }}>
-                                        {DIRECT_BOOKING_PROCEDURES.map((procedure) => {
+                                        {directBookingProcedures.map((procedure) => {
                                             const selected = selectedProcedure === procedure;
                                             return (
                                                 <button
@@ -732,7 +770,7 @@ export default function PatientBooking() {
                                     <FaStethoscope color="#01538b" />
                                 </div>
                                 <div className={styles.timeline}>
-                                    {DIRECT_BOOKING_PROCEDURES.map((procedure) => (
+                                    {directBookingProcedures.map((procedure) => (
                                         <div key={procedure}>
                                             <span className={styles.infoLabel}>Allowed</span>
                                             <p className={styles.infoValue}>{procedure}</p>
@@ -750,7 +788,7 @@ export default function PatientBooking() {
                                     <FaRobot color="#01538b" />
                                 </div>
                                 <p className={styles.toolText}>
-                                    If you are unsure whether you should book a check-up or prophylaxis, open the patient AI tools first and then come back to this booking flow.
+                                    If you are unsure which direct-book service best matches your visit, open the patient AI tools first and then come back to this booking flow.
                                 </p>
                                 <div className={styles.heroActions}>
                                     <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/chatbot')}>

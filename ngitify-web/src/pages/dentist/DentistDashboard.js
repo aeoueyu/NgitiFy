@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from '../../styles/secretary/SecretaryDashboard.module.css';
+import styles from '../../styles/admin/AdminDashboard.module.css';
 import {
     FaBell,
     FaBoxes,

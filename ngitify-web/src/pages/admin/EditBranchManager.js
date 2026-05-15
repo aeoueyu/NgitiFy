@@ -29,7 +29,6 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
     const [branchOptions, setBranchOptions] = useState([]);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({});
-    const [isSameAddress, setIsSameAddress] = useState(true);
     const [profileImage, setProfileImage] = useState(null);
     const [initialProfileImage, setInitialProfileImage] = useState(null);
 
@@ -42,8 +41,7 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
         gender: '',
         birthday: '',
         assignedBranch: '',
-        currentAddress: { ...initialAddressState },
-        permanentAddress: { ...initialAddressState },
+        homeAddress: { ...initialAddressState },
     });
 
     const [initialData, setInitialData] = useState(null);
@@ -66,18 +64,9 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
                 let phone = data.contactNumber || '';
                 if (phone.startsWith('+63')) phone = phone.substring(3);
 
-                const fetchedCurrent = normalizeAddressForForm(data?.currentAddress || initialAddressState);
-                const fetchedPermanent = normalizeAddressForForm(data?.permanentAddress || initialAddressState);
-                const hasAnyAddress = !!(fetchedCurrent.region || fetchedCurrent.city || fetchedCurrent.street);
-                const addressSame = hasAnyAddress && (
-                    fetchedCurrent.region === fetchedPermanent.region &&
-                    fetchedCurrent.province === fetchedPermanent.province &&
-                    fetchedCurrent.city === fetchedPermanent.city &&
-                    fetchedCurrent.barangay === fetchedPermanent.barangay &&
-                    fetchedCurrent.street === fetchedPermanent.street &&
-                    fetchedCurrent.houseNumber === fetchedPermanent.houseNumber
+                const fetchedHomeAddress = normalizeAddressForForm(
+                    data?.homeAddress || data?.currentAddress || data?.permanentAddress || initialAddressState
                 );
-                setIsSameAddress(addressSame);
 
                 const fetched = {
                     firstName: data.name?.first || '',
@@ -88,8 +77,7 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
                     gender: data.gender || '',
                     birthday: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0] : '',
                     assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
-                    currentAddress: { ...initialAddressState, ...fetchedCurrent },
-                    permanentAddress: { ...initialAddressState, ...fetchedPermanent },
+                    homeAddress: { ...initialAddressState, ...fetchedHomeAddress },
                 };
 
                 setFormData(fetched);
@@ -149,16 +137,15 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
 
     const triggerFileInput = () => fileInputRef.current?.click();
 
-    const handleAddressChange = (type, field, value) => {
-        const errorKey = `${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`;
+    const handleAddressChange = (field, value) => {
+        const errorKey = `home_${field}`;
         if (errors[errorKey]) setErrors(prev => { const n = { ...prev }; delete n[errorKey]; return n; });
         setFormData(prev => {
-            const updated = { ...prev[type], [field]: value };
+            const updated = { ...prev.homeAddress, [field]: value };
             if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
             else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
             else if (field === 'city') { updated.barangay = ''; }
-            if (type === 'currentAddress' && isSameAddress) return { ...prev, currentAddress: updated, permanentAddress: updated };
-            return { ...prev, [type]: updated };
+            return { ...prev, homeAddress: updated };
         });
     };
 
@@ -175,8 +162,7 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
         else if (!meetsMinimumAge(formData.birthday, 18)) newErrors.birthday = 'Min age 18';
         if (!formData.assignedBranch) newErrors.assignedBranch = 'Required';
 
-        addRequiredAddressErrors(newErrors, formData.currentAddress, 'current');
-        if (!isSameAddress) addRequiredAddressErrors(newErrors, formData.permanentAddress, 'permanent');
+        addRequiredAddressErrors(newErrors, formData.homeAddress, 'home');
 
         setErrors(newErrors);
         if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
@@ -197,8 +183,7 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
             profileImage,
             assignedBranch: formData.assignedBranch,
             assignedBranches: formData.assignedBranch ? [formData.assignedBranch] : [],
-            currentAddress: { country: 'Philippines', ...formData.currentAddress },
-            permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
+            homeAddress: { country: 'Philippines', ...formData.homeAddress },
         };
 
         try {
@@ -220,9 +205,9 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
         }
     };
 
-    const renderAddressFields = (type, title, isDisabled = false) => {
-        const address = formData[type];
-        const prefix = type === 'currentAddress' ? 'current' : 'permanent';
+    const renderAddressFields = (title, isDisabled = false) => {
+        const address = formData.homeAddress;
+        const prefix = 'home';
         const availableProvinces = address.region ? provinces[address.region] || [] : [];
         const availableCities = address.province ? cities[address.province] || [] : [];
         const availableBarangays = address.city ? barangays[address.city] || [] : [];
@@ -233,16 +218,16 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
             <div className={styles.addressSection}>
                 <h3 className={styles.sectionTitle}>{title}</h3>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={e => handleAddressChange(type, 'region', e.target.value)} disabled={isDisabled || isSaving}><option value="" hidden>Select Region</option>{regions.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
-                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={e => handleAddressChange(type, 'province', e.target.value)} disabled={isDisabled || !address.region || isSaving}><option value="" hidden>Select Province</option>{availableProvinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
+                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={e => handleAddressChange('region', e.target.value)} disabled={isDisabled || isSaving}><option value="" hidden>Select Region</option>{regions.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
+                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={e => handleAddressChange('province', e.target.value)} disabled={isDisabled || !address.region || isSaving}><option value="" hidden>Select Province</option>{availableProvinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
                 </div>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={e => handleAddressChange(type, 'city', e.target.value)} disabled={isDisabled || !address.province || isSaving}><option value="" hidden>Select City</option>{availableCities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
-                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={e => handleAddressChange(type, 'barangay', e.target.value)} disabled={isDisabled || !address.city || isSaving}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b => <option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
+                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={e => handleAddressChange('city', e.target.value)} disabled={isDisabled || !address.province || isSaving}><option value="" hidden>Select City</option>{availableCities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
+                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={e => handleAddressChange('barangay', e.target.value)} disabled={isDisabled || !address.city || isSaving}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b => <option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
                 </div>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={e => handleAddressChange(type, 'street', e.target.value)} disabled={isDisabled || isSaving} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
-                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={e => handleAddressChange(type, 'houseNumber', e.target.value)} disabled={isDisabled || isSaving} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
+                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={e => handleAddressChange('street', e.target.value)} disabled={isDisabled || isSaving} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
+                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={e => handleAddressChange('houseNumber', e.target.value)} disabled={isDisabled || isSaving} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
                 </div>
             </div>
         );
@@ -317,7 +302,7 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
                             </div>
 
                             <hr className={styles.divider} />
-                            {renderAddressFields('currentAddress', 'Home Address')}
+                            {renderAddressFields('Home Address')}
                             
 
                             <div className={styles.buttonGroup}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     FaPlus,
     FaPhoneAlt,
@@ -14,16 +14,9 @@ import {
 import { MdOutlinePendingActions, MdOutlineQueuePlayNext } from 'react-icons/md';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { useSystemConfig } from '../../hooks/useSystemConfig';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import styles from '../../styles/admin/QueueManagement.module.css';
-
-const PROCEDURE_OPTIONS = [
-    'Consultation', 'Teeth Cleaning (Prophylaxis)', 'Tooth Extraction',
-    'Dental Filling (Composite)', 'Root Canal Treatment',
-    'Braces / Orthodontic Adjustment', 'Teeth Whitening',
-    'Crown / Bridge Fitting', 'Wisdom Tooth Extraction',
-    'Oral Surgery', 'X-Ray / Radiograph', 'Other',
-];
 
 const initialForm = {
     patientName: '',
@@ -34,6 +27,12 @@ const initialForm = {
 
 export default function SecretaryQueue() {
     const { addToast } = useToast();
+    const { config: systemConfig } = useSystemConfig();
+    const clinicProcedureOptions = useMemo(() => (
+        (Array.isArray(systemConfig?.clinicProcedures) ? systemConfig.clinicProcedures : [])
+            .map((procedure) => String(procedure || '').trim())
+            .filter(Boolean)
+    ), [systemConfig?.clinicProcedures]);
 
     const [queue, setQueue] = useState([]);
     const [dentists, setDentists] = useState([]);
@@ -420,7 +419,7 @@ export default function SecretaryQueue() {
                                     disabled={submitting}
                                 >
                                     <option value="">- Select or leave blank -</option>
-                                    {PROCEDURE_OPTIONS.map((procedure) => (
+                                    {clinicProcedureOptions.map((procedure) => (
                                         <option key={procedure} value={procedure}>{procedure}</option>
                                     ))}
                                 </select>

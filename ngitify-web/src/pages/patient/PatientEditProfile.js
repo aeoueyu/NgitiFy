@@ -15,7 +15,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { barangays, cities, provinces, regions } from '../../utils/addressData';
-import { normalizeAddressForForm } from '../../utils/addressHelpers';
+import { getHomeAddress, normalizeAddressForForm } from '../../utils/addressHelpers';
 import { calculateAge, getFullName } from '../../utils/patientPortal';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
@@ -43,7 +43,7 @@ const getDisplayDate = (value) => {
 };
 
 const buildInitialForm = (profile) => {
-    const normalizedAddress = normalizeAddressForForm(profile?.currentAddress || profile?.permanentAddress || {});
+    const normalizedAddress = normalizeAddressForForm(getHomeAddress(profile));
 
     return {
         firstName: profile?.name?.first || '',
@@ -203,7 +203,7 @@ export default function PatientEditProfile() {
             return;
         }
 
-        const currentAddress = {
+        const homeAddress = {
             country: 'Philippines',
             region: getRegionName(formData.region),
             province: getProvinceName(formData.province),
@@ -237,8 +237,7 @@ export default function PatientEditProfile() {
                 conditions: csvToArray(formData.conditions),
                 medications: csvToArray(formData.medications),
             },
-            currentAddress,
-            permanentAddress: { ...currentAddress },
+            homeAddress,
             profileImage: formData.profileImage || undefined,
         };
 
@@ -266,8 +265,7 @@ export default function PatientEditProfile() {
                 reasonForConsultation: payload.reasonForConsultation,
                 emergencyContact: payload.emergencyContact,
                 medicalHistory: payload.medicalHistory,
-                currentAddress: payload.currentAddress,
-                permanentAddress: payload.permanentAddress,
+                homeAddress: payload.homeAddress,
                 profileImage: payload.profileImage,
             };
             const nextForm = buildInitialForm(nextProfile);

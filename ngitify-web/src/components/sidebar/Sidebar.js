@@ -4,6 +4,7 @@ import styles from './Sidebar.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import {
+    FaArchive,
     FaBell,
     FaBoxes,
     FaCalendarAlt,
@@ -97,8 +98,20 @@ export default function Sidebar() {
         };
 
         fetchNotifCount();
+        const handleFocus = () => fetchNotifCount();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchNotifCount();
+            }
+        };
         const interval = setInterval(fetchNotifCount, 60000);
-        return () => clearInterval(interval);
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [isAdmin, isBranchManager, isOwner, isSecretary, isDentistUser, isPatient]);
 
     const getBasePath = () => {
@@ -383,6 +396,15 @@ export default function Sidebar() {
                             >
                                 <FaCog className={styles['nav-icon']} />
                                 {isExpanded && <span className={styles['nav-text']}>System Config</span>}
+                            </div>
+
+                            <div
+                                className={getFooterNavClass('/admin/archive-review')}
+                                onClick={() => handleNavigate('/admin/archive-review')}
+                                data-tooltip="Archive Review"
+                            >
+                                <FaArchive className={styles['nav-icon']} />
+                                {isExpanded && <span className={styles['nav-text']}>Archive Review</span>}
                             </div>
 
                             <div

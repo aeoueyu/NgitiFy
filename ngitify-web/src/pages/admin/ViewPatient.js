@@ -4,6 +4,8 @@ import styles from '../../styles/admin/StaffModals.module.css';
 import { regions, provinces, cities } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
 import { getAccountLifecycleLabel } from '../../utils/accountStatus';
+import { getHomeAddress } from '../../utils/addressHelpers';
+import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 
 const formatDateLong = (value) => {
     if (!value) return 'Not provided';
@@ -130,6 +132,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                             {infoBox('Verification', patient?.isArchived ? 'Archived Record' : patient?.isVerified ? 'Verified Email' : 'Pending Activation')}
                             {infoBox('Patient ID', patient?._id || patientId)}
                         </div>
+                        <LifecycleHistoryPanel account={patient} entityLabel="patient account" />
                         {!patient?.isVerified && !patient?.isArchived && onResendActivation && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
                                 <button
@@ -209,8 +212,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
 
                         <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Address Details</h3>
                         <div className={styles.infoGrid}>
-                            {infoBox('Current Address', formatAddress(patient.currentAddress))}
-                            {infoBox('Permanent Address', formatAddress(patient.permanentAddress))}
+                            {infoBox('Home Address', formatAddress(getHomeAddress(patient)))}
                         </div>
 
                         {(patient.consentAcknowledgement?.acknowledged || patient.consentAcknowledgement?.signerName) && (

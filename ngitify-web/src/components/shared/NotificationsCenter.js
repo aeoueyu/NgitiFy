@@ -42,12 +42,30 @@ const RANGE_OPTIONS = [
 
 const PAGE_SIZE = 20;
 
-const getTodayString = () => new Date().toISOString().split('T')[0];
+const MANILA_TIME_ZONE = 'Asia/Manila';
+
+const getDateKeyInManila = (value = new Date()) => Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+        timeZone: MANILA_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(new Date(value)).map((part) => [part.type, part.value])
+);
+
+const toManilaDateKey = (value = new Date()) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = getDateKeyInManila(date);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const getTodayString = () => toManilaDateKey(new Date());
 
 const addDays = (dateString, count) => {
     const date = new Date(`${dateString}T12:00:00`);
     date.setDate(date.getDate() + count);
-    return date.toISOString().split('T')[0];
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
 const getRelativeTime = (value) => {
@@ -206,8 +224,7 @@ export default function NotificationsCenter({
         const query = searchQuery.trim().toLowerCase();
 
         return notifications.filter((item) => {
-            const createdAt = new Date(item.createdAt);
-            const createdDateKey = createdAt.toISOString().split('T')[0];
+            const createdDateKey = toManilaDateKey(item.createdAt);
             const matchesRange = !dateRange || (createdDateKey >= dateRange.from && createdDateKey <= dateRange.to);
             const matchesType = typeFilter === 'all' || item.type === typeFilter;
             const matchesRead = readFilter === 'all'

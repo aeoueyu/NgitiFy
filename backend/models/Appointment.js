@@ -83,6 +83,7 @@ const appointmentSchema = new mongoose.Schema({
     guestPhone: { type: String, trim: true },
     guestBirthdate: { type: Date },
     guestGender: { type: String },
+    guestHomeAddress: addressSchema,
     guestCurrentAddress: addressSchema,
     guestPermanentAddress: addressSchema,
     guestProfile: guestProfileSchema,
@@ -143,6 +144,17 @@ const appointmentSchema = new mongoose.Schema({
 }, {
     timestamps: true,
     collection: 'surgeries',
+});
+
+appointmentSchema.set('toJSON', {
+    virtuals: true,
+    transform: (_doc, ret) => {
+        const canonicalHomeAddress = ret.guestHomeAddress || ret.guestCurrentAddress || ret.guestPermanentAddress || null;
+        if (canonicalHomeAddress) {
+            ret.guestHomeAddress = canonicalHomeAddress;
+        }
+        return ret;
+    },
 });
 
 module.exports = mongoose.models.Appointment || mongoose.model('Appointment', appointmentSchema);

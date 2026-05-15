@@ -71,7 +71,6 @@ export default function EditProfileScreen({ navigation }) {
     const [isEditing, setIsEditing] = useState(false);
 
     // ── Same-as-current-address checkbox ──
-    const [isSameAddress, setIsSameAddress] = useState(false);
 
     // ── Form state ──
     const [formData, setFormData] = useState({
@@ -97,18 +96,10 @@ export default function EditProfileScreen({ navigation }) {
         brgy:   '',
         street: '',
         house:  '',
-        // Permanent address codes
-        permReg:    '',
-        permProv:   '',
-        permCity:   '',
-        permBrgy:   '',
-        permStreet: '',
-        permHouse:  '',
     });
 
     // Keep a copy of the last-saved data for cancel
     const [savedData,    setSavedData]    = useState(null);
-    const [savedSameAddr, setSavedSameAddr] = useState(false);
 
     const [profileImage,   setProfileImage]   = useState(null);
     const [dateObj,        setDateObj]        = useState(new Date());
@@ -130,8 +121,7 @@ export default function EditProfileScreen({ navigation }) {
             if (!res.ok) throw new Error('Failed to load profile.');
             const data = await res.json();
 
-            const addr     = data.currentAddress || data.permanentAddress || {};
-            const permAddr = data.permanentAddress || data.currentAddress || {};
+            const addr = data.homeAddress || data.currentAddress || data.permanentAddress || {};
 
             // Resolve stored values (code OR name) → codes for dropdown filtering
             const regCode      = resolveToCode(regionsData,   'region_name',   'region_code',   addr.region);
@@ -147,29 +137,6 @@ export default function EditProfileScreen({ navigation }) {
                 const anywhere = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase());
                 return anywhere ? anywhere.brgy_code : '';
             })();
-
-            const permRegCode  = resolveToCode(regionsData,   'region_name',   'region_code',   permAddr.region);
-            const permProvCode = resolveToCode(provincesData, 'province_name', 'province_code', permAddr.province);
-            const permCityCode = resolveToCode(citiesData,    'city_name',     'city_code',     permAddr.city);
-            const permBrgyCode = (() => {
-                const val = permAddr.barangay;
-                if (!val) return '';
-                if (barangaysData.find(b => b.brgy_code === val)) return val;
-                const inCity = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase() && b.city_code === permCityCode);
-                if (inCity) return inCity.brgy_code;
-                const anywhere = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase());
-                return anywhere ? anywhere.brgy_code : '';
-            })();
-
-            // Detect if permanent === current (same address)
-            const sameAddr =
-                addr.region    === permAddr.region    &&
-                addr.province  === permAddr.province  &&
-                addr.city      === permAddr.city      &&
-                addr.barangay  === permAddr.barangay  &&
-                addr.street    === permAddr.street    &&
-                addr.houseNumber === permAddr.houseNumber &&
-                !!addr.region; // only flag same if there's actually data
 
             const populated = {
                 firstName:  data.name?.first  || '',
@@ -193,18 +160,10 @@ export default function EditProfileScreen({ navigation }) {
                 brgy:   brgyCode,
                 street: addr.street      || '',
                 house:  addr.houseNumber || '',
-                permReg:    permRegCode,
-                permProv:   permProvCode,
-                permCity:   permCityCode,
-                permBrgy:   permBrgyCode,
-                permStreet: permAddr.street      || '',
-                permHouse:  permAddr.houseNumber || '',
             };
 
             setFormData(populated);
             setSavedData(populated);
-            setIsSameAddress(true);
-            setSavedSameAddr(true);
 
             if (data.birthdate) {
                 const bd = new Date(data.birthdate);
@@ -226,9 +185,6 @@ export default function EditProfileScreen({ navigation }) {
     const availableBarangays = barangaysData.filter(b => b.city_code     === formData.city);
 
     // ─── Filtered address lists (permanent) ──────────────────────────────────
-    const availablePermProvinces = provincesData.filter(p => p.region_code   === formData.permReg);
-    const availablePermCities    = citiesData.filter(c    => c.province_code === formData.permProv);
-    const availablePermBarangays = barangaysData.filter(b => b.city_code     === formData.permCity);
 
     // ─── Field change handlers ────────────────────────────────────────────────
     const handleChange = (field, value) =>
@@ -240,49 +196,8 @@ export default function EditProfileScreen({ navigation }) {
             if (field === 'reg')  { updated.prov = ''; updated.city = ''; updated.brgy = ''; }
             if (field === 'prov') { updated.city = '';  updated.brgy = ''; }
             if (field === 'city') { updated.brgy = ''; }
-            // If same address is checked, mirror to permanent
-            if (isSameAddress) {
-                const mirrorMap = {
-                    reg: 'permReg', prov: 'permProv', city: 'permCity', brgy: 'permBrgy',
-                    street: 'permStreet', house: 'permHouse',
-                };
-                if (mirrorMap[field]) {
-                    updated[mirrorMap[field]] = updated[field];
-                    // Also reset dependent perm fields
-                    if (field === 'reg')  { updated.permProv = ''; updated.permCity = ''; updated.permBrgy = ''; }
-                    if (field === 'prov') { updated.permCity = '';  updated.permBrgy = ''; }
-                    if (field === 'city') { updated.permBrgy = ''; }
-                }
-            }
             return updated;
         });
-    };
-
-    const handlePermAddressChange = (field, value) => {
-        setFormData(prev => {
-            const updated = { ...prev, [field]: value };
-            if (field === 'permReg')  { updated.permProv = ''; updated.permCity = ''; updated.permBrgy = ''; }
-            if (field === 'permProv') { updated.permCity = '';  updated.permBrgy = ''; }
-            if (field === 'permCity') { updated.permBrgy = ''; }
-            return updated;
-        });
-    };
-
-    const handleSameAddressToggle = () => {
-        const next = !isSameAddress;
-        setIsSameAddress(next);
-        if (next) {
-            // Copy current address to permanent
-            setFormData(prev => ({
-                ...prev,
-                permReg:    prev.reg,
-                permProv:   prev.prov,
-                permCity:   prev.city,
-                permBrgy:   prev.brgy,
-                permStreet: prev.street,
-                permHouse:  prev.house,
-            }));
-        }
     };
 
     const handleDateChange = (event, selectedDate) => {
@@ -357,7 +272,6 @@ export default function EditProfileScreen({ navigation }) {
     // ─── Cancel edit ─────────────────────────────────────────────────────────
     const handleCancel = () => {
         if (savedData) setFormData(savedData);
-        setIsSameAddress(savedSameAddr);
         setIsEditing(false);
         setSaveError('');
     };
@@ -381,7 +295,7 @@ export default function EditProfileScreen({ navigation }) {
         const cityName     = nameFromCode(citiesData,    'city_code',     'city_name',     formData.city);
         const barangayName = nameFromCode(barangaysData, 'brgy_code',     'brgy_name',     formData.brgy);
 
-        const currentAddressPayload = {
+        const homeAddressPayload = {
             country:     'Philippines',
             region:      regionName,
             province:    provinceName,
@@ -390,8 +304,6 @@ export default function EditProfileScreen({ navigation }) {
             street:      formData.street.trim(),
             houseNumber: formData.house.trim(),
         };
-
-        const permanentAddressPayload = { ...currentAddressPayload };
 
         const payload = {
             name: {
@@ -416,8 +328,7 @@ export default function EditProfileScreen({ navigation }) {
                 conditions: arrayFromCsv(formData.conditions),
                 medications: arrayFromCsv(formData.medications),
             },
-            currentAddress:   currentAddressPayload,
-            permanentAddress: permanentAddressPayload,
+            homeAddress: homeAddressPayload,
             profileImage:     profileImage ?? undefined,
         };
 
@@ -436,7 +347,6 @@ export default function EditProfileScreen({ navigation }) {
             }
 
             setSavedData({ ...formData });
-            setSavedSameAddr(isSameAddress);
             setIsEditing(false);
             setSuccessModal(true);
             refreshUserInfo(); // sync profileImage + name to global context
@@ -785,69 +695,6 @@ export default function EditProfileScreen({ navigation }) {
                 </View>
 
                 {/* ── Permanent Address ── */}
-                {false && (
-                <View style={styles.section}>
-                    <View style={styles.permHeaderRow}>
-                        <Text style={styles.sectionTitle}>Permanent Address</Text>
-                        {isEditing && (
-                            <TouchableOpacity
-                                style={styles.checkboxRow}
-                                onPress={handleSameAddressToggle}
-                                activeOpacity={0.7}
-                            >
-                                <View style={[styles.checkbox, isSameAddress && styles.checkboxChecked]}>
-                                    {isSameAddress && <Text style={styles.checkmark}>✓</Text>}
-                                </View>
-                                <Text style={styles.checkboxLabel}>Same as Current</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-
-                    {isSameAddress && !isEditing && (
-                        <View style={styles.sameAddrBadge}>
-                            <Text style={styles.sameAddrBadgeText}>✓ Same as Current Address</Text>
-                        </View>
-                    )}
-
-                    <View style={[{ opacity: isSameAddress ? 0.45 : 1 }]}>
-                        <View style={{ flexDirection: 'row', marginLeft: -5, marginRight: -5 }}>
-                            {renderDropdownInput('Region',   formData.permReg,  regionsData,             'region_name',   'region_code',   val => handlePermAddressChange('permReg', val),  isSameAddress)}
-                            {renderDropdownInput('Province', formData.permProv, availablePermProvinces,  'province_name', 'province_code', val => handlePermAddressChange('permProv', val), isSameAddress || !formData.permReg)}
-                        </View>
-
-                        <View style={{ flexDirection: 'row', marginLeft: -5, marginRight: -5 }}>
-                            {renderDropdownInput('City / Municipality', formData.permCity, availablePermCities,    'city_name', 'city_code', val => handlePermAddressChange('permCity', val), isSameAddress || !formData.permProv)}
-                            {renderDropdownInput('Barangay',            formData.permBrgy, availablePermBarangays, 'brgy_name', 'brgy_code', val => handlePermAddressChange('permBrgy', val), isSameAddress || !formData.permCity)}
-                        </View>
-
-                        <View style={styles.row}>
-                            <View style={{ flex: 1, marginRight: 10 }}>
-                                <Text style={styles.label}>Street</Text>
-                                <TextInput
-                                    style={[styles.inputBox, (!isEditing || isSameAddress) && styles.inputReadOnly]}
-                                    value={formData.permStreet}
-                                    onChangeText={v => handlePermAddressChange('permStreet', v)}
-                                    editable={isEditing && !isSameAddress}
-                                    placeholder="Street name"
-                                    placeholderTextColor="#bbb"
-                                />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>House / Blk / Lot</Text>
-                                <TextInput
-                                    style={[styles.inputBox, (!isEditing || isSameAddress) && styles.inputReadOnly]}
-                                    value={formData.permHouse}
-                                    onChangeText={v => handlePermAddressChange('permHouse', v)}
-                                    editable={isEditing && !isSameAddress}
-                                    placeholder="e.g. Blk 4 Lot 5"
-                                    placeholderTextColor="#bbb"
-                                />
-                            </View>
-                        </View>
-                    </View>
-                </View>
-                )}
-
                 {/* Save error */}
                 {saveError ? (
                     <View style={styles.saveErrorBox}>

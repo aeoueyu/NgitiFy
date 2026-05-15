@@ -57,10 +57,10 @@ const getNavTarget = (type = '') => {
     if (type.includes('APPOINTMENT')) return { screen: 'PatientTabs', params: { screen: 'MyAppointments' } };
     if (type.includes('RADIOGRAPH')) return { screen: 'PatientTabs', params: { screen: 'MedicalRecords' } };
     if (type.includes('TICKET') || type.includes('INQUIRY')) {
-        return { screen: 'AiPatientCareCompanion' };
+        return { screen: 'AiPatientCareCompanion', params: { initialSection: 'inquiry' } };
     }
     if (type.includes('VISIT')) {
-        return { screen: 'PatientTabs', params: { screen: 'OralCareInsights' } };
+        return { screen: 'AiPatientCareCompanion', params: { initialSection: 'visitWindow' } };
     }
     return null;
 };

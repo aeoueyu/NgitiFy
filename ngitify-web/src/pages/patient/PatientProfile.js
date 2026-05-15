@@ -19,6 +19,7 @@ import {
     getInitials,
     getFullName,
 } from '../../utils/patientPortal';
+import { getHomeAddress } from '../../utils/addressHelpers';
 import { PatientEmptyState, PatientPageFrame, PatientSectionHeader } from '../../components/patient/PatientFrame';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
@@ -78,7 +79,7 @@ export default function PatientProfile() {
             rows: [
                 ['Email Address', email],
                 ['Phone Number', contactNumber],
-                ['Home Address', formatAddress(profile?.currentAddress || profile?.permanentAddress || {})],
+                ['Home Address', formatAddress(getHomeAddress(profile))],
             ],
         },
         {
@@ -232,4 +233,3 @@ export default function PatientProfile() {
         </PatientPageFrame>
     );
 }
-

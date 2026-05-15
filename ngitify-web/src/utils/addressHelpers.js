@@ -33,6 +33,10 @@ export const normalizeAddressForForm = (address = {}) => {
     };
 };
 
+export const getHomeAddress = (record = {}) => (
+    record?.homeAddress || record?.currentAddress || record?.permanentAddress || {}
+);
+
 export const resolveAddressNames = (address = {}) => {
     const regionMatch = findRegionByValue(address.region || '');
     const provinceMatch = findProvinceByValue(regionMatch?.code || address.region || '', address.province || '');

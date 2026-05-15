@@ -51,6 +51,7 @@ const BranchAnalytics  = lazy(() => import('./pages/admin/BranchAnalytics'));
 const ChatSupport = lazy(() => import('./pages/admin/ChatSupport'));
 const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const IntegrityTools = lazy(() => import('./pages/admin/IntegrityTools'));
+const ArchiveReview = lazy(() => import('./pages/admin/ArchiveReview'));
 const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
 const AdminAIAssistant = lazy(() => import('./pages/admin/CoAdminAIAssistant'));
 
@@ -308,6 +309,7 @@ function App() {
                   <Route path="/admin/branches/analytics" element={<BranchAnalytics />} />
                   <Route path="/admin/roles" element={<RolesPermissions />} />
                   <Route path="/admin/backup" element={<DatabaseBackup />} />
+                  <Route path="/admin/archive-review" element={<ArchiveReview />} />
                   <Route
                     path="/admin/chat-support"
                     element={(

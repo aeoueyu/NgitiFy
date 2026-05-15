@@ -10,7 +10,7 @@ import UserTabs from './UserTabs';
 import AddSecretary from './AddSecretary';
 import EditSecretary from './EditSecretary';
 import ViewSecretary from './ViewSecretary';
-import ConfirmModal from '../../components/common/ConfirmModal';
+import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccountLifecycleKey,
@@ -35,7 +35,7 @@ export default function ManageSecretaries() {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedSecretaryId, setSelectedSecretaryId] = useState(null);
 
-    const [confirmConfig, setConfirmConfig] = useState(null);
+    const [lifecycleConfig, setLifecycleConfig] = useState(null);
 
     const fetchSecretaries = useCallback(async () => {
         try {
@@ -108,28 +108,32 @@ export default function ManageSecretaries() {
             return;
         }
 
-        const newStatus = secretary.status === 'Active' ? 'inactive' : 'active';
+        const newStatus = secretary.rawStatus === 'active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !secretary.isVerified) {
             addToast(`Cannot activate ${secretary.name}. Their email is not yet verified.`, 'error');
             return;
         }
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'user',
+            entityType: 'staff',
+            targetId: secretary.id,
+            action: newStatus === 'active' ? 'activate' : 'deactivate',
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
             message: newStatus === 'active'
                 ? `Are you sure you want to ACTIVATE ${secretary.name}? They will regain access to the system.`
                 : `Are you sure you want to DEACTIVATE ${secretary.name}? They will lose access to the system.`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
-            onConfirm: () => executeToggleStatus(secretary.id, newStatus, secretary.name),
-            onCancel: () => setConfirmConfig(null)
+            subjectName: secretary.name,
+            onConfirm: ({ reason }) => executeToggleStatus(secretary.id, newStatus, secretary.name, reason),
         });
     };
 
-    const executeToggleStatus = async (id, newStatus, name) => {
+    const executeToggleStatus = async (id, newStatus, name, reason = '') => {
         try {
             const res = await authFetch(`/user/toggle-status/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus, reason })
             });
             if (res.ok) {
                 setSecretariesList(prev => prev.map(s =>
@@ -144,29 +148,33 @@ export default function ManageSecretaries() {
             console.error('Error toggling status:', error);
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
     const handleArchiveToggle = (secretary) => {
         const nextArchivedState = !secretary.isArchived;
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'user',
+            entityType: 'staff',
+            targetId: secretary.id,
+            action: nextArchivedState ? 'archive' : 'restore',
             title: nextArchivedState ? 'Archive Secretary' : 'Restore Secretary',
             message: nextArchivedState
                 ? `Archive ${secretary.name}? This removes the account from normal staff lists and keeps the record read-only until restored.`
                 : `Restore ${secretary.name} from archive? The account will return as inactive until it is activated again.`,
             confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
             isDestructive: nextArchivedState,
-            onConfirm: () => executeArchiveToggle(secretary.id, nextArchivedState, secretary.name),
-            onCancel: () => setConfirmConfig(null)
+            subjectName: secretary.name,
+            onConfirm: ({ reason }) => executeArchiveToggle(secretary.id, nextArchivedState, secretary.name, reason),
         });
     };
 
-    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+    const executeArchiveToggle = async (id, nextArchivedState, name, reason = '') => {
         try {
             const res = await authFetch(`/user/archive/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ isArchived: nextArchivedState })
+                body: JSON.stringify({ isArchived: nextArchivedState, reason })
             });
             if (res.ok) {
                 setSecretariesList(prev => prev.map(s =>
@@ -186,7 +194,7 @@ export default function ManageSecretaries() {
             console.error('Error archiving secretary:', error);
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
@@ -368,18 +376,24 @@ export default function ManageSecretaries() {
                     secretaryId={selectedSecretaryId}
                     onClose={handleCloseViewModal}
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                    onResendActivation={handleResendActivation}
                 />
             )}
             {isEditModalOpen && selectedSecretaryId && <EditSecretary secretaryId={selectedSecretaryId} onClose={handleCloseEditModal} onSuccess={fetchSecretaries} />}
 
-            <ConfirmModal
-                isOpen={!!confirmConfig}
-                title={confirmConfig?.title}
-                message={confirmConfig?.message}
-                confirmText={confirmConfig?.confirmText}
-                isDestructive={confirmConfig?.isDestructive}
-                onConfirm={confirmConfig?.onConfirm}
-                onCancel={() => setConfirmConfig(null)}
+            <LifecycleActionModal
+                isOpen={!!lifecycleConfig}
+                scope={lifecycleConfig?.scope}
+                entityType={lifecycleConfig?.entityType}
+                targetId={lifecycleConfig?.targetId}
+                action={lifecycleConfig?.action}
+                title={lifecycleConfig?.title}
+                message={lifecycleConfig?.message}
+                subjectName={lifecycleConfig?.subjectName}
+                confirmText={lifecycleConfig?.confirmText}
+                isDestructive={lifecycleConfig?.isDestructive}
+                onConfirm={lifecycleConfig?.onConfirm}
+                onCancel={() => setLifecycleConfig(null)}
             />
         </div>
     );

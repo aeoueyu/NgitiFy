@@ -4,9 +4,10 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 import { formatDateShort } from '../../utils/dateUtils';
-import { formatAddressDisplay } from '../../utils/addressHelpers';
+import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
+import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 
-export default function ViewBranchManager({ managerId, onClose, onEdit }) {
+export default function ViewBranchManager({ managerId, onClose, onEdit, onResendActivation }) {
     const [manager, setManager] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -44,7 +45,7 @@ export default function ViewBranchManager({ managerId, onClose, onEdit }) {
                                     <h2>Branch Manager <span className={styles.highlight}>Profile</span></h2>
                                 </div>
                             </div>
-                            <button className={styles.editActionBtn} onClick={onEdit}>EDIT PROFILE</button>
+                            {!manager?.isArchived && <button className={styles.editActionBtn} onClick={onEdit}>EDIT PROFILE</button>}
                         </div>
 
                         <div className={styles.profileHeader}>
@@ -67,6 +68,10 @@ export default function ViewBranchManager({ managerId, onClose, onEdit }) {
                                 <p className={styles.infoValue}>{manager.assignedBranch || manager.assignedBranches?.[0] || 'Not assigned'}</p>
                             </div>
                             <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Account Status</span>
+                                <p className={styles.infoValue}>{manager.isArchived ? 'Archived' : manager.status === 'active' ? 'Active' : manager.isVerified ? 'Inactive' : 'Needs Activation'}</p>
+                            </div>
+                            <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Email Address</span>
                                 <p className={styles.infoValue}>{manager.email}</p>
                             </div>
@@ -84,13 +89,35 @@ export default function ViewBranchManager({ managerId, onClose, onEdit }) {
                             </div>
                         </div>
 
+                        {!manager?.isVerified && !manager?.isArchived && onResendActivation && (
+                            <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => onResendActivation(manager)}
+                                    style={{
+                                        border: '1px solid #bfdbfe',
+                                        background: '#eff6ff',
+                                        color: '#01538b',
+                                        borderRadius: '999px',
+                                        padding: '10px 16px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Resend Activation Email
+                                </button>
+                            </div>
+                        )}
+
                         <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Home Address</h3>
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBox} style={{ gridColumn: '1 / -1' }}>
                                 <span className={styles.infoLabel}>Home Address</span>
-                                <p className={styles.infoValue}>{formatAddressDisplay(manager.currentAddress?.region ? manager.currentAddress : manager.permanentAddress)}</p>
+                                <p className={styles.infoValue}>{formatAddressDisplay(getHomeAddress(manager))}</p>
                             </div>
                         </div>
+
+                        <LifecycleHistoryPanel account={manager} entityLabel="branch manager account" />
                     </>
                 ) : (
                     <div className={styles.errorState}>Profile not found.</div>

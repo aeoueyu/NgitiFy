@@ -7,7 +7,7 @@ import EditBranchManager from './EditBranchManager';
 import AddBranchManager from './AddBranchManager';
 import ViewBranchManager from './ViewBranchManager';
 import UserTabs from './UserTabs';
-import ConfirmModal from '../../components/common/ConfirmModal';
+import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccountLifecycleKey,
@@ -28,7 +28,7 @@ const ManageBranchManagers = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedManagerId, setSelectedManagerId] = useState(null);
-    const [confirmConfig, setConfirmConfig] = useState(null);
+    const [lifecycleConfig, setLifecycleConfig] = useState(null);
 
     const fetchManagers = useCallback(async () => {
         setIsLoading(true);
@@ -100,29 +100,33 @@ const ManageBranchManagers = () => {
             return;
         }
 
-        const newStatus = manager.status === 'Active' ? 'inactive' : 'active';
+        const newStatus = manager.rawStatus === 'active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !manager.isVerified) {
             addToast(`Cannot activate ${manager.name}. Their email is not yet verified.`, 'error');
             return;
         }
 
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'user',
+            entityType: 'staff',
+            targetId: manager.id,
+            action: newStatus === 'active' ? 'activate' : 'deactivate',
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
             message: newStatus === 'active'
                 ? `Are you sure you want to ACTIVATE ${manager.name}? They will regain access to the system.`
                 : `Are you sure you want to DEACTIVATE ${manager.name}? They will lose access to the system.`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
-            onConfirm: () => executeToggleStatus(manager.id, newStatus, manager.name),
-            onCancel: () => setConfirmConfig(null),
+            subjectName: manager.name,
+            onConfirm: ({ reason }) => executeToggleStatus(manager.id, newStatus, manager.name, reason),
         });
     };
 
-    const executeToggleStatus = async (id, newStatus, name) => {
+    const executeToggleStatus = async (id, newStatus, name, reason = '') => {
         try {
             const res = await authFetch(`/user/toggle-status/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: newStatus }),
+                body: JSON.stringify({ status: newStatus, reason }),
             });
 
             if (res.ok) {
@@ -139,29 +143,33 @@ const ManageBranchManagers = () => {
         } catch {
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
     const handleArchiveToggle = (manager) => {
         const nextArchivedState = !manager.isArchived;
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'user',
+            entityType: 'staff',
+            targetId: manager.id,
+            action: nextArchivedState ? 'archive' : 'restore',
             title: nextArchivedState ? 'Archive Branch Manager' : 'Restore Branch Manager',
             message: nextArchivedState
                 ? `Archive ${manager.name}? This removes the account from normal staff lists and keeps the record read-only until restored.`
                 : `Restore ${manager.name} from archive? The account will return as inactive until it is activated again.`,
             confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
             isDestructive: nextArchivedState,
-            onConfirm: () => executeArchiveToggle(manager.id, nextArchivedState, manager.name),
-            onCancel: () => setConfirmConfig(null),
+            subjectName: manager.name,
+            onConfirm: ({ reason }) => executeArchiveToggle(manager.id, nextArchivedState, manager.name, reason),
         });
     };
 
-    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+    const executeArchiveToggle = async (id, nextArchivedState, name, reason = '') => {
         try {
             const res = await authFetch(`/user/archive/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ isArchived: nextArchivedState }),
+                body: JSON.stringify({ isArchived: nextArchivedState, reason }),
             });
 
             if (res.ok) {
@@ -184,7 +192,7 @@ const ManageBranchManagers = () => {
             console.error('Error archiving branch manager:', error);
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
@@ -367,6 +375,7 @@ const ManageBranchManagers = () => {
                     managerId={selectedManagerId}
                     onClose={() => { setIsViewModalOpen(false); setSelectedManagerId(null); }}
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                    onResendActivation={handleResendActivation}
                 />
             )}
             {isEditModalOpen && selectedManagerId && (
@@ -376,14 +385,19 @@ const ManageBranchManagers = () => {
                     onSuccess={fetchManagers}
                 />
             )}
-            <ConfirmModal
-                isOpen={!!confirmConfig}
-                title={confirmConfig?.title}
-                message={confirmConfig?.message}
-                confirmText={confirmConfig?.confirmText}
-                isDestructive={confirmConfig?.isDestructive}
-                onConfirm={confirmConfig?.onConfirm}
-                onCancel={() => setConfirmConfig(null)}
+            <LifecycleActionModal
+                isOpen={!!lifecycleConfig}
+                scope={lifecycleConfig?.scope}
+                entityType={lifecycleConfig?.entityType}
+                targetId={lifecycleConfig?.targetId}
+                action={lifecycleConfig?.action}
+                title={lifecycleConfig?.title}
+                message={lifecycleConfig?.message}
+                subjectName={lifecycleConfig?.subjectName}
+                confirmText={lifecycleConfig?.confirmText}
+                isDestructive={lifecycleConfig?.isDestructive}
+                onConfirm={lifecycleConfig?.onConfirm}
+                onCancel={() => setLifecycleConfig(null)}
             />
         </div>
     );

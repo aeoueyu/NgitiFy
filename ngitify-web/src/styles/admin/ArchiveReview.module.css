@@ -1,0 +1,151 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.summaryGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.summaryCard {
+    border-radius: 18px;
+    border: 1px solid #dbe6f1;
+    background: linear-gradient(180deg, #fbfdff 0%, #f7fbff 100%);
+    padding: 18px;
+    font-family: 'Lexend Deca', sans-serif;
+}
+
+.summaryLabel {
+    display: block;
+    color: #5f7384;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.summaryValue {
+    display: block;
+    margin-top: 8px;
+    color: #0f3f67;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.summaryMeta {
+    margin-top: 8px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.toolbarCard {
+    border-radius: 20px;
+    border: 1px solid #dbe6f1;
+    background: #ffffff;
+    padding: 18px;
+    margin-bottom: 18px;
+}
+
+.filterRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.selectField {
+    min-height: 42px;
+    border-radius: 14px;
+    border: 1px solid #cbd5e1;
+    padding: 0 14px;
+    font: inherit;
+    color: #1e293b;
+    background: #fff;
+}
+
+.statusBadge,
+.warningBadge,
+.dangerBadge,
+.successBadge,
+.neutralBadge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.statusBadge,
+.neutralBadge {
+    background: #ebf5fc;
+    color: #0f5d92;
+}
+
+.warningBadge {
+    background: #fff4db;
+    color: #9a5800;
+}
+
+.dangerBadge {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.successBadge {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.mutedText {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.reasonText {
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 360px;
+}
+
+.actionRow {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.actionButton,
+.dangerActionButton {
+    border: none;
+    border-radius: 999px;
+    min-height: 34px;
+    padding: 0 14px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.actionButton {
+    background: #eff6ff;
+    color: #01538b;
+}
+
+.dangerActionButton {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.actionButton:disabled,
+.dangerActionButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}

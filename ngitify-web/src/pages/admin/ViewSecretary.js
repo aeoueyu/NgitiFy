@@ -6,9 +6,10 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import UserAvatar from '../../components/common/UserAvatar';
 import { formatDateShort } from '../../utils/dateUtils';
-import { formatAddressDisplay } from '../../utils/addressHelpers';
+import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
+import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 
-export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
+export default function ViewSecretary({ secretaryId, onClose, onEdit, onResendActivation }) {
     const [secretary, setSecretary] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -45,7 +46,7 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
                                     <h2>Secretary <span className={styles.highlight}>Profile</span></h2>
                                 </div>
                             </div>
-                            <button className={styles.editActionBtn} onClick={onEdit}>EDIT PROFILE</button>
+                            {!secretary?.isArchived && <button className={styles.editActionBtn} onClick={onEdit}>EDIT PROFILE</button>}
                         </div>
 
                         <div className={styles.profileHeader}>
@@ -69,6 +70,10 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
                                 <p className={styles.infoValue}>{secretary.assignedBranch || secretary.assignedBranches?.[0] || 'Not assigned'}</p>
                             </div>
                             <div className={styles.infoBox}>
+                                <span className={styles.infoLabel}>Account Status</span>
+                                <p className={styles.infoValue}>{secretary.isArchived ? 'Archived' : secretary.status === 'active' ? 'Active' : secretary.isVerified ? 'Inactive' : 'Needs Activation'}</p>
+                            </div>
+                            <div className={styles.infoBox}>
                                 <span className={styles.infoLabel}>Email Address</span>
                                 <p className={styles.infoValue}>{secretary.email}</p>
                             </div>
@@ -87,13 +92,35 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit }) {
                             </div>
                         </div>
 
+                        {!secretary?.isVerified && !secretary?.isArchived && onResendActivation && (
+                            <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => onResendActivation(secretary)}
+                                    style={{
+                                        border: '1px solid #bfdbfe',
+                                        background: '#eff6ff',
+                                        color: '#01538b',
+                                        borderRadius: '999px',
+                                        padding: '10px 16px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Resend Activation Email
+                                </button>
+                            </div>
+                        )}
+
                         <h3 className={`${styles.mainSectionTitle} ${styles.sectionHeading}`}>Home Address</h3>
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBox} style={{ gridColumn: '1 / -1' }}>
                                 <span className={styles.infoLabel}>Home Address</span>
-                                <p className={styles.infoValue}>{formatAddressDisplay(secretary.currentAddress?.region ? secretary.currentAddress : secretary.permanentAddress)}</p>
+                                <p className={styles.infoValue}>{formatAddressDisplay(getHomeAddress(secretary))}</p>
                             </div>
                         </div>
+
+                        <LifecycleHistoryPanel account={secretary} entityLabel="secretary account" />
                     </>
                 ) : (
                     <div className={styles.errorState}>Profile not found.</div>

@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext';
 import { regions, provinces, cities } from '../../utils/addressData';
 import { FaArrowLeft, FaEdit, FaFileMedical } from 'react-icons/fa';
 import UserAvatar from '../../components/common/UserAvatar';
+import { getHomeAddress } from '../../utils/addressHelpers';
 
 export default function SecretaryViewPatient() {
     const { patientId } = useParams();
@@ -147,8 +148,7 @@ export default function SecretaryViewPatient() {
                 {/* Address */}
                 <h3 className={styles.viewSectionTitle}>Address Details</h3>
                 <div className={styles.infoGrid}>
-                    <InfoBox label="Current Address"   value={formatAddress(patient.currentAddress)} />
-                    <InfoBox label="Permanent Address" value={formatAddress(patient.permanentAddress)} />
+                    <InfoBox label="Home Address" value={formatAddress(getHomeAddress(patient))} />
                 </div>
             </div>
         </div>

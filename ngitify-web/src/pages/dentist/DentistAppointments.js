@@ -6,6 +6,7 @@ import {
     FaBoxOpen, FaCheckCircle, FaPlus, FaTimes
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
+import { useSystemConfig } from '../../hooks/useSystemConfig';
 
 // CRITICAL RULE IMPORTS
 import { authFetch } from '../../utils/api';
@@ -25,22 +26,6 @@ const PH_HOLIDAYS = [
     { month: 5,  day: 12, name: "Independence Day" },
     { month: 11, day: 25, name: "Christmas Day" },
     { month: 11, day: 31, name: "New Year's Eve" },
-];
-
-const PROCEDURE_OPTIONS = [
-    'General Check-up / Initial Consultation',
-    'Prophylaxis / Dental Cleaning',
-    'Oral Prophylaxis (Teeth Cleaning)',
-    'Fluoride Application',
-    'Teeth Whitening',
-    'Tooth Restoration/Filling (Pasta)',
-    'Pit and Fissure Sealant Application',
-    'Root Canal Treatment',
-    'Tooth Extraction (Bunot)',
-    'Odontectomy (Wisdom Tooth Removal)',
-    'Orthodontics (Braces)',
-    'Dentures/Crowns',
-    'Retainers',
 ];
 
 const TREATMENT_CATEGORY_OPTIONS = [
@@ -91,6 +76,7 @@ export default function DentistAppointments() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const { addToast } = useToast();
+    const { config: systemConfig } = useSystemConfig();
     const currentUserId = user?.userId || user?.id || user?._id || '';
 
     // ─── DATA STATE ──────────────────────────────────────────────────────────
@@ -118,7 +104,11 @@ export default function DentistAppointments() {
         nextAppointment: '',
     });
     const [completionError, setCompletionError] = useState('');
-    const [clinicProcedures, setClinicProcedures] = useState(PROCEDURE_OPTIONS);
+    const clinicProcedureOptions = useMemo(() => (
+        (Array.isArray(systemConfig?.clinicProcedures) ? systemConfig.clinicProcedures : [])
+            .map((procedure) => String(procedure || '').trim())
+            .filter(Boolean)
+    ), [systemConfig?.clinicProcedures]);
 
     // ─── FILTER STATES ───────────────────────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState('');
@@ -174,25 +164,6 @@ export default function DentistAppointments() {
     useEffect(() => {
         fetchAppointments();
     }, [fetchAppointments]);
-
-    useEffect(() => {
-        const loadClinicProcedures = async () => {
-            try {
-                const res = await authFetch('/procedures');
-                if (!res.ok) throw new Error('Failed to load clinic procedures.');
-                const data = await res.json();
-                const procedures = Array.isArray(data?.procedures) && data.procedures.length > 0
-                    ? data.procedures
-                    : PROCEDURE_OPTIONS;
-                setClinicProcedures(procedures);
-            } catch (err) {
-                console.error('Failed to load clinic procedures:', err);
-                setClinicProcedures(PROCEDURE_OPTIONS);
-            }
-        };
-
-        loadClinicProcedures();
-    }, []);
 
     // ─── FETCH PATIENTS, DENTISTS, BRANCHES FOR BOOKING MODAL ───────────────
     useEffect(() => {
@@ -710,7 +681,7 @@ export default function DentistAppointments() {
                                     disabled={isSubmittingBooking}
                                 >
                                     <option value="" disabled hidden>-- Select Procedure --</option>
-                                    {clinicProcedures.map(p => (
+                                    {clinicProcedureOptions.map(p => (
                                         <option key={p} value={p}>{p}</option>
                                     ))}
                                 </select>
@@ -790,7 +761,7 @@ export default function DentistAppointments() {
                                     }}
                                 >
                                     <option value="">Select the procedure performed</option>
-                                    {clinicProcedures.map((procedure) => (
+                                    {clinicProcedureOptions.map((procedure) => (
                                         <option key={procedure} value={procedure}>{procedure}</option>
                                     ))}
                                 </select>

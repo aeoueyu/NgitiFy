@@ -10,7 +10,7 @@ import UserTabs from './UserTabs';
 import AddDentist from './AddDentist';
 import EditDentist from './EditDentist';
 import ViewDentist from './ViewDentist';
-import ConfirmModal from '../../components/common/ConfirmModal';
+import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccountLifecycleKey,
@@ -35,7 +35,7 @@ export default function ManageDentists() {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedDentistId, setSelectedDentistId] = useState(null);
 
-    const [confirmConfig, setConfirmConfig] = useState(null);
+    const [lifecycleConfig, setLifecycleConfig] = useState(null);
 
     const fetchDentists = useCallback(async () => {
         try {
@@ -108,28 +108,32 @@ export default function ManageDentists() {
             return;
         }
 
-        const newStatus = dentist.status === 'Active' ? 'inactive' : 'active';
+        const newStatus = dentist.rawStatus === 'active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !dentist.isVerified) {
             addToast(`Cannot activate Dr. ${dentist.name}. Their email is not yet verified.`, 'error');
             return;
         }
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'user',
+            entityType: 'staff',
+            targetId: dentist.id,
+            action: newStatus === 'active' ? 'activate' : 'deactivate',
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
             message: newStatus === 'active'
                 ? `Are you sure you want to ACTIVATE Dr. ${dentist.name}? They will regain access to the system.`
                 : `Are you sure you want to DEACTIVATE Dr. ${dentist.name}? They will lose access to the system.`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
-            onConfirm: () => executeToggleStatus(dentist.id, newStatus, dentist.name),
-            onCancel: () => setConfirmConfig(null)
+            subjectName: `Dr. ${dentist.name}`,
+            onConfirm: ({ reason }) => executeToggleStatus(dentist.id, newStatus, dentist.name, reason),
         });
     };
 
-    const executeToggleStatus = async (id, newStatus, name) => {
+    const executeToggleStatus = async (id, newStatus, name, reason = '') => {
         try {
             const res = await authFetch(`/user/toggle-status/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus, reason })
             });
             if (res.ok) {
                 setDentistsList(prev => prev.map(d =>
@@ -144,29 +148,33 @@ export default function ManageDentists() {
             console.error('Error toggling status:', error);
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
     const handleArchiveToggle = (dentist) => {
         const nextArchivedState = !dentist.isArchived;
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'user',
+            entityType: 'staff',
+            targetId: dentist.id,
+            action: nextArchivedState ? 'archive' : 'restore',
             title: nextArchivedState ? 'Archive Dentist' : 'Restore Dentist',
             message: nextArchivedState
                 ? `Archive Dr. ${dentist.name}? This removes the account from normal staff lists and keeps the record read-only until restored.`
                 : `Restore Dr. ${dentist.name} from archive? The account will return as inactive until it is activated again.`,
             confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
             isDestructive: nextArchivedState,
-            onConfirm: () => executeArchiveToggle(dentist.id, nextArchivedState, dentist.name),
-            onCancel: () => setConfirmConfig(null)
+            subjectName: `Dr. ${dentist.name}`,
+            onConfirm: ({ reason }) => executeArchiveToggle(dentist.id, nextArchivedState, dentist.name, reason),
         });
     };
 
-    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+    const executeArchiveToggle = async (id, nextArchivedState, name, reason = '') => {
         try {
             const res = await authFetch(`/user/archive/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ isArchived: nextArchivedState })
+                body: JSON.stringify({ isArchived: nextArchivedState, reason })
             });
             if (res.ok) {
                 setDentistsList(prev => prev.map(d =>
@@ -186,7 +194,7 @@ export default function ManageDentists() {
             console.error('Error archiving dentist:', error);
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
@@ -369,19 +377,25 @@ export default function ManageDentists() {
                     dentistId={selectedDentistId}
                     onClose={handleCloseViewModal}
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                    onResendActivation={handleResendActivation}
                 />
             )}
 
             {isEditModalOpen && selectedDentistId && <EditDentist dentistId={selectedDentistId} onClose={handleCloseEditModal} onSuccess={fetchDentists} />}
 
-            <ConfirmModal
-                isOpen={!!confirmConfig}
-                title={confirmConfig?.title}
-                message={confirmConfig?.message}
-                confirmText={confirmConfig?.confirmText}
-                isDestructive={confirmConfig?.isDestructive}
-                onConfirm={confirmConfig?.onConfirm}
-                onCancel={() => setConfirmConfig(null)}
+            <LifecycleActionModal
+                isOpen={!!lifecycleConfig}
+                scope={lifecycleConfig?.scope}
+                entityType={lifecycleConfig?.entityType}
+                targetId={lifecycleConfig?.targetId}
+                action={lifecycleConfig?.action}
+                title={lifecycleConfig?.title}
+                message={lifecycleConfig?.message}
+                subjectName={lifecycleConfig?.subjectName}
+                confirmText={lifecycleConfig?.confirmText}
+                isDestructive={lifecycleConfig?.isDestructive}
+                onConfirm={lifecycleConfig?.onConfirm}
+                onCancel={() => setLifecycleConfig(null)}
             />
         </div>
     );

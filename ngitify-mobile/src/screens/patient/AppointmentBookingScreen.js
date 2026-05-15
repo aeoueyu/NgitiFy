@@ -10,14 +10,43 @@ import BackIcon from '../../assets/icons/Back.svg';
 import CustomModal from '../../components/CustomModal';
 import { logActivity } from '../../utils/logActivity';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
+import {
+    DEFAULT_DIRECT_BOOKING_PROCEDURES,
+    loadPublicAppointmentProcedures,
+} from '../../utils/systemConfig';
 
-const DIRECT_BOOKING_PROCEDURES = [
-    'General Check-up / Initial Consultation',
-    'Prophylaxis / Dental Cleaning',
-];
 const STEP_LABELS = ['Date', 'Time', 'Procedure', 'Confirm'];
-const getTodayString = () => new Date().toISOString().split('T')[0];
-const toMonthString = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const MANILA_TIME_ZONE = 'Asia/Manila';
+const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MANILA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+});
+const manilaDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MANILA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+});
+const getManilaDateParts = (value = new Date()) => Object.fromEntries(
+    manilaDateTimeFormatter.formatToParts(new Date(value)).map((part) => [part.type, part.value])
+);
+const getDateKeyInManila = (value = new Date()) => {
+    const parts = Object.fromEntries(
+        manilaDateFormatter.formatToParts(new Date(value)).map((part) => [part.type, part.value])
+    );
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+const getTodayString = () => getDateKeyInManila(new Date());
+const toMonthString = (value) => (
+    typeof value === 'string'
+        ? String(value).slice(0, 7)
+        : getDateKeyInManila(value).slice(0, 7)
+);
 
 const formatDisplayDate = (dateStr) => {
     if (!dateStr) return '';
@@ -37,10 +66,10 @@ const to12h = (time24) => {
 
 const isSlotPast = (slot24, dateStr, todayStr) => {
     if (dateStr !== todayStr) return false;
-    const now = new Date();
+    const nowParts = getManilaDateParts(new Date());
     const [hour, minute] = slot24.split(':').map(Number);
     const slotMinutes = hour * 60 + minute;
-    const bufferMinutes = now.getHours() * 60 + now.getMinutes() + 30;
+    const bufferMinutes = (Number(nowParts.hour) * 60) + Number(nowParts.minute) + 30;
     return slotMinutes <= bufferMinutes;
 };
 
@@ -97,6 +126,7 @@ export default function AppointmentBookingScreen({ navigation }) {
     const [slotsError, setSlotsError] = useState('');
     const [selectedTime, setSelectedTime] = useState('');
     const [selectedProcedure, setSelectedProcedure] = useState('');
+    const [availableProcedures, setAvailableProcedures] = useState(DEFAULT_DIRECT_BOOKING_PROCEDURES);
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [privacyAccepted, setPrivacyAccepted] = useState(false);
@@ -134,7 +164,24 @@ export default function AppointmentBookingScreen({ navigation }) {
         fetchDuplicateAppointment();
     }, [fetchDuplicateAppointment]);
 
-    const availableProcedures = DIRECT_BOOKING_PROCEDURES;
+    const fetchProcedureOptions = useCallback(async () => {
+        try {
+            const procedures = await loadPublicAppointmentProcedures(API_BASE_URL, { forceRefresh: true });
+            setAvailableProcedures(procedures);
+        } catch {
+            setAvailableProcedures(DEFAULT_DIRECT_BOOKING_PROCEDURES);
+        }
+    }, [API_BASE_URL]);
+
+    useEffect(() => {
+        fetchProcedureOptions();
+    }, [fetchProcedureOptions]);
+
+    useEffect(() => {
+        if (selectedProcedure && !availableProcedures.includes(selectedProcedure)) {
+            setSelectedProcedure('');
+        }
+    }, [availableProcedures, selectedProcedure]);
 
     const fetchBlockedDates = useCallback(async (month) => {
         if (!assignedBranch) {
@@ -204,6 +251,7 @@ export default function AppointmentBookingScreen({ navigation }) {
 
         const refreshBookingState = () => {
             fetchDuplicateAppointment();
+            fetchProcedureOptions();
             fetchBlockedDates(currentMonth);
             if (selectedDate) {
                 fetchSlots(selectedDate, { preserveSelection: true });
@@ -221,6 +269,7 @@ export default function AppointmentBookingScreen({ navigation }) {
         currentMonth,
         fetchBlockedDates,
         fetchDuplicateAppointment,
+        fetchProcedureOptions,
         fetchSlots,
         navigation,
         selectedDate,
@@ -315,6 +364,10 @@ export default function AppointmentBookingScreen({ navigation }) {
                 setModalVisible(true);
                 return;
             }
+            if (res.status === 409 && data.code === 'ACTIVE_APPOINTMENT_EXISTS' && data.appointment) {
+                setDuplicateAppt(data.appointment);
+                return;
+            }
             setModalType('error');
             setModalMessage(data.message || 'Booking failed. Please try again.');
             setModalVisible(true);
@@ -333,7 +386,7 @@ export default function AppointmentBookingScreen({ navigation }) {
     };
 
     const renderDuplicateState = () => {
-        const apptDateStr = duplicateAppt?.date ? new Date(duplicateAppt.date).toISOString().split('T')[0] : '';
+        const apptDateStr = duplicateAppt?.date ? getDateKeyInManila(duplicateAppt.date) : '';
         return (
             <View style={styles.duplicateCard}>
                 <View style={styles.duplicateIconWrap}>
@@ -547,7 +600,7 @@ export default function AppointmentBookingScreen({ navigation }) {
             <Text style={styles.stepSub}>Choose the Dentime service that best matches your visit.</Text>
             <View style={styles.disclaimerCard}>
                 <Text style={styles.disclaimerText}>
-                    Patients may directly request only a general check-up or prophylaxis online. Any additional procedure needed after assessment or treatment will be recorded by the clinic.
+                    Patients may directly request only the services currently enabled for online booking. Any additional procedure needed after assessment or treatment will be recorded by the clinic.
                 </Text>
             </View>
 

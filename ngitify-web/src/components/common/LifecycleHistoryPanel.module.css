@@ -1,0 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
+
+.panel {
+    margin-top: 8px;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid #dbe6f1;
+    background: linear-gradient(180deg, #fbfdff 0%, #f8fbff 100%);
+    font-family: 'Lexend Deca', sans-serif;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.title {
+    margin: 0 0 6px;
+    color: #0f3f67;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.subtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.pillRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.pill,
+.warningPill,
+.successPill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.pill {
+    background: #ebf5fc;
+    color: #0f5d92;
+}
+
+.warningPill {
+    background: #fff4db;
+    color: #9a5800;
+}
+
+.successPill {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.historyGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.historyCard {
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    padding: 14px;
+}
+
+.historyCardArchive {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.historyCardRestore {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.historyCardDeactivate {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.historyLabel {
+    display: block;
+    margin-bottom: 8px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.historyValue {
+    margin: 0 0 8px;
+    color: #0f3f67;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.historyMeta {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.emptyState {
+    border-radius: 14px;
+    border: 1px dashed #cbd5e1;
+    background: #ffffff;
+    padding: 16px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .panel {
+        padding: 16px;
+    }
+
+    .header {
+        flex-direction: column;
+    }
+}

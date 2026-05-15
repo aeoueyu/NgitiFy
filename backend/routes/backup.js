@@ -10,8 +10,10 @@ const isAdmin = require('../middleware/isAdmin');
 const AuditLog = require('../models/AuditLog');
 const BackupLog = require('../models/BackupLog');
 
+const normalizeText = (value) => String(value || '').trim();
+
 const BACKUP_DIR = path.join(__dirname, '..', 'backups');
-const MONGODUMP_BIN = String(process.env.MONGODUMP_BIN || 'mongodump').trim() || 'mongodump';
+const MONGODUMP_BIN = normalizeText(process.env.MONGODUMP_BIN) || 'mongodump';
 const BACKUP_AUTO_ENABLED = String(process.env.BACKUP_AUTO_ENABLED || '').trim().toLowerCase() === 'true';
 const BACKUP_AUTO_INTERVAL_HOURS = (() => {
     const parsed = Number(process.env.BACKUP_AUTO_INTERVAL_HOURS);
@@ -38,11 +40,78 @@ if (!fs.existsSync(BACKUP_DIR)) {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
 
-const normalizeText = (value) => String(value || '').trim();
-
 const buildBackupFilename = (date = new Date()) => {
     const stamp = date.toISOString().replace(/[:.]/g, '-');
     return `backup-${stamp}.gz`;
+};
+
+const compareVersionLabelsDesc = (left, right) => {
+    const leftParts = String(left || '').match(/\d+/g)?.map(Number) || [];
+    const rightParts = String(right || '').match(/\d+/g)?.map(Number) || [];
+    const maxLength = Math.max(leftParts.length, rightParts.length);
+
+    for (let index = 0; index < maxLength; index += 1) {
+        const leftPart = leftParts[index] || 0;
+        const rightPart = rightParts[index] || 0;
+        if (leftPart !== rightPart) {
+            return rightPart - leftPart;
+        }
+    }
+
+    return String(right || '').localeCompare(String(left || ''));
+};
+
+const listImmediateDirectories = (rootDir) => {
+    if (!normalizeText(rootDir) || !fs.existsSync(rootDir)) {
+        return [];
+    }
+
+    try {
+        return fs.readdirSync(rootDir, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
+            .sort(compareVersionLabelsDesc)
+            .map((entryName) => path.join(rootDir, entryName));
+    } catch {
+        return [];
+    }
+};
+
+const buildMongodumpCandidates = () => {
+    const executableName = process.platform === 'win32' ? 'mongodump.exe' : 'mongodump';
+    const localToolRoots = [
+        path.join(__dirname, '..', 'tools', 'mongodb-database-tools'),
+        path.join(__dirname, '..', 'tools', 'mongo-tools'),
+    ];
+    const windowsToolRoots = process.platform === 'win32'
+        ? [
+            path.join(process.env.ProgramFiles || '', 'MongoDB', 'Tools'),
+            path.join(process.env.ProgramFiles || '', 'MongoDB', 'Database Tools'),
+            path.join(process.env['ProgramFiles(x86)'] || '', 'MongoDB', 'Tools'),
+            path.join(process.env['ProgramFiles(x86)'] || '', 'MongoDB', 'Database Tools'),
+            path.join(process.env.LOCALAPPDATA || '', 'MongoDBDatabaseTools'),
+            path.join(process.env.LOCALAPPDATA || '', 'MongoDB', 'Database Tools'),
+        ]
+        : [];
+
+    const fileCandidates = [
+        ...localToolRoots.flatMap((rootDir) => [
+            path.join(rootDir, 'bin', executableName),
+            ...listImmediateDirectories(rootDir).map((versionDir) => path.join(versionDir, 'bin', executableName)),
+        ]),
+        ...windowsToolRoots.flatMap((rootDir) => [
+            path.join(rootDir, 'bin', executableName),
+            ...listImmediateDirectories(rootDir).map((versionDir) => path.join(versionDir, 'bin', executableName)),
+        ]),
+    ];
+
+    const commandCandidates = [
+        MONGODUMP_BIN,
+        'mongodump',
+        ...fileCandidates.filter((candidatePath) => fs.existsSync(candidatePath)),
+    ];
+
+    return [...new Set(commandCandidates.map(normalizeText).filter(Boolean))];
 };
 
 const formatDurationLabel = (durationMs) => {
@@ -89,30 +158,43 @@ const probeMongodump = async (force = false) => {
         return backupRuntime.probe;
     }
 
-    try {
-        const { stdout, stderr } = await runProcess(MONGODUMP_BIN, ['--version']);
-        const combined = `${stdout}\n${stderr}`.trim();
-        const version = combined
-            .split(/\r?\n/)
-            .map((line) => line.trim())
-            .find(Boolean) || 'mongodump available';
+    const tried = [];
+    let lastError = '';
 
-        backupRuntime.probe = {
-            available: true,
-            binary: MONGODUMP_BIN,
-            version,
-            checkedAt: new Date().toISOString(),
-            error: '',
-        };
-    } catch (error) {
-        backupRuntime.probe = {
-            available: false,
-            binary: MONGODUMP_BIN,
-            version: '',
-            checkedAt: new Date().toISOString(),
-            error: normalizeText(error.message) || 'Unable to execute mongodump.',
-        };
+    for (const candidate of buildMongodumpCandidates()) {
+        tried.push(candidate);
+
+        try {
+            const { stdout, stderr } = await runProcess(candidate, ['--version']);
+            const combined = `${stdout}\n${stderr}`.trim();
+            const version = combined
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .find(Boolean) || 'mongodump available';
+
+            backupRuntime.probe = {
+                available: true,
+                binary: candidate,
+                version,
+                checkedAt: new Date().toISOString(),
+                error: '',
+                searchedPaths: tried,
+            };
+
+            return backupRuntime.probe;
+        } catch (error) {
+            lastError = normalizeText(error.message) || 'Unable to execute mongodump.';
+        }
     }
+
+    backupRuntime.probe = {
+        available: false,
+        binary: MONGODUMP_BIN,
+        version: '',
+        checkedAt: new Date().toISOString(),
+        error: lastError || 'Unable to execute mongodump.',
+        searchedPaths: tried,
+    };
 
     return backupRuntime.probe;
 };
@@ -126,9 +208,14 @@ const computeFileChecksum = (filePath) => new Promise((resolve, reject) => {
     stream.on('error', reject);
 });
 
-const runMongodumpArchive = ({ mongoUri, outputPath }) => new Promise((resolve, reject) => {
+const runMongodumpArchive = ({ command, mongoUri, outputPath }) => new Promise((resolve, reject) => {
+    if (!normalizeText(mongoUri)) {
+        reject(new Error('MONGO_URI is not configured for backup operations.'));
+        return;
+    }
+
     const dump = spawn(
-        MONGODUMP_BIN,
+        command,
         [
             `--uri=${mongoUri}`,
             `--archive=${outputPath}`,
@@ -275,6 +362,7 @@ const createBackupRun = async ({
 
     try {
         await runMongodumpArchive({
+            command: probe.binary,
             mongoUri: process.env.MONGO_URI,
             outputPath,
         });
@@ -434,7 +522,7 @@ router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
 
         res.json({
             backupDir: BACKUP_DIR,
-            binary: MONGODUMP_BIN,
+            binary: probe.binary || MONGODUMP_BIN,
             mongodump: probe,
             scheduler: {
                 enabled: BACKUP_AUTO_ENABLED,

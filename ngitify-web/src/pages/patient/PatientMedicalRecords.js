@@ -7,6 +7,7 @@ import {
     formatAddress,
     formatDateDisplay,
 } from '../../utils/patientPortal';
+import { getHomeAddress } from '../../utils/addressHelpers';
 import { PatientEmptyState, PatientPageFrame, PatientSectionHeader } from '../../components/patient/PatientFrame';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
@@ -191,7 +192,7 @@ export default function PatientMedicalRecords() {
         ['Blood Type', profile?.bloodType || profile?.medicalHistory?.bloodType || 'Not specified'],
         ['Phone Number', profile?.contactNumber || 'Not specified'],
         ['Occupation', profile?.occupation || 'Not specified'],
-        ['Address', formatAddress(profile?.currentAddress || profile?.permanentAddress || {})],
+        ['Address', formatAddress(getHomeAddress(profile))],
         ['Emergency Contact', profile?.emergencyContact?.name || 'Not specified'],
         ['Emergency Number', profile?.emergencyContact?.contactNumber || 'Not specified'],
         ['Allergies', profile?.medicalHistory?.allergies?.join(', ') || 'Not specified'],

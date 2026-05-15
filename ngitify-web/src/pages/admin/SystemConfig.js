@@ -630,7 +630,7 @@ const SystemConfig = () => {
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Online Booking Procedures</label>
-                                <p className={styles.helpText}>Only these procedures will appear in the public website and patient online-booking flow.</p>
+                                <p className={styles.helpText}>Only these procedures will appear in the public website, patient web portal, and patient mobile booking flow.</p>
                                 <div className={styles.procedureList}>
                                     {(config.onlineBookingProcedures || []).map((procedure, index) => (
                                         <div key={`online-procedure-${index}`} className={styles.procedureRow}>
@@ -659,7 +659,7 @@ const SystemConfig = () => {
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Clinic Procedures</label>
-                                <p className={styles.helpText}>These are the procedures dentists can record as the actual treatment performed.</p>
+                                <p className={styles.helpText}>These populate the internal service menus for staff booking, walk-in queueing, and treatment-performed records.</p>
                                 <div className={styles.procedureList}>
                                     {(config.clinicProcedures || []).map((procedure, index) => (
                                         <div key={`procedure-${index}`} className={styles.procedureRow}>

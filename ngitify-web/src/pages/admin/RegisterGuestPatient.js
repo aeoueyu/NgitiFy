@@ -145,8 +145,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             signerRole: 'Patient',
             signedAt: getTodayDate(),
         },
-        currentAddress: { ...initialAddressState },
-        permanentAddress: { ...initialAddressState },
+        homeAddress: { ...initialAddressState },
         dataPrivacyConsent: {
             acknowledged: false,
             signerName: '',
@@ -156,8 +155,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     });
 
     useEffect(() => {
-        const nextCurrentAddress = { ...initialAddressState, ...(appointment?.guestCurrentAddress || {}) };
-        const nextPermanentAddress = { ...initialAddressState, ...(appointment?.guestPermanentAddress || {}) };
+        const nextHomeAddress = { ...initialAddressState, ...(appointment?.guestHomeAddress || appointment?.guestCurrentAddress || appointment?.guestPermanentAddress || {}) };
         const guestProfile = appointment?.guestProfile || {};
         const guestEmergencyContact = appointment?.guestEmergencyContact || {};
         const guestGuardian = appointment?.guestGuardian || {};
@@ -236,8 +234,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 officeAddress: guestPhysician.officeAddress || prev.physician.officeAddress,
                 officeNumber: stripLandlinePrefix(guestPhysician.officeNumber || ''),
             },
-            currentAddress: nextCurrentAddress,
-            permanentAddress: nextPermanentAddress,
+            homeAddress: nextHomeAddress,
         }));
     }, [appointment, isBranchScopedStaff, nameParts, user?.assignedBranch]);
 
@@ -401,8 +398,8 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         setFormData((prev) => ({ ...prev, [fieldName]: value }));
     };
 
-    const handleAddressChange = (type, field, value) => {
-        const errorKey = `${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`;
+    const handleAddressChange = (field, value) => {
+        const errorKey = `home_${field}`;
         if (errors[errorKey]) {
             setErrors((prev) => {
                 const next = { ...prev };
@@ -411,11 +408,11 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             });
         }
         setFormData((prev) => {
-            const updated = { ...prev[type], [field]: value };
+            const updated = { ...prev.homeAddress, [field]: value };
             if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
             else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
             else if (field === 'city') { updated.barangay = ''; }
-            return { ...prev, [type]: updated };
+            return { ...prev, homeAddress: updated };
         });
     };
 
@@ -597,14 +594,14 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             });
         };
 
-        validateAddr(formData.currentAddress, 'current');
+        validateAddr(formData.homeAddress, 'home');
         setErrors(nextErrors);
         return isValid;
     };
 
-    const renderAddressFields = (type, title, isDisabled = false) => {
-        const address = formData[type];
-        const prefix = type === 'currentAddress' ? 'current' : 'permanent';
+    const renderAddressFields = (title, isDisabled = false) => {
+        const address = formData.homeAddress;
+        const prefix = 'home';
         const availableProvinces = address.region ? provinces[address.region] || [] : [];
         const availableCities = address.province ? cities[address.province] || [] : [];
         const availableBarangays = address.city ? barangays[address.city] || [] : [];
@@ -615,16 +612,16 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             <div className={styles.addressSection}>
                 {title ? <h3 className={styles.sectionTitle}>{title}</h3> : null}
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={(e) => handleAddressChange(type, 'region', e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map((region) => <option key={region.code} value={region.code}>{region.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
-                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={(e) => handleAddressChange(type, 'province', e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map((province) => <option key={province.code} value={province.code}>{province.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
+                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={(e) => handleAddressChange('region', e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map((region) => <option key={region.code} value={region.code}>{region.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
+                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={(e) => handleAddressChange('province', e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map((province) => <option key={province.code} value={province.code}>{province.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
                 </div>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={(e) => handleAddressChange(type, 'city', e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map((city) => <option key={city.code} value={city.code}>{city.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
-                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={(e) => handleAddressChange(type, 'barangay', e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
+                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={(e) => handleAddressChange('city', e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map((city) => <option key={city.code} value={city.code}>{city.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
+                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={(e) => handleAddressChange('barangay', e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
                 </div>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={(e) => handleAddressChange(type, 'street', e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
-                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={(e) => handleAddressChange(type, 'houseNumber', e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
+                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={(e) => handleAddressChange('street', e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
+                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={(e) => handleAddressChange('houseNumber', e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
                 </div>
             </div>
         );
@@ -717,8 +714,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 signedAt: formData.dataPrivacyConsent.signedAt || new Date().toISOString(),
                 version: 'Data Privacy Act of 2012',
             },
-            currentAddress: { country: 'Philippines', ...formData.currentAddress },
-            permanentAddress: { country: 'Philippines', ...formData.currentAddress },
+            homeAddress: { country: 'Philippines', ...formData.homeAddress },
         };
         setIsLoading(true);
 
@@ -1124,7 +1120,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                     )}
 
                     <hr className={styles.divider} />
-                    {renderAddressFields('currentAddress', 'Home Address')}
+                    {renderAddressFields('Home Address')}
 
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Dental History</h3>

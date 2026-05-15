@@ -23,7 +23,6 @@ export default function AddSecretary({ onClose, onSuccess }) {
     const isBranchManager = user?.role === 'branch-manager';
 
     const fileInputRef = useRef(null);
-    const [isSameAddress] = useState(true);
     const [profileImage, setProfileImage] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({});
@@ -36,8 +35,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
         firstName: '', middleName: '', lastName: '',
         birthdate: '', gender: '',
         email: '', phone: '',
-        currentAddress: { ...initialAddressState },
-        permanentAddress: { ...initialAddressState },
+        homeAddress: { ...initialAddressState },
         permissions: { patients: 'none', appointments: 'none', inventory: 'none' },
         assignedBranch: '',
     });
@@ -66,16 +64,15 @@ export default function AddSecretary({ onClose, onSuccess }) {
         setFormData({ ...formData, phone: sanitizeStaffPhone(e.target.value) });
     };
 
-    const handleAddressChange = (type, field, value) => {
-        const errorKey = `${type === 'currentAddress' ? 'current' : 'permanent'}_${field}`;
+    const handleAddressChange = (field, value) => {
+        const errorKey = `home_${field}`;
         if (errors[errorKey]) setErrors(prev => { const n = { ...prev }; delete n[errorKey]; return n; });
         setFormData(prev => {
-            const updated = { ...prev[type], [field]: value };
+            const updated = { ...prev.homeAddress, [field]: value };
             if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
             else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
             else if (field === 'city') { updated.barangay = ''; }
-            if (type === 'currentAddress' && isSameAddress) return { ...prev, currentAddress: updated, permanentAddress: updated };
-            return { ...prev, [type]: updated };
+            return { ...prev, homeAddress: updated };
         });
     };
 
@@ -96,8 +93,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
         const resolvedAssignedBranch = isBranchManager ? user?.assignedBranch : formData.assignedBranch;
         if (!resolvedAssignedBranch) newErrors.assignedBranch = 'Required';
 
-        addRequiredAddressErrors(newErrors, formData.currentAddress, 'current');
-        if (!isSameAddress) addRequiredAddressErrors(newErrors, formData.permanentAddress, 'permanent');
+        addRequiredAddressErrors(newErrors, formData.homeAddress, 'home');
 
         setErrors(newErrors);
         if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
@@ -113,8 +109,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
             email: formData.email, contactNumber: `+63${formData.phone}`,
             birthdate: formData.birthdate, gender: formData.gender,
             profileImage: profileImage,
-            currentAddress: { country: 'Philippines', ...formData.currentAddress },
-            permanentAddress: isSameAddress ? { country: 'Philippines', ...formData.currentAddress } : { country: 'Philippines', ...formData.permanentAddress },
+            homeAddress: { country: 'Philippines', ...formData.homeAddress },
             permissions: formData.permissions,
             assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : formData.assignedBranch,
             assignedBranches: isBranchManager ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
@@ -134,8 +129,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
 
     const handleSuccessClose = () => { setShowSuccessModal(false); onSuccess(); onClose(); };
 
-    const renderAddressFields = (type, title, isDisabled = false) => {
-        const address = formData[type]; const prefix = type === 'currentAddress' ? 'current' : 'permanent';
+    const renderAddressFields = (title, isDisabled = false) => {
+        const address = formData.homeAddress; const prefix = 'home';
         const availableProvinces = address.region ? provinces[address.region] || [] : [];
         const availableCities = address.province ? cities[address.province] || [] : [];
         const availableBarangays = address.city ? barangays[address.city] || [] : [];
@@ -145,16 +140,16 @@ export default function AddSecretary({ onClose, onSuccess }) {
             <div className={styles.addressSection}>
                 <h3 className={styles.sectionTitle}>{title}</h3>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={e => handleAddressChange(type, 'region', e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
-                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={e => handleAddressChange(type, 'province', e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
+                    <div className={styles.formGroup}><label>REGION <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_region`} className={`${styles.inputField} ${getErrorClass('region')}`} value={address.region} onChange={e => handleAddressChange('region', e.target.value)} disabled={isDisabled || isLoading}><option value="" hidden>Select Region</option>{regions.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}</select>{getError('region') && <span className={styles.errorText}>{getError('region')}</span>}</div>
+                    <div className={styles.formGroup}><label>PROVINCE <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_province`} className={`${styles.inputField} ${getErrorClass('province')}`} value={address.province} onChange={e => handleAddressChange('province', e.target.value)} disabled={isDisabled || !address.region || isLoading}><option value="" hidden>Select Province</option>{availableProvinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>{getError('province') && <span className={styles.errorText}>{getError('province')}</span>}</div>
                 </div>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={e => handleAddressChange(type, 'city', e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
-                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={e => handleAddressChange(type, 'barangay', e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b => <option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
+                    <div className={styles.formGroup}><label>CITY / MUNICIPALITY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_city`} className={`${styles.inputField} ${getErrorClass('city')}`} value={address.city} onChange={e => handleAddressChange('city', e.target.value)} disabled={isDisabled || !address.province || isLoading}><option value="" hidden>Select City</option>{availableCities.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select>{getError('city') && <span className={styles.errorText}>{getError('city')}</span>}</div>
+                    <div className={styles.formGroup}><label>BARANGAY <span style={{ color: 'red' }}>*</span></label><select name={`${prefix}_barangay`} className={`${styles.inputField} ${getErrorClass('barangay')}`} value={address.barangay} onChange={e => handleAddressChange('barangay', e.target.value)} disabled={isDisabled || !address.city || isLoading}><option value="" hidden>Select Barangay</option>{availableBarangays.map(b => <option key={b} value={b}>{b}</option>)}</select>{getError('barangay') && <span className={styles.errorText}>{getError('barangay')}</span>}</div>
                 </div>
                 <div className={styles.row}>
-                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={e => handleAddressChange(type, 'street', e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
-                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={e => handleAddressChange(type, 'houseNumber', e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
+                    <div className={styles.formGroup}><label>STREET <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_street`} className={`${styles.inputField} ${getErrorClass('street')}`} value={address.street} onChange={e => handleAddressChange('street', e.target.value)} disabled={isDisabled || isLoading} maxLength={100} placeholder="e.g. Mabini St." />{getError('street') && <span className={styles.errorText}>{getError('street')}</span>}</div>
+                    <div className={styles.formGroup}><label>HOUSE NO. <span style={{ color: 'red' }}>*</span></label><input name={`${prefix}_houseNumber`} className={`${styles.inputField} ${getErrorClass('houseNumber')}`} value={address.houseNumber} onChange={e => handleAddressChange('houseNumber', e.target.value)} disabled={isDisabled || isLoading} maxLength={20} placeholder="e.g. Unit 123" />{getError('houseNumber') && <span className={styles.errorText}>{getError('houseNumber')}</span>}</div>
                 </div>
             </div>
         );
@@ -254,7 +249,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
 
                     {/* Address fields — AFTER branch */}
                     <hr className={styles.divider} />
-                    {renderAddressFields('currentAddress', 'Home Address')}
+                    {renderAddressFields('Home Address')}
                     
 
                     <div className={styles.buttonGroup}>

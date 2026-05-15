@@ -83,14 +83,15 @@ export default function MyProfile() {
                         formattedDate = new Date(data.birthdate).toISOString().split('T')[0];
                     }
 
-                    const normalizedAddress = normalizeAddressForForm(data?.currentAddress || {});
+                    const canonicalAddress = data?.homeAddress || data?.currentAddress || data?.permanentAddress || {};
+                    const normalizedAddress = normalizeAddressForForm(canonicalAddress);
                     const rCode = normalizedAddress.region || '';
                     const pCode = normalizedAddress.province || '';
                     const cCode = normalizedAddress.city || '';
-                    const dbRegion = data?.currentAddress?.region || '';
-                    const dbProv = data?.currentAddress?.province || '';
-                    const dbCity = data?.currentAddress?.city || '';
-                    const dbBrgy = data?.currentAddress?.barangay || '';
+                    const dbRegion = canonicalAddress.region || '';
+                    const dbProv = canonicalAddress.province || '';
+                    const dbCity = canonicalAddress.city || '';
+                    const dbBrgy = canonicalAddress.barangay || '';
 
                     const fetchedData = {
                         firstName: data?.name?.first || data?.firstName || '',
@@ -262,15 +263,7 @@ export default function MyProfile() {
                         bio: formData.bio.trim()
                     }),
 
-                    currentAddress: {
-                        region: formData.regionName,
-                        province: formData.provinceName,
-                        city: formData.cityName,
-                        barangay: formData.barangay,
-                        street: formData.street.trim(),
-                        houseNumber: formData.houseNumber.trim()
-                    },
-                    permanentAddress: {
+                    homeAddress: {
                         region: formData.regionName,
                         province: formData.provinceName,
                         city: formData.cityName,

@@ -7,7 +7,7 @@ import UserTabs from './UserTabs';
 import AddOwner from './AddOwner';
 import EditOwner from './EditOwner';
 import ViewOwner from './ViewOwner';
-import ConfirmModal from '../../components/common/ConfirmModal';
+import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccountLifecycleKey,
@@ -27,7 +27,7 @@ export default function ManageOwners() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedOwnerId, setSelectedOwnerId] = useState(null);
-    const [confirmConfig, setConfirmConfig] = useState(null);
+    const [lifecycleConfig, setLifecycleConfig] = useState(null);
 
     const fetchOwners = useCallback(async () => {
         try {
@@ -86,28 +86,32 @@ export default function ManageOwners() {
             addToast(`Restore ${owner.name} from archive before changing activation status.`, 'error');
             return;
         }
-        const newStatus = owner.status === 'Active' ? 'inactive' : 'active';
+        const newStatus = owner.rawStatus === 'active' ? 'inactive' : 'active';
         if (newStatus === 'active' && !owner.isVerified) {
             addToast(`Cannot activate ${owner.name}. Their email is not yet verified.`, 'error');
             return;
         }
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'user',
+            entityType: 'staff',
+            targetId: owner.id,
+            action: newStatus === 'active' ? 'activate' : 'deactivate',
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
             message: newStatus === 'active'
                 ? `Are you sure you want to ACTIVATE ${owner.name}?`
                 : `Are you sure you want to DEACTIVATE ${owner.name}? They will lose system access.`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
-            onConfirm: () => executeToggleStatus(owner.id, newStatus, owner.name),
-            onCancel: () => setConfirmConfig(null),
+            subjectName: owner.name,
+            onConfirm: ({ reason }) => executeToggleStatus(owner.id, newStatus, owner.name, reason),
         });
     };
 
-    const executeToggleStatus = async (id, newStatus, name) => {
+    const executeToggleStatus = async (id, newStatus, name, reason = '') => {
         try {
             const res = await authFetch(`/user/toggle-status/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: newStatus }),
+                body: JSON.stringify({ status: newStatus, reason }),
             });
             if (res.ok) {
                 setOwnersList(prev => prev.map(o =>
@@ -121,29 +125,33 @@ export default function ManageOwners() {
         } catch {
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
     const handleArchiveToggle = (owner) => {
         const nextArchivedState = !owner.isArchived;
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'user',
+            entityType: 'staff',
+            targetId: owner.id,
+            action: nextArchivedState ? 'archive' : 'restore',
             title: nextArchivedState ? 'Archive Owner' : 'Restore Owner',
             message: nextArchivedState
                 ? `Archive ${owner.name}? This removes the account from normal owner lists and keeps the record read-only until restored.`
                 : `Restore ${owner.name} from archive? The account will return as inactive until it is activated again.`,
             confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
             isDestructive: nextArchivedState,
-            onConfirm: () => executeArchiveToggle(owner.id, nextArchivedState, owner.name),
-            onCancel: () => setConfirmConfig(null),
+            subjectName: owner.name,
+            onConfirm: ({ reason }) => executeArchiveToggle(owner.id, nextArchivedState, owner.name, reason),
         });
     };
 
-    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+    const executeArchiveToggle = async (id, nextArchivedState, name, reason = '') => {
         try {
             const res = await authFetch(`/user/archive/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ isArchived: nextArchivedState }),
+                body: JSON.stringify({ isArchived: nextArchivedState, reason }),
             });
             if (res.ok) {
                 setOwnersList(prev => prev.map(o =>
@@ -163,7 +171,7 @@ export default function ManageOwners() {
             console.error('Error archiving owner:', error);
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
@@ -339,6 +347,7 @@ export default function ManageOwners() {
                     ownerId={selectedOwnerId}
                     onClose={() => { setIsViewModalOpen(false); setSelectedOwnerId(null); }}
                     onEdit={() => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
+                    onResendActivation={handleResendActivation}
                 />
             )}
             {isEditModalOpen && selectedOwnerId && (
@@ -348,14 +357,19 @@ export default function ManageOwners() {
                     onSuccess={fetchOwners}
                 />
             )}
-            <ConfirmModal
-                isOpen={!!confirmConfig}
-                title={confirmConfig?.title}
-                message={confirmConfig?.message}
-                confirmText={confirmConfig?.confirmText}
-                isDestructive={confirmConfig?.isDestructive}
-                onConfirm={confirmConfig?.onConfirm}
-                onCancel={() => setConfirmConfig(null)}
+            <LifecycleActionModal
+                isOpen={!!lifecycleConfig}
+                scope={lifecycleConfig?.scope}
+                entityType={lifecycleConfig?.entityType}
+                targetId={lifecycleConfig?.targetId}
+                action={lifecycleConfig?.action}
+                title={lifecycleConfig?.title}
+                message={lifecycleConfig?.message}
+                subjectName={lifecycleConfig?.subjectName}
+                confirmText={lifecycleConfig?.confirmText}
+                isDestructive={lifecycleConfig?.isDestructive}
+                onConfirm={lifecycleConfig?.onConfirm}
+                onCancel={() => setLifecycleConfig(null)}
             />
         </div>
     );

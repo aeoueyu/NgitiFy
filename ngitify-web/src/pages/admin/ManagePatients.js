@@ -11,7 +11,7 @@ import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
 import AddPatient from './AddPatient';
 import EditPatient from './EditPatient';
 import ViewPatient from './ViewPatient';
-import ConfirmModal from '../../components/common/ConfirmModal';
+import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
     countAccountsByLifecycle,
@@ -42,7 +42,7 @@ export default function ManagePatients() {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
 
-    const [confirmConfig, setConfirmConfig] = useState(null);
+    const [lifecycleConfig, setLifecycleConfig] = useState(null);
 
     const isSecretary = user?.role === 'secretary';
     const isDentist = user?.role === 'dentist';
@@ -167,30 +167,34 @@ export default function ManagePatients() {
             return;
         }
 
-        const newStatus = patient.status === 'Active' ? 'inactive' : 'active';
+        const newStatus = patient.rawStatus === 'active' ? 'inactive' : 'active';
 
         if (newStatus === 'active' && !patient.isVerified) {
             addToast(`Cannot activate ${patient.name}. Their email is not yet verified.`, 'error');
             return;
         }
 
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'patient',
+            entityType: 'patient',
+            targetId: patient.id,
+            action: newStatus === 'active' ? 'activate' : 'deactivate',
             title: newStatus === 'active' ? 'Activate Account' : 'Deactivate Account',
             message: newStatus === 'active'
                 ? `Are you sure you want to ACTIVATE patient account for: ${patient.name}?`
                 : `Are you sure you want to DEACTIVATE patient account for: ${patient.name}?`,
             confirmText: newStatus === 'active' ? 'Yes, Activate' : 'Yes, Deactivate',
             isDestructive: newStatus !== 'active',
-            onConfirm: () => executeToggleStatus(patient.id, newStatus, patient.name),
-            onCancel: () => setConfirmConfig(null),
+            subjectName: patient.name,
+            onConfirm: ({ reason }) => executeToggleStatus(patient.id, newStatus, patient.name, reason),
         });
     };
 
-    const executeToggleStatus = async (id, newStatus, name) => {
+    const executeToggleStatus = async (id, newStatus, name, reason = '') => {
         try {
             const res = await authFetch(`/patient/toggle-status/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ status: newStatus }),
+                body: JSON.stringify({ status: newStatus, reason }),
             });
 
             if (res.ok) {
@@ -206,29 +210,33 @@ export default function ManagePatients() {
             console.error('Error toggling status:', error);
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
     const handleArchiveToggle = (patient) => {
         const nextArchivedState = !patient.isArchived;
-        setConfirmConfig({
+        setLifecycleConfig({
+            scope: 'patient',
+            entityType: 'patient',
+            targetId: patient.id,
+            action: nextArchivedState ? 'archive' : 'restore',
             title: nextArchivedState ? 'Archive Patient' : 'Restore Patient',
             message: nextArchivedState
                 ? `Archive ${patient.name}? This will remove the patient from normal patient lists and lock the record for read-only history.`
                 : `Restore ${patient.name} from archive? The record will return as inactive until someone activates the account again.`,
             confirmText: nextArchivedState ? 'Yes, Archive' : 'Yes, Restore',
             isDestructive: nextArchivedState,
-            onConfirm: () => executeArchiveToggle(patient.id, nextArchivedState, patient.name),
-            onCancel: () => setConfirmConfig(null),
+            subjectName: patient.name,
+            onConfirm: ({ reason }) => executeArchiveToggle(patient.id, nextArchivedState, patient.name, reason),
         });
     };
 
-    const executeArchiveToggle = async (id, nextArchivedState, name) => {
+    const executeArchiveToggle = async (id, nextArchivedState, name, reason = '') => {
         try {
             const res = await authFetch(`/patient/archive/${id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ isArchived: nextArchivedState }),
+                body: JSON.stringify({ isArchived: nextArchivedState, reason }),
             });
 
             if (res.ok) {
@@ -255,7 +263,7 @@ export default function ManagePatients() {
             console.error('Error archiving patient:', error);
             addToast('Cannot connect to server.', 'error');
         } finally {
-            setConfirmConfig(null);
+            setLifecycleConfig(null);
         }
     };
 
@@ -577,14 +585,19 @@ export default function ManagePatients() {
             )}
             {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}
 
-            <ConfirmModal
-                isOpen={!!confirmConfig}
-                title={confirmConfig?.title}
-                message={confirmConfig?.message}
-                confirmText={confirmConfig?.confirmText}
-                isDestructive={confirmConfig?.isDestructive}
-                onConfirm={confirmConfig?.onConfirm}
-                onCancel={() => setConfirmConfig(null)}
+            <LifecycleActionModal
+                isOpen={!!lifecycleConfig}
+                scope={lifecycleConfig?.scope}
+                entityType={lifecycleConfig?.entityType}
+                targetId={lifecycleConfig?.targetId}
+                action={lifecycleConfig?.action}
+                title={lifecycleConfig?.title}
+                message={lifecycleConfig?.message}
+                subjectName={lifecycleConfig?.subjectName}
+                confirmText={lifecycleConfig?.confirmText}
+                isDestructive={lifecycleConfig?.isDestructive}
+                onConfirm={lifecycleConfig?.onConfirm}
+                onCancel={() => setLifecycleConfig(null)}
             />
         </div>
     );

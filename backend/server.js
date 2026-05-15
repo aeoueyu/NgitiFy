@@ -69,6 +69,11 @@ const MaterialUsageLog = require('./models/MaterialUsageLog');
 const RADIOGRAPH_ENHANCER_SCRIPT = path.join(__dirname, 'python', 'radiograph_enhance.py');
 const GEMINI_SERVICE_PATH = pathToFileURL(path.join(__dirname, 'ai', 'geminiService.mjs')).href;
 let geminiServicePromise = null;
+const LIFECYCLE_ACTOR_POPULATE = [
+    { path: 'archivedBy', select: 'name email role' },
+    { path: 'restoredBy', select: 'name email role' },
+    { path: 'deactivatedBy', select: 'name email role' },
+];
 
 const loadGeminiService = () => {
     if (!geminiServicePromise) {
@@ -1572,6 +1577,318 @@ const patientBelongsToBranch = (patient, branch) => {
     return patientBranches.includes(branch);
 };
 
+const LIFECYCLE_ACTIONS = new Set(['activate', 'deactivate', 'archive', 'restore', 'delete']);
+const UPCOMING_APPOINTMENT_STATUSES = ['pending', 'confirmed', 'in-clinic'];
+const ACCOUNT_DELETE_RETENTION_DAYS = 30;
+
+const normalizeLifecycleAction = (value = '') => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return LIFECYCLE_ACTIONS.has(normalized) ? normalized : 'archive';
+};
+
+const getLifecycleDisplayName = (user = {}) => {
+    const first = String(user?.name?.first || '').trim();
+    const middle = String(user?.name?.middle || '').trim();
+    const last = String(user?.name?.last || '').trim();
+    return [first, middle, last].filter(Boolean).join(' ') || String(user?.email || '').trim() || 'Unknown User';
+};
+
+const getLifecycleAssignedBranches = (user = {}) => {
+    const assignedBranches = Array.isArray(user?.assignedBranches) ? user.assignedBranches : [];
+    const fallbackBranch = String(user?.assignedBranch || '').trim();
+    return [...new Set([
+        ...(fallbackBranch ? [fallbackBranch] : []),
+        ...assignedBranches.map((branch) => String(branch || '').trim()).filter(Boolean),
+    ])];
+};
+
+const getOdontogramEntryCount = (odontogram) => {
+    if (!odontogram) return 0;
+    if (odontogram instanceof Map) return odontogram.size;
+    if (typeof odontogram === 'object') return Object.keys(odontogram).length;
+    return 0;
+};
+
+const buildLifecycleImpactItem = (key, label, value) => {
+    if (Array.isArray(value)) {
+        const items = value.map((entry) => String(entry || '').trim()).filter(Boolean);
+        if (!items.length) return null;
+        return { key, label, valueType: 'list', value: items };
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+        return null;
+    }
+
+    return { key, label, valueType: 'count', value: numericValue };
+};
+
+const getBranchManagerCoverageImpact = async (user) => {
+    if (!user || user.role !== 'branch-manager') {
+        return { managedBranches: [], soleManagedBranches: [] };
+    }
+
+    const branches = await Branch.find({ managerIds: user._id })
+        .select('name isActive managerIds')
+        .lean();
+
+    if (!branches.length) {
+        return { managedBranches: [], soleManagedBranches: [] };
+    }
+
+    const otherManagerIds = [...new Set(
+        branches
+            .flatMap((branch) => Array.isArray(branch.managerIds) ? branch.managerIds : [])
+            .map((managerId) => String(managerId))
+            .filter((managerId) => managerId !== String(user._id))
+    )];
+
+    const activeManagers = otherManagerIds.length > 0
+        ? await User.find({
+            _id: { $in: otherManagerIds },
+            role: 'branch-manager',
+            status: 'active',
+            isArchived: { $ne: true },
+        }).select('_id')
+            .lean()
+        : [];
+    const activeManagerIdSet = new Set(activeManagers.map((manager) => String(manager._id)));
+
+    const soleManagedBranches = branches
+        .filter((branch) => Boolean(branch.isActive))
+        .filter((branch) => {
+            const otherIds = (Array.isArray(branch.managerIds) ? branch.managerIds : [])
+                .map((managerId) => String(managerId))
+                .filter((managerId) => managerId !== String(user._id));
+            return !otherIds.some((managerId) => activeManagerIdSet.has(managerId));
+        })
+        .map((branch) => branch.name)
+        .filter(Boolean);
+
+    return {
+        managedBranches: branches.map((branch) => branch.name).filter(Boolean),
+        soleManagedBranches,
+    };
+};
+
+const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' }) => {
+    const normalizedAction = normalizeLifecycleAction(action);
+    const now = new Date();
+    const assignedBranches = getLifecycleAssignedBranches(targetUser);
+    const targetRole = String(targetUser?.role || '').trim();
+    const displayName = getLifecycleDisplayName(targetUser);
+
+    const metrics = {
+        upcomingAppointments: 0,
+        totalAppointments: 0,
+        treatmentLogs: 0,
+        radiographs: 0,
+        odontogramEntries: 0,
+        supportTickets: 0,
+        assignedSupportTickets: 0,
+        auditLogs: 0,
+        queueEntries: 0,
+        patientMaterialUsage: 0,
+        dentistMaterialUsage: 0,
+        assignedBranchesCount: assignedBranches.length,
+        managedBranchesCount: 0,
+        soleManagedBranchesCount: 0,
+    };
+
+    const [branchCoverage, ...counts] = await Promise.all([
+        getBranchManagerCoverageImpact(targetUser),
+        (async () => {
+            if (targetRole !== 'patient') return 0;
+            return Surgery.countDocuments({ patient: targetUser._id });
+        })(),
+        (async () => {
+            if (targetRole !== 'patient') return 0;
+            return Surgery.countDocuments({
+                patient: targetUser._id,
+                status: { $in: UPCOMING_APPOINTMENT_STATUSES },
+                isArchived: { $ne: true },
+                date: { $gte: now },
+            });
+        })(),
+        (async () => {
+            if (targetRole !== 'patient') return 0;
+            const email = String(targetUser.email || '').trim();
+            const ticketQueries = [{ patientId: targetUser._id }];
+            if (email) {
+                ticketQueries.push({ patientEmail: email });
+            }
+            return SupportTicket.countDocuments({ $or: ticketQueries });
+        })(),
+        (async () => {
+            if (targetRole !== 'patient') return 0;
+            return Queue.countDocuments({ patientId: targetUser._id });
+        })(),
+        (async () => {
+            if (targetRole !== 'patient') return 0;
+            return MaterialUsageLog.countDocuments({ patientId: targetUser._id });
+        })(),
+        (async () => {
+            if (targetRole !== 'dentist' && !targetUser?.isDentist) return 0;
+            return Surgery.countDocuments({ dentist: targetUser._id });
+        })(),
+        (async () => {
+            if (targetRole !== 'dentist' && !targetUser?.isDentist) return 0;
+            return Surgery.countDocuments({
+                dentist: targetUser._id,
+                status: { $in: UPCOMING_APPOINTMENT_STATUSES },
+                isArchived: { $ne: true },
+                date: { $gte: now },
+            });
+        })(),
+        (async () => {
+            if (targetRole !== 'dentist' && !targetUser?.isDentist) return 0;
+            return MaterialUsageLog.countDocuments({ dentistId: targetUser._id });
+        })(),
+        (async () => {
+            if (targetRole === 'patient') return 0;
+            return SupportTicket.countDocuments({ assignedTo: targetUser._id });
+        })(),
+        (async () => {
+            const auditQueries = [];
+            if (targetUser?._id) {
+                auditQueries.push({ targetId: targetUser._id, targetModel: 'User' });
+            }
+            if (targetUser?.email) {
+                auditQueries.push({ user: targetUser.email });
+            }
+            if (!auditQueries.length) return 0;
+            return AuditLog.countDocuments({ $or: auditQueries });
+        })(),
+    ]);
+
+    if (targetRole === 'patient') {
+        metrics.totalAppointments = counts[0];
+        metrics.upcomingAppointments = counts[1];
+        metrics.supportTickets = counts[2];
+        metrics.queueEntries = counts[3];
+        metrics.patientMaterialUsage = counts[4];
+        metrics.treatmentLogs = Array.isArray(targetUser.treatmentLogs) ? targetUser.treatmentLogs.length : 0;
+        metrics.radiographs = Array.isArray(targetUser.radiographs) ? targetUser.radiographs.length : 0;
+        metrics.odontogramEntries = getOdontogramEntryCount(targetUser.odontogram);
+        metrics.auditLogs = counts[9];
+    } else {
+        metrics.totalAppointments = counts[5];
+        metrics.upcomingAppointments = counts[6];
+        metrics.dentistMaterialUsage = counts[7];
+        metrics.assignedSupportTickets = counts[8];
+        metrics.auditLogs = counts[9];
+    }
+
+    metrics.managedBranchesCount = branchCoverage.managedBranches.length;
+    metrics.soleManagedBranchesCount = branchCoverage.soleManagedBranches.length;
+
+    const impactItems = [
+        buildLifecycleImpactItem('upcomingAppointments', 'Upcoming Appointments', metrics.upcomingAppointments),
+        buildLifecycleImpactItem('totalAppointments', 'Linked Appointment History', metrics.totalAppointments),
+        buildLifecycleImpactItem('treatmentLogs', 'Treatment Logs', metrics.treatmentLogs),
+        buildLifecycleImpactItem('radiographs', 'Radiograph Records', metrics.radiographs),
+        buildLifecycleImpactItem('odontogramEntries', 'Odontogram Entries', metrics.odontogramEntries),
+        buildLifecycleImpactItem('supportTickets', 'Patient Support Tickets', metrics.supportTickets),
+        buildLifecycleImpactItem('assignedSupportTickets', 'Assigned Support Tickets', metrics.assignedSupportTickets),
+        buildLifecycleImpactItem('queueEntries', 'Queue History Entries', metrics.queueEntries),
+        buildLifecycleImpactItem('patientMaterialUsage', 'Material Usage Links', metrics.patientMaterialUsage),
+        buildLifecycleImpactItem('dentistMaterialUsage', 'Material Usage Logs', metrics.dentistMaterialUsage),
+        buildLifecycleImpactItem('auditLogs', 'Audit Log References', metrics.auditLogs),
+        buildLifecycleImpactItem('assignedBranches', 'Assigned Branches', assignedBranches),
+        buildLifecycleImpactItem('managedBranches', 'Managed Branches', branchCoverage.managedBranches),
+        buildLifecycleImpactItem('soleManagedBranches', 'Branches Needing Reassignment First', branchCoverage.soleManagedBranches),
+    ].filter(Boolean);
+
+    const warnings = [];
+    const blockers = [];
+
+    if (metrics.upcomingAppointments > 0 && ['deactivate', 'archive', 'delete'].includes(normalizedAction)) {
+        warnings.push(`${displayName} still has ${metrics.upcomingAppointments} upcoming appointment${metrics.upcomingAppointments === 1 ? '' : 's'} that may need reassignment or follow-up.`);
+    }
+    if (targetRole === 'patient' && metrics.totalAppointments > 0 && ['archive', 'delete'].includes(normalizedAction)) {
+        warnings.push('This patient already has appointment history linked to the EMR timeline.');
+    }
+    if (targetRole === 'patient' && (metrics.treatmentLogs > 0 || metrics.radiographs > 0 || metrics.odontogramEntries > 0) && ['archive', 'delete'].includes(normalizedAction)) {
+        warnings.push('This patient has stored EMR content that should stay preserved as history.');
+    }
+    if (metrics.assignedSupportTickets > 0 && ['deactivate', 'archive', 'delete'].includes(normalizedAction)) {
+        warnings.push(`${displayName} is still assigned to ${metrics.assignedSupportTickets} support ticket${metrics.assignedSupportTickets === 1 ? '' : 's'}.`);
+    }
+    if (branchCoverage.managedBranches.length > 0 && ['deactivate', 'archive', 'delete'].includes(normalizedAction)) {
+        warnings.push(`${displayName} is still linked to ${branchCoverage.managedBranches.length} branch manager assignment${branchCoverage.managedBranches.length === 1 ? '' : 's'}.`);
+    }
+
+    if (
+        targetRole === 'branch-manager'
+        && ['deactivate', 'archive'].includes(normalizedAction)
+        && branchCoverage.soleManagedBranches.length > 0
+    ) {
+        blockers.push(`Reassign active branch manager coverage first for: ${branchCoverage.soleManagedBranches.join(', ')}.`);
+    }
+
+    if (normalizedAction === 'delete') {
+        if (targetRole === 'administrator') {
+            blockers.push('Administrator accounts cannot be permanently deleted.');
+        }
+        if (!targetUser.isArchived) {
+            blockers.push('Archive the account before permanently deleting it.');
+        } else {
+            const archivedAt = targetUser.archivedAt ? new Date(targetUser.archivedAt) : null;
+            if (!archivedAt || Number.isNaN(archivedAt.getTime())) {
+                blockers.push('Archived timestamp is missing. This account cannot be permanently deleted safely.');
+            } else {
+                const retentionMs = ACCOUNT_DELETE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+                const remainingMs = retentionMs - (now.getTime() - archivedAt.getTime());
+                if (remainingMs > 0) {
+                    const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+                    blockers.push(`Keep archived accounts for at least ${ACCOUNT_DELETE_RETENTION_DAYS} days before permanent deletion (${remainingDays} day${remainingDays === 1 ? '' : 's'} remaining).`);
+                }
+            }
+        }
+        if (metrics.totalAppointments > 0) {
+            blockers.push(`This account still has ${metrics.totalAppointments} linked appointment record${metrics.totalAppointments === 1 ? '' : 's'}.`);
+        }
+        if (targetRole === 'patient') {
+            if (metrics.treatmentLogs > 0) blockers.push('Patient treatment logs must be preserved.');
+            if (metrics.radiographs > 0) blockers.push('Patient radiograph records must be preserved.');
+            if (metrics.odontogramEntries > 0) blockers.push('Patient odontogram history must be preserved.');
+            if (metrics.supportTickets > 0) blockers.push('Patient support ticket history still exists.');
+            if (metrics.queueEntries > 0) blockers.push('Patient queue history still exists.');
+            if (metrics.patientMaterialUsage > 0) blockers.push('Material usage history still references this patient.');
+        } else {
+            if (metrics.assignedSupportTickets > 0) blockers.push('Support tickets are still assigned to this account.');
+            if (branchCoverage.managedBranches.length > 0) blockers.push(`Branch records still reference this branch manager: ${branchCoverage.managedBranches.join(', ')}.`);
+            if (metrics.dentistMaterialUsage > 0) blockers.push('Material usage logs still reference this dentist account.');
+        }
+        if (metrics.auditLogs > 0) {
+            blockers.push(`Audit trail references still exist for this account (${metrics.auditLogs}).`);
+        }
+    }
+
+    if (normalizedAction === 'activate' && !targetUser.isVerified) {
+        blockers.push('Email verification is still pending. Activate only after verification is complete.');
+    }
+
+    return {
+        action: normalizedAction,
+        allowed: blockers.length === 0,
+        target: {
+            id: String(targetUser._id),
+            role: targetRole,
+            name: displayName,
+            email: String(targetUser.email || '').trim(),
+            status: String(targetUser.status || 'inactive'),
+            isArchived: Boolean(targetUser.isArchived),
+            assignedBranches,
+        },
+        impactItems,
+        metrics,
+        warnings,
+        blockers,
+    };
+};
+
 const PATIENT_AI_SCHEDULING_KEYWORDS = [
     'appointment', 'appointments', 'schedule', 'scheduled', 'booking', 'book', 'reschedule',
     'cancel', 'slot', 'slots', 'available', 'availability', 'calendar',
@@ -1986,7 +2303,7 @@ const buildGuestPreRegistrationFields = () => ({
 const buildPatientAppointmentStatusNotification = ({ appointment, status, dentistName = '' }) => {
     const normalizedStatus = String(status || appointment?.status || '').trim().toLowerCase();
     const procedure = appointment?.performedProcedure || appointment?.procedure || 'appointment';
-    const dateLabel = appointment?.date ? new Date(appointment.date).toDateString() : 'the scheduled date';
+    const dateLabel = appointment?.date ? formatEmailDateLabel(appointment.date) : 'the scheduled date';
     const timeLabel = appointment?.time || 'the scheduled time';
     const nextDentistName = dentistName || getDentistDisplayName(appointment?.dentist);
 
@@ -2025,14 +2342,44 @@ const buildPatientAppointmentStatusNotification = ({ appointment, status, dentis
     }
 };
 
+const createPatientNotification = async ({
+    patientId,
+    type,
+    title,
+    message,
+    relatedId = null,
+}) => {
+    if (!patientId) return null;
+
+    const patient = await User.findById(patientId).select(
+        'notifAppointments notifVisitWindow notifHealthTips isArchived role'
+    );
+    if (!patient || patient.role !== 'patient' || patient.isArchived) {
+        return null;
+    }
+    if (!isPatientNotificationEnabled(patient, type)) {
+        return null;
+    }
+
+    await Notification.create({
+        type,
+        title,
+        message,
+        recipientId: patient._id,
+        recipientRole: 'patient',
+        relatedId,
+    });
+
+    return true;
+};
+
 const notifyPatientAppointmentStatusChange = async ({ appointment, status, dentistName = '' }) => {
     if (!appointment?.patient?._id) return;
     const notification = buildPatientAppointmentStatusNotification({ appointment, status, dentistName });
-    await Notification.create({
-        ...notification,
-        recipientId: appointment.patient._id,
-        recipientRole: 'patient',
+    await createPatientNotification({
+        patientId: appointment.patient._id,
         relatedId: appointment._id,
+        ...notification,
     });
 };
 
@@ -2057,12 +2404,11 @@ const notifyPatientQueueStatusChange = async ({ queueEntry, status, title = '' }
         message = `Your walk-in appointment for ${procedure} has been cancelled.`;
     }
 
-    await Notification.create({
+    await createPatientNotification({
         type: normalizedStatus === 'cancelled' ? 'APPOINTMENT_CANCELLED' : 'APPOINTMENT_STATUS_UPDATED',
         title: notificationTitle,
         message,
-        recipientId: queueEntry.patientId,
-        recipientRole: 'patient',
+        patientId: queueEntry.patientId,
         relatedId: queueEntry.linkedAppointment || queueEntry._id,
     });
 };
@@ -2230,6 +2576,156 @@ const mapAppointmentStatusToQueueStatus = (status) => {
         default:
             return 'pending';
     }
+};
+
+const APPOINTMENT_NOTIFICATION_TYPES = new Set([
+    'NEW_APPOINTMENT',
+    'APPOINTMENT_CONFIRMED',
+    'APPOINTMENT_DECLINED',
+    'APPOINTMENT_STATUS_UPDATED',
+    'APPOINTMENT_REMINDER',
+    'APPOINTMENT_CANCELLED',
+]);
+
+const SUPPORT_NOTIFICATION_TYPES = new Set([
+    'CHAT_TICKET_RAISED',
+    'INQUIRY_ESCALATED',
+]);
+
+const INVENTORY_NOTIFICATION_TYPES = new Set([
+    'LOW_INVENTORY',
+]);
+
+const PATIENT_RECORD_NOTIFICATION_TYPES = new Set([
+    'NEW_PATIENT_REGISTRATION',
+    'NEW_RADIOGRAPH',
+]);
+
+const QUEUE_NOTIFICATION_TYPES = new Set([
+    'QUEUE_EVENT',
+]);
+
+const getDefaultNotificationPreferences = (role = '') => {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+
+    if (normalizedRole === 'dentist') {
+        return {
+            emailAppointments: true,
+            dailySummary: false,
+            criticalAlerts: true,
+            scheduleAlerts: true,
+            materialAlerts: true,
+            patientAlerts: true,
+        };
+    }
+
+    if (normalizedRole === 'secretary') {
+        return {
+            emailAppointments: true,
+            dailySummary: false,
+            criticalAlerts: true,
+            appointmentAlerts: true,
+            chatAlerts: true,
+            queueAlerts: true,
+            patientAlerts: true,
+        };
+    }
+
+    return {
+        emailAppointments: true,
+        dailySummary: false,
+        criticalAlerts: true,
+    };
+};
+
+const normalizeNotificationPreferences = (role = '', current = {}, updates = {}) => {
+    const defaults = getDefaultNotificationPreferences(role);
+    const normalized = { ...defaults };
+
+    Object.keys(defaults).forEach((key) => {
+        if (typeof current?.[key] === 'boolean') {
+            normalized[key] = current[key];
+        }
+        if (typeof updates?.[key] === 'boolean') {
+            normalized[key] = updates[key];
+        }
+    });
+
+    return normalized;
+};
+
+const getStaffNotificationPreferenceKey = (role = '', type = '') => {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+    const normalizedType = String(type || '').trim();
+
+    if (normalizedRole === 'dentist') {
+        if (APPOINTMENT_NOTIFICATION_TYPES.has(normalizedType)) return 'scheduleAlerts';
+        if (INVENTORY_NOTIFICATION_TYPES.has(normalizedType)) return 'materialAlerts';
+        if (PATIENT_RECORD_NOTIFICATION_TYPES.has(normalizedType)) return 'patientAlerts';
+        return 'criticalAlerts';
+    }
+
+    if (normalizedRole === 'secretary') {
+        if (APPOINTMENT_NOTIFICATION_TYPES.has(normalizedType)) return 'appointmentAlerts';
+        if (SUPPORT_NOTIFICATION_TYPES.has(normalizedType)) return 'chatAlerts';
+        if (QUEUE_NOTIFICATION_TYPES.has(normalizedType)) return 'queueAlerts';
+        if (PATIENT_RECORD_NOTIFICATION_TYPES.has(normalizedType)) return 'patientAlerts';
+        return 'criticalAlerts';
+    }
+
+    if (['administrator', 'branch-manager', 'owner'].includes(normalizedRole)) {
+        if (APPOINTMENT_NOTIFICATION_TYPES.has(normalizedType)) return 'emailAppointments';
+        if (
+            SUPPORT_NOTIFICATION_TYPES.has(normalizedType)
+            || INVENTORY_NOTIFICATION_TYPES.has(normalizedType)
+            || PATIENT_RECORD_NOTIFICATION_TYPES.has(normalizedType)
+            || QUEUE_NOTIFICATION_TYPES.has(normalizedType)
+        ) {
+            return 'criticalAlerts';
+        }
+    }
+
+    return '';
+};
+
+const isPatientNotificationEnabled = (patient = null, type = '') => {
+    if (!patient) return false;
+    const normalizedType = String(type || '').trim();
+
+    if (APPOINTMENT_NOTIFICATION_TYPES.has(normalizedType)) {
+        return patient.notifAppointments !== false;
+    }
+    if (['PREDICTIVE_VISIT_DUE', 'PREDICTIVE_VISIT_OVERDUE'].includes(normalizedType)) {
+        return patient.notifVisitWindow !== false;
+    }
+    if (normalizedType === 'DENTAL_HEALTH_TIP') {
+        return patient.notifHealthTips !== false;
+    }
+
+    return true;
+};
+
+const isNotificationVisibleToUser = (userDoc = null, notification = null) => {
+    if (!userDoc || !notification) return false;
+
+    const normalizedRole = String(userDoc.role || '').trim().toLowerCase();
+    const normalizedType = String(notification.type || '').trim();
+
+    if (normalizedRole === 'patient') {
+        return isPatientNotificationEnabled(userDoc, normalizedType);
+    }
+
+    const preferences = normalizeNotificationPreferences(
+        normalizedRole,
+        userDoc.notificationPreferences || {}
+    );
+    const preferenceKey = getStaffNotificationPreferenceKey(normalizedRole, normalizedType);
+
+    if (!preferenceKey) {
+        return true;
+    }
+
+    return preferences[preferenceKey] !== false;
 };
 
 const createBranchScopedNotifications = async ({ type, title, message, branch, relatedId, includeOwners = false }) => {
@@ -2854,6 +3350,34 @@ const normalizeGuestAddress = (address = {}) => {
     };
 };
 
+const pickCanonicalAddress = (...addresses) => {
+    for (const address of addresses) {
+        const normalized = normalizeGuestAddress(address);
+        if (normalized) return normalized;
+    }
+    return undefined;
+};
+
+const withLegacyAddressMirrors = (payload = {}, homeAddress) => {
+    if (!homeAddress) return payload;
+    return {
+        ...payload,
+        homeAddress,
+        currentAddress: homeAddress,
+        permanentAddress: homeAddress,
+    };
+};
+
+const withLegacyGuestAddressMirrors = (payload = {}, homeAddress) => {
+    if (!homeAddress) return payload;
+    return {
+        ...payload,
+        guestHomeAddress: homeAddress,
+        guestCurrentAddress: homeAddress,
+        guestPermanentAddress: homeAddress,
+    };
+};
+
 const normalizeGuestText = (value = '') => String(value || '').trim();
 
 const normalizeGuestPhoneMaybe = (value = '') => {
@@ -2971,11 +3495,15 @@ const isGuestIntakeComplete = (appointment) => {
     const emergencyContact = appointment?.guestEmergencyContact || {};
     const dentalHistory = appointment?.guestDentalHistory || {};
     const medicalHistory = appointment?.guestMedicalHistory || {};
+    const guestHomeAddress = pickCanonicalAddress(
+        appointment?.guestHomeAddress,
+        appointment?.guestCurrentAddress,
+        appointment?.guestPermanentAddress,
+    );
 
     return Boolean(appointment?.guestBirthdate) &&
         Boolean(appointment?.guestGender) &&
-        isAddressComplete(appointment?.guestCurrentAddress) &&
-        isAddressComplete(appointment?.guestPermanentAddress) &&
+        isAddressComplete(guestHomeAddress) &&
         Boolean(profile?.nationality || 'Filipino') &&
         Boolean(profile?.occupation) &&
         Boolean(emergencyContact?.name) &&
@@ -3067,8 +3595,19 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
     const fallbackPhysician = fallbackGuest?.guestPhysician || {};
     const fallbackMedicalHistory = fallbackGuest?.guestMedicalHistory || {};
     const fallbackDentalHistory = fallbackGuest?.guestDentalHistory || {};
+    const fallbackHomeAddress = pickCanonicalAddress(
+        fallbackGuest?.guestHomeAddress,
+        fallbackGuest?.guestCurrentAddress,
+        fallbackGuest?.guestPermanentAddress,
+    );
+    const homeAddress = pickCanonicalAddress(
+        body.homeAddress,
+        body.currentAddress,
+        body.permanentAddress,
+        fallbackHomeAddress,
+    );
 
-    return {
+    return withLegacyAddressMirrors({
         name,
         email,
         contactNumber,
@@ -3077,8 +3616,6 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         profileImage: body.profileImage || undefined,
         assignedBranch,
         assignedBranches,
-        currentAddress: body.currentAddress || fallbackGuest?.guestCurrentAddress || undefined,
-        permanentAddress: body.permanentAddress || fallbackGuest?.guestPermanentAddress || undefined,
         guardian: body.guardian || fallbackGuardian || undefined,
         emergencyContact: body.emergencyContact || fallbackEmergencyContact || undefined,
         homePhone: body.homePhone || fallbackGuestProfile.homePhone || undefined,
@@ -3097,7 +3634,7 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         role: 'patient',
         isVerified: false,
         status: 'inactive',
-    };
+    }, homeAddress);
 };
 
 const notifyAppointmentManagers = async ({ appointmentId, patientName, procedure, date, branch }) => {
@@ -3273,8 +3810,13 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
         const activationToken = crypto.randomBytes(32).toString('hex');
         const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+        const normalizedOtherData = withLegacyAddressMirrors(
+            { ...otherData },
+            pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
+        );
+
         const newUser = new User({
-            ...otherData,
+            ...normalizedOtherData,
             email,
             licenseNumber,
             assignedBranches,
@@ -3334,8 +3876,13 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
         const activationToken = crypto.randomBytes(32).toString('hex');
         const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+        const normalizedOtherData = withLegacyAddressMirrors(
+            { ...otherData },
+            pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
+        );
+
         const newUser = new User({
-            ...otherData,
+            ...normalizedOtherData,
             email,
             assignedBranches,
             password: hashedPassword,
@@ -3390,8 +3937,13 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
         const activationToken = crypto.randomBytes(32).toString('hex');
         const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
 
+        const normalizedOtherData = withLegacyAddressMirrors(
+            { ...otherData },
+            pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
+        );
+
         const newUser = new User({
-            ...otherData,
+            ...normalizedOtherData,
             email, 
             assignedBranch,
             assignedBranches: assignedBranch ? [assignedBranch] : [],
@@ -3477,8 +4029,13 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
         const activationToken = crypto.randomBytes(32).toString('hex');
         const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+        const normalizedOtherData = withLegacyAddressMirrors(
+            { ...otherData },
+            pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
+        );
+
         const newUser = new User({
-            ...otherData,
+            ...normalizedOtherData,
             email: normalizedEmail,
             assignedBranch: normalizedAssignedBranch,
             assignedBranches: normalizedAssignedBranches,
@@ -3541,8 +4098,13 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
         const activationToken = crypto.randomBytes(32).toString('hex');
         const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+        const normalizedOtherData = withLegacyAddressMirrors(
+            { ...otherData },
+            pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
+        );
+
         const newUser = new User({
-            ...otherData,
+            ...normalizedOtherData,
             email,
             password: hashedPassword,
             role: 'owner',
@@ -3716,7 +4278,9 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const patient = await User.findById(req.params.id).select('-password');
+        const patient = await User.findById(req.params.id)
+            .select('-password')
+            .populate(LIFECYCLE_ACTOR_POPULATE);
         if (!patient) return res.status(404).json({ message: "Patient not found" });
 
         if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
@@ -3788,6 +4352,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             birthdate,
             gender,
             emergencyContact,
+            homeAddress,
             currentAddress,
             permanentAddress,
             medicalHistory,
@@ -3809,15 +4374,14 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
              assignedBranch,
              assignedBranches
          } = req.body;
+        const resolvedHomeAddress = pickCanonicalAddress(homeAddress, currentAddress, permanentAddress);
 
-        const updateData = {
+        const updateData = withLegacyAddressMirrors({
             name,
             contactNumber,
             birthdate,
             gender,
             emergencyContact,
-            currentAddress,
-            permanentAddress,
             medicalHistory,
             dentalHistory,
              guardian,
@@ -3835,7 +4399,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
              ,
              consentAcknowledgement,
              dataPrivacyConsent
-          };
+          }, resolvedHomeAddress);
 
         if (req.user.role === 'secretary' && req.user.assignedBranch) {
             updateData.assignedBranch = req.user.assignedBranch;
@@ -3886,10 +4450,65 @@ app.get('/api/user/:id', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
-        const user = await User.findById(req.params.id).select('-password');
+        const user = await User.findById(req.params.id)
+            .select('-password')
+            .populate(LIFECYCLE_ACTOR_POPULATE);
         if (!user) return res.status(404).json({ message: "User not found" });
         res.json(user);
     } catch (error) { res.status(500).json({ message: "Server error." }); }
+});
+
+app.get('/api/user/lifecycle-impact/:id', verifyToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+
+        const lifecyclePermission = canManageStaffLifecycle({ actor: req.user, target: user });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+
+        const impact = await collectLifecycleImpact({
+            actor: req.user,
+            targetUser: user,
+            action: req.query.action,
+        });
+
+        res.json(impact);
+    } catch (error) {
+        console.error('Error loading user lifecycle impact:', error);
+        res.status(500).json({ message: 'Server error loading lifecycle impact.' });
+    }
+});
+
+app.get('/api/patient/lifecycle-impact/:id', verifyToken, async (req, res) => {
+    try {
+        const allowedRoles = ['administrator', 'owner', 'branch-manager', 'secretary'];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const patient = await User.findById(req.params.id);
+        if (!patient || patient.role !== 'patient') {
+            return res.status(404).json({ message: 'Patient not found.' });
+        }
+
+        const lifecyclePermission = canManagePatientLifecycle({ actor: req.user, patient });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+
+        const impact = await collectLifecycleImpact({
+            actor: req.user,
+            targetUser: patient,
+            action: req.query.action,
+        });
+
+        res.json(impact);
+    } catch (error) {
+        console.error('Error loading patient lifecycle impact:', error);
+        res.status(500).json({ message: 'Server error loading lifecycle impact.' });
+    }
 });
 
 app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
@@ -3925,6 +4544,26 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
             });
         }
 
+        if (normalizedStatus === 'inactive') {
+            const reason = String(req.body.reason || '').trim();
+            if (!reason) {
+                return res.status(400).json({ message: 'A reason is required when deactivating an account.' });
+            }
+
+            const impact = await collectLifecycleImpact({
+                actor: req.user,
+                targetUser: user,
+                action: 'deactivate',
+            });
+            if (!impact.allowed) {
+                return res.status(409).json({
+                    message: impact.blockers[0] || 'This account cannot be deactivated yet.',
+                    blockers: impact.blockers,
+                    impact,
+                });
+            }
+        }
+
         user.status = normalizedStatus;
         if (normalizedStatus === 'inactive') {
             user.deactivatedAt = new Date();
@@ -3937,6 +4576,10 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
         }
         await user.save();
 
+        const userStatusDetails = normalizedStatus === 'inactive' && user.deactivationReason
+            ? `Changed status of user ${user.email} to ${normalizedStatus}. Reason: ${user.deactivationReason}`
+            : `Changed status of user ${user.email} to ${normalizedStatus}`;
+
         await AuditLog.create({
             action: "STATUS_CHANGE",
             user: req.user?.email || req.user?.id || "ADMIN",
@@ -3945,7 +4588,7 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
             actorRole: req.user?.role,
             targetId: user._id,
             targetModel: 'User',
-            details: `Changed status of user ${user.email} to ${normalizedStatus}`
+            details: userStatusDetails
         });
 
         res.json({ message: `User marked as ${normalizedStatus}.`, user });
@@ -3987,6 +4630,26 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
             });
         }
 
+        if (normalizedStatus === 'inactive') {
+            const reason = String(req.body.reason || '').trim();
+            if (!reason) {
+                return res.status(400).json({ message: 'A reason is required when deactivating a patient account.' });
+            }
+
+            const impact = await collectLifecycleImpact({
+                actor: req.user,
+                targetUser: patient,
+                action: 'deactivate',
+            });
+            if (!impact.allowed) {
+                return res.status(409).json({
+                    message: impact.blockers[0] || 'This patient account cannot be deactivated yet.',
+                    blockers: impact.blockers,
+                    impact,
+                });
+            }
+        }
+
         patient.status = normalizedStatus;
         if (normalizedStatus === 'inactive') {
             patient.deactivatedAt = new Date();
@@ -3999,6 +4662,10 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
         }
         await patient.save();
 
+        const patientStatusDetails = normalizedStatus === 'inactive' && patient.deactivationReason
+            ? `Changed status of patient ${patient.email} to ${normalizedStatus}. Reason: ${patient.deactivationReason}`
+            : `Changed status of patient ${patient.email} to ${normalizedStatus}`;
+
         await AuditLog.create({
             action: "STATUS_CHANGE",
             user: req.user?.email || req.user?.id || "ADMIN",
@@ -4007,7 +4674,7 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
             actorRole: req.user?.role,
             targetId: patient._id,
             targetModel: 'User',
-            details: `Changed status of patient ${patient.email} to ${normalizedStatus}`
+            details: patientStatusDetails
         });
 
         res.json({ message: `Patient marked as ${normalizedStatus}.`, patient });
@@ -4119,16 +4786,15 @@ app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
 app.put('/api/user/notification-preferences', verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { emailAppointments, dailySummary, criticalAlerts } = req.body;
 
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User not found.' });
 
-        user.notificationPreferences = {
-            emailAppointments: emailAppointments ?? user.notificationPreferences?.emailAppointments ?? true,
-            dailySummary:      dailySummary      ?? user.notificationPreferences?.dailySummary      ?? false,
-            criticalAlerts:    criticalAlerts    ?? user.notificationPreferences?.criticalAlerts    ?? true,
-        };
+        user.notificationPreferences = normalizeNotificationPreferences(
+            user.role,
+            user.notificationPreferences || {},
+            req.body || {}
+        );
 
         await user.save();
 
@@ -4185,15 +4851,21 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
         if (currentUser.isArchived) {
             return res.status(409).json({ message: 'Restore this archived account before editing the record.' });
         }
+        const resolvedHomeAddress = pickCanonicalAddress(
+            updateData.homeAddress,
+            updateData.currentAddress,
+            updateData.permanentAddress,
+        );
+        const normalizedUpdateData = withLegacyAddressMirrors(updateData, resolvedHomeAddress);
 
-        if (updateData.assignedBranch !== undefined) {
-            updateData.assignedBranches = updateData.assignedBranch ? [updateData.assignedBranch] : [];
-        } else if (Array.isArray(updateData.assignedBranches)) {
-            updateData.assignedBranch = updateData.assignedBranches[0] || '';
+        if (normalizedUpdateData.assignedBranch !== undefined) {
+            normalizedUpdateData.assignedBranches = normalizedUpdateData.assignedBranch ? [normalizedUpdateData.assignedBranch] : [];
+        } else if (Array.isArray(normalizedUpdateData.assignedBranches)) {
+            normalizedUpdateData.assignedBranch = normalizedUpdateData.assignedBranches[0] || '';
         }
 
-        if (updateData.licenseNumber) {
-            const normalizedLicense = String(updateData.licenseNumber).trim();
+        if (normalizedUpdateData.licenseNumber) {
+            const normalizedLicense = String(normalizedUpdateData.licenseNumber).trim();
             if (!/^\d{7}$/.test(normalizedLicense)) {
                 return res.status(400).json({ field: 'licenseNumber', message: 'License Number must be exactly 7 digits.' });
             }
@@ -4201,13 +4873,13 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             if (existingLicense) {
                 return res.status(409).json({ field: 'licenseNumber', message: 'License Number is already registered.' });
             }
-            updateData.licenseNumber = normalizedLicense;
+            normalizedUpdateData.licenseNumber = normalizedLicense;
         }
 
-        const resolvedAssignedBranch = updateData.assignedBranch !== undefined
-            ? updateData.assignedBranch
-            : (Array.isArray(updateData.assignedBranches)
-                ? (updateData.assignedBranches[0] || '')
+        const resolvedAssignedBranch = normalizedUpdateData.assignedBranch !== undefined
+            ? normalizedUpdateData.assignedBranch
+            : (Array.isArray(normalizedUpdateData.assignedBranches)
+                ? (normalizedUpdateData.assignedBranches[0] || '')
                 : (currentUser.assignedBranch || currentUser.assignedBranches?.[0] || ''));
 
         if (currentUser.role === 'administrator' && req.user.role !== 'administrator') {
@@ -4232,13 +4904,13 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             const hashedPassword = await bcrypt.hash(tempPassword, 10);
             const activationToken = crypto.randomBytes(32).toString('hex');
 
-            updateData.email = email;
-            updateData.password = hashedPassword;
-            updateData.activationToken = activationToken;
-            updateData.isVerified = false;
-            updateData.status = 'inactive'; 
+            normalizedUpdateData.email = email;
+            normalizedUpdateData.password = hashedPassword;
+            normalizedUpdateData.activationToken = activationToken;
+            normalizedUpdateData.isVerified = false;
+            normalizedUpdateData.status = 'inactive'; 
 
-            const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+            const updatedUser = await User.findByIdAndUpdate(userId, normalizedUpdateData, { new: true });
             if (currentUser.role === 'branch-manager') {
                 await syncBranchManagerAssignments(updatedUser._id, resolvedAssignedBranch);
             }
@@ -4261,7 +4933,7 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             return res.json({ message: "User updated. Re-activation email sent.", user: updatedUser });
         }
 
-        const updatedUser = await User.findByIdAndUpdate(userId, { ...updateData }, { new: true });
+        const updatedUser = await User.findByIdAndUpdate(userId, { ...normalizedUpdateData }, { new: true });
         if (currentUser.role === 'branch-manager') {
             await syncBranchManagerAssignments(updatedUser._id, resolvedAssignedBranch);
         }
@@ -4297,6 +4969,7 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             emergencyContact,
             medicalHistory,
             consentAcknowledgement,
+            homeAddress,
             currentAddress,
             permanentAddress,
             profileImage,
@@ -4358,20 +5031,16 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             };
         }
 
-        if (currentAddress) {
-            user.currentAddress = {
-                ...user.currentAddress?.toObject?.(),
-                ...user.currentAddress,
-                ...currentAddress
+        const resolvedHomeAddress = pickCanonicalAddress(homeAddress, currentAddress, permanentAddress);
+        if (resolvedHomeAddress) {
+            const mergedHomeAddress = {
+                ...user.homeAddress?.toObject?.(),
+                ...user.homeAddress,
+                ...resolvedHomeAddress,
             };
-        }
-
-        if (permanentAddress) {
-            user.permanentAddress = {
-                ...user.permanentAddress?.toObject?.(),
-                ...user.permanentAddress,
-                ...permanentAddress
-            };
+            user.homeAddress = mergedHomeAddress;
+            user.currentAddress = mergedHomeAddress;
+            user.permanentAddress = mergedHomeAddress;
         }
 
         await user.save();
@@ -5299,6 +5968,7 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             surgery.guestPhone = undefined;
             surgery.guestBirthdate = undefined;
             surgery.guestGender = undefined;
+            surgery.guestHomeAddress = undefined;
             surgery.guestCurrentAddress = undefined;
             surgery.guestPermanentAddress = undefined;
             surgery.guestProfile = undefined;
@@ -5407,6 +6077,7 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
         surgery.guestPhone = undefined;
         surgery.guestBirthdate = undefined;
         surgery.guestGender = undefined;
+        surgery.guestHomeAddress = undefined;
         surgery.guestCurrentAddress = undefined;
         surgery.guestPermanentAddress = undefined;
         surgery.guestProfile = undefined;
@@ -5665,12 +6336,11 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
                     status: updatedSurgery.status,
                 }));
             } else if (scheduleChanged) {
-                await runPostSaveSideEffect('notifyPatient:appointmentScheduleUpdate', () => Notification.create({
+                await runPostSaveSideEffect('notifyPatient:appointmentScheduleUpdate', () => createPatientNotification({
                     type: 'APPOINTMENT_STATUS_UPDATED',
                     title: 'Appointment Schedule Updated',
-                    message: `Your appointment for ${updatedSurgery.procedure} was updated to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`,
-                    recipientId: updatedSurgery.patient._id,
-                    recipientRole: 'patient',
+                    message: `Your appointment for ${updatedSurgery.procedure} was updated to ${formatEmailDateLabel(updatedSurgery.date)} at ${updatedSurgery.time || 'the scheduled time'}.`,
+                    patientId: updatedSurgery.patient._id,
                     relatedId: updatedSurgery._id,
                 }));
             }
@@ -5997,12 +6667,11 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             const dentistName = getDentistDisplayName(updatedSurgery.dentist);
 
             if (updatedSurgery.patient?._id) {
-                await runPostSaveSideEffect('notifyPatient:appointmentConfirmed', () => Notification.create({
+                await runPostSaveSideEffect('notifyPatient:appointmentConfirmed', () => createPatientNotification({
                     type: 'APPOINTMENT_CONFIRMED',
                     title: 'Appointment Confirmed',
-                    message: `Your appointment for ${updatedSurgery.procedure} on ${new Date(updatedSurgery.date).toDateString()} has been confirmed. Assigned dentist: ${dentistName}.`,
-                    recipientId: updatedSurgery.patient._id,
-                    recipientRole: 'patient',
+                    message: `Your appointment for ${updatedSurgery.procedure} on ${formatEmailDateLabel(updatedSurgery.date)} has been confirmed. Assigned dentist: ${dentistName}.`,
+                    patientId: updatedSurgery.patient._id,
                     relatedId: updatedSurgery._id,
                 }));
             }
@@ -6038,12 +6707,11 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
 
         if (!wasConfirmedNow && dentistChanged) {
             if (updatedSurgery.patient?._id) {
-                await runPostSaveSideEffect('notifyPatient:dentistAssigned', () => Notification.create({
+                await runPostSaveSideEffect('notifyPatient:dentistAssigned', () => createPatientNotification({
                     type: 'APPOINTMENT_CONFIRMED',
                     title: 'Dentist Assigned',
                     message: `Your appointment for ${updatedSurgery.procedure} is assigned to ${getDentistDisplayName(updatedSurgery.dentist)}.`,
-                    recipientId: updatedSurgery.patient._id,
-                    recipientRole: 'patient',
+                    patientId: updatedSurgery.patient._id,
                     relatedId: updatedSurgery._id,
                 }));
             }
@@ -6069,12 +6737,11 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                     status: updatedSurgery.status,
                 }));
             } else if (scheduleChanged) {
-                await runPostSaveSideEffect('notifyPatient:scheduleChanged', () => Notification.create({
+                await runPostSaveSideEffect('notifyPatient:scheduleChanged', () => createPatientNotification({
                     type: 'APPOINTMENT_STATUS_UPDATED',
                     title: 'Appointment Schedule Updated',
-                    message: `Your appointment for ${updatedSurgery.procedure} was updated to ${new Date(updatedSurgery.date).toDateString()} at ${updatedSurgery.time || 'the scheduled time'}.`,
-                    recipientId: updatedSurgery.patient._id,
-                    recipientRole: 'patient',
+                    message: `Your appointment for ${updatedSurgery.procedure} was updated to ${formatEmailDateLabel(updatedSurgery.date)} at ${updatedSurgery.time || 'the scheduled time'}.`,
+                    patientId: updatedSurgery.patient._id,
                     relatedId: updatedSurgery._id,
                 }));
             }
@@ -6194,6 +6861,7 @@ app.get('/api/pre-register/:token', async (req, res) => {
             guestPhysician: surgery.guestPhysician || null,
             guestMedicalHistory: surgery.guestMedicalHistory || null,
             guestDentalHistory: surgery.guestDentalHistory || null,
+            homeAddress: surgery.guestHomeAddress || surgery.guestCurrentAddress || surgery.guestPermanentAddress || null,
             currentAddress: surgery.guestCurrentAddress || null,
             permanentAddress: surgery.guestPermanentAddress || null,
         });
@@ -6400,6 +7068,46 @@ const remindIncompleteSchedulesForStaff = async () => {
     }
 };
 
+const remindPatientsAboutUpcomingAppointments = async () => {
+    const todayStart = getStartOfManilaDay();
+    const dayAfterTomorrowStart = getStartOfManilaDay(new Date(todayStart.getTime() + (2 * DAY_IN_MS)));
+
+    const appointments = await Surgery.find({
+        status: 'confirmed',
+        isArchived: false,
+        patient: { $ne: null },
+        date: {
+            $gte: todayStart,
+            $lt: dayAfterTomorrowStart,
+        },
+    }).populate('patient', 'name email');
+
+    for (const appointment of appointments) {
+        if (!appointment.patient?._id) continue;
+
+        const wholeDayDiff = getWholeDayDiff(appointment.date);
+        if (![0, 1].includes(wholeDayDiff)) continue;
+
+        const reminderWindowStart = getStartOfManilaDay();
+        const alreadySent = await Notification.exists({
+            type: 'APPOINTMENT_REMINDER',
+            recipientId: appointment.patient._id,
+            relatedId: appointment._id,
+            createdAt: { $gte: reminderWindowStart },
+        });
+        if (alreadySent) continue;
+
+        const reminderLabel = wholeDayDiff === 0 ? 'today' : 'tomorrow';
+        await createPatientNotification({
+            patientId: appointment.patient._id,
+            type: 'APPOINTMENT_REMINDER',
+            title: wholeDayDiff === 0 ? 'Appointment Reminder Today' : 'Appointment Reminder Tomorrow',
+            message: `Reminder: you have a confirmed ${appointment.procedure} appointment ${reminderLabel} (${formatEmailDateLabel(appointment.date)}) at ${appointment.time || 'the scheduled time'} in ${appointment.branch}.`,
+            relatedId: appointment._id,
+        });
+    }
+};
+
 const remindPatientsAboutPredictiveVisitWindows = async () => {
     const patients = await User.find({
         role: 'patient',
@@ -6434,12 +7142,11 @@ const remindPatientsAboutPredictiveVisitWindows = async () => {
                 ? `The clinic recommended a follow-up visit around ${prediction.recommendedDateLabel}. Your ideal visit window is ${prediction.windowLabel}.`
                 : `Based on your recent treatment history, your next recommended clinic visit window is ${prediction.windowLabel}.`;
 
-            await Notification.create({
+            await createPatientNotification({
                 type: 'PREDICTIVE_VISIT_DUE',
                 title,
                 message,
-                recipientId: patient._id,
-                recipientRole: 'patient',
+                patientId: patient._id,
                 relatedId: patient._id,
             });
 
@@ -6459,12 +7166,11 @@ const remindPatientsAboutPredictiveVisitWindows = async () => {
                 ? `Your clinic follow-up window (${prediction.windowLabel}) has passed. Please contact the clinic to schedule your visit.`
                 : `Your recommended clinic visit window (${prediction.windowLabel}) has passed. Please book your next check-up.`;
 
-            await Notification.create({
+            await createPatientNotification({
                 type: 'PREDICTIVE_VISIT_OVERDUE',
                 title: 'Your visit window is overdue',
                 message,
-                recipientId: patient._id,
-                recipientRole: 'patient',
+                patientId: patient._id,
                 relatedId: patient._id,
             });
 
@@ -6504,16 +7210,15 @@ app.post('/api/pre-register/:token', async (req, res) => {
             return res.status(410).json({ message: 'This link has expired.' });
         }
 
-        const currentAddress = normalizeGuestAddress(req.body.currentAddress);
-        const permanentAddress = normalizeGuestAddress(req.body.permanentAddress);
+        const homeAddress = pickCanonicalAddress(req.body.homeAddress, req.body.currentAddress, req.body.permanentAddress);
         const guestProfile = normalizeGuestProfile(req.body.guestProfile);
         const guestEmergencyContact = normalizeGuestEmergencyContact(req.body.guestEmergencyContact);
         const guestGuardian = normalizeGuestGuardian(req.body.guestGuardian);
         const guestPhysician = normalizeGuestPhysician(req.body.guestPhysician);
         const guestMedicalHistory = normalizeGuestMedicalHistory(req.body.guestMedicalHistory);
         const guestDentalHistory = normalizeGuestDentalHistory(req.body.guestDentalHistory);
-        if (!isAddressComplete(currentAddress) || !isAddressComplete(permanentAddress)) {
-            return res.status(400).json({ message: 'Current and permanent addresses are required.' });
+        if (!isAddressComplete(homeAddress)) {
+            return res.status(400).json({ message: 'Home address is required.' });
         }
         const isPhoneCallPreRegistration = String(surgery.source || '').trim() === 'Phone Call';
         if (!guestProfile?.occupation || !guestEmergencyContact?.name || !guestEmergencyContact?.relationship || !guestEmergencyContact?.contactNumber) {
@@ -6526,8 +7231,9 @@ app.post('/api/pre-register/:token', async (req, res) => {
             return res.status(400).json({ message: 'Please complete the basic medical history section.' });
         }
 
-        surgery.guestCurrentAddress = currentAddress;
-        surgery.guestPermanentAddress = permanentAddress;
+        surgery.guestHomeAddress = homeAddress;
+        surgery.guestCurrentAddress = homeAddress;
+        surgery.guestPermanentAddress = homeAddress;
         surgery.guestProfile = guestProfile;
         surgery.guestEmergencyContact = guestEmergencyContact;
         surgery.guestGuardian = guestGuardian;
@@ -6940,7 +7646,11 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             isArchived: false,
         }).select('_id date time procedure status');
         if (duplicateAppointment) {
-            return res.status(409).json({ message: 'You already have an active appointment request. Please wait for it to be completed or cancelled before booking another one.' });
+            return res.status(409).json({
+                code: 'ACTIVE_APPOINTMENT_EXISTS',
+                message: 'You already have an active appointment request. Please wait for it to be completed or cancelled before booking another one.',
+                appointment: duplicateAppointment,
+            });
         }
 
         if (!(await isOnlineBookingProcedureAllowed(procedure))) {
@@ -7076,6 +7786,7 @@ app.get('/api/appointments/my-active', verifyToken, async (req, res) => {
         const activeAppointment = await Surgery.findOne({
             patient: req.user.id,
             status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+            isArchived: false,
         })
             .select('date time procedure status branch')
             .sort({ date: 1 })
@@ -7642,6 +8353,13 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
         });
 
         const added = patient.radiographs[patient.radiographs.length - 1];
+        await createPatientNotification({
+            patientId: patient._id,
+            type: 'NEW_RADIOGRAPH',
+            title: 'New Radiograph Available',
+            message: `A new radiograph record "${label}" dated ${formatEmailDateLabel(date)} is now available in your patient records.`,
+            relatedId: patient._id,
+        });
         res.status(201).json(added);
 
     } catch (error) {
@@ -8015,6 +8733,26 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
             });
         }
 
+        if (nextArchivedState) {
+            const trimmedReason = String(reason || '').trim();
+            if (!trimmedReason) {
+                return res.status(400).json({ message: 'A reason is required when archiving an account.' });
+            }
+
+            const impact = await collectLifecycleImpact({
+                actor: req.user,
+                targetUser: user,
+                action: 'archive',
+            });
+            if (!impact.allowed) {
+                return res.status(409).json({
+                    message: impact.blockers[0] || 'This account cannot be archived yet.',
+                    blockers: impact.blockers,
+                    impact,
+                });
+            }
+        }
+
         user.isArchived = nextArchivedState;
         user.status = 'inactive';
         if (nextArchivedState) {
@@ -8036,6 +8774,10 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
 
         await user.save();
 
+        const archiveDetails = nextArchivedState && user.archiveReason
+            ? `${user.role} ${user.email} was archived. Reason: ${user.archiveReason}`
+            : `${user.role} ${user.email} was restored.`;
+
         await AuditLog.create({
             action: nextArchivedState ? 'ARCHIVE_USER' : 'RESTORE_USER',
             user: req.user?.email,
@@ -8044,7 +8786,7 @@ app.put('/api/user/archive/:id', verifyToken, async (req, res) => {
             actorRole: req.user?.role,
             targetId: user._id,
             targetModel: 'User',
-            details: `${user.role} ${user.email} was ${nextArchivedState ? 'archived' : 'restored'}.`
+            details: archiveDetails
         });
 
         res.json({
@@ -8097,6 +8839,26 @@ app.put('/api/patient/archive/:id', verifyToken, async (req, res) => {
             });
         }
 
+        if (nextArchivedState) {
+            const trimmedReason = String(reason || '').trim();
+            if (!trimmedReason) {
+                return res.status(400).json({ message: 'A reason is required when archiving a patient account.' });
+            }
+
+            const impact = await collectLifecycleImpact({
+                actor: req.user,
+                targetUser: patient,
+                action: 'archive',
+            });
+            if (!impact.allowed) {
+                return res.status(409).json({
+                    message: impact.blockers[0] || 'This patient account cannot be archived yet.',
+                    blockers: impact.blockers,
+                    impact,
+                });
+            }
+        }
+
         patient.isArchived = nextArchivedState;
         patient.status = 'inactive';
         if (nextArchivedState) {
@@ -8118,6 +8880,10 @@ app.put('/api/patient/archive/:id', verifyToken, async (req, res) => {
 
         await patient.save();
 
+        const patientArchiveDetails = nextArchivedState && patient.archiveReason
+            ? `Patient ${patient.email} was archived. Reason: ${patient.archiveReason}`
+            : `Patient ${patient.email} was restored.`;
+
         await AuditLog.create({
             action: nextArchivedState ? 'ARCHIVE_PATIENT' : 'RESTORE_PATIENT',
             user: req.user?.email,
@@ -8126,7 +8892,7 @@ app.put('/api/patient/archive/:id', verifyToken, async (req, res) => {
             actorRole: req.user?.role,
             targetId: patient._id,
             targetModel: 'User',
-            details: `Patient ${patient.email} was ${nextArchivedState ? 'archived' : 'restored'}.`
+            details: patientArchiveDetails
         });
 
         res.json({
@@ -8222,13 +8988,23 @@ app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
 // Get notifications for the logged-in user's role
 app.get('/api/notifications', verifyToken, async (req, res) => {
     try {
-        // Find notifications meant specifically for this user's ID, OR their role
-        const notifications = await Notification.find({
+        const currentUser = await User.findById(req.user.id).select(
+            'role notificationPreferences notifAppointments notifVisitWindow notifHealthTips'
+        );
+        if (!currentUser) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const rawNotifications = await Notification.find({
             $or: [
                 { recipientRole: req.user.role },
                 { recipientId: req.user.id }
             ]
-        }).sort({ createdAt: -1 }).limit(50); // Get latest 50
+        }).sort({ createdAt: -1 }).limit(200);
+
+        const notifications = rawNotifications
+            .filter((notification) => isNotificationVisibleToUser(currentUser, notification))
+            .slice(0, 50);
 
         res.json(notifications);
     } catch (error) {
@@ -8484,8 +9260,17 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Cannot delete an administrator account.' });
         }
 
-        if (!user.isArchived) {
-            return res.status(409).json({ message: 'Archive the account before permanently deleting it.' });
+        const impact = await collectLifecycleImpact({
+            actor: req.user,
+            targetUser: user,
+            action: 'delete',
+        });
+        if (!impact.allowed) {
+            return res.status(409).json({
+                message: impact.blockers[0] || 'This account cannot be permanently deleted.',
+                blockers: impact.blockers,
+                impact,
+            });
         }
 
         await User.findByIdAndDelete(req.params.id);
@@ -8731,6 +9516,14 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
             user: req.user.email,
             role: req.user.role,
             details: `OpenCV radiograph enhancement saved for radiograph ID ${radiographId} on patient ID ${patientId}.`,
+        });
+
+        await createPatientNotification({
+            patientId,
+            type: 'NEW_RADIOGRAPH',
+            title: 'Enhanced Radiograph Ready',
+            message: `An enhanced radiograph for "${radiograph.label}" is now available in your patient records.`,
+            relatedId: patientId,
         });
 
         res.json({
@@ -9602,7 +10395,7 @@ app.post('/api/support-tickets', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Subject and message are required.' });
         }
 
-        const sender = await User.findById(req.user.id).select('name email role');
+        const sender = await User.findById(req.user.id).select('name email role assignedBranch');
         if (!sender) return res.status(404).json({ message: 'User not found.' });
 
         const fullName = `${sender.name?.first || ''} ${sender.name?.last || ''}`.trim() || sender.email;
@@ -9620,23 +10413,54 @@ app.post('/api/support-tickets', verifyToken, async (req, res) => {
             }]
         });
 
-        // Notify administrators
-        await Notification.insertMany([
+        const supportNotifications = [
             {
                 type: 'CHAT_TICKET_RAISED',
                 title: 'New Support Ticket',
-                message: `${fullName} submitted a ticket: \"${subject}\"`,
+                message: `${fullName} submitted a ticket: "${subject}"`,
                 recipientRole: 'administrator',
                 relatedId: ticket._id
             },
             {
                 type: 'CHAT_TICKET_RAISED',
                 title: 'New Support Ticket',
-                message: `${fullName} submitted a ticket: \"${subject}\"`,
+                message: `${fullName} submitted a ticket: "${subject}"`,
                 recipientRole: 'owner',
                 relatedId: ticket._id
             }
-        ]);
+        ];
+
+        if (sender.assignedBranch) {
+            const supportStaff = await User.find({
+                role: { $in: ['branch-manager', 'secretary'] },
+                status: 'active',
+                isArchived: { $ne: true },
+                $or: [
+                    { assignedBranch: sender.assignedBranch },
+                    { assignedBranches: sender.assignedBranch },
+                ],
+            }).select('_id');
+
+            supportStaff.forEach((staff) => {
+                supportNotifications.push({
+                    type: 'CHAT_TICKET_RAISED',
+                    title: 'New Support Ticket',
+                    message: `${fullName} submitted a ticket: "${subject}"`,
+                    recipientId: staff._id,
+                    relatedId: ticket._id,
+                });
+            });
+        }
+
+        await Notification.insertMany(supportNotifications);
+
+        await createPatientNotification({
+            patientId: req.user.id,
+            type: 'INQUIRY_ESCALATED',
+            title: 'Clinic Inquiry Received',
+            message: `Your inquiry "${subject}" was sent to the clinic team. You will be notified when support replies.`,
+            relatedId: ticket._id,
+        });
 
         await AuditLog.create({
             action: 'TICKET_CREATED',
@@ -9693,10 +10517,9 @@ app.get('/api/support-tickets/:id', verifyToken, async (req, res) => {
         const ticket = await SupportTicket.findById(req.params.id);
         if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
 
-        // Patients can only view their own tickets
-        const isAdmin = ['administrator'].includes(req.user.role);
-        const isOwner = ticket.patientId?.toString() === req.user.id;
-        if (!isAdmin && !isOwner) {
+        const isStaff = ['administrator', 'branch-manager', 'secretary'].includes(req.user.role);
+        const isPatientOwner = ticket.patientId?.toString() === req.user.id;
+        if (!isStaff && !isPatientOwner) {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
@@ -9720,6 +10543,11 @@ app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
 
         const ticket = await SupportTicket.findById(req.params.id);
         if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
+        const isStaff = ['administrator', 'branch-manager', 'secretary'].includes(req.user.role);
+        const isPatientOwner = ticket.patientId?.toString() === req.user.id;
+        if (!isStaff && !isPatientOwner) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
 
         if (ticket.status === 'closed') {
             return res.status(400).json({ message: 'Cannot reply to a closed ticket.' });
@@ -9745,6 +10573,17 @@ app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
         }
 
         await ticket.save();
+
+        if (isStaff && ticket.patientId) {
+            await createPatientNotification({
+                patientId: ticket.patientId,
+                type: 'INQUIRY_ESCALATED',
+                title: 'Clinic Support Replied',
+                message: `Clinic support replied to your inquiry "${ticket.subject}". Open your support conversation to continue.`,
+                relatedId: ticket._id,
+            });
+        }
+
         res.json(ticket);
     } catch (error) {
         console.error('Error adding message:', error);
@@ -9783,6 +10622,23 @@ app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
             details: `Ticket ${ticket._id} updated — status: ${status || ticket.status}`
         });
 
+        if (status && ticket.patientId) {
+            const statusTitle = {
+                'in-progress': 'Support Ticket In Progress',
+                resolved: 'Support Ticket Resolved',
+                closed: 'Support Ticket Closed',
+                open: 'Support Ticket Reopened',
+            }[status] || 'Support Ticket Updated';
+
+            await createPatientNotification({
+                patientId: ticket.patientId,
+                type: 'INQUIRY_ESCALATED',
+                title: statusTitle,
+                message: `Your inquiry "${ticket.subject}" is now marked ${String(status).replace(/-/g, ' ')} by the clinic team.`,
+                relatedId: ticket._id,
+            });
+        }
+
         res.json(ticket);
     } catch (error) {
         console.error('Error updating ticket status:', error);
@@ -9805,6 +10661,9 @@ setInterval(() => {
     remindIncompleteSchedulesForStaff().catch((error) => {
         console.error('Schedule reminder worker error:', error);
     });
+    remindPatientsAboutUpcomingAppointments().catch((error) => {
+        console.error('Appointment reminder worker error:', error);
+    });
     remindPatientsAboutPredictiveVisitWindows().catch((error) => {
         console.error('Predictive visit reminder worker error:', error);
     });
@@ -9815,6 +10674,9 @@ autoCancelOverdueAppointments().catch((error) => {
 });
 remindIncompleteSchedulesForStaff().catch((error) => {
     console.error('Initial schedule reminder worker error:', error);
+});
+remindPatientsAboutUpcomingAppointments().catch((error) => {
+    console.error('Initial appointment reminder worker error:', error);
 });
 remindPatientsAboutPredictiveVisitWindows().catch((error) => {
     console.error('Initial predictive visit reminder worker error:', error);

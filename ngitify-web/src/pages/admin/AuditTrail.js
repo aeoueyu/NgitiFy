@@ -16,8 +16,15 @@ const RANGE_OPTIONS = [
 const ACTION_OPTIONS = [
     { value: 'All', label: 'All Actions' },
     { value: 'entry', label: 'Entry Logs' },
+    { value: 'lifecycle', label: 'Lifecycle Actions' },
+    { value: 'status', label: 'Status Changes' },
+    { value: 'archive', label: 'Archive / Restore' },
+    { value: 'delete', label: 'Permanent Delete' },
 ];
 const ITEMS_PER_PAGE = 20;
+const ENTRY_ACTIONS = new Set(['LOGIN', 'LOGOUT', 'SESSION_TIMEOUT']);
+const ARCHIVE_ACTIONS = new Set(['ARCHIVE_USER', 'RESTORE_USER', 'ARCHIVE_PATIENT', 'RESTORE_PATIENT']);
+const LIFECYCLE_ACTIONS = new Set([...ENTRY_ACTIONS, 'STATUS_CHANGE', ...ARCHIVE_ACTIONS, 'DELETE_USER']);
 
 const ROLE_LABELS = {
     administrator: 'Administrator',
@@ -29,10 +36,15 @@ const ROLE_LABELS = {
 };
 
 const formatActionLabel = (action = '') => {
-    if (!action) return 'Unknown action performed';
-    if (action.toUpperCase() === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
-    if (action.toUpperCase() === 'UPDATE_SCHEDULE') return 'Update Schedule';
-    return action;
+    const rawAction = String(action || '').trim().toUpperCase();
+    if (!rawAction) return 'Unknown action performed';
+    if (rawAction === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
+    if (rawAction === 'UPDATE_SCHEDULE') return 'Update Schedule';
+    return rawAction
+        .toLowerCase()
+        .split('_')
+        .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+        .join(' ');
 };
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
@@ -73,6 +85,36 @@ const getRoleBadgeClass = (role) => {
     }
 };
 
+const getActionCategory = (rawAction = '') => {
+    const normalized = String(rawAction || '').trim().toUpperCase();
+    if (ENTRY_ACTIONS.has(normalized)) return 'entry';
+    if (normalized === 'STATUS_CHANGE') return 'status';
+    if (ARCHIVE_ACTIONS.has(normalized)) return 'archive';
+    if (normalized === 'DELETE_USER') return 'delete';
+    if (LIFECYCLE_ACTIONS.has(normalized)) return 'lifecycle';
+    return 'other';
+};
+
+const matchesActionFilter = (rawAction = '', actionFilter = 'All') => {
+    if (actionFilter === 'All') return true;
+    const category = getActionCategory(rawAction);
+    if (actionFilter === 'entry') return category === 'entry';
+    if (actionFilter === 'status') return category === 'status';
+    if (actionFilter === 'archive') return category === 'archive';
+    if (actionFilter === 'delete') return category === 'delete';
+    if (actionFilter === 'lifecycle') return ['entry', 'status', 'archive', 'delete', 'lifecycle'].includes(category) && category !== 'other';
+    return false;
+};
+
+const getActionBadgeClass = (rawAction = '') => {
+    const category = getActionCategory(rawAction);
+    if (category === 'entry') return wideTable.statusBlue;
+    if (category === 'status') return wideTable.statusAmber;
+    if (category === 'archive') return wideTable.statusGray;
+    if (category === 'delete') return wideTable.statusRed;
+    return wideTable.statusGreen;
+};
+
 export default function AuditTrail() {
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('All');
@@ -109,6 +151,7 @@ export default function AuditTrail() {
                 const rawDate = new Date(log.createdAt || log.timestamp);
                 return {
                     id: log._id || Math.random().toString(),
+                    rawAction: String(log.action || '').trim().toUpperCase(),
                     action: formatActionLabel(log.action),
                     userName,
                     role: userRole.toLowerCase(),
@@ -144,9 +187,8 @@ export default function AuditTrail() {
             || String(log.details || '').toLowerCase().includes(searchQuery.toLowerCase());
 
         const matchesRole = roleFilter === 'All' || log.role === roleFilter.toLowerCase();
-        const matchesAction = actionFilter === 'All'
-            || (actionFilter === 'entry' && ['LOGIN', 'LOGOUT', 'SESSION_TIMEOUT'].includes(String(log.action || '').toUpperCase()));
-        const dateKey = log.rawDate.toISOString().split('T')[0];
+        const matchesAction = matchesActionFilter(log.rawAction, actionFilter);
+        const dateKey = Number.isNaN(log.rawDate.getTime()) ? '' : log.rawDate.toISOString().split('T')[0];
         const matchesDate = !selectedRange || (dateKey >= selectedRange.from && dateKey <= selectedRange.to);
 
         return matchesSearch && matchesRole && matchesAction && matchesDate;
@@ -321,7 +363,11 @@ export default function AuditTrail() {
                                             {ROLE_LABELS[log.role] || log.role}
                                         </span>
                                     </td>
-                                    <td title={log.action}>{log.action}</td>
+                                    <td title={log.action}>
+                                        <span className={`${wideTable.statusBadge} ${getActionBadgeClass(log.rawAction)}`}>
+                                            {log.action}
+                                        </span>
+                                    </td>
                                     <td title={log.details || 'No extra details recorded.'}>{log.details || 'No extra details recorded.'}</td>
                                 </tr>
                             ))

@@ -206,7 +206,7 @@ export default function MyProfileScreen({ navigation }) {
     }, [profile]);
 
     const detailSections = useMemo(() => {
-        const homeAddress = formatAddress(profile?.currentAddress || profile?.permanentAddress);
+        const homeAddress = formatAddress(profile?.homeAddress || profile?.currentAddress || profile?.permanentAddress);
 
         return [
             {
@@ -398,7 +398,7 @@ export default function MyProfileScreen({ navigation }) {
                     <Text style={styles.quickInfoTitle}>Quick info</Text>
                     <Text style={styles.quickInfoText}>Phone: {contactNumber}</Text>
                     <Text style={styles.quickInfoText}>
-                        Address: {formatAddress(profile?.currentAddress)}
+                        Address: {formatAddress(profile?.homeAddress || profile?.currentAddress || profile?.permanentAddress)}
                     </Text>
                 </View>
 

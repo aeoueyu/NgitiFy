@@ -5,6 +5,7 @@ import modalStyles from '../../styles/admin/StaffModals.module.css';
 import { authFetch, publicFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import UserAvatar from '../../components/common/UserAvatar';
 import ConfirmModal from '../../components/common/ConfirmModal';
@@ -19,28 +20,6 @@ import {
     FaClock,
     FaTrashAlt,
 } from 'react-icons/fa';
-
-const PROCEDURE_OPTIONS = [
-    'General Check-up / Initial Consultation',
-    'Prophylaxis / Dental Cleaning',
-    'Consultation',
-    'Teeth Cleaning (Prophylaxis)',
-    'Tooth Extraction',
-    'Dental Filling',
-    'Dental Filling (Composite)',
-    'Root Canal Treatment',
-    'Orthodontic Consultation',
-    'Dental Implant Consultation',
-    'Braces / Orthodontic Adjustment',
-    'Teeth Whitening',
-    'Dentures / Retainers',
-    'Crown / Bridge Fitting',
-    'Wisdom Tooth Extraction',
-    'Oral Surgery',
-    'X-Ray / Imaging',
-    'X-Ray / Radiograph',
-    'Other',
-];
 
 const STATUS_DISPLAY_MAP = {
     pending: 'Pending',
@@ -119,6 +98,7 @@ const normalizeSurgery = (surgery) => ({
     guestPhysician: surgery.guestPhysician || null,
     guestMedicalHistory: surgery.guestMedicalHistory || null,
     guestDentalHistory: surgery.guestDentalHistory || null,
+    guestHomeAddress: surgery.guestHomeAddress || surgery.guestCurrentAddress || surgery.guestPermanentAddress || null,
     guestCurrentAddress: surgery.guestCurrentAddress || null,
     guestPermanentAddress: surgery.guestPermanentAddress || null,
     preRegistrationCompleted: Boolean(surgery.preRegistrationCompleted),
@@ -151,8 +131,7 @@ const isAddressComplete = (address) => (
 const hasCompleteGuestIntake = (appointment) => (
     Boolean(appointment.guestBirthdate) &&
     Boolean(appointment.guestGender) &&
-    isAddressComplete(appointment.guestCurrentAddress) &&
-    isAddressComplete(appointment.guestPermanentAddress) &&
+    isAddressComplete(appointment.guestHomeAddress || appointment.guestCurrentAddress || appointment.guestPermanentAddress) &&
     Boolean(appointment.guestProfile?.occupation) &&
     Boolean(appointment.guestEmergencyContact?.name) &&
     Boolean(appointment.guestEmergencyContact?.relationship) &&
@@ -201,6 +180,7 @@ export default function AdminAppointments() {
     const navigate = useNavigate();
     const { addToast } = useToast();
     const { user } = useAuth();
+    const { config: systemConfig } = useSystemConfig();
 
     const role = user?.role || 'administrator';
     const isBranchManager = role === 'branch-manager';
@@ -357,13 +337,18 @@ export default function AdminAppointments() {
         () => allowedSlots.filter((slot) => !takenSlots.includes(slot) && !isSlotPast(slot, bookingForm.date)),
         [allowedSlots, bookingForm.date, takenSlots]
     );
+    const clinicProcedureOptions = useMemo(() => (
+        (Array.isArray(systemConfig?.clinicProcedures) ? systemConfig.clinicProcedures : [])
+            .map((procedure) => String(procedure || '').trim())
+            .filter(Boolean)
+    ), [systemConfig?.clinicProcedures]);
 
     const bookingProcedureOptions = useMemo(() => {
         const savedProcedure = String(bookingForm.procedure || '').trim();
-        return savedProcedure && !PROCEDURE_OPTIONS.includes(savedProcedure)
-            ? [savedProcedure, ...PROCEDURE_OPTIONS]
-            : PROCEDURE_OPTIONS;
-    }, [bookingForm.procedure]);
+        return savedProcedure && !clinicProcedureOptions.includes(savedProcedure)
+            ? [savedProcedure, ...clinicProcedureOptions]
+            : clinicProcedureOptions;
+    }, [bookingForm.procedure, clinicProcedureOptions]);
 
     const branchOptions = useMemo(() => {
         if (isBranchManager && assignedBranch) return [assignedBranch];

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowRight, FaUserMd, FaUserNurse, FaUsers, FaUserTie } from 'react-icons/fa';
+import { FaArchive, FaArrowRight, FaUserMd, FaUserNurse, FaUsers, FaUserTie } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import UserTabs from './UserTabs';
@@ -93,6 +93,7 @@ export default function UserManagement() {
     const { user } = useAuth();
     const [sectionCounts, setSectionCounts] = useState({});
     const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+    const [archiveSummary, setArchiveSummary] = useState({ total: 0, patients: 0, staff: 0 });
 
     const sections = useMemo(() => buildSections(user?.role), [user?.role]);
     const isBranchManager = user?.role === 'branch-manager';
@@ -137,6 +138,21 @@ export default function UserManagement() {
                 if (!isCancelled) {
                     setSectionCounts(Object.fromEntries(responses));
                 }
+
+                if (user?.role === 'administrator') {
+                    const archivedResponse = await authFetch('/users?archivedOnly=true');
+                    if (archivedResponse.ok) {
+                        const archivedRecords = await archivedResponse.json();
+                        const archivedList = Array.isArray(archivedRecords) ? archivedRecords : [];
+                        if (!isCancelled) {
+                            setArchiveSummary({
+                                total: archivedList.length,
+                                patients: archivedList.filter((entry) => entry.role === 'patient').length,
+                                staff: archivedList.filter((entry) => entry.role !== 'patient').length,
+                            });
+                        }
+                    }
+                }
             } catch (error) {
                 if (!isCancelled) {
                     setSectionCounts({});
@@ -154,7 +170,7 @@ export default function UserManagement() {
         return () => {
             isCancelled = true;
         };
-    }, [sections]);
+    }, [sections, user?.role]);
 
     return (
         <div className={styles.page}>
@@ -190,6 +206,62 @@ export default function UserManagement() {
                     </span>
                 </div>
             </section>
+
+            {user?.role === 'administrator' && (
+                <section
+                    style={{
+                        marginTop: '14px',
+                        marginBottom: '8px',
+                        padding: '18px 20px',
+                        borderRadius: '20px',
+                        border: '1px solid #dbe6f1',
+                        background: 'linear-gradient(180deg, #fbfdff 0%, #f7fbff 100%)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: '16px',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                    }}
+                >
+                    <div>
+                        <strong style={{ display: 'block', color: '#123e63', marginBottom: '6px' }}>Archive review</strong>
+                        <span style={{ color: '#5f7384', fontSize: '13px', lineHeight: 1.5 }}>
+                            Review archived users and patients in one queue before restoring access or approving any permanent deletion.
+                        </span>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', minHeight: '28px', padding: '0 10px', borderRadius: '999px', background: '#ebf5fc', color: '#0f5d92', fontSize: '12px', fontWeight: 800 }}>
+                                {archiveSummary.total} archived total
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', minHeight: '28px', padding: '0 10px', borderRadius: '999px', background: '#fff3d6', color: '#b66a12', fontSize: '12px', fontWeight: 800 }}>
+                                {archiveSummary.patients} patients
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', minHeight: '28px', padding: '0 10px', borderRadius: '999px', background: '#dcfce7', color: '#166534', fontSize: '12px', fontWeight: 800 }}>
+                                {archiveSummary.staff} staff
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/admin/archive-review')}
+                        style={{
+                            border: 'none',
+                            borderRadius: '999px',
+                            background: '#01538b',
+                            color: '#ffffff',
+                            minHeight: '42px',
+                            padding: '0 18px',
+                            font: 'inherit',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                        }}
+                    >
+                        <FaArchive /> Open Archive Review
+                    </button>
+                </section>
+            )}
 
             <section className={styles.grid}>
                 {sections.map((section) => {
@@ -245,6 +317,36 @@ export default function UserManagement() {
                                         }}
                                     >
                                         {isLoadingCounts ? 'Checking...' : `${countData?.pending || 0} pending activation`}
+                                    </span>
+                                    <span
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            minHeight: '28px',
+                                            padding: '0 10px',
+                                            borderRadius: '999px',
+                                            background: '#f1f5f9',
+                                            color: '#475569',
+                                            fontSize: '12px',
+                                            fontWeight: 800,
+                                        }}
+                                    >
+                                        {isLoadingCounts ? 'Checking...' : `${countData?.lifecycle?.inactive || 0} inactive`}
+                                    </span>
+                                    <span
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            minHeight: '28px',
+                                            padding: '0 10px',
+                                            borderRadius: '999px',
+                                            background: '#ffe4e6',
+                                            color: '#be123c',
+                                            fontSize: '12px',
+                                            fontWeight: 800,
+                                        }}
+                                    >
+                                        {isLoadingCounts ? 'Checking...' : `${countData?.lifecycle?.archived || 0} archived`}
                                     </span>
                                 </span>
                             </span>

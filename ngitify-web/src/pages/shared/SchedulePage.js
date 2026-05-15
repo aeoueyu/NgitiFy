@@ -19,33 +19,6 @@ import ConfirmModal from '../../components/common/ConfirmModal';
 import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/shared/SchedulePage.module.css';
 
-const FALLBACK_PROCEDURE_OPTIONS = [
-    'General Check-up / Initial Consultation',
-    'Prophylaxis / Dental Cleaning',
-    'Consultation',
-    'Teeth Cleaning (Prophylaxis)',
-    'Tooth Extraction',
-    'Dental Filling',
-    'Dental Filling (Composite)',
-    'Root Canal Treatment',
-    'Orthodontic Consultation',
-    'Dental Implant Consultation',
-    'Braces / Orthodontic Adjustment',
-    'Teeth Whitening',
-    'Dentures / Retainers',
-    'Crown / Bridge Fitting',
-    'Wisdom Tooth Extraction',
-    'Oral Surgery',
-    'X-Ray / Imaging',
-    'X-Ray / Radiograph',
-    'Other',
-];
-
-const DIRECT_BOOKING_PROCEDURES = [
-    'General Check-up / Initial Consultation',
-    'Prophylaxis / Dental Cleaning',
-];
-
 const TREATMENT_CATEGORY_OPTIONS = [
     'General',
     'Prophylaxis',
@@ -359,8 +332,7 @@ const isAddressComplete = (address) => (
 const hasCompleteGuestIntake = (appointment) => (
     Boolean(appointment?.raw?.guestBirthdate) &&
     Boolean(appointment?.raw?.guestGender) &&
-    isAddressComplete(appointment?.raw?.guestCurrentAddress) &&
-    isAddressComplete(appointment?.raw?.guestPermanentAddress) &&
+    isAddressComplete(appointment?.raw?.guestHomeAddress || appointment?.raw?.guestCurrentAddress || appointment?.raw?.guestPermanentAddress) &&
     Boolean(appointment?.raw?.guestProfile?.occupation) &&
     Boolean(appointment?.raw?.guestEmergencyContact?.name) &&
     Boolean(appointment?.raw?.guestEmergencyContact?.relationship) &&
@@ -478,13 +450,34 @@ export default function SchedulePage() {
     const canEditSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
     const canChooseBranch = isAdmin || isOwner;
     const canChooseDentist = !isDentist;
+    const clinicProcedureOptions = useMemo(() => (
+        (Array.isArray(systemConfig?.clinicProcedures) ? systemConfig.clinicProcedures : [])
+            .map((procedure) => String(procedure || '').trim())
+            .filter(Boolean)
+    ), [systemConfig?.clinicProcedures]);
+    const appointmentProcedureOptions = useMemo(() => {
+        const configuredProcedures = (Array.isArray(systemConfig?.onlineBookingProcedures)
+            ? systemConfig.onlineBookingProcedures
+            : [])
+            .map((procedure) => String(procedure || '').trim())
+            .filter(Boolean);
+
+        if (configuredProcedures.length > 0) {
+            return configuredProcedures;
+        }
+
+        if (clinicProcedureOptions.length > 0) {
+            return clinicProcedureOptions.slice(0, 2);
+        }
+
+        return [];
+    }, [clinicProcedureOptions, systemConfig?.onlineBookingProcedures]);
 
     const [appointments, setAppointments] = useState([]);
     const [queueEntries, setQueueEntries] = useState([]);
     const [patients, setPatients] = useState([]);
     const [dentists, setDentists] = useState([]);
     const [branches, setBranches] = useState([]);
-    const [clinicProcedures, setClinicProcedures] = useState([]);
     const [loading, setLoading] = useState(true);
     const [dateFilter, setDateFilter] = useState('all');
     const [customDateFrom, setCustomDateFrom] = useState(getTodayString());
@@ -605,7 +598,6 @@ export default function SchedulePage() {
                     : '/appointments'),
                 authFetch('/patients?limit=200'),
                 authFetch('/users?role=dentist'),
-                authFetch('/procedures'),
             ];
 
             if (canViewQueue) {
@@ -623,7 +615,6 @@ export default function SchedulePage() {
             const appointmentsResponse = responses[0];
             const patientsResponse = responses[1];
             const dentistsResponse = responses[2];
-            const proceduresResponse = responses[3];
 
             if (appointmentsResponse.ok) {
                 const appointmentData = await appointmentsResponse.json();
@@ -652,17 +643,7 @@ export default function SchedulePage() {
                 setDentists([]);
             }
 
-            if (proceduresResponse.ok) {
-                const procedureData = await proceduresResponse.json();
-                const procedures = Array.isArray(procedureData?.procedures) && procedureData.procedures.length > 0
-                    ? procedureData.procedures
-                    : FALLBACK_PROCEDURE_OPTIONS;
-                setClinicProcedures(procedures);
-            } else {
-                setClinicProcedures(FALLBACK_PROCEDURE_OPTIONS);
-            }
-
-            let nextIndex = 4;
+            let nextIndex = 3;
             if (canViewQueue) {
                 const queueResponse = responses[nextIndex];
                 nextIndex += 1;
@@ -886,25 +867,21 @@ export default function SchedulePage() {
 
     const scheduleProcedureOptions = useMemo(() => {
         const savedProcedure = String(formState.procedure || '').trim();
-        const fullProcedureList = clinicProcedures.length > 0 ? clinicProcedures : FALLBACK_PROCEDURE_OPTIONS;
-        const appointmentProcedureList = DIRECT_BOOKING_PROCEDURES.filter((procedure) => (
-            fullProcedureList.includes(procedure) || DIRECT_BOOKING_PROCEDURES.includes(procedure)
-        ));
         const baseList = formState.formType === 'appointment'
-            ? appointmentProcedureList
-            : fullProcedureList;
+            ? appointmentProcedureOptions
+            : clinicProcedureOptions;
         return savedProcedure && !baseList.includes(savedProcedure)
             ? [savedProcedure, ...baseList]
             : baseList;
-    }, [clinicProcedures, formState.formType, formState.procedure]);
+    }, [appointmentProcedureOptions, clinicProcedureOptions, formState.formType, formState.procedure]);
 
     const completionProcedureOptions = useMemo(() => {
         const savedProcedure = String(completionForm.performedProcedure || completeTarget?.procedure || '').trim();
-        const baseList = clinicProcedures.length > 0 ? clinicProcedures : FALLBACK_PROCEDURE_OPTIONS;
+        const baseList = clinicProcedureOptions;
         return savedProcedure && !baseList.includes(savedProcedure)
             ? [savedProcedure, ...baseList]
             : baseList;
-    }, [clinicProcedures, completeTarget?.procedure, completionForm.performedProcedure]);
+    }, [clinicProcedureOptions, completeTarget?.procedure, completionForm.performedProcedure]);
 
     const editingBaseStatus = editingEntry?.status || formState.status || 'pending';
     const editableStatusOptions = useMemo(() => {

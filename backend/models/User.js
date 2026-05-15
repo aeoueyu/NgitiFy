@@ -113,6 +113,7 @@ const userSchema = new mongoose.Schema({
     },
 
     // 6. NESTED ADDRESS OBJECTS
+    homeAddress: addressSchema,
     currentAddress: addressSchema,
     permanentAddress: addressSchema,
 
@@ -232,7 +233,13 @@ const userSchema = new mongoose.Schema({
     notificationPreferences: {
         emailAppointments: { type: Boolean, default: true },
         dailySummary:       { type: Boolean, default: false },
-        criticalAlerts:     { type: Boolean, default: true }
+        criticalAlerts:     { type: Boolean, default: true },
+        appointmentAlerts:  { type: Boolean, default: true },
+        chatAlerts:         { type: Boolean, default: true },
+        queueAlerts:        { type: Boolean, default: true },
+        patientAlerts:      { type: Boolean, default: true },
+        scheduleAlerts:     { type: Boolean, default: true },
+        materialAlerts:     { type: Boolean, default: true },
     },
 
     // ✅ PATIENT MOBILE: Patient-specific preferences (Phase 3)
@@ -247,4 +254,15 @@ const userSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', userSchema);
+userSchema.set('toJSON', {
+    virtuals: true,
+    transform: (_doc, ret) => {
+        const canonicalHomeAddress = ret.homeAddress || ret.currentAddress || ret.permanentAddress || null;
+        if (canonicalHomeAddress) {
+            ret.homeAddress = canonicalHomeAddress;
+        }
+        return ret;
+    },
+});
+
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);
