@@ -11,6 +11,8 @@ const DEFAULT_ONLINE_BOOKING_PROCEDURES = [
     'General Check-up / Initial Consultation',
     'Prophylaxis / Dental Cleaning',
 ];
+const MAX_WEBSITE_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_WEBSITE_SVG_UPLOAD_BYTES = 512 * 1024;
 const DEFAULT_PROCEDURES = [
     'General Check-up / Initial Consultation',
     'Prophylaxis / Dental Cleaning',
@@ -59,6 +61,11 @@ const buildEmptyServiceHighlight = () => ({
     imageUrl: '',
     items: [''],
 });
+
+const formatUploadSize = (bytes) => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${Math.ceil(bytes / 1024)} KB`;
+};
 
 const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -123,6 +130,7 @@ const mergeWebsiteContent = (value = {}) => {
 const SystemConfig = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [websiteActionMessage, setWebsiteActionMessage] = useState('');
     const [activeSection, setActiveSection] = useState('clinic');
     const [activeWebsiteTab, setActiveWebsiteTab] = useState('branding');
     const [successMsg, setSuccessMsg] = useState('');
@@ -286,25 +294,40 @@ const SystemConfig = () => {
         }));
     };
 
-    const handleImageUpload = async ({ file, onChange }) => {
+    const handleImageUpload = async ({ file, onChange, label = 'image' }) => {
         if (!file) return;
         if (!file.type.startsWith('image/')) {
             setErrorMsg('Please select a valid image file.');
             return;
         }
 
+        const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '');
+        const sizeLimit = isSvg ? MAX_WEBSITE_SVG_UPLOAD_BYTES : MAX_WEBSITE_IMAGE_UPLOAD_BYTES;
+        if (file.size > sizeLimit) {
+            setErrorMsg(
+                isSvg
+                    ? `${label} is too large at ${formatUploadSize(file.size)}. Please optimize the SVG to ${formatUploadSize(sizeLimit)} or smaller before uploading.`
+                    : `${label} is too large at ${formatUploadSize(file.size)}. Please use an image that is ${formatUploadSize(sizeLimit)} or smaller.`
+            );
+            return;
+        }
+
         try {
+            setWebsiteActionMessage('Uploading image...');
             const dataUrl = await readFileAsDataUrl(file);
             onChange(dataUrl);
             setErrorMsg('');
         } catch (error) {
             setErrorMsg(error.message || 'Failed to read the selected image.');
+        } finally {
+            setWebsiteActionMessage('');
         }
     };
 
-    const handleWebsiteMediaUpload = async (field, file) => {
+    const handleWebsiteMediaUpload = async (field, file, label) => {
         await handleImageUpload({
             file,
+            label,
             onChange: (value) => handleWebsiteMediaFieldChange(field, value),
         });
     };
@@ -312,6 +335,7 @@ const SystemConfig = () => {
     const handleAboutHighlightUpload = async (index, file) => {
         await handleImageUpload({
             file,
+            label: `About highlight image ${index + 1}`,
             onChange: (value) => handleWebsiteMediaListItemChange('aboutHighlightImageUrls', index, value),
         });
     };
@@ -348,6 +372,7 @@ const SystemConfig = () => {
         setIsSaving(true);
         setSuccessMsg('');
         setErrorMsg('');
+        setWebsiteActionMessage('Saving website changes...');
 
         try {
             const normalizedProcedures = Array.from(
@@ -360,11 +385,13 @@ const SystemConfig = () => {
             if (normalizedProcedures.length === 0) {
                 setErrorMsg('Add at least one clinic procedure before saving.');
                 setIsSaving(false);
+                setWebsiteActionMessage('');
                 return;
             }
             if (normalizedOnlineBookingProcedures.length === 0) {
                 setErrorMsg('Add at least one online-booking procedure before saving.');
                 setIsSaving(false);
+                setWebsiteActionMessage('');
                 return;
             }
 
@@ -400,6 +427,7 @@ const SystemConfig = () => {
             setErrorMsg('Network error. Please try again.');
         } finally {
             setIsSaving(false);
+            setWebsiteActionMessage('');
         }
     };
 
@@ -478,7 +506,7 @@ const SystemConfig = () => {
                             accept="image/*"
                             className={styles.hiddenFileInput}
                             onChange={(event) => {
-                                handleWebsiteMediaUpload(field, event.target.files?.[0]);
+                                handleWebsiteMediaUpload(field, event.target.files?.[0], label);
                                 event.target.value = '';
                             }}
                         />
@@ -733,10 +761,11 @@ const SystemConfig = () => {
                                         className={styles.hiddenFileInput}
                                         onChange={(event) => {
                                             handleImageUpload({
-                                                file: event.target.files?.[0],
-                                                onChange: (value) => handleWebsiteServiceChange(index, 'imageUrl', value),
-                                            });
-                                            event.target.value = '';
+                                                                    file: event.target.files?.[0],
+                                                                    label: `${service.category || `Service ${index + 1}`} image`,
+                                                                    onChange: (value) => handleWebsiteServiceChange(index, 'imageUrl', value),
+                                                                });
+                                                                event.target.value = '';
                                         }}
                                     />
                                 </label>
@@ -839,9 +868,19 @@ const SystemConfig = () => {
         { key: 'contact', label: 'Contact' },
         { key: 'appointment', label: 'Appointment' },
     ];
+    const showWebsiteActionOverlay = Boolean(websiteActionMessage);
 
     return (
         <div className={styles.container}>
+            {showWebsiteActionOverlay && (
+                <div className={styles.actionOverlay} role="status" aria-live="polite" aria-busy="true">
+                    <div className={styles.actionOverlayCard}>
+                        <div className={styles.actionSpinner} />
+                        <h2 className={styles.actionOverlayTitle}>{websiteActionMessage}</h2>
+                        <p className={styles.actionOverlayText}>Please wait while Dentime updates the website editor.</p>
+                    </div>
+                </div>
+            )}
             <div className={styles.pageHeader}>
                 <h1 className={styles.pageTitle}>System Configuration</h1>
                 <p className={styles.pageSubtitle}>Manage global settings for NgitiFy Dental Management System.</p>
