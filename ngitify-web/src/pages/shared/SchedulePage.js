@@ -11,7 +11,7 @@ import {
     FaTimes,
 } from 'react-icons/fa';
 import { authFetch, publicFetch } from '../../utils/api';
-import { downloadCsvFile } from '../../utils/exportHelpers';
+import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
@@ -1046,6 +1046,30 @@ export default function SchedulePage() {
             exportRows,
         );
     }, [exportRows]);
+    const handleExportPdf = useCallback(() => {
+        openPrintReport({
+            title: 'Schedule Records Report',
+            subtitle: 'Dentime Dental Clinic - NgitiFy',
+            summaryItems: [
+                { label: 'Visible Records', value: combinedRows.length },
+                { label: 'Date Filter', value: dateFilter === 'custom' ? `${customDateFrom || '-'} to ${customDateTo || '-'}` : DATE_FILTER_OPTIONS.find((option) => option.value === dateFilter)?.label || 'All' },
+                { label: 'Source Filter', value: typeFilter === 'all' ? 'All Types' : (typeFilter === 'phonecall' ? 'Phone Calls' : (typeFilter === 'walkin' ? 'Walk-ins' : 'Appointments')) },
+                { label: 'Status Filter', value: statusFilterLabel },
+                { label: 'Patient Filter', value: patientFilter || 'All Patients' },
+                { label: 'Procedure Filter', value: procedureFilter || 'All Procedures' },
+                { label: 'Dentist Filter', value: dentistFilter || 'All Dentists' },
+                { label: 'Branch Filter', value: branchFilter || 'All Branches' },
+            ],
+            sections: [
+                {
+                    title: 'Schedule Listing',
+                    headers: ['Patient Name', 'Date', 'Time', 'Source', 'Dentist', 'Branch', 'Procedure', 'Status', 'Contact Number', 'Notes', 'Created At'],
+                    rows: exportRows,
+                },
+            ],
+            orientation: 'landscape',
+        });
+    }, [branchFilter, combinedRows.length, customDateFrom, customDateTo, dateFilter, dentistFilter, exportRows, patientFilter, procedureFilter, statusFilterLabel, typeFilter]);
 
     const openCreateModal = () => {
         resetFormState();
@@ -2164,6 +2188,15 @@ export default function SchedulePage() {
                         </p>
                     </div>
                     <div className={styles.headerActions}>
+                        <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={handleExportPdf}
+                            disabled={combinedRows.length === 0}
+                        >
+                            <FaFileExport />
+                            Export PDF
+                        </button>
                         <button
                             type="button"
                             className={styles.secondaryButton}
