@@ -124,6 +124,7 @@ const SystemConfig = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [activeSection, setActiveSection] = useState('clinic');
+    const [activeWebsiteTab, setActiveWebsiteTab] = useState('branding');
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [config, setConfig] = useState(buildInitialConfig);
@@ -532,6 +533,293 @@ const SystemConfig = () => {
         );
     };
 
+    const renderWebsiteBrandingSection = () => (
+        <div className={styles.subsection}>
+            <h3 className={styles.subsectionTitle}>Branding and Social Links</h3>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('branding', 'tagline', {
+                    label: 'Website Tagline',
+                    helpText: 'Short supporting line for the brand.',
+                })}
+                {renderWebsiteTextField('branding', 'owner', {
+                    label: 'Owner / Lead Dentist',
+                    helpText: 'Shown on the About page intro.',
+                })}
+                {renderWebsiteTextField('branding', 'facebookName', {
+                    label: 'Facebook Page Name',
+                })}
+                {renderWebsiteTextField('branding', 'instagramHandle', {
+                    label: 'Instagram Handle',
+                    helpText: 'Enter without the @ symbol if possible.',
+                })}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('branding', 'facebookUrl', {
+                    label: 'Facebook Page URL',
+                    helpText: 'Used by the website contact and appointment pages.',
+                })}
+            </div>
+            <div className={styles.mediaGrid}>
+                {renderMediaField({
+                    label: 'Website Logo',
+                    field: 'logoUrl',
+                    helpText: 'Used in the public website header.',
+                })}
+            </div>
+        </div>
+    );
+
+    const renderWebsiteHomeSection = () => (
+        <div className={styles.subsection}>
+            <h3 className={styles.subsectionTitle}>Home Page</h3>
+            <div className={styles.mediaGrid}>
+                {renderMediaField({ label: 'Home Hero Image', field: 'homeHeroImageUrl' })}
+                {renderMediaField({ label: 'Comfort Section Image', field: 'homeIntroImageUrl' })}
+                {renderMediaField({ label: 'Journey Section Image', field: 'homeJourneyImageUrl' })}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('home', 'heroEyebrow', { label: 'Hero Eyebrow' })}
+                {renderWebsiteTextField('home', 'heroTitleLead', { label: 'Hero Title Line 1' })}
+                {renderWebsiteTextField('home', 'heroTitleAccent', { label: 'Hero Title Accent' })}
+                {renderWebsiteTextField('home', 'primaryCtaLabel', { label: 'Primary CTA Label' })}
+                {renderWebsiteTextField('home', 'secondaryCtaLabel', { label: 'Secondary CTA Label' })}
+                {renderWebsiteTextField('home', 'quickVisitEyebrow', { label: 'Quick Visit Eyebrow' })}
+                {renderWebsiteTextField('home', 'quickVisitTitle', { label: 'Quick Visit Title' })}
+                {renderWebsiteTextField('home', 'quickVisitCtaLabel', { label: 'Quick Visit CTA Label' })}
+                {renderWebsiteTextField('home', 'servicesEyebrow', { label: 'Services Eyebrow' })}
+                {renderWebsiteTextField('home', 'servicesTitle', { label: 'Services Section Title' })}
+                {renderWebsiteTextField('home', 'servicesCtaLabel', { label: 'Services CTA Label' })}
+                {renderWebsiteTextField('home', 'journeyEyebrow', { label: 'Journey Eyebrow' })}
+                {renderWebsiteTextField('home', 'journeyTitle', { label: 'Journey Section Title' })}
+                {renderWebsiteTextField('home', 'journeyCardTitle', { label: 'Journey Card Title' })}
+                {renderWebsiteTextField('home', 'coreCareAreasLabel', { label: 'Core Care Areas Label' })}
+                {renderWebsiteTextField('home', 'activeBranchesLabel', { label: 'Active Branches Label' })}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('home', 'heroDescription', { label: 'Hero Description', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'introDescription', { label: 'Comfort Description', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'quoteText', { label: 'Quote Text', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'quoteMeta', { label: 'Quote Meta', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'editorialMiniCopy', { label: 'Editorial Mini Copy', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'editorialTitle', { label: 'Editorial Title', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'editorialDescription', { label: 'Editorial Description', textarea: true, rows: 4 })}
+                {renderWebsiteTextField('home', 'coreCareAreasDescription', { label: 'Core Care Areas Description', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'activeBranchesDescription', { label: 'Active Branches Description', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'editorialStatement', { label: 'Editorial Statement', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('home', 'journeyDescription', { label: 'Journey Description', textarea: true, rows: 4 })}
+                {renderWebsiteTextField('home', 'journeyCaption', { label: 'Journey Image Caption', textarea: true, rows: 3 })}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('home', 'introKicker', {
+                    label: 'Comfort Kicker',
+                    textarea: true,
+                    rows: 2,
+                })}
+                {renderWebsiteListField('home', 'journeyPills', {
+                    label: 'Journey Pills',
+                    helpText: 'One pill label per line.',
+                    rows: 4,
+                })}
+                {renderWebsiteListField('home', 'journeyHighlights', {
+                    label: 'Journey Highlights',
+                    helpText: 'One highlight per line.',
+                    rows: 4,
+                })}
+            </div>
+        </div>
+    );
+
+    const renderWebsiteAboutSection = () => (
+        <div className={styles.subsection}>
+            <h3 className={styles.subsectionTitle}>About Page and Locations</h3>
+            <div className={styles.mediaGrid}>
+                {renderMediaField({ label: 'About Hero Image', field: 'aboutHeroImageUrl' })}
+                {renderMediaField({ label: 'Location Card Image', field: 'locationCardImageUrl' })}
+                {renderMediaField({ label: 'Locations Hero Image', field: 'locationsHeroImageUrl' })}
+                {renderAboutHighlightMediaField(0)}
+                {renderAboutHighlightMediaField(1)}
+                {renderAboutHighlightMediaField(2)}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('about', 'eyebrow', { label: 'About Eyebrow' })}
+                {renderWebsiteTextField('about', 'highlightCardTitle', { label: 'Highlight Card Title' })}
+                {renderWebsiteTextField('about', 'title', { label: 'About Title', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('about', 'description', { label: 'About Description', textarea: true, rows: 4 })}
+                {renderWebsiteTextField('locationsPage', 'eyebrow', { label: 'Locations Eyebrow' })}
+                {renderWebsiteTextField('locationsPage', 'bookCtaLabel', { label: 'Book CTA Label' })}
+                {renderWebsiteTextField('locationsPage', 'callCtaLabel', { label: 'Call CTA Label' })}
+                {renderWebsiteTextField('locationsPage', 'mapCtaLabel', { label: 'Map CTA Label' })}
+                {renderWebsiteTextField('locationsPage', 'title', { label: 'Locations Title', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('locationsPage', 'description', { label: 'Locations Description', textarea: true, rows: 4 })}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteListField('about', 'highlights', {
+                    label: 'Highlights',
+                    helpText: 'One highlight per line.',
+                    rows: 6,
+                })}
+            </div>
+        </div>
+    );
+
+    const renderWebsiteServicesSection = () => (
+        <div className={styles.subsection}>
+            <h3 className={styles.subsectionTitle}>Services Page</h3>
+            <div className={styles.mediaGrid}>
+                {renderMediaField({ label: 'Services Hero Image', field: 'servicesHeroImageUrl' })}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('servicesPage', 'eyebrow', { label: 'Eyebrow' })}
+                {renderWebsiteTextField('servicesPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('servicesPage', 'description', { label: 'Description', textarea: true, rows: 4 })}
+            </div>
+
+            <div className={styles.serviceHighlightList}>
+                {config.websiteContent.serviceHighlights.map((service, index) => (
+                    <div key={`service-highlight-${index}`} className={styles.serviceHighlightCard}>
+                        <div className={styles.serviceHighlightHeader}>
+                            <h4 className={styles.cardEditorTitle}>Service Card {index + 1}</h4>
+                            <button
+                                type="button"
+                                className={styles.removeProcedureBtn}
+                                onClick={() => handleRemoveServiceHighlight(index)}
+                                disabled={config.websiteContent.serviceHighlights.length <= 1}
+                            >
+                                Remove Card
+                            </button>
+                        </div>
+                        <div className={styles.fieldsGrid}>
+                            {renderTextField({
+                                label: 'Category',
+                                value: service.category,
+                                onChange: (value) => handleWebsiteServiceChange(index, 'category', value),
+                            })}
+                            {renderTextField({
+                                label: 'Description',
+                                value: service.description,
+                                onChange: (value) => handleWebsiteServiceChange(index, 'description', value),
+                                textarea: true,
+                                rows: 3,
+                            })}
+                            {renderTextField({
+                                label: 'Service Image URL',
+                                helpText: 'You can paste a URL or use the upload button below.',
+                                value: service.imageUrl,
+                                onChange: (value) => handleWebsiteServiceChange(index, 'imageUrl', value),
+                            })}
+                            {renderTextField({
+                                label: 'Items',
+                                helpText: 'One service item per line.',
+                                value: joinMultilineValue(service.items),
+                                onChange: (value) => handleWebsiteServiceItemsChange(index, value),
+                                textarea: true,
+                                rows: 6,
+                            })}
+                        </div>
+                        <div className={styles.mediaFieldCard}>
+                            <div className={styles.mediaPreviewFrame}>
+                                {service.imageUrl ? (
+                                    <img src={service.imageUrl} alt={service.category || `Service ${index + 1}`} className={styles.mediaPreviewImage} />
+                                ) : (
+                                    <div className={styles.mediaPreviewFallback}>No image selected</div>
+                                )}
+                            </div>
+                            <div className={styles.mediaActions}>
+                                <label className={styles.mediaUploadBtn}>
+                                    Upload Image
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className={styles.hiddenFileInput}
+                                        onChange={(event) => {
+                                            handleImageUpload({
+                                                file: event.target.files?.[0],
+                                                onChange: (value) => handleWebsiteServiceChange(index, 'imageUrl', value),
+                                            });
+                                            event.target.value = '';
+                                        }}
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    className={styles.mediaResetBtn}
+                                    onClick={() => handleWebsiteServiceChange(index, 'imageUrl', getDefaultServiceImage(service.category))}
+                                >
+                                    Reset Default
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <button type="button" className={styles.addProcedureBtn} onClick={handleAddServiceHighlight}>
+                Add Service Card
+            </button>
+        </div>
+    );
+
+    const renderWebsiteContactSection = () => (
+        <div className={styles.subsection}>
+            <h3 className={styles.subsectionTitle}>Contact Page</h3>
+            <div className={styles.mediaGrid}>
+                {renderMediaField({ label: 'Contact Hero Image', field: 'contactHeroImageUrl' })}
+                {renderMediaField({ label: 'Phone Card Image', field: 'contactPhoneImageUrl' })}
+                {renderMediaField({ label: 'Facebook Card Image', field: 'contactFacebookImageUrl' })}
+                {renderMediaField({ label: 'Instagram Card Image', field: 'contactInstagramImageUrl' })}
+                {renderMediaField({ label: 'Map / Clinic Front Image', field: 'contactMapImageUrl' })}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('contactPage', 'eyebrow', { label: 'Eyebrow' })}
+                {renderWebsiteTextField('contactPage', 'primaryCtaLabel', { label: 'Primary CTA Label' })}
+                {renderWebsiteTextField('contactPage', 'secondaryCtaLabel', { label: 'Secondary CTA Label' })}
+                {renderWebsiteTextField('contactPage', 'phoneCardTitle', { label: 'Phone Card Title' })}
+                {renderWebsiteTextField('contactPage', 'phoneCardCtaLabel', { label: 'Phone Card CTA Label' })}
+                {renderWebsiteTextField('contactPage', 'facebookCardTitle', { label: 'Facebook Card Title' })}
+                {renderWebsiteTextField('contactPage', 'facebookCardCtaLabel', { label: 'Facebook Card CTA Label' })}
+                {renderWebsiteTextField('contactPage', 'instagramCardTitle', { label: 'Instagram Card Title' })}
+                {renderWebsiteTextField('contactPage', 'instagramCardCtaLabel', { label: 'Instagram Card CTA Label' })}
+                {renderWebsiteTextField('contactPage', 'locationPrimaryCtaLabel', { label: 'Location Primary CTA Label' })}
+                {renderWebsiteTextField('contactPage', 'locationSecondaryCtaLabel', { label: 'Location Secondary CTA Label' })}
+                {renderWebsiteTextField('contactPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('contactPage', 'description', { label: 'Description', textarea: true, rows: 4 })}
+            </div>
+        </div>
+    );
+
+    const renderWebsiteAppointmentSection = () => (
+        <div className={styles.subsection}>
+            <h3 className={styles.subsectionTitle}>Appointment Page</h3>
+            <div className={styles.mediaGrid}>
+                {renderMediaField({ label: 'Appointment Hero Image', field: 'appointmentHeroImageUrl' })}
+                {renderMediaField({ label: 'Booking Guide Image', field: 'appointmentGuideImageUrl' })}
+                {renderMediaField({ label: 'Appointment Branch Image', field: 'appointmentBranchImageUrl' })}
+            </div>
+            <div className={styles.fieldsGrid}>
+                {renderWebsiteTextField('appointmentPage', 'eyebrow', { label: 'Hero Eyebrow' })}
+                {renderWebsiteTextField('appointmentPage', 'facebookCtaLabel', { label: 'Facebook CTA Label' })}
+                {renderWebsiteTextField('appointmentPage', 'callCtaLabel', { label: 'Call CTA Label' })}
+                {renderWebsiteTextField('appointmentPage', 'formEyebrow', { label: 'Form Eyebrow' })}
+                {renderWebsiteTextField('appointmentPage', 'formTitle', { label: 'Form Title' })}
+                {renderWebsiteTextField('appointmentPage', 'submitButtonLabel', { label: 'Submit Button Label' })}
+                {renderWebsiteTextField('appointmentPage', 'submittingButtonLabel', { label: 'Submitting Button Label' })}
+                {renderWebsiteTextField('appointmentPage', 'guideEyebrow', { label: 'Guide Eyebrow' })}
+                {renderWebsiteTextField('appointmentPage', 'guideTitle', { label: 'Guide Title' })}
+                {renderWebsiteTextField('appointmentPage', 'branchEyebrow', { label: 'Branch Eyebrow' })}
+                {renderWebsiteTextField('appointmentPage', 'branchTitle', { label: 'Branch Title', textarea: true, rows: 2 })}
+                {renderWebsiteTextField('appointmentPage', 'title', { label: 'Hero Title', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('appointmentPage', 'description', { label: 'Hero Description', textarea: true, rows: 4 })}
+                {renderWebsiteTextField('appointmentPage', 'formDescription', { label: 'Form Description', textarea: true, rows: 3 })}
+                {renderWebsiteTextField('appointmentPage', 'procedureHelperText', { label: 'Procedure Helper Text', textarea: true, rows: 4 })}
+                {renderWebsiteTextField('appointmentPage', 'notesHelperText', { label: 'Notes Helper Text', textarea: true, rows: 3 })}
+                {renderWebsiteListField('appointmentPage', 'steps', {
+                    label: 'Guest Appointment Steps',
+                    helpText: 'One step per line.',
+                    rows: 6,
+                })}
+            </div>
+        </div>
+    );
+
     if (isLoading) {
         return <div className={styles.loadingContainer}><p>Loading system configuration...</p></div>;
     }
@@ -542,6 +830,14 @@ const SystemConfig = () => {
         { key: 'emails', label: 'Email Templates' },
         { key: 'features', label: 'Feature Toggles' },
         { key: 'website', label: 'Website Content' },
+    ];
+    const WEBSITE_EDITOR_TABS = [
+        { key: 'branding', label: 'Branding' },
+        { key: 'home', label: 'Home' },
+        { key: 'about', label: 'About + Locations' },
+        { key: 'services', label: 'Services' },
+        { key: 'contact', label: 'Contact' },
+        { key: 'appointment', label: 'Appointment' },
     ];
 
     return (
@@ -767,287 +1063,25 @@ const SystemConfig = () => {
                             <p className={styles.sectionDesc}>
                                 Manage the copy shown on the public website. Clinic name, phone number, email, and address still come from the Clinic Info section above.
                             </p>
-
-                            <div className={styles.subsection}>
-                                <h3 className={styles.subsectionTitle}>Branding and Social Links</h3>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('branding', 'tagline', {
-                                        label: 'Website Tagline',
-                                        helpText: 'Short supporting line for the brand.',
-                                    })}
-                                    {renderWebsiteTextField('branding', 'owner', {
-                                        label: 'Owner / Lead Dentist',
-                                        helpText: 'Shown on the About page intro.',
-                                    })}
-                                    {renderWebsiteTextField('branding', 'facebookName', {
-                                        label: 'Facebook Page Name',
-                                    })}
-                                    {renderWebsiteTextField('branding', 'instagramHandle', {
-                                        label: 'Instagram Handle',
-                                        helpText: 'Enter without the @ symbol if possible.',
-                                    })}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('branding', 'facebookUrl', {
-                                        label: 'Facebook Page URL',
-                                        helpText: 'Used by the website contact and appointment pages.',
-                                    })}
-                                </div>
-                                <div className={styles.mediaGrid}>
-                                    {renderMediaField({
-                                        label: 'Website Logo',
-                                        field: 'logoUrl',
-                                        helpText: 'Used in the public website header.',
-                                    })}
-                                </div>
+                            <div className={styles.websiteTabBar}>
+                                {WEBSITE_EDITOR_TABS.map((tab) => (
+                                    <button
+                                        key={tab.key}
+                                        type="button"
+                                        className={`${styles.websiteTabBtn} ${activeWebsiteTab === tab.key ? styles.websiteTabBtnActive : ''}`}
+                                        onClick={() => setActiveWebsiteTab(tab.key)}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
                             </div>
 
-                            <div className={styles.subsection}>
-                                <h3 className={styles.subsectionTitle}>Home Page</h3>
-                                <div className={styles.mediaGrid}>
-                                    {renderMediaField({ label: 'Home Hero Image', field: 'homeHeroImageUrl' })}
-                                    {renderMediaField({ label: 'Comfort Section Image', field: 'homeIntroImageUrl' })}
-                                    {renderMediaField({ label: 'Journey Section Image', field: 'homeJourneyImageUrl' })}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('home', 'heroEyebrow', { label: 'Hero Eyebrow' })}
-                                    {renderWebsiteTextField('home', 'heroTitleLead', { label: 'Hero Title Line 1' })}
-                                    {renderWebsiteTextField('home', 'heroTitleAccent', { label: 'Hero Title Accent' })}
-                                    {renderWebsiteTextField('home', 'primaryCtaLabel', { label: 'Primary CTA Label' })}
-                                    {renderWebsiteTextField('home', 'secondaryCtaLabel', { label: 'Secondary CTA Label' })}
-                                    {renderWebsiteTextField('home', 'quickVisitEyebrow', { label: 'Quick Visit Eyebrow' })}
-                                    {renderWebsiteTextField('home', 'quickVisitTitle', { label: 'Quick Visit Title' })}
-                                    {renderWebsiteTextField('home', 'quickVisitCtaLabel', { label: 'Quick Visit CTA Label' })}
-                                    {renderWebsiteTextField('home', 'servicesEyebrow', { label: 'Services Eyebrow' })}
-                                    {renderWebsiteTextField('home', 'servicesTitle', { label: 'Services Section Title' })}
-                                    {renderWebsiteTextField('home', 'servicesCtaLabel', { label: 'Services CTA Label' })}
-                                    {renderWebsiteTextField('home', 'journeyEyebrow', { label: 'Journey Eyebrow' })}
-                                    {renderWebsiteTextField('home', 'journeyTitle', { label: 'Journey Section Title' })}
-                                    {renderWebsiteTextField('home', 'journeyCardTitle', { label: 'Journey Card Title' })}
-                                    {renderWebsiteTextField('home', 'coreCareAreasLabel', { label: 'Core Care Areas Label' })}
-                                    {renderWebsiteTextField('home', 'activeBranchesLabel', { label: 'Active Branches Label' })}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('home', 'heroDescription', { label: 'Hero Description', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'introDescription', { label: 'Comfort Description', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'quoteText', { label: 'Quote Text', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'quoteMeta', { label: 'Quote Meta', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'editorialMiniCopy', { label: 'Editorial Mini Copy', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'editorialTitle', { label: 'Editorial Title', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'editorialDescription', { label: 'Editorial Description', textarea: true, rows: 4 })}
-                                    {renderWebsiteTextField('home', 'coreCareAreasDescription', { label: 'Core Care Areas Description', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'activeBranchesDescription', { label: 'Active Branches Description', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'editorialStatement', { label: 'Editorial Statement', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('home', 'journeyDescription', { label: 'Journey Description', textarea: true, rows: 4 })}
-                                    {renderWebsiteTextField('home', 'journeyCaption', { label: 'Journey Image Caption', textarea: true, rows: 3 })}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('home', 'introKicker', {
-                                        label: 'Comfort Kicker',
-                                        textarea: true,
-                                        rows: 2,
-                                    })}
-                                    {renderWebsiteListField('home', 'journeyPills', {
-                                        label: 'Journey Pills',
-                                        helpText: 'One pill label per line.',
-                                        rows: 4,
-                                    })}
-                                    {renderWebsiteListField('home', 'journeyHighlights', {
-                                        label: 'Journey Highlights',
-                                        helpText: 'One highlight per line.',
-                                        rows: 4,
-                                    })}
-                                </div>
-                            </div>
-
-                            <div className={styles.subsection}>
-                                <h3 className={styles.subsectionTitle}>About Page</h3>
-                                <div className={styles.mediaGrid}>
-                                    {renderMediaField({ label: 'About Hero Image', field: 'aboutHeroImageUrl' })}
-                                    {renderMediaField({ label: 'Location Card Image', field: 'locationCardImageUrl' })}
-                                    {renderAboutHighlightMediaField(0)}
-                                    {renderAboutHighlightMediaField(1)}
-                                    {renderAboutHighlightMediaField(2)}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('about', 'eyebrow', { label: 'Eyebrow' })}
-                                    {renderWebsiteTextField('about', 'highlightCardTitle', { label: 'Highlight Card Title' })}
-                                    {renderWebsiteTextField('about', 'title', { label: 'Title', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('about', 'description', { label: 'Description', textarea: true, rows: 4 })}
-                                    {renderWebsiteListField('about', 'highlights', {
-                                        label: 'Highlights',
-                                        helpText: 'One highlight per line.',
-                                        rows: 6,
-                                    })}
-                                </div>
-                            </div>
-
-                            <div className={styles.subsection}>
-                                <h3 className={styles.subsectionTitle}>Services Page</h3>
-                                <div className={styles.mediaGrid}>
-                                    {renderMediaField({ label: 'Services Hero Image', field: 'servicesHeroImageUrl' })}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('servicesPage', 'eyebrow', { label: 'Eyebrow' })}
-                                    {renderWebsiteTextField('servicesPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('servicesPage', 'description', { label: 'Description', textarea: true, rows: 4 })}
-                                </div>
-
-                                <div className={styles.serviceHighlightList}>
-                                    {config.websiteContent.serviceHighlights.map((service, index) => (
-                                        <div key={`service-highlight-${index}`} className={styles.serviceHighlightCard}>
-                                            <div className={styles.serviceHighlightHeader}>
-                                                <h4 className={styles.cardEditorTitle}>Service Card {index + 1}</h4>
-                                                <button
-                                                    type="button"
-                                                    className={styles.removeProcedureBtn}
-                                                    onClick={() => handleRemoveServiceHighlight(index)}
-                                                    disabled={config.websiteContent.serviceHighlights.length <= 1}
-                                                >
-                                                    Remove Card
-                                                </button>
-                                            </div>
-                                            <div className={styles.fieldsGrid}>
-                                                {renderTextField({
-                                                    label: 'Category',
-                                                    value: service.category,
-                                                    onChange: (value) => handleWebsiteServiceChange(index, 'category', value),
-                                                })}
-                                                {renderTextField({
-                                                    label: 'Description',
-                                                    value: service.description,
-                                                    onChange: (value) => handleWebsiteServiceChange(index, 'description', value),
-                                                    textarea: true,
-                                                    rows: 3,
-                                                })}
-                                                {renderTextField({
-                                                    label: 'Service Image URL',
-                                                    helpText: 'You can paste a URL or use the upload button below.',
-                                                    value: service.imageUrl,
-                                                    onChange: (value) => handleWebsiteServiceChange(index, 'imageUrl', value),
-                                                })}
-                                                {renderTextField({
-                                                    label: 'Items',
-                                                    helpText: 'One service item per line.',
-                                                    value: joinMultilineValue(service.items),
-                                                    onChange: (value) => handleWebsiteServiceItemsChange(index, value),
-                                                    textarea: true,
-                                                    rows: 6,
-                                                })}
-                                            </div>
-                                            <div className={styles.mediaFieldCard}>
-                                                <div className={styles.mediaPreviewFrame}>
-                                                    {service.imageUrl ? (
-                                                        <img src={service.imageUrl} alt={service.category || `Service ${index + 1}`} className={styles.mediaPreviewImage} />
-                                                    ) : (
-                                                        <div className={styles.mediaPreviewFallback}>No image selected</div>
-                                                    )}
-                                                </div>
-                                                <div className={styles.mediaActions}>
-                                                    <label className={styles.mediaUploadBtn}>
-                                                        Upload Image
-                                                        <input
-                                                            type="file"
-                                                            accept="image/*"
-                                                            className={styles.hiddenFileInput}
-                                                            onChange={(event) => {
-                                                                handleImageUpload({
-                                                                    file: event.target.files?.[0],
-                                                                    onChange: (value) => handleWebsiteServiceChange(index, 'imageUrl', value),
-                                                                });
-                                                                event.target.value = '';
-                                                            }}
-                                                        />
-                                                    </label>
-                                                    <button
-                                                        type="button"
-                                                        className={styles.mediaResetBtn}
-                                                        onClick={() => handleWebsiteServiceChange(index, 'imageUrl', getDefaultServiceImage(service.category))}
-                                                    >
-                                                        Reset Default
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <button type="button" className={styles.addProcedureBtn} onClick={handleAddServiceHighlight}>
-                                    Add Service Card
-                                </button>
-                            </div>
-
-                            <div className={styles.subsection}>
-                                <h3 className={styles.subsectionTitle}>About Page Locations Section</h3>
-                                <div className={styles.mediaGrid}>
-                                    {renderMediaField({ label: 'Locations Hero Image', field: 'locationsHeroImageUrl' })}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('locationsPage', 'eyebrow', { label: 'Eyebrow' })}
-                                    {renderWebsiteTextField('locationsPage', 'bookCtaLabel', { label: 'Book CTA Label' })}
-                                    {renderWebsiteTextField('locationsPage', 'callCtaLabel', { label: 'Call CTA Label' })}
-                                    {renderWebsiteTextField('locationsPage', 'mapCtaLabel', { label: 'Map CTA Label' })}
-                                    {renderWebsiteTextField('locationsPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('locationsPage', 'description', { label: 'Description', textarea: true, rows: 4 })}
-                                </div>
-                            </div>
-
-                            <div className={styles.subsection}>
-                                <h3 className={styles.subsectionTitle}>Contact Page</h3>
-                                <div className={styles.mediaGrid}>
-                                    {renderMediaField({ label: 'Contact Hero Image', field: 'contactHeroImageUrl' })}
-                                    {renderMediaField({ label: 'Phone Card Image', field: 'contactPhoneImageUrl' })}
-                                    {renderMediaField({ label: 'Facebook Card Image', field: 'contactFacebookImageUrl' })}
-                                    {renderMediaField({ label: 'Instagram Card Image', field: 'contactInstagramImageUrl' })}
-                                    {renderMediaField({ label: 'Map / Clinic Front Image', field: 'contactMapImageUrl' })}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('contactPage', 'eyebrow', { label: 'Eyebrow' })}
-                                    {renderWebsiteTextField('contactPage', 'primaryCtaLabel', { label: 'Primary CTA Label' })}
-                                    {renderWebsiteTextField('contactPage', 'secondaryCtaLabel', { label: 'Secondary CTA Label' })}
-                                    {renderWebsiteTextField('contactPage', 'phoneCardTitle', { label: 'Phone Card Title' })}
-                                    {renderWebsiteTextField('contactPage', 'phoneCardCtaLabel', { label: 'Phone Card CTA Label' })}
-                                    {renderWebsiteTextField('contactPage', 'facebookCardTitle', { label: 'Facebook Card Title' })}
-                                    {renderWebsiteTextField('contactPage', 'facebookCardCtaLabel', { label: 'Facebook Card CTA Label' })}
-                                    {renderWebsiteTextField('contactPage', 'instagramCardTitle', { label: 'Instagram Card Title' })}
-                                    {renderWebsiteTextField('contactPage', 'instagramCardCtaLabel', { label: 'Instagram Card CTA Label' })}
-                                    {renderWebsiteTextField('contactPage', 'locationPrimaryCtaLabel', { label: 'Location Primary CTA Label' })}
-                                    {renderWebsiteTextField('contactPage', 'locationSecondaryCtaLabel', { label: 'Location Secondary CTA Label' })}
-                                    {renderWebsiteTextField('contactPage', 'title', { label: 'Title', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('contactPage', 'description', { label: 'Description', textarea: true, rows: 4 })}
-                                </div>
-                            </div>
-
-                            <div className={styles.subsection}>
-                                <h3 className={styles.subsectionTitle}>Appointment Page</h3>
-                                <div className={styles.mediaGrid}>
-                                    {renderMediaField({ label: 'Appointment Hero Image', field: 'appointmentHeroImageUrl' })}
-                                    {renderMediaField({ label: 'Booking Guide Image', field: 'appointmentGuideImageUrl' })}
-                                    {renderMediaField({ label: 'Appointment Branch Image', field: 'appointmentBranchImageUrl' })}
-                                </div>
-                                <div className={styles.fieldsGrid}>
-                                    {renderWebsiteTextField('appointmentPage', 'eyebrow', { label: 'Hero Eyebrow' })}
-                                    {renderWebsiteTextField('appointmentPage', 'facebookCtaLabel', { label: 'Facebook CTA Label' })}
-                                    {renderWebsiteTextField('appointmentPage', 'callCtaLabel', { label: 'Call CTA Label' })}
-                                    {renderWebsiteTextField('appointmentPage', 'formEyebrow', { label: 'Form Eyebrow' })}
-                                    {renderWebsiteTextField('appointmentPage', 'formTitle', { label: 'Form Title' })}
-                                    {renderWebsiteTextField('appointmentPage', 'submitButtonLabel', { label: 'Submit Button Label' })}
-                                    {renderWebsiteTextField('appointmentPage', 'submittingButtonLabel', { label: 'Submitting Button Label' })}
-                                    {renderWebsiteTextField('appointmentPage', 'guideEyebrow', { label: 'Guide Eyebrow' })}
-                                    {renderWebsiteTextField('appointmentPage', 'guideTitle', { label: 'Guide Title' })}
-                                    {renderWebsiteTextField('appointmentPage', 'branchEyebrow', { label: 'Branch Eyebrow' })}
-                                    {renderWebsiteTextField('appointmentPage', 'branchTitle', { label: 'Branch Title', textarea: true, rows: 2 })}
-                                    {renderWebsiteTextField('appointmentPage', 'title', { label: 'Hero Title', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('appointmentPage', 'description', { label: 'Hero Description', textarea: true, rows: 4 })}
-                                    {renderWebsiteTextField('appointmentPage', 'formDescription', { label: 'Form Description', textarea: true, rows: 3 })}
-                                    {renderWebsiteTextField('appointmentPage', 'procedureHelperText', { label: 'Procedure Helper Text', textarea: true, rows: 4 })}
-                                    {renderWebsiteTextField('appointmentPage', 'notesHelperText', { label: 'Notes Helper Text', textarea: true, rows: 3 })}
-                                    {renderWebsiteListField('appointmentPage', 'steps', {
-                                        label: 'Guest Appointment Steps',
-                                        helpText: 'One step per line.',
-                                        rows: 6,
-                                    })}
-                                </div>
-                            </div>
+                            {activeWebsiteTab === 'branding' && renderWebsiteBrandingSection()}
+                            {activeWebsiteTab === 'home' && renderWebsiteHomeSection()}
+                            {activeWebsiteTab === 'about' && renderWebsiteAboutSection()}
+                            {activeWebsiteTab === 'services' && renderWebsiteServicesSection()}
+                            {activeWebsiteTab === 'contact' && renderWebsiteContactSection()}
+                            {activeWebsiteTab === 'appointment' && renderWebsiteAppointmentSection()}
                         </div>
                     )}
 
