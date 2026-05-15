@@ -468,7 +468,7 @@ export default function ManagePatients() {
                     <thead>
                         <tr>
                             <th style={{ width: '34%' }}>Name</th>
-                            <th style={{ width: '36%' }}>Email Address</th>
+                            <th>Email Address</th>
                             <th style={{ width: '110px' }}>Status</th>
                             <th style={{ width: '168px', textAlign: 'center' }}>Actions</th>
                         </tr>
