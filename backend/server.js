@@ -1634,6 +1634,19 @@ const canManagePatientLifecycle = ({ actor, patient }) => {
     return { allowed: false, message: 'Access denied.' };
 };
 
+const canTransferPatientBranch = ({ actor, patient }) => {
+    const lifecyclePermission = canManagePatientLifecycle({ actor, patient });
+    if (!lifecyclePermission.allowed) {
+        return lifecyclePermission;
+    }
+
+    if (!['administrator', 'owner', 'branch-manager', 'secretary'].includes(actor.role)) {
+        return { allowed: false, message: 'Access denied.' };
+    }
+
+    return { allowed: true };
+};
+
 const patientBelongsToBranch = (patient, branch) => {
     if (!patient || !branch) return false;
     const patientBranches = patient.assignedBranches || (patient.assignedBranch ? [patient.assignedBranch] : []);
@@ -1947,6 +1960,101 @@ const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' })
         },
         impactItems,
         metrics,
+        warnings,
+        blockers,
+    };
+};
+
+const collectPatientBranchTransferImpact = async ({ patient, targetBranch = '' }) => {
+    const normalizedTargetBranch = String(targetBranch || '').trim();
+    const currentBranch = String(patient?.assignedBranch || patient?.assignedBranches?.[0] || '').trim();
+    const now = new Date();
+    const treatmentLogsCount = Array.isArray(patient?.treatmentLogs) ? patient.treatmentLogs.length : 0;
+    const radiographsCount = Array.isArray(patient?.radiographs) ? patient.radiographs.length : 0;
+    const odontogramEntries = getOdontogramEntryCount(patient?.odontogram);
+
+    const [upcomingCurrentBranchAppointments, totalUpcomingAppointments, totalAppointments, queueEntries] = await Promise.all([
+        currentBranch
+            ? Surgery.countDocuments({
+                patient: patient._id,
+                branch: currentBranch,
+                status: { $in: UPCOMING_APPOINTMENT_STATUSES },
+                isArchived: { $ne: true },
+                date: { $gte: now },
+            })
+            : 0,
+        Surgery.countDocuments({
+            patient: patient._id,
+            status: { $in: UPCOMING_APPOINTMENT_STATUSES },
+            isArchived: { $ne: true },
+            date: { $gte: now },
+        }),
+        Surgery.countDocuments({ patient: patient._id }),
+        Queue.countDocuments({ patientId: patient._id }),
+    ]);
+
+    const impactItems = [
+        buildLifecycleImpactItem('currentBranch', 'Current Assigned Branch', currentBranch ? [currentBranch] : []),
+        buildLifecycleImpactItem('targetBranch', 'Requested Target Branch', normalizedTargetBranch ? [normalizedTargetBranch] : []),
+        buildLifecycleImpactItem('upcomingCurrentBranchAppointments', 'Upcoming Appointments In Current Branch', upcomingCurrentBranchAppointments),
+        buildLifecycleImpactItem('totalUpcomingAppointments', 'Total Upcoming Appointments', totalUpcomingAppointments),
+        buildLifecycleImpactItem('totalAppointments', 'Linked Appointment History', totalAppointments),
+        buildLifecycleImpactItem('queueEntries', 'Queue History Entries', queueEntries),
+        buildLifecycleImpactItem('treatmentLogs', 'Treatment Logs', treatmentLogsCount),
+        buildLifecycleImpactItem('radiographs', 'Radiograph Records', radiographsCount),
+        buildLifecycleImpactItem('odontogramEntries', 'Odontogram Entries', odontogramEntries),
+    ].filter(Boolean);
+
+    const blockers = [];
+    const warnings = [];
+
+    if (!currentBranch) {
+        blockers.push('This patient does not have a current assigned branch yet. Fix the patient branch assignment first before transferring.');
+    }
+
+    if (normalizedTargetBranch && currentBranch && normalizedTargetBranch === currentBranch) {
+        blockers.push('Select a different target branch before submitting the transfer.');
+    }
+
+    if (upcomingCurrentBranchAppointments > 0) {
+        blockers.push(`This patient still has ${upcomingCurrentBranchAppointments} upcoming appointment${upcomingCurrentBranchAppointments === 1 ? '' : 's'} in ${currentBranch}. Resolve or move those appointments first.`);
+    }
+
+    if (totalAppointments > 0) {
+        warnings.push('Appointment history will stay tied to its original branch records. This transfer only changes future branch ownership.');
+    }
+
+    if (queueEntries > 0) {
+        warnings.push('Queue history is preserved as branch history and will not be rewritten during transfer.');
+    }
+
+    if (treatmentLogsCount > 0 || radiographsCount > 0 || odontogramEntries > 0) {
+        warnings.push('Stored EMR history stays preserved. Only the active patient branch changes.');
+    }
+
+    if (normalizedTargetBranch) {
+        warnings.push(`After transfer, patient self-booking and branch-scoped staff access will follow ${normalizedTargetBranch}.`);
+    }
+
+    return {
+        target: {
+            id: String(patient._id),
+            role: patient.role,
+            name: getLifecycleDisplayName(patient),
+            email: String(patient.email || '').trim(),
+        },
+        currentBranch,
+        targetBranch: normalizedTargetBranch,
+        metrics: {
+            upcomingCurrentBranchAppointments,
+            totalUpcomingAppointments,
+            totalAppointments,
+            queueEntries,
+            treatmentLogs: treatmentLogsCount,
+            radiographs: radiographsCount,
+            odontogramEntries,
+        },
+        impactItems,
         warnings,
         blockers,
     };
@@ -4401,6 +4509,17 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             }
         }
 
+        const currentAssignedBranch = String(currentPatient.assignedBranch || currentPatient.assignedBranches?.[0] || '').trim();
+        const requestedAssignedBranch = req.body.assignedBranch !== undefined
+            ? String(req.body.assignedBranch || '').trim()
+            : (Array.isArray(req.body.assignedBranches) ? String(req.body.assignedBranches[0] || '').trim() : currentAssignedBranch);
+        if (requestedAssignedBranch !== currentAssignedBranch) {
+            return res.status(409).json({
+                field: 'assignedBranch',
+                message: 'Patient branch reassignment must be done through the dedicated Transfer Branch action so upcoming appointments and branch ownership can be reviewed first.',
+            });
+        }
+
         // Phase 5: Secretary cannot escalate or modify sensitive user fields
         if (req.user.role === 'secretary') {
             const blockedFields = ['role', 'isVerified', 'password'];
@@ -4505,6 +4624,115 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error updating patient:', error);
         res.status(500).json({ message: "Server error." });
+    }
+});
+
+app.get('/api/patients/:id/branch-transfer-preview', verifyToken, async (req, res) => {
+    try {
+        const patient = await User.findById(req.params.id)
+            .select('name email role assignedBranch assignedBranches treatmentLogs radiographs odontogram isArchived');
+        if (!patient || patient.role !== 'patient') {
+            return res.status(404).json({ message: 'Patient not found.' });
+        }
+        if (patient.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived patient before transferring branches.' });
+        }
+
+        const permission = canTransferPatientBranch({ actor: req.user, patient });
+        if (!permission.allowed) {
+            return res.status(403).json({ message: permission.message });
+        }
+
+        const impact = await collectPatientBranchTransferImpact({
+            patient,
+            targetBranch: req.query.targetBranch,
+        });
+        res.json(impact);
+    } catch (error) {
+        console.error('Error loading patient branch transfer preview:', error);
+        res.status(500).json({ message: 'Server error loading patient branch transfer preview.' });
+    }
+});
+
+app.put('/api/patients/:id/transfer-branch', verifyToken, async (req, res) => {
+    try {
+        const patient = await User.findById(req.params.id)
+            .select('name email role assignedBranch assignedBranches treatmentLogs radiographs odontogram isArchived');
+        if (!patient || patient.role !== 'patient') {
+            return res.status(404).json({ message: 'Patient not found.' });
+        }
+        if (patient.isArchived) {
+            return res.status(409).json({ message: 'Restore this archived patient before transferring branches.' });
+        }
+
+        const permission = canTransferPatientBranch({ actor: req.user, patient });
+        if (!permission.allowed) {
+            return res.status(403).json({ message: permission.message });
+        }
+
+        const targetBranch = String(req.body.targetBranch || '').trim();
+        const reason = String(req.body.reason || '').trim();
+        const currentBranch = String(patient.assignedBranch || patient.assignedBranches?.[0] || '').trim();
+
+        if (!targetBranch) {
+            return res.status(400).json({ field: 'targetBranch', message: 'Target branch is required.' });
+        }
+        if (!reason) {
+            return res.status(400).json({ field: 'reason', message: 'Transfer reason is required.' });
+        }
+        if (!currentBranch) {
+            return res.status(409).json({ message: 'This patient does not have a current assigned branch yet. Fix the patient branch assignment first before transferring.' });
+        }
+        if (targetBranch === currentBranch) {
+            return res.status(409).json({ field: 'targetBranch', message: 'Select a different target branch before submitting the transfer.' });
+        }
+
+        const targetBranchRecord = await Branch.findOne({ name: targetBranch }).select('name isActive').lean();
+        if (!targetBranchRecord) {
+            return res.status(404).json({ field: 'targetBranch', message: 'The selected target branch does not exist.' });
+        }
+        if (!targetBranchRecord.isActive) {
+            return res.status(409).json({ field: 'targetBranch', message: 'The selected target branch is inactive and cannot receive patient transfers.' });
+        }
+
+        const impact = await collectPatientBranchTransferImpact({ patient, targetBranch });
+        if (impact.blockers.length > 0) {
+            return res.status(409).json({
+                message: 'This patient branch transfer is blocked until the listed branch issues are resolved.',
+                blockers: impact.blockers,
+                impact,
+            });
+        }
+
+        patient.assignedBranch = targetBranch;
+        patient.assignedBranches = [targetBranch];
+        await patient.save();
+
+        await AuditLog.create({
+            action: 'TRANSFER_PATIENT_BRANCH',
+            user: req.user?.email || req.user?.id || 'SYSTEM',
+            role: req.user?.role || 'SYSTEM',
+            details: `Transferred patient ${patient.email} from ${currentBranch} to ${targetBranch}. Reason: ${reason}`,
+            metadata: {
+                patientId: String(patient._id),
+                previousBranch: currentBranch,
+                newBranch: targetBranch,
+                transferredBy: req.user?.email || req.user?.id || 'SYSTEM',
+                transferredAt: new Date().toISOString(),
+                reason,
+            },
+        });
+
+        const updatedPatient = await User.findById(patient._id).select('-password');
+        res.json({
+            message: `Patient branch transferred from ${currentBranch} to ${targetBranch}.`,
+            patient: updatedPatient,
+            previousBranch: currentBranch,
+            newBranch: targetBranch,
+        });
+    } catch (error) {
+        console.error('Error transferring patient branch:', error);
+        res.status(500).json({ message: 'Server error transferring patient branch.' });
     }
 });
 
@@ -9303,7 +9531,8 @@ app.get('/api/branches', verifyToken, async (req, res) => {
         }
         let filter = {};
 
-        if (req.user.role === 'branch-manager') {
+        const isPatientTransferContext = req.query.context === 'patient-transfer';
+        if (req.user.role === 'branch-manager' && !isPatientTransferContext) {
             if (!req.user.assignedBranch) {
                 return res.status(403).json({ message: 'Access denied. No assigned branch found.' });
             }

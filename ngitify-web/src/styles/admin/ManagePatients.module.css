@@ -196,6 +196,8 @@
 .actionIconButton.editIconButton:hover { color: #92400e; background: #fde68a; border-color: #facc15; }
 .actionIconButton.warningIconButton { color: #b45309; background: #ffedd5; border-color: #fdba74; }
 .actionIconButton.warningIconButton:hover { color: #b45309; background: #fed7aa; border-color: #fb923c; }
+.actionIconButton.transferIconButton { color: #075985; background: #e0f2fe; border-color: #7dd3fc; }
+.actionIconButton.transferIconButton:hover { color: #075985; background: #bae6fd; border-color: #38bdf8; }
 .actionIconButton.deactivateIconButton { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
 .actionIconButton.deactivateIconButton:hover { color: #991b1b; background: #fecaca; border-color: #fca5a5; }
 .actionIconButton.activateIconButton { color: #166534; background: #dcfce7; border-color: #86efac; }

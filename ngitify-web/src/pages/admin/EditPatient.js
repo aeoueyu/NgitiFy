@@ -453,11 +453,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             isValid = false;
         }
 
-        if (!isBranchManager && !formData.assignedBranch) {
-            nextErrors.assignedBranch = 'Required';
-            isValid = false;
-        }
-
         const validateAddr = (address, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
                 if (!address[field]) {
@@ -604,8 +599,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             birthdate: formData.birthdate,
             gender: formData.gender,
             profileImage,
-            assignedBranch: isBranchManager ? (user.assignedBranch || undefined) : (formData.assignedBranch || undefined),
-            assignedBranches: isBranchManager ? (user.assignedBranch ? [user.assignedBranch] : []) : (formData.assignedBranch ? [formData.assignedBranch] : []),
             nationality: formData.nationality || undefined,
             religion: (formData.religion === 'Other' ? formData.religionOther.trim() : formData.religion) || undefined,
             homePhone: toLandlinePayload(formData.homePhone),
@@ -841,19 +834,14 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 <>
                                     <hr className={styles.divider} />
                                     <h3 className={styles.mainSectionTitle}>Branch Assignment</h3>
-                                    {isBranchManager ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                            <span style={{ background: '#e0f0ff', color: '#01538b', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '13px' }}>
-                                                Branch: {user.assignedBranch}
-                                            </span>
-                                            <span style={{ color: '#64748b', fontSize: '13px' }}>Auto-assigned to your branch</span>
-                                        </div>
-                                    ) : (
-                                        <div className={styles.row}>
-                                            <div className={styles.formGroup}><label>BRANCH <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.assignedBranch ? styles.errorBorder : ''}`} name="assignedBranch" value={formData.assignedBranch} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select a branch</option>{branchOptions.map((branch) => <option key={branch} value={branch}>{branch}</option>)}</select>{errors.assignedBranch && <span className={styles.errorText}>{errors.assignedBranch}</span>}</div>
-                                            <div className={styles.formGroup} />
-                                        </div>
-                                    )}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                                        <span style={{ background: '#e0f0ff', color: '#01538b', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '13px' }}>
+                                            Branch: {formData.assignedBranch || 'No branch assigned'}
+                                        </span>
+                                        <span style={{ color: '#64748b', fontSize: '13px' }}>
+                                            Branch changes are handled from the dedicated Transfer Branch action in Manage Patients.
+                                        </span>
+                                    </div>
                                 </>
                             )}
 

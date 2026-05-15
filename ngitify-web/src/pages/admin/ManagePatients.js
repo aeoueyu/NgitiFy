@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/ManagePatients.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
-import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaDownload, FaFilePdf, FaArchive, FaUndo } from 'react-icons/fa';
+import modalStyles from '../../components/common/LifecycleActionModal.module.css';
+import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaDownload, FaFilePdf, FaArchive, FaUndo, FaExchangeAlt, FaShieldAlt, FaSyncAlt } from 'react-icons/fa';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
@@ -43,6 +44,15 @@ export default function ManagePatients() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
+    const [branchTransferState, setBranchTransferState] = useState({
+        patient: null,
+        preview: null,
+        loading: false,
+        error: '',
+        targetBranch: '',
+        reason: '',
+        submitting: false,
+    });
 
     const [lifecycleConfig, setLifecycleConfig] = useState(null);
 
@@ -50,6 +60,7 @@ export default function ManagePatients() {
     const isDentist = user?.role === 'dentist';
     const isBranchManager = user?.role === 'branch-manager';
     const isBranchScopedList = isSecretary || isBranchManager;
+    const canTransferPatientBranch = canEditPatients && !isDentist && ['administrator', 'owner', 'branch-manager', 'secretary'].includes(user?.role);
 
     useEffect(() => {
         if (location.state?.openAddModal && canEditPatients) {
@@ -60,7 +71,7 @@ export default function ManagePatients() {
 
     const fetchBranches = useCallback(async () => {
         try {
-            const res = await authFetch('/branches');
+            const res = await authFetch('/branches?context=patient-transfer');
             if (res.ok) {
                 const data = await res.json();
                 setBranchOptions(data.map((branch) => branch.name));
@@ -313,6 +324,138 @@ export default function ManagePatients() {
         setIsViewModalOpen(true);
     };
 
+    useEffect(() => {
+        if (!branchTransferState.patient?.id) return undefined;
+
+        let cancelled = false;
+        const loadPreview = async () => {
+            setBranchTransferState((prev) => ({
+                ...prev,
+                loading: true,
+                error: '',
+            }));
+
+            try {
+                const query = branchTransferState.targetBranch
+                    ? `?targetBranch=${encodeURIComponent(branchTransferState.targetBranch)}`
+                    : '';
+                const res = await authFetch(`/patients/${branchTransferState.patient.id}/branch-transfer-preview${query}`);
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    if (!cancelled) {
+                        setBranchTransferState((prev) => ({
+                            ...prev,
+                            preview: null,
+                            loading: false,
+                            error: data.message || 'Failed to load branch transfer preview.',
+                        }));
+                    }
+                    return;
+                }
+
+                if (!cancelled) {
+                    setBranchTransferState((prev) => ({
+                        ...prev,
+                        preview: data,
+                        loading: false,
+                        error: '',
+                    }));
+                }
+            } catch (error) {
+                console.error('Failed to load patient branch transfer preview:', error);
+                if (!cancelled) {
+                    setBranchTransferState((prev) => ({
+                        ...prev,
+                        preview: null,
+                        loading: false,
+                        error: 'Network error loading branch transfer preview.',
+                    }));
+                }
+            }
+        };
+
+        loadPreview();
+        return () => {
+            cancelled = true;
+        };
+    }, [branchTransferState.patient?.id, branchTransferState.targetBranch]);
+
+    const openBranchTransferModal = (patient) => {
+        setBranchTransferState({
+            patient,
+            preview: null,
+            loading: true,
+            error: '',
+            targetBranch: '',
+            reason: '',
+            submitting: false,
+        });
+    };
+
+    const closeBranchTransferModal = () => {
+        setBranchTransferState({
+            patient: null,
+            preview: null,
+            loading: false,
+            error: '',
+            targetBranch: '',
+            reason: '',
+            submitting: false,
+        });
+    };
+
+    const handleSubmitBranchTransfer = async () => {
+        const patient = branchTransferState.patient;
+        if (!patient) return;
+
+        if (!branchTransferState.targetBranch) {
+            addToast('Please select the target branch.', 'error');
+            return;
+        }
+        if (!branchTransferState.reason.trim()) {
+            addToast('Please provide a transfer reason.', 'error');
+            return;
+        }
+
+        setBranchTransferState((prev) => ({ ...prev, submitting: true }));
+        try {
+            const res = await authFetch(`/patients/${patient.id}/transfer-branch`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    targetBranch: branchTransferState.targetBranch,
+                    reason: branchTransferState.reason.trim(),
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                setBranchTransferState((prev) => ({
+                    ...prev,
+                    submitting: false,
+                    preview: data.impact || prev.preview,
+                    error: data.message || 'Failed to transfer patient branch.',
+                }));
+                addToast(data.message || 'Failed to transfer patient branch.', 'error');
+                return;
+            }
+
+            setPatientsList((prevList) => prevList.map((entry) => (
+                entry.id === patient.id
+                    ? {
+                        ...entry,
+                        assignedBranch: data.patient?.assignedBranch || branchTransferState.targetBranch,
+                    }
+                    : entry
+            )));
+            addToast(data.message || `Transferred ${patient.name} to ${branchTransferState.targetBranch}.`, 'success');
+            closeBranchTransferModal();
+        } catch (error) {
+            console.error('Error transferring patient branch:', error);
+            setBranchTransferState((prev) => ({ ...prev, submitting: false, error: 'Cannot connect to server.' }));
+            addToast('Cannot connect to server.', 'error');
+        }
+    };
+
     const openPatientRecord = (id) => {
         if (!id) return;
 
@@ -470,7 +613,7 @@ export default function ManagePatients() {
                             <th style={{ width: '34%' }}>Name</th>
                             <th>Email Address</th>
                             <th style={{ width: '110px' }}>Status</th>
-                            <th style={{ width: '168px', textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '208px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -531,6 +674,17 @@ export default function ManagePatients() {
                                                     </button>
                                                     {!isDentist && (
                                                         <>
+                                                            {canTransferPatientBranch && (
+                                                                <button
+                                                                    type="button"
+                                                                    className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.transferIconButton}`}
+                                                                    onClick={() => openBranchTransferModal(patient)}
+                                                                    title={isArchivedRecord ? 'Restore before transferring branches' : 'Transfer Branch'}
+                                                                    disabled={isArchivedRecord}
+                                                                >
+                                                                    <FaExchangeAlt />
+                                                                </button>
+                                                            )}
                                                             <button
                                                                 type="button"
                                                                 className={`${styles.actionIconButton} ${tblStyles.iconAction} ${statusKey !== 'active' ? styles.activateIconButton : styles.deactivateIconButton}`}
@@ -578,6 +732,135 @@ export default function ManagePatients() {
                 />
             )}
             {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}
+
+            {branchTransferState.patient && (
+                <div className={modalStyles.modalOverlay} onClick={closeBranchTransferModal}>
+                    <div className={modalStyles.modalCard} onClick={(event) => event.stopPropagation()}>
+                        <div className={modalStyles.header}>
+                            <div className={modalStyles.iconShell}>
+                                {branchTransferState.preview?.blockers?.length ? <FaShieldAlt /> : <FaExchangeAlt />}
+                            </div>
+                            <div>
+                                <h3 className={modalStyles.modalTitle}>Transfer Patient Branch</h3>
+                                <p className={modalStyles.modalMessage}>
+                                    Review the branch impact for {branchTransferState.patient.name} before moving them to a different clinic branch.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className={modalStyles.section}>
+                            <h4 className={modalStyles.sectionTitle}>Transfer Details</h4>
+                            <label className={modalStyles.label}>
+                                Target Branch
+                                <select
+                                    className={modalStyles.selectField}
+                                    value={branchTransferState.targetBranch}
+                                    onChange={(event) => setBranchTransferState((prev) => ({ ...prev, targetBranch: event.target.value }))}
+                                    disabled={branchTransferState.submitting}
+                                >
+                                    <option value="">Select a target branch</option>
+                                    {branchOptions
+                                        .filter((branch) => branch !== (branchTransferState.preview?.currentBranch || branchTransferState.patient.assignedBranch))
+                                        .map((branch) => (
+                                            <option key={branch} value={branch}>{branch}</option>
+                                        ))}
+                                </select>
+                            </label>
+                            <label className={modalStyles.label}>
+                                Transfer Reason
+                                <textarea
+                                    className={modalStyles.textareaField}
+                                    value={branchTransferState.reason}
+                                    onChange={(event) => setBranchTransferState((prev) => ({ ...prev, reason: event.target.value }))}
+                                    placeholder="Explain why this patient is being transferred to another branch."
+                                    disabled={branchTransferState.submitting}
+                                />
+                            </label>
+                        </div>
+
+                        <div className={modalStyles.section}>
+                            <h4 className={modalStyles.sectionTitle}>Impact Preview</h4>
+                            {branchTransferState.loading ? (
+                                <div className={modalStyles.loadingBox}>
+                                    <FaSyncAlt className={modalStyles.spinning} />
+                                    <span>Loading branch transfer impact...</span>
+                                </div>
+                            ) : branchTransferState.error ? (
+                                <div className={modalStyles.errorBox}>{branchTransferState.error}</div>
+                            ) : (
+                                <>
+                                    {Array.isArray(branchTransferState.preview?.blockers) && branchTransferState.preview.blockers.length > 0 && (
+                                        <div className={modalStyles.blockerBox}>
+                                            <strong>Transfer blocked</strong>
+                                            <ul className={modalStyles.messageList}>
+                                                {branchTransferState.preview.blockers.map((entry) => (
+                                                    <li key={entry}>{entry}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {Array.isArray(branchTransferState.preview?.warnings) && branchTransferState.preview.warnings.length > 0 && (
+                                        <div className={modalStyles.warningBox}>
+                                            <strong>Review carefully</strong>
+                                            <ul className={modalStyles.messageList}>
+                                                {branchTransferState.preview.warnings.map((entry) => (
+                                                    <li key={entry}>{entry}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {Array.isArray(branchTransferState.preview?.impactItems) && branchTransferState.preview.impactItems.length > 0 ? (
+                                        <div className={modalStyles.impactGrid}>
+                                            {branchTransferState.preview.impactItems.map((item) => (
+                                                <div key={item.key} className={modalStyles.impactCard}>
+                                                    <span className={modalStyles.impactLabel}>{item.label}</span>
+                                                    {item.valueType === 'list' ? (
+                                                        <div className={modalStyles.tagList}>
+                                                            {item.value.map((entry) => (
+                                                                <span key={`${item.key}-${entry}`} className={modalStyles.tag}>
+                                                                    {entry}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <strong className={modalStyles.impactValue}>{item.value}</strong>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className={modalStyles.clearBox}>
+                                            No linked branch impact was found for this patient.
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        <div className={modalStyles.modalButtonGroup}>
+                            <button className={modalStyles.cancelBtn} onClick={closeBranchTransferModal} disabled={branchTransferState.submitting}>
+                                Cancel
+                            </button>
+                            <button
+                                className={modalStyles.primaryBtn}
+                                onClick={handleSubmitBranchTransfer}
+                                disabled={
+                                    branchTransferState.loading
+                                    || branchTransferState.submitting
+                                    || !branchTransferState.targetBranch
+                                    || !branchTransferState.reason.trim()
+                                    || Boolean(branchTransferState.error)
+                                    || (branchTransferState.preview?.blockers?.length > 0)
+                                }
+                            >
+                                {branchTransferState.submitting ? 'Transferring...' : 'Confirm Transfer'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <LifecycleActionModal
                 isOpen={!!lifecycleConfig}
