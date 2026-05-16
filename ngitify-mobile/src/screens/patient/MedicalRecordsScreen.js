@@ -291,7 +291,7 @@ function OdontogramTab({ data, loading, error, onRetry }) {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
                 <Text style={styles.odontogramTitle}>Odontogram</Text>
-                <Text style={styles.odontogramSub}>FDI Notation  Â·  Read-only</Text>
+                <Text style={styles.odontogramSub}>FDI Notation  -  Read-only</Text>
 
                 {!hasData && (
                     <View style={styles.odontogramEmpty}>
@@ -347,6 +347,7 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
     if (loading) return <LoadingState />;
     if (error)   return <ErrorState message={error} onRetry={onRetry} />;
 
+    const [selectedTooth, setSelectedTooth] = useState(null);
     const hasData = Object.keys(data).length > 0;
     const normalizeStatusKey = (value) => {
         const normalized = String(value || '').trim().toLowerCase();
@@ -485,10 +486,10 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
         const meta = getStatusMeta(toothData.status);
         const highlightedSurfaces = getHighlightedSurfaces(toothData.status, toothData.surfaces);
         const surfacePositions = getSurfacePositionMap(num);
-        const showBadges = toothData.status !== 'healthy';
+        const isSelected = selectedTooth === num;
 
         return (
-            <View style={styles.toothFigure}>
+            <TouchableOpacity style={[styles.toothFigure, isSelected && styles.toothFigureSelected]} activeOpacity={0.82} onPress={() => setSelectedTooth(num)}>
                 <Text style={styles.toothNum}>{num}</Text>
                 <Svg width={42} height={58} viewBox="0 0 72 100" style={styles.toothSvg}>
                     <Path
@@ -514,27 +515,18 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
                     <RootShape toothNumber={num} stroke={meta.stroke} />
                     <StatusOverlay statusKey={toothData.status} accent={meta.accent} stroke={meta.stroke} />
                 </Svg>
-
-                {showBadges && (
-                    <View style={[styles.toothStatusPill, { backgroundColor: meta.badgeBg, borderColor: meta.stroke }]}>
-                        <Text style={[styles.toothStatusText, { color: meta.badgeText }]} numberOfLines={2}>
-                            {toothData.statusLabel}
-                        </Text>
-                    </View>
-                )}
-
-                {toothData.surfaces.length > 0 && (
-                    <View style={styles.toothSurfaceRow}>
-                        {toothData.surfaces.map((surfaceCode) => (
-                            <View key={`${num}-${surfaceCode}-badge`} style={styles.toothSurfaceBadge}>
-                                <Text style={styles.toothSurfaceBadgeText}>{surfaceCode}</Text>
-                            </View>
-                        ))}
-                    </View>
-                )}
-            </View>
+                <Text style={[styles.toothTapHint, isSelected && styles.toothTapHintSelected]}>
+                    {isSelected ? 'Selected' : 'Tap'}
+                </Text>
+            </TouchableOpacity>
         );
     };
+
+    const selectedToothData = selectedTooth ? normalizeToothData(data[String(selectedTooth)]) : null;
+    const selectedToothMeta = selectedToothData ? getStatusMeta(selectedToothData.status) : null;
+    const selectedSurfaceSummary = selectedToothData?.surfaces?.length
+        ? selectedToothData.surfaces.map((surfaceCode) => `${surfaceCode} - ${SURFACE_LABELS[surfaceCode] || surfaceCode}`).join(', ')
+        : 'Whole tooth or no specific surface recorded.';
 
     const JawRow = ({ teeth }) => (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.jawScroll}>
@@ -550,7 +542,7 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
                 <Text style={styles.odontogramTitle}>Odontogram</Text>
-                <Text style={styles.odontogramSub}>Surface-based 2D odontogram Â· FDI notation Â· Read-only</Text>
+                <Text style={styles.odontogramSub}>Surface-based 2D odontogram · FDI notation · Tap a tooth to view its status</Text>
 
                 {!hasData && (
                     <View style={styles.odontogramEmpty}>
@@ -567,6 +559,20 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
 
                 <JawRow teeth={[LOWER_RIGHT, LOWER_LEFT]} />
                 <Text style={styles.jawLabel}>Lower Jaw</Text>
+
+                {selectedTooth && selectedToothData && selectedToothMeta ? (
+                    <View style={[styles.selectedToothCard, { backgroundColor: selectedToothMeta.badgeBg, borderColor: selectedToothMeta.stroke }]}>
+                        <Text style={styles.selectedToothEyebrow}>Selected Tooth</Text>
+                        <Text style={[styles.selectedToothTitle, { color: selectedToothMeta.badgeText }]}>
+                            Tooth {selectedTooth} - {selectedToothData.statusLabel}
+                        </Text>
+                        <Text style={styles.selectedToothBody}>{selectedSurfaceSummary}</Text>
+                    </View>
+                ) : (
+                    <View style={styles.selectedToothPlaceholder}>
+                        <Text style={styles.selectedToothPlaceholderText}>Tap any tooth above to view its recorded status and surfaces.</Text>
+                    </View>
+                )}
             </View>
 
             <Text style={styles.legendTitle}>Legend</Text>
@@ -1042,9 +1048,12 @@ const styles = StyleSheet.create({
     jawRow:       { flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'flex-start' },
     midline:      { width: 2, height: 74, backgroundColor: '#dbe6ef', marginHorizontal: 6, marginTop: 8, borderRadius: 999 },
     jawDivider:   { height: 1, backgroundColor: '#e0e7ef', marginVertical: 8 },
-    toothFigure:  { width: 52, alignItems: 'center', marginHorizontal: 2 },
+    toothFigure:  { width: 52, alignItems: 'center', marginHorizontal: 2, paddingVertical: 4, borderRadius: 14 },
+    toothFigureSelected: { backgroundColor: 'rgba(1,83,139,0.08)' },
     toothSvg:     { marginBottom: 6 },
     toothNum:     { fontSize: 10, fontWeight: '800', color: mobileTheme.colors.textSoft, marginBottom: 4 },
+    toothTapHint: { fontSize: 9, fontWeight: '800', color: mobileTheme.colors.textSoft, textTransform: 'uppercase' },
+    toothTapHintSelected: { color: mobileTheme.colors.primaryDark },
     toothStatusPill: { minHeight: 28, minWidth: 40, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
     toothStatusText: { fontSize: 8, fontWeight: '800', textAlign: 'center', lineHeight: 10 },
     toothSurfaceRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4, marginTop: 5 },
@@ -1060,6 +1069,12 @@ const styles = StyleSheet.create({
     surfaceKeyBubble: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(1,83,139,0.08)', alignItems: 'center', justifyContent: 'center' },
     surfaceKeyBubbleText: { fontSize: 10, fontWeight: '800', color: mobileTheme.colors.primary },
     surfaceKeyItemText: { fontSize: 11, color: mobileTheme.colors.textMuted },
+    selectedToothCard: { marginTop: 16, borderWidth: 1, borderRadius: 16, padding: 14 },
+    selectedToothEyebrow: { fontSize: 11, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 6 },
+    selectedToothTitle: { fontSize: 15, fontWeight: '800', marginBottom: 6 },
+    selectedToothBody: { fontSize: 12, lineHeight: 18, color: mobileTheme.colors.textMuted },
+    selectedToothPlaceholder: { marginTop: 16, backgroundColor: mobileTheme.colors.surfaceAlt, borderRadius: 16, padding: 14 },
+    selectedToothPlaceholderText: { fontSize: 12, lineHeight: 18, color: mobileTheme.colors.textSoft, textAlign: 'center' },
     readOnlyBanner: { backgroundColor: mobileTheme.colors.primarySoft, padding: 12, borderRadius: 14, alignItems: 'center' },
     readOnlyText:   { fontSize: 12, color: mobileTheme.colors.primaryDark },
 
@@ -1094,4 +1109,7 @@ const styles = StyleSheet.create({
     checklistItem: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: mobileTheme.colors.surfaceAlt, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9 },
     checklistText: { flex: 1, fontSize: 12, color: mobileTheme.colors.textMuted },
 });
+
+
+
 

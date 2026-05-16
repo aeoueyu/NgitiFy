@@ -78,7 +78,7 @@ const normalizeOdontogramEntry = (rawEntry) => {
     };
 };
 
-function ToothRow({ title, teeth, data }) {
+function ToothRow({ title, teeth, data, selectedTooth, onSelectTooth }) {
     return (
         <div style={{ marginBottom: '16px' }}>
             <span className={styles.sectionEyebrow}>{title}</span>
@@ -93,32 +93,33 @@ function ToothRow({ title, teeth, data }) {
                 {teeth.map((toothNumber) => {
                     const entry = normalizeOdontogramEntry(data[String(toothNumber)]);
                     const meta = STATUS_META[entry.statusKey] || STATUS_META.healthy;
+                    const isSelected = selectedTooth === toothNumber;
                     return (
-                        <div
+                        <button
                             key={toothNumber}
+                            type="button"
+                            onClick={() => onSelectTooth(toothNumber)}
+                            aria-pressed={isSelected}
+                            title={`View tooth ${toothNumber}`}
                             style={{
                                 borderRadius: '16px',
-                                border: `1px solid ${meta.border}`,
+                                border: `1px solid ${isSelected ? meta.color : meta.border}`,
                                 background: meta.background,
                                 padding: '12px 10px',
-                                minHeight: '92px',
+                                minHeight: '76px',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'space-between',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                boxShadow: isSelected ? `0 0 0 2px ${meta.border}` : 'none',
                             }}
                         >
-                            <strong style={{ color: meta.color, fontSize: '14px' }}>{toothNumber}</strong>
-                            <div>
-                                <p style={{ margin: '0 0 6px', color: meta.color, fontSize: '11px', fontWeight: 700, lineHeight: 1.4 }}>
-                                    {entry.label}
-                                </p>
-                                {entry.surfaces.length ? (
-                                    <p style={{ margin: 0, color: '#64748b', fontSize: '10px' }}>
-                                        {entry.surfaces.join(', ')}
-                                    </p>
-                                ) : null}
-                            </div>
-                        </div>
+                            <strong style={{ color: meta.color, fontSize: '14px', marginBottom: '6px' }}>{toothNumber}</strong>
+                            <span style={{ color: '#64748b', fontSize: '10px', fontWeight: 700 }}>
+                                {isSelected ? 'Selected' : 'Tap to view'}
+                            </span>
+                        </button>
                     );
                 })}
             </div>
@@ -135,6 +136,7 @@ export default function PatientMedicalRecords() {
     const [radiographs, setRadiographs] = useState([]);
     const [treatmentLogs, setTreatmentLogs] = useState([]);
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
+    const [selectedTooth, setSelectedTooth] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -201,6 +203,15 @@ export default function PatientMedicalRecords() {
         ['Current Medications', profile?.medicalHistory?.medications?.join(', ') || 'Not specified'],
     ]), [profile]);
 
+    const selectedToothEntry = useMemo(() => {
+        if (!selectedTooth) return null;
+        return normalizeOdontogramEntry(odontogram?.[String(selectedTooth)]);
+    }, [odontogram, selectedTooth]);
+
+    const selectedToothMeta = selectedToothEntry
+        ? (STATUS_META[selectedToothEntry.statusKey] || STATUS_META.healthy)
+        : null;
+
     return (
         <PatientPageFrame
             title="My EMR"
@@ -245,20 +256,46 @@ export default function PatientMedicalRecords() {
                             <PatientSectionHeader
                                 eyebrow="Read-only"
                                 title="Odontogram"
-                                description="A patient-facing summary of the odontogram recorded by your clinic."
+                                description="Tap a tooth to view its recorded status. Patients cannot edit the odontogram."
                             />
                             {Object.keys(odontogram || {}).length ? (
                                 <>
-                                    <ToothRow title="Upper Right" teeth={UPPER_RIGHT} data={odontogram} />
-                                    <ToothRow title="Upper Left" teeth={UPPER_LEFT} data={odontogram} />
-                                    <ToothRow title="Lower Right" teeth={LOWER_RIGHT} data={odontogram} />
-                                    <ToothRow title="Lower Left" teeth={LOWER_LEFT} data={odontogram} />
+                                    {selectedTooth && selectedToothEntry && selectedToothMeta ? (
+                                        <article
+                                            className={styles.summaryCard}
+                                            style={{
+                                                marginBottom: '18px',
+                                                background: selectedToothMeta.background,
+                                                borderColor: selectedToothMeta.border,
+                                            }}
+                                        >
+                                            <span className={styles.infoLabel}>Selected Tooth</span>
+                                            <p className={styles.infoValue} style={{ color: selectedToothMeta.color, fontWeight: 800, marginBottom: '10px' }}>
+                                                Tooth {selectedTooth} - {selectedToothEntry.label}
+                                            </p>
+                                            <span className={styles.infoLabel}>Recorded Surfaces</span>
+                                            <p className={styles.infoValue}>
+                                                {selectedToothEntry.surfaces.length
+                                                    ? selectedToothEntry.surfaces.join(', ')
+                                                    : 'Whole tooth or no specific surface recorded.'}
+                                            </p>
+                                        </article>
+                                    ) : (
+                                        <article className={styles.summaryCard} style={{ marginBottom: '18px' }}>
+                                            <span className={styles.infoLabel}>Tooth Status Viewer</span>
+                                            <p className={styles.infoValue}>Select any tooth below to view its recorded condition.</p>
+                                        </article>
+                                    )}
+                                    <ToothRow title="Upper Right" teeth={UPPER_RIGHT} data={odontogram} selectedTooth={selectedTooth} onSelectTooth={setSelectedTooth} />
+                                    <ToothRow title="Upper Left" teeth={UPPER_LEFT} data={odontogram} selectedTooth={selectedTooth} onSelectTooth={setSelectedTooth} />
+                                    <ToothRow title="Lower Right" teeth={LOWER_RIGHT} data={odontogram} selectedTooth={selectedTooth} onSelectTooth={setSelectedTooth} />
+                                    <ToothRow title="Lower Left" teeth={LOWER_LEFT} data={odontogram} selectedTooth={selectedTooth} onSelectTooth={setSelectedTooth} />
                                 </>
                             ) : (
                                 <PatientEmptyState
                                     icon={<FaTooth />}
                                     title="No odontogram recorded yet"
-                                    message="Your dentist will update this dental chart after an examination or treatment visit."
+                                    message="Your dentist will update this odontogram after an examination or treatment visit."
                                 />
                             )}
                         </section>

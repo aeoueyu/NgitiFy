@@ -246,6 +246,7 @@ export default function PatientEMR({
     const { addToast } = useToast();
     const effectiveRole = roleOverride || user?.role || 'administrator';
     const isReadOnly = forceReadOnly || effectiveRole === 'secretary';
+    const canEditOdontogram = effectiveRole === 'dentist';
     const radiographUploadsEnabled = systemConfig?.featureToggles?.radiographUploads !== false;
     const canEditMedical = !isReadOnly;
     const canAddTreatmentLog = !isReadOnly;
@@ -1900,6 +1901,11 @@ export default function PatientEMR({
     };
 
     const handleAIEnhance = async () => {
+        if (!canEnhanceRadiograph) {
+            addToast('Only dentists can use the AI image enhancer for radiographs.', 'error');
+            return;
+        }
+
         if (!selectedRadiograph?.id) {
             addToast('Select a radiograph first.', 'error');
             return;
@@ -2063,9 +2069,11 @@ export default function PatientEMR({
     const renderOdontogram = () => (
         <div className={styles.contentCard}>
             <div className={styles.sectionHeaderRow}>
-                <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Interactive Odontogram</h3>
+                <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>
+                    {canEditOdontogram ? 'Interactive Odontogram' : 'Odontogram'}
+                </h3>
             </div>
-            <Odontogram patientId={activePatientId} /> 
+            <Odontogram patientId={activePatientId} readOnly={!canEditOdontogram} /> 
         </div>
     );
 
