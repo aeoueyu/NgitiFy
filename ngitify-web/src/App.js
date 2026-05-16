@@ -25,6 +25,8 @@ const ActivateAccountPage = lazy(() => import('./pages/auth/ActivateAccountPage'
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const SchedulePage = lazy(() => import('./pages/shared/SchedulePage'));
 const PatientEMRPage = lazy(() => import('./pages/shared/PatientEMRPage'));
+const SharedActivityLogsPage = lazy(() => import('./pages/shared/ActivityLogsPage'));
+const SharedNotificationsPage = lazy(() => import('./pages/shared/NotificationsPage'));
 const ManageDentists = lazy(() => import('./pages/admin/ManageDentists'));
 const ManageSecretaries = lazy(() => import('./pages/admin/ManageSecretaries'));
 const ManagePatients = lazy(() => import('./pages/admin/ManagePatients'));
@@ -94,11 +96,9 @@ const PatientAppointments = lazy(() => import('./pages/patient/PatientAppointmen
 const PatientBooking = lazy(() => import('./pages/patient/PatientBooking'));
 const PatientMedicalRecords = lazy(() => import('./pages/patient/PatientMedicalRecords'));
 const PatientOralCare = lazy(() => import('./pages/patient/PatientOralCare'));
-const PatientNotifications = lazy(() => import('./pages/patient/PatientNotifications'));
 const PatientProfile = lazy(() => import('./pages/patient/PatientProfile'));
 const PatientEditProfile = lazy(() => import('./pages/patient/PatientEditProfile'));
 const PatientSettings = lazy(() => import('./pages/patient/PatientSettings'));
-const PatientActivityLogs = lazy(() => import('./pages/patient/PatientActivityLogs'));
 const PatientAiCompanion = lazy(() => import('./pages/patient/PatientAiCompanion'));
 const PatientChatbot = lazy(() => import('./pages/patient/PatientChatbot'));
 
@@ -146,11 +146,11 @@ function App() {
                   <Route path="/patient/book" element={<PatientBooking />} />
                   <Route path="/patient/records" element={<PatientMedicalRecords />} />
                   <Route path="/patient/oral-care" element={<PatientOralCare />} />
-                  <Route path="/patient/notifications" element={<PatientNotifications />} />
+                  <Route path="/patient/notifications" element={<SharedNotificationsPage />} />
                   <Route path="/patient/profile" element={<PatientProfile />} />
                   <Route path="/patient/profile/edit" element={<PatientEditProfile />} />
                   <Route path="/patient/settings" element={<PatientSettings />} />
-                  <Route path="/patient/activity-logs" element={<PatientActivityLogs />} />
+                  <Route path="/patient/activity-logs" element={<SharedActivityLogsPage />} />
                   <Route path="/patient/ai-companion" element={<PatientAiCompanion />} />
                   <Route path="/patient/chatbot" element={<PatientChatbot />} />
                 </Route>
