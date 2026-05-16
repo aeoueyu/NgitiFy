@@ -663,12 +663,6 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             });
         }
 
-        if (hasExpiredTemporaryPassword(user)) {
-            user.status = 'inactive';
-            await user.save();
-            return res.status(403).json({ message: "Your temporary password has expired and your account has been deactivated. Please contact an administrator to reissue access." });
-        }
-
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             const failed = registerFailedLoginAttempt(normalizedEmail, req);
@@ -717,10 +711,45 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     }
 });
 
+app.get('/api/activate-account/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        if (!token) return res.status(400).json({ message: "No token provided." });
+
+        const account = await User.findOne({ activationToken: token });
+
+        if (!account) return res.status(400).json({ message: "Invalid or expired activation link." });
+
+        res.json({
+            message: 'Activation link is valid.',
+            email: account.email,
+            role: account.role,
+        });
+    } catch (error) {
+        console.error("Activation validation error:", error);
+        res.status(500).json({ message: "Server error during activation validation." });
+    }
+});
+
 app.post('/api/activate-account', async (req, res) => {
     try {
-        const { token } = req.body;
+        const { token, newPassword } = req.body;
         if (!token) return res.status(400).json({ message: "No token provided." });
+        if (!newPassword) return res.status(400).json({ message: "A new password is required." });
+
+        const passwordChecks = {
+            length: newPassword.length >= 8,
+            upper: /[A-Z]/.test(newPassword),
+            lower: /[a-z]/.test(newPassword),
+            number: /[0-9]/.test(newPassword),
+            special: /[!@#$%^&*(),.?\":{}|<>]/.test(newPassword),
+        };
+
+        if (!Object.values(passwordChecks).every(Boolean)) {
+            return res.status(400).json({
+                message: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+            });
+        }
 
         const account = await User.findOne({ activationToken: token });
 
@@ -728,6 +757,11 @@ app.post('/api/activate-account', async (req, res) => {
 
         account.isVerified = true;
         account.status = 'active';
+        account.password = await bcrypt.hash(newPassword, 10);
+        account.isPasswordChanged = true;
+        account.temporaryPasswordExpires = null;
+        account.resetPasswordOtp = undefined;
+        account.resetPasswordExpires = undefined;
         if (account.assignedBranch && (!Array.isArray(account.assignedBranches) || account.assignedBranches.length === 0)) {
             account.assignedBranches = [account.assignedBranch];
         }
@@ -738,7 +772,7 @@ app.post('/api/activate-account', async (req, res) => {
         await account.save();
 
         res.json({ 
-            message: "Account activated successfully!",
+            message: "Account activated successfully. Your password is now set.",
             role: account.role
         });
     } catch (error) {
@@ -833,13 +867,14 @@ const formatConfiguredEmailCopy = (value = '', fallback = '') => {
 
 const getSystemEmailTemplates = async () => (await getNormalizedSystemConfig()).emailTemplates;
 
-const sendActivationEmail = async (email, role, tempPassword, activationLink) => {
+const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, activationLink = '') => {
     const clinic = await getClinicContactDetails();
     const emailTemplates = await getSystemEmailTemplates();
     const activationCopy = formatConfiguredEmailCopy(
         emailTemplates?.activation,
         DEFAULT_SYSTEM_EMAIL_TEMPLATES.activation
     );
+    const resolvedActivationLink = activationLink || tempPasswordOrActivationLink || '';
 
     await resend.emails.send({
         from: 'NgitiFy Admin <noreply@ngitify.com>',
@@ -848,20 +883,15 @@ const sendActivationEmail = async (email, role, tempPassword, activationLink) =>
         html: buildDentimeEmailTemplate({
             clinic,
             title: 'Welcome to NgitiFy',
-            intro: 'Please review your account details and activate your access to continue.',
+            intro: 'Please activate your account and create your password to continue.',
             bodyHtml: `
                 <p style="margin:0 0 14px 0;">Hello,</p>
                 ${activationCopy ? `<p style="margin:0 0 14px 0;">${activationCopy}</p>` : ''}
                 <p style="margin:0 0 14px 0;">Your <strong>${role}</strong> account has been successfully created.</p>
-                ${tempPassword ? `
-                    <div style="background:#f4fbff;border:1px solid #cfeffc;border-radius:16px;padding:16px;margin:18px 0;">
-                        <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#01538b;margin-bottom:8px;">Temporary Password</div>
-                        <div style="font-size:20px;font-weight:800;color:#0f172a;">${tempPassword}</div>
-                    </div>
-                ` : ''}
+                <p style="margin:0;">Use the button below to verify your email address and set your own password.</p>
             `,
             ctaLabel: 'Activate Account',
-            ctaUrl: activationLink,
+            ctaUrl: resolvedActivationLink,
         }),
     });
 };
@@ -892,6 +922,24 @@ const issueTemporaryPasswordForAccount = async (account) => {
     };
 };
 
+const issueActivationSetupForAccount = async (account) => {
+    const seededPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+    const activationToken = crypto.randomBytes(32).toString('hex');
+    account.password = seededPassword;
+    account.activationToken = activationToken;
+    account.isVerified = false;
+    account.status = 'inactive';
+    account.isPasswordChanged = false;
+    account.temporaryPasswordExpires = null;
+    account.resetPasswordOtp = undefined;
+    account.resetPasswordExpires = undefined;
+
+    return {
+        activationToken,
+        activationLink: `${process.env.FRONTEND_URL}/activate-account/${activationToken}`,
+    };
+};
+
 const sendAccessReissueEmail = async (email, role, tempPassword, activationLink = '') => {
     const clinic = await getClinicContactDetails();
     const needsActivation = Boolean(activationLink);
@@ -900,29 +948,20 @@ const sendAccessReissueEmail = async (email, role, tempPassword, activationLink 
         from: 'NgitiFy Admin <noreply@ngitify.com>',
         to: email,
         subject: needsActivation
-            ? 'NgitiFy Access Reissued - Activate Your Account'
+            ? 'NgitiFy Access Reissued - Set Your Password'
             : 'NgitiFy Access Reissued',
         html: buildDentimeEmailTemplate({
             clinic,
             title: 'Access Reissued',
             intro: needsActivation
-                ? 'An administrator reissued your account access. Please activate your account again, then sign in with the temporary password below.'
-                : 'An administrator reissued your account access. Use the temporary password below to sign in and change your password immediately.',
+                ? 'An administrator reissued your account access. Please activate your account again and create a new password.'
+                : 'An administrator reissued your account access. Please use the button below to create a new password.',
             bodyHtml: `
                 <p style="margin:0 0 14px 0;">Hello,</p>
                 <p style="margin:0 0 14px 0;">Your <strong>${role}</strong> account access has been reissued.</p>
-                <div style="background:#f4fbff;border:1px solid #cfeffc;border-radius:16px;padding:16px;margin:18px 0;">
-                    <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#01538b;margin-bottom:8px;">Temporary Password</div>
-                    <div style="font-size:20px;font-weight:800;color:#0f172a;">${tempPassword}</div>
-                </div>
-                <p style="margin:0 0 14px 0;">This temporary password will expire in 7 days.</p>
-                <p style="margin:0;">
-                    ${needsActivation
-                        ? 'Activate your account first, then sign in and change your password right away.'
-                        : 'Sign in and change your password right away.'}
-                </p>
+                <p style="margin:0;">Use the button below to verify your email and set a fresh password.</p>
             `,
-            ctaLabel: needsActivation ? 'Activate Account' : '',
+            ctaLabel: activationLink ? 'Set Password' : '',
             ctaUrl: activationLink,
         }),
     });
@@ -2674,19 +2713,14 @@ const provisionGuestPatientAccountForAppointment = async ({ surgery, actor }) =>
 const sendPatientActivationLink = async (patient) => {
     if (!patient || patient.role !== 'patient') return null;
 
-    const activationToken = crypto.randomBytes(32).toString('hex');
-    patient.activationToken = activationToken;
-    patient.temporaryPasswordExpires = new Date(Date.now() + TEMP_PASSWORD_EXPIRY_MS);
-    patient.isVerified = false;
-    patient.status = 'inactive';
+    const { activationToken, activationLink } = await issueActivationSetupForAccount(patient);
     await patient.save();
 
-    const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-    await sendActivationEmail(patient.email, 'Patient', null, activationLink);
+    await sendActivationEmail(patient.email, 'Patient', activationLink);
 
     return {
         activationToken,
-        temporaryPasswordExpires: patient.temporaryPasswordExpires,
+        temporaryPasswordExpires: null,
     };
 };
 
@@ -4231,10 +4265,8 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
             ? [req.user.assignedBranch]
             : (otherData.assignedBranches || []);
 
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         const normalizedOtherData = withLegacyAddressMirrors(
             { ...otherData },
@@ -4251,7 +4283,8 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
             isVerified: false,
             status: 'inactive',
             activationToken,
-            temporaryPasswordExpires
+            temporaryPasswordExpires: null,
+            isPasswordChanged: false,
         });
 
         await newUser.save();
@@ -4266,7 +4299,7 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Dentist', tempPassword, activationLink);
+            await sendActivationEmail(email, 'Dentist', activationLink);
             console.log(`✅ Dentist Added & Email Sent: ${email}`);
             res.status(201).json({ message: 'Dentist added successfully. Activation email sent.' });
         } catch (emailError) {
@@ -4297,10 +4330,8 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
             ? [req.user.assignedBranch]
             : (otherData.assignedBranches || []);
 
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         const normalizedOtherData = withLegacyAddressMirrors(
             { ...otherData },
@@ -4316,7 +4347,8 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
             isVerified: false,
             status: 'inactive',
             activationToken,
-            temporaryPasswordExpires
+            temporaryPasswordExpires: null,
+            isPasswordChanged: false,
         });
         await newUser.save();
 
@@ -4330,7 +4362,7 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Secretary', tempPassword, activationLink);
+            await sendActivationEmail(email, 'Secretary', activationLink);
             console.log(`✅ Secretary Added & Email Sent: ${email}`);
             res.status(201).json({ message: 'Secretary added successfully. Activation email sent.' });
         } catch (emailError) {
@@ -4358,10 +4390,8 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
         const existing = await User.findOne({ email });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
 
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
 
         const normalizedOtherData = withLegacyAddressMirrors(
             { ...otherData },
@@ -4378,7 +4408,8 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
             isVerified: false, 
             status: 'inactive',
             activationToken,
-            temporaryPasswordExpires
+            temporaryPasswordExpires: null,
+            isPasswordChanged: false,
         });
         await newUser.save();
         await syncBranchManagerAssignments(newUser._id, assignedBranch);
@@ -4393,7 +4424,7 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Branch Manager', tempPassword, activationLink);
+            await sendActivationEmail(email, 'Branch Manager', activationLink);
             console.log(`✅ Branch Manager Added & Email Sent: ${email}`);
             res.status(201).json({ message: 'Branch Manager added successfully. Activation email sent.' });
         } catch (emailError) {
@@ -4450,10 +4481,8 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             });
         }
 
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         const normalizedOtherData = withLegacyAddressMirrors(
             { ...otherData },
@@ -4470,7 +4499,8 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             isVerified: false,
             status: 'inactive',
             activationToken,
-            temporaryPasswordExpires
+            temporaryPasswordExpires: null,
+            isPasswordChanged: false,
         });
         await newUser.save();
 
@@ -4487,7 +4517,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
         console.log(`🔗 Activation link: ${activationLink}`);
 
         try {
-            await sendActivationEmail(normalizedEmail, 'Patient', tempPassword, activationLink);
+            await sendActivationEmail(normalizedEmail, 'Patient', activationLink);
             console.log(`✅ Email sent successfully to: ${email}`);
             res.status(201).json({ message: 'Patient added successfully. Activation email sent.' });
         } catch (emailError) {
@@ -4519,10 +4549,8 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
         const existing = await User.findOne({ email });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
 
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         const normalizedOtherData = withLegacyAddressMirrors(
             { ...otherData },
@@ -4538,7 +4566,8 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
             isVerified: false,
             status: 'inactive',
             activationToken,
-            temporaryPasswordExpires
+            temporaryPasswordExpires: null,
+            isPasswordChanged: false,
         });
         await newUser.save();
 
@@ -4552,7 +4581,7 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Owner', tempPassword, activationLink);
+            await sendActivationEmail(email, 'Owner', activationLink);
             res.status(201).json({ message: 'Owner added successfully. Activation email sent.' });
         } catch (emailError) {
             console.error('⚠️ Activation email failed for owner:', emailError.message);
@@ -5091,12 +5120,6 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
         }
         // ────────────────────────────────────────────────────────────────────
 
-        if (normalizedStatus === 'active' && hasExpiredTemporaryPassword(user)) {
-            return res.status(409).json({
-                message: 'This account still has an expired temporary password. Use Reissue Access Email instead of activating the account only.',
-            });
-        }
-
         if (normalizedStatus === 'active' && !user.isVerified) {
             return res.status(400).json({
                 message: "Cannot activate user. Email is not yet verified."
@@ -5181,12 +5204,6 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
         }
         if (patient.isArchived) {
             return res.status(409).json({ message: 'Restore this archived patient before changing activation status.' });
-        }
-
-        if (normalizedStatus === 'active' && hasExpiredTemporaryPassword(patient)) {
-            return res.status(409).json({
-                message: 'This patient account still has an expired temporary password. Use Reissue Access Email instead of activating the account only.',
-            });
         }
 
         if (normalizedStatus === 'active' && !patient.isVerified) {
@@ -5274,17 +5291,10 @@ app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => 
             return res.status(400).json({ message: 'This patient account is already verified.' });
         }
 
-        const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-        patient.activationToken = activationToken;
-        patient.temporaryPasswordExpires = temporaryPasswordExpires;
-        patient.isVerified = false;
-        patient.status = 'inactive';
+        const { activationToken, activationLink } = await issueActivationSetupForAccount(patient);
         await patient.save();
 
-        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(patient.email, 'Patient', null, activationLink);
+        await sendActivationEmail(patient.email, 'Patient', activationLink);
 
         await AuditLog.create({
             action: "RESEND_ACTIVATION",
@@ -5300,7 +5310,7 @@ app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => 
                 status: patient.status,
                 isVerified: patient.isVerified,
                 isPasswordChanged: patient.isPasswordChanged,
-                temporaryPasswordExpires,
+                temporaryPasswordExpires: null,
             },
         });
 
@@ -5329,49 +5339,29 @@ app.post('/api/patient/reissue-access/:id', verifyToken, async (req, res) => {
         if (patient.isArchived) {
             return res.status(409).json({ message: 'Restore this archived patient before reissuing access.' });
         }
-        if (patient.isPasswordChanged) {
-            return res.status(400).json({ message: 'This patient already changed their password. Use the normal password reset flow instead.' });
+        if (patient.isVerified) {
+            return res.status(400).json({ message: 'This patient already activated their account. Use the normal password reset flow instead.' });
         }
 
-        const needsActivation = !patient.isVerified;
-        const { tempPassword, temporaryPasswordExpires } = await issueTemporaryPasswordForAccount(patient);
-
-        if (needsActivation) {
-            patient.activationToken = crypto.randomBytes(32).toString('hex');
-            patient.status = 'inactive';
-        } else {
-            patient.status = 'active';
-            patient.activationToken = undefined;
-            patient.deactivatedAt = null;
-            patient.deactivatedBy = null;
-            patient.deactivationReason = '';
-        }
-
+        const { activationLink } = await issueActivationSetupForAccount(patient);
         await patient.save();
-
-        const activationLink = needsActivation
-            ? `${process.env.FRONTEND_URL}/activate-account/${patient.activationToken}`
-            : '';
-
-        await sendAccessReissueEmail(patient.email, 'Patient', tempPassword, activationLink);
+        await sendAccessReissueEmail(patient.email, 'Patient', null, activationLink);
 
         await AuditLog.create({
             action: 'REISSUE_ACCESS',
             user: req.user?.email || req.user?.id || 'ADMIN',
             role: req.user?.role || 'administrator',
-            details: `Reissued access for patient ${patient.email}${needsActivation ? ' with a new activation link' : ' with a new temporary password'}.`
+            details: `Reissued password setup email for patient ${patient.email}.`
         });
 
         res.json({
-            message: needsActivation
-                ? 'A new activation email and temporary password have been sent to the patient.'
-                : 'A new temporary password has been sent and the patient account has been reactivated.',
+            message: 'A new activation email has been sent so the patient can set their password.',
             account: {
                 _id: patient._id,
                 status: patient.status,
                 isVerified: patient.isVerified,
                 isPasswordChanged: patient.isPasswordChanged,
-                temporaryPasswordExpires,
+                temporaryPasswordExpires: null,
             },
         });
     } catch (error) {
@@ -5397,17 +5387,10 @@ app.post('/api/user/resend-activation/:id', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'This account is already verified.' });
         }
 
-        const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-        staffUser.activationToken = activationToken;
-        staffUser.temporaryPasswordExpires = temporaryPasswordExpires;
-        staffUser.isVerified = false;
-        staffUser.status = 'inactive';
+        const { activationLink } = await issueActivationSetupForAccount(staffUser);
         await staffUser.save();
 
-        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(staffUser.email, staffUser.role, null, activationLink);
+        await sendActivationEmail(staffUser.email, staffUser.role, activationLink);
 
         await AuditLog.create({
             action: 'RESEND_ACTIVATION',
@@ -5438,49 +5421,29 @@ app.post('/api/user/reissue-access/:id', verifyToken, async (req, res) => {
         if (staffUser.isArchived) {
             return res.status(409).json({ message: 'Restore this archived account before reissuing access.' });
         }
-        if (staffUser.isPasswordChanged) {
-            return res.status(400).json({ message: 'This account already changed its password. Use the normal password reset flow instead.' });
+        if (staffUser.isVerified) {
+            return res.status(400).json({ message: 'This account already activated. Use the normal password reset flow instead.' });
         }
 
-        const needsActivation = !staffUser.isVerified;
-        const { tempPassword, temporaryPasswordExpires } = await issueTemporaryPasswordForAccount(staffUser);
-
-        if (needsActivation) {
-            staffUser.activationToken = crypto.randomBytes(32).toString('hex');
-            staffUser.status = 'inactive';
-        } else {
-            staffUser.status = 'active';
-            staffUser.activationToken = undefined;
-            staffUser.deactivatedAt = null;
-            staffUser.deactivatedBy = null;
-            staffUser.deactivationReason = '';
-        }
-
+        const { activationLink } = await issueActivationSetupForAccount(staffUser);
         await staffUser.save();
-
-        const activationLink = needsActivation
-            ? `${process.env.FRONTEND_URL}/activate-account/${staffUser.activationToken}`
-            : '';
-
-        await sendAccessReissueEmail(staffUser.email, staffUser.role, tempPassword, activationLink);
+        await sendAccessReissueEmail(staffUser.email, staffUser.role, null, activationLink);
 
         await AuditLog.create({
             action: 'REISSUE_ACCESS',
             user: req.user?.email || req.user?.id || 'ADMIN',
             role: req.user?.role || 'administrator',
-            details: `Reissued access for ${staffUser.role} ${staffUser.email}${needsActivation ? ' with a new activation link' : ' with a new temporary password'}.`
+            details: `Reissued password setup email for ${staffUser.role} ${staffUser.email}.`
         });
 
         res.json({
-            message: needsActivation
-                ? 'A new activation email and temporary password have been sent to the user.'
-                : 'A new temporary password has been sent and the account has been reactivated.',
+            message: 'A new activation email has been sent so the user can set their password.',
             account: {
                 _id: staffUser._id,
                 status: staffUser.status,
                 isVerified: staffUser.isVerified,
                 isPasswordChanged: staffUser.isPasswordChanged,
-                temporaryPasswordExpires,
+                temporaryPasswordExpires: null,
             },
         });
     } catch (error) {
@@ -5609,15 +5572,16 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             const emailExists = await User.findOne({ email });
             if (emailExists) return res.status(409).json({ field: 'email', message: "New email is already in use." });
 
-            const tempPassword = crypto.randomBytes(4).toString('hex');
-            const hashedPassword = await bcrypt.hash(tempPassword, 10);
+            const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
             const activationToken = crypto.randomBytes(32).toString('hex');
 
             normalizedUpdateData.email = email;
             normalizedUpdateData.password = hashedPassword;
             normalizedUpdateData.activationToken = activationToken;
             normalizedUpdateData.isVerified = false;
-            normalizedUpdateData.status = 'inactive'; 
+            normalizedUpdateData.status = 'inactive';
+            normalizedUpdateData.isPasswordChanged = false;
+            normalizedUpdateData.temporaryPasswordExpires = null;
 
             const updatedUser = await User.findByIdAndUpdate(userId, normalizedUpdateData, { new: true });
             if (currentUser.role === 'branch-manager') {
@@ -5626,7 +5590,7 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
 
             const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
             try {
-                await sendActivationEmail(email, currentUser.role, tempPassword, activationLink);
+                await sendActivationEmail(email, currentUser.role, activationLink);
             } catch (emailError) {
                 console.error('Activation email failed after user update:', emailError.message);
                 return res.status(207).json({ message: 'User updated, but activation email failed to send.' });
@@ -5804,9 +5768,8 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
             return res.status(409).json({ message: 'This email address is already in use.' });
         }
 
-        // Generate new activation token and temp password
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        // Generate a fresh activation token and seeded password placeholder
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
 
         user.email = newEmail;
@@ -5814,10 +5777,12 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
         user.activationToken = activationToken;
         user.isVerified = false;
         user.status = 'inactive';
+        user.isPasswordChanged = false;
+        user.temporaryPasswordExpires = null;
         await user.save();
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(newEmail, user.role, tempPassword, activationLink);
+        await sendActivationEmail(newEmail, user.role, activationLink);
 
         await AuditLog.create({
             action: 'EMAIL_CHANGE_REQUESTED',
@@ -6770,16 +6735,15 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             });
         }
 
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
-        const temporaryPasswordExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         const newUser = new User({
             ...patientPayload,
             password: hashedPassword,
             activationToken,
-            temporaryPasswordExpires,
+            temporaryPasswordExpires: null,
+            isPasswordChanged: false,
         });
         await newUser.save();
 
@@ -6818,7 +6782,7 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
         let statusCode = 201;
 
         try {
-            await sendActivationEmail(newUser.email, 'Patient', tempPassword, activationLink);
+            await sendActivationEmail(newUser.email, 'Patient', activationLink);
         } catch (emailError) {
             console.error('Activation email failed for registered guest patient:', emailError.message);
             message = 'Guest registered as patient, but activation email failed to send.';

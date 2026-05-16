@@ -1,71 +1,209 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import styles from '../../styles/auth/NewPasswordPage.module.css';
+import logo from '../../assets/images/logo-dentime.svg';
 import { BASE_URL } from '../../utils/api';
 
+const getPasswordChecks = (password = '') => ({
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+});
+
 export default function ActivateAccountPage() {
-  const { token } = useParams();
-  const navigate = useNavigate();
-  const [status, setStatus] = useState('loading');
-  const [message, setMessage] = useState('');
-  const [isPatient, setIsPatient] = useState(false);
+    const { token } = useParams();
+    const navigate = useNavigate();
 
-  useEffect(() => {
-    const activate = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/api/activate-account`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
-        });
+    const [status, setStatus] = useState('loading');
+    const [accountEmail, setAccountEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showChecklist, setShowChecklist] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-        if (!res.ok) throw new Error((await res.json()).message);
+    useEffect(() => {
+        const validateToken = async () => {
+            try {
+                const response = await fetch(`${BASE_URL}/api/activate-account/${token}`);
+                const data = await response.json();
 
-        const data = await res.json();
-        const role = data.role;
+                if (!response.ok) {
+                    throw new Error(data.message || 'Invalid or expired activation link.');
+                }
 
-        if (role === 'patient') {
-          setIsPatient(true);
-          setMessage('Your account has been activated! You can now log in on the website or the NgitiFy mobile app.');
-          setTimeout(() => navigate('/login'), 3000);
+                setAccountEmail(data.email || '');
+                setStatus('ready');
+            } catch (error) {
+                setErrorMessage(error.message || 'Invalid or expired activation link.');
+                setStatus('error');
+            }
+        };
+
+        if (token) {
+            validateToken();
         } else {
-          setMessage(data.message || 'Account activated successfully!');
-          setTimeout(() => navigate('/login'), 3000);
+            setErrorMessage('Invalid activation link.');
+            setStatus('error');
+        }
+    }, [token]);
+
+    const validations = useMemo(() => getPasswordChecks(password), [password]);
+    const passwordsMatch = password && confirmPassword && password === confirmPassword;
+    const canSubmit = Object.values(validations).every(Boolean) && passwordsMatch && !isSubmitting;
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+
+        if (!Object.values(validations).every(Boolean)) {
+            setErrorMessage('Please complete all password requirements.');
+            return;
         }
 
-        setStatus('success');
-      } catch (err) {
-        setStatus('error');
-        setMessage(err.message || 'Invalid or expired activation link.');
-      }
+        if (password !== confirmPassword) {
+            setErrorMessage('Passwords do not match.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        setErrorMessage('');
+
+        try {
+            const response = await fetch(`${BASE_URL}/api/activate-account`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token,
+                    newPassword: password,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to activate account.');
+            }
+
+            setSuccessMessage(data.message || 'Account activated successfully.');
+            setStatus('success');
+            window.setTimeout(() => navigate('/login'), 2500);
+        } catch (error) {
+            setErrorMessage(error.message || 'Failed to activate account.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
-    if (token) activate();
-  }, [token, navigate]);
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Arial, sans-serif', textAlign: 'center', padding: '0 20px' }}>
-      {status === 'loading' && <p>Activating your account, please wait...</p>}
+    return (
+        <div className={styles['main-container']}>
+            <form className={styles.container} onSubmit={handleSubmit}>
+                <img src={logo} alt="Dentime" className={styles.logo} />
 
-      {status === 'success' && (
-        <>
-          <h2 style={{ color: '#005466' }}>✅ Account Activated!</h2>
-          <p>{message}</p>
-          {isPatient ? (
-            <p style={{ color: '#888', fontSize: '14px', marginTop: '10px' }}>
-              Redirecting you to the login page so you can continue on web if you want to.
-            </p>
-          ) : (
-            <p style={{ color: '#888', fontSize: '14px' }}>Redirecting you to the login page...</p>
-          )}
-        </>
-      )}
+                {status === 'loading' && (
+                    <>
+                        <div className={styles['page-title']}><p className={styles['newpass-title']}>Checking Link</p></div>
+                        <div className={styles['page-header']}><p>Please wait while we verify your activation link.</p></div>
+                    </>
+                )}
 
-      {status === 'error' && (
-        <>
-          <h2 style={{ color: 'red' }}>❌ Activation Failed</h2>
-          <p>{message}</p>
-          <a href="/login" style={{ color: '#005466', marginTop: '10px' }}>Go to Login</a>
-        </>
-      )}
-    </div>
-  );
+                {status === 'error' && (
+                    <>
+                        <div className={styles['page-title']}><p className={styles['newpass-title']}>Activation Unavailable</p></div>
+                        <div className={styles['page-header']}><p>{errorMessage}</p></div>
+                        <div className={styles['back-container']}>
+                            <span onClick={() => navigate('/login')}>Back to Login</span>
+                        </div>
+                    </>
+                )}
+
+                {status === 'ready' && (
+                    <>
+                        <div className={styles['page-title']}><p className={styles['newpass-title']}>Set Your Password</p></div>
+                        <div className={styles['page-header']}>
+                            <p>
+                                Activate your account by creating a password{accountEmail ? ` for ${accountEmail}` : ''}.
+                            </p>
+                        </div>
+
+                        <div className={styles['label-container']}><p className={styles.label}>PASSWORD</p></div>
+                        <input
+                            type="password"
+                            className={styles['input-field']}
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            onFocus={() => setShowChecklist(true)}
+                            onBlur={() => setShowChecklist(false)}
+                            disabled={isSubmitting}
+                            required
+                        />
+
+                        {showChecklist && (
+                            <div className={styles.checklistBox}>
+                                <p className={styles.checklistTitle}>Password must contain:</p>
+                                <div className={styles.ruleItem}>
+                                    <span className={validations.length ? styles.iconValid : styles.iconInvalid}>●</span>
+                                    <span className={validations.length ? styles.textValid : styles.textInvalid}>At least 8 characters</span>
+                                </div>
+                                <div className={styles.ruleItem}>
+                                    <span className={validations.upper ? styles.iconValid : styles.iconInvalid}>●</span>
+                                    <span className={validations.upper ? styles.textValid : styles.textInvalid}>Uppercase letter</span>
+                                </div>
+                                <div className={styles.ruleItem}>
+                                    <span className={validations.lower ? styles.iconValid : styles.iconInvalid}>●</span>
+                                    <span className={validations.lower ? styles.textValid : styles.textInvalid}>Lowercase letter</span>
+                                </div>
+                                <div className={styles.ruleItem}>
+                                    <span className={validations.number ? styles.iconValid : styles.iconInvalid}>●</span>
+                                    <span className={validations.number ? styles.textValid : styles.textInvalid}>Number</span>
+                                </div>
+                                <div className={styles.ruleItem}>
+                                    <span className={validations.special ? styles.iconValid : styles.iconInvalid}>●</span>
+                                    <span className={validations.special ? styles.textValid : styles.textInvalid}>Special character</span>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className={styles['label-container']} style={{ marginTop: '15px' }}><p className={styles.label}>CONFIRM PASSWORD</p></div>
+                        <input
+                            type="password"
+                            className={styles['input-field']}
+                            value={confirmPassword}
+                            onChange={(event) => setConfirmPassword(event.target.value)}
+                            disabled={isSubmitting}
+                            required
+                        />
+
+                        <div className={styles.error}>
+                            {errorMessage || (!passwordsMatch && confirmPassword ? 'Passwords do not match.' : '')}
+                        </div>
+
+                        <button
+                            type="submit"
+                            className={styles['enter-button']}
+                            disabled={!canSubmit}
+                        >
+                            {isSubmitting ? 'ACTIVATING...' : 'ACTIVATE ACCOUNT'}
+                        </button>
+
+                        <div className={styles['back-container']}>
+                            <span onClick={() => navigate('/login')}>Back to Login</span>
+                        </div>
+                    </>
+                )}
+
+                {status === 'success' && (
+                    <>
+                        <div className={styles['page-title']}><p className={styles['newpass-title']}>Account Activated</p></div>
+                        <div className={styles['page-header']}><p>{successMessage}</p></div>
+                        <div className={styles['back-container']}>
+                            <span onClick={() => navigate('/login')}>Go to Login</span>
+                        </div>
+                    </>
+                )}
+            </form>
+        </div>
+    );
 }

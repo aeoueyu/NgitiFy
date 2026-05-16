@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import WebsiteShell from '../components/website/WebsiteShell';
 import ConsentReviewModal from '../components/admin/ConsentReviewModal';
 import styles from '../styles/website/WebsitePages.module.css';
@@ -190,6 +190,7 @@ const scrollToField = (fieldKey) => {
 };
 
 export default function PreRegisterPage() {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token') || '';
     const [appointmentInfo, setAppointmentInfo] = useState(null);
@@ -210,6 +211,10 @@ export default function PreRegisterPage() {
 
     const patientAge = useMemo(() => getAge(appointmentInfo?.guestBirthdate), [appointmentInfo?.guestBirthdate]);
     const isMinor = patientAge !== null && patientAge < 18;
+    const isFemalePatient = useMemo(
+        () => String(appointmentInfo?.guestGender || '').trim().toLowerCase() === 'female',
+        [appointmentInfo?.guestGender]
+    );
     const isPhoneCallPreRegistration = useMemo(
         () => String(appointmentInfo?.source || '').trim() === 'Phone Call',
         [appointmentInfo?.source]
@@ -280,9 +285,11 @@ export default function PreRegisterPage() {
             if (nextMedicalHistory.hasAllergies === 'yes' && nextMedicalHistory.allergies.length === 0 && !nextMedicalHistory.allergyOther.trim()) {
                 nextErrors.medicalHistory_allergies = 'Select or enter at least one allergy.';
             }
-            if (!nextMedicalHistory.isPregnant) nextErrors.medicalHistory_isPregnant = 'Required';
-            if (!nextMedicalHistory.isNursing) nextErrors.medicalHistory_isNursing = 'Required';
-            if (!nextMedicalHistory.takingBirthControl) nextErrors.medicalHistory_takingBirthControl = 'Required';
+            if (snapshot.isFemalePatient) {
+                if (!nextMedicalHistory.isPregnant) nextErrors.medicalHistory_isPregnant = 'Required';
+                if (!nextMedicalHistory.isNursing) nextErrors.medicalHistory_isNursing = 'Required';
+                if (!nextMedicalHistory.takingBirthControl) nextErrors.medicalHistory_takingBirthControl = 'Required';
+            }
 
             if (nextPhysician.specialty === 'Other' && !nextPhysician.specialtyOther.trim()) nextErrors.physician_specialtyOther = 'Required';
             if (nextPhysician.officeNumber && !isValidLandlineNumber(nextPhysician.officeNumber)) nextErrors.physician_officeNumber = 'Use a valid 7 to 8 digit landline number.';
@@ -310,6 +317,7 @@ export default function PreRegisterPage() {
         consentAcknowledgement,
         dataPrivacyConsent,
         isMinor,
+        isFemalePatient,
         isPhoneCallPreRegistration,
         ...overrides,
     });
@@ -705,8 +713,8 @@ export default function PreRegisterPage() {
                                 </div>
                             </>
                         ) : (
-                            <p className={styles.bodyText}>{message || 'Loading your registration link...'}</p>
-                        )}
+                                <p className={styles.bodyText}>{state === 'success' ? 'Your registration has been completed successfully.' : (message || 'Loading your registration link...')}</p>
+                            )}
                     </article>
 
                     {state === 'ready' && (
@@ -1085,14 +1093,18 @@ export default function PreRegisterPage() {
                                                 </div>
                                                 <div className={styles.intakeSpacer} />
                                             </div>
-                                            <div className={styles.intakeRow}>
-                                                {renderYesNoField('Are you pregnant?', medicalHistory.isPregnant, (value) => handleMedicalChange('isPregnant', value), 'medicalHistory_isPregnant', 'medicalHistory_isPregnant')}
-                                                {renderYesNoField('Are you nursing?', medicalHistory.isNursing, (value) => handleMedicalChange('isNursing', value), 'medicalHistory_isNursing', 'medicalHistory_isNursing')}
-                                            </div>
-                                            <div className={styles.intakeRow}>
-                                                {renderYesNoField('Are you taking birth control pills?', medicalHistory.takingBirthControl, (value) => handleMedicalChange('takingBirthControl', value), 'medicalHistory_takingBirthControl', 'medicalHistory_takingBirthControl')}
-                                                <div className={styles.intakeSpacer} />
-                                            </div>
+                                            {isFemalePatient && (
+                                                <>
+                                                    <div className={styles.intakeRow}>
+                                                        {renderYesNoField('Are you pregnant?', medicalHistory.isPregnant, (value) => handleMedicalChange('isPregnant', value), 'medicalHistory_isPregnant', 'medicalHistory_isPregnant')}
+                                                        {renderYesNoField('Are you nursing?', medicalHistory.isNursing, (value) => handleMedicalChange('isNursing', value), 'medicalHistory_isNursing', 'medicalHistory_isNursing')}
+                                                    </div>
+                                                    <div className={styles.intakeRow}>
+                                                        {renderYesNoField('Are you taking birth control pills?', medicalHistory.takingBirthControl, (value) => handleMedicalChange('takingBirthControl', value), 'medicalHistory_takingBirthControl', 'medicalHistory_takingBirthControl')}
+                                                        <div className={styles.intakeSpacer} />
+                                                    </div>
+                                                </>
+                                            )}
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
                                                     <label className={styles.fieldLabel}>Blood Type</label>
@@ -1246,15 +1258,28 @@ export default function PreRegisterPage() {
                         </form>
                     )}
 
-                    {state === 'success' && (
-                        <div className={styles.successBanner}>{message}</div>
-                    )}
-
                     {(state === 'invalid' || state === 'used') && (
                         <div className={state === 'used' ? styles.successBanner : styles.errorBanner}>{message}</div>
                     )}
                 </div>
             </section>
+
+            {state === 'success' && (
+                <div className={styles.bookingSuccessOverlay}>
+                    <div className={styles.bookingSuccessModal}>
+                        <p className={styles.eyebrow} style={{ margin: 0 }}>Pre-Registration</p>
+                        <h2 className={styles.sectionTitle} style={{ fontSize: '2rem' }}>Registration completed</h2>
+                        <p className={styles.bodyText} style={{ marginTop: 0 }}>
+                            Thank you! Your registration details have been completed. The clinic can now prepare your patient record before your visit.
+                        </p>
+                        <div className={styles.bookingSuccessActions}>
+                            <button type="button" className={styles.primaryBtn} onClick={() => navigate('/')}>
+                                Go Home
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <ConsentReviewModal
                 isOpen={isConsentModalOpen}

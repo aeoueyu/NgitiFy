@@ -50,17 +50,6 @@ const formatTime = (time24) => {
   return `${hour12}:${minute} ${suffix}`;
 };
 
-const formatExpiryDate = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
-
 const formatMonthDay = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -272,9 +261,6 @@ export default function PatientDashboard({ navigation }) {
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
   const unreadCount = notifications.filter((item) => !item.isRead).length;
-  const needsPasswordChange = Boolean(userInfo && !userInfo?.isPasswordChanged);
-  const passwordDeadline = formatExpiryDate(userInfo?.temporaryPasswordExpires);
-
   const fetchAll = useCallback(async () => {
     if (!userToken || !userId) return;
 
@@ -402,23 +388,6 @@ export default function PatientDashboard({ navigation }) {
               </View>
             </View>
           </View>
-
-          {needsPasswordChange ? (
-            <SurfaceCard style={styles.warningCard}>
-              <View style={styles.warningIconWrap}>
-                <Ionicons name="alert-circle-outline" size={20} color={mobileTheme.colors.warning} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.warningTitle}>Password update required</Text>
-                <Text style={styles.warningText}>
-                  Change your temporary password{passwordDeadline ? ` before ${passwordDeadline}` : ''} to keep your account secure.
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Settings')} activeOpacity={0.82}>
-                <Ionicons name="chevron-forward" size={18} color={mobileTheme.colors.warning} />
-              </TouchableOpacity>
-            </SurfaceCard>
-          ) : null}
 
           <SectionLabel title="Next Visit" style={styles.sectionHeading} />
           <SurfaceCard style={styles.appointmentCard}>
@@ -718,32 +687,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 9,
     fontWeight: '700',
-  },
-  warningCard: {
-    marginBottom: 18,
-    paddingVertical: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  warningIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: mobileTheme.colors.warningSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  warningTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: mobileTheme.colors.text,
-    marginBottom: 4,
-  },
-  warningText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: mobileTheme.colors.textMuted,
   },
   sectionHeading: {
     marginBottom: 14,

@@ -3,15 +3,16 @@
     inset: 0;
     z-index: 2500;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    padding: 96px 24px 24px;
     background: rgba(15, 23, 42, 0.52);
     backdrop-filter: blur(4px);
 }
 
 .modal {
     width: min(900px, 94vw);
-    max-height: 88vh;
+    max-height: min(88vh, calc(100vh - 120px));
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     background: #ffffff;
@@ -164,6 +165,10 @@
 }
 
 @media (max-width: 640px) {
+    .overlay {
+        padding: 84px 14px 14px;
+    }
+
     .header,
     .body,
     .footer {

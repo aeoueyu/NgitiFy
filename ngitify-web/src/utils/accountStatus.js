@@ -23,19 +23,13 @@ export const countAccountsByLifecycle = (accounts = [], filter = 'all') => (
 );
 
 export const hasExpiredTemporaryPassword = (account = {}) => {
-    if (account?.isPasswordChanged) return false;
-    if (!account?.temporaryPasswordExpires) return false;
-
-    const expiresAt = new Date(account.temporaryPasswordExpires);
-    if (Number.isNaN(expiresAt.getTime())) return false;
-
-    return Date.now() > expiresAt.getTime();
+    return false;
 };
 
 export const shouldShowAccessRecovery = (account = {}) => (
-    !account?.isArchived && (!account?.isVerified || hasExpiredTemporaryPassword(account))
+    !account?.isArchived && !account?.isVerified
 );
 
 export const getAccessRecoveryLabel = (account = {}) => (
-    hasExpiredTemporaryPassword(account) ? 'Reissue Access Email' : 'Resend Activation Email'
+    'Resend Activation Email'
 );

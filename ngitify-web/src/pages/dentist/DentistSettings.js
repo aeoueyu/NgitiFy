@@ -40,9 +40,6 @@ export default function DentistSettings() {
     });
     const [notifSuccess, setNotifSuccess] = useState('');
     const [notifError,   setNotifError]   = useState('');
-    const [profile, setProfile] = useState(null);
-    const passwordChangeDeadline = profile?.temporaryPasswordExpires ? new Date(profile.temporaryPasswordExpires) : null;
-    const needsPasswordChange = profile && profile.isPasswordChanged === false && passwordChangeDeadline && !Number.isNaN(passwordChangeDeadline.getTime());
 
     // ── Load saved theme ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -59,7 +56,6 @@ export default function DentistSettings() {
                 const res = await authFetch(`/user/${userId}`);
                 if (res.ok) {
                     const data = await res.json();
-                    setProfile(data);
                     if (data.notificationPreferences) {
                         const p = data.notificationPreferences;
                         setNotifications({
@@ -192,16 +188,6 @@ export default function DentistSettings() {
     const renderSecurity = () => (
         <div>
             <h3 className={styles.mainSectionTitle}>Account Security</h3>
-
-            {needsPasswordChange && (
-                <div className={styles.securityNotice}>
-                    <p className={styles.securityNoticeTitle}>Password change required</p>
-                    <p className={styles.securityNoticeText}>
-                        You are still using your temporary password. Please change it as soon as possible.
-                        Your account will be marked inactive if you do not change it before {passwordChangeDeadline.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.
-                    </p>
-                </div>
-            )}
 
             {apiError && <div className={styles.apiErrorMessage}>{apiError}</div>}
 

@@ -49,8 +49,6 @@ export default function SecretarySettings() {
 
     // ── Account overview state ────────────────────────────────────────────────
     const [profile, setProfile] = useState(null);
-    const passwordChangeDeadline = profile?.temporaryPasswordExpires ? new Date(profile.temporaryPasswordExpires) : null;
-    const needsPasswordChange = profile && profile.isPasswordChanged === false && passwordChangeDeadline && !Number.isNaN(passwordChangeDeadline.getTime());
 
     // ── Load saved theme on mount ─────────────────────────────────────────────
     useEffect(() => {
@@ -222,16 +220,6 @@ export default function SecretarySettings() {
     const renderSecurity = () => (
         <div>
             <h3 className={styles.mainSectionTitle}>Account Security</h3>
-
-            {needsPasswordChange && (
-                <div className={styles.securityNotice}>
-                    <p className={styles.securityNoticeTitle}>Password change required</p>
-                    <p className={styles.securityNoticeText}>
-                        You are still using your temporary password. Please change it as soon as possible.
-                        Your account will be marked inactive if you do not change it before {passwordChangeDeadline.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.
-                    </p>
-                </div>
-            )}
 
             {apiError && (
                 <div className={styles.apiErrorMessage}>{apiError}</div>
