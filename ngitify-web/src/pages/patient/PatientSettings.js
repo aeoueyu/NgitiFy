@@ -27,7 +27,7 @@ const PASSWORD_RULES = [
     { key: 'upper', label: 'One uppercase letter (A-Z)' },
     { key: 'lower', label: 'One lowercase letter (a-z)' },
     { key: 'number', label: 'One number (0-9)' },
-    { key: 'special', label: 'One special character' },
+    { key: 'special', label: 'One special character like ! @ # $ % ^ & *' },
 ];
 
 export default function PatientSettings() {

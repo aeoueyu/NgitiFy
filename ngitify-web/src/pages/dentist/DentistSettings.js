@@ -246,7 +246,7 @@ export default function DentistSettings() {
                                 <li className={`${styles.checkItem} ${checklist.upper   ? styles.valid : ''}`}>One uppercase letter</li>
                                 <li className={`${styles.checkItem} ${checklist.lower   ? styles.valid : ''}`}>One lowercase letter</li>
                                 <li className={`${styles.checkItem} ${checklist.number  ? styles.valid : ''}`}>One number</li>
-                                <li className={`${styles.checkItem} ${checklist.special ? styles.valid : ''}`}>One special character</li>
+                                <li className={`${styles.checkItem} ${checklist.special ? styles.valid : ''}`}>One special character like `! @ # $ % ^ & *`</li>
                             </ul>
                         </div>
                     </div>

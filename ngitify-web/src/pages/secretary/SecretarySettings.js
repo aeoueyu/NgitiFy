@@ -300,7 +300,7 @@ export default function SecretarySettings() {
                                     One number
                                 </li>
                                 <li className={`${styles.checkItem} ${checklist.special ? styles.valid : ''}`}>
-                                    One special character
+                                    One special character like `! @ # $ % ^ & *`
                                 </li>
                             </ul>
                         </div>

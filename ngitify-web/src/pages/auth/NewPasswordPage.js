@@ -129,7 +129,7 @@ export default function NewPasswordPage() {
                         </div>
                         <div className={styles.ruleItem}>
                             <span className={validations.special ? styles.iconValid : styles.iconInvalid}>●</span>
-                            <span className={validations.special ? styles.textValid : styles.textInvalid}>Special character</span>
+                            <span className={validations.special ? styles.textValid : styles.textInvalid}>Special character like `! @ # $ % ^ & *`</span>
                         </div>
                     </div>
                 )}
