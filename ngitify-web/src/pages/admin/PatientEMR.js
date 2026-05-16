@@ -2171,9 +2171,11 @@ export default function PatientEMR({
             {!embedded && (
                 <div className={styles.headerWrapper}>
                     <div className={styles.headerLeft}>
-                        <button className={styles.backIconButton} onClick={handleBack} title="Back">
-                            {onClose ? <FaTimes /> : <FaArrowLeft />}
-                        </button>
+                        {(onClose || effectiveRole !== 'patient') ? (
+                            <button className={styles.backIconButton} onClick={handleBack} title="Back">
+                                {onClose ? <FaTimes /> : <FaArrowLeft />}
+                            </button>
+                        ) : null}
                         <div className={styles.header}>
                             <h1 className={styles.title}>Electronic Medical Record</h1>
                             <p className={styles.subtitle}>Comprehensive clinical profile and treatment history</p>
