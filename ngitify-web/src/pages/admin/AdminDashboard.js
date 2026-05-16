@@ -129,17 +129,32 @@ export default function AdminDashboard() {
 
                 if (invRes.ok) {
                     const invData = await invRes.json();
-                    const alerts = invData.filter(item => {
-                        const stock = Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0));
-                        const limit = Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0));
-                        return stock <= limit;
-                    }).map(item => ({
-                        id: item._id,
-                        name: item.itemName || item.name || 'Unknown Item',
-                        current: Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0)),
-                        threshold: Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0)),
-                        unit: item.unit || 'pcs'
-                    }));
+                    const groupedInventory = new Map();
+
+                    invData.forEach((item) => {
+                        const itemId = String(item.itemId || item.inventoryItem || item._id || '');
+                        if (!itemId) return;
+
+                        const existing = groupedInventory.get(itemId) || {
+                            id: itemId,
+                            name: item.itemName || item.name || 'Unknown Item',
+                            current: 0,
+                            threshold: Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0)),
+                            unit: item.unit || 'pcs',
+                        };
+
+                        existing.current += Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0));
+                        if (!existing.threshold) {
+                            existing.threshold = Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0));
+                        }
+                        if (!existing.unit && item.unit) {
+                            existing.unit = item.unit;
+                        }
+
+                        groupedInventory.set(itemId, existing);
+                    });
+
+                    const alerts = Array.from(groupedInventory.values()).filter((item) => item.current <= item.threshold);
                     
                     setLowStockAlerts(alerts.length);
                     alerts.sort((a, b) => a.current - b.current);
