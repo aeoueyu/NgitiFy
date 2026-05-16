@@ -4710,6 +4710,32 @@ const SECRETARY_ALLOWED_ROLES = ['patient', 'dentist'];
 const DENTIST_ALLOWED_ROLES   = ['patient', 'dentist', 'secretary'];
 const BRANCH_MANAGER_ALLOWED_ROLES = ['patient', 'dentist', 'secretary'];
 
+app.get('/api/assignable-dentists', verifyToken, async (req, res) => {
+    try {
+        const includeArchived = parseBooleanQueryFlag(req.query.includeArchived);
+        const archivedOnly = parseBooleanQueryFlag(req.query.archivedOnly);
+        const query = applyArchiveVisibilityFilter({
+            $or: [
+                { role: 'dentist' },
+                { role: 'owner', isDentist: true },
+            ],
+        }, { includeArchived, archivedOnly });
+
+        if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
+            if (!req.user.assignedBranch) {
+                return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
+            }
+            query.assignedBranches = { $in: [req.user.assignedBranch] };
+        }
+
+        const dentists = await User.find(query).select('-password');
+        res.json(dentists);
+    } catch (error) {
+        console.error('Error fetching assignable dentists:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
 app.get('/api/users', verifyToken, async (req, res) => {
     try {
         const { role } = req.query;

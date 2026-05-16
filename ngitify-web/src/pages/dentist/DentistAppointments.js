@@ -171,7 +171,7 @@ export default function DentistAppointments() {
             try {
                 const [patientsRes, dentistsRes, branchesRes] = await Promise.all([
                     authFetch('/patients'),
-                    authFetch('/users?role=dentist'),
+                    authFetch('/assignable-dentists'),
                     authFetch('/branches'),
                 ]);
                 if (patientsRes.ok) {

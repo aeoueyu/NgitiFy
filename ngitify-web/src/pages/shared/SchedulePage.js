@@ -595,7 +595,7 @@ export default function SchedulePage() {
                     ? `/appointments?${appointmentParams.toString()}`
                     : '/appointments'),
                 authFetch('/patients?limit=200'),
-                authFetch('/users?role=dentist'),
+                authFetch('/assignable-dentists'),
             ];
 
             if (canViewQueue) {

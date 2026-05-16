@@ -60,7 +60,7 @@ export default function SecretaryQueue() {
 
     const fetchDentists = useCallback(async () => {
         try {
-            const res = await authFetch('/users?role=dentist');
+            const res = await authFetch('/assignable-dentists');
             if (res.ok) {
                 const data = await res.json();
                 setDentists(data.filter((dentist) => dentist.status === 'active' && !dentist.isArchived));

@@ -286,7 +286,7 @@ export default function AdminAppointments() {
                 const requests = [
                     authFetch('/appointments'),
                     authFetch('/patients'),
-                    authFetch('/users?role=dentist'),
+                    authFetch('/assignable-dentists'),
                 ];
 
                 if (!isBranchManager) {
