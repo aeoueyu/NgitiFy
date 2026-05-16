@@ -683,15 +683,16 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             return res.status(403).json({ message: "Your account is inactive. Please contact an administrator." });
         }
 
-        const assignedBranch = ['branch-manager', 'secretary'].includes(user.role)
-            ? (user.assignedBranch || user.assignedBranches?.[0] || null)
-            : null;
+        const assignedBranch = user.assignedBranch || user.assignedBranches?.[0] || null;
+        const assignedBranches = Array.isArray(user.assignedBranches)
+            ? user.assignedBranches
+            : (assignedBranch ? [assignedBranch] : []);
 
         // ✅ PHASE 3: Include isDentist flag for owner-role users
         const isDentist = user.role === 'owner' ? (user.isDentist || false) : undefined;
 
         const token = jwt.sign(
-            { id: user._id, role: user.role, email: user.email, assignedBranch, isDentist },
+            { id: user._id, role: user.role, email: user.email, assignedBranch, assignedBranches, isDentist },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -703,7 +704,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             details: `User logged in successfully.`
         });
 
-        res.json({ token, role: user.role, userId: user._id, assignedBranch, isDentist });
+        res.json({ token, role: user.role, userId: user._id, assignedBranch, assignedBranches, isDentist });
 
     } catch (error) {
         console.error(error);

@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
       lastName: userData.name?.last || '',
       profileImage: userData.profileImage || '',
       permissions: userData.permissions || {},
-      assignedBranch: userData.assignedBranch || null,
+      assignedBranch: userData.assignedBranch || userData.assignedBranches?.[0] || null,
       isDentist: userData.isDentist || false,   // ✅ PHASE 3
     });
     
