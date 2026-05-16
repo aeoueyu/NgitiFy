@@ -1,48 +1,42 @@
 @import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
 
 .page {
-    min-height: 100vh;
-    padding: 30px;
+    min-height: 100%;
+    padding: 0;
     background:
-        radial-gradient(circle at top right, rgba(45, 204, 246, 0.14), transparent 28%),
-        linear-gradient(180deg, #f7fbfd 0%, #f1f6fa 100%);
+        radial-gradient(circle at top right, rgba(45, 204, 246, 0.12), transparent 24%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(244, 247, 250, 0) 32%);
     font-family: 'Lexend Deca', sans-serif;
     color: #17364a;
-    overflow-y: auto;
+    overflow: visible;
 }
 
 .header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 20px;
-    margin-bottom: 24px;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 22px;
 }
 
 .headerCopy {
-    max-width: 760px;
+    max-width: 880px;
 }
 
 .headerActions {
-    display: flex;
+    display: inline-flex;
     flex-wrap: wrap;
     gap: 12px;
     justify-content: flex-end;
 }
 
 .title {
-    margin: 0 0 8px;
-    color: #01538b;
-    font-size: 30px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    margin-bottom: 6px;
 }
 
 .subtitle {
-    margin: 0;
-    color: #5f7a8d;
-    font-size: 14px;
-    line-height: 1.6;
+    max-width: 74ch;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.55;
 }
 
 .buttonPrimary,
@@ -58,10 +52,10 @@
 }
 
 .buttonPrimary {
-    background: linear-gradient(135deg, #01538b 0%, #0b69ab 100%);
+    background: #01538b;
     color: #ffffff;
-    padding: 13px 18px;
-    box-shadow: 0 12px 24px rgba(1, 83, 139, 0.18);
+    padding: 12px 18px;
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
 }
 
 .buttonPrimary:hover,
@@ -74,15 +68,16 @@
 .buttonSecondary {
     background: #ffffff;
     color: #01538b;
-    padding: 13px 18px;
-    border: 1px solid rgba(1, 83, 139, 0.14);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    padding: 12px 18px;
+    border: 1.5px solid #cbd5e1;
+    box-shadow: none;
 }
 
 .buttonGhost {
-    background: rgba(1, 83, 139, 0.06);
+    background: #f8fafc;
     color: #01538b;
-    padding: 13px 18px;
+    padding: 12px 18px;
+    border: 1px solid #e2e8f0;
 }
 
 .heroGrid,
@@ -110,31 +105,20 @@
 .alertCard,
 .summaryCard,
 .modalCard {
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(1, 83, 139, 0.07);
-    border-radius: 22px;
-    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+    background: #ffffff;
+    border: 1px solid rgba(1, 83, 139, 0.05);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
 }
 
 .heroCard {
     position: relative;
     overflow: hidden;
-    padding: 28px;
-}
-
-.heroCard::before {
-    content: '';
-    position: absolute;
-    top: -84px;
-    right: -60px;
-    width: 220px;
-    height: 220px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(45, 204, 246, 0.25), transparent 70%);
+    padding: 24px;
 }
 
 .heroCardDark {
-    background: linear-gradient(135deg, #01538b 0%, #0d679f 70%, #159bc1 100%);
+    background: linear-gradient(135deg, #01538b 0%, #0f5f96 72%, #2dccf6 100%);
     color: #ffffff;
     border-color: transparent;
 }
@@ -166,7 +150,7 @@
 
 .heroTitle {
     margin: 0 0 12px;
-    font-size: 28px;
+    font-size: 26px;
     line-height: 1.15;
     font-weight: 800;
 }
@@ -193,7 +177,7 @@
 }
 
 .metricCard {
-    padding: 20px;
+    padding: 18px 22px;
 }
 
 .metricLabel {
@@ -230,8 +214,8 @@
 
 .sectionTitle {
     margin: 0;
-    color: #17364a;
-    font-size: 20px;
+    color: #01538b;
+    font-size: 18px;
     font-weight: 800;
 }
 
@@ -253,25 +237,33 @@
 .timelineCard,
 .summaryCard,
 .tabPanel {
-    padding: 20px;
+    padding: 18px 20px;
 }
 
 .toolCard {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    text-align: left;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.toolCard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(1, 83, 139, 0.08);
+    border-color: rgba(1, 83, 139, 0.14);
 }
 
 .toolIcon {
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(1, 83, 139, 0.08);
+    background: rgba(1, 83, 139, 0.1);
     color: #01538b;
-    font-size: 20px;
+    font-size: 18px;
 }
 
 .toolTitle {
@@ -289,6 +281,7 @@
 
 .listCard {
     margin-bottom: 14px;
+    border-radius: 16px;
 }
 
 .listHeader {
@@ -325,13 +318,13 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 13px;
+    padding: 9px 13px;
     border-radius: 999px;
-    background: #f5fbff;
+    background: #f8fafc;
     color: #01538b;
     font-size: 12px;
     font-weight: 700;
-    border: 1px solid rgba(1, 83, 139, 0.08);
+    border: 1px solid #e2e8f0;
 }
 
 .statusBadge {
@@ -358,8 +351,8 @@
 }
 
 .statusInClinic {
-    background: #f3e8ff;
-    color: #7e22ce;
+    background: #e0f2fe;
+    color: #0284c7;
 }
 
 .statusCompleted {
@@ -383,9 +376,9 @@
     align-items: center;
     justify-content: center;
     padding: 34px 24px;
-    border-radius: 22px;
-    border: 1px dashed rgba(1, 83, 139, 0.16);
-    background: rgba(255, 255, 255, 0.75);
+    border-radius: 16px;
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
     text-align: center;
 }
 
@@ -423,8 +416,8 @@
 
 .tabButton {
     padding: 10px 14px;
-    border: 1px solid rgba(1, 83, 139, 0.1);
-    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
     color: #527086;
     border-radius: 999px;
     font-family: 'Lexend Deca', sans-serif;
@@ -437,7 +430,7 @@
     background: #01538b;
     color: #ffffff;
     border-color: #01538b;
-    box-shadow: 0 8px 18px rgba(1, 83, 139, 0.18);
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
 }
 
 .splitGrid {
@@ -489,8 +482,8 @@
     height: 12px;
     margin-top: 7px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #01538b, #2dccf6);
-    box-shadow: 0 0 0 6px rgba(45, 204, 246, 0.12);
+    background: #2dccf6;
+    box-shadow: 0 0 0 6px rgba(45, 204, 246, 0.1);
     flex-shrink: 0;
 }
 
@@ -520,7 +513,7 @@
     gap: 12px;
     padding: 18px 20px;
     margin-bottom: 20px;
-    background: linear-gradient(135deg, #fff8e1 0%, #fffef5 100%);
+    background: linear-gradient(135deg, #fff7e6 0%, #fffef5 100%);
     border-color: rgba(202, 138, 4, 0.14);
 }
 
@@ -539,7 +532,7 @@
 }
 
 .calendarShell {
-    padding: 20px;
+    padding: 18px 20px;
 }
 
 .calendarHeader {
@@ -592,8 +585,8 @@
     justify-content: center;
     gap: 5px;
     padding: 6px;
-    border-radius: 14px;
-    border: 1px solid rgba(1, 83, 139, 0.08);
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
     background: #ffffff;
     cursor: pointer;
     font-family: 'Lexend Deca', sans-serif;
@@ -620,7 +613,7 @@
     background: #01538b;
     color: #ffffff;
     border-color: #01538b;
-    box-shadow: 0 12px 22px rgba(1, 83, 139, 0.18);
+    box-shadow: 0 6px 14px rgba(1, 83, 139, 0.18);
 }
 
 .dateCellAccent {
@@ -667,6 +660,7 @@
     max-height: 85vh;
     padding: 24px;
     overflow: auto;
+    border-radius: 18px;
 }
 
 .modalHeader {
@@ -731,8 +725,8 @@
 .select {
     width: 100%;
     padding: 13px 14px;
-    border: 1px solid rgba(1, 83, 139, 0.12);
-    border-radius: 14px;
+    border: 1px solid #d7e0ea;
+    border-radius: 12px;
     background: #ffffff;
     color: #17364a;
     font-family: 'Lexend Deca', sans-serif;
@@ -770,12 +764,12 @@
 
 .noticeBox {
     padding: 14px 16px;
-    border-radius: 16px;
-    background: #f5fbff;
+    border-radius: 12px;
+    background: #f8fafc;
     color: #5f7a8d;
     font-size: 13px;
     line-height: 1.6;
-    border: 1px solid rgba(1, 83, 139, 0.08);
+    border: 1px solid #e2e8f0;
 }
 
 .loaderBox {
@@ -806,12 +800,12 @@
 
 @media (max-width: 768px) {
     .page {
-        padding: 20px 16px 28px;
+        padding: 0;
     }
 
     .header {
         flex-direction: column;
-        align-items: stretch;
+        align-items: flex-start;
     }
 
     .headerActions {
