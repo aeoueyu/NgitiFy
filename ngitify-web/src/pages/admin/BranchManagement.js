@@ -564,7 +564,7 @@ export default function BranchManagement() {
                                         </div>
                                         <div className={styles.analyticsListItem}>
                                             <span>Manager</span>
-                                            <strong>{getManagerName(analyticsTarget.managerIds)}</strong>
+                                            <strong>{getManagerName(analyticsTarget)}</strong>
                                         </div>
                                         <div className={styles.analyticsListItem}>
                                             <span>Status</span>
