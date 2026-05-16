@@ -128,12 +128,18 @@ export default function SharedActivityLogs() {
         setLoading(true);
         try {
             const userId = user?.userId || user?.id || user?._id;
-            const params = new URLSearchParams({ limit: '500' });
-            if (userId) {
-                params.set('userId', userId);
+            let response;
+
+            if (role === 'patient') {
+                response = await authFetch('/activity-logs/patient');
+            } else {
+                const params = new URLSearchParams({ limit: '500' });
+                if (userId) {
+                    params.set('userId', userId);
+                }
+                response = await authFetch(`/audit-logs?${params.toString()}`);
             }
 
-            const response = await authFetch(`/audit-logs?${params.toString()}`);
             if (!response.ok) throw new Error('Failed to load activity logs.');
 
             const data = await response.json();
@@ -163,7 +169,7 @@ export default function SharedActivityLogs() {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [role, user]);
 
     useEffect(() => {
         fetchLogs();
