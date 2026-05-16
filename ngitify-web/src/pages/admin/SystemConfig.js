@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/SystemConfig.module.css';
-import { invalidateSystemConfigCache, SYSTEM_CONFIG_UPDATED_EVENT } from '../../hooks/useSystemConfig';
+import { invalidateSystemConfigCache, SYSTEM_CONFIG_UPDATED_EVENT, useSystemConfig } from '../../hooks/useSystemConfig';
 import { invalidatePublicClinicConfigCache } from '../../hooks/usePublicClinicConfig';
 import { cloneWebsiteContentDefaults } from '../../data/websiteContent';
 import { getDefaultServiceImage, websiteMediaDefaults } from '../../data/websiteMediaDefaults';
@@ -67,6 +67,23 @@ const buildInitialConfig = () => ({
     websiteContent: cloneWebsiteContentDefaults(),
     sessionTimeoutMinutes: 30,
 });
+
+const mergeSystemConfigState = (value = {}) => {
+    const fallback = buildInitialConfig();
+    return {
+        ...fallback,
+        ...value,
+        onlineBookingProcedures: Array.isArray(value?.onlineBookingProcedures) && value.onlineBookingProcedures.length
+            ? value.onlineBookingProcedures
+            : fallback.onlineBookingProcedures,
+        clinicProcedures: Array.isArray(value?.clinicProcedures) && value.clinicProcedures.length
+            ? value.clinicProcedures
+            : fallback.clinicProcedures,
+        emailTemplates: { ...fallback.emailTemplates, ...(value?.emailTemplates || {}) },
+        featureToggles: { ...fallback.featureToggles, ...(value?.featureToggles || {}) },
+        websiteContent: mergeWebsiteContent(value?.websiteContent || fallback.websiteContent),
+    };
+};
 
 const splitMultilineValue = (value) => String(value || '').split(/\r?\n/);
 const joinMultilineValue = (list = []) => (Array.isArray(list) ? list.join('\n') : '');
@@ -144,72 +161,52 @@ const mergeWebsiteContent = (value = {}) => {
 };
 
 const SystemConfig = () => {
-    const [isLoading, setIsLoading] = useState(true);
+    const { config: loadedConfig, loading: systemConfigLoading } = useSystemConfig();
+    const [hasLoadedInitialConfig, setHasLoadedInitialConfig] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [websiteActionMessage, setWebsiteActionMessage] = useState('');
     const [activeSection, setActiveSection] = useState('clinic');
     const [activeWebsiteTab, setActiveWebsiteTab] = useState('branding');
     const [feedbackModal, setFeedbackModal] = useState(null);
-    const [config, setConfig] = useState(buildInitialConfig);
+    const [config, setConfig] = useState(() => mergeSystemConfigState(loadedConfig));
 
     useEffect(() => {
-        const fetchConfig = async () => {
-            setIsLoading(true);
-            try {
-                const res = await authFetch('/system-config');
-                if (res.ok) {
-                    const data = await res.json();
-                    setConfig((prev) => ({
-                        ...prev,
-                        ...data,
-                        onlineBookingProcedures: Array.isArray(data?.onlineBookingProcedures) && data.onlineBookingProcedures.length
-                            ? data.onlineBookingProcedures
-                            : prev.onlineBookingProcedures,
-                        clinicProcedures: Array.isArray(data?.clinicProcedures) && data.clinicProcedures.length
-                            ? data.clinicProcedures
-                            : prev.clinicProcedures,
-                        emailTemplates: { ...prev.emailTemplates, ...(data?.emailTemplates || {}) },
-                        featureToggles: { ...prev.featureToggles, ...(data?.featureToggles || {}) },
-                        websiteContent: mergeWebsiteContent(data?.websiteContent || prev.websiteContent),
-                    }));
-                }
-            } catch {
-                setFeedbackModal({
-                    tone: 'error',
-                    title: 'Could not load settings',
-                    eyebrow: 'System Config Error',
-                    message: 'Failed to load system configuration.',
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
+        if (!systemConfigLoading || loadedConfig) {
+            setHasLoadedInitialConfig(true);
+        }
+    }, [loadedConfig, systemConfigLoading]);
 
-        fetchConfig();
-    }, []);
+    useEffect(() => {
+        if (!loadedConfig) return;
+        setConfig(mergeSystemConfigState(loadedConfig));
+    }, [loadedConfig]);
+
+    const updateConfig = (updater) => {
+        setConfig((prev) => mergeSystemConfigState(typeof updater === 'function' ? updater(prev) : updater));
+    };
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setConfig((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        updateConfig((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
     const handleTemplateChange = (e) => {
         const { name, value } = e.target;
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             emailTemplates: { ...prev.emailTemplates, [name]: value },
         }));
     };
 
     const handleToggleChange = (key) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             featureToggles: { ...prev.featureToggles, [key]: !prev.featureToggles[key] },
         }));
     };
 
     const handleSlotToggle = (slot) => {
-        setConfig((prev) => {
+        updateConfig((prev) => {
             const hasSlot = prev.allowedTimeSlots.includes(slot);
             return {
                 ...prev,
@@ -221,28 +218,28 @@ const SystemConfig = () => {
     };
 
     const handleListInputChange = (listKey, index, value) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             [listKey]: (prev[listKey] || []).map((entry, entryIndex) => (entryIndex === index ? value : entry)),
         }));
     };
 
     const handleAddListItem = (listKey) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             [listKey]: [...(prev[listKey] || []), ''],
         }));
     };
 
     const handleRemoveListItem = (listKey, index) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             [listKey]: (prev[listKey] || []).filter((_, entryIndex) => entryIndex !== index),
         }));
     };
 
     const handleWebsiteFieldChange = (section, field, value) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             websiteContent: {
                 ...prev.websiteContent,
@@ -259,7 +256,7 @@ const SystemConfig = () => {
     };
 
     const handleWebsiteServiceChange = (index, field, value) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             websiteContent: {
                 ...prev.websiteContent,
@@ -273,7 +270,7 @@ const SystemConfig = () => {
     };
 
     const handleWebsiteServiceItemsChange = (index, value) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             websiteContent: {
                 ...prev.websiteContent,
@@ -287,7 +284,7 @@ const SystemConfig = () => {
     };
 
     const handleWebsiteMediaFieldChange = (field, value) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             websiteContent: {
                 ...prev.websiteContent,
@@ -300,7 +297,7 @@ const SystemConfig = () => {
     };
 
     const handleWebsiteMediaListItemChange = (field, index, value) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             websiteContent: {
                 ...prev.websiteContent,
@@ -387,7 +384,7 @@ const SystemConfig = () => {
     };
 
     const handleAddServiceHighlight = () => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             websiteContent: {
                 ...prev.websiteContent,
@@ -397,7 +394,7 @@ const SystemConfig = () => {
     };
 
     const handleRemoveServiceHighlight = (index) => {
-        setConfig((prev) => ({
+        updateConfig((prev) => ({
             ...prev,
             websiteContent: {
                 ...prev.websiteContent,
@@ -448,11 +445,7 @@ const SystemConfig = () => {
                 if (typeof window !== 'undefined') {
                     window.dispatchEvent(new Event(SYSTEM_CONFIG_UPDATED_EVENT));
                 }
-                setConfig((prev) => ({
-                    ...prev,
-                    ...savedConfig,
-                    websiteContent: mergeWebsiteContent(savedConfig?.websiteContent || prev.websiteContent),
-                }));
+                setConfig(mergeSystemConfigState(savedConfig));
                 showSuccessModal('System configuration saved successfully.', 'Changes saved');
             } else {
                 const data = await res.json().catch(() => ({}));
@@ -889,7 +882,7 @@ const SystemConfig = () => {
         </div>
     );
 
-    if (isLoading) {
+    if (!hasLoadedInitialConfig && systemConfigLoading) {
         return <div className={styles.loadingContainer}><p>Loading system configuration...</p></div>;
     }
 
@@ -957,6 +950,9 @@ const SystemConfig = () => {
             <div className={styles.pageHeader}>
                 <h1 className={styles.pageTitle}>System Configuration</h1>
                 <p className={styles.pageSubtitle}>Manage global settings for NgitiFy Dental Management System.</p>
+                {systemConfigLoading && hasLoadedInitialConfig && !isSaving ? (
+                    <p className={styles.sectionDesc}>Refreshing the latest system settings in the background...</p>
+                ) : null}
             </div>
             <div className={styles.layout}>
                 <nav className={styles.sectionNav}>
