@@ -2181,7 +2181,7 @@ export default function SchedulePage() {
         <>
             <div className={styles.page}>
                 <div className={styles.headerRow}>
-                    <div>
+                    <div className={styles.headerContent}>
                         <h1 className={styles.pageTitle}>Schedule Management</h1>
                         <p className={styles.pageSubtitle}>
                             Appointments, phone calls, and walk-ins are shown in one schedule view, with branch-aware dentist filtering, multi-filter record exports, and a patient search flow that matches registration.

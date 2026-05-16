@@ -14,14 +14,21 @@
     align-items: flex-start;
     gap: 20px;
     margin-bottom: 30px;
+    flex-wrap: nowrap;
+}
+
+.headerContent {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .headerActions {
     display: flex;
     align-items: center;
     gap: 12px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
+    flex: 0 0 auto;
 }
 
 .pageTitle {
@@ -1114,6 +1121,7 @@
 
     .headerActions {
         justify-content: flex-start;
+        flex-wrap: wrap;
     }
 
     .reportFilterGrid {
