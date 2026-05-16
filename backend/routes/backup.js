@@ -9,6 +9,7 @@ const verifyToken = require('../middleware/auth');
 const isAdmin = require('../middleware/isAdmin');
 const AuditLog = require('../models/AuditLog');
 const BackupLog = require('../models/BackupLog');
+const SystemConfig = require('../models/SystemConfig');
 
 const normalizeText = (value) => String(value || '').trim();
 
@@ -26,6 +27,11 @@ const BACKUP_RETENTION_COUNT = (() => {
 })();
 const BACKUP_PROBE_CACHE_MS = 60 * 1000;
 const SYSTEM_BACKUP_ACTOR = 'System Scheduler';
+const DEFAULT_BACKUP_SETTINGS = Object.freeze({
+    enabled: BACKUP_AUTO_ENABLED,
+    intervalHours: BACKUP_AUTO_INTERVAL_HOURS,
+    retentionCount: BACKUP_RETENTION_COUNT,
+});
 
 const backupRuntime = {
     isRunning: false,
@@ -34,6 +40,7 @@ const backupRuntime = {
     schedulerTimer: null,
     probe: null,
     interruptedRunsReconciled: false,
+    settings: { ...DEFAULT_BACKUP_SETTINGS },
 };
 
 if (!fs.existsSync(BACKUP_DIR)) {
@@ -121,6 +128,66 @@ const formatDurationLabel = (durationMs) => {
     const seconds = totalSeconds % 60;
     if (minutes <= 0) return `${seconds}s`;
     return `${minutes}m ${seconds}s`;
+};
+
+const normalizeIntegerInRange = (value, { fallback, min, max }) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(Math.max(Math.round(parsed), min), max);
+};
+
+const normalizeBackupSettings = (source = {}) => ({
+    enabled: source?.enabled === true,
+    intervalHours: normalizeIntegerInRange(source?.intervalHours, {
+        fallback: DEFAULT_BACKUP_SETTINGS.intervalHours,
+        min: 1,
+        max: 168,
+    }),
+    retentionCount: normalizeIntegerInRange(source?.retentionCount, {
+        fallback: DEFAULT_BACKUP_SETTINGS.retentionCount,
+        min: 0,
+        max: 90,
+    }),
+    updatedAt: source?.updatedAt || null,
+    updatedBy: normalizeText(source?.updatedBy),
+});
+
+const getOrCreateSystemConfig = async () => {
+    let config = await SystemConfig.findOne();
+    if (!config) {
+        config = await SystemConfig.create({});
+    }
+    return config;
+};
+
+const getPersistedBackupSettings = async () => {
+    const config = await getOrCreateSystemConfig();
+    const rawSettings = config.backupSettings;
+
+    if (!rawSettings || !rawSettings.updatedAt) {
+        return normalizeBackupSettings({
+            ...DEFAULT_BACKUP_SETTINGS,
+            updatedAt: null,
+            updatedBy: '',
+        });
+    }
+
+    return normalizeBackupSettings(rawSettings);
+};
+
+const persistBackupSettings = async ({ enabled, intervalHours, retentionCount, updatedBy = '' }) => {
+    const config = await getOrCreateSystemConfig();
+    const payload = normalizeBackupSettings({
+        enabled,
+        intervalHours,
+        retentionCount,
+        updatedAt: new Date(),
+        updatedBy,
+    });
+
+    config.backupSettings = payload;
+    await config.save();
+    return payload;
 };
 
 const runProcess = (command, args = []) => new Promise((resolve, reject) => {
@@ -274,7 +341,9 @@ const reconcileInterruptedBackups = async () => {
 };
 
 const applyRetentionPolicy = async () => {
-    if (BACKUP_RETENTION_COUNT <= 0) {
+    const retentionCount = backupRuntime.settings.retentionCount;
+
+    if (retentionCount <= 0) {
         return {
             enabled: false,
             deletedCount: 0,
@@ -290,7 +359,7 @@ const applyRetentionPolicy = async () => {
         .select('filename createdAt')
         .lean();
 
-    const backupsToDelete = successfulBackups.slice(BACKUP_RETENTION_COUNT);
+    const backupsToDelete = successfulBackups.slice(retentionCount);
     const deletedFilenames = [];
 
     for (const backup of backupsToDelete) {
@@ -306,14 +375,14 @@ const applyRetentionPolicy = async () => {
             {
                 $set: {
                     retentionDeletedAt: new Date(),
-                    retentionReason: `Pruned automatically after exceeding the local retention limit of ${BACKUP_RETENTION_COUNT} backups.`,
+                    retentionReason: `Pruned automatically after exceeding the local retention limit of ${retentionCount} backups.`,
                 },
             }
         );
     }
 
     return {
-        enabled: true,
+        enabled: retentionCount > 0,
         deletedCount: deletedFilenames.length,
         deletedFilenames,
     };
@@ -391,7 +460,7 @@ const createBackupRun = async ({
         );
 
         let retention = {
-            enabled: BACKUP_RETENTION_COUNT > 0,
+            enabled: backupRuntime.settings.retentionCount > 0,
             deletedCount: 0,
             deletedFilenames: [],
             error: '',
@@ -450,18 +519,21 @@ const createBackupRun = async ({
     }
 };
 
-const scheduleAutomaticBackups = () => {
-    if (!BACKUP_AUTO_ENABLED) {
+const scheduleAutomaticBackups = (settings = backupRuntime.settings) => {
+    backupRuntime.settings = normalizeBackupSettings(settings);
+
+    if (backupRuntime.schedulerTimer) {
+        clearTimeout(backupRuntime.schedulerTimer);
+        backupRuntime.schedulerTimer = null;
+    }
+
+    if (!backupRuntime.settings.enabled) {
         backupRuntime.nextAutomaticBackupAt = null;
         return;
     }
 
-    const delayMs = BACKUP_AUTO_INTERVAL_HOURS * 60 * 60 * 1000;
+    const delayMs = backupRuntime.settings.intervalHours * 60 * 60 * 1000;
     backupRuntime.nextAutomaticBackupAt = new Date(Date.now() + delayMs);
-
-    if (backupRuntime.schedulerTimer) {
-        clearTimeout(backupRuntime.schedulerTimer);
-    }
 
     backupRuntime.schedulerTimer = setTimeout(async () => {
         try {
@@ -480,7 +552,20 @@ const scheduleAutomaticBackups = () => {
     }, delayMs);
 };
 
-scheduleAutomaticBackups();
+const initializeBackupScheduler = async () => {
+    scheduleAutomaticBackups(DEFAULT_BACKUP_SETTINGS);
+
+    try {
+        const persistedSettings = await getPersistedBackupSettings();
+        scheduleAutomaticBackups(persistedSettings);
+    } catch (error) {
+        console.error('Error loading persisted backup settings:', error);
+    }
+};
+
+initializeBackupScheduler().catch((error) => {
+    console.error('Error initializing backup scheduler:', error);
+});
 
 const serializeBackupLog = (backup) => {
     const filePath = path.join(BACKUP_DIR, backup.filename);
@@ -525,10 +610,12 @@ router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
             binary: probe.binary || MONGODUMP_BIN,
             mongodump: probe,
             scheduler: {
-                enabled: BACKUP_AUTO_ENABLED,
-                intervalHours: BACKUP_AUTO_INTERVAL_HOURS,
-                retentionCount: BACKUP_RETENTION_COUNT,
+                enabled: backupRuntime.settings.enabled,
+                intervalHours: backupRuntime.settings.intervalHours,
+                retentionCount: backupRuntime.settings.retentionCount,
                 nextAutomaticBackupAt: backupRuntime.nextAutomaticBackupAt,
+                updatedAt: backupRuntime.settings.updatedAt || null,
+                updatedBy: backupRuntime.settings.updatedBy || '',
             },
             activeBackup: backupRuntime.activeBackup,
             summary: {
@@ -571,6 +658,41 @@ router.post('/backup/create', verifyToken, isAdmin, async (req, res) => {
         res.status(500).json({
             message: 'Backup failed. Ensure mongodump is installed and the server can access the database.',
         });
+    }
+});
+
+router.put('/backup/settings', verifyToken, isAdmin, async (req, res) => {
+    try {
+        const savedSettings = await persistBackupSettings({
+            enabled: req.body?.enabled,
+            intervalHours: req.body?.intervalHours,
+            retentionCount: req.body?.retentionCount,
+            updatedBy: req.user?.email || 'Administrator',
+        });
+
+        scheduleAutomaticBackups(savedSettings);
+
+        await AuditLog.create({
+            action: 'BACKUP_SETTINGS_UPDATED',
+            user: req.user?.email || 'Administrator',
+            role: 'administrator',
+            details: `Backup scheduler settings updated: enabled=${savedSettings.enabled}, intervalHours=${savedSettings.intervalHours}, retentionCount=${savedSettings.retentionCount}.`,
+        }).catch(() => {});
+
+        res.json({
+            message: 'Backup settings saved successfully.',
+            scheduler: {
+                enabled: backupRuntime.settings.enabled,
+                intervalHours: backupRuntime.settings.intervalHours,
+                retentionCount: backupRuntime.settings.retentionCount,
+                nextAutomaticBackupAt: backupRuntime.nextAutomaticBackupAt,
+                updatedAt: backupRuntime.settings.updatedAt || null,
+                updatedBy: backupRuntime.settings.updatedBy || '',
+            },
+        });
+    } catch (error) {
+        console.error('Error saving backup settings:', error);
+        res.status(500).json({ message: 'Server error saving backup settings.' });
     }
 });
 

@@ -293,6 +293,75 @@
     line-height: 1.7;
 }
 
+.settingsCard {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+}
+
+.settingsHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.settingsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.fieldCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f8fbff;
+    border: 1px solid #dce8f5;
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.fieldLabel {
+    font-size: 14px;
+    font-weight: 800;
+    color: #173756;
+}
+
+.fieldHelp {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+.textInput {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 11px 12px;
+    font-size: 14px;
+    color: #1a2a3a;
+    font-family: 'Lexend Deca', sans-serif;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+.textInput:focus {
+    outline: none;
+    border-color: #01538b;
+    box-shadow: 0 0 0 3px rgba(1, 83, 139, 0.12);
+}
+
+.checkbox {
+    width: 20px;
+    height: 20px;
+    accent-color: #01538b;
+}
+
 .tableCard {
     background: #fff;
     border: 1px solid #e2e8f0;
@@ -500,7 +569,8 @@
 
 @media (max-width: 1100px) {
     .bannerGrid,
-    .detailsGrid {
+    .detailsGrid,
+    .settingsGrid {
         grid-template-columns: 1fr;
     }
 }
@@ -539,6 +609,11 @@
 
     .detailRow strong {
         text-align: left;
+    }
+
+    .settingsHeader {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .table th,

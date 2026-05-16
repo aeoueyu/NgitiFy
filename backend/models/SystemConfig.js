@@ -55,6 +55,13 @@ const systemConfigSchema = new mongoose.Schema({
         chatSupport:       { type: Boolean, default: false },
         sessionTimeout:    { type: Boolean, default: true }
     },
+    backupSettings: {
+        enabled: { type: Boolean, default: false },
+        intervalHours: { type: Number, default: 24 },
+        retentionCount: { type: Number, default: 14 },
+        updatedAt: { type: Date, default: null },
+        updatedBy: { type: String, default: '' },
+    },
     websiteContent: {
         type: mongoose.Schema.Types.Mixed,
         default: () => JSON.parse(JSON.stringify(defaultWebsiteContent)),

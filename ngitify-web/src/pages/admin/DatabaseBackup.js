@@ -85,6 +85,12 @@ const getFileMeta = (backup) => {
     return { label: 'N/A', className: styles.fileNeutral };
 };
 
+const clampWholeNumber = (value, fallback, min, max) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(Math.max(Math.round(parsed), min), max);
+};
+
 export default function DatabaseBackup() {
     const { addToast } = useToast();
 
@@ -94,6 +100,12 @@ export default function DatabaseBackup() {
     const [refreshing, setRefreshing] = useState(false);
     const [creating, setCreating] = useState(false);
     const [downloading, setDownloading] = useState(null);
+    const [savingSettings, setSavingSettings] = useState(false);
+    const [settingsForm, setSettingsForm] = useState({
+        enabled: false,
+        intervalHours: 24,
+        retentionCount: 14,
+    });
 
     const loadData = useCallback(async ({ silent = false } = {}) => {
         if (silent) {
@@ -139,6 +151,20 @@ export default function DatabaseBackup() {
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    const schedulerEnabled = status?.scheduler?.enabled;
+    const schedulerIntervalHours = status?.scheduler?.intervalHours;
+    const schedulerRetentionCount = status?.scheduler?.retentionCount;
+
+    useEffect(() => {
+        if (typeof schedulerEnabled === 'undefined') return;
+
+        setSettingsForm({
+            enabled: schedulerEnabled === true,
+            intervalHours: clampWholeNumber(schedulerIntervalHours, 24, 1, 168),
+            retentionCount: clampWholeNumber(schedulerRetentionCount, 14, 0, 90),
+        });
+    }, [schedulerEnabled, schedulerIntervalHours, schedulerRetentionCount]);
 
     const handleCreate = async () => {
         if (creating) return;
@@ -202,10 +228,67 @@ export default function DatabaseBackup() {
         }
     };
 
+    const handleSettingsChange = (key, value) => {
+        setSettingsForm((current) => ({
+            ...current,
+            [key]: value,
+        }));
+    };
+
+    const handleSaveSettings = async () => {
+        if (savingSettings) return;
+
+        const payload = {
+            enabled: settingsForm.enabled === true,
+            intervalHours: clampWholeNumber(settingsForm.intervalHours, 24, 1, 168),
+            retentionCount: clampWholeNumber(settingsForm.retentionCount, 14, 0, 90),
+        };
+
+        setSavingSettings(true);
+
+        try {
+            const res = await authFetch('/backup/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                addToast(data.message || 'Backup settings could not be saved.', 'error');
+                return;
+            }
+
+            addToast(data.message || 'Backup settings saved successfully.', 'success');
+            setStatus((current) => (
+                current
+                    ? { ...current, scheduler: data.scheduler || current.scheduler }
+                    : current
+            ));
+            setSettingsForm({
+                enabled: payload.enabled,
+                intervalHours: payload.intervalHours,
+                retentionCount: payload.retentionCount,
+            });
+            await loadData();
+        } catch (error) {
+            console.error('Backup settings save error:', error);
+            addToast('Network error. Backup settings could not be saved.', 'error');
+        } finally {
+            setSavingSettings(false);
+        }
+    };
+
     const summary = status?.summary || {};
     const scheduler = status?.scheduler || {};
     const mongodump = status?.mongodump || {};
     const activeBackup = status?.activeBackup || null;
+    const schedulerDirty = (
+        settingsForm.enabled !== (scheduler.enabled === true)
+        || clampWholeNumber(settingsForm.intervalHours, 24, 1, 168) !== clampWholeNumber(scheduler.intervalHours, 24, 1, 168)
+        || clampWholeNumber(settingsForm.retentionCount, 14, 0, 90) !== clampWholeNumber(scheduler.retentionCount, 14, 0, 90)
+    );
 
     const createDisabled = creating || loading || Boolean(activeBackup) || mongodump.available === false;
 
@@ -328,6 +411,10 @@ export default function DatabaseBackup() {
                             <span>Next automatic run</span>
                             <strong>{scheduler.enabled ? formatDate(scheduler.nextAutomaticBackupAt) : '-'}</strong>
                         </div>
+                        <div className={styles.detailRow}>
+                            <span>Last updated</span>
+                            <strong>{scheduler.updatedAt ? formatDate(scheduler.updatedAt) : 'Env/defaults'}</strong>
+                        </div>
                     </div>
                 </div>
 
@@ -374,10 +461,71 @@ export default function DatabaseBackup() {
                 </div>
             </div>
 
+            <div className={styles.settingsCard}>
+                <div className={styles.settingsHeader}>
+                    <div>
+                        <h2 className={styles.tableTitle}>Automatic Backup Settings</h2>
+                        <p className={styles.tableSubtitle}>
+                            These settings control the local scheduler only. They improve backup frequency, but they are still not real-time replication.
+                        </p>
+                    </div>
+                    <button
+                        className={styles.createBtn}
+                        onClick={handleSaveSettings}
+                        disabled={loading || savingSettings || refreshing || !schedulerDirty}
+                    >
+                        {savingSettings
+                            ? <><FaSyncAlt className={styles.spinning} /> Saving...</>
+                            : 'Save Settings'}
+                    </button>
+                </div>
+
+                <div className={styles.settingsGrid}>
+                    <label className={styles.fieldCard}>
+                        <span className={styles.fieldLabel}>Automatic backups</span>
+                        <span className={styles.fieldHelp}>Turn scheduled `mongodump` runs on or off.</span>
+                        <input
+                            type="checkbox"
+                            className={styles.checkbox}
+                            checked={settingsForm.enabled}
+                            onChange={(event) => handleSettingsChange('enabled', event.target.checked)}
+                        />
+                    </label>
+
+                    <label className={styles.fieldCard}>
+                        <span className={styles.fieldLabel}>Interval hours</span>
+                        <span className={styles.fieldHelp}>Choose how often the server creates a full archive. Allowed: 1 to 168 hours.</span>
+                        <input
+                            type="number"
+                            min="1"
+                            max="168"
+                            step="1"
+                            className={styles.textInput}
+                            value={settingsForm.intervalHours}
+                            onChange={(event) => handleSettingsChange('intervalHours', event.target.value)}
+                        />
+                    </label>
+
+                    <label className={styles.fieldCard}>
+                        <span className={styles.fieldLabel}>Retention count</span>
+                        <span className={styles.fieldHelp}>Keep this many successful local backups before pruning older files. Use 0 to disable pruning.</span>
+                        <input
+                            type="number"
+                            min="0"
+                            max="90"
+                            step="1"
+                            className={styles.textInput}
+                            value={settingsForm.retentionCount}
+                            onChange={(event) => handleSettingsChange('retentionCount', event.target.value)}
+                        />
+                    </label>
+                </div>
+            </div>
+
             <div className={styles.infoBanner}>
                 <FaExclamationTriangle className={styles.infoIcon} />
                 <p>
-                    Automatic backups use environment settings:
+                    Automatic backups now use saved admin settings and fall back to environment defaults when no saved settings exist:
                     <code>BACKUP_AUTO_ENABLED</code>,
                     <code>BACKUP_AUTO_INTERVAL_HOURS</code>,
                     <code>BACKUP_RETENTION_COUNT</code>,
