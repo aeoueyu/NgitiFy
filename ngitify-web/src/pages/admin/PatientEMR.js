@@ -2194,81 +2194,98 @@ export default function PatientEMR({
                 </div>
 
                 {odontogramLogs.length > 0 ? (
-                    <div className={styles.timeline}>
-                        {odontogramLogs.map((log) => {
-                            const logId = log.id;
-                            const isExpanded = !!expandedOdontogramLogRows[logId];
-                            const stageLabel = getOdontogramStageLabel(log.stage);
-                            const statusAfterLabel = log.statusAfter ? getOdontogramStatusLabel(log.statusAfter) : 'Cleared';
-                            const statusBeforeLabel = log.statusBefore ? getOdontogramStatusLabel(log.statusBefore) : 'None';
+                    <div className={scheduleStyles.tableContainer}>
+                        <table className={`${wideTable.table} ${styles.treatmentHistoryTable}`}>
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Tooth</th>
+                                    <th>Stage</th>
+                                    <th>Updated To</th>
+                                    <th>Updated By</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {odontogramLogs.map((log) => {
+                                    const logId = log.id;
+                                    const isExpanded = !!expandedOdontogramLogRows[logId];
+                                    const stageLabel = getOdontogramStageLabel(log.stage);
+                                    const statusAfterLabel = log.statusAfter ? getOdontogramStatusLabel(log.statusAfter) : 'Cleared';
+                                    const statusBeforeLabel = log.statusBefore ? getOdontogramStatusLabel(log.statusBefore) : 'None';
 
-                            return (
-                                <div key={logId} className={styles.timelineItem}>
-                                    <span className={styles.timelineDot}></span>
-                                    <div className={styles.timelineCard}>
-                                        <div className={styles.timelineHeader}>
-                                            <div className={styles.timelineMain}>
-                                                <p className={styles.timelineDate}>{formatDateTimeLong(log.rawCreatedAt)}</p>
-                                                <p className={styles.timelineProcedure}>
-                                                    Tooth {log.tooth}: {buildOdontogramLogHeadline(log)}
-                                                </p>
-                                                <div className={styles.timelineMeta}>
-                                                    <span className={styles.metaTag}>{stageLabel}</span>
-                                                    <span className={styles.metaTag}>{statusAfterLabel}</span>
-                                                    <span className={styles.metaTag}>{log.updatedByName || log.updatedByRole || 'Staff update'}</span>
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                className={styles.expandBtn}
-                                                onClick={() => toggleOdontogramLogRow(logId)}
-                                            >
-                                                {isExpanded ? 'Hide' : 'View'}
-                                            </button>
-                                        </div>
-
-                                        {isExpanded && (
-                                            <div className={styles.timelineDetails}>
-                                                <div className={styles.expandedDetailGrid}>
-                                                    <div>
-                                                        <span className={styles.expandedDetailLabel}>Update Type</span>
-                                                        <p className={styles.expandedDetailValue}>{log.eventType || 'updated'}</p>
+                                    return (
+                                        <Fragment key={logId}>
+                                            <tr>
+                                                <td>
+                                                    <div className={scheduleStyles.patientCell}>
+                                                        <strong>{formatDateShort(log.rawCreatedAt)}</strong>
+                                                        <span>{formatDateTimeLong(log.rawCreatedAt)}</span>
                                                     </div>
-                                                    <div>
-                                                        <span className={styles.expandedDetailLabel}>Updated By</span>
-                                                        <p className={styles.expandedDetailValue}>{log.updatedByName || 'Not specified'}{log.updatedByRole ? ` (${log.updatedByRole})` : ''}</p>
-                                                    </div>
-                                                    <div>
-                                                        <span className={styles.expandedDetailLabel}>Previous Status</span>
-                                                        <p className={styles.expandedDetailValue}>{statusBeforeLabel}</p>
-                                                    </div>
-                                                    <div>
-                                                        <span className={styles.expandedDetailLabel}>New Status</span>
-                                                        <p className={styles.expandedDetailValue}>{statusAfterLabel}</p>
-                                                    </div>
-                                                    <div>
-                                                        <span className={styles.expandedDetailLabel}>Previous Surfaces</span>
-                                                        <p className={styles.expandedDetailValue}>{formatSurfaceList(log.surfacesBefore)}</p>
-                                                    </div>
-                                                    <div>
-                                                        <span className={styles.expandedDetailLabel}>New Surfaces</span>
-                                                        <p className={styles.expandedDetailValue}>{formatSurfaceList(log.surfacesAfter)}</p>
-                                                    </div>
-                                                    <div>
-                                                        <span className={styles.expandedDetailLabel}>Previous Note</span>
-                                                        <p className={styles.expandedDetailValue}>{log.noteBefore || 'None'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <span className={styles.expandedDetailLabel}>New Note</span>
-                                                        <p className={styles.expandedDetailValue}>{log.noteAfter || 'None'}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                                </td>
+                                                <td>{log.tooth}</td>
+                                                <td>{stageLabel}</td>
+                                                <td title={buildOdontogramLogHeadline(log)}>{statusAfterLabel}</td>
+                                                <td title={log.updatedByName || log.updatedByRole || 'Staff update'}>
+                                                    {log.updatedByName || log.updatedByRole || 'Staff update'}
+                                                </td>
+                                                <td className={styles.detailsToggleCell}>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.expandInlineBtn}
+                                                        onClick={() => toggleOdontogramLogRow(logId)}
+                                                    >
+                                                        {isExpanded ? 'Hide' : 'View'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {isExpanded && (
+                                                <tr className={styles.expandedDetailRow}>
+                                                    <td colSpan="6">
+                                                        <div className={styles.expandedDetailPanel}>
+                                                            <div className={styles.expandedDetailGrid}>
+                                                                <div>
+                                                                    <span className={styles.expandedDetailLabel}>Summary</span>
+                                                                    <p className={styles.expandedDetailValue}>{buildOdontogramLogHeadline(log)}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <span className={styles.expandedDetailLabel}>Update Type</span>
+                                                                    <p className={styles.expandedDetailValue}>{log.eventType || 'updated'}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <span className={styles.expandedDetailLabel}>Previous Status</span>
+                                                                    <p className={styles.expandedDetailValue}>{statusBeforeLabel}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <span className={styles.expandedDetailLabel}>New Status</span>
+                                                                    <p className={styles.expandedDetailValue}>{statusAfterLabel}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <span className={styles.expandedDetailLabel}>Previous Surfaces</span>
+                                                                    <p className={styles.expandedDetailValue}>{formatSurfaceList(log.surfacesBefore)}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <span className={styles.expandedDetailLabel}>New Surfaces</span>
+                                                                    <p className={styles.expandedDetailValue}>{formatSurfaceList(log.surfacesAfter)}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <span className={styles.expandedDetailLabel}>Previous Note</span>
+                                                                    <p className={styles.expandedDetailValue}>{log.noteBefore || 'None'}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <span className={styles.expandedDetailLabel}>New Note</span>
+                                                                    <p className={styles.expandedDetailValue}>{log.noteAfter || 'None'}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </Fragment>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 ) : (
                     <div className={styles.emptyState}>No odontogram updates have been recorded yet.</div>
