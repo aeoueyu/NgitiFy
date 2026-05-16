@@ -1089,6 +1089,68 @@
     font-size: 14px;
 }
 
+.intakeSection {
+    display: grid;
+    gap: 24px;
+}
+
+.intakeDivider {
+    height: 1px;
+    background: rgba(1, 83, 139, 0.1);
+    margin: 8px 0 4px;
+}
+
+.intakeRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 32px;
+    align-items: start;
+}
+
+.intakeSpacer {
+    min-height: 1px;
+}
+
+.radioGroup {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.radioOption {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 0 18px;
+    border: 1.5px solid rgba(31, 82, 134, 0.18);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--website-primary);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.radioOption:hover {
+    border-color: var(--website-primary);
+    background: rgba(97, 199, 240, 0.08);
+}
+
+.radioOption input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--website-primary);
+    cursor: pointer;
+}
+
+.radioOptionActive {
+    border-color: var(--website-primary);
+    background: rgba(97, 199, 240, 0.14);
+    box-shadow: 0 0 0 3px rgba(97, 199, 240, 0.12);
+}
+
 .helperText,
 .errorText {
     font-size: 13px;
@@ -1198,6 +1260,10 @@
 
     .formGrid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .intakeRow {
+        grid-template-columns: 1fr;
     }
 
     .referenceIntroGrid,

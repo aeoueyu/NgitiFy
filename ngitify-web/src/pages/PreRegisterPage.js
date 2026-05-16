@@ -75,12 +75,6 @@ const initialMedicalHistory = {
     takingBirthControl: '',
 };
 
-const yesNoOptions = [
-    { value: '', label: 'Select' },
-    { value: 'yes', label: 'Yes' },
-    { value: 'no', label: 'No' },
-];
-
 const REQUIRED_MARK = <span style={{ color: '#dc2626' }}> *</span>;
 
 const PRE_REGISTER_FIELD_ORDER = [
@@ -653,9 +647,28 @@ export default function PreRegisterPage() {
     const renderYesNoField = (label, value, onChange, errorKey, fieldKey) => (
         <div className={styles.fieldGroup} data-field-key={fieldKey}>
             <label className={styles.fieldLabel}>{label}{REQUIRED_MARK}</label>
-            <select className={`${styles.fieldSelect} ${errors[errorKey] ? styles.errorBorder : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
-                {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-            </select>
+            <div className={styles.radioGroup}>
+                <label className={`${styles.radioOption} ${value === 'yes' ? styles.radioOptionActive : ''}`}>
+                    <input
+                        type="radio"
+                        name={fieldKey}
+                        value="yes"
+                        checked={value === 'yes'}
+                        onChange={(e) => onChange(e.target.value)}
+                    />
+                    <span>Yes</span>
+                </label>
+                <label className={`${styles.radioOption} ${value === 'no' ? styles.radioOptionActive : ''}`}>
+                    <input
+                        type="radio"
+                        name={fieldKey}
+                        value="no"
+                        checked={value === 'no'}
+                        onChange={(e) => onChange(e.target.value)}
+                    />
+                    <span>No</span>
+                </label>
+            </div>
             {errors[errorKey] && <span className={styles.errorText}>{errors[errorKey]}</span>}
         </div>
     );
@@ -923,104 +936,193 @@ export default function PreRegisterPage() {
                             {!isPhoneCallPreRegistration && (
                                 <>
                                     <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Dental History</h3>
-                                        <div className={styles.formGrid}>
-                                            <div className={styles.fieldGroup} data-field-key="dentalHistory_lastExamDate">
-                                                <label className={styles.fieldLabel}>Last Dental Visit</label>
-                                                <input type="date" className={`${styles.fieldInput} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={dentalHistory.lastExamDate} onChange={(e) => handleDentalChange('lastExamDate', e.target.value)} max={getTodayDate()} />
-                                                {errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}
+                                        <div className={styles.intakeSection}>
+                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Dental History</h3>
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup} data-field-key="dentalHistory_lastExamDate">
+                                                    <label className={styles.fieldLabel}>Last Dental Visit</label>
+                                                    <input type="date" className={`${styles.fieldInput} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={dentalHistory.lastExamDate} onChange={(e) => handleDentalChange('lastExamDate', e.target.value)} max={getTodayDate()} />
+                                                    {errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}
+                                                </div>
+                                                {renderYesNoField('Reaction or complication after dental treatment?', dentalHistory.hadTreatmentReaction, (value) => handleDentalChange('hadTreatmentReaction', value), 'dentalHistory_hadTreatmentReaction', 'dentalHistory_hadTreatmentReaction')}
+                                                <div className={styles.fieldGroup} data-field-key="dentalHistory_reactionDetails">
+                                                    <label className={styles.fieldLabel}>If Yes, Please Detail</label>
+                                                    <textarea className={`${styles.fieldTextarea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={dentalHistory.reactionDetails} onChange={(e) => handleDentalChange('reactionDetails', e.target.value)} />
+                                                    {errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}
+                                                </div>
                                             </div>
-                                            {renderYesNoField('Reaction or complication after dental treatment?', dentalHistory.hadTreatmentReaction, (value) => handleDentalChange('hadTreatmentReaction', value), 'dentalHistory_hadTreatmentReaction', 'dentalHistory_hadTreatmentReaction')}
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="dentalHistory_reactionDetails">
-                                                <label className={styles.fieldLabel}>If Yes, Please Detail</label>
-                                                <textarea className={`${styles.fieldTextarea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={dentalHistory.reactionDetails} onChange={(e) => handleDentalChange('reactionDetails', e.target.value)} />
-                                                {errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Private or confidential information to discuss in private?', dentalHistory.hasConfidentialInfo, (value) => handleDentalChange('hasConfidentialInfo', value), 'dentalHistory_hasConfidentialInfo', 'dentalHistory_hasConfidentialInfo')}
+                                                <div className={styles.intakeSpacer} />
                                             </div>
-                                            {renderYesNoField('Private or confidential information to discuss in private?', dentalHistory.hasConfidentialInfo, (value) => handleDentalChange('hasConfidentialInfo', value), 'dentalHistory_hasConfidentialInfo', 'dentalHistory_hasConfidentialInfo')}
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                                <label className={styles.fieldLabel}>Additional Dental Notes</label>
-                                                <textarea className={styles.fieldTextarea} value={dentalHistory.notes} onChange={(e) => handleDentalChange('notes', e.target.value)} />
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Additional Dental Notes</label>
+                                                    <textarea className={styles.fieldTextarea} value={dentalHistory.notes} onChange={(e) => handleDentalChange('notes', e.target.value)} />
+                                                </div>
+                                                <div className={styles.intakeSpacer} />
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Medical History</h3>
-                                        <div className={styles.formGrid}>
-                                            {renderYesNoField('Are you in good health?', medicalHistory.inGoodHealth, (value) => handleMedicalChange('inGoodHealth', value), 'medicalHistory_inGoodHealth', 'medicalHistory_inGoodHealth')}
-                                            {renderYesNoField('Are you under medical treatment now?', medicalHistory.underMedicalTreatment, (value) => handleMedicalChange('underMedicalTreatment', value), 'medicalHistory_underMedicalTreatment', 'medicalHistory_underMedicalTreatment')}
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_medicalTreatmentDetails">
-                                                <label className={styles.fieldLabel}>If So, What Is the Condition Treated?</label>
-                                                <textarea className={`${styles.fieldTextarea} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={medicalHistory.medicalTreatmentDetails} onChange={(e) => handleMedicalChange('medicalTreatmentDetails', e.target.value)} />
-                                                {errors.medicalHistory_medicalTreatmentDetails && <span className={styles.errorText}>{errors.medicalHistory_medicalTreatmentDetails}</span>}
-                                            </div>
-                                            {renderYesNoField('Have you ever had serious illness or surgical operation?', medicalHistory.hadSeriousIllnessOrSurgery, (value) => handleMedicalChange('hadSeriousIllnessOrSurgery', value), 'medicalHistory_hadSeriousIllnessOrSurgery', 'medicalHistory_hadSeriousIllnessOrSurgery')}
-                                            {renderYesNoField('Have you ever been hospitalized?', medicalHistory.hadHospitalization, (value) => handleMedicalChange('hadHospitalization', value), 'medicalHistory_hadHospitalization', 'medicalHistory_hadHospitalization')}
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_seriousIllnessOrSurgeryDetails">
-                                                <label className={styles.fieldLabel}>If So, What Is the Illness or Operation?</label>
-                                                <textarea className={`${styles.fieldTextarea} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleMedicalChange('seriousIllnessOrSurgeryDetails', e.target.value)} />
-                                                {errors.medicalHistory_seriousIllnessOrSurgeryDetails && <span className={styles.errorText}>{errors.medicalHistory_seriousIllnessOrSurgeryDetails}</span>}
-                                            </div>
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_hospitalizationDetails">
-                                                <label className={styles.fieldLabel}>If So, When and Why?</label>
-                                                <textarea className={`${styles.fieldTextarea} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={medicalHistory.hospitalizationDetails} onChange={(e) => handleMedicalChange('hospitalizationDetails', e.target.value)} />
-                                                {errors.medicalHistory_hospitalizationDetails && <span className={styles.errorText}>{errors.medicalHistory_hospitalizationDetails}</span>}
-                                            </div>
-                                            {renderYesNoField('Are you taking any prescription or non-prescription medication?', medicalHistory.isTakingMedication, (value) => handleMedicalChange('isTakingMedication', value), 'medicalHistory_isTakingMedication', 'medicalHistory_isTakingMedication')}
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_medications">
-                                                <label className={styles.fieldLabel}>If So, Please Specify</label>
-                                                <textarea className={`${styles.fieldTextarea} ${errors.medicalHistory_medications ? styles.errorBorder : ''}`} value={medicalHistory.medications} onChange={(e) => handleMedicalChange('medications', e.target.value)} placeholder="Comma-separated values" />
-                                                {errors.medicalHistory_medications && <span className={styles.errorText}>{errors.medicalHistory_medications}</span>}
-                                            </div>
-                                            {renderYesNoField('Do you use tobacco products?', medicalHistory.usesTobacco, (value) => handleMedicalChange('usesTobacco', value), 'medicalHistory_usesTobacco', 'medicalHistory_usesTobacco')}
-                                            {renderYesNoField('Do you use alcohol, cocaine, or other dangerous drugs?', medicalHistory.usesAlcoholOrDrugs, (value) => handleMedicalChange('usesAlcoholOrDrugs', value), 'medicalHistory_usesAlcoholOrDrugs', 'medicalHistory_usesAlcoholOrDrugs')}
-                                            {renderYesNoField('Are you allergic to any of the following?', medicalHistory.hasAllergies, (value) => handleMedicalChange('hasAllergies', value), 'medicalHistory_hasAllergies', 'medicalHistory_hasAllergies')}
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_allergies">
-                                                <label className={styles.fieldLabel}>Allergies</label>
-                                                <div className={styles.checkboxGrid}>
-                                                    {ALLERGY_OPTIONS.map((option) => (
-                                                        <label key={option} className={styles.checkboxCard}>
-                                                            <input type="checkbox" checked={medicalHistory.allergies.includes(option)} onChange={() => handleMedicalArrayToggle('allergies', option)} />
-                                                            <span>{option}</span>
-                                                        </label>
-                                                    ))}
+                                        <div className={styles.intakeDivider} />
+
+                                        <div className={styles.intakeSection}>
+                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Attending Physician</h3>
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Physician Name</label>
+                                                    <input className={styles.fieldInput} value={physician.name} onChange={(e) => handleContactChange('physician', 'name', e.target.value)} />
                                                 </div>
-                                                <input className={`${styles.fieldInput} ${errors.medicalHistory_allergies ? styles.errorBorder : ''}`} style={{ marginTop: '12px' }} value={medicalHistory.allergyOther} onChange={(e) => handleMedicalChange('allergyOther', e.target.value)} placeholder="Other allergy" />
-                                                {errors.medicalHistory_allergies && <span className={styles.errorText}>{errors.medicalHistory_allergies}</span>}
-                                            </div>
-                                            <div className={styles.fieldGroup}>
-                                                <label className={styles.fieldLabel}>Blood Type</label>
-                                                <select className={styles.fieldSelect} value={profile.bloodType} onChange={(e) => handleProfileChange('bloodType', e.target.value)}>
-                                                    <option value="">Select blood type</option>
-                                                    {BLOOD_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className={styles.fieldGroup}>
-                                                <label className={styles.fieldLabel}>Blood Pressure</label>
-                                                <input className={styles.fieldInput} value={medicalHistory.bloodPressure} onChange={(e) => handleMedicalChange('bloodPressure', e.target.value)} placeholder="e.g. 120/80" />
-                                            </div>
-                                            <div className={styles.fieldGroup}>
-                                                <label className={styles.fieldLabel}>Bleeding Time</label>
-                                                <input className={styles.fieldInput} value={medicalHistory.bleedingTime} onChange={(e) => handleMedicalChange('bleedingTime', e.target.value)} />
-                                            </div>
-                                            {renderYesNoField('Are you pregnant?', medicalHistory.isPregnant, (value) => handleMedicalChange('isPregnant', value), 'medicalHistory_isPregnant', 'medicalHistory_isPregnant')}
-                                            {renderYesNoField('Are you nursing?', medicalHistory.isNursing, (value) => handleMedicalChange('isNursing', value), 'medicalHistory_isNursing', 'medicalHistory_isNursing')}
-                                            {renderYesNoField('Are you taking birth control pills?', medicalHistory.takingBirthControl, (value) => handleMedicalChange('takingBirthControl', value), 'medicalHistory_takingBirthControl', 'medicalHistory_takingBirthControl')}
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                                <label className={styles.fieldLabel}>Medical Conditions</label>
-                                                <div className={styles.checkboxGrid}>
-                                                    {MEDICAL_CONDITION_OPTIONS.map((option) => (
-                                                        <label key={option} className={styles.checkboxCard}>
-                                                            <input type="checkbox" checked={medicalHistory.conditions.includes(option)} onChange={() => handleMedicalArrayToggle('conditions', option)} />
-                                                            <span>{option}</span>
-                                                        </label>
-                                                    ))}
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Specialty, If Applicable</label>
+                                                    <select className={styles.fieldSelect} value={physician.specialty} onChange={(e) => handleContactChange('physician', 'specialty', e.target.value)}>
+                                                        <option value="">Select specialty</option>
+                                                        {PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                                    </select>
                                                 </div>
-                                                <input className={styles.fieldInput} style={{ marginTop: '12px' }} value={medicalHistory.conditionOther} onChange={(e) => handleMedicalChange('conditionOther', e.target.value)} placeholder="Other condition" />
                                             </div>
-                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                                <label className={styles.fieldLabel}>Medical Notes</label>
-                                                <textarea className={styles.fieldTextarea} value={medicalHistory.notes} onChange={(e) => handleMedicalChange('notes', e.target.value)} />
+                                            {physician.specialty === 'Other' && (
+                                                <div className={styles.intakeRow}>
+                                                    <div className={styles.fieldGroup} data-field-key="physician_specialtyOther">
+                                                        <label className={styles.fieldLabel}>Specialty, If Other{REQUIRED_MARK}</label>
+                                                        <input className={`${styles.fieldInput} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={physician.specialtyOther} onChange={(e) => handleContactChange('physician', 'specialtyOther', e.target.value)} />
+                                                        {errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}
+                                                    </div>
+                                                    <div className={styles.intakeSpacer} />
+                                                </div>
+                                            )}
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Office Address</label>
+                                                    <input className={styles.fieldInput} value={physician.officeAddress} onChange={(e) => handleContactChange('physician', 'officeAddress', e.target.value)} />
+                                                </div>
+                                                <div className={styles.fieldGroup} data-field-key="physician_officeNumber">
+                                                    <label className={styles.fieldLabel}>Office Number</label>
+                                                    <div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}>
+                                                        <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
+                                                        <input className={styles.phoneField} value={physician.officeNumber} onChange={(e) => handlePhysicianLandlineChange(e.target.value)} maxLength={8} placeholder="1234567" />
+                                                    </div>
+                                                    {errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className={styles.intakeDivider} />
+
+                                        <div className={styles.intakeSection}>
+                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Medical History</h3>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Are you in good health?', medicalHistory.inGoodHealth, (value) => handleMedicalChange('inGoodHealth', value), 'medicalHistory_inGoodHealth', 'medicalHistory_inGoodHealth')}
+                                                <div className={styles.intakeSpacer} />
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Are you under medical treatment now?', medicalHistory.underMedicalTreatment, (value) => handleMedicalChange('underMedicalTreatment', value), 'medicalHistory_underMedicalTreatment', 'medicalHistory_underMedicalTreatment')}
+                                                <div className={styles.fieldGroup} data-field-key="medicalHistory_medicalTreatmentDetails">
+                                                    <label className={styles.fieldLabel}>If So, What Is the Condition Treated?</label>
+                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={medicalHistory.medicalTreatmentDetails} onChange={(e) => handleMedicalChange('medicalTreatmentDetails', e.target.value)} />
+                                                    {errors.medicalHistory_medicalTreatmentDetails && <span className={styles.errorText}>{errors.medicalHistory_medicalTreatmentDetails}</span>}
+                                                </div>
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Have you ever had serious illness or surgical operation?', medicalHistory.hadSeriousIllnessOrSurgery, (value) => handleMedicalChange('hadSeriousIllnessOrSurgery', value), 'medicalHistory_hadSeriousIllnessOrSurgery', 'medicalHistory_hadSeriousIllnessOrSurgery')}
+                                                <div className={styles.fieldGroup} data-field-key="medicalHistory_seriousIllnessOrSurgeryDetails">
+                                                    <label className={styles.fieldLabel}>If So, What Is the Illness or Operation?</label>
+                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleMedicalChange('seriousIllnessOrSurgeryDetails', e.target.value)} />
+                                                    {errors.medicalHistory_seriousIllnessOrSurgeryDetails && <span className={styles.errorText}>{errors.medicalHistory_seriousIllnessOrSurgeryDetails}</span>}
+                                                </div>
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Have you ever been hospitalized?', medicalHistory.hadHospitalization, (value) => handleMedicalChange('hadHospitalization', value), 'medicalHistory_hadHospitalization', 'medicalHistory_hadHospitalization')}
+                                                <div className={styles.fieldGroup} data-field-key="medicalHistory_hospitalizationDetails">
+                                                    <label className={styles.fieldLabel}>If So, When and Why?</label>
+                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={medicalHistory.hospitalizationDetails} onChange={(e) => handleMedicalChange('hospitalizationDetails', e.target.value)} />
+                                                    {errors.medicalHistory_hospitalizationDetails && <span className={styles.errorText}>{errors.medicalHistory_hospitalizationDetails}</span>}
+                                                </div>
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Are you taking any prescription/non-prescription medication?', medicalHistory.isTakingMedication, (value) => handleMedicalChange('isTakingMedication', value), 'medicalHistory_isTakingMedication', 'medicalHistory_isTakingMedication')}
+                                                <div className={styles.fieldGroup} data-field-key="medicalHistory_medications">
+                                                    <label className={styles.fieldLabel}>If So, Please Specify</label>
+                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_medications ? styles.errorBorder : ''}`} value={medicalHistory.medications} onChange={(e) => handleMedicalChange('medications', e.target.value)} placeholder="Comma-separated values" />
+                                                    {errors.medicalHistory_medications && <span className={styles.errorText}>{errors.medicalHistory_medications}</span>}
+                                                </div>
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Do you use tobacco products?', medicalHistory.usesTobacco, (value) => handleMedicalChange('usesTobacco', value), 'medicalHistory_usesTobacco', 'medicalHistory_usesTobacco')}
+                                                {renderYesNoField('Do you use alcohol, cocaine, or other dangerous drugs?', medicalHistory.usesAlcoholOrDrugs, (value) => handleMedicalChange('usesAlcoholOrDrugs', value), 'medicalHistory_usesAlcoholOrDrugs', 'medicalHistory_usesAlcoholOrDrugs')}
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Are you allergic to any of the following?', medicalHistory.hasAllergies, (value) => handleMedicalChange('hasAllergies', value), 'medicalHistory_hasAllergies', 'medicalHistory_hasAllergies')}
+                                                <div className={styles.intakeSpacer} />
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup} data-field-key="medicalHistory_allergies">
+                                                    <label className={styles.fieldLabel}>Allergies</label>
+                                                    <div className={styles.checkboxGrid}>
+                                                        {ALLERGY_OPTIONS.map((option) => (
+                                                            <label key={option} className={styles.checkboxCard}>
+                                                                <input type="checkbox" checked={medicalHistory.allergies.includes(option)} onChange={() => handleMedicalArrayToggle('allergies', option)} />
+                                                                <span>{option}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup}>
+                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_allergies ? styles.errorBorder : ''}`} value={medicalHistory.allergyOther} onChange={(e) => handleMedicalChange('allergyOther', e.target.value)} placeholder="Other allergy" />
+                                                    {errors.medicalHistory_allergies && <span className={styles.errorText}>{errors.medicalHistory_allergies}</span>}
+                                                </div>
+                                                <div className={styles.intakeSpacer} />
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Bleeding Time</label>
+                                                    <input className={styles.fieldInput} value={medicalHistory.bleedingTime} onChange={(e) => handleMedicalChange('bleedingTime', e.target.value)} />
+                                                </div>
+                                                <div className={styles.intakeSpacer} />
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Are you pregnant?', medicalHistory.isPregnant, (value) => handleMedicalChange('isPregnant', value), 'medicalHistory_isPregnant', 'medicalHistory_isPregnant')}
+                                                {renderYesNoField('Are you nursing?', medicalHistory.isNursing, (value) => handleMedicalChange('isNursing', value), 'medicalHistory_isNursing', 'medicalHistory_isNursing')}
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                {renderYesNoField('Are you taking birth control pills?', medicalHistory.takingBirthControl, (value) => handleMedicalChange('takingBirthControl', value), 'medicalHistory_takingBirthControl', 'medicalHistory_takingBirthControl')}
+                                                <div className={styles.intakeSpacer} />
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Blood Type</label>
+                                                    <select className={styles.fieldSelect} value={profile.bloodType} onChange={(e) => handleProfileChange('bloodType', e.target.value)}>
+                                                        <option value="">Select blood type</option>
+                                                        {BLOOD_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Blood Pressure</label>
+                                                    <input className={styles.fieldInput} value={medicalHistory.bloodPressure} onChange={(e) => handleMedicalChange('bloodPressure', e.target.value)} placeholder="e.g. 120/80" />
+                                                </div>
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Medical Conditions</label>
+                                                    <div className={styles.checkboxGrid}>
+                                                        {MEDICAL_CONDITION_OPTIONS.map((option) => (
+                                                            <label key={option} className={styles.checkboxCard}>
+                                                                <input type="checkbox" checked={medicalHistory.conditions.includes(option)} onChange={() => handleMedicalArrayToggle('conditions', option)} />
+                                                                <span>{option}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                    <input className={styles.fieldInput} style={{ marginTop: '12px' }} value={medicalHistory.conditionOther} onChange={(e) => handleMedicalChange('conditionOther', e.target.value)} placeholder="Other condition" />
+                                                </div>
+                                            </div>
+                                            <div className={styles.intakeRow}>
+                                                <div className={styles.fieldGroup}>
+                                                    <label className={styles.fieldLabel}>Medical Notes</label>
+                                                    <textarea className={styles.fieldTextarea} value={medicalHistory.notes} onChange={(e) => handleMedicalChange('notes', e.target.value)} />
+                                                </div>
+                                                <div className={styles.intakeSpacer} />
                                             </div>
                                         </div>
                                     </div>
