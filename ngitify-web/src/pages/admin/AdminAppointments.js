@@ -176,6 +176,37 @@ const formatSourceBadgeStyle = (source) => {
     }
 };
 
+const normalizeGuestPhoneForCompare = (value = '') => String(value || '').replace(/\D/g, '');
+const normalizeGuestNameForCompare = (value = '') => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+const normalizeGuestBirthdateForCompare = (value = '') => {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+};
+
+const getPossibleGuestDuplicates = (appointment, appointments = []) => {
+    if (!appointment?.isGuest) return [];
+
+    const targetPhone = normalizeGuestPhoneForCompare(appointment.guestPhone);
+    const targetBirthdate = normalizeGuestBirthdateForCompare(appointment.guestBirthdate);
+    const targetName = normalizeGuestNameForCompare(appointment.guestName || appointment.patientName);
+
+    if (!targetBirthdate || (!targetPhone && !targetName)) return [];
+
+    return appointments.filter((candidate) => {
+        if (!candidate?.isGuest || candidate.id === appointment.id) return false;
+        if (!['pending', 'confirmed', 'in-clinic'].includes(candidate.rawStatus)) return false;
+
+        const candidatePhone = normalizeGuestPhoneForCompare(candidate.guestPhone);
+        const candidateBirthdate = normalizeGuestBirthdateForCompare(candidate.guestBirthdate);
+        const candidateName = normalizeGuestNameForCompare(candidate.guestName || candidate.patientName);
+
+        if (!candidateBirthdate || candidateBirthdate !== targetBirthdate) return false;
+        return (targetPhone && candidatePhone && targetPhone === candidatePhone)
+            || (targetName && candidateName && targetName === candidateName);
+    });
+};
+
 export default function AdminAppointments() {
     const navigate = useNavigate();
     const { addToast } = useToast();
@@ -202,6 +233,14 @@ export default function AdminAppointments() {
     const [statusChangeTarget, setStatusChangeTarget] = useState(null);
     const [cancelTarget, setCancelTarget] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [duplicateReviewState, setDuplicateReviewState] = useState({
+        target: null,
+        matches: [],
+        correctedEmail: '',
+        isSavingEmail: false,
+        isResolvingDuplicate: false,
+        error: '',
+    });
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
     const [guestRegistrationTarget, setGuestRegistrationTarget] = useState(null);
     const [detailsTarget, setDetailsTarget] = useState(null);
@@ -584,6 +623,22 @@ export default function AdminAppointments() {
     };
 
     const handleConfirmGuestAppointment = async (appointment) => {
+        const duplicateMatches = getPossibleGuestDuplicates(appointment, allAppointments);
+        if (duplicateMatches.length > 0) {
+            setDuplicateReviewState({
+                target: appointment,
+                matches: duplicateMatches,
+                correctedEmail: appointment.guestEmail || '',
+                isSavingEmail: false,
+                isResolvingDuplicate: false,
+                error: '',
+            });
+            return;
+        }
+        await confirmGuestAppointmentDirectly(appointment);
+    };
+
+    const confirmGuestAppointmentDirectly = async (appointment) => {
         try {
             const response = await authFetch(`/appointments/${appointment.id}/status`, {
                 method: 'PUT',
@@ -596,6 +651,98 @@ export default function AdminAppointments() {
         } catch (error) {
             addToast(error.message || 'Failed to confirm guest appointment.', 'error');
         }
+    };
+
+    const closeDuplicateReview = () => {
+        setDuplicateReviewState({
+            target: null,
+            matches: [],
+            correctedEmail: '',
+            isSavingEmail: false,
+            isResolvingDuplicate: false,
+            error: '',
+        });
+    };
+
+    const handleSaveDuplicateReviewEmail = async () => {
+        if (!duplicateReviewState.target) return;
+        const correctedEmail = duplicateReviewState.correctedEmail.trim().toLowerCase();
+        if (!correctedEmail) {
+            setDuplicateReviewState((prev) => ({ ...prev, error: 'Please enter the correct email address first.' }));
+            return;
+        }
+
+        setDuplicateReviewState((prev) => ({ ...prev, isSavingEmail: true, error: '' }));
+        try {
+            const response = await authFetch(`/appointments/${duplicateReviewState.target.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    guestEmail: correctedEmail,
+                    guestName: duplicateReviewState.target.guestName || duplicateReviewState.target.patientName,
+                    guestPhone: duplicateReviewState.target.guestPhone,
+                }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Unable to update guest email.');
+            addToast('Guest email updated successfully.', 'success');
+            await fetchAppointments(true);
+            setDuplicateReviewState((prev) => ({
+                ...prev,
+                target: { ...prev.target, guestEmail: correctedEmail },
+                correctedEmail,
+                matches: getPossibleGuestDuplicates({ ...prev.target, guestEmail: correctedEmail }, allAppointments),
+                isSavingEmail: false,
+                error: '',
+            }));
+        } catch (error) {
+            setDuplicateReviewState((prev) => ({ ...prev, isSavingEmail: false, error: error.message || 'Unable to update guest email.' }));
+        }
+    };
+
+    const handleMarkDuplicateAppointment = async (appointment) => {
+        if (!duplicateReviewState.target) return;
+        setDuplicateReviewState((prev) => ({ ...prev, isResolvingDuplicate: true, error: '' }));
+        try {
+            const response = await authFetch(`/appointments/${appointment.id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    status: 'cancelled',
+                    cancellationReason: `Duplicate booking / wrong email. Kept appointment for ${duplicateReviewState.target.guestName || duplicateReviewState.target.patientName}.`,
+                }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Unable to cancel duplicate booking.');
+            addToast('Duplicate booking cancelled.', 'success');
+            await fetchAppointments(true);
+            const refreshedMatches = duplicateReviewState.matches.filter((entry) => entry.id !== appointment.id);
+            setDuplicateReviewState((prev) => ({
+                ...prev,
+                matches: refreshedMatches,
+                isResolvingDuplicate: false,
+                error: '',
+            }));
+        } catch (error) {
+            setDuplicateReviewState((prev) => ({ ...prev, isResolvingDuplicate: false, error: error.message || 'Unable to cancel duplicate booking.' }));
+        }
+    };
+
+    const handleContinueGuestConfirmation = async () => {
+        if (!duplicateReviewState.target) return;
+        const stillHasOpenDuplicates = duplicateReviewState.matches.some((entry) => ['pending', 'confirmed', 'in-clinic'].includes(entry.rawStatus));
+        if (stillHasOpenDuplicates) {
+            setDuplicateReviewState((prev) => ({
+                ...prev,
+                error: 'Resolve or cancel the duplicate booking first so staff does not confirm both requests.',
+            }));
+            return;
+        }
+
+        const appointmentToConfirm = {
+            ...duplicateReviewState.target,
+            guestEmail: duplicateReviewState.correctedEmail.trim().toLowerCase() || duplicateReviewState.target.guestEmail,
+        };
+        closeDuplicateReview();
+        await confirmGuestAppointmentDirectly(appointmentToConfirm);
     };
 
     const handleOpenGuestRegistration = (appointment) => {
@@ -775,6 +922,22 @@ export default function AdminAppointments() {
                                                             {getGuestPreRegistrationMeta(appointment).label}
                                                         </span>
                                                     )}
+                                                    {getPossibleGuestDuplicates(appointment, allAppointments).length > 0 && (
+                                                        <span style={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            padding: '4px 10px',
+                                                            borderRadius: '999px',
+                                                            background: '#fee2e2',
+                                                            color: '#b91c1c',
+                                                            fontSize: '11px',
+                                                            fontWeight: 700,
+                                                            letterSpacing: '0.04em',
+                                                            textTransform: 'uppercase',
+                                                        }}>
+                                                            Possible Duplicate
+                                                        </span>
+                                                    )}
                                                 </>
                                             )}
                                         </div>
@@ -849,6 +1012,24 @@ export default function AdminAppointments() {
                                             style={{ background: '#01538b', color: '#fff' }}
                                         >
                                             Confirm Request
+                                        </button>
+                                    )}
+
+                                    {appointment.isGuest && getPossibleGuestDuplicates(appointment, allAppointments).length > 0 && (
+                                        <button
+                                            className={styles.viewBtn}
+                                            onClick={() => setDuplicateReviewState({
+                                                target: appointment,
+                                                matches: getPossibleGuestDuplicates(appointment, allAppointments),
+                                                correctedEmail: appointment.guestEmail || '',
+                                                isSavingEmail: false,
+                                                isResolvingDuplicate: false,
+                                                error: '',
+                                            })}
+                                            title="Review possible duplicate booking"
+                                            style={{ background: '#fff1f2', color: '#be123c', border: '1px solid #fecdd3' }}
+                                        >
+                                            Review Duplicate
                                         </button>
                                     )}
 
@@ -1107,6 +1288,110 @@ export default function AdminAppointments() {
                     onClose={() => setGuestRegistrationTarget(null)}
                     onSuccess={handleGuestRegistrationSuccess}
                 />
+            )}
+
+            {duplicateReviewState.target && (
+                <div className={modalStyles.modalOverlay}>
+                    <div className={modalStyles.modalContent}>
+                        <div className={modalStyles.modalHeader}>
+                            <h2 className={modalStyles.modalTitle}>Review Possible Duplicate</h2>
+                            <button className={modalStyles.closeButton} onClick={closeDuplicateReview}>
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className={modalStyles.modalBody}>
+                            <div className={modalStyles.infoGrid}>
+                                <div className={modalStyles.infoBox}>
+                                    <span className={modalStyles.infoLabel}>Keep This Request</span>
+                                    <p className={modalStyles.infoValue}>{duplicateReviewState.target.patientName}</p>
+                                </div>
+                                <div className={modalStyles.infoBox}>
+                                    <span className={modalStyles.infoLabel}>Current Email</span>
+                                    <p className={modalStyles.infoValue}>{duplicateReviewState.target.guestEmail || 'No email recorded'}</p>
+                                </div>
+                            </div>
+
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Correct Email Address</label>
+                                <input
+                                    type="email"
+                                    className={modalStyles.formInput}
+                                    value={duplicateReviewState.correctedEmail}
+                                    onChange={(event) => setDuplicateReviewState((prev) => ({ ...prev, correctedEmail: event.target.value, error: '' }))}
+                                    placeholder="patient@example.com"
+                                    disabled={duplicateReviewState.isSavingEmail || duplicateReviewState.isResolvingDuplicate}
+                                />
+                                <p style={{ margin: '8px 0 0', color: '#64748b', fontSize: '13px' }}>
+                                    If the patient used the wrong email on the website, correct it here before you send pre-registration.
+                                </p>
+                            </div>
+
+                            <div className={modalStyles.formActions} style={{ justifyContent: 'flex-start' }}>
+                                <button
+                                    type="button"
+                                    className={modalStyles.submitBtn}
+                                    onClick={handleSaveDuplicateReviewEmail}
+                                    disabled={duplicateReviewState.isSavingEmail || duplicateReviewState.isResolvingDuplicate}
+                                >
+                                    {duplicateReviewState.isSavingEmail ? 'Saving...' : 'Save Correct Email'}
+                                </button>
+                            </div>
+
+                            <div className={modalStyles.formGroup}>
+                                <label className={modalStyles.formLabel}>Possible Duplicate Requests</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {duplicateReviewState.matches.map((match) => (
+                                        <div key={match.id} style={{ border: '1px solid #e2e8f0', borderRadius: '14px', padding: '14px', background: '#f8fafc' }}>
+                                            <p style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>{match.patientName}</p>
+                                            <p style={{ margin: '6px 0 0', color: '#475569', fontSize: '13px' }}>{match.guestEmail || 'No email recorded'}</p>
+                                            <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: '13px' }}>
+                                                {formatDateShort(match.rawDate)} at {formatTime(match.time || '') || match.time || 'No time'}
+                                            </p>
+                                            <div style={{ marginTop: '10px' }}>
+                                                <button
+                                                    type="button"
+                                                    className={modalStyles.cancelBtn}
+                                                    onClick={() => handleMarkDuplicateAppointment(match)}
+                                                    disabled={duplicateReviewState.isResolvingDuplicate || duplicateReviewState.isSavingEmail}
+                                                >
+                                                    {duplicateReviewState.isResolvingDuplicate ? 'Updating...' : 'Mark This as Duplicate'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {duplicateReviewState.matches.length === 0 && (
+                                        <p style={{ margin: 0, color: '#166534', fontWeight: 600 }}>
+                                            No open duplicate requests remain. You can continue confirming this booking.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {duplicateReviewState.error && (
+                                <div className={modalStyles.errorMessage}>{duplicateReviewState.error}</div>
+                            )}
+
+                            <div className={modalStyles.formActions}>
+                                <button
+                                    type="button"
+                                    className={modalStyles.cancelBtn}
+                                    onClick={closeDuplicateReview}
+                                    disabled={duplicateReviewState.isSavingEmail || duplicateReviewState.isResolvingDuplicate}
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    type="button"
+                                    className={modalStyles.submitBtn}
+                                    onClick={handleContinueGuestConfirmation}
+                                    disabled={duplicateReviewState.isSavingEmail || duplicateReviewState.isResolvingDuplicate}
+                                >
+                                    Confirm Kept Request
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {detailsTarget && (

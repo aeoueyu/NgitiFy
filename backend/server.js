@@ -6936,9 +6936,9 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             updateData.time = slotCheck.normalizedTime;
         }
 
-        const isUnlinkedPhoneCall = String(existing.source || '').trim() === 'Phone Call' && !existing.patient;
+        const isUnlinkedGuestAppointment = GUEST_PRE_REGISTRATION_SOURCES.has(String(existing.source || '').trim()) && !existing.patient;
         const touchesGuestIdentity = ['guestName', 'guestEmail', 'guestPhone', 'contactNumber'].some((field) => updateData[field] !== undefined);
-        if (isUnlinkedPhoneCall && touchesGuestIdentity) {
+        if (isUnlinkedGuestAppointment && touchesGuestIdentity) {
             const nextGuestName = String(updateData.guestName !== undefined ? updateData.guestName : existing.guestName || '').trim();
             const nextGuestEmail = normalizeEmail(updateData.guestEmail !== undefined ? updateData.guestEmail : existing.guestEmail || '');
             const nextGuestPhone = normalizePhoneNumber(
@@ -6949,13 +6949,13 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             const nextGuestPhoneDigits = nextGuestPhone.replace(/\D/g, '');
 
             if (!nextGuestName) {
-                return res.status(400).json({ message: 'Guest name is required for a phone call booking without a linked patient.' });
+                return res.status(400).json({ message: 'Guest name is required for an unlinked guest appointment.' });
             }
             if (!nextGuestEmail || !GUEST_EMAIL_REGEX.test(nextGuestEmail)) {
-                return res.status(400).json({ message: 'A valid guest email is required for a phone call booking without a linked patient.' });
+                return res.status(400).json({ message: 'A valid guest email is required for an unlinked guest appointment.' });
             }
             if (!nextGuestPhone || !/^(63\d{10}|9\d{9})$/.test(nextGuestPhoneDigits)) {
-                return res.status(400).json({ message: 'A valid guest contact number is required for a phone call booking without a linked patient.' });
+                return res.status(400).json({ message: 'A valid guest contact number is required for an unlinked guest appointment.' });
             }
 
             const duplicateSummary = await buildDuplicatePatientSummary({
