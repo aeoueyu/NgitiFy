@@ -633,7 +633,7 @@ export default function PreRegisterPage() {
             const data = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(data.message || 'Unable to save your details.');
             setState('success');
-            setMessage('Thank you! Your registration details have been completed. The clinic can now prepare your patient record before your visit.');
+            setMessage('Thank you! Your registration details have been completed. Please check your email for the activation link sent by the clinic, then open it and set up your password.');
         } catch (error) {
             setMessage(error.message || 'Unable to save your details.');
         } finally {
@@ -1270,7 +1270,7 @@ export default function PreRegisterPage() {
                         <p className={styles.eyebrow} style={{ margin: 0 }}>Pre-Registration</p>
                         <h2 className={styles.sectionTitle} style={{ fontSize: '2rem' }}>Registration completed</h2>
                         <p className={styles.bodyText} style={{ marginTop: 0 }}>
-                            Thank you! Your registration details have been completed. The clinic can now prepare your patient record before your visit.
+                            Thank you! Your registration details have been completed. Please check your email for the activation link sent by the clinic, then open it and set up your password.
                         </p>
                         <div className={styles.bookingSuccessActions}>
                             <button type="button" className={styles.primaryBtn} onClick={() => navigate('/')}>

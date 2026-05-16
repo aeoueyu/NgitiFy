@@ -867,14 +867,24 @@ const formatConfiguredEmailCopy = (value = '', fallback = '') => {
 
 const getSystemEmailTemplates = async () => (await getNormalizedSystemConfig()).emailTemplates;
 
-const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, activationLink = '') => {
-    const clinic = await getClinicContactDetails();
+const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, activationLink = '', options = {}) => {
+    const clinic = options?.clinic || await getClinicContactDetails();
     const emailTemplates = await getSystemEmailTemplates();
     const activationCopy = formatConfiguredEmailCopy(
         emailTemplates?.activation,
         DEFAULT_SYSTEM_EMAIL_TEMPLATES.activation
     );
     const resolvedActivationLink = activationLink || tempPasswordOrActivationLink || '';
+    const procedureSummary = options?.procedure
+        ? `
+                <div style="background:#f7fbfe;border:1px solid #d9edf7;border-radius:18px;padding:18px;margin:18px 0;">
+                    ${options?.branch ? `<p style="margin:0 0 8px 0;"><strong>Branch:</strong> ${options.branch}</p>` : ''}
+                    <p style="margin:0;"><strong>Procedure:</strong> ${options.procedure}</p>
+                </div>
+        `
+        : '';
+    const closingMessage = options?.closingMessage
+        || 'If you have questions, you may contact the clinic through the details below.';
 
     await resend.emails.send({
         from: 'NgitiFy Admin <noreply@ngitify.com>',
@@ -888,7 +898,9 @@ const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, ac
                 <p style="margin:0 0 14px 0;">Hello,</p>
                 ${activationCopy ? `<p style="margin:0 0 14px 0;">${activationCopy}</p>` : ''}
                 <p style="margin:0 0 14px 0;">Your <strong>${role}</strong> account has been successfully created.</p>
-                <p style="margin:0;">Use the button below to verify your email address and set your own password.</p>
+                ${procedureSummary}
+                <p style="margin:0 0 14px 0;">Use the button below to verify your email address and set your own password.</p>
+                <p style="margin:0;">${closingMessage}</p>
             `,
             ctaLabel: 'Activate Account',
             ctaUrl: resolvedActivationLink,
@@ -940,9 +952,19 @@ const issueActivationSetupForAccount = async (account) => {
     };
 };
 
-const sendAccessReissueEmail = async (email, role, tempPassword, activationLink = '') => {
-    const clinic = await getClinicContactDetails();
+const sendAccessReissueEmail = async (email, role, tempPassword, activationLink = '', options = {}) => {
+    const clinic = options?.clinic || await getClinicContactDetails();
     const needsActivation = Boolean(activationLink);
+    const procedureSummary = options?.procedure
+        ? `
+                <div style="background:#f7fbfe;border:1px solid #d9edf7;border-radius:18px;padding:18px;margin:18px 0;">
+                    ${options?.branch ? `<p style="margin:0 0 8px 0;"><strong>Branch:</strong> ${options.branch}</p>` : ''}
+                    <p style="margin:0;"><strong>Procedure:</strong> ${options.procedure}</p>
+                </div>
+        `
+        : '';
+    const closingMessage = options?.closingMessage
+        || 'If you have questions, you may contact the clinic through the details below.';
 
     await resend.emails.send({
         from: 'NgitiFy Admin <noreply@ngitify.com>',
@@ -959,7 +981,9 @@ const sendAccessReissueEmail = async (email, role, tempPassword, activationLink 
             bodyHtml: `
                 <p style="margin:0 0 14px 0;">Hello,</p>
                 <p style="margin:0 0 14px 0;">Your <strong>${role}</strong> account access has been reissued.</p>
-                <p style="margin:0;">Use the button below to verify your email and set a fresh password.</p>
+                ${procedureSummary}
+                <p style="margin:0 0 14px 0;">Use the button below to verify your email and set a fresh password.</p>
+                <p style="margin:0;">${closingMessage}</p>
             `,
             ctaLabel: activationLink ? 'Set Password' : '',
             ctaUrl: activationLink,
@@ -2504,6 +2528,30 @@ const getClinicContactDetails = async () => {
     };
 };
 
+const getClinicContactDetailsForBranch = async (branchName = '') => {
+    const clinic = await getClinicContactDetails();
+    const normalizedBranch = String(branchName || '').trim();
+    if (!normalizedBranch) return clinic;
+
+    const branchRecord = await Branch.findOne({ name: normalizedBranch, isActive: true })
+        .select('name address contactNumber')
+        .lean();
+
+    if (!branchRecord) {
+        return {
+            ...clinic,
+            clinicName: normalizedBranch || clinic.clinicName,
+        };
+    }
+
+    return {
+        clinicName: branchRecord.name || clinic.clinicName,
+        clinicContact: branchRecord.contactNumber || clinic.clinicContact || 'N/A',
+        clinicEmail: clinic.clinicEmail || 'N/A',
+        clinicAddress: branchRecord.address || clinic.clinicAddress || 'N/A',
+    };
+};
+
 const getDentistDisplayName = (dentist) => {
     if (!dentist) return 'To be assigned by the clinic';
     const fullName = dentist?.name
@@ -2710,13 +2758,19 @@ const provisionGuestPatientAccountForAppointment = async ({ surgery, actor }) =>
     return { patient: newUser, linkedExisting: false, requiresPreRegistration: true };
 };
 
-const sendPatientActivationLink = async (patient) => {
+const sendPatientActivationLink = async (patient, options = {}) => {
     if (!patient || patient.role !== 'patient') return null;
 
     const { activationToken, activationLink } = await issueActivationSetupForAccount(patient);
     await patient.save();
 
-    await sendActivationEmail(patient.email, 'Patient', activationLink);
+    const clinic = options?.branch ? await getClinicContactDetailsForBranch(options.branch) : await getClinicContactDetails();
+    await sendActivationEmail(patient.email, 'Patient', activationLink, '', {
+        clinic,
+        branch: options?.branch || '',
+        procedure: options?.procedure || '',
+        closingMessage: 'If you have questions, you may contact the clinic through the details below.',
+    });
 
     return {
         activationToken,
@@ -3468,7 +3522,7 @@ const sendAppointmentReceivedEmail = async ({ email, name, branch, date, time, p
     if (!email) return;
 
     const safeName = name || 'Patient';
-    const clinic = await getClinicContactDetails();
+    const clinic = await getClinicContactDetailsForBranch(branch);
 
     await resend.emails.send({
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
@@ -3496,7 +3550,7 @@ const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, 
     if (!email) return;
 
     const safeName = name || 'Patient';
-    const clinic = await getClinicContactDetails();
+    const clinic = await getClinicContactDetailsForBranch(branch);
     const emailTemplates = await getSystemEmailTemplates();
     const reminderCopy = formatConfiguredEmailCopy(
         emailTemplates?.appointmentReminder,
@@ -3521,7 +3575,7 @@ const sendAppointmentConfirmedEmail = async ({ email, name, branch, date, time, 
                     <p style="margin:0;"><strong>Assigned Dentist:</strong> ${dentistName || 'To be assigned by the clinic'}</p>
                 </div>
                 ${reminderCopy ? `<p style="margin:0 0 14px 0;">${reminderCopy}</p>` : ''}
-                <p style="margin:0;">If you need to update your appointment, please contact the clinic directly.</p>
+                <p style="margin:0;">If you have questions, you may contact the clinic through the details below.</p>
             `,
         }),
     });
@@ -3531,7 +3585,7 @@ const sendAppointmentDeclinedEmail = async ({ email, name, branch, date, time, p
     if (!email) return;
 
     const safeName = name || 'Patient';
-    const clinic = await getClinicContactDetails();
+    const clinic = await getClinicContactDetailsForBranch(branch);
 
     await resend.emails.send({
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
@@ -3550,7 +3604,7 @@ const sendAppointmentDeclinedEmail = async ({ email, name, branch, date, time, p
                     <p style="margin:0 0 8px 0;"><strong>Time:</strong> ${time || 'To be coordinated by the clinic'}</p>
                     <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
-                <p style="margin:0;">You may contact the clinic directly if you would like help booking another schedule.</p>
+                <p style="margin:0;">If you have questions, you may contact the clinic through the details below.</p>
             `,
         }),
     });
@@ -3560,7 +3614,7 @@ const sendAppointmentRescheduledEmail = async ({ email, name, branch, date, time
     if (!email) return;
 
     const safeName = name || 'Patient';
-    const clinic = await getClinicContactDetails();
+    const clinic = await getClinicContactDetailsForBranch(branch);
     const emailTemplates = await getSystemEmailTemplates();
     const reminderCopy = formatConfiguredEmailCopy(
         emailTemplates?.appointmentReminder,
@@ -3584,7 +3638,7 @@ const sendAppointmentRescheduledEmail = async ({ email, name, branch, date, time
                     <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
                 ${reminderCopy ? `<p style="margin:0 0 14px 0;">${reminderCopy}</p>` : ''}
-                <p style="margin:0;">If you need help with the new schedule, please contact the clinic directly.</p>
+                <p style="margin:0;">If you have questions, you may contact the clinic through the details below.</p>
             `,
         }),
     });
@@ -3984,7 +4038,7 @@ const sendPreRegistrationEmail = async ({ email, name, branch, date, time, proce
     if (!email || !token) return;
 
     const safeName = name || 'Patient';
-    const clinic = await getClinicContactDetails();
+    const clinic = await getClinicContactDetailsForBranch(branch);
     const emailTemplates = await getSystemEmailTemplates();
     const reminderCopy = formatConfiguredEmailCopy(
         emailTemplates?.appointmentReminder,
@@ -4009,7 +4063,8 @@ const sendPreRegistrationEmail = async ({ email, name, branch, date, time, proce
                     <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
                 ${reminderCopy ? `<p style="margin:0 0 14px 0;">${reminderCopy}</p>` : ''}
-                <p style="margin:0;">This secure link will expire in 72 hours.</p>
+                <p style="margin:0 0 14px 0;">This secure link will expire in 72 hours.</p>
+                <p style="margin:0;">If you have questions, you may contact the clinic through the details below.</p>
             `,
             ctaLabel: 'Complete Your Registration',
             ctaUrl: preRegistrationUrl,
@@ -7993,7 +8048,10 @@ app.post('/api/pre-register/:token', async (req, res) => {
         let responseMessage = 'Pre-registration completed successfully.';
         if (linkedPatient && !linkedPatient.isVerified) {
             try {
-                await sendPatientActivationLink(linkedPatient);
+                await sendPatientActivationLink(linkedPatient, {
+                    branch: surgery.branch,
+                    procedure: surgery.procedure,
+                });
                 responseMessage = 'Pre-registration completed successfully. An activation email has been sent.';
                 await AuditLog.create({
                     action: 'PATIENT_ACTIVATION_SENT',
