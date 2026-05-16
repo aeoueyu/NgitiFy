@@ -4730,12 +4730,17 @@ app.get('/api/patients', verifyToken, async (req, res) => {
         }
 
         if (req.user.role === 'dentist') {
+            const dentistUser = await User.findById(req.user.id).select('name');
             const assignedPatientIds = await Surgery.distinct('patient', {
                 dentist: req.user.id,
                 patient: { $ne: null },
             });
+            const dentistDisplayName = dentistUser?.name
+                ? [dentistUser.name.first, dentistUser.name.middle, dentistUser.name.last].filter(Boolean).join(' ').trim()
+                : '';
             baseFilter.$or = [
                 { assignedDentistId: req.user.id },
+                ...(dentistDisplayName ? [{ assignedDentistName: dentistDisplayName }] : []),
                 { _id: { $in: assignedPatientIds } },
             ];
         }

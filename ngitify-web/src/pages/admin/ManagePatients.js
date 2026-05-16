@@ -56,7 +56,7 @@ export default function ManagePatients() {
     const { addToast } = useToast();
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('active');
+    const [statusFilter, setStatusFilter] = useState(user?.role === 'dentist' ? 'all' : 'active');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [patientsList, setPatientsList] = useState([]);
