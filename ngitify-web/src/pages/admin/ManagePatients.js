@@ -16,12 +16,27 @@ import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccessRecoveryLabel,
-    getAccountLifecycleKey,
-    getAccountLifecycleLabel,
     hasExpiredTemporaryPassword,
-    matchesAccountLifecycleFilter,
     shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
+
+const PATIENT_LIFECYCLE = {
+    active: 'Active',
+    inactive: 'Inactive',
+    archived: 'Archived',
+    all: 'All',
+};
+
+const getPatientLifecycleKey = (patient = {}) => {
+    if (patient.isArchived) return 'archived';
+    return patient.rawStatus === 'active' ? 'active' : 'inactive';
+};
+
+const getPatientLifecycleLabel = (patient = {}) => PATIENT_LIFECYCLE[getPatientLifecycleKey(patient)] || 'Inactive';
+
+const matchesPatientLifecycleFilter = (patient = {}, filter = 'all') => (
+    filter === 'all' || getPatientLifecycleKey(patient) === filter
+);
 
 export default function ManagePatients() {
     const { user } = useAuth();
@@ -156,14 +171,13 @@ export default function ManagePatients() {
     const filteredPatients = patientsList.filter((patient) => {
         const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             patient.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = matchesAccountLifecycleFilter(patient, statusFilter);
+        const matchesStatus = matchesPatientLifecycleFilter(patient, statusFilter);
         const matchesBranch = branchFilter === 'All' || patient.assignedBranch === branchFilter;
         return matchesSearch && matchesStatus && matchesBranch;
     });
 
     const statusFilterLabel = {
         active: 'Active',
-        needsActivation: 'Needs Activation',
         inactive: 'Inactive',
         archived: 'Archived',
         all: 'All',
@@ -285,7 +299,11 @@ export default function ManagePatients() {
             return null;
         }
         try {
-            const res = await authFetch(`/patient/reissue-access/${patient.id}`, { method: 'POST' });
+            const isPendingActivation = !patient.isVerified && !hasExpiredTemporaryPassword(patient);
+            const endpoint = isPendingActivation
+                ? `/patient/resend-activation/${patient.id}`
+                : `/patient/reissue-access/${patient.id}`;
+            const res = await authFetch(endpoint, { method: 'POST' });
             const data = await res.json();
             if (res.ok) {
                 const updatedAccount = {
@@ -301,7 +319,7 @@ export default function ManagePatients() {
                 addToast(data.message || `${getAccessRecoveryLabel(patient)} sent to ${patient.email}.`, 'success');
                 return updatedAccount;
             }
-            addToast(data.message || 'Failed to reissue access email.', 'error');
+            addToast(data.message || 'Failed to send access email.', 'error');
         } catch {
             addToast('Cannot connect to server.', 'error');
         }
@@ -470,7 +488,7 @@ export default function ManagePatients() {
     const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedPatientId(null); };
 
     const exportRows = filteredPatients.map((patient) => {
-        const computedStatus = getAccountLifecycleLabel(patient);
+        const computedStatus = getPatientLifecycleLabel(patient);
         return [
             patient.name,
             patient.email,
@@ -567,7 +585,6 @@ export default function ManagePatients() {
 
                     <div className={styles.pillGroup}>
                         <button className={`${styles.filterPill} ${statusFilter === 'active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('active')}>Active</button>
-                        <button className={`${styles.filterPill} ${statusFilter === 'needsActivation' ? styles.activePill : ''}`} onClick={() => setStatusFilter('needsActivation')}>Needs Activation</button>
                         <button className={`${styles.filterPill} ${statusFilter === 'inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('inactive')}>Inactive</button>
                         <button className={`${styles.filterPill} ${statusFilter === 'archived' ? styles.activePill : ''}`} onClick={() => setStatusFilter('archived')}>Archived</button>
                         <button className={`${styles.filterPill} ${statusFilter === 'all' ? styles.activePill : ''}`} onClick={() => setStatusFilter('all')}>All</button>
@@ -621,8 +638,8 @@ export default function ManagePatients() {
                             <tr><td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
                         ) : filteredPatients.length > 0 ? (
                             filteredPatients.map((patient) => {
-                                const statusKey = getAccountLifecycleKey(patient);
-                                const computedStatus = getAccountLifecycleLabel(patient);
+                                const statusKey = getPatientLifecycleKey(patient);
+                                const computedStatus = getPatientLifecycleLabel(patient);
                                 const isArchivedRecord = statusKey === 'archived';
                                 return (
                                 <tr key={patient.id} style={{ opacity: statusKey === 'inactive' || isArchivedRecord ? 0.6 : 1 }}>
@@ -654,7 +671,7 @@ export default function ManagePatients() {
                                         </div>
                                     </td>
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${statusKey === 'active' ? tblStyles.statusGreen : statusKey === 'needsActivation' ? tblStyles.statusAmber : statusKey === 'archived' ? tblStyles.statusGray : tblStyles.statusRed}`}>
+                                        <span className={`${tblStyles.statusBadge} ${statusKey === 'active' ? tblStyles.statusGreen : statusKey === 'archived' ? tblStyles.statusGray : tblStyles.statusRed}`}>
                                             {computedStatus}
                                         </span>
                                     </td>

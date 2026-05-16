@@ -3,9 +3,14 @@ import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/StaffModals.module.css';
 import { regions, provinces, cities } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
-import { getAccountLifecycleLabel, getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
+import { getAccessRecoveryLabel, hasExpiredTemporaryPassword, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import { getHomeAddress } from '../../utils/addressHelpers';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
+
+const getPatientLifecycleLabel = (patient = {}) => {
+    if (patient?.isArchived) return 'Archived';
+    return patient?.status === 'active' ? 'Active' : 'Inactive';
+};
 
 const formatDateLong = (value) => {
     if (!value) return 'Not provided';
@@ -80,11 +85,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
     const age = getAge(birthRaw);
     const isMinor = age !== null && age < 18;
     const bloodType = patient?.bloodType || patient?.medicalHistory?.bloodType || 'Not provided';
-    const accountLifecycleLabel = getAccountLifecycleLabel({
-        isArchived: patient?.isArchived,
-        isVerified: patient?.isVerified,
-        rawStatus: patient?.status || 'inactive',
-    });
+    const accountLifecycleLabel = getPatientLifecycleLabel(patient);
     const assignedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || 'Not assigned';
 
     const infoBox = (label, value, extraClass = '') => (
@@ -156,7 +157,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    {getAccessRecoveryLabel(patient)}
+                                    {!patient?.isVerified && !hasExpiredTemporaryPassword(patient) ? 'Resend Activation Link' : getAccessRecoveryLabel(patient)}
                                 </button>
                             </div>
                         )}
