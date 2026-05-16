@@ -392,13 +392,15 @@
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
 }
 
-.table {
-    width: max-content;
-    min-width: 1540px;
+.tableWrapper .table {
+    width: max-content !important;
+    min-width: 1540px !important;
     border-collapse: collapse;
     font-size: 13px;
+    table-layout: auto !important;
 }
 
 .table thead tr {
@@ -422,7 +424,9 @@
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
     vertical-align: top;
-    white-space: nowrap;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
 }
 
 .table tbody tr:last-child td {
@@ -453,7 +457,7 @@
 }
 
 .filenameColumn {
-    min-width: 300px;
+    min-width: 320px;
 }
 
 .triggerColumn {
@@ -469,7 +473,7 @@
 }
 
 .checksumColumn {
-    min-width: 210px;
+    min-width: 230px;
 }
 
 .fileColumn {
@@ -481,15 +485,15 @@
 }
 
 .createdByColumn {
-    min-width: 220px;
+    min-width: 240px;
 }
 
 .completedColumn {
-    min-width: 170px;
+    min-width: 190px;
 }
 
 .actionColumn {
-    min-width: 150px;
+    min-width: 170px;
 }
 
 .sizeCell,
