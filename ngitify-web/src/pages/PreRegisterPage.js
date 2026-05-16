@@ -17,10 +17,12 @@ import {
     RELIGION_OPTIONS,
     getOtherTextValue,
     getSelectValueWithOther,
+    isAllowedPersonNameInput,
     isValidLandlineNumber,
     isValidMobileNumber,
     stripLandlinePrefix,
     stripMobilePrefix,
+    toTitleCaseName,
     toLandlinePayload,
     toMobilePayload,
 } from '../utils/patientIntake';
@@ -472,7 +474,9 @@ export default function PreRegisterPage() {
             physician: [physician, setPhysician],
         };
         const [current, setter] = setterMap[type];
+        if (field === 'name' && !isAllowedPersonNameInput(value)) return;
         const next = { ...current, [field]: value };
+        if (field === 'name') next[field] = toTitleCaseName(value);
         if (type === 'emergencyContact' && field === 'relationship' && value !== 'Other') next.relationshipOther = '';
         if (type === 'guardian') {
             if (field === 'relationship' && value !== 'Other') next.relationshipOther = '';
@@ -542,7 +546,9 @@ export default function PreRegisterPage() {
     const handleConsentChange = (type, field, value) => {
         const source = type === 'privacy' ? dataPrivacyConsent : consentAcknowledgement;
         const setter = type === 'privacy' ? setDataPrivacyConsent : setConsentAcknowledgement;
+        if (field === 'signerName' && !isAllowedPersonNameInput(value)) return;
         const next = { ...source, [field]: value };
+        if (field === 'signerName') next[field] = toTitleCaseName(value);
         setter(next);
         syncErrors(
             getSnapshot(type === 'privacy' ? { dataPrivacyConsent: next } : { consentAcknowledgement: next }),

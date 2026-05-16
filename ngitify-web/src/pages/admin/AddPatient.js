@@ -22,8 +22,10 @@ import {
     PHYSICIAN_SPECIALTY_OPTIONS,
     RELATIONSHIP_OPTIONS,
     LANDLINE_PREFIX,
+    isAllowedPersonNameInput,
     isValidLandlineNumber,
     isValidMobileNumber,
+    toTitleCaseName,
     toLandlinePayload,
     toMobilePayload,
 } from '../../utils/patientIntake';
@@ -152,7 +154,6 @@ export default function AddPatient({ onClose, onSuccess }) {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
     };
 
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, c => c.toUpperCase());
     const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
     const getMaxDate = () => new Date().toISOString().split('T')[0];
     const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
@@ -181,7 +182,7 @@ export default function AddPatient({ onClose, onSuccess }) {
             });
         }
         if (['firstName', 'middleName', 'lastName', 'guardianName', 'emergencyContactName'].includes(name)) {
-            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) setFormData({ ...formData, [name]: toTitleCase(value) });
+            if (isAllowedPersonNameInput(value)) setFormData({ ...formData, [name]: toTitleCaseName(value) });
             return;
         }
         setFormData((prev) => ({
@@ -221,6 +222,12 @@ export default function AddPatient({ onClose, onSuccess }) {
                 [field]: formatter ? formatter(value) : value
             }
         }));
+    };
+
+    const handleNestedNameChange = (section, field) => (e) => {
+        const value = e.target.value;
+        if (!isAllowedPersonNameInput(value)) return;
+        handleNestedChange(section, field, toTitleCaseName(value));
     };
 
     const handleConsentAcknowledged = (acknowledged) => {
@@ -1063,7 +1070,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value, toTitleCase)} disabled={isLoading} /></div>
+                                <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={handleNestedNameChange('physician', 'name')} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isLoading}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}</select></div>
                     </div>
                     {formData.physician.specialty === 'Other' && (
@@ -1199,7 +1206,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                                     className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`}
                                     name="dataPrivacyConsent_signerName"
                                     value={formData.dataPrivacyConsent.signerName}
-                                    onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerName', e.target.value, toTitleCase)}
+                                    onChange={handleNestedNameChange('dataPrivacyConsent', 'signerName')}
                                     disabled={isLoading}
                                 />
                                 {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
@@ -1249,7 +1256,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                                     className={`${styles.inputField} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`}
                                     name="consentAcknowledgement_signerName"
                                     value={formData.consentAcknowledgement.signerName}
-                                    onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerName', e.target.value, toTitleCase)}
+                                    onChange={handleNestedNameChange('consentAcknowledgement', 'signerName')}
                                     disabled={isLoading}
                                 />
                                 {errors.consentAcknowledgement_signerName && <span className={styles.errorText}>{errors.consentAcknowledgement_signerName}</span>}

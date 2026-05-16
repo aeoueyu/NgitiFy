@@ -1073,9 +1073,33 @@ const normalizeCurrencyAmount = (value) => {
 
 const GUEST_FULL_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
 const GUEST_PERSON_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{0,49}$/;
+const PATIENT_PERSON_NAME_REGEX = /^[A-Za-z][A-Za-z\s.'-]{0,69}$/;
 const GUEST_PHONE_REGEX = /^9\d{9}$/;
 const GUEST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const cloneWebsiteContentDefaults = () => JSON.parse(JSON.stringify(defaultWebsiteContent));
+
+const toTitleCasePersonName = (value = '') => value
+    .toLowerCase()
+    .replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
+
+const normalizePersonName = (value = '') => {
+    const normalized = String(value ?? '').trim().replace(/\s+/g, ' ');
+    return normalized ? toTitleCasePersonName(normalized) : '';
+};
+
+const getInvalidPersonNameMessage = (entries = []) => {
+    for (const [label, value, required = false] of entries) {
+        const normalized = String(value ?? '').trim().replace(/\s+/g, ' ');
+        if (!normalized) {
+            if (required) return `${label} is required.`;
+            continue;
+        }
+        if (!PATIENT_PERSON_NAME_REGEX.test(normalized)) {
+            return `Please enter a valid ${label.toLowerCase()}.`;
+        }
+    }
+    return '';
+};
 
 const normalizeProcedureList = (procedures = []) => {
     const seen = new Set();
@@ -3946,7 +3970,7 @@ const normalizeGuestProfile = (profile = {}) => {
 const normalizeGuestEmergencyContact = (contact = {}) => {
     if (!contact || typeof contact !== 'object') return undefined;
     return {
-        name: normalizeGuestText(contact.name),
+        name: normalizePersonName(contact.name),
         relationship: normalizeGuestText(contact.relationship),
         contactNumber: normalizeGuestPhoneMaybe(contact.contactNumber),
     };
@@ -3955,7 +3979,7 @@ const normalizeGuestEmergencyContact = (contact = {}) => {
 const normalizeGuestGuardian = (guardian = {}) => {
     if (!guardian || typeof guardian !== 'object') return undefined;
     return {
-        name: normalizeGuestText(guardian.name),
+        name: normalizePersonName(guardian.name),
         relationship: normalizeGuestText(guardian.relationship),
         contactNumber: normalizeGuestPhoneMaybe(guardian.contactNumber),
         occupation: normalizeGuestText(guardian.occupation),
@@ -3965,7 +3989,7 @@ const normalizeGuestGuardian = (guardian = {}) => {
 const normalizeGuestPhysician = (physician = {}) => {
     if (!physician || typeof physician !== 'object') return undefined;
     return {
-        name: normalizeGuestText(physician.name),
+        name: normalizePersonName(physician.name),
         specialty: normalizeGuestText(physician.specialty),
         officeAddress: normalizeGuestText(physician.officeAddress),
         officeNumber: normalizeGuestPhoneMaybe(physician.officeNumber),
@@ -4018,7 +4042,7 @@ const normalizeGuestConsentRecord = (consent = {}, defaultVersion = '') => {
     const signedAt = signedAtText ? new Date(signedAtText) : null;
     return {
         acknowledged: Boolean(consent.acknowledged),
-        signerName: normalizeGuestText(consent.signerName),
+        signerName: normalizePersonName(consent.signerName),
         signerRole: normalizeGuestText(consent.signerRole),
         signedAt: signedAt && !Number.isNaN(signedAt.getTime()) ? signedAt : null,
         version: normalizeGuestText(consent.version) || defaultVersion,
@@ -4115,9 +4139,9 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
     const contactNumber = normalizePhoneNumber(body.contactNumber || body.phone || fallbackGuest?.guestPhone || '');
 
     const name = {
-        first: body.name?.first?.trim() || body.firstName?.trim() || fallbackName.first,
-        middle: body.name?.middle?.trim() || body.middleName?.trim() || fallbackName.middle || '',
-        last: body.name?.last?.trim() || body.lastName?.trim() || fallbackName.last,
+        first: normalizePersonName(body.name?.first || body.firstName || fallbackName.first),
+        middle: normalizePersonName(body.name?.middle || body.middleName || fallbackName.middle || ''),
+        last: normalizePersonName(body.name?.last || body.lastName || fallbackName.last),
     };
 
     const assignedBranch = assignedBranchOverride || body.assignedBranch || '';
@@ -4154,8 +4178,8 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         profileImage: body.profileImage || undefined,
         assignedBranch,
         assignedBranches,
-        guardian: body.guardian || fallbackGuardian || undefined,
-        emergencyContact: body.emergencyContact || fallbackEmergencyContact || undefined,
+        guardian: body.guardian ? normalizeGuestGuardian(body.guardian) : (fallbackGuardian || undefined),
+        emergencyContact: body.emergencyContact ? normalizeGuestEmergencyContact(body.emergencyContact) : (fallbackEmergencyContact || undefined),
         homePhone: body.homePhone || fallbackGuestProfile.homePhone || undefined,
         workPhone: body.workPhone || fallbackGuestProfile.workPhone || undefined,
         referredBy: body.referredBy || fallbackGuestProfile.referredBy || undefined,
@@ -4167,9 +4191,9 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         bloodType: body.bloodType || fallbackGuestProfile.bloodType || undefined,
         medicalHistory: body.medicalHistory || fallbackMedicalHistory || undefined,
         dentalHistory: body.dentalHistory || fallbackDentalHistory || undefined,
-        physician: body.physician || fallbackPhysician || undefined,
-        consentAcknowledgement: body.consentAcknowledgement || fallbackConsentAcknowledgement || undefined,
-        dataPrivacyConsent: body.dataPrivacyConsent || fallbackDataPrivacyConsent || undefined,
+        physician: body.physician ? normalizeGuestPhysician(body.physician) : (fallbackPhysician || undefined),
+        consentAcknowledgement: body.consentAcknowledgement ? normalizeGuestConsentRecord(body.consentAcknowledgement, 'Dentime Patient Form v6.1') : (fallbackConsentAcknowledgement || undefined),
+        dataPrivacyConsent: body.dataPrivacyConsent ? normalizeGuestConsentRecord(body.dataPrivacyConsent, 'Data Privacy Act of 2012') : (fallbackDataPrivacyConsent || undefined),
         role: 'patient',
         isVerified: false,
         status: 'inactive',
@@ -4591,6 +4615,19 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             { ...otherData },
             pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
         );
+        const invalidPersonNameMessage = getInvalidPersonNameMessage([
+            ['Patient first name', normalizedOtherData.name?.first, true],
+            ['Patient middle name', normalizedOtherData.name?.middle],
+            ['Patient last name', normalizedOtherData.name?.last, true],
+            ['Emergency contact name', normalizedOtherData.emergencyContact?.name],
+            ['Guardian name', normalizedOtherData.guardian?.name],
+            ['Physician name', normalizedOtherData.physician?.name],
+            ['Consent signer name', normalizedOtherData.consentAcknowledgement?.signerName],
+            ['Data privacy signer name', normalizedOtherData.dataPrivacyConsent?.signerName],
+        ]);
+        if (invalidPersonNameMessage) {
+            return res.status(400).json({ message: invalidPersonNameMessage });
+        }
 
         const newUser = new User({
             ...normalizedOtherData,
@@ -5012,6 +5049,19 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
              consentAcknowledgement,
              dataPrivacyConsent
           }, resolvedHomeAddress);
+        const invalidPersonNameMessage = getInvalidPersonNameMessage([
+            ['Patient first name', updateData.name?.first],
+            ['Patient middle name', updateData.name?.middle],
+            ['Patient last name', updateData.name?.last],
+            ['Emergency contact name', updateData.emergencyContact?.name],
+            ['Guardian name', updateData.guardian?.name],
+            ['Physician name', updateData.physician?.name],
+            ['Consent signer name', updateData.consentAcknowledgement?.signerName],
+            ['Data privacy signer name', updateData.dataPrivacyConsent?.signerName],
+        ]);
+        if (invalidPersonNameMessage) {
+            return res.status(400).json({ message: invalidPersonNameMessage });
+        }
 
         if (req.user.role === 'secretary' && req.user.assignedBranch) {
             updateData.assignedBranch = req.user.assignedBranch;
@@ -5804,6 +5854,16 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found." });
+        }
+
+        const invalidPersonNameMessage = getInvalidPersonNameMessage([
+            ['First name', name?.first],
+            ['Middle name', name?.middle],
+            ['Last name', name?.last],
+            ['Emergency contact name', emergencyContact?.name],
+        ]);
+        if (invalidPersonNameMessage) {
+            return res.status(400).json({ message: invalidPersonNameMessage });
         }
 
         if (name) {
@@ -6859,6 +6919,19 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             fallbackGuest: surgery,
             assignedBranchOverride,
         });
+        const invalidPersonNameMessage = getInvalidPersonNameMessage([
+            ['Patient first name', patientPayload.name?.first, true],
+            ['Patient middle name', patientPayload.name?.middle],
+            ['Patient last name', patientPayload.name?.last, true],
+            ['Emergency contact name', patientPayload.emergencyContact?.name],
+            ['Guardian name', patientPayload.guardian?.name],
+            ['Physician name', patientPayload.physician?.name],
+            ['Consent signer name', patientPayload.consentAcknowledgement?.signerName],
+            ['Data privacy signer name', patientPayload.dataPrivacyConsent?.signerName],
+        ]);
+        if (invalidPersonNameMessage) {
+            return res.status(400).json({ message: invalidPersonNameMessage });
+        }
 
         if (!patientPayload.name.first || !patientPayload.name.last) {
             return res.status(400).json({ message: 'Patient first and last name are required.' });
@@ -8080,6 +8153,16 @@ app.post('/api/pre-register/:token', async (req, res) => {
         const guestDentalHistory = normalizeGuestDentalHistory(req.body.guestDentalHistory);
         const guestConsentAcknowledgement = normalizeGuestConsentRecord(req.body.consentAcknowledgement, 'Dentime Patient Form v6.1');
         const guestDataPrivacyConsent = normalizeGuestConsentRecord(req.body.dataPrivacyConsent, 'Data Privacy Act of 2012');
+        const invalidPersonNameMessage = getInvalidPersonNameMessage([
+            ['Emergency contact name', guestEmergencyContact?.name, true],
+            ['Guardian name', guestGuardian?.name],
+            ['Physician name', guestPhysician?.name],
+            ['Consent signer name', guestConsentAcknowledgement?.signerName],
+            ['Data privacy signer name', guestDataPrivacyConsent?.signerName],
+        ]);
+        if (invalidPersonNameMessage) {
+            return res.status(400).json({ message: invalidPersonNameMessage });
+        }
         if (!isAddressComplete(homeAddress)) {
             return res.status(400).json({ message: 'Home address is required.' });
         }

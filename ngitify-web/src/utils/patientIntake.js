@@ -143,9 +143,14 @@ export const MEDICAL_CONDITION_OPTIONS = [
 
 export const MOBILE_PREFIX = '+63';
 export const LANDLINE_PREFIX = '+632';
+export const PERSON_NAME_INPUT_REGEX = /^[A-Za-z\s.'-]+$/;
 
 export const isValidMobileNumber = (value = '') => /^[0-9]{10}$/.test(value) && value.startsWith('9');
 export const isValidLandlineNumber = (value = '') => /^[0-9]{7,8}$/.test(value);
+export const isAllowedPersonNameInput = (value = '') => value === '' || PERSON_NAME_INPUT_REGEX.test(value);
+export const toTitleCaseName = (value = '') => (
+    value.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase())
+);
 
 export const stripMobilePrefix = (value = '') => {
     const digits = String(value).replace(/\D/g, '');

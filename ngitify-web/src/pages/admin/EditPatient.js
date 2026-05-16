@@ -14,10 +14,12 @@ import {
     PHYSICIAN_SPECIALTY_OPTIONS,
     RELATIONSHIP_OPTIONS,
     LANDLINE_PREFIX,
+    isAllowedPersonNameInput,
     isValidLandlineNumber,
     isValidMobileNumber,
     stripLandlinePrefix,
     stripMobilePrefix,
+    toTitleCaseName,
     toLandlinePayload,
     toMobilePayload,
     getSelectValueWithOther,
@@ -59,7 +61,6 @@ const initialDentalHistory = {
     hasConfidentialInfo: '',
 };
 
-const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
 const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
 const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
 const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -287,8 +288,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         const { name, value } = e.target;
         clearError(name);
         if (['firstName', 'middleName', 'lastName'].includes(name)) {
-            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) {
-                setFormData((prev) => ({ ...prev, [name]: toTitleCase(value) }));
+            if (isAllowedPersonNameInput(value)) {
+                setFormData((prev) => ({ ...prev, [name]: toTitleCaseName(value) }));
             }
             return;
         }
@@ -318,6 +319,12 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 [field]: formatter ? formatter(value) : value,
             },
         }));
+    };
+
+    const handleNestedNameChange = (section, field) => (e) => {
+        const value = e.target.value;
+        if (!isAllowedPersonNameInput(value)) return;
+        handleNestedChange(section, field, toTitleCaseName(value));
     };
 
     const handleConsentAcknowledged = (acknowledged) => {
@@ -808,7 +815,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 <div className={styles.formGroup} />
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>EMERGENCY CONTACT <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} name="emergencyContact_name" value={formData.emergencyContact.name} onChange={(e) => handleNestedChange('emergencyContact', 'name', e.target.value, toTitleCase)} disabled={isSaving} />{errors.emergencyContact_name && <span className={styles.errorText}>{errors.emergencyContact_name}</span>}</div>
+                                <div className={styles.formGroup}><label>EMERGENCY CONTACT <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} name="emergencyContact_name" value={formData.emergencyContact.name} onChange={handleNestedNameChange('emergencyContact', 'name')} disabled={isSaving} />{errors.emergencyContact_name && <span className={styles.errorText}>{errors.emergencyContact_name}</span>}</div>
                                 <div className={styles.formGroup}><label>MOBILE <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.emergencyContact_contactNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.emergencyContact.contactNumber} onChange={handleNestedPhoneChange('emergencyContact', 'contactNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.emergencyContact_contactNumber && <span className={styles.errorText}>{errors.emergencyContact_contactNumber}</span>}</div>
                                 <div className={styles.formGroup}><label>RELATION <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.emergencyContact_relationship ? styles.errorBorder : ''}`} value={formData.emergencyContact.relationship} onChange={(e) => handleNestedChange('emergencyContact', 'relationship', e.target.value)} disabled={isSaving}><option value="">Select relationship</option>{RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{errors.emergencyContact_relationship && <span className={styles.errorText}>{errors.emergencyContact_relationship}</span>}</div>
                             </div>
@@ -817,7 +824,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                     <hr className={styles.divider} />
                                     <h3 className={styles.mainSectionTitle}>For Minors</h3>
                                     <div className={styles.row}>
-                                        <div className={styles.formGroup}><label>GUARDIAN NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardian_name ? styles.errorBorder : ''}`} value={formData.guardian.name} onChange={(e) => handleNestedChange('guardian', 'name', e.target.value, toTitleCase)} disabled={isSaving} />{errors.guardian_name && <span className={styles.errorText}>{errors.guardian_name}</span>}</div>
+                                        <div className={styles.formGroup}><label>GUARDIAN NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardian_name ? styles.errorBorder : ''}`} value={formData.guardian.name} onChange={handleNestedNameChange('guardian', 'name')} disabled={isSaving} />{errors.guardian_name && <span className={styles.errorText}>{errors.guardian_name}</span>}</div>
                                         <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} value={formData.guardian.occupation} onChange={(e) => handleNestedChange('guardian', 'occupation', e.target.value)} disabled={isSaving} /></div>
                                     </div>
                                     <div className={styles.row}>
@@ -866,7 +873,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value, toTitleCase)} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={handleNestedNameChange('physician', 'name')} disabled={isSaving} /></div>
                                 <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isSaving}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
                             </div>
                             {formData.physician.specialty === 'Other' && (
@@ -972,7 +979,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 <div className={styles.row}>
                                     <div className={styles.formGroup}>
                                         <label>PRIVACY SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
-                                        <input className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} name="dataPrivacyConsent_signerName" value={formData.dataPrivacyConsent.signerName} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerName', e.target.value, toTitleCase)} disabled={isSaving} />
+                                        <input className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} name="dataPrivacyConsent_signerName" value={formData.dataPrivacyConsent.signerName} onChange={handleNestedNameChange('dataPrivacyConsent', 'signerName')} disabled={isSaving} />
                                         {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
                                     </div>
                                     <div className={styles.formGroup}>
@@ -1016,7 +1023,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 <div className={styles.row}>
                                     <div className={styles.formGroup}>
                                         <label>SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
-                                        <input className={`${styles.inputField} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`} name="consentAcknowledgement_signerName" value={formData.consentAcknowledgement.signerName} onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerName', e.target.value, toTitleCase)} disabled={isSaving} />
+                                        <input className={`${styles.inputField} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`} name="consentAcknowledgement_signerName" value={formData.consentAcknowledgement.signerName} onChange={handleNestedNameChange('consentAcknowledgement', 'signerName')} disabled={isSaving} />
                                         {errors.consentAcknowledgement_signerName && <span className={styles.errorText}>{errors.consentAcknowledgement_signerName}</span>}
                                     </div>
                                     <div className={styles.formGroup}>

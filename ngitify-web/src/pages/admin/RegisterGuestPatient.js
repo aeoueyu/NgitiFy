@@ -19,10 +19,12 @@ import {
     RELIGION_OPTIONS,
     PHYSICIAN_SPECIALTY_OPTIONS,
     LANDLINE_PREFIX,
+    isAllowedPersonNameInput,
     isValidLandlineNumber,
     isValidMobileNumber,
     stripLandlinePrefix,
     stripMobilePrefix,
+    toTitleCaseName,
     toLandlinePayload,
     toMobilePayload,
     getSelectValueWithOther,
@@ -262,7 +264,6 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
     };
 
-    const toTitleCase = (str) => str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, (char) => char.toUpperCase());
     const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
     const getMaxDate = () => new Date().toISOString().split('T')[0];
     const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
@@ -354,9 +355,9 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 return next;
             });
         }
-        if (['firstName', 'middleName', 'lastName', 'guardianName'].includes(name)) {
-            if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) {
-                setFormData((prev) => ({ ...prev, [name]: toTitleCase(value) }));
+        if (['firstName', 'middleName', 'lastName', 'guardianName', 'emergencyContactName'].includes(name)) {
+            if (isAllowedPersonNameInput(value)) {
+                setFormData((prev) => ({ ...prev, [name]: toTitleCaseName(value) }));
             }
             return;
         }
@@ -419,6 +420,12 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             else if (field === 'city') { updated.barangay = ''; }
             return { ...prev, homeAddress: updated };
         });
+    };
+
+    const handleNestedNameChange = (section, field) => (e) => {
+        const value = e.target.value;
+        if (!isAllowedPersonNameInput(value)) return;
+        handleNestedChange(section, field, toTitleCaseName(value));
     };
 
     const handleNestedChange = (section, field, value) => {
@@ -1212,7 +1219,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={(e) => handleNestedChange('physician', 'name', e.target.value)} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={handleNestedNameChange('physician', 'name')} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isLoading}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
                     </div>
                     {formData.physician.specialty === 'Other' && (
@@ -1235,7 +1242,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         <div className={styles.row}>
                             <div className={styles.formGroup}>
                                 <label>PRIVACY SIGNER NAME <span style={{ color: 'red' }}>*</span></label>
-                                <input className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} value={formData.dataPrivacyConsent.signerName} onChange={(e) => handleNestedChange('dataPrivacyConsent', 'signerName', e.target.value)} disabled={isLoading} />
+                                <input className={`${styles.inputField} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} value={formData.dataPrivacyConsent.signerName} onChange={handleNestedNameChange('dataPrivacyConsent', 'signerName')} disabled={isLoading} />
                                 {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
                             </div>
                             <div className={styles.formGroup}>
@@ -1279,7 +1286,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                                 <input
                                     className={`${styles.inputField} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`}
                                     value={formData.consentAcknowledgement.signerName}
-                                    onChange={(e) => handleNestedChange('consentAcknowledgement', 'signerName', e.target.value)}
+                                    onChange={handleNestedNameChange('consentAcknowledgement', 'signerName')}
                                     disabled={isLoading}
                                 />
                                 {errors.consentAcknowledgement_signerName && <span className={styles.errorText}>{errors.consentAcknowledgement_signerName}</span>}
