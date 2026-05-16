@@ -4168,7 +4168,8 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
     const { email, source } = req.body;
 
     try {
-        const user = await User.findOne({ email });
+        const normalizedEmail = normalizeEmail(email || '');
+        const user = await User.findOne({ email: normalizedEmail });
 
         // Mobile requests: only send OTP to patient accounts.
         // Non-patient roles silently skip — no code is sent, no error is shown.
@@ -4198,7 +4199,8 @@ app.post('/api/mobile/forgot-password', otpLimiter, async (req, res) => {
     const { email } = req.body;
 
     try {
-        const user = await User.findOne({ email });
+        const normalizedEmail = normalizeEmail(email || '');
+        const user = await User.findOne({ email: normalizedEmail });
 
         // Only patient accounts receive an OTP via the mobile app.
         // Non-patient roles silently skip — no code is sent, no error is shown.
@@ -4224,8 +4226,9 @@ app.post('/api/mobile/forgot-password', otpLimiter, async (req, res) => {
 app.post('/api/verify-otp', otpLimiter, async (req, res) => {
     try {
         const { email, otp } = req.body;
+        const normalizedEmail = normalizeEmail(email || '');
         const user = await User.findOne({ 
-            email, 
+            email: normalizedEmail, 
             resetPasswordOtp: otp, 
             resetPasswordExpires: { $gt: Date.now() } 
         });
@@ -4244,9 +4247,10 @@ app.post('/api/reset-password', otpLimiter, async (req, res) => {
         if (!email || !otp || !newPassword) {
             return res.status(400).json({ message: "Email, OTP, and new password are required." });
         }
-        
+
+        const normalizedEmail = normalizeEmail(email || '');
         const user = await User.findOne({ 
-            email,
+            email: normalizedEmail,
             resetPasswordOtp: otp,
             resetPasswordExpires: { $gt: Date.now() }
         });
@@ -4277,8 +4281,12 @@ app.post('/api/reset-password', otpLimiter, async (req, res) => {
 app.post('/api/check-email', async (req, res) => {
     try {
         const { email, excludeId } = req.body;
-        
-        const query = { email: email };
+        const normalizedEmail = normalizeEmail(email || '');
+        if (!normalizedEmail) {
+            return res.status(400).json({ message: "A valid email is required" });
+        }
+
+        const query = { email: normalizedEmail };
         if (excludeId) {
             query._id = { $ne: excludeId };
         }
@@ -4307,8 +4315,13 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
         }
 
         const { email, licenseNumber, ...otherData } = req.body;
+        const normalizedEmail = normalizeEmail(email || '');
 
-        const existingEmail = await User.findOne({ email });
+        if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
+            return res.status(400).json({ field: 'email', message: 'A valid email address is required.' });
+        }
+
+        const existingEmail = await User.findOne({ email: normalizedEmail });
         if (existingEmail) return res.status(409).json({ field: 'email', message: 'Email address is already registered.' });
 
         if (licenseNumber) {
@@ -4331,7 +4344,7 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
 
         const newUser = new User({
             ...normalizedOtherData,
-            email,
+            email: normalizedEmail,
             licenseNumber,
             assignedBranches,
             password: hashedPassword,
@@ -4349,13 +4362,13 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
             action: "CREATE_USER",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "administrator",
-            details: `Created new dentist: ${email}${req.user.role === 'branch-manager' ? ` (branch: ${req.user.assignedBranch})` : ''}`
+            details: `Created new dentist: ${normalizedEmail}${req.user.role === 'branch-manager' ? ` (branch: ${req.user.assignedBranch})` : ''}`
         });
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Dentist', activationLink);
+            await sendActivationEmail(normalizedEmail, 'Dentist', activationLink);
             console.log(`✅ Dentist Added & Email Sent: ${email}`);
             res.status(201).json({ message: 'Dentist added successfully. Activation email sent.' });
         } catch (emailError) {
@@ -4377,8 +4390,13 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
         }
 
         const { email, ...otherData } = req.body;
+        const normalizedEmail = normalizeEmail(email || '');
 
-        const existing = await User.findOne({ email });
+        if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
+            return res.status(400).json({ field: 'email', message: 'A valid email address is required.' });
+        }
+
+        const existing = await User.findOne({ email: normalizedEmail });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
 
         // Branch managers must assign the new secretary to their own branch only
@@ -4396,7 +4414,7 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
 
         const newUser = new User({
             ...normalizedOtherData,
-            email,
+            email: normalizedEmail,
             assignedBranches,
             password: hashedPassword,
             role: 'secretary',
@@ -4412,13 +4430,13 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
             action: "CREATE_USER",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "administrator",
-            details: `Created new secretary: ${email}${req.user.role === 'branch-manager' ? ` (branch: ${req.user.assignedBranch})` : ''}`
+            details: `Created new secretary: ${normalizedEmail}${req.user.role === 'branch-manager' ? ` (branch: ${req.user.assignedBranch})` : ''}`
         });
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Secretary', activationLink);
+            await sendActivationEmail(normalizedEmail, 'Secretary', activationLink);
             console.log(`✅ Secretary Added & Email Sent: ${email}`);
             res.status(201).json({ message: 'Secretary added successfully. Activation email sent.' });
         } catch (emailError) {
@@ -4442,8 +4460,13 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
         }
 
         const { email, assignedBranch = '', ...otherData } = req.body;
+        const normalizedEmail = normalizeEmail(email || '');
 
-        const existing = await User.findOne({ email });
+        if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
+            return res.status(400).json({ field: 'email', message: 'A valid email address is required.' });
+        }
+
+        const existing = await User.findOne({ email: normalizedEmail });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
 
         const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
@@ -4456,7 +4479,7 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
 
         const newUser = new User({
             ...normalizedOtherData,
-            email, 
+            email: normalizedEmail, 
             assignedBranch,
             assignedBranches: assignedBranch ? [assignedBranch] : [],
             password: hashedPassword,
@@ -4474,13 +4497,13 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
             action: "CREATE_USER",
             user: req.user?.email || req.user?.id || "ADMIN",
             role: req.user?.role || "administrator",
-            details: `Created new branch manager: ${email}`
+            details: `Created new branch manager: ${normalizedEmail}`
         });
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Branch Manager', activationLink);
+            await sendActivationEmail(normalizedEmail, 'Branch Manager', activationLink);
             console.log(`✅ Branch Manager Added & Email Sent: ${email}`);
             res.status(201).json({ message: 'Branch Manager added successfully. Activation email sent.' });
         } catch (emailError) {
@@ -4601,8 +4624,13 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
         }
 
         const { email, isDentist, ...otherData } = req.body;
+        const normalizedEmail = normalizeEmail(email || '');
 
-        const existing = await User.findOne({ email });
+        if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
+            return res.status(400).json({ field: 'email', message: 'A valid email address is required.' });
+        }
+
+        const existing = await User.findOne({ email: normalizedEmail });
         if (existing) return res.status(409).json({ field: 'email', message: 'Email already exists.' });
 
         const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
@@ -4615,7 +4643,7 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
 
         const newUser = new User({
             ...normalizedOtherData,
-            email,
+            email: normalizedEmail,
             password: hashedPassword,
             role: 'owner',
             isDentist: isDentist === true,
@@ -4631,13 +4659,13 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
             action: 'CREATE_USER',
             user: req.user?.email || 'ADMIN',
             role: req.user?.role || 'administrator',
-            details: `Created new owner account: ${email}${isDentist ? ' (with Dentist access)' : ''}`
+            details: `Created new owner account: ${normalizedEmail}${isDentist ? ' (with Dentist access)' : ''}`
         });
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
         try {
-            await sendActivationEmail(email, 'Owner', activationLink);
+            await sendActivationEmail(normalizedEmail, 'Owner', activationLink);
             res.status(201).json({ message: 'Owner added successfully. Activation email sent.' });
         } catch (emailError) {
             console.error('⚠️ Activation email failed for owner:', emailError.message);
@@ -5633,42 +5661,49 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied. Cannot escalate role to administrator.' });
         }
 
-        if (email && email !== currentUser.email) {
-            const emailExists = await User.findOne({ email });
-            if (emailExists) return res.status(409).json({ field: 'email', message: "New email is already in use." });
-
-            const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
-            const activationToken = crypto.randomBytes(32).toString('hex');
-
-            normalizedUpdateData.email = email;
-            normalizedUpdateData.password = hashedPassword;
-            normalizedUpdateData.activationToken = activationToken;
-            normalizedUpdateData.isVerified = false;
-            normalizedUpdateData.status = 'inactive';
-            normalizedUpdateData.isPasswordChanged = false;
-            normalizedUpdateData.temporaryPasswordExpires = null;
-
-            const updatedUser = await User.findByIdAndUpdate(userId, normalizedUpdateData, { new: true });
-            if (currentUser.role === 'branch-manager') {
-                await syncBranchManagerAssignments(updatedUser._id, resolvedAssignedBranch);
+        if (email) {
+            const normalizedEmail = normalizeEmail(email);
+            if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
+                return res.status(400).json({ field: 'email', message: 'A valid email address is required.' });
             }
 
-            const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-            try {
-                await sendActivationEmail(email, currentUser.role, activationLink);
-            } catch (emailError) {
-                console.error('Activation email failed after user update:', emailError.message);
-                return res.status(207).json({ message: 'User updated, but activation email failed to send.' });
+            if (normalizedEmail !== currentUser.email) {
+                const emailExists = await User.findOne({ email: normalizedEmail });
+                if (emailExists) return res.status(409).json({ field: 'email', message: "New email is already in use." });
+
+                const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+                const activationToken = crypto.randomBytes(32).toString('hex');
+
+                normalizedUpdateData.email = normalizedEmail;
+                normalizedUpdateData.password = hashedPassword;
+                normalizedUpdateData.activationToken = activationToken;
+                normalizedUpdateData.isVerified = false;
+                normalizedUpdateData.status = 'inactive';
+                normalizedUpdateData.isPasswordChanged = false;
+                normalizedUpdateData.temporaryPasswordExpires = null;
+
+                const updatedUser = await User.findByIdAndUpdate(userId, normalizedUpdateData, { new: true });
+                if (currentUser.role === 'branch-manager') {
+                    await syncBranchManagerAssignments(updatedUser._id, resolvedAssignedBranch);
+                }
+
+                const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+                try {
+                    await sendActivationEmail(normalizedEmail, currentUser.role, activationLink);
+                } catch (emailError) {
+                    console.error('Activation email failed after user update:', emailError.message);
+                    return res.status(207).json({ message: 'User updated, but activation email failed to send.' });
+                }
+
+                await AuditLog.create({
+                    action: 'EMAIL_CHANGE',
+                    user: req.user?.email,
+                    role: req.user?.role,
+                    details: `Changed email for user ID ${userId} to ${normalizedEmail}`
+                });
+
+                return res.json({ message: "User updated. Re-activation email sent.", user: updatedUser });
             }
-
-            await AuditLog.create({
-                action: 'EMAIL_CHANGE',
-                user: req.user?.email,
-                role: req.user?.role,
-                details: `Changed email for user ID ${userId} to ${email}`
-            });
-
-            return res.json({ message: "User updated. Re-activation email sent.", user: updatedUser });
         }
 
         const updatedUser = await User.findByIdAndUpdate(userId, { ...normalizedUpdateData }, { new: true });
@@ -5824,11 +5859,16 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
             return res.status(401).json({ message: 'Current password is incorrect.' });
         }
 
+        const normalizedNewEmail = normalizeEmail(newEmail || '');
+        if (!normalizedNewEmail || !isValidEmailAddress(normalizedNewEmail)) {
+            return res.status(400).json({ message: 'A valid email address is required.' });
+        }
+
         // Check new email is not already taken
-        if (newEmail === user.email) {
+        if (normalizedNewEmail === user.email) {
             return res.status(400).json({ message: 'New email must be different from your current email.' });
         }
-        const emailExists = await User.findOne({ email: newEmail });
+        const emailExists = await User.findOne({ email: normalizedNewEmail });
         if (emailExists) {
             return res.status(409).json({ message: 'This email address is already in use.' });
         }
@@ -5837,7 +5877,7 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
         const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         const activationToken = crypto.randomBytes(32).toString('hex');
 
-        user.email = newEmail;
+        user.email = normalizedNewEmail;
         user.password = hashedPassword;
         user.activationToken = activationToken;
         user.isVerified = false;
@@ -5847,13 +5887,13 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
         await user.save();
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(newEmail, user.role, activationLink);
+        await sendActivationEmail(normalizedNewEmail, user.role, activationLink);
 
         await AuditLog.create({
             action: 'EMAIL_CHANGE_REQUESTED',
-            user: newEmail,
+            user: normalizedNewEmail,
             role: user.role,
-            details: `User requested email change. Activation link sent to ${newEmail}.`
+            details: `User requested email change. Activation link sent to ${normalizedNewEmail}.`
         });
 
         res.json({ message: 'Verification email sent. Please check your new inbox to reactivate your account.' });
