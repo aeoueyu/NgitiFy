@@ -33,7 +33,13 @@ const ROLE_LABELS = {
     dentist: 'Dentist',
     secretary: 'Secretary',
     patient: 'Patient',
+    guest: 'Guest',
     system: 'System',
+};
+
+const getAuditLogRole = (log = {}) => {
+    const objectUserRole = typeof log.user === 'object' ? log.user?.role : '';
+    return String(log.actorRole || log.role || objectUserRole || 'system').trim().toLowerCase();
 };
 
 const formatActionLabel = (action = '') => {
@@ -138,14 +144,13 @@ export default function AuditTrail() {
             const data = await response.json();
             const mappedLogs = data.map((log) => {
                 let userName = 'System Generated';
-                let userRole = 'system';
+                const userRole = getAuditLogRole(log);
 
                 if (log.user) {
                     if (typeof log.user === 'object') {
                         const first = log.user.name?.first || log.user.firstName || '';
                         const last = log.user.name?.last || log.user.lastName || '';
                         userName = `${first} ${last}`.trim() || log.user.email || 'Unknown User';
-                        userRole = log.user.role || 'system';
                     } else if (typeof log.user === 'string') {
                         userName = log.user;
                     }
