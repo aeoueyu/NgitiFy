@@ -2608,11 +2608,35 @@ const isGuestPreRegistrationAppointment = (appointment) => (
     && Boolean(appointment?.guestEmail || appointment?.patient?.email)
 );
 
+const PRE_REGISTRATION_TOKEN_LIFETIME_MS = 72 * 60 * 60 * 1000;
+
 const buildGuestPreRegistrationFields = () => ({
     preRegistrationToken: crypto.randomBytes(32).toString('hex'),
-    preRegistrationTokenExpiry: new Date(Date.now() + (72 * 60 * 60 * 1000)),
+    preRegistrationTokenExpiry: new Date(Date.now() + PRE_REGISTRATION_TOKEN_LIFETIME_MS),
     preRegistrationCompleted: false,
 });
+
+const isPreRegistrationTokenStillActive = (appointment) => (
+    Boolean(String(appointment?.preRegistrationToken || '').trim())
+    && Boolean(appointment?.preRegistrationTokenExpiry)
+    && new Date(appointment.preRegistrationTokenExpiry) >= new Date()
+);
+
+const getGuestPreRegistrationFields = (appointment, { forceRefresh = false } = {}) => {
+    if (!forceRefresh && isPreRegistrationTokenStillActive(appointment)) {
+        return {
+            preRegistrationToken: appointment.preRegistrationToken,
+            preRegistrationTokenExpiry: appointment.preRegistrationTokenExpiry,
+            preRegistrationCompleted: false,
+            reusedExistingToken: true,
+        };
+    }
+
+    return {
+        ...buildGuestPreRegistrationFields(),
+        reusedExistingToken: false,
+    };
+};
 
 const summarizePendingGuestPreRegistration = (appointment = {}) => ({
     appointmentId: appointment?._id?.toString?.() || String(appointment?._id || ''),
@@ -6588,7 +6612,12 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
         }
 
         if (newSurgery.source === 'Phone Call' && isGuestPreRegistrationAppointment(newSurgery) && !newSurgery.preRegistrationCompleted) {
-            Object.assign(newSurgery, buildGuestPreRegistrationFields());
+            const preRegistrationFields = getGuestPreRegistrationFields(newSurgery);
+            Object.assign(newSurgery, {
+                preRegistrationToken: preRegistrationFields.preRegistrationToken,
+                preRegistrationTokenExpiry: preRegistrationFields.preRegistrationTokenExpiry,
+                preRegistrationCompleted: preRegistrationFields.preRegistrationCompleted,
+            });
             await newSurgery.save();
 
             await runPostSaveSideEffect('audit:preRegistrationLinkSent:phoneCall', () => AuditLog.create({
@@ -7445,7 +7474,12 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             }
 
             if (guestProvisioning.requiresPreRegistration && !currentSurgery.preRegistrationCompleted) {
-                Object.assign(updateFields, buildGuestPreRegistrationFields());
+                const preRegistrationFields = getGuestPreRegistrationFields(currentSurgery);
+                Object.assign(updateFields, {
+                    preRegistrationToken: preRegistrationFields.preRegistrationToken,
+                    preRegistrationTokenExpiry: preRegistrationFields.preRegistrationTokenExpiry,
+                    preRegistrationCompleted: preRegistrationFields.preRegistrationCompleted,
+                });
             }
         }
 
@@ -8145,7 +8179,12 @@ app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/
             }
         }
 
-        Object.assign(surgery, buildGuestPreRegistrationFields());
+        const preRegistrationFields = getGuestPreRegistrationFields(surgery);
+        Object.assign(surgery, {
+            preRegistrationToken: preRegistrationFields.preRegistrationToken,
+            preRegistrationTokenExpiry: preRegistrationFields.preRegistrationTokenExpiry,
+            preRegistrationCompleted: preRegistrationFields.preRegistrationCompleted,
+        });
         await surgery.save();
 
         await AuditLog.create({
@@ -8165,7 +8204,12 @@ app.post(['/api/admin/appointments/:surgeryId/resend-pre-register', '/api/admin/
             token: surgery.preRegistrationToken,
         });
 
-        return res.json({ message: 'Pre-registration email resent successfully.' });
+        return res.json({
+            message: preRegistrationFields.reusedExistingToken
+                ? 'Pre-registration email resent with the same active link.'
+                : 'Pre-registration email resent with a new link.',
+            reusedExistingToken: preRegistrationFields.reusedExistingToken,
+        });
     } catch (error) {
         console.error('Error resending pre-registration email:', error);
         return res.status(500).json({ message: 'Server error resending pre-registration email.' });

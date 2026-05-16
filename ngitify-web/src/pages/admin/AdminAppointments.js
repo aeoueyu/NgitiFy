@@ -757,7 +757,7 @@ export default function AdminAppointments() {
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(data.message || 'Unable to resend pre-registration link.');
-            addToast('Pre-registration link resent successfully.', 'success');
+            addToast(data.message || 'Pre-registration link resent successfully.', 'success');
             await fetchAppointments(true);
         } catch (error) {
             addToast(error.message || 'Unable to process guest appointment.', 'error');
