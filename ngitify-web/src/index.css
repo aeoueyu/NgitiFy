@@ -2,9 +2,9 @@
 
 :root {
   /* Core Brand Colors */
-  --primary-blue: #01538b;
-  --primary-blue-hover: #013f6b;
-  --accent-light-blue: #2dccf6;
+  --primary-blue: #1f5286;
+  --primary-blue-hover: #183f68;
+  --accent-light-blue: #61c7f0;
   
   /* Semantic Colors */
   --alert-red: #dc3545;

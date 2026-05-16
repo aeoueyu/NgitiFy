@@ -24,7 +24,7 @@ export default function WebsiteHome() {
                         <span className={styles.heroTitleAccent}> {homeContent.heroTitleAccent}</span>
                     </h1>
                     <p className={styles.heroText}>{homeContent.heroDescription}</p>
-                    <p className={styles.referenceMeta}>{clinicInfo.tagline}</p>
+                    <p className={styles.taglineText}>{clinicInfo.tagline}</p>
                     <div className={styles.buttonRow}>
                         <button className={styles.primaryBtn} onClick={() => navigate('/appointment')} type="button">
                             {homeContent.primaryCtaLabel}
