@@ -43,6 +43,8 @@ const formatYesNo = (value) => {
 
 const renderArray = (value) => Array.isArray(value) && value.length > 0 ? value.join(', ') : 'None reported';
 
+const hasPendingPreRegistration = (patient = {}) => Boolean(patient?.pendingPreRegistration?.appointmentId);
+
 export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, onRecoverAccess }) {
     const [patient, setPatient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -87,6 +89,9 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
     const bloodType = patient?.bloodType || patient?.medicalHistory?.bloodType || 'Not provided';
     const accountLifecycleLabel = getPatientLifecycleLabel(patient);
     const assignedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || 'Not assigned';
+    const recoveryLabel = hasPendingPreRegistration(patient)
+        ? 'Resend Pre-registration Link'
+        : (!patient?.isVerified && !hasExpiredTemporaryPassword(patient) ? 'Resend Activation Link' : getAccessRecoveryLabel(patient));
 
     const infoBox = (label, value, extraClass = '') => (
         <div className={`${styles.infoBox} ${extraClass}`.trim()}>
@@ -138,11 +143,11 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                         <div className={styles.infoGrid}>
                             {infoBox('Assigned Branch', assignedBranch)}
                             {infoBox('Account Status', accountLifecycleLabel)}
-                            {infoBox('Verification', patient?.isArchived ? 'Archived Record' : patient?.isVerified ? 'Verified Email' : 'Pending Activation')}
+                            {infoBox('Verification', patient?.isArchived ? 'Archived Record' : patient?.isVerified ? 'Verified Email' : hasPendingPreRegistration(patient) ? 'Awaiting Pre-registration' : 'Pending Activation')}
                             {infoBox('Patient ID', patient?._id || patientId)}
                         </div>
                         <LifecycleHistoryPanel account={patient} entityLabel="patient account" />
-                        {shouldShowAccessRecovery(patient) && onRecoverAccess && (
+                        {(hasPendingPreRegistration(patient) || shouldShowAccessRecovery(patient)) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
                                 <button
                                     type="button"
@@ -157,7 +162,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    {!patient?.isVerified && !hasExpiredTemporaryPassword(patient) ? 'Resend Activation Link' : getAccessRecoveryLabel(patient)}
+                                    {recoveryLabel}
                                 </button>
                             </div>
                         )}

@@ -38,6 +38,14 @@ const matchesPatientLifecycleFilter = (patient = {}, filter = 'all') => (
     filter === 'all' || getPatientLifecycleKey(patient) === filter
 );
 
+const hasPendingPreRegistration = (patient = {}) => Boolean(patient.pendingPreRegistration?.appointmentId);
+
+const getPatientRecoveryLabel = (patient = {}) => (
+    hasPendingPreRegistration(patient)
+        ? 'Resend Pre-registration Link'
+        : (!patient?.isVerified && !hasExpiredTemporaryPassword(patient) ? 'Resend Activation Link' : getAccessRecoveryLabel(patient))
+);
+
 export default function ManagePatients() {
     const { user } = useAuth();
     const { canReadPatients, canEditPatients } = usePermissions();
@@ -125,6 +133,7 @@ export default function ManagePatients() {
                         temporaryPasswordExpires: patient.temporaryPasswordExpires || null,
                         profileImage: patient.profileImage,
                         assignedBranch: patient.assignedBranch || patient.assignedBranches?.[0] || '',
+                        pendingPreRegistration: patient.pendingPreRegistration || null,
                     };
                 });
 
@@ -300,9 +309,11 @@ export default function ManagePatients() {
         }
         try {
             const isPendingActivation = !patient.isVerified && !hasExpiredTemporaryPassword(patient);
-            const endpoint = isPendingActivation
-                ? `/patient/resend-activation/${patient.id}`
-                : `/patient/reissue-access/${patient.id}`;
+            const endpoint = hasPendingPreRegistration(patient)
+                ? `/admin/appointments/${patient.pendingPreRegistration.appointmentId}/resend-pre-register`
+                : isPendingActivation
+                    ? `/patient/resend-activation/${patient.id}`
+                    : `/patient/reissue-access/${patient.id}`;
             const res = await authFetch(endpoint, { method: 'POST' });
             const data = await res.json();
             if (res.ok) {
@@ -312,11 +323,12 @@ export default function ManagePatients() {
                     isVerified: data.account?.isVerified ?? patient.isVerified,
                     isPasswordChanged: data.account?.isPasswordChanged ?? patient.isPasswordChanged,
                     temporaryPasswordExpires: data.account?.temporaryPasswordExpires || patient.temporaryPasswordExpires,
+                    pendingPreRegistration: hasPendingPreRegistration(patient) ? patient.pendingPreRegistration : null,
                 };
                 setPatientsList((prevList) => prevList.map((entry) => (
                     entry.id === patient.id ? { ...entry, ...updatedAccount } : entry
                 )));
-                addToast(data.message || `${getAccessRecoveryLabel(patient)} sent to ${patient.email}.`, 'success');
+                addToast(data.message || `${getPatientRecoveryLabel(patient)} sent to ${patient.email}.`, 'success');
                 return updatedAccount;
             }
             addToast(data.message || 'Failed to send access email.', 'error');
@@ -650,6 +662,8 @@ export default function ManagePatients() {
                                         </div>
                                         {isArchivedRecord ? (
                                             <span style={{ fontSize: '11px', color: '#64748b', display: 'block', fontWeight: '600', marginTop: '2px' }}>Archived record</span>
+                                        ) : hasPendingPreRegistration(patient) ? (
+                                            <span style={{ fontSize: '11px', color: '#b45309', display: 'block', fontWeight: '600', marginTop: '2px' }}>Pre-registration not completed</span>
                                         ) : hasExpiredTemporaryPassword(patient) ? (
                                             <span style={{ fontSize: '11px', color: '#b45309', display: 'block', fontWeight: '600', marginTop: '2px' }}>Temporary password expired</span>
                                         ) : (
@@ -659,13 +673,13 @@ export default function ManagePatients() {
                                     <td className={tblStyles.wrapCell} style={{ whiteSpace: 'normal', overflow: 'visible', textOverflow: 'initial' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{patient.email}</span>
-                                            {shouldShowAccessRecovery(patient) && !isArchivedRecord && (
+                                            {(hasPendingPreRegistration(patient) || shouldShowAccessRecovery(patient)) && !isArchivedRecord && (
                                                 <button
                                                     type="button"
                                                     onClick={() => handleRecoverAccess(patient)}
                                                     style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
                                                 >
-                                                    {getAccessRecoveryLabel(patient)}
+                                                    {getPatientRecoveryLabel(patient)}
                                                 </button>
                                             )}
                                         </div>

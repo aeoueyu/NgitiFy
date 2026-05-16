@@ -591,7 +591,7 @@ export default function AdminAppointments() {
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(data.message || 'Unable to confirm guest appointment.');
-            addToast('Guest appointment confirmed. A pre-registration link was sent to the guest.', 'success');
+            addToast('Guest appointment confirmed. The patient now appears in Manage Patients as inactive until pre-registration and activation are completed.', 'success');
             await fetchAppointments(true);
         } catch (error) {
             addToast(error.message || 'Failed to confirm guest appointment.', 'error');

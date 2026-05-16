@@ -2517,8 +2517,7 @@ const GUEST_PRE_REGISTRATION_SOURCES = new Set(['Smile Hub (Online)', 'Phone Cal
 const isGuestPreRegistrationAppointment = (appointment) => (
     Boolean(appointment)
     && GUEST_PRE_REGISTRATION_SOURCES.has(String(appointment?.source || '').trim())
-    && !appointment?.patient
-    && Boolean(appointment?.guestEmail)
+    && Boolean(appointment?.guestEmail || appointment?.patient?.email)
 );
 
 const buildGuestPreRegistrationFields = () => ({
@@ -2526,6 +2525,170 @@ const buildGuestPreRegistrationFields = () => ({
     preRegistrationTokenExpiry: new Date(Date.now() + (72 * 60 * 60 * 1000)),
     preRegistrationCompleted: false,
 });
+
+const summarizePendingGuestPreRegistration = (appointment = {}) => ({
+    appointmentId: appointment?._id?.toString?.() || String(appointment?._id || ''),
+    branch: appointment?.branch || '',
+    procedure: appointment?.procedure || '',
+    source: appointment?.source || '',
+    date: appointment?.date || null,
+    time: appointment?.time || '',
+    tokenExpiresAt: appointment?.preRegistrationTokenExpiry || null,
+});
+
+const buildPendingGuestPreRegistrationMap = async (patientIds = []) => {
+    const uniquePatientIds = [...new Set(
+        patientIds
+            .map((patientId) => String(patientId || '').trim())
+            .filter(Boolean)
+    )];
+    if (uniquePatientIds.length === 0) return new Map();
+
+    const pendingAppointments = await Surgery.find({
+        isArchived: false,
+        patient: { $in: uniquePatientIds },
+        source: { $in: [...GUEST_PRE_REGISTRATION_SOURCES] },
+        preRegistrationCompleted: false,
+        preRegistrationToken: { $exists: true, $ne: null },
+        status: { $in: ['confirmed', 'pending', 'in-clinic'] },
+    })
+        .select('_id patient branch procedure source date time preRegistrationTokenExpiry')
+        .sort({ date: -1, createdAt: -1 })
+        .lean();
+
+    const pendingMap = new Map();
+    pendingAppointments.forEach((appointment) => {
+        const patientId = String(appointment?.patient || '').trim();
+        if (!patientId || pendingMap.has(patientId)) return;
+        pendingMap.set(patientId, summarizePendingGuestPreRegistration(appointment));
+    });
+
+    return pendingMap;
+};
+
+const attachPendingGuestPreRegistrationToPatientRecords = async (records = []) => {
+    if (!Array.isArray(records) || records.length === 0) return [];
+
+    const pendingMap = await buildPendingGuestPreRegistrationMap(records.map((record) => record?._id));
+    return records.map((record) => {
+        const normalizedRecord = typeof record?.toObject === 'function' ? record.toObject() : { ...record };
+        normalizedRecord.pendingPreRegistration = pendingMap.get(String(record?._id || '')) || null;
+        return normalizedRecord;
+    });
+};
+
+const provisionGuestPatientAccountForAppointment = async ({ surgery, actor }) => {
+    if (!surgery || surgery.patient || !isGuestPreRegistrationAppointment(surgery)) {
+        return { patient: null, linkedExisting: false, requiresPreRegistration: false };
+    }
+
+    const guestEmail = normalizeEmail(surgery.guestEmail || '');
+    const guestPhone = normalizePhoneNumber(surgery.guestPhone || '');
+    const guestBirthdate = surgery.guestBirthdate ? new Date(surgery.guestBirthdate).toISOString().split('T')[0] : '';
+    const guestName = splitGuestFullName(surgery.guestName || '');
+
+    if (!guestName.first || !guestName.last) {
+        return { errorStatus: 400, errorMessage: 'Guest first and last name are required before confirming this appointment.' };
+    }
+    if (!guestEmail || !isValidEmailAddress(guestEmail)) {
+        return { errorStatus: 400, errorMessage: 'A valid guest email is required before confirming this appointment.' };
+    }
+    if (!guestPhone) {
+        return { errorStatus: 400, errorMessage: 'Guest contact number is required before confirming this appointment.' };
+    }
+    if (!guestBirthdate || !surgery.guestGender) {
+        return { errorStatus: 400, errorMessage: 'Guest birthdate and gender are required before confirming this appointment.' };
+    }
+    if (!surgery.branch) {
+        return { errorStatus: 400, errorMessage: 'Appointment branch is required before confirming this appointment.' };
+    }
+
+    const existingUser = await User.findOne({ email: guestEmail })
+        .select('name email birthdate role assignedBranch assignedBranches isVerified status');
+
+    if (existingUser) {
+        if (existingUser.role !== 'patient') {
+            return {
+                errorStatus: 409,
+                errorMessage: 'This guest email already belongs to a non-patient account. Update the appointment email before confirming.',
+            };
+        }
+
+        const existingPatientBranches = existingUser.assignedBranches?.length
+            ? existingUser.assignedBranches
+            : (existingUser.assignedBranch ? [existingUser.assignedBranch] : []);
+        if (existingPatientBranches.length > 0 && !existingPatientBranches.includes(surgery.branch)) {
+            return {
+                errorStatus: 409,
+                errorMessage: 'This guest email already belongs to a patient assigned to a different branch.',
+            };
+        }
+
+        if (!doesPatientIdentityMatchWebsiteRequest(existingUser, {
+            firstName: guestName.first,
+            lastName: guestName.last,
+            birthdate: guestBirthdate,
+        })) {
+            return {
+                errorStatus: 409,
+                errorMessage: 'This guest email already belongs to an existing patient, but the guest name or birthdate does not match that record.',
+            };
+        }
+
+        return { patient: existingUser, linkedExisting: true, requiresPreRegistration: false };
+    }
+
+    const patientPayload = buildPatientPayload({
+        body: {},
+        fallbackGuest: {
+            ...surgery.toObject?.(),
+            guestPhone,
+            guestEmail,
+        },
+        assignedBranchOverride: surgery.branch,
+    });
+
+    const seededPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+    const newUser = new User({
+        ...patientPayload,
+        password: seededPassword,
+        role: 'patient',
+        status: 'inactive',
+        isVerified: false,
+        activationToken: undefined,
+        temporaryPasswordExpires: null,
+        isPasswordChanged: false,
+    });
+    await newUser.save();
+
+    await AuditLog.create({
+        action: 'AUTO_CREATE_GUEST_PATIENT',
+        user: actor?.email || actor?.id || 'SYSTEM',
+        role: actor?.role || 'SYSTEM',
+        details: `Created inactive patient ${newUser.email} from confirmed guest appointment ${surgery._id}.`,
+    });
+
+    return { patient: newUser, linkedExisting: false, requiresPreRegistration: true };
+};
+
+const sendPatientActivationLink = async (patient) => {
+    if (!patient || patient.role !== 'patient') return null;
+
+    const activationToken = crypto.randomBytes(32).toString('hex');
+    patient.activationToken = activationToken;
+    patient.temporaryPasswordExpires = new Date(Date.now() + TEMP_PASSWORD_EXPIRY_MS);
+    patient.isVerified = false;
+    patient.status = 'inactive';
+    await patient.save();
+
+    const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
+    await sendActivationEmail(patient.email, 'Patient', null, activationLink);
+
+    return {
+        activationToken,
+        temporaryPasswordExpires: patient.temporaryPasswordExpires,
+    };
+};
 
 const buildPatientAppointmentStatusNotification = ({ appointment, status, dentistName = '' }) => {
     const normalizedStatus = String(status || appointment?.status || '').trim().toLowerCase();
@@ -4484,7 +4647,9 @@ app.get('/api/patients', verifyToken, async (req, res) => {
 
         const total = await User.countDocuments(baseFilter);
 
-        res.json({ patients, total, page, pages: Math.ceil(total / limit) });
+        const patientsWithPendingPreRegistration = await attachPendingGuestPreRegistrationToPatientRecords(patients);
+
+        res.json({ patients: patientsWithPendingPreRegistration, total, page, pages: Math.ceil(total / limit) });
     } catch (error) {
         res.status(500).json({ message: "Server error." });
     }
@@ -4548,7 +4713,8 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
             }
         }
 
-        res.json(patient);
+        const [patientWithPendingPreRegistration] = await attachPendingGuestPreRegistrationToPatientRecords([patient]);
+        res.json(patientWithPendingPreRegistration);
     } catch (error) {
         res.status(500).json({ message: "Server error." });
     }
@@ -4821,6 +4987,10 @@ app.get('/api/user/:id', verifyToken, async (req, res) => {
             .select('-password')
             .populate(LIFECYCLE_ACTOR_POPULATE);
         if (!user) return res.status(404).json({ message: "User not found" });
+        if (user.role === 'patient') {
+            const [userWithPendingPreRegistration] = await attachPendingGuestPreRegistrationToPatientRecords([user]);
+            return res.json(userWithPendingPreRegistration);
+        }
         res.json(user);
     } catch (error) { res.status(500).json({ message: "Server error." }); }
 });
@@ -5107,7 +5277,16 @@ app.post('/api/patient/resend-activation/:id', verifyToken, async (req, res) => 
             details: `Resent activation email to patient ${patient.email}`
         });
 
-        res.json({ message: "Activation email has been resent successfully." });
+        res.json({
+            message: "Activation email has been resent successfully.",
+            account: {
+                _id: patient._id,
+                status: patient.status,
+                isVerified: patient.isVerified,
+                isPasswordChanged: patient.isPasswordChanged,
+                temporaryPasswordExpires,
+            },
+        });
 
     } catch (error) {
         console.error("Error resending patient activation email:", error);
@@ -7161,8 +7340,24 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             updateFields.statusReminderSentAt = null;
             updateFields.statusReminderDayKey = '';
         }
-        if (currentSurgery.status !== 'confirmed' && status === 'confirmed' && isGuestPreRegistrationEntry && !currentSurgery.preRegistrationCompleted) {
-            Object.assign(updateFields, buildGuestPreRegistrationFields());
+        let guestProvisioning = { patient: null, linkedExisting: false, requiresPreRegistration: false };
+        if (currentSurgery.status !== 'confirmed' && status === 'confirmed' && isGuestPreRegistrationEntry) {
+            if (!currentSurgery.patient) {
+                guestProvisioning = await provisionGuestPatientAccountForAppointment({
+                    surgery: currentSurgery,
+                    actor: req.user,
+                });
+                if (guestProvisioning.errorMessage) {
+                    return res.status(guestProvisioning.errorStatus || 400).json({ message: guestProvisioning.errorMessage });
+                }
+                if (guestProvisioning.patient?._id) {
+                    updateFields.patient = guestProvisioning.patient._id;
+                }
+            }
+
+            if (guestProvisioning.requiresPreRegistration && !currentSurgery.preRegistrationCompleted) {
+                Object.assign(updateFields, buildGuestPreRegistrationFields());
+            }
         }
 
         const updatedSurgery = await Surgery.findByIdAndUpdate(
@@ -7191,7 +7386,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 }));
             }
 
-            if (isGuestPreRegistrationEntry && updatedSurgery.preRegistrationToken) {
+            if (guestProvisioning.requiresPreRegistration && updatedSurgery.preRegistrationToken) {
                 await runPostSaveSideEffect('email:preRegistration', () => sendPreRegistrationEmail({
                     email: updatedSurgery.guestEmail,
                     name: updatedSurgery.guestName,
@@ -7758,6 +7953,29 @@ app.post('/api/pre-register/:token', async (req, res) => {
         surgery.preRegistrationCompleted = true;
         surgery.preRegistrationToken = undefined;
         surgery.preRegistrationTokenExpiry = undefined;
+
+        let linkedPatient = null;
+        if (surgery.patient) {
+            linkedPatient = await User.findById(surgery.patient);
+            if (linkedPatient && linkedPatient.role === 'patient') {
+                const patientPayload = buildPatientPayload({
+                    body: req.body,
+                    fallbackGuest: surgery,
+                    assignedBranchOverride: linkedPatient.assignedBranch || linkedPatient.assignedBranches?.[0] || surgery.branch,
+                });
+
+                Object.assign(linkedPatient, patientPayload, {
+                    role: 'patient',
+                    status: 'inactive',
+                    isVerified: false,
+                });
+                if (linkedPatient.assignedBranch && (!Array.isArray(linkedPatient.assignedBranches) || linkedPatient.assignedBranches.length === 0)) {
+                    linkedPatient.assignedBranches = [linkedPatient.assignedBranch];
+                }
+                await linkedPatient.save();
+            }
+        }
+
         await surgery.save();
 
         await AuditLog.create({
@@ -7774,7 +7992,24 @@ app.post('/api/pre-register/:token', async (req, res) => {
             relatedId: surgery._id,
         });
 
-        return res.status(200).json({ message: 'Pre-registration completed successfully.' });
+        let responseMessage = 'Pre-registration completed successfully.';
+        if (linkedPatient && !linkedPatient.isVerified) {
+            try {
+                await sendPatientActivationLink(linkedPatient);
+                responseMessage = 'Pre-registration completed successfully. An activation email has been sent.';
+                await AuditLog.create({
+                    action: 'PATIENT_ACTIVATION_SENT',
+                    user: linkedPatient.email || surgery.guestEmail || 'guest',
+                    role: 'system',
+                    details: `Activation email sent after pre-registration for appointment ${surgery._id}.`,
+                });
+            } catch (emailError) {
+                console.error('Error sending post-pre-registration activation email:', emailError);
+                responseMessage = 'Pre-registration completed successfully, but the activation email could not be sent. Staff can resend it from Manage Patients.';
+            }
+        }
+
+        return res.status(200).json({ message: responseMessage });
     } catch (error) {
         console.error('Error saving pre-registration data:', error);
         return res.status(500).json({ message: 'Server error saving pre-registration data.' });
