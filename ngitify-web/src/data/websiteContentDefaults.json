@@ -60,47 +60,83 @@
   },
   "servicesPage": {
     "eyebrow": "Services",
-    "title": "Comprehensive dental services for everyday care and long-term smile support",
-    "description": "Dentime Dental Clinic offers a focused set of dental services across General Dentistry, Orthodontics, Esthetics, and Oral Surgery."
+    "title": "Comprehensive dental treatments for preventive care, braces, restorations, surgery, and pediatric visits",
+    "description": "Dentime Dental Clinic offers these updated dental treatments across both active branches."
   },
   "serviceHighlights": [
     {
-      "category": "General Dentistry",
-      "description": "Routine and restorative care for day-to-day dental health.",
+      "category": "Preventive Dentistry",
+      "description": "Routine care focused on keeping teeth and gums healthy before bigger problems start.",
       "items": [
-        "Free consultation",
-        "Free digital X-ray",
-        "Oral prophylaxis (teeth cleaning)",
-        "Fluoride application",
-        "Tooth restoration / filling",
-        "Pit and fissure sealant",
-        "Root canal treatment",
-        "Dentures / crowns"
+        "Oral Prophylaxis/Teeth Cleaning",
+        "Periodontal Therapy",
+        "Fluoride Application (with Free Cleaning)",
+        "Pit and Fissure Sealant"
       ]
     },
     {
-      "category": "Orthodontics",
-      "description": "Treatment options for bite alignment and smile correction.",
+      "category": "Orthodontics (Most Popular!)",
+      "description": "Bracket systems for alignment correction and long-term smile improvement.",
       "items": [
-        "Braces",
-        "Retainers",
-        "Orthodontic follow-up care"
+        "Metal Braces",
+        "Ceramic Braces",
+        "Self-Ligating Braces"
       ]
     },
     {
-      "category": "Esthetics",
-      "description": "Smile-focused services for brighter, more confident results.",
+      "category": "Diagnostic Services",
+      "description": "Imaging support that helps the clinic assess concerns and plan treatment clearly.",
       "items": [
-        "Teeth whitening",
-        "Smile-enhancing treatment planning"
+        "Digital Periapical X-Ray"
+      ]
+    },
+    {
+      "category": "Prosthodontic",
+      "description": "Replacement and repair options for damaged or missing teeth.",
+      "items": [
+        "Fixed Partial Denture (Crown, Bridge, Inlay and Onlay)",
+        "Removable Partial and Full Denture"
+      ]
+    },
+    {
+      "category": "Endodontics",
+      "description": "Care for infected or injured tooth structures that need internal treatment.",
+      "items": [
+        "Root Canal Treatment",
+        "Fiber Post Core"
+      ]
+    },
+    {
+      "category": "Cosmetic and Restorative Dentistry",
+      "description": "Smile enhancement and tooth repair services for function and appearance.",
+      "items": [
+        "Teeth Whitening",
+        "Composite Filling/Bonding",
+        "Composite Veneer/Direct Veneer",
+        "Indirect Veneer",
+        "Direct and Indirect Pupl Capping"
       ]
     },
     {
       "category": "Oral Surgery",
-      "description": "Treatment support for extraction and surgical dental needs.",
+      "description": "Extraction and minor surgical procedures for problematic teeth.",
       "items": [
         "Tooth extraction",
-        "Odontectomy (wisdom tooth removal)"
+        "Odontectomy (Wisdom Tooth Removal)"
+      ]
+    },
+    {
+      "category": "Pediatric Dentistry",
+      "description": "Dental care tailored for children, from prevention to restorative treatment.",
+      "items": [
+        "Oral Prophylaxis",
+        "Fluoride Application",
+        "Pit and Fissure Sealants",
+        "Pulpectomy",
+        "Pulpotomy",
+        "Crowns/Caps",
+        "Anterior Veneers",
+        "Composite Tooth Restoration"
       ]
     }
   ],

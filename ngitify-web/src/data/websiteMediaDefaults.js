@@ -35,10 +35,14 @@ export const websiteMediaDefaults = {
 };
 
 export const serviceImageDefaults = {
-    'General Dentistry': generalDentistryImage,
-    Orthodontics: orthodonticsImage,
-    Esthetics: estheticsImage,
+    'Preventive Dentistry': generalDentistryImage,
+    'Orthodontics (Most Popular!)': orthodonticsImage,
+    'Diagnostic Services': generalDentistryImage,
+    Prosthodontic: generalDentistryImage,
+    Endodontics: generalDentistryImage,
+    'Cosmetic and Restorative Dentistry': estheticsImage,
     'Oral Surgery': oralSurgeryImage,
+    'Pediatric Dentistry': generalDentistryImage,
 };
 
 export const getDefaultServiceImage = (category = '') => (

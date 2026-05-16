@@ -998,7 +998,7 @@ const DIRECT_BOOKING_PROCEDURES = [
     DEFAULT_DIRECT_BOOKING_PROCEDURE,
     'Prophylaxis / Dental Cleaning',
 ];
-const DEFAULT_CLINIC_PROCEDURES = [
+const LEGACY_DEFAULT_CLINIC_PROCEDURES = [
     ...DIRECT_BOOKING_PROCEDURES,
     'Oral Prophylaxis (Teeth Cleaning)',
     'Fluoride Application',
@@ -1011,6 +1011,36 @@ const DEFAULT_CLINIC_PROCEDURES = [
     'Orthodontics (Braces)',
     'Dentures/Crowns',
     'Retainers',
+];
+const DEFAULT_CLINIC_PROCEDURES = [
+    ...DIRECT_BOOKING_PROCEDURES,
+    'Oral Prophylaxis / Teeth Cleaning',
+    'Periodontal Therapy',
+    'Fluoride Application (with Free Cleaning)',
+    'Pit and Fissure Sealant',
+    'Metal Braces',
+    'Ceramic Braces',
+    'Self-Ligating Braces',
+    'Digital Periapical X-Ray',
+    'Fixed Partial Denture (Crown, Bridge, Inlay and Onlay)',
+    'Removable Partial and Full Denture',
+    'Root Canal Treatment',
+    'Fiber Post Core',
+    'Teeth Whitening',
+    'Composite Filling/Bonding',
+    'Composite Veneer/Direct Veneer',
+    'Indirect Veneer',
+    'Direct and Indirect Pulp Capping',
+    'Tooth Extraction (Bunot)',
+    'Odontectomy (Wisdom Tooth Removal)',
+    'Pediatric Oral Prophylaxis',
+    'Pediatric Fluoride Application',
+    'Pediatric Pit and Fissure Sealants',
+    'Pulpectomy',
+    'Pulpotomy',
+    'Crowns/Caps',
+    'Anterior Veneers',
+    'Composite Tooth Restoration',
 ];
 const DEFAULT_ALLOWED_TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
 const DEFAULT_SYSTEM_FEATURE_TOGGLES = {
@@ -1203,6 +1233,73 @@ const cloneServiceHighlightList = (services = []) => services.map((service) => (
     items: Array.isArray(service?.items) ? [...service.items] : [],
 }));
 
+const LEGACY_DEFAULT_SERVICE_HIGHLIGHTS = [
+    {
+        category: 'General Dentistry',
+        description: 'Routine and restorative care for day-to-day dental health.',
+        items: [
+            'Free consultation',
+            'Free digital X-ray',
+            'Oral prophylaxis (teeth cleaning)',
+            'Fluoride application',
+            'Tooth restoration / filling',
+            'Pit and fissure sealant',
+            'Root canal treatment',
+            'Dentures / crowns',
+        ],
+    },
+    {
+        category: 'Orthodontics',
+        description: 'Treatment options for bite alignment and smile correction.',
+        items: [
+            'Braces',
+            'Retainers',
+            'Orthodontic follow-up care',
+        ],
+    },
+    {
+        category: 'Esthetics',
+        description: 'Smile-focused services for brighter, more confident results.',
+        items: [
+            'Teeth whitening',
+            'Smile-enhancing treatment planning',
+        ],
+    },
+    {
+        category: 'Oral Surgery',
+        description: 'Treatment support for extraction and surgical dental needs.',
+        items: [
+            'Tooth extraction',
+            'Odontectomy (wisdom tooth removal)',
+        ],
+    },
+];
+
+const normalizeComparisonStringList = (entries = []) => normalizeStringList(entries, []).map((entry) => entry.toLowerCase());
+
+const matchesStringList = (value = [], expected = []) => {
+    const normalizedValue = normalizeComparisonStringList(value);
+    const normalizedExpected = normalizeComparisonStringList(expected);
+
+    return normalizedValue.length === normalizedExpected.length
+        && normalizedValue.every((entry, index) => entry === normalizedExpected[index]);
+};
+
+const matchesServiceHighlightList = (value = [], expected = []) => {
+    const normalizedValue = cloneServiceHighlightList(value);
+    const normalizedExpected = cloneServiceHighlightList(expected);
+
+    if (normalizedValue.length !== normalizedExpected.length) {
+        return false;
+    }
+
+    return normalizedValue.every((service, index) => (
+        service.category.toLowerCase() === normalizedExpected[index].category.toLowerCase()
+        && service.description.toLowerCase() === normalizedExpected[index].description.toLowerCase()
+        && matchesStringList(service.items, normalizedExpected[index].items)
+    ));
+};
+
 const normalizeServiceHighlightList = (services = [], fallback = []) => {
     const normalized = (Array.isArray(services) ? services : [])
         .map((service, index) => {
@@ -1222,106 +1319,109 @@ const normalizeServiceHighlightList = (services = [], fallback = []) => {
 
 const normalizeWebsiteContent = (content = {}) => {
     const fallback = cloneWebsiteContentDefaults();
+    const resolvedContent = matchesServiceHighlightList(content?.serviceHighlights, LEGACY_DEFAULT_SERVICE_HIGHLIGHTS)
+        ? { ...content, serviceHighlights: fallback.serviceHighlights }
+        : content;
 
     return {
         branding: {
-            tagline: normalizeRequiredText(content?.branding?.tagline, fallback.branding.tagline),
-            owner: normalizeRequiredText(content?.branding?.owner, fallback.branding.owner),
-            facebookUrl: normalizeRequiredText(content?.branding?.facebookUrl, fallback.branding.facebookUrl),
-            facebookName: normalizeRequiredText(content?.branding?.facebookName, fallback.branding.facebookName),
+            tagline: normalizeRequiredText(resolvedContent?.branding?.tagline, fallback.branding.tagline),
+            owner: normalizeRequiredText(resolvedContent?.branding?.owner, fallback.branding.owner),
+            facebookUrl: normalizeRequiredText(resolvedContent?.branding?.facebookUrl, fallback.branding.facebookUrl),
+            facebookName: normalizeRequiredText(resolvedContent?.branding?.facebookName, fallback.branding.facebookName),
             instagramHandle: normalizeRequiredText(
-                String(content?.branding?.instagramHandle ?? '').replace(/^@+/, ''),
+                String(resolvedContent?.branding?.instagramHandle ?? '').replace(/^@+/, ''),
                 fallback.branding.instagramHandle
             ),
         },
         home: {
-            heroEyebrow: normalizeRequiredText(content?.home?.heroEyebrow, fallback.home.heroEyebrow),
-            heroTitleLead: normalizeRequiredText(content?.home?.heroTitleLead, fallback.home.heroTitleLead),
-            heroTitleAccent: normalizeRequiredText(content?.home?.heroTitleAccent, fallback.home.heroTitleAccent),
-            heroDescription: normalizeRequiredText(content?.home?.heroDescription, fallback.home.heroDescription),
-            primaryCtaLabel: normalizeRequiredText(content?.home?.primaryCtaLabel, fallback.home.primaryCtaLabel),
-            secondaryCtaLabel: normalizeRequiredText(content?.home?.secondaryCtaLabel, fallback.home.secondaryCtaLabel),
-            introKicker: normalizeRequiredText(content?.home?.introKicker, fallback.home.introKicker),
-            introDescription: normalizeRequiredText(content?.home?.introDescription, fallback.home.introDescription),
-            quoteText: normalizeRequiredText(content?.home?.quoteText, fallback.home.quoteText),
-            quoteMeta: normalizeRequiredText(content?.home?.quoteMeta, fallback.home.quoteMeta),
-            quickVisitEyebrow: normalizeRequiredText(content?.home?.quickVisitEyebrow, fallback.home.quickVisitEyebrow),
-            quickVisitTitle: normalizeRequiredText(content?.home?.quickVisitTitle, fallback.home.quickVisitTitle),
-            quickVisitCtaLabel: normalizeRequiredText(content?.home?.quickVisitCtaLabel, fallback.home.quickVisitCtaLabel),
-            editorialMiniCopy: normalizeRequiredText(content?.home?.editorialMiniCopy, fallback.home.editorialMiniCopy),
-            editorialTitle: normalizeRequiredText(content?.home?.editorialTitle, fallback.home.editorialTitle),
-            editorialDescription: normalizeRequiredText(content?.home?.editorialDescription, fallback.home.editorialDescription),
-            coreCareAreasLabel: normalizeRequiredText(content?.home?.coreCareAreasLabel, fallback.home.coreCareAreasLabel),
-            coreCareAreasDescription: normalizeRequiredText(content?.home?.coreCareAreasDescription, fallback.home.coreCareAreasDescription),
-            activeBranchesLabel: normalizeRequiredText(content?.home?.activeBranchesLabel, fallback.home.activeBranchesLabel),
-            activeBranchesDescription: normalizeRequiredText(content?.home?.activeBranchesDescription, fallback.home.activeBranchesDescription),
-            editorialStatement: normalizeRequiredText(content?.home?.editorialStatement, fallback.home.editorialStatement),
-            servicesEyebrow: normalizeRequiredText(content?.home?.servicesEyebrow, fallback.home.servicesEyebrow),
-            servicesTitle: normalizeRequiredText(content?.home?.servicesTitle, fallback.home.servicesTitle),
-            servicesCtaLabel: normalizeRequiredText(content?.home?.servicesCtaLabel, fallback.home.servicesCtaLabel),
-            journeyEyebrow: normalizeRequiredText(content?.home?.journeyEyebrow, fallback.home.journeyEyebrow),
-            journeyTitle: normalizeRequiredText(content?.home?.journeyTitle, fallback.home.journeyTitle),
-            journeyPills: normalizeStringList(content?.home?.journeyPills, fallback.home.journeyPills),
-            journeyCardTitle: normalizeRequiredText(content?.home?.journeyCardTitle, fallback.home.journeyCardTitle),
-            journeyDescription: normalizeRequiredText(content?.home?.journeyDescription, fallback.home.journeyDescription),
-            journeyHighlights: normalizeStringList(content?.home?.journeyHighlights, fallback.home.journeyHighlights),
-            journeyCaption: normalizeRequiredText(content?.home?.journeyCaption, fallback.home.journeyCaption),
+            heroEyebrow: normalizeRequiredText(resolvedContent?.home?.heroEyebrow, fallback.home.heroEyebrow),
+            heroTitleLead: normalizeRequiredText(resolvedContent?.home?.heroTitleLead, fallback.home.heroTitleLead),
+            heroTitleAccent: normalizeRequiredText(resolvedContent?.home?.heroTitleAccent, fallback.home.heroTitleAccent),
+            heroDescription: normalizeRequiredText(resolvedContent?.home?.heroDescription, fallback.home.heroDescription),
+            primaryCtaLabel: normalizeRequiredText(resolvedContent?.home?.primaryCtaLabel, fallback.home.primaryCtaLabel),
+            secondaryCtaLabel: normalizeRequiredText(resolvedContent?.home?.secondaryCtaLabel, fallback.home.secondaryCtaLabel),
+            introKicker: normalizeRequiredText(resolvedContent?.home?.introKicker, fallback.home.introKicker),
+            introDescription: normalizeRequiredText(resolvedContent?.home?.introDescription, fallback.home.introDescription),
+            quoteText: normalizeRequiredText(resolvedContent?.home?.quoteText, fallback.home.quoteText),
+            quoteMeta: normalizeRequiredText(resolvedContent?.home?.quoteMeta, fallback.home.quoteMeta),
+            quickVisitEyebrow: normalizeRequiredText(resolvedContent?.home?.quickVisitEyebrow, fallback.home.quickVisitEyebrow),
+            quickVisitTitle: normalizeRequiredText(resolvedContent?.home?.quickVisitTitle, fallback.home.quickVisitTitle),
+            quickVisitCtaLabel: normalizeRequiredText(resolvedContent?.home?.quickVisitCtaLabel, fallback.home.quickVisitCtaLabel),
+            editorialMiniCopy: normalizeRequiredText(resolvedContent?.home?.editorialMiniCopy, fallback.home.editorialMiniCopy),
+            editorialTitle: normalizeRequiredText(resolvedContent?.home?.editorialTitle, fallback.home.editorialTitle),
+            editorialDescription: normalizeRequiredText(resolvedContent?.home?.editorialDescription, fallback.home.editorialDescription),
+            coreCareAreasLabel: normalizeRequiredText(resolvedContent?.home?.coreCareAreasLabel, fallback.home.coreCareAreasLabel),
+            coreCareAreasDescription: normalizeRequiredText(resolvedContent?.home?.coreCareAreasDescription, fallback.home.coreCareAreasDescription),
+            activeBranchesLabel: normalizeRequiredText(resolvedContent?.home?.activeBranchesLabel, fallback.home.activeBranchesLabel),
+            activeBranchesDescription: normalizeRequiredText(resolvedContent?.home?.activeBranchesDescription, fallback.home.activeBranchesDescription),
+            editorialStatement: normalizeRequiredText(resolvedContent?.home?.editorialStatement, fallback.home.editorialStatement),
+            servicesEyebrow: normalizeRequiredText(resolvedContent?.home?.servicesEyebrow, fallback.home.servicesEyebrow),
+            servicesTitle: normalizeRequiredText(resolvedContent?.home?.servicesTitle, fallback.home.servicesTitle),
+            servicesCtaLabel: normalizeRequiredText(resolvedContent?.home?.servicesCtaLabel, fallback.home.servicesCtaLabel),
+            journeyEyebrow: normalizeRequiredText(resolvedContent?.home?.journeyEyebrow, fallback.home.journeyEyebrow),
+            journeyTitle: normalizeRequiredText(resolvedContent?.home?.journeyTitle, fallback.home.journeyTitle),
+            journeyPills: normalizeStringList(resolvedContent?.home?.journeyPills, fallback.home.journeyPills),
+            journeyCardTitle: normalizeRequiredText(resolvedContent?.home?.journeyCardTitle, fallback.home.journeyCardTitle),
+            journeyDescription: normalizeRequiredText(resolvedContent?.home?.journeyDescription, fallback.home.journeyDescription),
+            journeyHighlights: normalizeStringList(resolvedContent?.home?.journeyHighlights, fallback.home.journeyHighlights),
+            journeyCaption: normalizeRequiredText(resolvedContent?.home?.journeyCaption, fallback.home.journeyCaption),
         },
         about: {
-            eyebrow: normalizeRequiredText(content?.about?.eyebrow, fallback.about.eyebrow),
-            title: normalizeRequiredText(content?.about?.title, fallback.about.title),
-            description: normalizeRequiredText(content?.about?.description, fallback.about.description),
-            highlightCardTitle: normalizeRequiredText(content?.about?.highlightCardTitle, fallback.about.highlightCardTitle),
-            highlights: normalizeStringList(content?.about?.highlights, fallback.about.highlights),
+            eyebrow: normalizeRequiredText(resolvedContent?.about?.eyebrow, fallback.about.eyebrow),
+            title: normalizeRequiredText(resolvedContent?.about?.title, fallback.about.title),
+            description: normalizeRequiredText(resolvedContent?.about?.description, fallback.about.description),
+            highlightCardTitle: normalizeRequiredText(resolvedContent?.about?.highlightCardTitle, fallback.about.highlightCardTitle),
+            highlights: normalizeStringList(resolvedContent?.about?.highlights, fallback.about.highlights),
         },
         servicesPage: {
-            eyebrow: normalizeRequiredText(content?.servicesPage?.eyebrow, fallback.servicesPage.eyebrow),
-            title: normalizeRequiredText(content?.servicesPage?.title, fallback.servicesPage.title),
-            description: normalizeRequiredText(content?.servicesPage?.description, fallback.servicesPage.description),
+            eyebrow: normalizeRequiredText(resolvedContent?.servicesPage?.eyebrow, fallback.servicesPage.eyebrow),
+            title: normalizeRequiredText(resolvedContent?.servicesPage?.title, fallback.servicesPage.title),
+            description: normalizeRequiredText(resolvedContent?.servicesPage?.description, fallback.servicesPage.description),
         },
-        serviceHighlights: normalizeServiceHighlightList(content?.serviceHighlights, fallback.serviceHighlights),
+        serviceHighlights: normalizeServiceHighlightList(resolvedContent?.serviceHighlights, fallback.serviceHighlights),
         locationsPage: {
-            eyebrow: normalizeRequiredText(content?.locationsPage?.eyebrow, fallback.locationsPage.eyebrow),
-            title: normalizeRequiredText(content?.locationsPage?.title, fallback.locationsPage.title),
-            description: normalizeRequiredText(content?.locationsPage?.description, fallback.locationsPage.description),
-            bookCtaLabel: normalizeRequiredText(content?.locationsPage?.bookCtaLabel, fallback.locationsPage.bookCtaLabel),
-            callCtaLabel: normalizeRequiredText(content?.locationsPage?.callCtaLabel, fallback.locationsPage.callCtaLabel),
-            mapCtaLabel: normalizeRequiredText(content?.locationsPage?.mapCtaLabel, fallback.locationsPage.mapCtaLabel),
+            eyebrow: normalizeRequiredText(resolvedContent?.locationsPage?.eyebrow, fallback.locationsPage.eyebrow),
+            title: normalizeRequiredText(resolvedContent?.locationsPage?.title, fallback.locationsPage.title),
+            description: normalizeRequiredText(resolvedContent?.locationsPage?.description, fallback.locationsPage.description),
+            bookCtaLabel: normalizeRequiredText(resolvedContent?.locationsPage?.bookCtaLabel, fallback.locationsPage.bookCtaLabel),
+            callCtaLabel: normalizeRequiredText(resolvedContent?.locationsPage?.callCtaLabel, fallback.locationsPage.callCtaLabel),
+            mapCtaLabel: normalizeRequiredText(resolvedContent?.locationsPage?.mapCtaLabel, fallback.locationsPage.mapCtaLabel),
         },
         contactPage: {
-            eyebrow: normalizeRequiredText(content?.contactPage?.eyebrow, fallback.contactPage.eyebrow),
-            title: normalizeRequiredText(content?.contactPage?.title, fallback.contactPage.title),
-            description: normalizeRequiredText(content?.contactPage?.description, fallback.contactPage.description),
-            primaryCtaLabel: normalizeRequiredText(content?.contactPage?.primaryCtaLabel, fallback.contactPage.primaryCtaLabel),
-            secondaryCtaLabel: normalizeRequiredText(content?.contactPage?.secondaryCtaLabel, fallback.contactPage.secondaryCtaLabel),
-            phoneCardTitle: normalizeRequiredText(content?.contactPage?.phoneCardTitle, fallback.contactPage.phoneCardTitle),
-            phoneCardCtaLabel: normalizeRequiredText(content?.contactPage?.phoneCardCtaLabel, fallback.contactPage.phoneCardCtaLabel),
-            facebookCardTitle: normalizeRequiredText(content?.contactPage?.facebookCardTitle, fallback.contactPage.facebookCardTitle),
-            facebookCardCtaLabel: normalizeRequiredText(content?.contactPage?.facebookCardCtaLabel, fallback.contactPage.facebookCardCtaLabel),
-            instagramCardTitle: normalizeRequiredText(content?.contactPage?.instagramCardTitle, fallback.contactPage.instagramCardTitle),
-            instagramCardCtaLabel: normalizeRequiredText(content?.contactPage?.instagramCardCtaLabel, fallback.contactPage.instagramCardCtaLabel),
-            locationPrimaryCtaLabel: normalizeRequiredText(content?.contactPage?.locationPrimaryCtaLabel, fallback.contactPage.locationPrimaryCtaLabel),
-            locationSecondaryCtaLabel: normalizeRequiredText(content?.contactPage?.locationSecondaryCtaLabel, fallback.contactPage.locationSecondaryCtaLabel),
+            eyebrow: normalizeRequiredText(resolvedContent?.contactPage?.eyebrow, fallback.contactPage.eyebrow),
+            title: normalizeRequiredText(resolvedContent?.contactPage?.title, fallback.contactPage.title),
+            description: normalizeRequiredText(resolvedContent?.contactPage?.description, fallback.contactPage.description),
+            primaryCtaLabel: normalizeRequiredText(resolvedContent?.contactPage?.primaryCtaLabel, fallback.contactPage.primaryCtaLabel),
+            secondaryCtaLabel: normalizeRequiredText(resolvedContent?.contactPage?.secondaryCtaLabel, fallback.contactPage.secondaryCtaLabel),
+            phoneCardTitle: normalizeRequiredText(resolvedContent?.contactPage?.phoneCardTitle, fallback.contactPage.phoneCardTitle),
+            phoneCardCtaLabel: normalizeRequiredText(resolvedContent?.contactPage?.phoneCardCtaLabel, fallback.contactPage.phoneCardCtaLabel),
+            facebookCardTitle: normalizeRequiredText(resolvedContent?.contactPage?.facebookCardTitle, fallback.contactPage.facebookCardTitle),
+            facebookCardCtaLabel: normalizeRequiredText(resolvedContent?.contactPage?.facebookCardCtaLabel, fallback.contactPage.facebookCardCtaLabel),
+            instagramCardTitle: normalizeRequiredText(resolvedContent?.contactPage?.instagramCardTitle, fallback.contactPage.instagramCardTitle),
+            instagramCardCtaLabel: normalizeRequiredText(resolvedContent?.contactPage?.instagramCardCtaLabel, fallback.contactPage.instagramCardCtaLabel),
+            locationPrimaryCtaLabel: normalizeRequiredText(resolvedContent?.contactPage?.locationPrimaryCtaLabel, fallback.contactPage.locationPrimaryCtaLabel),
+            locationSecondaryCtaLabel: normalizeRequiredText(resolvedContent?.contactPage?.locationSecondaryCtaLabel, fallback.contactPage.locationSecondaryCtaLabel),
         },
-        media: normalizeWebsiteMedia(content?.media),
+        media: normalizeWebsiteMedia(resolvedContent?.media),
         appointmentPage: {
-            eyebrow: normalizeRequiredText(content?.appointmentPage?.eyebrow, fallback.appointmentPage.eyebrow),
-            title: normalizeRequiredText(content?.appointmentPage?.title, fallback.appointmentPage.title),
-            description: normalizeRequiredText(content?.appointmentPage?.description, fallback.appointmentPage.description),
-            facebookCtaLabel: normalizeRequiredText(content?.appointmentPage?.facebookCtaLabel, fallback.appointmentPage.facebookCtaLabel),
-            callCtaLabel: normalizeRequiredText(content?.appointmentPage?.callCtaLabel, fallback.appointmentPage.callCtaLabel),
-            formEyebrow: normalizeRequiredText(content?.appointmentPage?.formEyebrow, fallback.appointmentPage.formEyebrow),
-            formTitle: normalizeRequiredText(content?.appointmentPage?.formTitle, fallback.appointmentPage.formTitle),
-            formDescription: normalizeRequiredText(content?.appointmentPage?.formDescription, fallback.appointmentPage.formDescription),
-            procedureHelperText: normalizeRequiredText(content?.appointmentPage?.procedureHelperText, fallback.appointmentPage.procedureHelperText),
-            notesHelperText: normalizeRequiredText(content?.appointmentPage?.notesHelperText, fallback.appointmentPage.notesHelperText),
-            submitButtonLabel: normalizeRequiredText(content?.appointmentPage?.submitButtonLabel, fallback.appointmentPage.submitButtonLabel),
-            submittingButtonLabel: normalizeRequiredText(content?.appointmentPage?.submittingButtonLabel, fallback.appointmentPage.submittingButtonLabel),
-            guideEyebrow: normalizeRequiredText(content?.appointmentPage?.guideEyebrow, fallback.appointmentPage.guideEyebrow),
-            guideTitle: normalizeRequiredText(content?.appointmentPage?.guideTitle, fallback.appointmentPage.guideTitle),
-            steps: normalizeStringList(content?.appointmentPage?.steps, fallback.appointmentPage.steps),
-            branchEyebrow: normalizeRequiredText(content?.appointmentPage?.branchEyebrow, fallback.appointmentPage.branchEyebrow),
-            branchTitle: normalizeRequiredText(content?.appointmentPage?.branchTitle, fallback.appointmentPage.branchTitle),
+            eyebrow: normalizeRequiredText(resolvedContent?.appointmentPage?.eyebrow, fallback.appointmentPage.eyebrow),
+            title: normalizeRequiredText(resolvedContent?.appointmentPage?.title, fallback.appointmentPage.title),
+            description: normalizeRequiredText(resolvedContent?.appointmentPage?.description, fallback.appointmentPage.description),
+            facebookCtaLabel: normalizeRequiredText(resolvedContent?.appointmentPage?.facebookCtaLabel, fallback.appointmentPage.facebookCtaLabel),
+            callCtaLabel: normalizeRequiredText(resolvedContent?.appointmentPage?.callCtaLabel, fallback.appointmentPage.callCtaLabel),
+            formEyebrow: normalizeRequiredText(resolvedContent?.appointmentPage?.formEyebrow, fallback.appointmentPage.formEyebrow),
+            formTitle: normalizeRequiredText(resolvedContent?.appointmentPage?.formTitle, fallback.appointmentPage.formTitle),
+            formDescription: normalizeRequiredText(resolvedContent?.appointmentPage?.formDescription, fallback.appointmentPage.formDescription),
+            procedureHelperText: normalizeRequiredText(resolvedContent?.appointmentPage?.procedureHelperText, fallback.appointmentPage.procedureHelperText),
+            notesHelperText: normalizeRequiredText(resolvedContent?.appointmentPage?.notesHelperText, fallback.appointmentPage.notesHelperText),
+            submitButtonLabel: normalizeRequiredText(resolvedContent?.appointmentPage?.submitButtonLabel, fallback.appointmentPage.submitButtonLabel),
+            submittingButtonLabel: normalizeRequiredText(resolvedContent?.appointmentPage?.submittingButtonLabel, fallback.appointmentPage.submittingButtonLabel),
+            guideEyebrow: normalizeRequiredText(resolvedContent?.appointmentPage?.guideEyebrow, fallback.appointmentPage.guideEyebrow),
+            guideTitle: normalizeRequiredText(resolvedContent?.appointmentPage?.guideTitle, fallback.appointmentPage.guideTitle),
+            steps: normalizeStringList(resolvedContent?.appointmentPage?.steps, fallback.appointmentPage.steps),
+            branchEyebrow: normalizeRequiredText(resolvedContent?.appointmentPage?.branchEyebrow, fallback.appointmentPage.branchEyebrow),
+            branchTitle: normalizeRequiredText(resolvedContent?.appointmentPage?.branchTitle, fallback.appointmentPage.branchTitle),
         },
     };
 };
@@ -1357,10 +1457,13 @@ const normalizeOnlineBookingProcedures = ({ clinicProcedures = [], onlineBooking
 };
 
 const normalizeSystemConfigPayload = (source = {}) => {
+    const rawClinicProcedures = Array.isArray(source?.clinicProcedures) && source.clinicProcedures.length
+        ? source.clinicProcedures
+        : DEFAULT_CLINIC_PROCEDURES;
     const clinicProcedures = normalizeProcedureList(
-        Array.isArray(source?.clinicProcedures) && source.clinicProcedures.length
-            ? source.clinicProcedures
-            : DEFAULT_CLINIC_PROCEDURES
+        matchesStringList(rawClinicProcedures, LEGACY_DEFAULT_CLINIC_PROCEDURES)
+            ? DEFAULT_CLINIC_PROCEDURES
+            : rawClinicProcedures
     );
     const allowedTimeSlots = normalizeTimeSlotList(
         Array.isArray(source?.allowedTimeSlots) && source.allowedTimeSlots.length
