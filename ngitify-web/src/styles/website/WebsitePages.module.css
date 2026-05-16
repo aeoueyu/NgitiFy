@@ -1107,6 +1107,13 @@
     align-items: start;
 }
 
+.intakeRowSingle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
 .intakeSpacer {
     min-height: 1px;
 }

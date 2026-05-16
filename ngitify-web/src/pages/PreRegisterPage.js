@@ -944,6 +944,9 @@ export default function PreRegisterPage() {
                                                     <input type="date" className={`${styles.fieldInput} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={dentalHistory.lastExamDate} onChange={(e) => handleDentalChange('lastExamDate', e.target.value)} max={getTodayDate()} />
                                                     {errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}
                                                 </div>
+                                                <div className={styles.intakeSpacer} />
+                                            </div>
+                                            <div className={styles.intakeRow}>
                                                 {renderYesNoField('Reaction or complication after dental treatment?', dentalHistory.hadTreatmentReaction, (value) => handleDentalChange('hadTreatmentReaction', value), 'dentalHistory_hadTreatmentReaction', 'dentalHistory_hadTreatmentReaction')}
                                                 <div className={styles.fieldGroup} data-field-key="dentalHistory_reactionDetails">
                                                     <label className={styles.fieldLabel}>If Yes, Please Detail</label>
@@ -1055,7 +1058,7 @@ export default function PreRegisterPage() {
                                                 {renderYesNoField('Are you allergic to any of the following?', medicalHistory.hasAllergies, (value) => handleMedicalChange('hasAllergies', value), 'medicalHistory_hasAllergies', 'medicalHistory_hasAllergies')}
                                                 <div className={styles.intakeSpacer} />
                                             </div>
-                                            <div className={styles.intakeRow}>
+                                            <div className={styles.intakeRowSingle}>
                                                 <div className={styles.fieldGroup} data-field-key="medicalHistory_allergies">
                                                     <label className={styles.fieldLabel}>Allergies</label>
                                                     <div className={styles.checkboxGrid}>
@@ -1103,7 +1106,7 @@ export default function PreRegisterPage() {
                                                     <input className={styles.fieldInput} value={medicalHistory.bloodPressure} onChange={(e) => handleMedicalChange('bloodPressure', e.target.value)} placeholder="e.g. 120/80" />
                                                 </div>
                                             </div>
-                                            <div className={styles.intakeRow}>
+                                            <div className={styles.intakeRowSingle}>
                                                 <div className={styles.fieldGroup}>
                                                     <label className={styles.fieldLabel}>Medical Conditions</label>
                                                     <div className={styles.checkboxGrid}>
