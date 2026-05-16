@@ -295,7 +295,7 @@ export default function ArchiveReview() {
                 </div>
             </section>
 
-            <div className={scheduleStyles.tableSection}>
+            <div className={`${scheduleStyles.tableContainer} ${wideTable.tableWrapper}`}>
                 <table className={wideTable.table}>
                     <thead>
                         <tr>

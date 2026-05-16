@@ -434,7 +434,7 @@ export default function InventoryTracker() {
             </div>
 
             <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
-                <table className={`${styles.userTable} ${styles.inventoryTable}`}>
+                <table className={`${styles.userTable} ${styles.inventoryTable} ${tblStyles.table}`}>
                     <thead>
                         <tr>
                             <th style={{ width: '26%' }}>Item</th>
@@ -514,12 +514,12 @@ export default function InventoryTracker() {
                                                     {item.batches.length === 0 ? (
                                                         <div className={styles.emptyBatchState}>No stock batches yet. Receive stock when this item arrives at the clinic.</div>
                                                     ) : (
-                                                        <div className={styles.batchPanel}>
+                                                        <div className={`${styles.batchPanel} ${tblStyles.tableWrapper}`}>
                                                             <div className={styles.batchPanelHeader}>
                                                                 <h3 className={styles.batchPanelTitle}>Batch History</h3>
                                                                 <p className={styles.batchPanelSubtitle}>Each batch keeps its stock-in number, quantity, supplier, and expiry so staff can track receiving order clearly.</p>
                                                             </div>
-                                                            <table className={styles.batchTable}>
+                                                            <table className={`${styles.batchTable} ${tblStyles.table}`}>
                                                                 <thead>
                                                                     <tr>
                                                                         <th>Brand</th>

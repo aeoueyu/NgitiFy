@@ -1,5 +1,8 @@
 .tableWrapper {
+    width: 100%;
+    max-width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     border: 1px solid #dbe6f1;
     border-radius: 18px;
@@ -8,10 +11,10 @@
 }
 
 .table {
-    min-width: max-content;
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
-    table-layout: fixed;
+    table-layout: auto;
 }
 
 .table th,
@@ -19,8 +22,8 @@
     white-space: nowrap;
     padding: 12px 14px;
     border-bottom: 1px solid #edf3f8;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
     vertical-align: middle;
 }
 

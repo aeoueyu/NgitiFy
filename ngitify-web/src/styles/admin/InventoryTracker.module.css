@@ -344,8 +344,8 @@
 }
 
 .inventoryTable {
-    width: 100%;
-    min-width: 1080px;
+    width: max-content;
+    min-width: max(100%, 1080px);
     border-collapse: collapse;
     table-layout: auto;
 }
@@ -518,6 +518,11 @@
     font-size: 13px;
 }
 
+.batchPanel {
+    width: 100%;
+    max-width: 100%;
+}
+
 .emptyBatchState {
     padding: 24px;
     color: #64748b;
@@ -525,9 +530,9 @@
 }
 
 .batchTable {
-    width: 100%;
+    width: max-content;
+    min-width: max(100%, 760px);
     border-collapse: collapse;
-    min-width: 760px;
 }
 
 .batchTable th {
