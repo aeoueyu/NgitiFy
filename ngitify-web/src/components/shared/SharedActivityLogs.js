@@ -24,15 +24,6 @@ const ACTION_CATEGORIES = {
     System: ['BACKUP', 'CONFIG', 'BRANCH_', 'INTEGRITY'],
 };
 
-const ROLE_LABELS = {
-    administrator: 'Administrator',
-    owner: 'Owner',
-    'branch-manager': 'Branch Manager',
-    dentist: 'Dentist',
-    secretary: 'Secretary',
-    system: 'System',
-};
-
 const getCategoryForAction = (action = '') => {
     const upperAction = action.toUpperCase();
     return Object.entries(ACTION_CATEGORIES).find(([, keywords]) => (
@@ -45,12 +36,6 @@ const formatActionLabel = (action = '') => {
     if (action.toUpperCase() === 'UPDATE_SURGERY_STATUS') return 'Dental Treatment';
     if (action.toUpperCase() === 'UPDATE_SCHEDULE') return 'Update Schedule';
     return action;
-};
-
-const getRoleOptions = (role) => {
-    if (role === 'dentist' || role === 'secretary') return [];
-    if (role === 'branch-manager') return ['All', 'branch-manager', 'dentist', 'secretary', 'system'];
-    return ['All', 'administrator', 'owner', 'branch-manager', 'dentist', 'secretary', 'system'];
 };
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
@@ -75,15 +60,13 @@ const getDateRange = (range, customFrom, customTo) => {
 };
 
 const buildCsv = (rows) => {
-    const headers = ['Date', 'Time', 'User', 'Role', 'Category', 'Action', 'Details'];
+    const headers = ['Date', 'Time', 'Category', 'Action', 'Details'];
     const csvRows = [headers.join(',')];
 
     rows.forEach((row) => {
         const safeColumns = [
             row.formattedDate,
             row.formattedTime,
-            row.userName,
-            ROLE_LABELS[row.role] || row.role,
             row.category,
             row.action,
             row.details || '',
@@ -104,6 +87,8 @@ const getRoleBadgeClass = (role) => {
             return wideTable.statusAmber;
         case 'dentist':
             return wideTable.statusGreen;
+        case 'patient':
+            return wideTable.statusBlue;
         case 'secretary':
             return wideTable.statusGray;
         default:
@@ -117,7 +102,6 @@ export default function SharedActivityLogs() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [roleFilter, setRoleFilter] = useState('All');
     const [categoryFilter, setCategoryFilter] = useState('All');
     const [rangeFilter, setRangeFilter] = useState('all');
     const [customFrom, setCustomFrom] = useState(getTodayString());
@@ -145,16 +129,12 @@ export default function SharedActivityLogs() {
             const data = await response.json();
             const mapped = data.map((log) => {
                 const timestamp = new Date(log.timestamp || log.createdAt);
-                const userName = typeof log.user === 'object'
-                    ? `${log.user.name?.first || ''} ${log.user.name?.last || ''}`.trim() || log.user.email || 'System'
-                    : (log.user || 'System');
 
                 return {
                     id: log._id,
                     action: formatActionLabel(log.action),
                     category: getCategoryForAction(log.action),
                     role: (log.role || 'system').toLowerCase(),
-                    userName,
                     details: log.details || '',
                     timestamp,
                     formattedDate: formatDateShort(timestamp),
@@ -177,7 +157,7 @@ export default function SharedActivityLogs() {
 
     useEffect(() => {
         setPage(1);
-    }, [search, roleFilter, categoryFilter, rangeFilter, customFrom, customTo]);
+    }, [search, categoryFilter, rangeFilter, customFrom, customTo]);
 
     const selectedRange = useMemo(
         () => getDateRange(rangeFilter, customFrom, customTo),
@@ -187,24 +167,22 @@ export default function SharedActivityLogs() {
     const filteredLogs = useMemo(() => logs.filter((log) => {
         const searchValue = search.trim().toLowerCase();
         if (searchValue) {
-            const matchesSearch = [log.action, log.userName, log.details, log.category]
+            const matchesSearch = [log.action, log.details, log.category]
                 .some((value) => String(value || '').toLowerCase().includes(searchValue));
             if (!matchesSearch) return false;
         }
 
-        if (roleFilter !== 'All' && log.role !== roleFilter) return false;
         if (categoryFilter !== 'All' && log.category !== categoryFilter) return false;
 
         const dateKey = log.timestamp.toISOString().split('T')[0];
         return !selectedRange || (dateKey >= selectedRange.from && dateKey <= selectedRange.to);
-    }), [categoryFilter, logs, roleFilter, search, selectedRange]);
+    }), [categoryFilter, logs, search, selectedRange]);
 
     const paginatedLogs = useMemo(() => (
         filteredLogs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
     ), [filteredLogs, page]);
 
     const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
-    const roleOptions = getRoleOptions(role);
     const categories = ['All', ...Object.keys(ACTION_CATEGORIES)];
     const title = 'My Activity Logs';
     const subtitle = 'Review only the actions recorded under your own account.';
@@ -242,7 +220,7 @@ export default function SharedActivityLogs() {
                         <input
                             className={scheduleStyles.searchInput}
                             type="text"
-                            placeholder="Search action, user, detail, or category..."
+                            placeholder="Search action, detail, or category..."
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                         />
@@ -286,19 +264,6 @@ export default function SharedActivityLogs() {
                         </div>
                     )}
 
-                    {roleOptions.length > 0 && (
-                        <div className={scheduleStyles.filterSelectWrap}>
-                            <FaFilter className={scheduleStyles.filterIcon} />
-                            <select className={scheduleStyles.filterSelect} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-                                {roleOptions.map((item) => (
-                                    <option key={item} value={item}>
-                                        {item === 'All' ? 'All Roles' : (ROLE_LABELS[item] || item)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
                     <div className={scheduleStyles.filterSelectWrap}>
                         <FaFilter className={scheduleStyles.filterIcon} />
                         <select className={scheduleStyles.filterSelect} value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
@@ -316,17 +281,16 @@ export default function SharedActivityLogs() {
                 <table className={wideTable.table}>
                     <thead>
                         <tr>
-                            <th style={{ width: '18%' }}>Date</th>
-                            <th style={{ width: '18%' }}>User</th>
-                            <th style={{ width: '14%' }}>Role</th>
-                            <th style={{ width: '18%' }}>Action</th>
-                            <th style={{ width: '32%' }}>Details</th>
+                            <th style={{ width: '20%' }}>Date</th>
+                            <th style={{ width: '22%' }}>Action</th>
+                            <th style={{ width: '18%' }}>Category</th>
+                            <th style={{ width: '40%' }}>Details</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="5" className={scheduleStyles.stateBlock}>Loading activity logs...</td>
+                                <td colSpan="4" className={scheduleStyles.stateBlock}>Loading activity logs...</td>
                             </tr>
                         ) : paginatedLogs.length > 0 ? (
                             paginatedLogs.map((log) => (
@@ -337,19 +301,18 @@ export default function SharedActivityLogs() {
                                             <span>{log.formattedTime}</span>
                                         </div>
                                     </td>
-                                    <td title={log.userName}>{log.userName}</td>
                                     <td>
                                         <span className={`${wideTable.statusBadge} ${getRoleBadgeClass(log.role)}`}>
-                                            {ROLE_LABELS[log.role] || log.role}
+                                            {log.action}
                                         </span>
                                     </td>
-                                    <td title={`${log.category} • ${log.action}`}>{log.action}</td>
+                                    <td title={log.category}>{log.category}</td>
                                     <td title={log.details || 'No extra details recorded.'}>{log.details || 'No extra details recorded.'}</td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="5" className={scheduleStyles.emptyStateBox}>
+                                <td colSpan="4" className={scheduleStyles.emptyStateBox}>
                                     No activity logs match the current filters.
                                 </td>
                             </tr>
@@ -376,4 +339,3 @@ export default function SharedActivityLogs() {
         </div>
     );
 }
-

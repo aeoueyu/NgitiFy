@@ -32,6 +32,7 @@ const ROLE_LABELS = {
     'branch-manager': 'Branch Manager',
     dentist: 'Dentist',
     secretary: 'Secretary',
+    patient: 'Patient',
     system: 'System',
 };
 
@@ -80,6 +81,8 @@ const getRoleBadgeClass = (role) => {
             return wideTable.statusGreen;
         case 'secretary':
             return wideTable.statusGray;
+        case 'patient':
+            return wideTable.statusBlue;
         default:
             return wideTable.statusGray;
     }
@@ -313,6 +316,7 @@ export default function AuditTrail() {
                             <option value="branch-manager">Branch Manager</option>
                             <option value="dentist">Dentists</option>
                             <option value="secretary">Secretaries</option>
+                            <option value="patient">Patients</option>
                             <option value="system">System</option>
                         </select>
                     </div>
