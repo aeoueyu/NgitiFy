@@ -14,8 +14,10 @@ import {
 } from '../../utils/patientDuplicateWarnings';
 import {
     ALLERGY_OPTIONS,
+    BLOOD_TYPE_OPTIONS,
     MEDICAL_CONDITION_OPTIONS,
     NATIONALITY_OPTIONS,
+    OCCUPATION_OPTIONS,
     RELIGION_OPTIONS,
     PHYSICIAN_SPECIALTY_OPTIONS,
     RELATIONSHIP_OPTIONS,
@@ -121,12 +123,12 @@ export default function AddPatient({ onClose, onSuccess }) {
         firstName: '', middleName: '', lastName: '',
         birthdate: '', gender: '',
         email: '', phone: '',
-        homePhone: '', occupation: '', civilStatus: '', bloodType: '',
+        homePhone: '', occupation: '', occupationOther: '', civilStatus: '', bloodType: '',
         nationality: 'Filipino', religion: '', religionOther: '',
         workPhone: '', referredBy: '',
         reasonForConsultation: '',
         emergencyContactName: '', emergencyContactRelationship: '', emergencyContactPhone: '',
-        guardianName: '', guardianRelationship: '', guardianContact: '', guardianOccupation: '',
+        guardianName: '', guardianRelationship: '', guardianContact: '', guardianOccupation: '', guardianOccupationOther: '',
         assignedBranch: '',
         dentalHistory: { ...initialDentalHistory },
         medicalHistory: { ...initialMedicalHistory },
@@ -171,11 +173,23 @@ export default function AddPatient({ onClose, onSuccess }) {
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
+        if ((name === 'occupation' || name === 'guardianOccupation') && value !== 'Other') {
+            setErrors(prev => {
+                const next = { ...prev };
+                delete next[`${name}Other`];
+                return next;
+            });
+        }
         if (['firstName', 'middleName', 'lastName', 'guardianName', 'emergencyContactName'].includes(name)) {
             if (value === '' || /^[a-zA-Z\s.-]+$/.test(value)) setFormData({ ...formData, [name]: toTitleCase(value) });
             return;
         }
-        setFormData({ ...formData, [name]: value });
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+            ...(name === 'occupation' && value !== 'Other' ? { occupationOther: '' } : {}),
+            ...(name === 'guardianOccupation' && value !== 'Other' ? { guardianOccupationOther: '' } : {}),
+        }));
     };
 
     const handlePhoneChange = (fieldName = 'phone') => (e) => {
@@ -329,6 +343,8 @@ export default function AddPatient({ onClose, onSuccess }) {
         if (currentFormData.medicalHistory.isTakingMedication === 'yes' && !currentFormData.medicalHistory.medications.trim()) { newErrors.medicalHistory_medications = 'Required when answer is Yes'; isValid = false; }
         if (currentFormData.medicalHistory.hasAllergies === 'yes' && currentFormData.medicalHistory.allergies.length === 0 && !currentFormData.medicalHistory.allergyOther.trim()) { newErrors.medicalHistory_allergies = 'Select or enter at least one allergy'; isValid = false; }
         if (currentFormData.religion === 'Other' && !currentFormData.religionOther.trim()) { newErrors.religionOther = 'Required'; isValid = false; }
+        if (currentFormData.occupation === 'Other' && !currentFormData.occupationOther.trim()) { newErrors.occupationOther = 'Required'; isValid = false; }
+        if (currentFormData.guardianOccupation === 'Other' && !currentFormData.guardianOccupationOther.trim()) { newErrors.guardianOccupationOther = 'Required'; isValid = false; }
         if (currentFormData.physician.specialty === 'Other' && !currentFormData.physician.specialtyOther.trim()) { newErrors.physician_specialtyOther = 'Required'; isValid = false; }
         // Branch is required unless branch manager (auto-assigned)
         if (!isBranchScopedStaff && !currentFormData.assignedBranch) { newErrors.assignedBranch = 'Required'; isValid = false; }
@@ -500,7 +516,7 @@ export default function AddPatient({ onClose, onSuccess }) {
             email: formData.email, contactNumber: toMobilePayload(formData.phone),
             birthdate: formData.birthdate, gender: formData.gender,
             homePhone: toLandlinePayload(formData.homePhone),
-            occupation: formData.occupation || undefined,
+            occupation: (formData.occupation === 'Other' ? formData.occupationOther.trim() : formData.occupation) || undefined,
             civilStatus: formData.civilStatus || undefined,
             bloodType: formData.bloodType || undefined,
             nationality: formData.nationality || undefined,
@@ -516,7 +532,12 @@ export default function AddPatient({ onClose, onSuccess }) {
                 relationship: formData.emergencyContactRelationship || undefined,
                 contactNumber: toMobilePayload(formData.emergencyContactPhone),
             },
-            guardian: isMinor ? { name: formData.guardianName, relationship: formData.guardianRelationship, contactNumber: toMobilePayload(formData.guardianContact), occupation: formData.guardianOccupation || undefined } : null,
+            guardian: isMinor ? {
+                name: formData.guardianName,
+                relationship: formData.guardianRelationship,
+                contactNumber: toMobilePayload(formData.guardianContact),
+                occupation: (formData.guardianOccupation === 'Other' ? formData.guardianOccupationOther.trim() : formData.guardianOccupation) || undefined
+            } : null,
             dentalHistory: {
                 chiefComplaint: formData.reasonForConsultation || undefined,
                 lastExamDate: formData.dentalHistory.lastExamDate || undefined,
@@ -892,9 +913,26 @@ export default function AddPatient({ onClose, onSuccess }) {
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} maxLength={100} disabled={isLoading} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
-                        <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} /></div>
+                        <div className={styles.formGroup}>
+                            <label>OCCUPATION</label>
+                            <select className={`${styles.inputField} ${errors.occupationOther ? styles.errorBorder : ''}`} name="occupation" value={formData.occupation} onChange={handlePersonalChange} disabled={isLoading}>
+                                <option value="">Select occupation</option>
+                                {OCCUPATION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                            </select>
+                            {errors.occupationOther && <span className={styles.errorText}>{errors.occupationOther}</span>}
+                        </div>
                         <div className={styles.formGroup} />
                     </div>
+                    {formData.occupation === 'Other' && (
+                        <div className={styles.row}>
+                            <div className={styles.formGroup}>
+                                <label>OCCUPATION, IF OTHER</label>
+                                <input className={`${styles.inputField} ${errors.occupationOther ? styles.errorBorder : ''}`} name="occupationOther" value={formData.occupationOther} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} />
+                                {errors.occupationOther && <span className={styles.errorText}>{errors.occupationOther}</span>}
+                            </div>
+                            <div className={styles.formGroup} />
+                        </div>
+                    )}
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>Cancel</button>
                         <button type="button" className={styles.submitBtn} onClick={() => setCurrentStep(1)} disabled={isLoading}>Continue to Contacts</button>
@@ -926,8 +964,26 @@ export default function AddPatient({ onClose, onSuccess }) {
                             <h3 className={styles.mainSectionTitle}>For Minors</h3>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>GUARDIAN NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardianName ? styles.errorBorder : ''}`} name="guardianName" value={formData.guardianName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} placeholder="Full Name" />{errors.guardianName && <span className={styles.errorText}>{errors.guardianName}</span>}</div>
-                                <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="guardianOccupation" value={formData.guardianOccupation} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} /></div>
+                                <div className={styles.formGroup}>
+                                    <label>OCCUPATION <span style={{ color: 'red' }}>*</span></label>
+                                    <select className={`${styles.inputField} ${errors.guardianOccupation || errors.guardianOccupationOther ? styles.errorBorder : ''}`} name="guardianOccupation" value={formData.guardianOccupation} onChange={handlePersonalChange} disabled={isLoading}>
+                                        <option value="">Select occupation</option>
+                                        {OCCUPATION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                    </select>
+                                    {errors.guardianOccupation && <span className={styles.errorText}>{errors.guardianOccupation}</span>}
+                                    {errors.guardianOccupationOther && <span className={styles.errorText}>{errors.guardianOccupationOther}</span>}
+                                </div>
                             </div>
+                            {formData.guardianOccupation === 'Other' && (
+                                <div className={styles.row}>
+                                    <div className={styles.formGroup}>
+                                        <label>OCCUPATION, IF OTHER <span style={{ color: 'red' }}>*</span></label>
+                                        <input className={`${styles.inputField} ${errors.guardianOccupationOther ? styles.errorBorder : ''}`} name="guardianOccupationOther" value={formData.guardianOccupationOther} onChange={handlePersonalChange} maxLength={60} disabled={isLoading} />
+                                        {errors.guardianOccupationOther && <span className={styles.errorText}>{errors.guardianOccupationOther}</span>}
+                                    </div>
+                                    <div className={styles.formGroup} />
+                                </div>
+                            )}
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.guardianRelationship ? styles.errorBorder : ''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select relationship</option>{RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}</div>
                                 <div className={styles.formGroup}>
@@ -1079,7 +1135,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <div className={styles.formGroup} />
                     </div>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>BLOOD TYPE</label><select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Blood Type</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select></div>
+                        <div className={styles.formGroup}><label>BLOOD TYPE</label><select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Blood Type</option>{BLOOD_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
                         <div className={styles.formGroup}><label>BLOOD PRESSURE</label><input className={styles.inputField} value={formData.medicalHistory.bloodPressure} onChange={(e) => handleNestedChange('medicalHistory', 'bloodPressure', e.target.value)} placeholder="e.g. 120/80" disabled={isLoading} /></div>
                     </div>
                     <div className={styles.row}>

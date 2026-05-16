@@ -46,6 +46,35 @@ export const PHYSICIAN_SPECIALTY_OPTIONS = [
     'Other',
 ];
 
+export const OCCUPATION_OPTIONS = [
+    'Student',
+    'Employed',
+    'Self-Employed',
+    'Business Owner',
+    'Freelancer',
+    'Healthcare Worker',
+    'Teacher',
+    'Government Employee',
+    'Office Worker',
+    'Homemaker',
+    'Overseas Filipino Worker (OFW)',
+    'Retired',
+    'Unemployed',
+    'Other',
+];
+
+export const BLOOD_TYPE_OPTIONS = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
+    'Not sure',
+];
+
 export const RELATIONSHIP_OPTIONS = [
     'Parent',
     'Guardian',

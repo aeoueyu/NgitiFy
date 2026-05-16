@@ -3899,6 +3899,19 @@ const normalizeGuestDentalHistory = (history = {}) => {
     };
 };
 
+const normalizeGuestConsentRecord = (consent = {}, defaultVersion = '') => {
+    if (!consent || typeof consent !== 'object') return undefined;
+    const signedAtText = normalizeGuestText(consent.signedAt);
+    const signedAt = signedAtText ? new Date(signedAtText) : null;
+    return {
+        acknowledged: Boolean(consent.acknowledged),
+        signerName: normalizeGuestText(consent.signerName),
+        signerRole: normalizeGuestText(consent.signerRole),
+        signedAt: signedAt && !Number.isNaN(signedAt.getTime()) ? signedAt : null,
+        version: normalizeGuestText(consent.version) || defaultVersion,
+    };
+};
+
 const isGuestIntakeComplete = (appointment) => {
     const profile = appointment?.guestProfile || {};
     const emergencyContact = appointment?.guestEmergencyContact || {};
@@ -4004,6 +4017,8 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
     const fallbackPhysician = fallbackGuest?.guestPhysician || {};
     const fallbackMedicalHistory = fallbackGuest?.guestMedicalHistory || {};
     const fallbackDentalHistory = fallbackGuest?.guestDentalHistory || {};
+    const fallbackConsentAcknowledgement = fallbackGuest?.guestConsentAcknowledgement || {};
+    const fallbackDataPrivacyConsent = fallbackGuest?.guestDataPrivacyConsent || {};
     const fallbackHomeAddress = pickCanonicalAddress(
         fallbackGuest?.guestHomeAddress,
         fallbackGuest?.guestCurrentAddress,
@@ -4039,7 +4054,8 @@ const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOv
         medicalHistory: body.medicalHistory || fallbackMedicalHistory || undefined,
         dentalHistory: body.dentalHistory || fallbackDentalHistory || undefined,
         physician: body.physician || fallbackPhysician || undefined,
-        consentAcknowledgement: body.consentAcknowledgement || undefined,
+        consentAcknowledgement: body.consentAcknowledgement || fallbackConsentAcknowledgement || undefined,
+        dataPrivacyConsent: body.dataPrivacyConsent || fallbackDataPrivacyConsent || undefined,
         role: 'patient',
         isVerified: false,
         status: 'inactive',
@@ -6671,6 +6687,8 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             surgery.guestPhysician = undefined;
             surgery.guestMedicalHistory = undefined;
             surgery.guestDentalHistory = undefined;
+            surgery.guestConsentAcknowledgement = undefined;
+            surgery.guestDataPrivacyConsent = undefined;
             surgery.preRegistrationToken = undefined;
             surgery.preRegistrationTokenExpiry = undefined;
             surgery.preRegistrationCompleted = false;
@@ -6780,6 +6798,8 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
         surgery.guestPhysician = undefined;
         surgery.guestMedicalHistory = undefined;
         surgery.guestDentalHistory = undefined;
+        surgery.guestConsentAcknowledgement = undefined;
+        surgery.guestDataPrivacyConsent = undefined;
         surgery.preRegistrationToken = undefined;
         surgery.preRegistrationTokenExpiry = undefined;
         surgery.preRegistrationCompleted = false;
@@ -7571,6 +7591,8 @@ app.get('/api/pre-register/:token', async (req, res) => {
             guestPhysician: surgery.guestPhysician || null,
             guestMedicalHistory: surgery.guestMedicalHistory || null,
             guestDentalHistory: surgery.guestDentalHistory || null,
+            guestConsentAcknowledgement: surgery.guestConsentAcknowledgement || null,
+            guestDataPrivacyConsent: surgery.guestDataPrivacyConsent || null,
             homeAddress: surgery.guestHomeAddress || surgery.guestCurrentAddress || surgery.guestPermanentAddress || null,
             currentAddress: surgery.guestCurrentAddress || null,
             permanentAddress: surgery.guestPermanentAddress || null,
@@ -7927,6 +7949,8 @@ app.post('/api/pre-register/:token', async (req, res) => {
         const guestPhysician = normalizeGuestPhysician(req.body.guestPhysician);
         const guestMedicalHistory = normalizeGuestMedicalHistory(req.body.guestMedicalHistory);
         const guestDentalHistory = normalizeGuestDentalHistory(req.body.guestDentalHistory);
+        const guestConsentAcknowledgement = normalizeGuestConsentRecord(req.body.consentAcknowledgement, 'Dentime Patient Form v6.1');
+        const guestDataPrivacyConsent = normalizeGuestConsentRecord(req.body.dataPrivacyConsent, 'Data Privacy Act of 2012');
         if (!isAddressComplete(homeAddress)) {
             return res.status(400).json({ message: 'Home address is required.' });
         }
@@ -7940,6 +7964,14 @@ app.post('/api/pre-register/:token', async (req, res) => {
         if (!isPhoneCallPreRegistration && guestMedicalHistory?.inGoodHealth === undefined) {
             return res.status(400).json({ message: 'Please complete the basic medical history section.' });
         }
+        if (!isPhoneCallPreRegistration && (
+            !guestConsentAcknowledgement?.acknowledged
+            || !guestConsentAcknowledgement?.signerName
+            || !guestDataPrivacyConsent?.acknowledged
+            || !guestDataPrivacyConsent?.signerName
+        )) {
+            return res.status(400).json({ message: 'Please complete the consent and data privacy acknowledgements.' });
+        }
 
         surgery.guestHomeAddress = homeAddress;
         surgery.guestCurrentAddress = homeAddress;
@@ -7950,6 +7982,8 @@ app.post('/api/pre-register/:token', async (req, res) => {
         surgery.guestPhysician = guestPhysician;
         surgery.guestMedicalHistory = guestMedicalHistory;
         surgery.guestDentalHistory = guestDentalHistory;
+        surgery.guestConsentAcknowledgement = guestConsentAcknowledgement;
+        surgery.guestDataPrivacyConsent = guestDataPrivacyConsent;
         surgery.preRegistrationCompleted = true;
         surgery.preRegistrationToken = undefined;
         surgery.preRegistrationTokenExpiry = undefined;

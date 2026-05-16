@@ -1,24 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import WebsiteShell from '../components/website/WebsiteShell';
+import ConsentReviewModal from '../components/admin/ConsentReviewModal';
 import styles from '../styles/website/WebsitePages.module.css';
 import { publicFetch } from '../utils/api';
 import { regions, provinces, cities, barangays } from '../utils/addressData';
 import {
+    ALLERGY_OPTIONS,
+    BLOOD_TYPE_OPTIONS,
+    LANDLINE_PREFIX,
+    MEDICAL_CONDITION_OPTIONS,
     NATIONALITY_OPTIONS,
-    RELIGION_OPTIONS,
-    RELATIONSHIP_OPTIONS,
+    OCCUPATION_OPTIONS,
     PHYSICIAN_SPECIALTY_OPTIONS,
-    getSelectValueWithOther,
+    RELATIONSHIP_OPTIONS,
+    RELIGION_OPTIONS,
     getOtherTextValue,
+    getSelectValueWithOther,
+    isValidLandlineNumber,
+    isValidMobileNumber,
+    stripLandlinePrefix,
+    stripMobilePrefix,
+    toLandlinePayload,
+    toMobilePayload,
 } from '../utils/patientIntake';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
-const bloodTypeOptions = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const initialProfileState = {
     homePhone: '',
     workPhone: '',
     occupation: '',
+    occupationOther: '',
     civilStatus: '',
     bloodType: '',
     nationality: 'Filipino',
@@ -29,15 +41,14 @@ const initialProfileState = {
     reasonForConsultation: '',
 };
 const initialEmergencyContact = { name: '', relationship: '', relationshipOther: '', contactNumber: '' };
-const initialGuardian = { name: '', relationship: '', relationshipOther: '', contactNumber: '', occupation: '' };
+const initialGuardian = { name: '', relationship: '', relationshipOther: '', contactNumber: '', occupation: '', occupationOther: '' };
 const initialPhysician = { name: '', specialty: '', specialtyOther: '', officeAddress: '', officeNumber: '' };
 const initialDentalHistory = {
     lastExamDate: '',
-    chiefComplaint: '',
-    notes: '',
     hadTreatmentReaction: '',
     reactionDetails: '',
-    hasConfidentialInfo: false,
+    hasConfidentialInfo: '',
+    notes: '',
 };
 const initialMedicalHistory = {
     inGoodHealth: '',
@@ -64,64 +75,53 @@ const initialMedicalHistory = {
     takingBirthControl: '',
 };
 
-const allergyOptions = [
-    'Local Anesthetic (ex. Lidocaine)',
-    'Penicillin',
-    'Aspirin',
-    'Antibiotics',
-    'Adrenaline',
-    'Steroids',
-    'Hormones',
-    'Antacids',
-    'Sulfa Drugs',
-    'Alcohol',
-    'Latex',
-];
-
-const medicalConditionOptions = [
-    'High Blood Pressure',
-    'Low Blood Pressure',
-    'Epilepsy/Convulsions',
-    'AIDS or HIV Infection',
-    'Hay Fever/Allergies',
-    'Respiratory Problems',
-    'Fainting Seizure',
-    'Rapid Weight Loss',
-    'Swollen Ankles',
-    'Kidney Disease',
-    'Heart Surgery',
-    'Heart Attack',
-    'Stroke',
-    'Heart Disease',
-    'Heart Murmur',
-    'Hepatitis/Liver Disease',
-    'Rheumatic Fever',
-    'Asthma',
-    'Emphysema',
-    'Bleeding Problems',
-    'Hepatitis/Jaundice',
-    'Tuberculosis',
-    'Arthritis/Rheumatism',
-    'Diabetes',
-    'Chest Pain',
-    'Cancer/Tumors',
-    'Anemia',
-    'Angina',
-    'Sexually Transmitted Disease',
-    'Stomach Troubles/Ulcers',
-    'Blood Diseases',
-    'Head Injuries',
-    'Radiation Therapy',
-    'Joint Replacement/Implant',
-    'Thyroid Problem',
-    'Other',
-];
-
 const yesNoOptions = [
     { value: '', label: 'Select' },
     { value: 'yes', label: 'Yes' },
     { value: 'no', label: 'No' },
 ];
+
+const REQUIRED_MARK = <span style={{ color: '#dc2626' }}> *</span>;
+
+const PRE_REGISTER_FIELD_ORDER = [
+    'profile_occupation',
+    'profile_occupationOther',
+    'home_region',
+    'home_province',
+    'home_city',
+    'home_barangay',
+    'home_street',
+    'home_houseNumber',
+    'emergencyContact_name',
+    'emergencyContact_relationship',
+    'emergencyContact_relationshipOther',
+    'emergencyContact_contactNumber',
+    'guardian_name',
+    'guardian_relationship',
+    'guardian_relationshipOther',
+    'guardian_contactNumber',
+    'guardian_occupation',
+    'guardian_occupationOther',
+    'profile_reasonForConsultation',
+    'medicalHistory_inGoodHealth',
+    'physician_specialtyOther',
+    'dataPrivacyConsent_signerName',
+    'dataPrivacyConsent_signedAt',
+    'dataPrivacyConsent_acknowledged',
+    'consentAcknowledgement_signerName',
+    'consentAcknowledgement_signedAt',
+    'consentAcknowledgement_acknowledged',
+];
+
+const getTodayDate = () => new Date().toISOString().split('T')[0];
+
+const createConsentState = (signerRole = 'Patient', value = null, version = '') => ({
+    acknowledged: Boolean(value?.acknowledged),
+    signerName: value?.signerName || '',
+    signerRole: value?.signerRole || signerRole,
+    signedAt: value?.signedAt ? new Date(value.signedAt).toISOString().split('T')[0] : getTodayDate(),
+    version: value?.version || version,
+});
 
 const formatDate = (value) => {
     if (!value) return 'To be announced';
@@ -129,19 +129,6 @@ const formatDate = (value) => {
     return Number.isNaN(date.getTime())
         ? 'To be announced'
         : date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-};
-
-const stripPhonePrefix = (phone = '') => {
-    const digits = String(phone || '').replace(/\D/g, '');
-    if (digits.startsWith('63') && digits.length >= 12) return digits.slice(2, 12);
-    if (digits.startsWith('0') && digits.length >= 11) return digits.slice(1, 11);
-    if (digits.startsWith('9')) return digits.slice(0, 10);
-    return digits.slice(-10);
-};
-
-const toPhonePayload = (phone = '') => {
-    const digits = stripPhonePrefix(phone);
-    return digits ? `+63${digits}` : '';
 };
 
 const getAge = (birthdate) => {
@@ -159,10 +146,10 @@ const normalizeMedicalHistoryState = (history = {}) => ({
     ...initialMedicalHistory,
     ...history,
     medications: Array.isArray(history.medications) ? history.medications.join(', ') : (history.medications || ''),
-    allergies: Array.isArray(history.allergies) ? history.allergies.filter((entry) => allergyOptions.includes(entry)) : [],
-    allergyOther: Array.isArray(history.allergies) ? history.allergies.filter((entry) => !allergyOptions.includes(entry)).join(', ') : '',
-    conditions: Array.isArray(history.conditions) ? history.conditions.filter((entry) => medicalConditionOptions.includes(entry)) : [],
-    conditionOther: Array.isArray(history.conditions) ? history.conditions.filter((entry) => !medicalConditionOptions.includes(entry)).join(', ') : '',
+    allergies: Array.isArray(history.allergies) ? history.allergies.filter((entry) => ALLERGY_OPTIONS.includes(entry)) : [],
+    allergyOther: Array.isArray(history.allergies) ? history.allergies.filter((entry) => !ALLERGY_OPTIONS.includes(entry)).join(', ') : '',
+    conditions: Array.isArray(history.conditions) ? history.conditions.filter((entry) => MEDICAL_CONDITION_OPTIONS.includes(entry)) : [],
+    conditionOther: Array.isArray(history.conditions) ? history.conditions.filter((entry) => !MEDICAL_CONDITION_OPTIONS.includes(entry)).join(', ') : '',
     inGoodHealth: history.inGoodHealth === undefined ? '' : (history.inGoodHealth ? 'yes' : 'no'),
     underMedicalTreatment: history.underMedicalTreatment === undefined ? '' : (history.underMedicalTreatment ? 'yes' : 'no'),
     hadSeriousIllnessOrSurgery: history.hadSeriousIllnessOrSurgery === undefined ? '' : (history.hadSeriousIllnessOrSurgery ? 'yes' : 'no'),
@@ -181,8 +168,32 @@ const normalizeDentalHistoryState = (history = {}) => ({
     ...history,
     lastExamDate: history.lastExamDate ? new Date(history.lastExamDate).toISOString().split('T')[0] : '',
     hadTreatmentReaction: history.hadTreatmentReaction === undefined ? '' : (history.hadTreatmentReaction ? 'yes' : 'no'),
-    hasConfidentialInfo: Boolean(history.hasConfidentialInfo),
+    hasConfidentialInfo: history.hasConfidentialInfo === undefined ? '' : (history.hasConfidentialInfo ? 'yes' : 'no'),
 });
+
+const boolFromSelect = (value) => {
+    if (value === 'yes') return true;
+    if (value === 'no') return false;
+    return undefined;
+};
+
+const isFutureDate = (value) => {
+    if (!value) return false;
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && date > new Date();
+};
+
+const scrollToField = (fieldKey) => {
+    window.requestAnimationFrame(() => {
+        const target = document.querySelector(`[data-field-key="${fieldKey}"]`);
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const focusTarget = target.matches('input, select, textarea, button')
+            ? target
+            : target.querySelector('input, select, textarea, button');
+        focusTarget?.focus?.();
+    });
+};
 
 export default function PreRegisterPage() {
     const [searchParams] = useSearchParams();
@@ -195,10 +206,133 @@ export default function PreRegisterPage() {
     const [physician, setPhysician] = useState({ ...initialPhysician });
     const [dentalHistory, setDentalHistory] = useState({ ...initialDentalHistory });
     const [medicalHistory, setMedicalHistory] = useState({ ...initialMedicalHistory });
+    const [consentAcknowledgement, setConsentAcknowledgement] = useState(createConsentState('Patient', null, 'Dentime Patient Form v6.1'));
+    const [dataPrivacyConsent, setDataPrivacyConsent] = useState(createConsentState('Patient', null, 'Data Privacy Act of 2012'));
     const [errors, setErrors] = useState({});
     const [state, setState] = useState('loading');
     const [message, setMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
+
+    const patientAge = useMemo(() => getAge(appointmentInfo?.guestBirthdate), [appointmentInfo?.guestBirthdate]);
+    const isMinor = patientAge !== null && patientAge < 18;
+    const isPhoneCallPreRegistration = useMemo(
+        () => String(appointmentInfo?.source || '').trim() === 'Phone Call',
+        [appointmentInfo?.source]
+    );
+
+    const buildValidationErrors = (snapshot) => {
+        const nextErrors = {};
+        const {
+            profile: nextProfile,
+            homeAddress: nextHomeAddress,
+            emergencyContact: nextEmergencyContact,
+            guardian: nextGuardian,
+            physician: nextPhysician,
+            dentalHistory: nextDentalHistory,
+            medicalHistory: nextMedicalHistory,
+            consentAcknowledgement: nextConsentAcknowledgement,
+            dataPrivacyConsent: nextDataPrivacyConsent,
+            isMinor: nextIsMinor,
+            isPhoneCallPreRegistration: nextIsPhoneCallPreRegistration,
+        } = snapshot;
+
+        ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
+            if (!String(nextHomeAddress[field] || '').trim()) nextErrors[`home_${field}`] = 'Required';
+        });
+
+        if (!nextProfile.occupation) nextErrors.profile_occupation = 'Required';
+        if (nextProfile.occupation === 'Other' && !nextProfile.occupationOther.trim()) nextErrors.profile_occupationOther = 'Required';
+        if (nextProfile.nationality === 'Other' && !nextProfile.nationalityOther.trim()) nextErrors.profile_nationalityOther = 'Required';
+        if (nextProfile.religion === 'Other' && !nextProfile.religionOther.trim()) nextErrors.profile_religionOther = 'Required';
+        if (nextProfile.homePhone && !isValidLandlineNumber(nextProfile.homePhone)) nextErrors.profile_homePhone = 'Use a valid 7 to 8 digit landline number.';
+        if (nextProfile.workPhone && !isValidLandlineNumber(nextProfile.workPhone)) nextErrors.profile_workPhone = 'Use a valid 7 to 8 digit landline number.';
+        if (!nextIsPhoneCallPreRegistration && !nextProfile.reasonForConsultation.trim()) nextErrors.profile_reasonForConsultation = 'Required';
+
+        if (!nextEmergencyContact.name.trim()) nextErrors.emergencyContact_name = 'Required';
+        if (!nextEmergencyContact.relationship.trim()) nextErrors.emergencyContact_relationship = 'Required';
+        if (nextEmergencyContact.relationship === 'Other' && !nextEmergencyContact.relationshipOther.trim()) nextErrors.emergencyContact_relationshipOther = 'Required';
+        if (!nextEmergencyContact.contactNumber.trim()) nextErrors.emergencyContact_contactNumber = 'Required';
+        else if (!isValidMobileNumber(nextEmergencyContact.contactNumber)) nextErrors.emergencyContact_contactNumber = 'Use 9xxxxxxxxx format.';
+
+        if (nextIsMinor) {
+            if (!nextGuardian.name.trim()) nextErrors.guardian_name = 'Required';
+            if (!nextGuardian.relationship.trim()) nextErrors.guardian_relationship = 'Required';
+            if (nextGuardian.relationship === 'Other' && !nextGuardian.relationshipOther.trim()) nextErrors.guardian_relationshipOther = 'Required';
+            if (!nextGuardian.contactNumber.trim()) nextErrors.guardian_contactNumber = 'Required';
+            else if (!isValidMobileNumber(nextGuardian.contactNumber)) nextErrors.guardian_contactNumber = 'Use 9xxxxxxxxx format.';
+            if (!nextGuardian.occupation.trim()) nextErrors.guardian_occupation = 'Required';
+            if (nextGuardian.occupation === 'Other' && !nextGuardian.occupationOther.trim()) nextErrors.guardian_occupationOther = 'Required';
+        }
+
+        if (!nextIsPhoneCallPreRegistration) {
+            if (nextDentalHistory.lastExamDate && isFutureDate(nextDentalHistory.lastExamDate)) nextErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future.';
+            if (!nextDentalHistory.hadTreatmentReaction) nextErrors.dentalHistory_hadTreatmentReaction = 'Required';
+            if (nextDentalHistory.hadTreatmentReaction === 'yes' && !nextDentalHistory.reactionDetails.trim()) nextErrors.dentalHistory_reactionDetails = 'Required when answer is Yes.';
+            if (!nextDentalHistory.hasConfidentialInfo) nextErrors.dentalHistory_hasConfidentialInfo = 'Required';
+
+            if (!nextMedicalHistory.inGoodHealth) nextErrors.medicalHistory_inGoodHealth = 'Required';
+            if (!nextMedicalHistory.underMedicalTreatment) nextErrors.medicalHistory_underMedicalTreatment = 'Required';
+            if (nextMedicalHistory.underMedicalTreatment === 'yes' && !nextMedicalHistory.medicalTreatmentDetails.trim()) nextErrors.medicalHistory_medicalTreatmentDetails = 'Required when answer is Yes.';
+            if (!nextMedicalHistory.hadSeriousIllnessOrSurgery) nextErrors.medicalHistory_hadSeriousIllnessOrSurgery = 'Required';
+            if (nextMedicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !nextMedicalHistory.seriousIllnessOrSurgeryDetails.trim()) nextErrors.medicalHistory_seriousIllnessOrSurgeryDetails = 'Required when answer is Yes.';
+            if (!nextMedicalHistory.hadHospitalization) nextErrors.medicalHistory_hadHospitalization = 'Required';
+            if (nextMedicalHistory.hadHospitalization === 'yes' && !nextMedicalHistory.hospitalizationDetails.trim()) nextErrors.medicalHistory_hospitalizationDetails = 'Required when answer is Yes.';
+            if (!nextMedicalHistory.isTakingMedication) nextErrors.medicalHistory_isTakingMedication = 'Required';
+            if (nextMedicalHistory.isTakingMedication === 'yes' && !nextMedicalHistory.medications.trim()) nextErrors.medicalHistory_medications = 'Required when answer is Yes.';
+            if (!nextMedicalHistory.usesTobacco) nextErrors.medicalHistory_usesTobacco = 'Required';
+            if (!nextMedicalHistory.usesAlcoholOrDrugs) nextErrors.medicalHistory_usesAlcoholOrDrugs = 'Required';
+            if (!nextMedicalHistory.hasAllergies) nextErrors.medicalHistory_hasAllergies = 'Required';
+            if (nextMedicalHistory.hasAllergies === 'yes' && nextMedicalHistory.allergies.length === 0 && !nextMedicalHistory.allergyOther.trim()) {
+                nextErrors.medicalHistory_allergies = 'Select or enter at least one allergy.';
+            }
+            if (!nextMedicalHistory.isPregnant) nextErrors.medicalHistory_isPregnant = 'Required';
+            if (!nextMedicalHistory.isNursing) nextErrors.medicalHistory_isNursing = 'Required';
+            if (!nextMedicalHistory.takingBirthControl) nextErrors.medicalHistory_takingBirthControl = 'Required';
+
+            if (nextPhysician.specialty === 'Other' && !nextPhysician.specialtyOther.trim()) nextErrors.physician_specialtyOther = 'Required';
+            if (nextPhysician.officeNumber && !isValidLandlineNumber(nextPhysician.officeNumber)) nextErrors.physician_officeNumber = 'Use a valid 7 to 8 digit landline number.';
+
+            if (!nextDataPrivacyConsent.signerName.trim()) nextErrors.dataPrivacyConsent_signerName = 'Required';
+            if (isFutureDate(nextDataPrivacyConsent.signedAt)) nextErrors.dataPrivacyConsent_signedAt = 'Signed date cannot be in the future.';
+            if (!nextDataPrivacyConsent.acknowledged) nextErrors.dataPrivacyConsent_acknowledged = 'Required';
+
+            if (!nextConsentAcknowledgement.signerName.trim()) nextErrors.consentAcknowledgement_signerName = 'Required';
+            if (isFutureDate(nextConsentAcknowledgement.signedAt)) nextErrors.consentAcknowledgement_signedAt = 'Signed date cannot be in the future.';
+            if (!nextConsentAcknowledgement.acknowledged) nextErrors.consentAcknowledgement_acknowledged = 'Required';
+        }
+
+        return nextErrors;
+    };
+
+    const getSnapshot = (overrides = {}) => ({
+        profile,
+        homeAddress,
+        emergencyContact,
+        guardian,
+        physician,
+        dentalHistory,
+        medicalHistory,
+        consentAcknowledgement,
+        dataPrivacyConsent,
+        isMinor,
+        isPhoneCallPreRegistration,
+        ...overrides,
+    });
+
+    const syncErrors = (snapshot, keys = null) => {
+        const nextErrors = buildValidationErrors(snapshot);
+        setErrors((prev) => {
+            if (!keys) return nextErrors;
+            const merged = { ...prev };
+            keys.forEach((key) => {
+                if (nextErrors[key]) merged[key] = nextErrors[key];
+                else delete merged[key];
+            });
+            return merged;
+        });
+        return nextErrors;
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -226,41 +360,52 @@ export default function PreRegisterPage() {
                     throw new Error(data.message || 'Unable to load your registration link.');
                 }
 
-                setAppointmentInfo(data);
+                const nextAge = getAge(data.guestBirthdate);
+                const nextSignerRole = nextAge !== null && nextAge < 18 ? 'Parent' : 'Patient';
                 const guestProfile = data.guestProfile || {};
+                const guestGuardian = data.guestGuardian || {};
+
+                setAppointmentInfo(data);
                 setProfile({
                     ...initialProfileState,
                     ...guestProfile,
+                    occupation: getSelectValueWithOther(guestProfile.occupation || '', OCCUPATION_OPTIONS),
+                    occupationOther: getOtherTextValue(guestProfile.occupation || '', OCCUPATION_OPTIONS),
                     nationality: getSelectValueWithOther(guestProfile.nationality || initialProfileState.nationality, NATIONALITY_OPTIONS),
                     nationalityOther: getOtherTextValue(guestProfile.nationality || '', NATIONALITY_OPTIONS),
                     religion: getSelectValueWithOther(guestProfile.religion || '', RELIGION_OPTIONS),
                     religionOther: getOtherTextValue(guestProfile.religion || '', RELIGION_OPTIONS),
+                    homePhone: stripLandlinePrefix(guestProfile.homePhone || ''),
+                    workPhone: stripLandlinePrefix(guestProfile.workPhone || ''),
                 });
-                const nextHomeAddress = { ...initialAddressState, ...(data.homeAddress || data.currentAddress || data.permanentAddress || {}) };
-                setHomeAddress(nextHomeAddress);
+                setHomeAddress({ ...initialAddressState, ...(data.homeAddress || data.currentAddress || data.permanentAddress || {}) });
                 setEmergencyContact({
                     ...initialEmergencyContact,
                     ...(data.guestEmergencyContact || {}),
                     relationship: getSelectValueWithOther(data.guestEmergencyContact?.relationship || '', RELATIONSHIP_OPTIONS),
                     relationshipOther: getOtherTextValue(data.guestEmergencyContact?.relationship || '', RELATIONSHIP_OPTIONS),
-                    contactNumber: stripPhonePrefix(data.guestEmergencyContact?.contactNumber || ''),
+                    contactNumber: stripMobilePrefix(data.guestEmergencyContact?.contactNumber || ''),
                 });
                 setGuardian({
                     ...initialGuardian,
-                    ...(data.guestGuardian || {}),
-                    relationship: getSelectValueWithOther(data.guestGuardian?.relationship || '', RELATIONSHIP_OPTIONS),
-                    relationshipOther: getOtherTextValue(data.guestGuardian?.relationship || '', RELATIONSHIP_OPTIONS),
-                    contactNumber: stripPhonePrefix(data.guestGuardian?.contactNumber || ''),
+                    ...guestGuardian,
+                    relationship: getSelectValueWithOther(guestGuardian.relationship || '', RELATIONSHIP_OPTIONS),
+                    relationshipOther: getOtherTextValue(guestGuardian.relationship || '', RELATIONSHIP_OPTIONS),
+                    occupation: getSelectValueWithOther(guestGuardian.occupation || '', OCCUPATION_OPTIONS),
+                    occupationOther: getOtherTextValue(guestGuardian.occupation || '', OCCUPATION_OPTIONS),
+                    contactNumber: stripMobilePrefix(guestGuardian.contactNumber || ''),
                 });
                 setPhysician({
                     ...initialPhysician,
                     ...(data.guestPhysician || {}),
                     specialty: getSelectValueWithOther(data.guestPhysician?.specialty || '', PHYSICIAN_SPECIALTY_OPTIONS),
                     specialtyOther: getOtherTextValue(data.guestPhysician?.specialty || '', PHYSICIAN_SPECIALTY_OPTIONS),
-                    officeNumber: stripPhonePrefix(data.guestPhysician?.officeNumber || ''),
+                    officeNumber: stripLandlinePrefix(data.guestPhysician?.officeNumber || ''),
                 });
                 setDentalHistory(normalizeDentalHistoryState(data.guestDentalHistory || {}));
                 setMedicalHistory(normalizeMedicalHistoryState(data.guestMedicalHistory || {}));
+                setConsentAcknowledgement(createConsentState(nextSignerRole, data.guestConsentAcknowledgement, 'Dentime Patient Form v6.1'));
+                setDataPrivacyConsent(createConsentState(nextSignerRole, data.guestDataPrivacyConsent, 'Data Privacy Act of 2012'));
                 setState('ready');
             } catch (error) {
                 setState('invalid');
@@ -271,187 +416,152 @@ export default function PreRegisterPage() {
         fetchData();
     }, [token]);
 
-    const patientAge = useMemo(() => getAge(appointmentInfo?.guestBirthdate), [appointmentInfo?.guestBirthdate]);
-    const isPhoneCallPreRegistration = useMemo(
-        () => String(appointmentInfo?.source || '').trim() === 'Phone Call',
-        [appointmentInfo?.source]
-    );
-    const isMinor = patientAge !== null && patientAge < 18;
-
-    const validateAddress = (address, prefix) => {
-        const nextErrors = {};
-        ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
-            if (!address[field]) nextErrors[`${prefix}_${field}`] = 'Required';
-        });
-        return nextErrors;
-    };
-
-    const validatePhoneField = (value, key, required = false) => {
-        const digits = stripPhonePrefix(value);
-        if (!digits) {
-            return required ? { [key]: 'Required' } : {};
-        }
-        if (digits.length !== 10 || !digits.startsWith('9')) {
-            return { [key]: 'Use 9xxxxxxxxx format.' };
-        }
-        return {};
-    };
-
-    const validateForm = () => {
-        const nextErrors = {
-            ...validateAddress(homeAddress, 'home'),
-            ...validatePhoneField(emergencyContact.contactNumber, 'emergencyContact_contactNumber', true),
-            ...validatePhoneField(profile.homePhone, 'profile_homePhone'),
-            ...validatePhoneField(profile.workPhone, 'profile_workPhone'),
-            ...validatePhoneField(guardian.contactNumber, 'guardian_contactNumber', isMinor),
-            ...validatePhoneField(physician.officeNumber, 'physician_officeNumber'),
-        };
-
-        if (!profile.occupation.trim()) nextErrors.profile_occupation = 'Required';
-        if (!profile.reasonForConsultation.trim()) nextErrors.profile_reasonForConsultation = 'Required';
-        if (profile.nationality === 'Other' && !profile.nationalityOther.trim()) nextErrors.profile_nationalityOther = 'Required';
-        if (profile.religion === 'Other' && !profile.religionOther.trim()) nextErrors.profile_religionOther = 'Required';
-        if (!emergencyContact.name.trim()) nextErrors.emergencyContact_name = 'Required';
-        if (!emergencyContact.relationship.trim()) nextErrors.emergencyContact_relationship = 'Required';
-        if (emergencyContact.relationship === 'Other' && !emergencyContact.relationshipOther.trim()) nextErrors.emergencyContact_relationshipOther = 'Required';
-        if (isMinor) {
-            if (!guardian.name.trim()) nextErrors.guardian_name = 'Required';
-            if (!guardian.relationship.trim()) nextErrors.guardian_relationship = 'Required';
-            if (guardian.relationship === 'Other' && !guardian.relationshipOther.trim()) nextErrors.guardian_relationshipOther = 'Required';
-        }
-        if (physician.specialty === 'Other' && !physician.specialtyOther.trim()) nextErrors.physician_specialtyOther = 'Required';
-        if (!isPhoneCallPreRegistration && !medicalHistory.inGoodHealth) nextErrors.medicalHistory_inGoodHealth = 'Required';
-
-        setErrors(nextErrors);
-        return Object.keys(nextErrors).length === 0;
-    };
-
     const handleAddressChange = (field, value) => {
-        setHomeAddress((prev) => {
-            const next = { ...prev, [field]: value };
-            if (field === 'region') { next.province = ''; next.city = ''; next.barangay = ''; }
-            if (field === 'province') { next.city = ''; next.barangay = ''; }
-            if (field === 'city') { next.barangay = ''; }
-            return next;
-        });
-
-        setErrors((prev) => {
-            const next = { ...prev };
-            delete next[`home_${field}`];
-            return next;
-        });
+        const nextHomeAddress = { ...homeAddress, [field]: value };
+        if (field === 'region') {
+            nextHomeAddress.province = '';
+            nextHomeAddress.city = '';
+            nextHomeAddress.barangay = '';
+        }
+        if (field === 'province') {
+            nextHomeAddress.city = '';
+            nextHomeAddress.barangay = '';
+        }
+        if (field === 'city') {
+            nextHomeAddress.barangay = '';
+        }
+        setHomeAddress(nextHomeAddress);
+        syncErrors(getSnapshot({ homeAddress: nextHomeAddress }), ['home_region', 'home_province', 'home_city', 'home_barangay', 'home_street', 'home_houseNumber']);
     };
 
     const handleProfileChange = (field, value) => {
-        setProfile((prev) => ({ ...prev, [field]: value }));
-        setErrors((prev) => {
-            const next = { ...prev };
-            delete next[`profile_${field}`];
-            return next;
-        });
+        const nextProfile = { ...profile, [field]: value };
+        if (field === 'occupation' && value !== 'Other') nextProfile.occupationOther = '';
+        if (field === 'nationality' && value !== 'Other') nextProfile.nationalityOther = '';
+        if (field === 'religion' && value !== 'Other') nextProfile.religionOther = '';
+        if (field === 'reasonForConsultation') {
+            setDentalHistory((prev) => ({ ...prev, chiefComplaint: value }));
+        }
+        setProfile(nextProfile);
+        syncErrors(
+            getSnapshot({ profile: nextProfile }),
+            [
+                `profile_${field}`,
+                'profile_occupation',
+                'profile_occupationOther',
+                'profile_nationalityOther',
+                'profile_religionOther',
+                'profile_reasonForConsultation',
+            ]
+        );
     };
 
-    const handleContactChange = (setter, prefix, field, value) => {
-        setter((prev) => ({ ...prev, [field]: value }));
-        setErrors((prev) => {
-            const next = { ...prev };
-            delete next[`${prefix}_${field}`];
-            return next;
-        });
+    const handleLandlineChange = (field, value) => {
+        const digits = value.replace(/\D/g, '').slice(0, 8);
+        const nextProfile = { ...profile, [field]: digits };
+        setProfile(nextProfile);
+        syncErrors(getSnapshot({ profile: nextProfile }), [`profile_${field}`]);
     };
 
-    const handlePhoneChange = (setter, prefix, field, value) => {
+    const handleContactChange = (type, field, value) => {
+        const setterMap = {
+            emergencyContact: [emergencyContact, setEmergencyContact],
+            guardian: [guardian, setGuardian],
+            physician: [physician, setPhysician],
+        };
+        const [current, setter] = setterMap[type];
+        const next = { ...current, [field]: value };
+        if (type === 'emergencyContact' && field === 'relationship' && value !== 'Other') next.relationshipOther = '';
+        if (type === 'guardian') {
+            if (field === 'relationship' && value !== 'Other') next.relationshipOther = '';
+            if (field === 'occupation' && value !== 'Other') next.occupationOther = '';
+        }
+        if (type === 'physician' && field === 'specialty' && value !== 'Other') next.specialtyOther = '';
+        setter(next);
+        syncErrors(
+            getSnapshot({ [type]: next }),
+            [
+                `${type}_${field}`,
+                `${type}_relationshipOther`,
+                `${type}_occupation`,
+                `${type}_occupationOther`,
+                `${type}_specialtyOther`,
+            ]
+        );
+    };
+
+    const handleMobileChange = (type, field, value) => {
         const digits = value.replace(/\D/g, '').slice(0, 10);
-        handleContactChange(setter, prefix, field, digits);
+        handleContactChange(type, field, digits);
     };
 
-    const handleMedicalChange = (field, value) => {
-        setMedicalHistory((prev) => ({ ...prev, [field]: value }));
-        setErrors((prev) => {
-            const next = { ...prev };
-            delete next[`medicalHistory_${field}`];
-            return next;
-        });
-    };
-
-    const handleMedicalArrayToggle = (field, option) => {
-        setMedicalHistory((prev) => {
-            const current = prev[field];
-            const nextValues = current.includes(option)
-                ? current.filter((entry) => entry !== option)
-                : [...current, option];
-            return { ...prev, [field]: nextValues };
-        });
+    const handlePhysicianLandlineChange = (value) => {
+        const digits = value.replace(/\D/g, '').slice(0, 8);
+        const nextPhysician = { ...physician, officeNumber: digits };
+        setPhysician(nextPhysician);
+        syncErrors(getSnapshot({ physician: nextPhysician }), ['physician_officeNumber']);
     };
 
     const handleDentalChange = (field, value) => {
-        setDentalHistory((prev) => ({ ...prev, [field]: value }));
+        const nextDentalHistory = { ...dentalHistory, [field]: value };
+        setDentalHistory(nextDentalHistory);
+        syncErrors(
+            getSnapshot({ dentalHistory: nextDentalHistory }),
+            ['dentalHistory_lastExamDate', 'dentalHistory_hadTreatmentReaction', 'dentalHistory_reactionDetails', 'dentalHistory_hasConfidentialInfo']
+        );
     };
 
-    const renderAddressSection = (title, address) => {
-        const prefix = 'home';
-        const availableProvinces = address.region ? provinces[address.region] || [] : [];
-        const availableCities = address.province ? cities[address.province] || [] : [];
-        const availableBarangays = address.city ? barangays[address.city] || [] : [];
-        const errorFor = (field) => errors[`${prefix}_${field}`];
-        const classFor = (field) => errorFor(field) ? styles.errorBorder : '';
+    const handleMedicalChange = (field, value) => {
+        const nextMedicalHistory = { ...medicalHistory, [field]: value };
+        setMedicalHistory(nextMedicalHistory);
+        syncErrors(
+            getSnapshot({ medicalHistory: nextMedicalHistory }),
+            [
+                `medicalHistory_${field}`,
+                'medicalHistory_allergies',
+                'medicalHistory_medicalTreatmentDetails',
+                'medicalHistory_seriousIllnessOrSurgeryDetails',
+                'medicalHistory_hospitalizationDetails',
+                'medicalHistory_medications',
+            ]
+        );
+    };
 
-        return (
-            <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>{title}</h3>
-                <div className={styles.formGrid}>
-                    <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Region</label>
-                        <select className={`${styles.fieldSelect} ${classFor('region')}`} value={address.region} onChange={(e) => handleAddressChange('region', e.target.value)}>
-                            <option value="">Select region</option>
-                            {regions.map((region) => <option key={region.code} value={region.code}>{region.name}</option>)}
-                        </select>
-                        {errorFor('region') && <span className={styles.errorText}>{errorFor('region')}</span>}
-                    </div>
-                    <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Province</label>
-                        <select className={`${styles.fieldSelect} ${classFor('province')}`} value={address.province} onChange={(e) => handleAddressChange('province', e.target.value)} disabled={!address.region}>
-                            <option value="">Select province</option>
-                            {availableProvinces.map((province) => <option key={province.code} value={province.code}>{province.name}</option>)}
-                        </select>
-                        {errorFor('province') && <span className={styles.errorText}>{errorFor('province')}</span>}
-                    </div>
-                    <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>City / Municipality</label>
-                        <select className={`${styles.fieldSelect} ${classFor('city')}`} value={address.city} onChange={(e) => handleAddressChange('city', e.target.value)} disabled={!address.province}>
-                            <option value="">Select city</option>
-                            {availableCities.map((city) => <option key={city.code} value={city.code}>{city.name}</option>)}
-                        </select>
-                        {errorFor('city') && <span className={styles.errorText}>{errorFor('city')}</span>}
-                    </div>
-                    <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Barangay</label>
-                        <select className={`${styles.fieldSelect} ${classFor('barangay')}`} value={address.barangay} onChange={(e) => handleAddressChange('barangay', e.target.value)} disabled={!address.city}>
-                            <option value="">Select barangay</option>
-                            {availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}
-                        </select>
-                        {errorFor('barangay') && <span className={styles.errorText}>{errorFor('barangay')}</span>}
-                    </div>
-                    <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Street</label>
-                        <input className={`${styles.fieldInput} ${classFor('street')}`} value={address.street} onChange={(e) => handleAddressChange('street', e.target.value)} />
-                        {errorFor('street') && <span className={styles.errorText}>{errorFor('street')}</span>}
-                    </div>
-                    <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>House Number</label>
-                        <input className={`${styles.fieldInput} ${classFor('houseNumber')}`} value={address.houseNumber} onChange={(e) => handleAddressChange('houseNumber', e.target.value)} />
-                        {errorFor('houseNumber') && <span className={styles.errorText}>{errorFor('houseNumber')}</span>}
-                    </div>
-                </div>
-            </div>
+    const handleMedicalArrayToggle = (field, option) => {
+        const currentValues = medicalHistory[field];
+        const nextValues = currentValues.includes(option)
+            ? currentValues.filter((entry) => entry !== option)
+            : [...currentValues, option];
+        const nextMedicalHistory = { ...medicalHistory, [field]: nextValues };
+        setMedicalHistory(nextMedicalHistory);
+        syncErrors(getSnapshot({ medicalHistory: nextMedicalHistory }), ['medicalHistory_allergies']);
+    };
+
+    const handleConsentChange = (type, field, value) => {
+        const source = type === 'privacy' ? dataPrivacyConsent : consentAcknowledgement;
+        const setter = type === 'privacy' ? setDataPrivacyConsent : setConsentAcknowledgement;
+        const next = { ...source, [field]: value };
+        setter(next);
+        syncErrors(
+            getSnapshot(type === 'privacy' ? { dataPrivacyConsent: next } : { consentAcknowledgement: next }),
+            [
+                `${type === 'privacy' ? 'dataPrivacyConsent' : 'consentAcknowledgement'}_${field}`,
+                `${type === 'privacy' ? 'dataPrivacyConsent' : 'consentAcknowledgement'}_acknowledged`,
+            ]
         );
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        if (!validateForm()) return;
+        const nextErrors = syncErrors(getSnapshot(), null);
+        if (Object.keys(nextErrors).length > 0) {
+            const firstErrorKey = PRE_REGISTER_FIELD_ORDER.find((field) => nextErrors[field]) || Object.keys(nextErrors)[0];
+            scrollToField(firstErrorKey);
+            return;
+        }
 
         setIsSubmitting(true);
+        setMessage('');
         try {
             const response = await publicFetch(`/pre-register/${token}`, {
                 method: 'POST',
@@ -459,47 +569,62 @@ export default function PreRegisterPage() {
                     homeAddress,
                     guestProfile: {
                         ...profile,
+                        occupation: profile.occupation === 'Other' ? profile.occupationOther.trim() : profile.occupation,
                         nationality: profile.nationality === 'Other' ? profile.nationalityOther.trim() : profile.nationality,
                         religion: profile.religion === 'Other' ? profile.religionOther.trim() : profile.religion,
-                        homePhone: toPhonePayload(profile.homePhone),
-                        workPhone: toPhonePayload(profile.workPhone),
+                        homePhone: toLandlinePayload(profile.homePhone),
+                        workPhone: toLandlinePayload(profile.workPhone),
                     },
                     guestEmergencyContact: {
                         ...emergencyContact,
                         relationship: emergencyContact.relationship === 'Other' ? emergencyContact.relationshipOther.trim() : emergencyContact.relationship,
-                        contactNumber: toPhonePayload(emergencyContact.contactNumber),
+                        contactNumber: toMobilePayload(emergencyContact.contactNumber),
                     },
                     guestGuardian: {
                         ...guardian,
                         relationship: guardian.relationship === 'Other' ? guardian.relationshipOther.trim() : guardian.relationship,
-                        contactNumber: toPhonePayload(guardian.contactNumber),
+                        occupation: guardian.occupation === 'Other' ? guardian.occupationOther.trim() : guardian.occupation,
+                        contactNumber: toMobilePayload(guardian.contactNumber),
                     },
                     guestPhysician: {
                         ...physician,
                         specialty: physician.specialty === 'Other' ? physician.specialtyOther.trim() : physician.specialty,
-                        officeNumber: toPhonePayload(physician.officeNumber),
+                        officeNumber: toLandlinePayload(physician.officeNumber),
                     },
                     guestDentalHistory: {
                         ...dentalHistory,
-                        chiefComplaint: dentalHistory.chiefComplaint || profile.reasonForConsultation,
-                        hadTreatmentReaction: dentalHistory.hadTreatmentReaction === '' ? undefined : dentalHistory.hadTreatmentReaction === 'yes',
+                        chiefComplaint: profile.reasonForConsultation || dentalHistory.notes || '',
+                        hadTreatmentReaction: boolFromSelect(dentalHistory.hadTreatmentReaction),
+                        hasConfidentialInfo: boolFromSelect(dentalHistory.hasConfidentialInfo),
                     },
                     guestMedicalHistory: {
                         ...medicalHistory,
                         allergies: [...medicalHistory.allergies, ...medicalHistory.allergyOther.split(',').map((entry) => entry.trim()).filter(Boolean)],
                         conditions: [...medicalHistory.conditions, ...medicalHistory.conditionOther.split(',').map((entry) => entry.trim()).filter(Boolean)],
                         medications: medicalHistory.medications.split(',').map((entry) => entry.trim()).filter(Boolean),
-                        inGoodHealth: medicalHistory.inGoodHealth === '' ? undefined : medicalHistory.inGoodHealth === 'yes',
-                        underMedicalTreatment: medicalHistory.underMedicalTreatment === '' ? undefined : medicalHistory.underMedicalTreatment === 'yes',
-                        hadSeriousIllnessOrSurgery: medicalHistory.hadSeriousIllnessOrSurgery === '' ? undefined : medicalHistory.hadSeriousIllnessOrSurgery === 'yes',
-                        hadHospitalization: medicalHistory.hadHospitalization === '' ? undefined : medicalHistory.hadHospitalization === 'yes',
-                        isTakingMedication: medicalHistory.isTakingMedication === '' ? undefined : medicalHistory.isTakingMedication === 'yes',
-                        usesTobacco: medicalHistory.usesTobacco === '' ? undefined : medicalHistory.usesTobacco === 'yes',
-                        usesAlcoholOrDrugs: medicalHistory.usesAlcoholOrDrugs === '' ? undefined : medicalHistory.usesAlcoholOrDrugs === 'yes',
-                        hasAllergies: medicalHistory.hasAllergies === '' ? undefined : medicalHistory.hasAllergies === 'yes',
-                        isPregnant: medicalHistory.isPregnant === '' ? undefined : medicalHistory.isPregnant === 'yes',
-                        isNursing: medicalHistory.isNursing === '' ? undefined : medicalHistory.isNursing === 'yes',
-                        takingBirthControl: medicalHistory.takingBirthControl === '' ? undefined : medicalHistory.takingBirthControl === 'yes',
+                        inGoodHealth: boolFromSelect(medicalHistory.inGoodHealth),
+                        underMedicalTreatment: boolFromSelect(medicalHistory.underMedicalTreatment),
+                        hadSeriousIllnessOrSurgery: boolFromSelect(medicalHistory.hadSeriousIllnessOrSurgery),
+                        hadHospitalization: boolFromSelect(medicalHistory.hadHospitalization),
+                        isTakingMedication: boolFromSelect(medicalHistory.isTakingMedication),
+                        usesTobacco: boolFromSelect(medicalHistory.usesTobacco),
+                        usesAlcoholOrDrugs: boolFromSelect(medicalHistory.usesAlcoholOrDrugs),
+                        hasAllergies: boolFromSelect(medicalHistory.hasAllergies),
+                        isPregnant: boolFromSelect(medicalHistory.isPregnant),
+                        isNursing: boolFromSelect(medicalHistory.isNursing),
+                        takingBirthControl: boolFromSelect(medicalHistory.takingBirthControl),
+                    },
+                    consentAcknowledgement: {
+                        ...consentAcknowledgement,
+                        signerName: consentAcknowledgement.signerName.trim(),
+                        signedAt: consentAcknowledgement.signedAt || getTodayDate(),
+                        version: consentAcknowledgement.version || 'Dentime Patient Form v6.1',
+                    },
+                    dataPrivacyConsent: {
+                        ...dataPrivacyConsent,
+                        signerName: dataPrivacyConsent.signerName.trim(),
+                        signedAt: dataPrivacyConsent.signedAt || getTodayDate(),
+                        version: dataPrivacyConsent.version || 'Data Privacy Act of 2012',
                     },
                 }),
             });
@@ -521,6 +646,20 @@ export default function PreRegisterPage() {
         return 'Complete your registration';
     }, [state]);
 
+    const availableProvinces = homeAddress.region ? provinces[homeAddress.region] || [] : [];
+    const availableCities = homeAddress.province ? cities[homeAddress.province] || [] : [];
+    const availableBarangays = homeAddress.city ? barangays[homeAddress.city] || [] : [];
+
+    const renderYesNoField = (label, value, onChange, errorKey, fieldKey) => (
+        <div className={styles.fieldGroup} data-field-key={fieldKey}>
+            <label className={styles.fieldLabel}>{label}{REQUIRED_MARK}</label>
+            <select className={`${styles.fieldSelect} ${errors[errorKey] ? styles.errorBorder : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
+                {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
+            </select>
+            {errors[errorKey] && <span className={styles.errorText}>{errors[errorKey]}</span>}
+        </div>
+    );
+
     return (
         <WebsiteShell>
             <section className={styles.section}>
@@ -534,11 +673,11 @@ export default function PreRegisterPage() {
                                     Hello {appointmentInfo.guestName}, please complete the patient information below for your {appointmentInfo.procedure} appointment on {formatDate(appointmentInfo.appointmentDate)} at {appointmentInfo.branch}.
                                 </p>
                                 <p className={styles.bodyText}>
-                                    The information you provide here will be used to complete your patient registration at NgitiFy Dental Clinic, in accordance with our Privacy Policy and Republic Act No. 10173.
+                                    The information you provide here will be used to prepare your patient record before your visit and will still be reviewed by the clinic on site.
                                 </p>
                                 {isPhoneCallPreRegistration && (
                                     <div className={styles.successBanner} style={{ marginTop: '16px' }}>
-                                        For phone-call bookings, only your personal information is needed right now. The clinic will complete the medical history, dental history, physician details, and consent forms when you arrive.
+                                        For phone-call bookings, only your personal and contact information is needed right now. The clinic will finish the medical history, physician details, and consent review when you arrive.
                                     </div>
                                 )}
                                 <div className={styles.formGrid} style={{ marginTop: '16px' }}>
@@ -564,11 +703,21 @@ export default function PreRegisterPage() {
                             <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
                                 <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Patient Details</h3>
                                 <div className={styles.formGrid}>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Occupation</label>
-                                        <input className={`${styles.fieldInput} ${errors.profile_occupation ? styles.errorBorder : ''}`} value={profile.occupation} onChange={(e) => handleProfileChange('occupation', e.target.value)} />
+                                    <div className={styles.fieldGroup} data-field-key="profile_occupation">
+                                        <label className={styles.fieldLabel}>Occupation{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.profile_occupation ? styles.errorBorder : ''}`} value={profile.occupation} onChange={(e) => handleProfileChange('occupation', e.target.value)}>
+                                            <option value="">Select occupation</option>
+                                            {OCCUPATION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                        </select>
                                         {errors.profile_occupation && <span className={styles.errorText}>{errors.profile_occupation}</span>}
                                     </div>
+                                    {profile.occupation === 'Other' && (
+                                        <div className={styles.fieldGroup} data-field-key="profile_occupationOther">
+                                            <label className={styles.fieldLabel}>Occupation, If Other{REQUIRED_MARK}</label>
+                                            <input className={`${styles.fieldInput} ${errors.profile_occupationOther ? styles.errorBorder : ''}`} value={profile.occupationOther} onChange={(e) => handleProfileChange('occupationOther', e.target.value)} />
+                                            {errors.profile_occupationOther && <span className={styles.errorText}>{errors.profile_occupationOther}</span>}
+                                        </div>
+                                    )}
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Civil Status</label>
                                         <select className={styles.fieldSelect} value={profile.civilStatus} onChange={(e) => handleProfileChange('civilStatus', e.target.value)}>
@@ -581,13 +730,6 @@ export default function PreRegisterPage() {
                                         </select>
                                     </div>
                                     <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Blood Type</label>
-                                        <select className={styles.fieldSelect} value={profile.bloodType} onChange={(e) => handleProfileChange('bloodType', e.target.value)}>
-                                            <option value="">Select blood type</option>
-                                            {bloodTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Nationality</label>
                                         <select className={styles.fieldSelect} value={profile.nationality} onChange={(e) => handleProfileChange('nationality', e.target.value)}>
                                             <option value="">Select nationality</option>
@@ -595,8 +737,8 @@ export default function PreRegisterPage() {
                                         </select>
                                     </div>
                                     {profile.nationality === 'Other' && (
-                                        <div className={styles.fieldGroup}>
-                                            <label className={styles.fieldLabel}>Other Nationality</label>
+                                        <div className={styles.fieldGroup} data-field-key="profile_nationalityOther">
+                                            <label className={styles.fieldLabel}>Nationality, If Other{REQUIRED_MARK}</label>
                                             <input className={`${styles.fieldInput} ${errors.profile_nationalityOther ? styles.errorBorder : ''}`} value={profile.nationalityOther} onChange={(e) => handleProfileChange('nationalityOther', e.target.value)} />
                                             {errors.profile_nationalityOther && <span className={styles.errorText}>{errors.profile_nationalityOther}</span>}
                                         </div>
@@ -609,70 +751,118 @@ export default function PreRegisterPage() {
                                         </select>
                                     </div>
                                     {profile.religion === 'Other' && (
-                                        <div className={styles.fieldGroup}>
-                                            <label className={styles.fieldLabel}>Other Religion</label>
+                                        <div className={styles.fieldGroup} data-field-key="profile_religionOther">
+                                            <label className={styles.fieldLabel}>Religion, If Other{REQUIRED_MARK}</label>
                                             <input className={`${styles.fieldInput} ${errors.profile_religionOther ? styles.errorBorder : ''}`} value={profile.religionOther} onChange={(e) => handleProfileChange('religionOther', e.target.value)} />
                                             {errors.profile_religionOther && <span className={styles.errorText}>{errors.profile_religionOther}</span>}
                                         </div>
                                     )}
+                                    <div className={styles.fieldGroup} data-field-key="profile_homePhone">
+                                        <label className={styles.fieldLabel}>Home Phone</label>
+                                        <div className={`${styles.phoneInputGroup} ${errors.profile_homePhone ? styles.errorBorder : ''}`}>
+                                            <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
+                                            <input className={styles.phoneField} value={profile.homePhone} onChange={(e) => handleLandlineChange('homePhone', e.target.value)} maxLength={8} placeholder="1234567" />
+                                        </div>
+                                        {errors.profile_homePhone && <span className={styles.errorText}>{errors.profile_homePhone}</span>}
+                                    </div>
+                                    <div className={styles.fieldGroup} data-field-key="profile_workPhone">
+                                        <label className={styles.fieldLabel}>Work Phone</label>
+                                        <div className={`${styles.phoneInputGroup} ${errors.profile_workPhone ? styles.errorBorder : ''}`}>
+                                            <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
+                                            <input className={styles.phoneField} value={profile.workPhone} onChange={(e) => handleLandlineChange('workPhone', e.target.value)} maxLength={8} placeholder="1234567" />
+                                        </div>
+                                        {errors.profile_workPhone && <span className={styles.errorText}>{errors.profile_workPhone}</span>}
+                                    </div>
                                     <div className={styles.fieldGroup}>
                                         <label className={styles.fieldLabel}>Referred By</label>
                                         <input className={styles.fieldInput} value={profile.referredBy} onChange={(e) => handleProfileChange('referredBy', e.target.value)} />
                                     </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Home Phone</label>
-                                        <div className={`${styles.phoneInputGroup} ${errors.profile_homePhone ? styles.errorBorder : ''}`}>
-                                            <span className={styles.phonePrefix}>+63</span>
-                                            <input className={styles.phoneField} value={profile.homePhone} onChange={(e) => handlePhoneChange(setProfile, 'profile', 'homePhone', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
+                                    {!isPhoneCallPreRegistration && (
+                                        <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="profile_reasonForConsultation">
+                                            <label className={styles.fieldLabel}>Reason for Consultation{REQUIRED_MARK}</label>
+                                            <textarea className={`${styles.fieldTextarea} ${errors.profile_reasonForConsultation ? styles.errorBorder : ''}`} value={profile.reasonForConsultation} onChange={(e) => handleProfileChange('reasonForConsultation', e.target.value)} />
+                                            {errors.profile_reasonForConsultation && <span className={styles.errorText}>{errors.profile_reasonForConsultation}</span>}
                                         </div>
-                                        {errors.profile_homePhone && <span className={styles.errorText}>{errors.profile_homePhone}</span>}
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Home Address</h3>
+                                <div className={styles.formGrid}>
+                                    <div className={styles.fieldGroup} data-field-key="home_region">
+                                        <label className={styles.fieldLabel}>Region{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.home_region ? styles.errorBorder : ''}`} value={homeAddress.region} onChange={(e) => handleAddressChange('region', e.target.value)}>
+                                            <option value="">Select region</option>
+                                            {regions.map((region) => <option key={region.code} value={region.code}>{region.name}</option>)}
+                                        </select>
+                                        {errors.home_region && <span className={styles.errorText}>{errors.home_region}</span>}
                                     </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Work Phone</label>
-                                        <div className={`${styles.phoneInputGroup} ${errors.profile_workPhone ? styles.errorBorder : ''}`}>
-                                            <span className={styles.phonePrefix}>+63</span>
-                                            <input className={styles.phoneField} value={profile.workPhone} onChange={(e) => handlePhoneChange(setProfile, 'profile', 'workPhone', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
-                                        </div>
-                                        {errors.profile_workPhone && <span className={styles.errorText}>{errors.profile_workPhone}</span>}
+                                    <div className={styles.fieldGroup} data-field-key="home_province">
+                                        <label className={styles.fieldLabel}>Province{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.home_province ? styles.errorBorder : ''}`} value={homeAddress.province} onChange={(e) => handleAddressChange('province', e.target.value)} disabled={!homeAddress.region}>
+                                            <option value="">Select province</option>
+                                            {availableProvinces.map((province) => <option key={province.code} value={province.code}>{province.name}</option>)}
+                                        </select>
+                                        {errors.home_province && <span className={styles.errorText}>{errors.home_province}</span>}
                                     </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Reason for Consultation</label>
-                                        <textarea className={`${styles.fieldTextarea} ${errors.profile_reasonForConsultation ? styles.errorBorder : ''}`} value={profile.reasonForConsultation} onChange={(e) => { handleProfileChange('reasonForConsultation', e.target.value); handleDentalChange('chiefComplaint', e.target.value); }} />
-                                        {errors.profile_reasonForConsultation && <span className={styles.errorText}>{errors.profile_reasonForConsultation}</span>}
+                                    <div className={styles.fieldGroup} data-field-key="home_city">
+                                        <label className={styles.fieldLabel}>City / Municipality{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.home_city ? styles.errorBorder : ''}`} value={homeAddress.city} onChange={(e) => handleAddressChange('city', e.target.value)} disabled={!homeAddress.province}>
+                                            <option value="">Select city</option>
+                                            {availableCities.map((city) => <option key={city.code} value={city.code}>{city.name}</option>)}
+                                        </select>
+                                        {errors.home_city && <span className={styles.errorText}>{errors.home_city}</span>}
+                                    </div>
+                                    <div className={styles.fieldGroup} data-field-key="home_barangay">
+                                        <label className={styles.fieldLabel}>Barangay{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.home_barangay ? styles.errorBorder : ''}`} value={homeAddress.barangay} onChange={(e) => handleAddressChange('barangay', e.target.value)} disabled={!homeAddress.city}>
+                                            <option value="">Select barangay</option>
+                                            {availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}
+                                        </select>
+                                        {errors.home_barangay && <span className={styles.errorText}>{errors.home_barangay}</span>}
+                                    </div>
+                                    <div className={styles.fieldGroup} data-field-key="home_street">
+                                        <label className={styles.fieldLabel}>Street{REQUIRED_MARK}</label>
+                                        <input className={`${styles.fieldInput} ${errors.home_street ? styles.errorBorder : ''}`} value={homeAddress.street} onChange={(e) => handleAddressChange('street', e.target.value)} />
+                                        {errors.home_street && <span className={styles.errorText}>{errors.home_street}</span>}
+                                    </div>
+                                    <div className={styles.fieldGroup} data-field-key="home_houseNumber">
+                                        <label className={styles.fieldLabel}>House Number{REQUIRED_MARK}</label>
+                                        <input className={`${styles.fieldInput} ${errors.home_houseNumber ? styles.errorBorder : ''}`} value={homeAddress.houseNumber} onChange={(e) => handleAddressChange('houseNumber', e.target.value)} />
+                                        {errors.home_houseNumber && <span className={styles.errorText}>{errors.home_houseNumber}</span>}
                                     </div>
                                 </div>
                             </div>
 
-                            {renderAddressSection('Home Address', homeAddress)}
-
                             <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
                                 <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Emergency Contact</h3>
                                 <div className={styles.formGrid}>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Contact Name</label>
-                                        <input className={`${styles.fieldInput} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} value={emergencyContact.name} onChange={(e) => handleContactChange(setEmergencyContact, 'emergencyContact', 'name', e.target.value)} />
+                                    <div className={styles.fieldGroup} data-field-key="emergencyContact_name">
+                                        <label className={styles.fieldLabel}>Emergency Contact{REQUIRED_MARK}</label>
+                                        <input className={`${styles.fieldInput} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} value={emergencyContact.name} onChange={(e) => handleContactChange('emergencyContact', 'name', e.target.value)} />
                                         {errors.emergencyContact_name && <span className={styles.errorText}>{errors.emergencyContact_name}</span>}
                                     </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Relationship</label>
-                                        <select className={`${styles.fieldSelect} ${errors.emergencyContact_relationship ? styles.errorBorder : ''}`} value={emergencyContact.relationship} onChange={(e) => handleContactChange(setEmergencyContact, 'emergencyContact', 'relationship', e.target.value)}>
+                                    <div className={styles.fieldGroup} data-field-key="emergencyContact_relationship">
+                                        <label className={styles.fieldLabel}>Relationship{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.emergencyContact_relationship ? styles.errorBorder : ''}`} value={emergencyContact.relationship} onChange={(e) => handleContactChange('emergencyContact', 'relationship', e.target.value)}>
                                             <option value="">Select relationship</option>
                                             {RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                         </select>
                                         {errors.emergencyContact_relationship && <span className={styles.errorText}>{errors.emergencyContact_relationship}</span>}
                                     </div>
                                     {emergencyContact.relationship === 'Other' && (
-                                        <div className={styles.fieldGroup}>
-                                            <label className={styles.fieldLabel}>Other Relationship</label>
-                                            <input className={`${styles.fieldInput} ${errors.emergencyContact_relationshipOther ? styles.errorBorder : ''}`} value={emergencyContact.relationshipOther} onChange={(e) => handleContactChange(setEmergencyContact, 'emergencyContact', 'relationshipOther', e.target.value)} />
+                                        <div className={styles.fieldGroup} data-field-key="emergencyContact_relationshipOther">
+                                            <label className={styles.fieldLabel}>Relationship, If Other{REQUIRED_MARK}</label>
+                                            <input className={`${styles.fieldInput} ${errors.emergencyContact_relationshipOther ? styles.errorBorder : ''}`} value={emergencyContact.relationshipOther} onChange={(e) => handleContactChange('emergencyContact', 'relationshipOther', e.target.value)} />
                                             {errors.emergencyContact_relationshipOther && <span className={styles.errorText}>{errors.emergencyContact_relationshipOther}</span>}
                                         </div>
                                     )}
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Mobile Number</label>
+                                    <div className={styles.fieldGroup} data-field-key="emergencyContact_contactNumber">
+                                        <label className={styles.fieldLabel}>Mobile Number{REQUIRED_MARK}</label>
                                         <div className={`${styles.phoneInputGroup} ${errors.emergencyContact_contactNumber ? styles.errorBorder : ''}`}>
                                             <span className={styles.phonePrefix}>+63</span>
-                                            <input className={styles.phoneField} value={emergencyContact.contactNumber} onChange={(e) => handlePhoneChange(setEmergencyContact, 'emergencyContact', 'contactNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
+                                            <input className={styles.phoneField} value={emergencyContact.contactNumber} onChange={(e) => handleMobileChange('emergencyContact', 'contactNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
                                         </div>
                                         {errors.emergencyContact_contactNumber && <span className={styles.errorText}>{errors.emergencyContact_contactNumber}</span>}
                                     </div>
@@ -683,237 +873,264 @@ export default function PreRegisterPage() {
                                 <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
                                     <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Guardian Details</h3>
                                     <div className={styles.formGrid}>
-                                        <div className={styles.fieldGroup}>
-                                            <label className={styles.fieldLabel}>Guardian Name</label>
-                                            <input className={`${styles.fieldInput} ${errors.guardian_name ? styles.errorBorder : ''}`} value={guardian.name} onChange={(e) => handleContactChange(setGuardian, 'guardian', 'name', e.target.value)} />
+                                        <div className={styles.fieldGroup} data-field-key="guardian_name">
+                                            <label className={styles.fieldLabel}>Guardian Name{REQUIRED_MARK}</label>
+                                            <input className={`${styles.fieldInput} ${errors.guardian_name ? styles.errorBorder : ''}`} value={guardian.name} onChange={(e) => handleContactChange('guardian', 'name', e.target.value)} />
                                             {errors.guardian_name && <span className={styles.errorText}>{errors.guardian_name}</span>}
                                         </div>
-                                        <div className={styles.fieldGroup}>
-                                            <label className={styles.fieldLabel}>Relationship</label>
-                                            <select className={`${styles.fieldSelect} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={guardian.relationship} onChange={(e) => handleContactChange(setGuardian, 'guardian', 'relationship', e.target.value)}>
+                                        <div className={styles.fieldGroup} data-field-key="guardian_occupation">
+                                            <label className={styles.fieldLabel}>Occupation{REQUIRED_MARK}</label>
+                                            <select className={`${styles.fieldSelect} ${errors.guardian_occupation ? styles.errorBorder : ''}`} value={guardian.occupation} onChange={(e) => handleContactChange('guardian', 'occupation', e.target.value)}>
+                                                <option value="">Select occupation</option>
+                                                {OCCUPATION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                            </select>
+                                            {errors.guardian_occupation && <span className={styles.errorText}>{errors.guardian_occupation}</span>}
+                                        </div>
+                                        {guardian.occupation === 'Other' && (
+                                            <div className={styles.fieldGroup} data-field-key="guardian_occupationOther">
+                                                <label className={styles.fieldLabel}>Occupation, If Other{REQUIRED_MARK}</label>
+                                                <input className={`${styles.fieldInput} ${errors.guardian_occupationOther ? styles.errorBorder : ''}`} value={guardian.occupationOther} onChange={(e) => handleContactChange('guardian', 'occupationOther', e.target.value)} />
+                                                {errors.guardian_occupationOther && <span className={styles.errorText}>{errors.guardian_occupationOther}</span>}
+                                            </div>
+                                        )}
+                                        <div className={styles.fieldGroup} data-field-key="guardian_relationship">
+                                            <label className={styles.fieldLabel}>Relationship{REQUIRED_MARK}</label>
+                                            <select className={`${styles.fieldSelect} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={guardian.relationship} onChange={(e) => handleContactChange('guardian', 'relationship', e.target.value)}>
                                                 <option value="">Select relationship</option>
                                                 {RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                             </select>
                                             {errors.guardian_relationship && <span className={styles.errorText}>{errors.guardian_relationship}</span>}
                                         </div>
                                         {guardian.relationship === 'Other' && (
-                                            <div className={styles.fieldGroup}>
-                                                <label className={styles.fieldLabel}>Other Relationship</label>
-                                                <input className={`${styles.fieldInput} ${errors.guardian_relationshipOther ? styles.errorBorder : ''}`} value={guardian.relationshipOther} onChange={(e) => handleContactChange(setGuardian, 'guardian', 'relationshipOther', e.target.value)} />
+                                            <div className={styles.fieldGroup} data-field-key="guardian_relationshipOther">
+                                                <label className={styles.fieldLabel}>Relationship, If Other{REQUIRED_MARK}</label>
+                                                <input className={`${styles.fieldInput} ${errors.guardian_relationshipOther ? styles.errorBorder : ''}`} value={guardian.relationshipOther} onChange={(e) => handleContactChange('guardian', 'relationshipOther', e.target.value)} />
                                                 {errors.guardian_relationshipOther && <span className={styles.errorText}>{errors.guardian_relationshipOther}</span>}
                                             </div>
                                         )}
-                                        <div className={styles.fieldGroup}>
-                                            <label className={styles.fieldLabel}>Contact Number</label>
+                                        <div className={styles.fieldGroup} data-field-key="guardian_contactNumber">
+                                            <label className={styles.fieldLabel}>Guardian Phone{REQUIRED_MARK}</label>
                                             <div className={`${styles.phoneInputGroup} ${errors.guardian_contactNumber ? styles.errorBorder : ''}`}>
                                                 <span className={styles.phonePrefix}>+63</span>
-                                                <input className={styles.phoneField} value={guardian.contactNumber} onChange={(e) => handlePhoneChange(setGuardian, 'guardian', 'contactNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
+                                                <input className={styles.phoneField} value={guardian.contactNumber} onChange={(e) => handleMobileChange('guardian', 'contactNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
                                             </div>
                                             {errors.guardian_contactNumber && <span className={styles.errorText}>{errors.guardian_contactNumber}</span>}
                                         </div>
-                                        <div className={styles.fieldGroup}>
-                                            <label className={styles.fieldLabel}>Occupation</label>
-                                            <input className={styles.fieldInput} value={guardian.occupation} onChange={(e) => handleContactChange(setGuardian, 'guardian', 'occupation', e.target.value)} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isPhoneCallPreRegistration && (
+                                <>
+                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Dental History</h3>
+                                        <div className={styles.formGrid}>
+                                            <div className={styles.fieldGroup} data-field-key="dentalHistory_lastExamDate">
+                                                <label className={styles.fieldLabel}>Last Dental Visit</label>
+                                                <input type="date" className={`${styles.fieldInput} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={dentalHistory.lastExamDate} onChange={(e) => handleDentalChange('lastExamDate', e.target.value)} max={getTodayDate()} />
+                                                {errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}
+                                            </div>
+                                            {renderYesNoField('Reaction or complication after dental treatment?', dentalHistory.hadTreatmentReaction, (value) => handleDentalChange('hadTreatmentReaction', value), 'dentalHistory_hadTreatmentReaction', 'dentalHistory_hadTreatmentReaction')}
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="dentalHistory_reactionDetails">
+                                                <label className={styles.fieldLabel}>If Yes, Please Detail</label>
+                                                <textarea className={`${styles.fieldTextarea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={dentalHistory.reactionDetails} onChange={(e) => handleDentalChange('reactionDetails', e.target.value)} />
+                                                {errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}
+                                            </div>
+                                            {renderYesNoField('Private or confidential information to discuss in private?', dentalHistory.hasConfidentialInfo, (value) => handleDentalChange('hasConfidentialInfo', value), 'dentalHistory_hasConfidentialInfo', 'dentalHistory_hasConfidentialInfo')}
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
+                                                <label className={styles.fieldLabel}>Additional Dental Notes</label>
+                                                <textarea className={styles.fieldTextarea} value={dentalHistory.notes} onChange={(e) => handleDentalChange('notes', e.target.value)} />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
 
-                            {!isPhoneCallPreRegistration && (
-                                <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Dental History</h3>
-                                <div className={styles.formGrid}>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Last Dental Visit</label>
-                                        <input type="date" className={styles.fieldInput} value={dentalHistory.lastExamDate} onChange={(e) => handleDentalChange('lastExamDate', e.target.value)} />
+                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Medical History</h3>
+                                        <div className={styles.formGrid}>
+                                            {renderYesNoField('Are you in good health?', medicalHistory.inGoodHealth, (value) => handleMedicalChange('inGoodHealth', value), 'medicalHistory_inGoodHealth', 'medicalHistory_inGoodHealth')}
+                                            {renderYesNoField('Are you under medical treatment now?', medicalHistory.underMedicalTreatment, (value) => handleMedicalChange('underMedicalTreatment', value), 'medicalHistory_underMedicalTreatment', 'medicalHistory_underMedicalTreatment')}
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_medicalTreatmentDetails">
+                                                <label className={styles.fieldLabel}>If So, What Is the Condition Treated?</label>
+                                                <textarea className={`${styles.fieldTextarea} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={medicalHistory.medicalTreatmentDetails} onChange={(e) => handleMedicalChange('medicalTreatmentDetails', e.target.value)} />
+                                                {errors.medicalHistory_medicalTreatmentDetails && <span className={styles.errorText}>{errors.medicalHistory_medicalTreatmentDetails}</span>}
+                                            </div>
+                                            {renderYesNoField('Have you ever had serious illness or surgical operation?', medicalHistory.hadSeriousIllnessOrSurgery, (value) => handleMedicalChange('hadSeriousIllnessOrSurgery', value), 'medicalHistory_hadSeriousIllnessOrSurgery', 'medicalHistory_hadSeriousIllnessOrSurgery')}
+                                            {renderYesNoField('Have you ever been hospitalized?', medicalHistory.hadHospitalization, (value) => handleMedicalChange('hadHospitalization', value), 'medicalHistory_hadHospitalization', 'medicalHistory_hadHospitalization')}
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_seriousIllnessOrSurgeryDetails">
+                                                <label className={styles.fieldLabel}>If So, What Is the Illness or Operation?</label>
+                                                <textarea className={`${styles.fieldTextarea} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleMedicalChange('seriousIllnessOrSurgeryDetails', e.target.value)} />
+                                                {errors.medicalHistory_seriousIllnessOrSurgeryDetails && <span className={styles.errorText}>{errors.medicalHistory_seriousIllnessOrSurgeryDetails}</span>}
+                                            </div>
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_hospitalizationDetails">
+                                                <label className={styles.fieldLabel}>If So, When and Why?</label>
+                                                <textarea className={`${styles.fieldTextarea} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={medicalHistory.hospitalizationDetails} onChange={(e) => handleMedicalChange('hospitalizationDetails', e.target.value)} />
+                                                {errors.medicalHistory_hospitalizationDetails && <span className={styles.errorText}>{errors.medicalHistory_hospitalizationDetails}</span>}
+                                            </div>
+                                            {renderYesNoField('Are you taking any prescription or non-prescription medication?', medicalHistory.isTakingMedication, (value) => handleMedicalChange('isTakingMedication', value), 'medicalHistory_isTakingMedication', 'medicalHistory_isTakingMedication')}
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_medications">
+                                                <label className={styles.fieldLabel}>If So, Please Specify</label>
+                                                <textarea className={`${styles.fieldTextarea} ${errors.medicalHistory_medications ? styles.errorBorder : ''}`} value={medicalHistory.medications} onChange={(e) => handleMedicalChange('medications', e.target.value)} placeholder="Comma-separated values" />
+                                                {errors.medicalHistory_medications && <span className={styles.errorText}>{errors.medicalHistory_medications}</span>}
+                                            </div>
+                                            {renderYesNoField('Do you use tobacco products?', medicalHistory.usesTobacco, (value) => handleMedicalChange('usesTobacco', value), 'medicalHistory_usesTobacco', 'medicalHistory_usesTobacco')}
+                                            {renderYesNoField('Do you use alcohol, cocaine, or other dangerous drugs?', medicalHistory.usesAlcoholOrDrugs, (value) => handleMedicalChange('usesAlcoholOrDrugs', value), 'medicalHistory_usesAlcoholOrDrugs', 'medicalHistory_usesAlcoholOrDrugs')}
+                                            {renderYesNoField('Are you allergic to any of the following?', medicalHistory.hasAllergies, (value) => handleMedicalChange('hasAllergies', value), 'medicalHistory_hasAllergies', 'medicalHistory_hasAllergies')}
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="medicalHistory_allergies">
+                                                <label className={styles.fieldLabel}>Allergies</label>
+                                                <div className={styles.checkboxGrid}>
+                                                    {ALLERGY_OPTIONS.map((option) => (
+                                                        <label key={option} className={styles.checkboxCard}>
+                                                            <input type="checkbox" checked={medicalHistory.allergies.includes(option)} onChange={() => handleMedicalArrayToggle('allergies', option)} />
+                                                            <span>{option}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <input className={`${styles.fieldInput} ${errors.medicalHistory_allergies ? styles.errorBorder : ''}`} style={{ marginTop: '12px' }} value={medicalHistory.allergyOther} onChange={(e) => handleMedicalChange('allergyOther', e.target.value)} placeholder="Other allergy" />
+                                                {errors.medicalHistory_allergies && <span className={styles.errorText}>{errors.medicalHistory_allergies}</span>}
+                                            </div>
+                                            <div className={styles.fieldGroup}>
+                                                <label className={styles.fieldLabel}>Blood Type</label>
+                                                <select className={styles.fieldSelect} value={profile.bloodType} onChange={(e) => handleProfileChange('bloodType', e.target.value)}>
+                                                    <option value="">Select blood type</option>
+                                                    {BLOOD_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className={styles.fieldGroup}>
+                                                <label className={styles.fieldLabel}>Blood Pressure</label>
+                                                <input className={styles.fieldInput} value={medicalHistory.bloodPressure} onChange={(e) => handleMedicalChange('bloodPressure', e.target.value)} placeholder="e.g. 120/80" />
+                                            </div>
+                                            <div className={styles.fieldGroup}>
+                                                <label className={styles.fieldLabel}>Bleeding Time</label>
+                                                <input className={styles.fieldInput} value={medicalHistory.bleedingTime} onChange={(e) => handleMedicalChange('bleedingTime', e.target.value)} />
+                                            </div>
+                                            {renderYesNoField('Are you pregnant?', medicalHistory.isPregnant, (value) => handleMedicalChange('isPregnant', value), 'medicalHistory_isPregnant', 'medicalHistory_isPregnant')}
+                                            {renderYesNoField('Are you nursing?', medicalHistory.isNursing, (value) => handleMedicalChange('isNursing', value), 'medicalHistory_isNursing', 'medicalHistory_isNursing')}
+                                            {renderYesNoField('Are you taking birth control pills?', medicalHistory.takingBirthControl, (value) => handleMedicalChange('takingBirthControl', value), 'medicalHistory_takingBirthControl', 'medicalHistory_takingBirthControl')}
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
+                                                <label className={styles.fieldLabel}>Medical Conditions</label>
+                                                <div className={styles.checkboxGrid}>
+                                                    {MEDICAL_CONDITION_OPTIONS.map((option) => (
+                                                        <label key={option} className={styles.checkboxCard}>
+                                                            <input type="checkbox" checked={medicalHistory.conditions.includes(option)} onChange={() => handleMedicalArrayToggle('conditions', option)} />
+                                                            <span>{option}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <input className={styles.fieldInput} style={{ marginTop: '12px' }} value={medicalHistory.conditionOther} onChange={(e) => handleMedicalChange('conditionOther', e.target.value)} placeholder="Other condition" />
+                                            </div>
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
+                                                <label className={styles.fieldLabel}>Medical Notes</label>
+                                                <textarea className={styles.fieldTextarea} value={medicalHistory.notes} onChange={(e) => handleMedicalChange('notes', e.target.value)} />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Treatment Reaction or Complication</label>
-                                        <select className={styles.fieldSelect} value={dentalHistory.hadTreatmentReaction} onChange={(e) => handleDentalChange('hadTreatmentReaction', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>If Yes, Please Detail</label>
-                                        <textarea className={styles.fieldTextarea} value={dentalHistory.reactionDetails} onChange={(e) => handleDentalChange('reactionDetails', e.target.value)} />
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Additional Dental Notes</label>
-                                        <textarea className={styles.fieldTextarea} value={dentalHistory.notes} onChange={(e) => handleDentalChange('notes', e.target.value)} />
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.consentCard}>
-                                            <input type="checkbox" className={styles.consentCheckbox} checked={dentalHistory.hasConfidentialInfo} onChange={(e) => handleDentalChange('hasConfidentialInfo', e.target.checked)} />
-                                            <span className={styles.consentText}>I have private or confidential dental information that I prefer to discuss directly at the clinic.</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                </div>
-                            )}
 
-                            {!isPhoneCallPreRegistration && (
-                                <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Medical History</h3>
-                                <div className={styles.formGrid}>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Are you in good health?</label>
-                                        <select className={`${styles.fieldSelect} ${errors.medicalHistory_inGoodHealth ? styles.errorBorder : ''}`} value={medicalHistory.inGoodHealth} onChange={(e) => handleMedicalChange('inGoodHealth', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                        {errors.medicalHistory_inGoodHealth && <span className={styles.errorText}>{errors.medicalHistory_inGoodHealth}</span>}
+                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Physician Information</h3>
+                                        <div className={styles.formGrid}>
+                                            <div className={styles.fieldGroup}>
+                                                <label className={styles.fieldLabel}>Physician Name</label>
+                                                <input className={styles.fieldInput} value={physician.name} onChange={(e) => handleContactChange('physician', 'name', e.target.value)} />
+                                            </div>
+                                            <div className={styles.fieldGroup}>
+                                                <label className={styles.fieldLabel}>Specialty, If Applicable</label>
+                                                <select className={styles.fieldSelect} value={physician.specialty} onChange={(e) => handleContactChange('physician', 'specialty', e.target.value)}>
+                                                    <option value="">Select specialty</option>
+                                                    {PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                                </select>
+                                            </div>
+                                            {physician.specialty === 'Other' && (
+                                                <div className={styles.fieldGroup} data-field-key="physician_specialtyOther">
+                                                    <label className={styles.fieldLabel}>Specialty, If Other{REQUIRED_MARK}</label>
+                                                    <input className={`${styles.fieldInput} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={physician.specialtyOther} onChange={(e) => handleContactChange('physician', 'specialtyOther', e.target.value)} />
+                                                    {errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}
+                                                </div>
+                                            )}
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
+                                                <label className={styles.fieldLabel}>Office Address</label>
+                                                <input className={styles.fieldInput} value={physician.officeAddress} onChange={(e) => handleContactChange('physician', 'officeAddress', e.target.value)} />
+                                            </div>
+                                            <div className={styles.fieldGroup} data-field-key="physician_officeNumber">
+                                                <label className={styles.fieldLabel}>Office Number</label>
+                                                <div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}>
+                                                    <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
+                                                    <input className={styles.phoneField} value={physician.officeNumber} onChange={(e) => handlePhysicianLandlineChange(e.target.value)} maxLength={8} placeholder="1234567" />
+                                                </div>
+                                                {errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Under medical treatment now?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.underMedicalTreatment} onChange={(e) => handleMedicalChange('underMedicalTreatment', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Condition Treated</label>
-                                        <textarea className={styles.fieldTextarea} value={medicalHistory.medicalTreatmentDetails} onChange={(e) => handleMedicalChange('medicalTreatmentDetails', e.target.value)} />
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Serious illness or surgery?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.hadSeriousIllnessOrSurgery} onChange={(e) => handleMedicalChange('hadSeriousIllnessOrSurgery', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Hospitalized before?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.hadHospitalization} onChange={(e) => handleMedicalChange('hadHospitalization', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Illness / Operation Details</label>
-                                        <textarea className={styles.fieldTextarea} value={medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleMedicalChange('seriousIllnessOrSurgeryDetails', e.target.value)} />
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Hospitalization Details</label>
-                                        <textarea className={styles.fieldTextarea} value={medicalHistory.hospitalizationDetails} onChange={(e) => handleMedicalChange('hospitalizationDetails', e.target.value)} />
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Taking medication?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.isTakingMedication} onChange={(e) => handleMedicalChange('isTakingMedication', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Medications</label>
-                                        <textarea className={styles.fieldTextarea} value={medicalHistory.medications} onChange={(e) => handleMedicalChange('medications', e.target.value)} placeholder="Comma-separated values" />
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Uses tobacco?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.usesTobacco} onChange={(e) => handleMedicalChange('usesTobacco', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Uses alcohol or dangerous drugs?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.usesAlcoholOrDrugs} onChange={(e) => handleMedicalChange('usesAlcoholOrDrugs', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Has allergies?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.hasAllergies} onChange={(e) => handleMedicalChange('hasAllergies', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Bleeding Time</label>
-                                        <input className={styles.fieldInput} value={medicalHistory.bleedingTime} onChange={(e) => handleMedicalChange('bleedingTime', e.target.value)} />
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Blood Pressure</label>
-                                        <input className={styles.fieldInput} value={medicalHistory.bloodPressure} onChange={(e) => handleMedicalChange('bloodPressure', e.target.value)} />
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Pregnant?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.isPregnant} onChange={(e) => handleMedicalChange('isPregnant', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Nursing?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.isNursing} onChange={(e) => handleMedicalChange('isNursing', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Taking birth control pills?</label>
-                                        <select className={styles.fieldSelect} value={medicalHistory.takingBirthControl} onChange={(e) => handleMedicalChange('takingBirthControl', e.target.value)}>
-                                            {yesNoOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Allergies</label>
-                                        <div className={styles.checkboxGrid}>
-                                            {allergyOptions.map((option) => (
-                                                <label key={option} className={styles.checkboxCard}>
-                                                    <input type="checkbox" checked={medicalHistory.allergies.includes(option)} onChange={() => handleMedicalArrayToggle('allergies', option)} />
-                                                    <span>{option}</span>
+
+                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Data Privacy Act</h3>
+                                        <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
+                                            I authorize Dentime to collect, store, and process the patient&apos;s personal and health information for appointment handling, treatment documentation, follow-up care, and clinic operations in compliance with the Data Privacy Act of 2012.
+                                        </p>
+                                        <div className={styles.formGrid}>
+                                            <div className={styles.fieldGroup} data-field-key="dataPrivacyConsent_signerName">
+                                                <label className={styles.fieldLabel}>Signer Name{REQUIRED_MARK}</label>
+                                                <input className={`${styles.fieldInput} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} value={dataPrivacyConsent.signerName} onChange={(e) => handleConsentChange('privacy', 'signerName', e.target.value)} />
+                                                {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
+                                            </div>
+                                            <div className={styles.fieldGroup}>
+                                                <label className={styles.fieldLabel}>Signer Role{REQUIRED_MARK}</label>
+                                                <select className={styles.fieldSelect} value={dataPrivacyConsent.signerRole} onChange={(e) => handleConsentChange('privacy', 'signerRole', e.target.value)}>
+                                                    <option value="Patient">Patient</option>
+                                                    <option value="Parent">Parent</option>
+                                                    <option value="Guardian">Guardian</option>
+                                                </select>
+                                            </div>
+                                            <div className={styles.fieldGroup} data-field-key="dataPrivacyConsent_signedAt">
+                                                <label className={styles.fieldLabel}>Date Signed{REQUIRED_MARK}</label>
+                                                <input type="date" className={`${styles.fieldInput} ${errors.dataPrivacyConsent_signedAt ? styles.errorBorder : ''}`} value={dataPrivacyConsent.signedAt} onChange={(e) => handleConsentChange('privacy', 'signedAt', e.target.value)} max={getTodayDate()} />
+                                                {errors.dataPrivacyConsent_signedAt && <span className={styles.errorText}>{errors.dataPrivacyConsent_signedAt}</span>}
+                                            </div>
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="dataPrivacyConsent_acknowledged">
+                                                <label className={styles.consentCard}>
+                                                    <input type="checkbox" className={styles.consentCheckbox} checked={dataPrivacyConsent.acknowledged} onChange={(e) => handleConsentChange('privacy', 'acknowledged', e.target.checked)} />
+                                                    <span className={styles.consentText}>I acknowledge the data privacy consent.</span>
                                                 </label>
-                                            ))}
+                                                {errors.dataPrivacyConsent_acknowledged && <span className={styles.errorText}>{errors.dataPrivacyConsent_acknowledged}</span>}
+                                            </div>
                                         </div>
-                                        <input className={styles.fieldInput} style={{ marginTop: '12px' }} value={medicalHistory.allergyOther} onChange={(e) => handleMedicalChange('allergyOther', e.target.value)} placeholder="Other allergy" />
                                     </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Medical Conditions</label>
-                                        <div className={styles.checkboxGrid}>
-                                            {medicalConditionOptions.map((option) => (
-                                                <label key={option} className={styles.checkboxCard}>
-                                                    <input type="checkbox" checked={medicalHistory.conditions.includes(option)} onChange={() => handleMedicalArrayToggle('conditions', option)} />
-                                                    <span>{option}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                        <input className={styles.fieldInput} style={{ marginTop: '12px' }} value={medicalHistory.conditionOther} onChange={(e) => handleMedicalChange('conditionOther', e.target.value)} placeholder="Other condition" />
-                                    </div>
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Medical Notes</label>
-                                        <textarea className={styles.fieldTextarea} value={medicalHistory.notes} onChange={(e) => handleMedicalChange('notes', e.target.value)} />
-                                    </div>
-                                </div>
-                                </div>
-                            )}
 
-                            {!isPhoneCallPreRegistration && (
-                                <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Physician Information</h3>
-                                <div className={styles.formGrid}>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Physician Name</label>
-                                        <input className={styles.fieldInput} value={physician.name} onChange={(e) => handleContactChange(setPhysician, 'physician', 'name', e.target.value)} />
-                                    </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Specialty</label>
-                                        <select className={styles.fieldSelect} value={physician.specialty} onChange={(e) => handleContactChange(setPhysician, 'physician', 'specialty', e.target.value)}>
-                                            <option value="">Select specialty</option>
-                                            {PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                                        </select>
-                                    </div>
-                                    {physician.specialty === 'Other' && (
-                                        <div className={styles.fieldGroup}>
-                                            <label className={styles.fieldLabel}>Other Specialty</label>
-                                            <input className={`${styles.fieldInput} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={physician.specialtyOther} onChange={(e) => handleContactChange(setPhysician, 'physician', 'specialtyOther', e.target.value)} />
-                                            {errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}
+                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Digital Consent</h3>
+                                        <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
+                                            I confirm that the patient or authorized representative has reviewed the intake information, understands that treatment outcomes cannot be guaranteed, and accepts responsibility for the patient&apos;s dental treatment charges.
+                                        </p>
+                                        <div className={styles.formGrid}>
+                                            <div className={styles.fieldGroup} data-field-key="consentAcknowledgement_signerName">
+                                                <label className={styles.fieldLabel}>Signer Name{REQUIRED_MARK}</label>
+                                                <input className={`${styles.fieldInput} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`} value={consentAcknowledgement.signerName} onChange={(e) => handleConsentChange('consent', 'signerName', e.target.value)} />
+                                                {errors.consentAcknowledgement_signerName && <span className={styles.errorText}>{errors.consentAcknowledgement_signerName}</span>}
+                                            </div>
+                                            <div className={styles.fieldGroup}>
+                                                <label className={styles.fieldLabel}>Signer Role{REQUIRED_MARK}</label>
+                                                <select className={styles.fieldSelect} value={consentAcknowledgement.signerRole} onChange={(e) => handleConsentChange('consent', 'signerRole', e.target.value)}>
+                                                    <option value="Patient">Patient</option>
+                                                    <option value="Parent">Parent</option>
+                                                    <option value="Guardian">Guardian</option>
+                                                </select>
+                                            </div>
+                                            <div className={styles.fieldGroup} data-field-key="consentAcknowledgement_signedAt">
+                                                <label className={styles.fieldLabel}>Date Signed{REQUIRED_MARK}</label>
+                                                <input type="date" className={`${styles.fieldInput} ${errors.consentAcknowledgement_signedAt ? styles.errorBorder : ''}`} value={consentAcknowledgement.signedAt} onChange={(e) => handleConsentChange('consent', 'signedAt', e.target.value)} max={getTodayDate()} />
+                                                {errors.consentAcknowledgement_signedAt && <span className={styles.errorText}>{errors.consentAcknowledgement_signedAt}</span>}
+                                            </div>
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="consentAcknowledgement_acknowledged">
+                                                <button type="button" className={styles.secondaryBtn} onClick={() => setIsConsentModalOpen(true)} style={{ justifySelf: 'start' }}>
+                                                    {consentAcknowledgement.acknowledged ? 'Review Consent Again' : 'View Full Consent Form'}
+                                                </button>
+                                                <p className={styles.helperText} style={{ marginTop: '10px', color: consentAcknowledgement.acknowledged ? '#166534' : undefined }}>
+                                                    {consentAcknowledgement.acknowledged ? 'Consent reviewed and acknowledged.' : 'Please review the full consent form before submitting.'}
+                                                </p>
+                                                {errors.consentAcknowledgement_acknowledged && <span className={styles.errorText}>{errors.consentAcknowledgement_acknowledged}</span>}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                        <label className={styles.fieldLabel}>Office Address</label>
-                                        <input className={styles.fieldInput} value={physician.officeAddress} onChange={(e) => handleContactChange(setPhysician, 'physician', 'officeAddress', e.target.value)} />
                                     </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Office Number</label>
-                                        <div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}>
-                                            <span className={styles.phonePrefix}>+63</span>
-                                            <input className={styles.phoneField} value={physician.officeNumber} onChange={(e) => handlePhoneChange(setPhysician, 'physician', 'officeNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
-                                        </div>
-                                        {errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}
-                                    </div>
-                                </div>
-                                </div>
+                                </>
                             )}
 
                             <div className={styles.buttonRow}>
@@ -933,6 +1150,13 @@ export default function PreRegisterPage() {
                     )}
                 </div>
             </section>
+
+            <ConsentReviewModal
+                isOpen={isConsentModalOpen}
+                onClose={() => setIsConsentModalOpen(false)}
+                onConfirm={() => handleConsentChange('consent', 'acknowledged', true)}
+                initiallyAcknowledged={consentAcknowledgement.acknowledged}
+            />
         </WebsiteShell>
     );
 }

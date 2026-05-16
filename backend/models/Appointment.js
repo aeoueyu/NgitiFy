@@ -62,6 +62,14 @@ const guestDentalHistorySchema = new mongoose.Schema({
     hasConfidentialInfo: { type: Boolean, default: false },
 }, { _id: false });
 
+const guestConsentSchema = new mongoose.Schema({
+    acknowledged: { type: Boolean, default: false },
+    signerName: { type: String, trim: true, default: '' },
+    signerRole: { type: String, trim: true, default: '' },
+    signedAt: { type: Date, default: null },
+    version: { type: String, trim: true, default: '' },
+}, { _id: false });
+
 const guestProfileSchema = new mongoose.Schema({
     homePhone: { type: String, trim: true, default: '' },
     workPhone: { type: String, trim: true, default: '' },
@@ -92,6 +100,8 @@ const appointmentSchema = new mongoose.Schema({
     guestPhysician: guestPhysicianSchema,
     guestMedicalHistory: guestMedicalHistorySchema,
     guestDentalHistory: guestDentalHistorySchema,
+    guestConsentAcknowledgement: guestConsentSchema,
+    guestDataPrivacyConsent: guestConsentSchema,
     preRegistrationToken: { type: String },
     preRegistrationTokenExpiry: { type: Date },
     preRegistrationCompleted: { type: Boolean, default: false },

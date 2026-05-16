@@ -93,6 +93,23 @@ const buildFullName = ({ firstName, lastName }) => (
         .replace(/\s+/g, ' ')
 );
 
+const REQUIRED_FIELD_ORDER = [
+    'firstName',
+    'lastName',
+    'phone',
+    'email',
+    'birthdate',
+    'gender',
+    'branch',
+    'preferredDate',
+    'preferredTime',
+    'procedure',
+    'privacyConsent',
+    'turnstileToken',
+];
+
+const REQUIRED_MARK = <span style={{ color: '#dc2626' }}> *</span>;
+
 export default function WebsiteAppointment() {
     const {
         clinicInfo,
@@ -464,7 +481,18 @@ export default function WebsiteAppointment() {
         const nextErrors = validate(formData);
         setErrors(nextErrors);
 
-        if (Object.keys(nextErrors).length > 0) return;
+        if (Object.keys(nextErrors).length > 0) {
+            const firstErrorKey = REQUIRED_FIELD_ORDER.find((field) => nextErrors[field]) || Object.keys(nextErrors)[0];
+            window.requestAnimationFrame(() => {
+                const target = document.querySelector(`[data-field-key="${firstErrorKey}"]`);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const focusTarget = target.querySelector('input, select, textarea, button');
+                    focusTarget?.focus?.();
+                }
+            });
+            return;
+        }
 
         setIsSubmitting(true);
         setSubmittedMessage('');
@@ -594,8 +622,8 @@ export default function WebsiteAppointment() {
                         )}
 
                         <div className={styles.formGrid}>
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="firstName">First Name</label>
+                            <div className={styles.fieldGroup} data-field-key="firstName">
+                                <label className={styles.fieldLabel} htmlFor="firstName">First Name{REQUIRED_MARK}</label>
                                 <input
                                     id="firstName"
                                     name="firstName"
@@ -609,8 +637,8 @@ export default function WebsiteAppointment() {
                                 {errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}
                             </div>
 
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="lastName">Last Name</label>
+                            <div className={styles.fieldGroup} data-field-key="lastName">
+                                <label className={styles.fieldLabel} htmlFor="lastName">Last Name{REQUIRED_MARK}</label>
                                 <input
                                     id="lastName"
                                     name="lastName"
@@ -624,8 +652,8 @@ export default function WebsiteAppointment() {
                                 {errors.lastName && <span className={styles.errorText}>{errors.lastName}</span>}
                             </div>
 
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="phone">Phone</label>
+                            <div className={styles.fieldGroup} data-field-key="phone">
+                                <label className={styles.fieldLabel} htmlFor="phone">Phone{REQUIRED_MARK}</label>
                                 <div className={`${styles.phoneInputGroup} ${errors.phone ? styles.errorBorder : ''}`}>
                                     <span className={styles.phonePrefix}>+63</span>
                                     <input
@@ -644,8 +672,8 @@ export default function WebsiteAppointment() {
                                 {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                             </div>
 
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="email">Email</label>
+                            <div className={styles.fieldGroup} data-field-key="email">
+                                <label className={styles.fieldLabel} htmlFor="email">Email{REQUIRED_MARK}</label>
                                 <input
                                     id="email"
                                     type="email"
@@ -660,8 +688,8 @@ export default function WebsiteAppointment() {
                                 {errors.email && <span className={styles.errorText}>{errors.email}</span>}
                             </div>
 
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="birthdate">Date of Birth</label>
+                            <div className={styles.fieldGroup} data-field-key="birthdate">
+                                <label className={styles.fieldLabel} htmlFor="birthdate">Date of Birth{REQUIRED_MARK}</label>
                                 <input
                                     id="birthdate"
                                     type="date"
@@ -676,8 +704,8 @@ export default function WebsiteAppointment() {
                                 {errors.birthdate && <span className={styles.errorText}>{errors.birthdate}</span>}
                             </div>
 
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="gender">Gender</label>
+                            <div className={styles.fieldGroup} data-field-key="gender">
+                                <label className={styles.fieldLabel} htmlFor="gender">Gender{REQUIRED_MARK}</label>
                                 <select
                                     id="gender"
                                     name="gender"
@@ -696,8 +724,8 @@ export default function WebsiteAppointment() {
                                 {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
                             </div>
 
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="branch">Branch</label>
+                            <div className={styles.fieldGroup} data-field-key="branch">
+                                <label className={styles.fieldLabel} htmlFor="branch">Branch{REQUIRED_MARK}</label>
                                 <select
                                     id="branch"
                                     name="branch"
@@ -715,8 +743,8 @@ export default function WebsiteAppointment() {
                                 {errors.branch && <span className={styles.errorText}>{errors.branch}</span>}
                             </div>
 
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="preferredDate">Preferred Date</label>
+                            <div className={styles.fieldGroup} data-field-key="preferredDate">
+                                <label className={styles.fieldLabel} htmlFor="preferredDate">Preferred Date{REQUIRED_MARK}</label>
                                 <input
                                     id="preferredDate"
                                     type="date"
@@ -734,8 +762,8 @@ export default function WebsiteAppointment() {
                                 )}
                             </div>
 
-                            <div className={styles.fieldGroup}>
-                                <label className={styles.fieldLabel} htmlFor="procedure">Procedure</label>
+                            <div className={styles.fieldGroup} data-field-key="procedure">
+                                <label className={styles.fieldLabel} htmlFor="procedure">Procedure{REQUIRED_MARK}</label>
                                 <select
                                     id="procedure"
                                     name="procedure"
@@ -753,8 +781,8 @@ export default function WebsiteAppointment() {
                                 <p className={styles.helperText}>{appointmentContent.procedureHelperText}</p>
                             </div>
 
-                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                <label className={styles.fieldLabel}>Preferred Time</label>
+                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="preferredTime">
+                                <label className={styles.fieldLabel}>Preferred Time{REQUIRED_MARK}</label>
                                 {!formData.preferredDate ? (
                                     <p className={styles.helperText}>Select a date first to view available time slots.</p>
                                 ) : loadingSlots ? (
@@ -798,7 +826,7 @@ export default function WebsiteAppointment() {
                                 <span className={styles.helperText}>{appointmentContent.notesHelperText}</span>
                             </div>
 
-                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
+                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="privacyConsent">
                                 <label
                                     className={`${styles.consentCard} ${errors.privacyConsent ? styles.errorBorder : ''}`}
                                     htmlFor="privacyConsent"
@@ -826,8 +854,8 @@ export default function WebsiteAppointment() {
                                 {errors.privacyConsent && <span className={styles.errorText}>{errors.privacyConsent}</span>}
                             </div>
 
-                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                <label className={styles.fieldLabel}>Captcha Verification</label>
+                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="turnstileToken">
+                                <label className={styles.fieldLabel}>Captcha Verification{REQUIRED_MARK}</label>
                                 <div className={`${styles.captchaCard} ${errors.turnstileToken ? styles.errorBorder : ''}`}>
                                     <div ref={turnstileContainerRef} />
                                     {!captchaReady && TURNSTILE_SITE_KEY && (
