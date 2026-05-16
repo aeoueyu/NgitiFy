@@ -689,6 +689,13 @@
     border: 1px solid var(--border);
 }
 
+.noteSection {
+    padding: 16px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+}
+
 .surfaceSectionHeader {
     display: flex;
     justify-content: space-between;
@@ -759,6 +766,34 @@
     color: #334155;
     line-height: 1.45;
     text-align: left;
+}
+
+.noteTextarea {
+    width: 100%;
+    min-height: 108px;
+    resize: vertical;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #f8fbfd;
+    color: #0f172a;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    outline: none;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.noteTextarea:focus {
+    border-color: rgba(1, 83, 139, 0.34);
+    box-shadow: 0 0 0 3px rgba(45, 204, 246, 0.12);
+}
+
+.workflowHint {
+    margin: 12px 0 0;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--muted);
 }
 
 .modalButtonGroup {

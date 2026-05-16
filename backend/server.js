@@ -8919,6 +8919,128 @@ const pickPreferredOdontogramFinding = (findings, activeFindingId) => {
     return findings[findings.length - 1] || null;
 };
 
+const buildOdontogramFindingSnapshot = (finding) => {
+    if (!finding || !finding.status || finding.status === 'healthy') return null;
+
+    return {
+        id: finding.id ? String(finding.id) : '',
+        status: normalizeOdontogramStatus(finding.status),
+        stage: normalizeOdontogramStage(finding.stage || 'existing'),
+        surfaces: sanitizeOdontogramSurfaces(finding.surfaces),
+        note: typeof finding.note === 'string' ? finding.note.trim() : '',
+        updatedAt: finding.updatedAt ? new Date(finding.updatedAt) : new Date(),
+    };
+};
+
+const areSameOdontogramFindings = (left, right) => {
+    const leftSnapshot = buildOdontogramFindingSnapshot(left);
+    const rightSnapshot = buildOdontogramFindingSnapshot(right);
+
+    if (!leftSnapshot && !rightSnapshot) return true;
+    if (!leftSnapshot || !rightSnapshot) return false;
+
+    return leftSnapshot.status === rightSnapshot.status
+        && leftSnapshot.stage === rightSnapshot.stage
+        && leftSnapshot.note === rightSnapshot.note
+        && leftSnapshot.surfaces.join('|') === rightSnapshot.surfaces.join('|');
+};
+
+const mergeOdontogramEntryWithPrevious = (previousEntry, nextEntry) => {
+    const normalizedPreviousEntry = normalizeOdontogramEntry(previousEntry);
+    const normalizedNextEntry = normalizeOdontogramEntry(nextEntry);
+
+    const previousFindingsByStage = Object.fromEntries(
+        ODONTOGRAM_STAGE_ORDER.map((stageKey) => [stageKey, getLatestFindingForStage(normalizedPreviousEntry.findings || [], stageKey)])
+    );
+
+    const mergedFindings = ODONTOGRAM_STAGE_ORDER
+        .map((stageKey) => {
+            const nextFinding = getLatestFindingForStage(normalizedNextEntry.findings || [], stageKey);
+            if (!nextFinding) return null;
+
+            const previousFinding = previousFindingsByStage[stageKey];
+            if (previousFinding && areSameOdontogramFindings(previousFinding, nextFinding)) {
+                return {
+                    ...nextFinding,
+                    id: previousFinding.id,
+                    updatedAt: previousFinding.updatedAt,
+                };
+            }
+
+            return {
+                ...nextFinding,
+                updatedAt: nextFinding.updatedAt ? new Date(nextFinding.updatedAt) : new Date(),
+            };
+        })
+        .filter(Boolean);
+
+    const activeFinding = pickPreferredOdontogramFinding(mergedFindings, normalizedNextEntry.activeFindingId);
+    if (!activeFinding) return buildHealthyOdontogramEntry();
+
+    return {
+        status: activeFinding.status,
+        surfaces: activeFinding.surfaces,
+        stage: activeFinding.stage,
+        activeFindingId: activeFinding.id,
+        findings: mergedFindings.map((finding) => ({
+            id: finding.id,
+            status: finding.status,
+            surfaces: finding.surfaces,
+            stage: finding.stage,
+            note: finding.note,
+            updatedAt: finding.updatedAt,
+        })),
+    };
+};
+
+const formatOdontogramActorName = (actor) => {
+    if (!actor) return 'Unknown user';
+    if (actor.name?.first || actor.name?.last) {
+        return [actor.name.first, actor.name.middle, actor.name.last].filter(Boolean).join(' ');
+    }
+    if (typeof actor.name === 'string' && actor.name.trim()) return actor.name.trim();
+    return actor.email || actor.id || 'Unknown user';
+};
+
+const buildOdontogramLogsFromDiff = ({ tooth, previousEntry, nextEntry, actor }) => {
+    const previousNormalized = normalizeOdontogramEntry(previousEntry);
+    const nextNormalized = normalizeOdontogramEntry(nextEntry);
+    const logs = [];
+
+    ODONTOGRAM_STAGE_ORDER.forEach((stageKey) => {
+        const previousFinding = buildOdontogramFindingSnapshot(
+            getLatestFindingForStage(previousNormalized.findings || [], stageKey)
+        );
+        const nextFinding = buildOdontogramFindingSnapshot(
+            getLatestFindingForStage(nextNormalized.findings || [], stageKey)
+        );
+
+        if (!previousFinding && !nextFinding) return;
+        if (areSameOdontogramFindings(previousFinding, nextFinding)) return;
+
+        let eventType = 'updated';
+        if (!previousFinding && nextFinding) eventType = 'created';
+        if (previousFinding && !nextFinding) eventType = 'cleared';
+
+        logs.push({
+            tooth: String(tooth),
+            stage: stageKey,
+            eventType,
+            statusBefore: previousFinding?.status || '',
+            statusAfter: nextFinding?.status || '',
+            surfacesBefore: previousFinding?.surfaces || [],
+            surfacesAfter: nextFinding?.surfaces || [],
+            noteBefore: previousFinding?.note || '',
+            noteAfter: nextFinding?.note || '',
+            updatedById: actor?.id || null,
+            updatedByName: formatOdontogramActorName(actor),
+            updatedByRole: actor?.role || '',
+        });
+    });
+
+    return logs;
+};
+
 const normalizeOdontogramEntry = (raw) => {
     if (!raw) return buildHealthyOdontogramEntry();
 
@@ -9020,6 +9142,40 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
     }
 });
 
+app.get('/api/patients/:id/odontogram-logs', verifyToken, async (req, res) => {
+    try {
+        const patient = await User.findById(req.params.id).select('odontogramLogs name assignedBranch assignedBranches');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (req.user.role === 'patient' && String(req.params.id) !== String(req.user.id)) {
+            return res.status(403).json({ message: 'Access denied. Patients can only view their own odontogram history.' });
+        }
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
+
+        if (req.user.role === 'dentist') {
+            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
+
+        const sortedLogs = [...(patient.odontogramLogs || [])].sort(
+            (left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0)
+        );
+
+        res.json(sortedLogs);
+    } catch (error) {
+        console.error('Error fetching odontogram logs:', error);
+        res.status(500).json({ message: 'Server error fetching odontogram history.' });
+    }
+});
+
 
 // -------------------------------------------------------
 // ODONTOGRAM: SAVE / UPDATE the tooth chart for a patient
@@ -9047,16 +9203,33 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
         }
 
         if (!patient.odontogram) patient.odontogram = new Map();
+        if (!Array.isArray(patient.odontogramLogs)) patient.odontogramLogs = [];
+        const newLogs = [];
 
         Object.entries(normalizedPayload.value).forEach(([tooth, entry]) => {
-            if (!entry.findings || entry.findings.length === 0) {
+            const previousEntry = normalizeOdontogramEntry(patient.odontogram.get(tooth));
+            const mergedEntry = mergeOdontogramEntryWithPrevious(previousEntry, entry);
+
+            newLogs.push(...buildOdontogramLogsFromDiff({
+                tooth,
+                previousEntry,
+                nextEntry: mergedEntry,
+                actor: req.user,
+            }));
+
+            if (!mergedEntry.findings || mergedEntry.findings.length === 0) {
                 patient.odontogram.delete(tooth);
                 return;
             }
-            patient.odontogram.set(tooth, entry);
+            patient.odontogram.set(tooth, mergedEntry);
         });
 
+        if (newLogs.length > 0) {
+            patient.odontogramLogs.push(...newLogs);
+        }
+
         patient.markModified('odontogram');
+        patient.markModified('odontogramLogs');
         await patient.save();
 
         await AuditLog.create({
@@ -9298,6 +9471,24 @@ app.get('/api/my/odontogram', verifyToken, async (req, res) => {
         res.json(odontogramObj);
     } catch (error) {
         console.error('Error fetching own odontogram:', error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+app.get('/api/my/odontogram-logs', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+        const patient = await User.findById(req.user.id).select('odontogramLogs');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const sortedLogs = [...(patient.odontogramLogs || [])].sort(
+            (left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0)
+        );
+        res.json(sortedLogs);
+    } catch (error) {
+        console.error('Error fetching own odontogram logs:', error);
         res.status(500).json({ message: 'Server error.' });
     }
 });

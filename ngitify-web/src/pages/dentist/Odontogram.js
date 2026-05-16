@@ -504,6 +504,47 @@ const viewRowsForTooth = (toothNumber) => (
     isUpperTooth(toothNumber) ? ['front', 'top', 'back'] : ['back', 'top', 'front']
 );
 
+const getFindingNotePlaceholder = (statusKey, stageKey) => {
+    if (stageKey === 'planned') {
+        if (statusKey === 'decayed') return 'Example: Extraction planned for next week pending patient confirmation.';
+        if (statusKey === 'fractured') return 'Example: Crown build-up planned after radiograph review.';
+        if (statusKey === 'mobility') return 'Example: Periodontal reassessment in 2 weeks before final treatment.';
+        return 'Add the planned procedure, expected timing, or patient preference for this tooth.';
+    }
+
+    if (stageKey === 'completed') {
+        return 'Add the completed procedure details, outcome, or important aftercare note.';
+    }
+
+    return 'Add a short clinical note about the current finding, severity, or follow-up need.';
+};
+
+const getWorkflowSuggestion = (statusKey, stageKey) => {
+    if (statusKey === 'decayed') {
+        if (stageKey === 'planned') return 'Common next steps: restoration if restorable, root canal if pulpal involvement, extraction if non-restorable.';
+        if (stageKey === 'completed') return 'Completed updates usually end as filled, root-canal, crown, extraction-site, or missing depending on the final treatment.';
+        return 'Use the existing stage for the current diagnosis, then document the chosen treatment under planned or completed.';
+    }
+
+    if (statusKey === 'fractured') {
+        return 'Typical pathway: assess depth first, then plan restoration, crown, root canal, or extraction based on restorability.';
+    }
+
+    if (statusKey === 'mobility') {
+        return 'Typical pathway: record the current mobility, then plan periodontal treatment, splinting, or extraction if prognosis is poor.';
+    }
+
+    if (statusKey === 'missing' || statusKey === 'extraction-site') {
+        return 'After extraction or tooth loss, the next planned stage is often healing review, prosthesis, bridge, or implant evaluation.';
+    }
+
+    if (statusKey === 'under-observation') {
+        return 'Observation entries work best when the note explains what will trigger treatment or re-evaluation.';
+    }
+
+    return 'Use existing for the current condition, planned for the intended procedure, and completed once the actual treatment is finished.';
+};
+
 const buildDraftMapFromToothData = (toothData) => Object.fromEntries(
     FINDING_STAGE_ORDER.map((stageKey) => {
         const existingFinding = getFindingForStage(toothData.findings, stageKey);
@@ -1070,7 +1111,7 @@ function ArchChart({
     );
 }
 
-export default function Odontogram({ patientId, readOnly = false, documentMode = false }) {
+export default function Odontogram({ patientId, readOnly = false, documentMode = false, onOdontogramSaved }) {
     const { addToast } = useToast();
 
     const [chartData, setChartData] = useState({});
@@ -1142,6 +1183,13 @@ export default function Odontogram({ patientId, readOnly = false, documentMode =
                 [tempStage]: nextDraft,
             };
         });
+    };
+
+    const updateCurrentNote = (value) => {
+        updateCurrentDraft((draft) => ({
+            ...draft,
+            note: value,
+        }));
     };
 
     const setStatus = (nextStatus) => {
@@ -1225,6 +1273,10 @@ export default function Odontogram({ patientId, readOnly = false, documentMode =
                 ...previous,
                 [selectedTooth]: payloadEntry,
             }));
+
+            if (typeof onOdontogramSaved === 'function') {
+                onOdontogramSaved();
+            }
 
             addToast(`Tooth ${selectedTooth} updated successfully.`, 'success');
             setSelectedTooth(null);
@@ -1491,6 +1543,28 @@ export default function Odontogram({ patientId, readOnly = false, documentMode =
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+
+                                <div className={styles.noteSection}>
+                                    <div className={styles.surfaceSectionHeader}>
+                                        <div>
+                                            <p className={styles.surfaceSectionEyebrow}>Clinical Note</p>
+                                            <h4 className={styles.surfaceSectionTitle}>Stage note</h4>
+                                        </div>
+                                        <span className={styles.surfaceSectionNote}>
+                                            Saved to odontogram history
+                                        </span>
+                                    </div>
+                                    <textarea
+                                        className={styles.noteTextarea}
+                                        value={currentDraft.note || ''}
+                                        onChange={(event) => updateCurrentNote(event.target.value)}
+                                        placeholder={getFindingNotePlaceholder(currentDraft.status, tempStage)}
+                                        rows={4}
+                                    />
+                                    <p className={styles.workflowHint}>
+                                        {getWorkflowSuggestion(currentDraft.status, tempStage)}
+                                    </p>
                                 </div>
                             </div>
                         </div>

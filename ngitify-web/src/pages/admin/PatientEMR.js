@@ -100,6 +100,18 @@ const formatLongDate = (value) => {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? 'Not specified' : formatDateLong(parsed);
 };
+const formatDateTimeLong = (value) => {
+    if (!value) return 'Not specified';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return 'Not specified';
+    return parsed.toLocaleString('en-PH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+};
 const formatYesNoValue = (value) => {
     if (value === true || value === 'yes') return 'Yes';
     if (value === false || value === 'no') return 'No';
@@ -223,6 +235,60 @@ const buildPrintDetailTableRows = (rows = []) => {
     return groupedRows;
 };
 
+const ODONTOGRAM_STAGE_LABELS = {
+    existing: 'Existing',
+    planned: 'Planned',
+    completed: 'Completed',
+};
+
+const ODONTOGRAM_STATUS_LABELS = {
+    healthy: 'Healthy',
+    filled: 'Filled',
+    decayed: 'Caries / Decayed',
+    crown: 'Crown',
+    implant: 'Implant',
+    bridge: 'Bridge Pontic',
+    'extraction-site': 'Extraction Site',
+    missing: 'Missing',
+    mobility: 'Mobility',
+    fractured: 'Fractured',
+    'root-canal': 'Root Canal',
+    'under-observation': 'Under Observation',
+};
+
+const ODONTOGRAM_WORKFLOW_GUIDE = [
+    {
+        title: 'Decayed tooth',
+        detail: 'Record the current caries as existing, then use planned for restoration, root canal, or extraction depending on restorability. Once done, update completed to the final result such as filled, root-canal, extraction-site, or missing.',
+    },
+    {
+        title: 'Fractured tooth',
+        detail: 'Start with the fracture as the current finding, then plan the definitive treatment after radiograph and restorability assessment. Completed can end as restoration, crown, root canal, or extraction.',
+    },
+    {
+        title: 'Mobility or periodontal concern',
+        detail: 'Use existing for the current condition, planned for periodontal therapy, splinting, or reassessment, and completed only after the actual intervention or final extraction decision is done.',
+    },
+    {
+        title: 'Extraction or missing tooth',
+        detail: 'After removal, mark the result as completed and use planned notes for the next step such as healing review, bridge, denture, or implant evaluation.',
+    },
+];
+
+const getOdontogramStatusLabel = (statusKey) => ODONTOGRAM_STATUS_LABELS[statusKey] || (statusKey ? String(statusKey) : 'Not specified');
+const getOdontogramStageLabel = (stageKey) => ODONTOGRAM_STAGE_LABELS[stageKey] || 'Stage';
+const formatSurfaceList = (surfaces) => Array.isArray(surfaces) && surfaces.length > 0 ? surfaces.join(', ') : 'Whole tooth / none specified';
+
+const buildOdontogramLogHeadline = (log) => {
+    const stageLabel = getOdontogramStageLabel(log.stage).toLowerCase();
+    const nextLabel = getOdontogramStatusLabel(log.statusAfter);
+    const previousLabel = getOdontogramStatusLabel(log.statusBefore);
+
+    if (log.eventType === 'created') return `${stageLabel} finding recorded as ${nextLabel}`;
+    if (log.eventType === 'cleared') return `${stageLabel} finding cleared from ${previousLabel}`;
+    return `${stageLabel} finding updated to ${nextLabel}`;
+};
+
 const renderInfoBlock = (stylesRef, label, value, extraClassName = '') => (
     <div className={`${stylesRef.infoBlock} ${extraClassName}`.trim()}>
         <span className={stylesRef.infoLabel}>{label}</span>
@@ -286,6 +352,8 @@ export default function PatientEMR({
         branchId: '',
     });
     const [expandedLogRows, setExpandedLogRows] = useState({});
+    const [odontogramLogs, setOdontogramLogs] = useState([]);
+    const [expandedOdontogramLogRows, setExpandedOdontogramLogRows] = useState({});
 
     // Tab: Radiograph States
     const [radiographs, setRadiographs] = useState([]);
@@ -309,6 +377,32 @@ export default function PatientEMR({
     const patientRecordFilename = patient?.name?.first || patient?.name?.last
         ? `DentimeDentalClinicPxRecord_${sanitizeFilenamePart(patient?.name?.last)}${sanitizeFilenamePart(patient?.name?.first)}`
         : `DentimeDentalClinicPxRecord_${sanitizeFilenamePart(patientFullName) || 'PatientRecord'}`;
+
+    const loadOdontogramLogs = async (patientIdToLoad) => {
+        if (!patientIdToLoad) {
+            setOdontogramLogs([]);
+            return;
+        }
+
+        try {
+            const { authFetch } = await import('../../utils/api');
+            const response = await authFetch(`/patients/${patientIdToLoad}/odontogram-logs`);
+            if (!response.ok) {
+                throw new Error((await response.json()).message || 'Failed to load odontogram history.');
+            }
+
+            const data = await response.json();
+            const normalized = data.map((log) => ({
+                ...log,
+                id: log._id || log.id,
+                rawCreatedAt: new Date(log.createdAt || log.updatedAt || Date.now()),
+            }));
+            setOdontogramLogs(normalized.sort((a, b) => b.rawCreatedAt - a.rawCreatedAt));
+        } catch (error) {
+            console.error('Error fetching odontogram history:', error);
+            addToast(error.message || 'Failed to load odontogram history.', 'error');
+        }
+    };
 
     useEffect(() => {
         if (effectiveRole === 'patient' || isReadOnly) {
@@ -403,6 +497,17 @@ export default function PatientEMR({
                     const radData = await radRes.json();
                     const normalizedRads = radData.map(normalizeRadiographRecord);
                     setRadiographs(normalizedRads);
+                }
+
+                const odontogramLogsRes = await authFetch(`/patients/${activePatientId}/odontogram-logs`);
+                if (odontogramLogsRes.ok) {
+                    const odontogramLogsData = await odontogramLogsRes.json();
+                    const normalizedOdontogramLogs = odontogramLogsData.map((log) => ({
+                        ...log,
+                        id: log._id || log.id,
+                        rawCreatedAt: new Date(log.createdAt || log.updatedAt || Date.now()),
+                    }));
+                    setOdontogramLogs(normalizedOdontogramLogs.sort((a, b) => b.rawCreatedAt - a.rawCreatedAt));
                 }
 
             } catch (e) {
@@ -1560,6 +1665,10 @@ export default function PatientEMR({
         setExpandedLogRows((prev) => ({ ...prev, [logId]: !prev[logId] }));
     };
 
+    const toggleOdontogramLogRow = (logId) => {
+        setExpandedOdontogramLogRows((prev) => ({ ...prev, [logId]: !prev[logId] }));
+    };
+
     const normalizedLogRange = (() => {
         if (logsRangeFilter === 'all') {
             return { from: '', to: '' };
@@ -2073,7 +2182,112 @@ export default function PatientEMR({
                     {canEditOdontogram ? 'Interactive Odontogram' : 'Odontogram'}
                 </h3>
             </div>
-            <Odontogram patientId={activePatientId} readOnly={!canEditOdontogram} /> 
+            <Odontogram
+                patientId={activePatientId}
+                readOnly={!canEditOdontogram}
+                onOdontogramSaved={() => loadOdontogramLogs(activePatientId)}
+            />
+
+            <div className={styles.contentCard} style={{ marginTop: '22px', background: '#fcfdff' }}>
+                <div className={styles.sectionHeaderRow} style={{ marginBottom: '18px' }}>
+                    <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Odontogram History</h3>
+                </div>
+
+                {odontogramLogs.length > 0 ? (
+                    <div className={styles.timeline}>
+                        {odontogramLogs.map((log) => {
+                            const logId = log.id;
+                            const isExpanded = !!expandedOdontogramLogRows[logId];
+                            const stageLabel = getOdontogramStageLabel(log.stage);
+                            const statusAfterLabel = log.statusAfter ? getOdontogramStatusLabel(log.statusAfter) : 'Cleared';
+                            const statusBeforeLabel = log.statusBefore ? getOdontogramStatusLabel(log.statusBefore) : 'None';
+
+                            return (
+                                <div key={logId} className={styles.timelineItem}>
+                                    <span className={styles.timelineDot}></span>
+                                    <div className={styles.timelineCard}>
+                                        <div className={styles.timelineHeader}>
+                                            <div className={styles.timelineMain}>
+                                                <p className={styles.timelineDate}>{formatDateTimeLong(log.rawCreatedAt)}</p>
+                                                <p className={styles.timelineProcedure}>
+                                                    Tooth {log.tooth}: {buildOdontogramLogHeadline(log)}
+                                                </p>
+                                                <div className={styles.timelineMeta}>
+                                                    <span className={styles.metaTag}>{stageLabel}</span>
+                                                    <span className={styles.metaTag}>{statusAfterLabel}</span>
+                                                    <span className={styles.metaTag}>{log.updatedByName || log.updatedByRole || 'Staff update'}</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className={styles.expandBtn}
+                                                onClick={() => toggleOdontogramLogRow(logId)}
+                                            >
+                                                {isExpanded ? 'Hide' : 'View'}
+                                            </button>
+                                        </div>
+
+                                        {isExpanded && (
+                                            <div className={styles.timelineDetails}>
+                                                <div className={styles.expandedDetailGrid}>
+                                                    <div>
+                                                        <span className={styles.expandedDetailLabel}>Update Type</span>
+                                                        <p className={styles.expandedDetailValue}>{log.eventType || 'updated'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className={styles.expandedDetailLabel}>Updated By</span>
+                                                        <p className={styles.expandedDetailValue}>{log.updatedByName || 'Not specified'}{log.updatedByRole ? ` (${log.updatedByRole})` : ''}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className={styles.expandedDetailLabel}>Previous Status</span>
+                                                        <p className={styles.expandedDetailValue}>{statusBeforeLabel}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className={styles.expandedDetailLabel}>New Status</span>
+                                                        <p className={styles.expandedDetailValue}>{statusAfterLabel}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className={styles.expandedDetailLabel}>Previous Surfaces</span>
+                                                        <p className={styles.expandedDetailValue}>{formatSurfaceList(log.surfacesBefore)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className={styles.expandedDetailLabel}>New Surfaces</span>
+                                                        <p className={styles.expandedDetailValue}>{formatSurfaceList(log.surfacesAfter)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className={styles.expandedDetailLabel}>Previous Note</span>
+                                                        <p className={styles.expandedDetailValue}>{log.noteBefore || 'None'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className={styles.expandedDetailLabel}>New Note</span>
+                                                        <p className={styles.expandedDetailValue}>{log.noteAfter || 'None'}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className={styles.emptyState}>No odontogram updates have been recorded yet.</div>
+                )}
+            </div>
+
+            <div className={styles.contentCard} style={{ marginTop: '22px' }}>
+                <div className={styles.sectionHeaderRow} style={{ marginBottom: '18px' }}>
+                    <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Suggested Tooth Workflow</h3>
+                </div>
+                <div className={styles.infoGrid}>
+                    {ODONTOGRAM_WORKFLOW_GUIDE.map((item) => (
+                        <div key={item.title} className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>{item.title}</span>
+                            <p className={styles.infoValue}>{item.detail}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 

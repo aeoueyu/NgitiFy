@@ -44,6 +44,29 @@ const radiographSchema = new mongoose.Schema({
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
+const odontogramLogSchema = new mongoose.Schema({
+    tooth: { type: String, required: true },
+    stage: {
+        type: String,
+        enum: ['existing', 'planned', 'completed'],
+        required: true,
+    },
+    eventType: {
+        type: String,
+        enum: ['created', 'updated', 'cleared'],
+        required: true,
+    },
+    statusBefore: { type: String, default: '' },
+    statusAfter: { type: String, default: '' },
+    surfacesBefore: [{ type: String }],
+    surfacesAfter: [{ type: String }],
+    noteBefore: { type: String, default: '' },
+    noteAfter: { type: String, default: '' },
+    updatedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    updatedByName: { type: String, default: '' },
+    updatedByRole: { type: String, default: '' },
+}, { timestamps: true });
+
 const userSchema = new mongoose.Schema({
     // 1. NESTED NAME OBJECT
     name: {
@@ -186,6 +209,8 @@ const userSchema = new mongoose.Schema({
         of: mongoose.Schema.Types.Mixed,
         default: {}
     },
+
+    odontogramLogs: [odontogramLogSchema],
 
     // ✅ PHASE 2: Radiograph images embedded in patient document
     radiographs: [radiographSchema],
