@@ -44,6 +44,18 @@ const PH_HOLIDAYS = [
     { month: 11, day: 31, name: "New Year's Eve" }
 ];
 
+const getAppointmentPatientName = (appointment) => {
+    const first = appointment.patient?.name?.first || '';
+    const last = appointment.patient?.name?.last || '';
+    const registeredPatientName = `${first} ${last}`.trim();
+
+    return registeredPatientName
+        || appointment.guestName
+        || appointment.patient?.email
+        || appointment.guestEmail
+        || 'Unknown Patient';
+};
+
 export default function AdminDashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate(); 
@@ -137,11 +149,8 @@ export default function AdminDashboard() {
                     const surgData = await surgRes.json();
                     
                     const mappedAllAppts = surgData.map(s => {
-                        const first = s.patient?.name?.first || '';
-                        const last  = s.patient?.name?.last  || '';
-                        const fullName = (first + ' ' + last).trim() || s.patient?.email || 'Unknown Patient';
                         return {
-                            name: fullName,
+                            name: getAppointmentPatientName(s),
                             type: s.procedure || 'Consultation',
                             time: formatTime(s.date || s.createdAt),
                             status: s.status || 'Pending',

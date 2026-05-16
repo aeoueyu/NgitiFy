@@ -34,11 +34,21 @@ const startOfDay = (value) => {
     return date;
 };
 
+const getAppointmentPatientName = (entry) => {
+    const registeredPatientName = entry.patient?.name
+        ? `${entry.patient.name.first || ''} ${entry.patient.name.last || ''}`.trim()
+        : '';
+
+    return registeredPatientName
+        || entry.guestName
+        || entry.patient?.email
+        || entry.guestEmail
+        || 'Unknown Patient';
+};
+
 const normalizeAppointment = (entry) => ({
     id: entry._id,
-    patientName: entry.patient?.name
-        ? `${entry.patient.name.first || ''} ${entry.patient.name.last || ''}`.trim()
-        : (entry.guestName || 'Unknown Patient'),
+    patientName: getAppointmentPatientName(entry),
     dentistName: entry.dentist?.name
         ? `Dr. ${entry.dentist.name.first || ''} ${entry.dentist.name.last || ''}`.trim()
         : 'Unassigned',
