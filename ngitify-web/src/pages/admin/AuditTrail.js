@@ -341,15 +341,15 @@ export default function AuditTrail() {
                 </div>
             </div>
 
-            <div className={`${scheduleStyles.tableContainer} ${wideTable.tableWrapper}`}>
-                <table className={wideTable.table}>
+            <div className={`${scheduleStyles.tableContainer} ${wideTable.tableWrapper}`} style={{ overflowX: 'auto', overflowY: 'hidden' }}>
+                <table className={wideTable.table} style={{ '--wide-table-min-width': '1460px' }}>
                     <thead>
                         <tr>
-                            <th style={{ minWidth: '170px' }}>Date</th>
-                            <th style={{ minWidth: '220px' }}>User</th>
-                            <th style={{ minWidth: '170px' }}>Role</th>
-                            <th style={{ minWidth: '220px' }}>Action</th>
-                            <th style={{ minWidth: '420px' }}>Details</th>
+                            <th style={{ minWidth: '190px' }}>Date</th>
+                            <th style={{ minWidth: '260px' }}>User</th>
+                            <th style={{ minWidth: '220px' }}>Role</th>
+                            <th style={{ minWidth: '260px' }}>Action</th>
+                            <th style={{ minWidth: '680px' }}>Details</th>
                         </tr>
                     </thead>
                     <tbody>

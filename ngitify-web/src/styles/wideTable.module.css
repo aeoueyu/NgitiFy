@@ -1,7 +1,8 @@
 .tableWrapper {
+    display: block;
     width: 100%;
     max-width: 100%;
-    overflow-x: auto;
+    overflow-x: auto !important;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     border: 1px solid #dbe6f1;
@@ -11,19 +12,19 @@
 }
 
 .table {
-    width: max-content;
-    min-width: 100%;
+    width: max-content !important;
+    min-width: max(100%, var(--wide-table-min-width, 100%)) !important;
     border-collapse: collapse;
-    table-layout: auto;
+    table-layout: auto !important;
 }
 
 .table th,
 .table td {
-    white-space: nowrap;
+    white-space: nowrap !important;
     padding: 12px 14px;
     border-bottom: 1px solid #edf3f8;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: visible !important;
+    text-overflow: clip !important;
     vertical-align: middle;
 }
 

@@ -277,14 +277,14 @@ export default function SharedActivityLogs() {
                 </div>
             </div>
 
-            <div className={`${scheduleStyles.tableContainer} ${wideTable.tableWrapper}`}>
-                <table className={wideTable.table}>
+            <div className={`${scheduleStyles.tableContainer} ${wideTable.tableWrapper}`} style={{ overflowX: 'auto', overflowY: 'hidden' }}>
+                <table className={wideTable.table} style={{ '--wide-table-min-width': '1280px' }}>
                     <thead>
                         <tr>
-                            <th style={{ minWidth: '170px' }}>Date</th>
-                            <th style={{ minWidth: '220px' }}>Action</th>
-                            <th style={{ minWidth: '180px' }}>Category</th>
-                            <th style={{ minWidth: '420px' }}>Details</th>
+                            <th style={{ minWidth: '190px' }}>Date</th>
+                            <th style={{ minWidth: '260px' }}>Action</th>
+                            <th style={{ minWidth: '220px' }}>Category</th>
+                            <th style={{ minWidth: '610px' }}>Details</th>
                         </tr>
                     </thead>
                     <tbody>
