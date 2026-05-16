@@ -5,7 +5,8 @@ import {
     FaEye,
     FaFilter,
     FaCheck,
-    FaFileExport,
+    FaDownload,
+    FaFilePdf,
     FaPlus,
     FaSearch,
     FaTimes,
@@ -485,8 +486,8 @@ export default function SchedulePage() {
     const [customDateFrom, setCustomDateFrom] = useState(getTodayString());
     const [customDateTo, setCustomDateTo] = useState(getTodayString());
     const [searchQuery, setSearchQuery] = useState('');
-    const [workflowFilter, setWorkflowFilter] = useState('needs-action');
-    const [statusFilter, setStatusFilter] = useState(NEEDS_ACTION_STATUS_VALUES);
+    const [workflowFilter, setWorkflowFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState(ALL_STATUS_VALUES);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
     const [typeFilter, setTypeFilter] = useState('all');
     const [patientFilter, setPatientFilter] = useState('');
@@ -577,15 +578,6 @@ export default function SchedulePage() {
         setStatusFilter(matchedPreset.statuses);
         setIsStatusMenuOpen(false);
     }, []);
-
-    const spotlightStatusFilter = useCallback((value) => {
-        const nextStatuses = statusFilter.length === 1 && statusFilter[0] === value
-            ? ALL_STATUS_VALUES
-            : [value];
-        setStatusFilter(nextStatuses);
-        setWorkflowFilter(deriveWorkflowFilterFromStatuses(nextStatuses));
-        setIsStatusMenuOpen(false);
-    }, [statusFilter]);
 
     const fetchPageData = useCallback(async ({ silent = false, suppressErrorToast = false } = {}) => {
         if (systemConfigLoading) {
@@ -990,19 +982,6 @@ export default function SchedulePage() {
             return haystack.includes(normalizedQuery);
         });
     }, [appointments, branchFilter, dentistFilter, patientFilter, procedureFilter, queueEntries, searchQuery, typeFilter]);
-
-    const statusSummary = useMemo(() => {
-        const counts = rowsBeforeStatusFilter.reduce((accumulator, entry) => {
-            const key = normalizeScheduleStatus(entry.status);
-            accumulator[key] = (accumulator[key] || 0) + 1;
-            return accumulator;
-        }, {});
-
-        return APPOINTMENT_STATUS_OPTIONS.map((option) => ({
-            ...option,
-            count: counts[option.value] || 0,
-        }));
-    }, [rowsBeforeStatusFilter]);
 
     const combinedRows = useMemo(() => (
         rowsBeforeStatusFilter
@@ -2194,7 +2173,7 @@ export default function SchedulePage() {
                             onClick={handleExportPdf}
                             disabled={combinedRows.length === 0}
                         >
-                            <FaFileExport />
+                            <FaFilePdf />
                             Export PDF
                         </button>
                         <button
@@ -2203,7 +2182,7 @@ export default function SchedulePage() {
                             onClick={handleExportCsv}
                             disabled={combinedRows.length === 0}
                         >
-                            <FaFileExport />
+                            <FaDownload />
                             Export CSV
                         </button>
                         {canCreateSchedule && (
@@ -2282,52 +2261,6 @@ export default function SchedulePage() {
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
-
-                <div className={styles.statusOverviewBar}>
-                    <div className={styles.statusOverviewHeader}>
-                        <span className={styles.statusOverviewTitle}>Status Snapshot</span>
-                        <div className={styles.workflowFilterGroup}>
-                            {WORKFLOW_FILTER_OPTIONS.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    className={`${styles.workflowFilterPill} ${workflowFilter === option.value ? styles.workflowFilterPillActive : ''}`}
-                                    onClick={() => applyWorkflowFilter(option.value)}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <span className={styles.statusOverviewHint}>Use the workflow presets for quick triage, or click a single status card to spotlight one bucket.</span>
-                    <div className={styles.statusOverviewGrid}>
-                        {statusSummary.map((option) => {
-                            const isActive = statusFilter.length === 1 && statusFilter[0] === option.value;
-                            return (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    className={`${styles.statusOverviewCard} ${isActive ? styles.statusOverviewCardActive : ''}`}
-                                    onClick={() => spotlightStatusFilter(option.value)}
-                                >
-                                    <span className={styles.statusOverviewCardLabelRow}>
-                                        <span className={`${styles.statusOverviewDot} ${getBadgeClass({ status: option.value })}`} />
-                                        <span className={styles.statusOverviewCardLabel}>{option.label}</span>
-                                    </span>
-                                    <strong className={styles.statusOverviewCardValue}>{option.count}</strong>
-                                </button>
-                            );
-                        })}
-                        <button
-                            type="button"
-                            className={`${styles.statusOverviewCard} ${styles.statusOverviewReset} ${statusFilter.length === ALL_STATUS_VALUES.length ? styles.statusOverviewCardActive : ''}`}
-                            onClick={() => applyWorkflowFilter('all')}
-                        >
-                            <span className={styles.statusOverviewCardLabel}>Show All</span>
-                            <strong className={styles.statusOverviewCardValue}>{rowsBeforeStatusFilter.length}</strong>
-                        </button>
                     </div>
                 </div>
 

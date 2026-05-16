@@ -2200,7 +2200,7 @@ export default function PatientEMR({
                     </div>
                 </div>
                 <div className={styles.profileHeaderActions}>
-                    <button type="button" className={styles.actionBtn} onClick={handleExportPdf}>
+                    <button type="button" className={styles.exportActionBtn} onClick={handleExportPdf}>
                         <FaFilePdf /> Export PDF
                     </button>
                 </div>
