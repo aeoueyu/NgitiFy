@@ -390,10 +390,13 @@
 
 .tableWrapper {
     overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 .table {
-    width: 100%;
+    width: max-content;
+    min-width: 1540px;
     border-collapse: collapse;
     font-size: 13px;
 }
@@ -419,6 +422,7 @@
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
     vertical-align: top;
+    white-space: nowrap;
 }
 
 .table tbody tr:last-child td {
@@ -432,16 +436,60 @@
 .filename,
 .checksumCell {
     font-family: 'Courier New', monospace;
-    word-break: break-all;
+    white-space: nowrap;
 }
 
 .filename {
     color: #334155;
+    display: inline-block;
+    min-width: 260px;
 }
 
 .checksumCell {
     font-size: 12px;
     color: #475569;
+    display: inline-block;
+    min-width: 170px;
+}
+
+.filenameColumn {
+    min-width: 300px;
+}
+
+.triggerColumn {
+    min-width: 110px;
+}
+
+.sizeColumn {
+    min-width: 110px;
+}
+
+.durationColumn {
+    min-width: 110px;
+}
+
+.checksumColumn {
+    min-width: 210px;
+}
+
+.fileColumn {
+    min-width: 170px;
+}
+
+.statusColumn {
+    min-width: 140px;
+}
+
+.createdByColumn {
+    min-width: 220px;
+}
+
+.completedColumn {
+    min-width: 170px;
+}
+
+.actionColumn {
+    min-width: 150px;
 }
 
 .sizeCell,

@@ -559,16 +559,16 @@ export default function DatabaseBackup() {
                         <table className={`${styles.table} ${tblStyles.table}`}>
                             <thead>
                                 <tr>
-                                    <th>Filename</th>
-                                    <th>Trigger</th>
-                                    <th>Size</th>
-                                    <th>Duration</th>
-                                    <th>Checksum</th>
-                                    <th>File</th>
-                                    <th>Status</th>
-                                    <th>Created By</th>
-                                    <th>Completed</th>
-                                    <th>Action</th>
+                                    <th className={styles.filenameColumn}>Filename</th>
+                                    <th className={styles.triggerColumn}>Trigger</th>
+                                    <th className={styles.sizeColumn}>Size</th>
+                                    <th className={styles.durationColumn}>Duration</th>
+                                    <th className={styles.checksumColumn}>Checksum</th>
+                                    <th className={styles.fileColumn}>File</th>
+                                    <th className={styles.statusColumn}>Status</th>
+                                    <th className={styles.createdByColumn}>Created By</th>
+                                    <th className={styles.completedColumn}>Completed</th>
+                                    <th className={styles.actionColumn}>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -580,27 +580,27 @@ export default function DatabaseBackup() {
 
                                     return (
                                         <tr key={backup._id}>
-                                            <td>
+                                            <td className={styles.filenameColumn}>
                                                 <span className={styles.filename}>{backup.filename}</span>
                                             </td>
-                                            <td>
+                                            <td className={styles.triggerColumn}>
                                                 <span className={styles.neutralBadge}>{getTriggerLabel(backup.triggerType)}</span>
                                             </td>
-                                            <td className={styles.sizeCell}>
+                                            <td className={`${styles.sizeCell} ${styles.sizeColumn}`}>
                                                 {backup.status === 'success' ? formatBytes(backup.size) : '-'}
                                             </td>
-                                            <td className={styles.sizeCell}>
+                                            <td className={`${styles.sizeCell} ${styles.durationColumn}`}>
                                                 {formatDuration(backup.durationMs)}
                                             </td>
-                                            <td title={backup.checksumSha256 || ''}>
+                                            <td className={styles.checksumColumn} title={backup.checksumSha256 || ''}>
                                                 <span className={styles.checksumCell}>{shortenChecksum(backup.checksumSha256)}</span>
                                             </td>
-                                            <td>
+                                            <td className={styles.fileColumn}>
                                                 <span className={`${styles.fileBadge} ${fileMeta.className}`}>
                                                     {fileMeta.label}
                                                 </span>
                                             </td>
-                                            <td>
+                                            <td className={styles.statusColumn}>
                                                 <span
                                                     className={`${styles.statusBadge} ${statusMeta.className} ${backup.status === 'running' ? styles.statusAnimated : ''}`}
                                                     title={backup.errorMessage || ''}
@@ -609,13 +609,13 @@ export default function DatabaseBackup() {
                                                     {statusMeta.label}
                                                 </span>
                                             </td>
-                                            <td className={styles.createdByCell}>
+                                            <td className={`${styles.createdByCell} ${styles.createdByColumn}`}>
                                                 {backup.createdByName || '-'}
                                             </td>
-                                            <td className={styles.dateCell}>
+                                            <td className={`${styles.dateCell} ${styles.completedColumn}`}>
                                                 {formatDate(backup.completedAt || backup.createdAt)}
                                             </td>
-                                            <td>
+                                            <td className={styles.actionColumn}>
                                                 {canDownload ? (
                                                     <button
                                                         className={styles.downloadBtn}
