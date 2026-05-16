@@ -290,7 +290,7 @@ function OdontogramTab({ data, loading, error, onRetry }) {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
-                <Text style={styles.odontogramTitle}>Dental Chart</Text>
+                <Text style={styles.odontogramTitle}>Odontogram</Text>
                 <Text style={styles.odontogramSub}>FDI Notation  ·  Read-only</Text>
 
                 {!hasData && (
@@ -549,7 +549,7 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
-                <Text style={styles.odontogramTitle}>Dental Chart</Text>
+                <Text style={styles.odontogramTitle}>Odontogram</Text>
                 <Text style={styles.odontogramSub}>Surface-based 2D odontogram · FDI notation · Read-only</Text>
 
                 {!hasData && (
@@ -1094,3 +1094,4 @@ const styles = StyleSheet.create({
     checklistItem: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: mobileTheme.colors.surfaceAlt, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9 },
     checklistText: { flex: 1, fontSize: 12, color: mobileTheme.colors.textMuted },
 });
+

@@ -2063,7 +2063,7 @@ export default function PatientEMR({
     const renderOdontogram = () => (
         <div className={styles.contentCard}>
             <div className={styles.sectionHeaderRow}>
-                <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Interactive Dental Chart</h3>
+                <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Interactive Odontogram</h3>
             </div>
             <Odontogram patientId={activePatientId} /> 
         </div>
@@ -2218,7 +2218,7 @@ export default function PatientEMR({
                 <button className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.active : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
                         <button className={`${styles.tabBtn} ${activeTab === 'medicalHistory' ? styles.active : ''}`} onClick={() => setActiveTab('medicalHistory')}>Medical & Dental History</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'treatmentLogs' ? styles.active : ''}`} onClick={() => setActiveTab('treatmentLogs')}>Treatment History</button>
-                <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Dental Chart</button>
+                <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Odontogram</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'radiographs' ? styles.active : ''}`} onClick={() => setActiveTab('radiographs')}>Radiographs</button>
             </div>
 

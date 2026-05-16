@@ -244,7 +244,7 @@ export default function PatientMedicalRecords() {
                         <section className={styles.tabPanel}>
                             <PatientSectionHeader
                                 eyebrow="Read-only"
-                                title="Dental chart"
+                                title="Odontogram"
                                 description="A patient-facing summary of the odontogram recorded by your clinic."
                             />
                             {Object.keys(odontogram || {}).length ? (

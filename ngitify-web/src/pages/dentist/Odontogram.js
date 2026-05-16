@@ -1245,7 +1245,7 @@ export default function Odontogram({ patientId, readOnly = false, documentMode =
             <div className={styles.chartShell}>
                 <div className={styles.chartHeader}>
                     <div>
-                        <p className={styles.chartEyebrow}>Dental Chart</p>
+                        <p className={styles.chartEyebrow}>Odontogram</p>
                         <h3 className={styles.chartTitle}>Clinical 2D Odontogram</h3>
                         <p className={styles.chartSubtitle}>
                             Adult FDI chart with separate front, top, and back views to match a software-style clinical odontogram.
