@@ -4786,7 +4786,7 @@ app.post('/api/patients/duplicate-check', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients/:id', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner', 'patient'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -4795,6 +4795,10 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
             .select('-password')
             .populate(LIFECYCLE_ACTOR_POPULATE);
         if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+        if (req.user.role === 'patient' && String(req.params.id) !== String(req.user.id)) {
+            return res.status(403).json({ message: 'Access denied. Patients can only view their own record.' });
+        }
 
         if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
             if (!req.user.assignedBranch) {
@@ -8642,13 +8646,17 @@ app.get('/api/appointments/blocked-dates', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner', 'patient'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
         const patient = await User.findById(req.params.id).select('treatmentLogs name assignedBranch assignedBranches');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (req.user.role === 'patient' && String(req.params.id) !== String(req.user.id)) {
+            return res.status(403).json({ message: 'Access denied. Patients can only view their own treatment logs.' });
+        }
 
         if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);
@@ -8985,6 +8993,10 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
         const patient = await User.findById(req.params.id).select('odontogram name assignedBranch assignedBranches');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
+        if (req.user.role === 'patient' && String(req.params.id) !== String(req.user.id)) {
+            return res.status(403).json({ message: 'Access denied. Patients can only view their own odontogram.' });
+        }
+
         if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);
             if (!patientBelongsToBranch(patient, scopedBranch)) {
@@ -9070,13 +9082,17 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner', 'patient'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
         const patient = await User.findById(req.params.id).select('radiographs name assignedBranch assignedBranches');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (req.user.role === 'patient' && String(req.params.id) !== String(req.user.id)) {
+            return res.status(403).json({ message: 'Access denied. Patients can only view their own radiographs.' });
+        }
 
         if (isBranchScopedStaff(req.user.role)) {
             const scopedBranch = getScopedBranchForUser(req.user);

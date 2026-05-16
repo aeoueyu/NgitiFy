@@ -23,10 +23,14 @@ const ActivateAccountPage = lazy(() => import('./pages/auth/ActivateAccountPage'
 
 // Pages - Admin
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AppointmentsPage = lazy(() => import('./pages/shared/AppointmentsPage'));
 const SchedulePage = lazy(() => import('./pages/shared/SchedulePage'));
 const PatientEMRPage = lazy(() => import('./pages/shared/PatientEMRPage'));
 const SharedActivityLogsPage = lazy(() => import('./pages/shared/ActivityLogsPage'));
 const SharedNotificationsPage = lazy(() => import('./pages/shared/NotificationsPage'));
+const ProfilePage = lazy(() => import('./pages/shared/ProfilePage'));
+const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
+const PatientRecordsPage = lazy(() => import('./pages/shared/PatientRecordsPage'));
 const ManageDentists = lazy(() => import('./pages/admin/ManageDentists'));
 const ManageSecretaries = lazy(() => import('./pages/admin/ManageSecretaries'));
 const ManagePatients = lazy(() => import('./pages/admin/ManagePatients'));
@@ -92,13 +96,9 @@ const OwnerAIAssistant = lazy(() => import('./pages/owner/OwnerAIAssistant'));
 
 // Pages - Patient
 const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
-const PatientAppointments = lazy(() => import('./pages/patient/PatientAppointments'));
 const PatientBooking = lazy(() => import('./pages/patient/PatientBooking'));
-const PatientMedicalRecords = lazy(() => import('./pages/patient/PatientMedicalRecords'));
 const PatientOralCare = lazy(() => import('./pages/patient/PatientOralCare'));
-const PatientProfile = lazy(() => import('./pages/patient/PatientProfile'));
 const PatientEditProfile = lazy(() => import('./pages/patient/PatientEditProfile'));
-const PatientSettings = lazy(() => import('./pages/patient/PatientSettings'));
 const PatientAiCompanion = lazy(() => import('./pages/patient/PatientAiCompanion'));
 const PatientChatbot = lazy(() => import('./pages/patient/PatientChatbot'));
 
@@ -139,17 +139,17 @@ function App() {
 
               {/* Protected Routes - Patient Area */}
               <Route element={<ProtectedRoute allowedRoles={['patient']} />}>
-                <Route element={<DashboardLayout />}>
+                  <Route element={<DashboardLayout />}>
                   <Route path="/patient" element={<Navigate to="/patient/dashboard" replace />} />
                   <Route path="/patient/dashboard" element={<PatientDashboard />} />
-                  <Route path="/patient/appointments" element={<PatientAppointments />} />
+                  <Route path="/patient/appointments" element={<AppointmentsPage />} />
                   <Route path="/patient/book" element={<PatientBooking />} />
-                  <Route path="/patient/records" element={<PatientMedicalRecords />} />
+                  <Route path="/patient/records" element={<PatientRecordsPage />} />
                   <Route path="/patient/oral-care" element={<PatientOralCare />} />
                   <Route path="/patient/notifications" element={<SharedNotificationsPage />} />
-                  <Route path="/patient/profile" element={<PatientProfile />} />
+                  <Route path="/patient/profile" element={<ProfilePage />} />
                   <Route path="/patient/profile/edit" element={<PatientEditProfile />} />
-                  <Route path="/patient/settings" element={<PatientSettings />} />
+                  <Route path="/patient/settings" element={<SettingsPage />} />
                   <Route path="/patient/activity-logs" element={<SharedActivityLogsPage />} />
                   <Route path="/patient/ai-companion" element={<PatientAiCompanion />} />
                   <Route path="/patient/chatbot" element={<PatientChatbot />} />

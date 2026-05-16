@@ -310,6 +310,11 @@ export default function PatientEMR({
         : `DentimeDentalClinicPxRecord_${sanitizeFilenamePart(patientFullName) || 'PatientRecord'}`;
 
     useEffect(() => {
+        if (effectiveRole === 'patient' || isReadOnly) {
+            setBranches([]);
+            return undefined;
+        }
+
         const fetchBranches = async () => {
             try {
                 const { authFetch } = await import('../../utils/api');
@@ -318,7 +323,7 @@ export default function PatientEMR({
             } catch (e) { console.error('Error fetching branches:', e); }
         };
         fetchBranches();
-    }, []);
+    }, [effectiveRole, isReadOnly]);
 
     useEffect(() => {
         if (!activePatientId) return;

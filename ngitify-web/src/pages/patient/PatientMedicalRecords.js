@@ -139,11 +139,12 @@ export default function PatientMedicalRecords() {
     const [error, setError] = useState('');
 
     const fetchRecords = useCallback(async () => {
-        if (!user?.id) return;
+        const userId = user?.userId || user?.id || user?._id;
+        if (!userId) return;
         try {
             setError('');
             const [profileResponse, odontogramResponse, radiographResponse, treatmentResponse] = await Promise.allSettled([
-                authFetch(`/user/${user.id}`),
+                authFetch(`/user/${userId}`),
                 authFetch('/my/odontogram'),
                 authFetch('/my/radiographs'),
                 authFetch('/my/treatment-logs'),
@@ -171,7 +172,7 @@ export default function PatientMedicalRecords() {
         } finally {
             setLoading(false);
         }
-    }, [user?.id]);
+    }, [user?.id, user?._id, user?.userId]);
 
     useEffect(() => {
         fetchRecords();
@@ -202,8 +203,8 @@ export default function PatientMedicalRecords() {
 
     return (
         <PatientPageFrame
-            title="Medical Records"
-            subtitle="Your patient EMR tabs on web: odontogram, x-rays, and medical history."
+            title="My EMR"
+            subtitle="A read-only patient EMR view of your own odontogram, x-rays, medical history, and recent treatment timeline."
         >
             <div className={styles.tabs}>
                 {[
