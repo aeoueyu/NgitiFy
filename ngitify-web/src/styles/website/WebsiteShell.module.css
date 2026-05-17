@@ -233,6 +233,10 @@
     z-index: 1;
 }
 
+:global(main [id]) {
+    scroll-margin-top: 132px;
+}
+
 :global(.website-reveal) {
     opacity: 0;
     transform: translateY(28px);
@@ -421,7 +425,7 @@
     }
 
     .content {
-        padding: 92px 20px 36px;
+        padding: 104px 20px 124px;
     }
 
     .brandRow {
@@ -509,7 +513,7 @@
 
     .chatbotLayer {
         right: 18px;
-        bottom: 88px;
+        bottom: 104px;
     }
 
     .mobileQuickBar {
@@ -559,7 +563,7 @@
     }
 
     .content {
-        padding: 88px 16px 108px;
+        padding: 96px 16px 118px;
     }
 
     .topBar {
@@ -579,5 +583,36 @@
 
     .chatbotPanel {
         width: min(100vw - 20px, 360px);
+    }
+}
+
+@media (max-width: 520px) {
+    .content {
+        padding-top: 92px;
+        padding-bottom: 124px;
+    }
+
+    :global(main [id]) {
+        scroll-margin-top: 116px;
+    }
+
+    .mobileQuickBar {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 20px;
+    }
+
+    .mobileQuickAction {
+        min-height: 44px;
+        padding: 0 6px;
+        font-size: 12px;
+    }
+
+    .chatbotLayer {
+        right: 12px;
+        bottom: 96px;
     }
 }

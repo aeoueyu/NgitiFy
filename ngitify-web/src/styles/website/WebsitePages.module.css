@@ -917,6 +917,7 @@
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.96);
     box-sizing: border-box;
+    overflow-x: auto;
 }
 
 .consentCard {
@@ -1392,6 +1393,12 @@
         grid-template-columns: 1fr;
     }
 
+    .checkboxGrid,
+    .intakeRow,
+    .intakeRowSingle {
+        grid-template-columns: 1fr;
+    }
+
     .slotGrid {
         grid-template-columns: 1fr;
     }
@@ -1406,6 +1413,15 @@
     .journeyImageFrame,
     .serviceImageFrame {
         height: 220px;
+    }
+
+    .serviceCard .bannerPlaceholder,
+    .locationCard .bannerPlaceholder,
+    .whiteSurfaceCard .squarePlaceholder,
+    .contactCard .squarePlaceholder {
+        width: calc(100% + 36px);
+        margin: -18px -18px 18px;
+        border-radius: 0 0 22px 22px;
     }
 
     .bannerPlaceholder {
@@ -1460,6 +1476,30 @@
     .bookingSuccessActions {
         flex-direction: column;
     }
+
+    .privacyModalHeader,
+    .privacyModalFooter {
+        padding: 18px;
+    }
+
+    .privacyModalHeader {
+        flex-direction: column;
+    }
+
+    .privacyModalBody {
+        padding: 18px;
+    }
+
+    .radioGroup {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .radioOption {
+        width: 100%;
+        justify-content: flex-start;
+        box-sizing: border-box;
+    }
 }
 
 @media (max-width: 520px) {
@@ -1493,5 +1533,27 @@
     .bookingSuccessOverlay,
     .privacyModalOverlay {
         padding: 88px 14px 14px;
+    }
+
+    .phoneInputGroup {
+        border-radius: 16px;
+    }
+
+    .phonePrefix {
+        padding-left: 14px;
+        font-size: 14px;
+    }
+
+    .phoneField {
+        padding-left: 8px;
+        padding-right: 14px;
+    }
+
+    .privacyModalTitle {
+        font-size: 1.2rem;
+    }
+
+    .privacyPolicyCard {
+        padding: 14px 16px;
     }
 }
