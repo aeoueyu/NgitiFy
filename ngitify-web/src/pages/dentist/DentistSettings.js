@@ -28,10 +28,6 @@ export default function DentistSettings() {
     });
     const [allCriteriaMet, setAllCriteriaMet] = useState(false);
 
-    // ── Preferences state ─────────────────────────────────────────────────────
-    const [theme, setTheme] = useState('system');
-    const [prefSuccess, setPrefSuccess] = useState('');
-
     // ── Notification Preferences state ────────────────────────────────────────
     const [notifications, setNotifications] = useState({
         scheduleAlerts: true,
@@ -42,11 +38,6 @@ export default function DentistSettings() {
     const [notifError,   setNotifError]   = useState('');
 
     // ── Load saved theme ──────────────────────────────────────────────────────
-    useEffect(() => {
-        const saved = localStorage.getItem('ngitify-theme') || 'system';
-        setTheme(saved);
-    }, []);
-
     // ── Load notification preferences from backend ────────────────────────────
     useEffect(() => {
         const fetchPrefs = async () => {
@@ -150,14 +141,6 @@ export default function DentistSettings() {
         setShowSuccessModal(false);
         logout();
         navigate('/login', { state: { message: 'Password changed successfully. Please log in again.' } });
-    };
-
-    const handleSavePreferences = (e) => {
-        e.preventDefault();
-        localStorage.setItem('ngitify-theme', theme);
-        document.documentElement.setAttribute('data-theme', theme);
-        setPrefSuccess('Display preferences saved.');
-        setTimeout(() => setPrefSuccess(''), 3000);
     };
 
     const handleSaveNotifications = async (e) => {
@@ -280,27 +263,6 @@ export default function DentistSettings() {
         </div>
     );
 
-    const renderPreferences = () => (
-        <form onSubmit={handleSavePreferences}>
-            <h3 className={styles.mainSectionTitle}>Display Preferences</h3>
-            <p className={styles.sectionDescription}>Customize how the portal looks on your device.</p>
-            {prefSuccess && <div className={styles.successMessage}>{prefSuccess}</div>}
-            <div className={styles.row}>
-                <div className={styles.formGroup}>
-                    <label>THEME</label>
-                    <select className={styles.inputField} value={theme} onChange={e => setTheme(e.target.value)}>
-                        <option value="light">Light Mode</option>
-                        <option value="dark">Dark Mode</option>
-                        <option value="system">System Default</option>
-                    </select>
-                </div>
-            </div>
-            <div className={styles.buttonGroup}>
-                <button type="submit" className={styles.submitBtn}>SAVE PREFERENCES</button>
-            </div>
-        </form>
-    );
-
     const renderNotifications = () => (
         <form onSubmit={handleSaveNotifications}>
             <h3 className={styles.mainSectionTitle}>Notification Preferences</h3>
@@ -372,7 +334,6 @@ export default function DentistSettings() {
                     <ul className={styles.tabList}>
                         {[
                             { key: 'security',      label: 'Account Security'         },
-                            { key: 'preferences',   label: 'Preferences'              },
                             { key: 'notifications', label: 'Notification Preferences' },
                         ].map(t => (
                             <li
@@ -389,7 +350,6 @@ export default function DentistSettings() {
                 {/* Content area */}
                 <div className={styles.contentArea}>
                     {activeTab === 'security'      && renderSecurity()}
-                    {activeTab === 'preferences'   && renderPreferences()}
                     {activeTab === 'notifications' && renderNotifications()}
                 </div>
             </div>

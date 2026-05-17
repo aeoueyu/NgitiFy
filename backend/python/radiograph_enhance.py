@@ -1,9 +1,20 @@
 import base64
 import json
 import sys
+import urllib.request
+from pathlib import Path
 
 import cv2
 import numpy as np
+
+
+ROOT_DIR = Path(__file__).resolve().parent
+WEIGHTS_DIR = ROOT_DIR / "weights"
+REALESRGAN_X4_URL = (
+    "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/"
+    "RealESRGAN_x4plus.pth"
+)
+_REALESRGAN_UPSAMPLER = None
 
 
 def decode_base64_image(image_base64):
@@ -49,11 +60,9 @@ def unsharp_mask(image, sigma, amount, clip_limit=0.075):
     return np.clip(image + (amount * detail), 0.0, 1.0)
 
 
-def enhance_radiograph(image):
-    # Stage 1: robust tonal normalization without blowing highlights.
+def enhance_radiograph_basic(image):
     base = percentile_rescale(to_float32(image), 0.6, 99.4)
 
-    # Stage 2: stronger denoising for grainy radiographs.
     denoised = cv2.fastNlMeansDenoising(
         float_to_uint8(base),
         None,
@@ -63,7 +72,6 @@ def enhance_radiograph(image):
     )
     denoised = to_float32(denoised)
 
-    # Stage 3: preserve edges while reducing remaining noise.
     bilateral = cv2.bilateralFilter(
         float_to_uint8(denoised),
         d=7,
@@ -72,7 +80,6 @@ def enhance_radiograph(image):
     )
     bilateral = to_float32(bilateral)
 
-    # Stage 4: gently flatten uneven exposure instead of globally brightening the image.
     background = cv2.GaussianBlur(bilateral, (0, 0), sigmaX=14, sigmaY=14)
     flattened = np.clip(
         bilateral - (0.22 * (background - float(np.mean(background)))),
@@ -80,26 +87,79 @@ def enhance_radiograph(image):
         1.0,
     )
 
-    # Stage 5: layered local contrast enhancement.
     local_contrast = apply_multi_scale_clahe(flattened)
-
-    # Stage 6: multi-scale sharpening aimed at root/bone boundaries while clipping halos.
     detailed = unsharp_mask(local_contrast, sigma=0.9, amount=0.9, clip_limit=0.055)
     detailed = unsharp_mask(detailed, sigma=2.1, amount=0.55, clip_limit=0.045)
-
-    # Stage 7: blend back some base information so the result stays natural.
     blended = np.clip((0.58 * detailed) + (0.27 * flattened) + (0.15 * base), 0.0, 1.0)
-
-    # Stage 8: compress bright restorations slightly so the image doesn't look washed out.
     tone_mapped = np.power(blended, 1.08)
-
-    # Stage 9: final dynamic range cleanup with mild micro-contrast.
     final_float = percentile_rescale(tone_mapped, 0.9, 99.1)
     micro_blur = cv2.GaussianBlur(final_float, (0, 0), sigmaX=0.8, sigmaY=0.8)
     micro_detail = np.clip(final_float - micro_blur, -0.03, 0.03)
     final_float = np.clip(final_float + (0.28 * micro_detail), 0.0, 1.0)
 
     return float_to_uint8(final_float)
+
+
+def ensure_realesrgan_weights():
+    weights_path = WEIGHTS_DIR / "RealESRGAN_x4plus.pth"
+    if weights_path.exists():
+        return weights_path
+
+    WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
+    urllib.request.urlretrieve(REALESRGAN_X4_URL, weights_path)
+    return weights_path
+
+
+def get_realesrgan_upsampler():
+    global _REALESRGAN_UPSAMPLER
+    if _REALESRGAN_UPSAMPLER is not None:
+        return _REALESRGAN_UPSAMPLER
+
+    from basicsr.archs.rrdbnet_arch import RRDBNet
+    from realesrgan import RealESRGANer
+
+    model = RRDBNet(
+        num_in_ch=3,
+        num_out_ch=3,
+        num_feat=64,
+        num_block=23,
+        num_grow_ch=32,
+        scale=4,
+    )
+    weights_path = ensure_realesrgan_weights()
+    _REALESRGAN_UPSAMPLER = RealESRGANer(
+        scale=4,
+        model_path=str(weights_path),
+        model=model,
+        tile=0,
+        tile_pad=10,
+        pre_pad=0,
+        half=False,
+        gpu_id=None,
+    )
+    return _REALESRGAN_UPSAMPLER
+
+
+def postprocess_superres_result(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    normalized = percentile_rescale(to_float32(gray), 0.5, 99.5)
+    contrast = apply_multi_scale_clahe(normalized)
+    refined = unsharp_mask(contrast, sigma=1.0, amount=0.6, clip_limit=0.04)
+    return float_to_uint8(refined)
+
+
+def enhance_radiograph_realesrgan(image, upscale=2):
+    upsampler = get_realesrgan_upsampler()
+    bgr_input = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    result, _ = upsampler.enhance(bgr_input, outscale=max(1, float(upscale or 2)))
+    return postprocess_superres_result(result)
+
+
+def enhance_radiograph(image, engine="basic", upscale=2):
+    normalized_engine = str(engine or "basic").strip().lower()
+    if normalized_engine == "realesrgan":
+        return enhance_radiograph_realesrgan(image, upscale=upscale)
+    return enhance_radiograph_basic(image)
 
 
 def encode_png_base64(image):
@@ -116,7 +176,11 @@ def main():
         raise ValueError("imageBase64 is required.")
 
     source_image = decode_base64_image(image_base64)
-    enhanced_image = enhance_radiograph(source_image)
+    enhanced_image = enhance_radiograph(
+        source_image,
+        engine=payload.get("engine") or "basic",
+        upscale=payload.get("upscale") or 2,
+    )
     enhanced_base64 = encode_png_base64(enhanced_image)
 
     print(json.dumps({

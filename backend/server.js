@@ -67,6 +67,28 @@ const integrityRoutes = require('./routes/integrity');
 // ADD this line with the other model imports (after the AuditLog import)
 const MaterialUsageLog = require('./models/MaterialUsageLog');
 const RADIOGRAPH_ENHANCER_SCRIPT = path.join(__dirname, 'python', 'radiograph_enhance.py');
+const RADIOGRAPH_ENHANCER_ENGINES = Object.freeze({
+    basic: {
+        key: 'basic',
+        variantKey: 'basic',
+        label: 'Basic Enhance',
+        storageEngine: 'basic',
+    },
+    'self-hosted': {
+        key: 'self-hosted',
+        variantKey: 'selfHosted',
+        label: 'Self-Hosted AI',
+        storageEngine: 'self-hosted',
+    },
+    'hugging-face': {
+        key: 'hugging-face',
+        variantKey: 'huggingFace',
+        label: 'Hugging Face AI',
+        storageEngine: 'hugging-face',
+    },
+});
+const DEFAULT_HF_RADIOGRAPH_MODEL = String(process.env.HF_RADIOGRAPH_MODEL || '').trim();
+const DEFAULT_HF_RADIOGRAPH_PROVIDER = String(process.env.HF_RADIOGRAPH_PROVIDER || 'hf-inference').trim();
 const GEMINI_SERVICE_PATH = pathToFileURL(path.join(__dirname, 'ai', 'geminiService.mjs')).href;
 let geminiServicePromise = null;
 const LIFECYCLE_ACTOR_POPULATE = [
@@ -102,6 +124,60 @@ const parseBase64ImageDataUrl = (value) => {
     };
 };
 
+const getRadiographEnhancementConfig = (engine = '') => {
+    const normalized = String(engine || '').trim().toLowerCase();
+    return RADIOGRAPH_ENHANCER_ENGINES[normalized] || RADIOGRAPH_ENHANCER_ENGINES.basic;
+};
+
+const buildEnhancementVariantRecord = (variant = {}) => ({
+    url: String(variant?.url || '').trim(),
+    engine: String(variant?.engine || '').trim(),
+    label: String(variant?.label || '').trim(),
+    generatedAt: variant?.generatedAt ? new Date(variant.generatedAt) : null,
+    generatedBy: variant?.generatedBy || null,
+    provider: String(variant?.provider || '').trim(),
+    model: String(variant?.model || '').trim(),
+});
+
+const getNormalizedEnhancementVariants = (radiograph = {}) => {
+    const stored = radiograph?.enhancementVariants || {};
+    const variants = {
+        basic: buildEnhancementVariantRecord(stored.basic),
+        selfHosted: buildEnhancementVariantRecord(stored.selfHosted),
+        huggingFace: buildEnhancementVariantRecord(stored.huggingFace),
+    };
+
+    if (!variants.basic.url && radiograph?.enhancedUrl) {
+        variants.basic = buildEnhancementVariantRecord({
+            url: radiograph.enhancedUrl,
+            engine: radiograph.lastEnhancementEngine || 'basic',
+            label: 'Basic Enhance',
+            generatedAt: radiograph.enhancedAt || null,
+            generatedBy: radiograph.enhancedBy || null,
+        });
+    }
+
+    return variants;
+};
+
+const buildRadiographPayload = (radiograph = {}) => {
+    const variants = getNormalizedEnhancementVariants(radiograph);
+    return {
+        _id: radiograph._id,
+        label: radiograph.label,
+        date: radiograph.date,
+        radiographNumber: radiograph.radiographNumber || '',
+        url: radiograph.url || '',
+        enhancedUrl: radiograph.enhancedUrl || '',
+        findings: radiograph.findings || '',
+        notes: radiograph.notes || '',
+        enhancedAt: radiograph.enhancedAt || null,
+        enhancedBy: radiograph.enhancedBy || null,
+        lastEnhancementEngine: radiograph.lastEnhancementEngine || '',
+        enhancementVariants: variants,
+    };
+};
+
 const getRadiographEnhancerCommands = () => {
     const configuredCommand = String(process.env.OPENCV_PYTHON_BIN || '').trim();
     if (configuredCommand) {
@@ -122,7 +198,7 @@ const getRadiographEnhancerCommands = () => {
     ];
 };
 
-const spawnRadiographEnhancer = ({ command, args, imageBase64, mediaType }) => {
+const spawnRadiographEnhancer = ({ command, args, payload }) => {
     return new Promise((resolve, reject) => {
         const child = spawn(command, [...args, RADIOGRAPH_ENHANCER_SCRIPT], {
             stdio: ['pipe', 'pipe', 'pipe'],
@@ -139,7 +215,7 @@ const spawnRadiographEnhancer = ({ command, args, imageBase64, mediaType }) => {
         });
         child.on('error', (error) => {
             reject(Object.assign(
-                new Error(`Could not start the OpenCV enhancer with "${command}". Install Python dependencies or set OPENCV_PYTHON_BIN.`),
+                new Error(`Could not start the radiograph enhancer with "${command}". Install Python dependencies or set OPENCV_PYTHON_BIN.`),
                 { cause: error }
             ));
         });
@@ -152,7 +228,14 @@ const spawnRadiographEnhancer = ({ command, args, imageBase64, mediaType }) => {
                 ) {
                     return reject(new Error('OpenCV is not installed on the server. Redeploy after installing backend/python/requirements.txt during the backend build step.'));
                 }
-                return reject(new Error(`OpenCV enhancement failed. ${detail}`));
+                if (
+                    detail.includes("ModuleNotFoundError: No module named 'realesrgan'")
+                    || detail.includes("ModuleNotFoundError: No module named 'basicsr'")
+                    || detail.includes("ModuleNotFoundError: No module named 'torch'")
+                ) {
+                    return reject(new Error('Self-hosted AI enhancement dependencies are not installed. Install backend/python/requirements-ai.txt to enable Real-ESRGAN.'));
+                }
+                return reject(new Error(`Radiograph enhancement failed. ${detail}`));
             }
             try {
                 const parsed = JSON.parse(stdout);
@@ -168,11 +251,11 @@ const spawnRadiographEnhancer = ({ command, args, imageBase64, mediaType }) => {
             }
         });
 
-        child.stdin.end(JSON.stringify({ imageBase64, mediaType }));
+        child.stdin.end(JSON.stringify(payload));
     });
 };
 
-const runRadiographEnhancer = async (imageDataUrl) => {
+const runPythonRadiographEnhancer = async (imageDataUrl, options = {}) => {
     const { mediaType, imageBase64 } = parseBase64ImageDataUrl(imageDataUrl);
     const commands = getRadiographEnhancerCommands();
     let lastError = null;
@@ -181,18 +264,89 @@ const runRadiographEnhancer = async (imageDataUrl) => {
         try {
             return await spawnRadiographEnhancer({
                 ...commandConfig,
-                imageBase64,
-                mediaType,
+                payload: {
+                    imageBase64,
+                    mediaType,
+                    engine: options.engine || 'basic',
+                    upscale: Number.isFinite(options.upscale) ? options.upscale : undefined,
+                },
             });
         } catch (error) {
             lastError = error;
-            if (!String(error.message || '').startsWith('Could not start the OpenCV enhancer')) {
+            if (!String(error.message || '').startsWith('Could not start the radiograph enhancer')) {
                 throw error;
             }
         }
     }
 
-    throw lastError || new Error('Could not start the OpenCV enhancer.');
+    throw lastError || new Error('Could not start the radiograph enhancer.');
+};
+
+const getHuggingFaceImageToImageUrl = ({ model, provider }) => {
+    const trimmedModel = String(model || '').trim();
+    if (!trimmedModel) {
+        throw new Error('HF_RADIOGRAPH_MODEL is not configured.');
+    }
+    const trimmedProvider = String(provider || DEFAULT_HF_RADIOGRAPH_PROVIDER || 'hf-inference').trim().toLowerCase();
+    if (trimmedProvider === 'hf-inference') {
+        return `https://router.huggingface.co/hf-inference/models/${trimmedModel}`;
+    }
+    return `https://router.huggingface.co/${trimmedProvider}/models/${trimmedModel}`;
+};
+
+const runHuggingFaceRadiographEnhancer = async (imageDataUrl, options = {}) => {
+    const hfToken = String(process.env.HF_TOKEN || '').trim();
+    if (!hfToken) {
+        throw new Error('HF_TOKEN is not configured for the Hugging Face test harness.');
+    }
+
+    const model = String(options.model || DEFAULT_HF_RADIOGRAPH_MODEL || '').trim();
+    const provider = String(options.provider || DEFAULT_HF_RADIOGRAPH_PROVIDER || 'hf-inference').trim();
+    const { imageBase64 } = parseBase64ImageDataUrl(imageDataUrl);
+    const endpoint = getHuggingFaceImageToImageUrl({ model, provider });
+    const prompt = 'Enhance this dental radiograph for clearer inspection. Preserve anatomy exactly, avoid adding or removing structures, and improve clarity conservatively.';
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${hfToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            inputs: imageBase64,
+            parameters: {
+                prompt,
+                num_inference_steps: 18,
+                guidance_scale: 2.2,
+            },
+        }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Hugging Face enhancement failed. ${errorText || `HTTP ${response.status}`}`);
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return {
+        mediaType: response.headers.get('content-type') || 'image/png',
+        imageBase64: buffer.toString('base64'),
+        provider,
+        model,
+    };
+};
+
+const runRadiographEnhancer = async (imageDataUrl, options = {}) => {
+    const engineConfig = getRadiographEnhancementConfig(options.engine);
+    if (engineConfig.key === 'hugging-face') {
+        return runHuggingFaceRadiographEnhancer(imageDataUrl, options);
+    }
+
+    const pythonEngine = engineConfig.key === 'self-hosted' ? 'realesrgan' : 'basic';
+    return runPythonRadiographEnhancer(imageDataUrl, {
+        ...options,
+        engine: pythonEngine,
+    });
 };
 
 const INVENTORY_READ_ROLES = ['administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
@@ -8982,7 +9136,7 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             (a, b) => new Date(b.date) - new Date(a.date)
         );
 
-        res.json(sorted);
+        res.json(sorted.map((entry) => buildRadiographPayload(entry)));
     } catch (error) {
         console.error('Error fetching treatment logs:', error);
         res.status(500).json({ message: 'Server error fetching treatment logs.' });
@@ -9586,7 +9740,7 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             (a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)
         );
 
-        res.json(sorted);
+        res.json(sorted.map((entry) => buildRadiographPayload(entry)));
     } catch (error) {
         console.error('Error fetching radiographs:', error);
         res.status(500).json({ message: 'Server error fetching radiographs.' });
@@ -9634,6 +9788,12 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             enhancedUrl: '',
             enhancedAt: null,
             enhancedBy: null,
+            enhancementVariants: {
+                basic: {},
+                selfHosted: {},
+                huggingFace: {},
+            },
+            lastEnhancementEngine: '',
             findings: String(findings || '').trim(),
             notes: notes || '',
             uploadedBy: req.user?.id || null,
@@ -9657,7 +9817,7 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             message: `A new radiograph record "${label}" dated ${formatEmailDateLabel(date)} is now available in your patient records.`,
             relatedId: patient._id,
         });
-        res.status(201).json(added);
+        res.status(201).json(buildRadiographPayload(added));
 
     } catch (error) {
         console.error('Error adding radiograph:', error);
@@ -10781,7 +10941,7 @@ app.delete('/api/material-usage/:id', verifyToken, async (req, res) => {
 });
 
 // -------------------------------------------------------
-// OPENCV RADIOGRAPH ENHANCER
+// RADIOGRAPH ENHANCER
 // -------------------------------------------------------
 const ENHANCE_ALLOWED = ['dentist'];
 app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
@@ -10793,10 +10953,11 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied. Only dentists can enhance radiographs.' });
         }
 
-        const { patientId, radiographId } = req.body;
+        const { patientId, radiographId, engine, model, provider } = req.body;
         if (!patientId || !radiographId) {
             return res.status(400).json({ message: 'patientId and radiographId are required.' });
         }
+        const engineConfig = getRadiographEnhancementConfig(engine);
 
         const patient = await User.findById(patientId).select('role radiographs');
         if (!patient || patient.role !== 'patient') {
@@ -10818,12 +10979,31 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'This radiograph does not have an image to enhance.' });
         }
 
-        const result = await runRadiographEnhancer(radiograph.url);
+        const result = await runRadiographEnhancer(radiograph.url, {
+            engine: engineConfig.key,
+            model,
+            provider,
+            upscale: engineConfig.key === 'self-hosted' ? 2 : undefined,
+        });
         const enhancedUrl = `data:${result.mediaType};base64,${result.imageBase64}`;
+        const generatedAt = new Date();
+        const variants = getNormalizedEnhancementVariants(radiograph);
+
+        variants[engineConfig.variantKey] = buildEnhancementVariantRecord({
+            url: enhancedUrl,
+            engine: engineConfig.storageEngine,
+            label: engineConfig.label,
+            generatedAt,
+            generatedBy: req.user.id,
+            provider: result.provider || provider || '',
+            model: result.model || model || '',
+        });
 
         radiograph.enhancedUrl = enhancedUrl;
-        radiograph.enhancedAt = new Date();
+        radiograph.enhancedAt = generatedAt;
         radiograph.enhancedBy = req.user.id;
+        radiograph.enhancementVariants = variants;
+        radiograph.lastEnhancementEngine = engineConfig.storageEngine;
         patient.markModified('radiographs');
         await patient.save();
 
@@ -10831,7 +11011,7 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
             action: 'RADIOGRAPH_ENHANCED',
             user: req.user.email,
             role: req.user.role,
-            details: `OpenCV radiograph enhancement saved for radiograph ID ${radiographId} on patient ID ${patientId}.`,
+            details: `${engineConfig.label} radiograph enhancement saved for radiograph ID ${radiographId} on patient ID ${patientId}.`,
         });
 
         await createPatientNotification({
@@ -10843,20 +11023,10 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
         });
 
         res.json({
-            message: 'Radiograph enhanced successfully.',
+            message: `${engineConfig.label} saved successfully.`,
             enhanced: true,
-            radiograph: {
-                _id: radiograph._id,
-                label: radiograph.label,
-                date: radiograph.date,
-                radiographNumber: radiograph.radiographNumber || '',
-                url: radiograph.url || '',
-                enhancedUrl: radiograph.enhancedUrl || '',
-                findings: radiograph.findings || '',
-                notes: radiograph.notes || '',
-                enhancedAt: radiograph.enhancedAt || null,
-                enhancedBy: radiograph.enhancedBy || null,
-            },
+            engine: engineConfig.key,
+            radiograph: buildRadiographPayload(radiograph),
         });
     } catch (error) {
         console.error('Radiograph enhance error:', error);

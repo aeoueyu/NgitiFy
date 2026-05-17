@@ -4,7 +4,6 @@ import {
     FaHistory,
     FaInfoCircle,
     FaLock,
-    FaPalette,
     FaPencilAlt,
     FaSignOutAlt,
     FaUserCircle,
@@ -41,7 +40,6 @@ export default function PatientSettings() {
     });
     const [loading, setLoading] = useState(true);
     const [savingKey, setSavingKey] = useState('');
-    const [themeChoice, setThemeChoice] = useState(localStorage.getItem('ngitify-theme') || 'system');
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -170,12 +168,6 @@ export default function PatientSettings() {
         }
     };
 
-    const updateThemeChoice = (value) => {
-        setThemeChoice(value);
-        localStorage.setItem('ngitify-theme', value);
-        document.documentElement.setAttribute('data-theme', value);
-    };
-
     const accountLinks = [
         { title: 'View My Profile', text: 'See your patient identity and details.', icon: <FaUserCircle />, action: () => navigate('/patient/profile') },
         { title: 'Edit Profile', text: 'Update personal, medical, and address information.', icon: <FaPencilAlt />, action: () => navigate('/patient/profile/edit') },
@@ -185,7 +177,7 @@ export default function PatientSettings() {
     return (
         <PatientPageFrame
             title="Settings"
-            subtitle="Manage notifications, privacy, theme, password, and patient account preferences."
+            subtitle="Manage notifications, privacy, password, and patient account preferences."
         >
             {loading ? (
                 <div className={styles.loaderBox}>
@@ -248,7 +240,7 @@ export default function PatientSettings() {
                         </article>
 
                         <article className={styles.summaryCard}>
-                            <PatientSectionHeader eyebrow="Privacy & Data" title="Consent and appearance" />
+                            <PatientSectionHeader eyebrow="Privacy & Data" title="Consent controls" />
                             <div className={styles.timeline}>
                                 <label className={styles.switchRow}>
                                     <div>
@@ -262,21 +254,6 @@ export default function PatientSettings() {
                                         disabled={savingKey === 'educationConsent'}
                                     />
                                 </label>
-                                <label className={styles.field}>
-                                    <span className={styles.label}><FaPalette style={{ marginRight: '8px' }} /> Theme Preference</span>
-                                    <select
-                                        className={styles.select}
-                                        value={themeChoice}
-                                        onChange={(event) => updateThemeChoice(event.target.value)}
-                                    >
-                                        <option value="system">System</option>
-                                        <option value="light">Light</option>
-                                        <option value="dark">Dark</option>
-                                    </select>
-                                </label>
-                                <div className={styles.noticeBox}>
-                                    Your web portal uses the same session account as mobile, but theme choice is stored locally in this browser.
-                                </div>
                             </div>
                         </article>
                     </section>
@@ -312,7 +289,6 @@ export default function PatientSettings() {
                         </div>
                         <div className={styles.detailPills}>
                             <span className={styles.detailPill}><FaInfoCircle /> Patient web portal</span>
-                            <span className={styles.detailPill}><FaPalette /> Browser theme aware</span>
                         </div>
                     </section>
                 </>

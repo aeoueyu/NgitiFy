@@ -28,10 +28,6 @@ export default function SecretarySettings() {
     });
     const [allCriteriaMet, setAllCriteriaMet] = useState(false);
 
-    // ── Preferences state ─────────────────────────────────────────────────────
-    const [theme, setTheme]           = useState('system');
-    const [prefSuccess, setPrefSuccess] = useState('');
-
     // ── Notification Preferences state ────────────────────────────────────────
     // Secretary-specific toggles per Phase 9 spec:
     //   appointmentAlerts — new bookings, cancellations, reminders
@@ -51,11 +47,6 @@ export default function SecretarySettings() {
     const [profile, setProfile] = useState(null);
 
     // ── Load saved theme on mount ─────────────────────────────────────────────
-    useEffect(() => {
-        const saved = localStorage.getItem('ngitify-theme') || 'system';
-        setTheme(saved);
-    }, []);
-
     // ── Load profile + notification preferences from backend ──────────────────
     useEffect(() => {
         const fetchProfile = async () => {
@@ -179,15 +170,6 @@ export default function SecretarySettings() {
         setShowSuccessModal(false);
         logout();
         navigate('/login', { state: { message: 'Password changed successfully. Please log in again.' } });
-    };
-
-    // ── Preferences handlers ──────────────────────────────────────────────────
-    const handleSavePreferences = (e) => {
-        e.preventDefault();
-        localStorage.setItem('ngitify-theme', theme);
-        document.documentElement.setAttribute('data-theme', theme);
-        setPrefSuccess('Display preferences saved.');
-        setTimeout(() => setPrefSuccess(''), 3000);
     };
 
     // ── Notification preferences handlers ─────────────────────────────────────
@@ -345,41 +327,6 @@ export default function SecretarySettings() {
             </form>
 
         </div>
-    );
-
-    // ── Render: Preferences tab ───────────────────────────────────────────────
-    const renderPreferences = () => (
-        <form onSubmit={handleSavePreferences}>
-            <h3 className={styles.mainSectionTitle}>Display Preferences</h3>
-            <p className={styles.sectionDescription}>
-                Customize how the Secretary Portal looks on your device.
-            </p>
-
-            {prefSuccess && (
-                <div className={styles.successMessage}>{prefSuccess}</div>
-            )}
-
-            <div className={styles.row}>
-                <div className={styles.formGroup}>
-                    <label>THEME</label>
-                    <select
-                        className={styles.inputField}
-                        value={theme}
-                        onChange={e => setTheme(e.target.value)}
-                    >
-                        <option value="light">Light Mode</option>
-                        <option value="dark">Dark Mode</option>
-                        <option value="system">System Default</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className={styles.buttonGroup}>
-                <button type="submit" className={styles.submitBtn}>
-                    SAVE PREFERENCES
-                </button>
-            </div>
-        </form>
     );
 
     // ── Render: Notifications tab ─────────────────────────────────────────────
@@ -592,7 +539,7 @@ export default function SecretarySettings() {
                 <div className={styles.header}>
                     <h1 className={styles.title}>Account Settings</h1>
                     <p className={styles.subtitle}>
-                        Manage your security credentials, display preferences, and notification settings.
+                        Manage your security credentials and notification settings.
                     </p>
                 </div>
             </div>
@@ -603,7 +550,6 @@ export default function SecretarySettings() {
                     <ul className={styles.tabList}>
                         {[
                             { key: 'security',      label: 'Account Security'         },
-                            { key: 'preferences',   label: 'Preferences'              },
                             { key: 'notifications', label: 'Notification Preferences' },
                             { key: 'overview',      label: 'Account Overview'         },
                         ].map(t => (
@@ -621,7 +567,6 @@ export default function SecretarySettings() {
                 {/* Content area */}
                 <div className={styles.contentArea}>
                     {activeTab === 'security'      && renderSecurity()}
-                    {activeTab === 'preferences'   && renderPreferences()}
                     {activeTab === 'notifications' && renderNotifications()}
                     {activeTab === 'overview'      && renderOverview()}
                 </div>

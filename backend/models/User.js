@@ -31,6 +31,16 @@ const treatmentLogSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // ✅ PHASE 2: Radiograph subdocument schema
+const radiographEnhancementVariantSchema = new mongoose.Schema({
+    url: { type: String, default: '' },
+    engine: { type: String, default: '' },
+    label: { type: String, default: '' },
+    generatedAt: { type: Date, default: null },
+    generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    provider: { type: String, default: '' },
+    model: { type: String, default: '' },
+}, { _id: false });
+
 const radiographSchema = new mongoose.Schema({
     label: { type: String, required: true },
     date: { type: Date, required: true },
@@ -39,6 +49,12 @@ const radiographSchema = new mongoose.Schema({
     enhancedUrl: { type: String, default: '' },
     enhancedAt: { type: Date, default: null },
     enhancedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    enhancementVariants: {
+        basic: { type: radiographEnhancementVariantSchema, default: () => ({}) },
+        selfHosted: { type: radiographEnhancementVariantSchema, default: () => ({}) },
+        huggingFace: { type: radiographEnhancementVariantSchema, default: () => ({}) },
+    },
+    lastEnhancementEngine: { type: String, default: '' },
     findings: { type: String, default: '' },
     notes: { type: String },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }

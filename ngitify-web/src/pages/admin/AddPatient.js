@@ -952,7 +952,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     <hr className={styles.divider} style={{ marginTop: '10px' }} />
                     <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>EMERGENCY CONTACT <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.emergencyContactName ? styles.errorBorder : ''}`} name="emergencyContactName" value={formData.emergencyContactName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} />{errors.emergencyContactName && <span className={styles.errorText}>{errors.emergencyContactName}</span>}</div>
+                        <div className={styles.formGroup}><label>EMERGENCY CONTACT NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.emergencyContactName ? styles.errorBorder : ''}`} name="emergencyContactName" value={formData.emergencyContactName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} />{errors.emergencyContactName && <span className={styles.errorText}>{errors.emergencyContactName}</span>}</div>
                         <div className={styles.formGroup}>
                             <label>MOBILE <span style={{ color: 'red' }}>*</span></label>
                             <div className={`${styles.phoneInputGroup} ${errors.emergencyContactPhone ? styles.errorBorder : ''}`}>

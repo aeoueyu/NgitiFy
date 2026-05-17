@@ -126,14 +126,44 @@ const formatListValue = (value) => {
 };
 const normalizeTextValue = (value) => value ? String(value) : 'Not specified';
 const buildDetailRows = (pairs = []) => pairs.map(([label, value]) => [label, value || 'Not specified']);
-const getPreferredRadiographUrl = (radiograph, showOriginal = false) => {
+const RADIOGRAPH_VARIANT_LABELS = {
+    basic: 'Basic Enhance',
+    selfHosted: 'Self-Hosted AI',
+    huggingFace: 'Hugging Face AI',
+};
+const getNormalizedEnhancementVariants = (radiograph = {}) => {
+    const variants = radiograph.enhancementVariants || {};
+    return {
+        basic: variants.basic || {},
+        selfHosted: variants.selfHosted || {},
+        huggingFace: variants.huggingFace || {},
+    };
+};
+const getPreferredRadiographUrl = (radiograph, selectedView = 'latest') => {
     if (!radiograph) return '';
     const originalUrl = radiograph.url || radiograph.imageUrl || '';
-    if (showOriginal) return originalUrl;
+    const variants = getNormalizedEnhancementVariants(radiograph);
+    if (selectedView === 'original') return originalUrl;
+    if (selectedView === 'basic') return variants.basic?.url || radiograph.enhancedUrl || originalUrl;
+    if (selectedView === 'selfHosted') return variants.selfHosted?.url || radiograph.enhancedUrl || originalUrl;
+    if (selectedView === 'huggingFace') return variants.huggingFace?.url || radiograph.enhancedUrl || originalUrl;
     return radiograph.enhancedUrl || originalUrl;
+};
+const getRadiographViewOptions = (radiograph) => {
+    if (!radiograph) return [];
+    const variants = getNormalizedEnhancementVariants(radiograph);
+    const options = [
+        { key: 'original', label: 'Original', available: Boolean(radiograph.url || radiograph.imageUrl) },
+        { key: 'latest', label: 'Latest Saved', available: Boolean(radiograph.enhancedUrl) },
+        { key: 'basic', label: 'Basic Enhance', available: Boolean(variants.basic?.url) },
+        { key: 'selfHosted', label: 'Self-Hosted AI', available: Boolean(variants.selfHosted?.url) },
+        { key: 'huggingFace', label: 'Hugging Face AI', available: Boolean(variants.huggingFace?.url) },
+    ];
+    return options.filter((option) => option.available);
 };
 const normalizeRadiographRecord = (radiograph = {}) => {
     const rawDateValue = radiograph.date || radiograph.rawDate || radiograph.uploadedAt || radiograph.createdAt || 0;
+    const variants = getNormalizedEnhancementVariants(radiograph);
     return {
         ...radiograph,
         id: radiograph._id || radiograph.id,
@@ -141,6 +171,8 @@ const normalizeRadiographRecord = (radiograph = {}) => {
         type: radiograph.label || radiograph.type || 'Radiograph',
         url: radiograph.url || radiograph.imageUrl || '',
         enhancedUrl: radiograph.enhancedUrl || '',
+        enhancementVariants: variants,
+        lastEnhancementEngine: radiograph.lastEnhancementEngine || '',
         radiographNumber: radiograph.radiographNumber || '',
         findings: radiograph.findings || '',
         notes: radiograph.notes || '',
@@ -359,7 +391,8 @@ export default function PatientEMR({
     const [radiographs, setRadiographs] = useState([]);
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
-    const [showOriginalRadiograph, setShowOriginalRadiograph] = useState(false);
+    const [enhancingEngine, setEnhancingEngine] = useState('');
+    const [selectedRadiographView, setSelectedRadiographView] = useState('latest');
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [uploadForm, setUploadForm] = useState({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
     const [uploadPreview, setUploadPreview] = useState(null);
@@ -1939,13 +1972,15 @@ export default function PatientEMR({
     const openRadiograph = (img) => {
         setSelectedRadiograph(img);
         setIsEnhancing(false);
-        setShowOriginalRadiograph(false);
+        setEnhancingEngine('');
+        setSelectedRadiographView(img?.enhancedUrl ? 'latest' : 'original');
     };
 
     const closeImageModal = () => {
         setSelectedRadiograph(null);
         setIsEnhancing(false);
-        setShowOriginalRadiograph(false);
+        setEnhancingEngine('');
+        setSelectedRadiographView('latest');
     };
 
     const handleFileSelect = (e) => {
@@ -2009,7 +2044,7 @@ export default function PatientEMR({
         }
     };
 
-    const handleAIEnhance = async () => {
+    const handleAIEnhance = async (engine = 'basic') => {
         if (!canEnhanceRadiograph) {
             addToast('Only dentists can use the AI image enhancer for radiographs.', 'error');
             return;
@@ -2021,6 +2056,7 @@ export default function PatientEMR({
         }
 
         setIsEnhancing(true);
+        setEnhancingEngine(engine);
         try {
             const { authFetch } = await import('../../utils/api');
             const res = await authFetch('/radiographs/enhance', {
@@ -2028,6 +2064,7 @@ export default function PatientEMR({
                 body: JSON.stringify({
                     patientId: activePatientId,
                     radiographId: selectedRadiograph.id,
+                    engine,
                 }),
             });
             const data = await res.json();
@@ -2038,22 +2075,23 @@ export default function PatientEMR({
                 entry.id === normalizedRadiograph.id ? normalizedRadiograph : entry
             )));
             setSelectedRadiograph(normalizedRadiograph);
-            setShowOriginalRadiograph(false);
-            addToast('Enhanced radiograph saved to the patient record.', 'success');
+            setSelectedRadiographView(engine === 'hugging-face'
+                ? 'huggingFace'
+                : engine === 'self-hosted'
+                    ? 'selfHosted'
+                    : 'basic');
+            addToast(data.message || 'Enhanced radiograph saved to the patient record.', 'success');
         } catch (err) {
             addToast(err.message || 'Failed to enhance radiograph.', 'error');
         } finally {
             setIsEnhancing(false);
+            setEnhancingEngine('');
         }
-    };
-
-    const handleToggleRadiographVersion = () => {
-        if (!selectedRadiograph?.enhancedUrl) return;
-        setShowOriginalRadiograph((current) => !current);
     };
 
     const renderRadiographs = () => {
         if (selectedRadiograph) {
+            const availableViewOptions = getRadiographViewOptions(selectedRadiograph);
             return (
                 <div className={styles.contentCard}>
                     <div className={styles.imageViewerContainer}>
@@ -2074,47 +2112,77 @@ export default function PatientEMR({
 
                         <div className={styles.largeRadiographWrapper}>
                             <img 
-                                src={getPreferredRadiographUrl(selectedRadiograph, showOriginalRadiograph)} 
+                                src={getPreferredRadiographUrl(selectedRadiograph, selectedRadiographView)} 
                                 alt={selectedRadiograph.type} 
                                 className={styles.largeRadiograph}
                             />
                             {isEnhancing && (
                                 <div className={styles.loadingOverlay}>
                                     <FaRobot className={styles.spinningIcon} />
-                                    <span>Enhancing radiograph...</span>
+                                    <span>
+                                        {enhancingEngine === 'self-hosted'
+                                            ? 'Running self-hosted AI enhancement...'
+                                            : enhancingEngine === 'hugging-face'
+                                                ? 'Running Hugging Face test harness...'
+                                                : 'Enhancing radiograph...'}
+                                    </span>
                                 </div>
                             )}
                         </div>
 
                         {canEnhanceRadiograph && selectedRadiograph.url ? (
-                            <div className={styles.imageViewerControls} style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                                {selectedRadiograph.enhancedUrl ? (
-                                    <button 
-                                        className={styles.aiEnhanceBtn}
-                                        type="button"
-                                        onClick={handleToggleRadiographVersion}
-                                        disabled={isEnhancing}
-                                        style={{ background: showOriginalRadiograph ? '#0f766e' : undefined }}
-                                    >
-                                        {showOriginalRadiograph
-                                            ? <><FaMagic /> Show Enhanced Image</>
-                                            : <><FaMagic /> Show Original Image</>}
-                                    </button>
+                            <div style={{ marginTop: '16px', display: 'grid', gap: '12px' }}>
+                                {availableViewOptions.length ? (
+                                    <div className={styles.imageViewerControls} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+                                        {availableViewOptions.map((option) => (
+                                            <button
+                                                key={option.key}
+                                                className={styles.aiEnhanceBtn}
+                                                type="button"
+                                                disabled={isEnhancing}
+                                                onClick={() => setSelectedRadiographView(option.key)}
+                                                style={{ background: selectedRadiographView === option.key ? '#0f766e' : undefined }}
+                                            >
+                                                <FaMagic /> {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 ) : null}
-                                <button 
-                                    className={styles.aiEnhanceBtn} 
-                                    onClick={handleAIEnhance}
-                                    disabled={isEnhancing}
-                                    type="button"
-                                >
-                                    {isEnhancing ? (
-                                        <>Processing...</>
-                                    ) : selectedRadiograph.enhancedUrl ? (
-                                        <><FaMagic /> Re-enhance and Replace Saved Version</>
-                                    ) : (
-                                        <><FaMagic /> Enhance and Save to Record</>
-                                    )}
-                                </button>
+                                <div className={styles.imageViewerControls} style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                    <button
+                                        className={styles.aiEnhanceBtn}
+                                        onClick={() => handleAIEnhance('basic')}
+                                        disabled={isEnhancing}
+                                        type="button"
+                                    >
+                                        {isEnhancing && enhancingEngine === 'basic'
+                                            ? 'Processing Basic Enhance...'
+                                            : <><FaMagic /> Save Basic Enhance</>}
+                                    </button>
+                                    <button
+                                        className={styles.aiEnhanceBtn}
+                                        onClick={() => handleAIEnhance('self-hosted')}
+                                        disabled={isEnhancing}
+                                        type="button"
+                                    >
+                                        {isEnhancing && enhancingEngine === 'self-hosted'
+                                            ? 'Processing Self-Hosted AI...'
+                                            : <><FaRobot /> Save Self-Hosted AI</>}
+                                    </button>
+                                    <button
+                                        className={styles.aiEnhanceBtn}
+                                        onClick={() => handleAIEnhance('hugging-face')}
+                                        disabled={isEnhancing}
+                                        type="button"
+                                    >
+                                        {isEnhancing && enhancingEngine === 'hugging-face'
+                                            ? 'Processing Hugging Face AI...'
+                                            : <><FaRobot /> Save Hugging Face AI</>}
+                                    </button>
+                                </div>
+                                <p style={{ margin: 0, color: '#64748b', fontSize: '12px', lineHeight: 1.5 }}>
+                                    `Basic Enhance` keeps the existing OpenCV pipeline. `Self-Hosted AI` uses the local Real-ESRGAN path when its optional Python packages are installed. `Hugging Face AI` is a configurable external test harness and should be reviewed against the original before clinical use.
+                                </p>
                             </div>
                         ) : null}
                         {(selectedRadiograph.findings || selectedRadiograph.notes) && (

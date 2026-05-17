@@ -33,22 +33,13 @@ export default function Settings() {
     });
     const [allCriteriaMet, setAllCriteriaMet] = useState(false);
 
-    // --- State: Preferences & Notifications ---
-    const [theme, setTheme] = useState('system');
-    const [prefSuccess, setPrefSuccess] = useState('');
-
+    // --- State: Notifications ---
     const [notifications, setNotifications] = useState({
         emailAppointments: true,
         dailySummary: false,
         criticalAlerts: true
     });
     const [notifSuccess, setNotifSuccess] = useState('');
-    // Load saved theme preference from localStorage on mount
-    useEffect(() => {
-        const savedTheme = localStorage.getItem('ngitify-theme') || 'system';
-        setTheme(savedTheme);
-    }, []);
-
     // Load notification preferences from backend on mount
     useEffect(() => {
         const fetchNotifPrefs = async () => {
@@ -200,13 +191,6 @@ export default function Settings() {
         navigate('/login', { state: { message: 'Password changed successfully. Please log in again.' } });
     };
 
-    const handleSavePreferences = () => {
-        localStorage.setItem('ngitify-theme', theme);
-        document.documentElement.setAttribute('data-theme', theme);
-        setPrefSuccess('Display preferences saved successfully.');
-        setTimeout(() => setPrefSuccess(''), 3000);
-    };
-    
     const handleSaveNotifications = async (e) => {
         e.preventDefault();
         try {
@@ -334,36 +318,6 @@ export default function Settings() {
         </div>
     );
 
-    const renderPreferencesSection = () => (
-        <form onSubmit={handleSavePreferences}>
-            <h3 className={styles.mainSectionTitle}>Display Preferences</h3>
-            <p className={styles.sectionDescription}>Customize how the dashboard looks on your device.</p>
-            
-            {prefSuccess && <div className={styles.successMessage}>{prefSuccess}</div>}
-
-            <div className={styles.row}>
-                <div className={styles.formGroup}>
-                    <label>THEME</label>
-                    <select 
-                        className={styles.inputField} 
-                        value={theme} 
-                        onChange={(e) => setTheme(e.target.value)}
-                    >
-                        <option value="light">Light Mode</option>
-                        <option value="dark">Dark Mode</option>
-                        <option value="system">System Default</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div className={styles.buttonGroup}>
-                <button type="submit" className={styles.submitBtn}>
-                    SAVE PREFERENCES
-                </button>
-            </div>
-        </form>
-    );
-
     const renderNotificationsSection = () => (
         <form onSubmit={handleSaveNotifications}>
             <h3 className={styles.mainSectionTitle}>Notification Settings</h3>
@@ -417,7 +371,7 @@ export default function Settings() {
             <div className={styles.headerWrapper}>
                 <div className={styles.header}>
                     <h1 className={styles.title}>Settings</h1>
-                    <p className={styles.subtitle}>Manage your account security, preferences, and notifications.</p>
+                    <p className={styles.subtitle}>Manage your account security and notifications.</p>
                 </div>
             </div>
 
@@ -432,12 +386,6 @@ export default function Settings() {
                             Account Security
                         </li>
                         <li 
-                            className={`${styles.tabItem} ${activeTab === 'preferences' ? styles.activeTab : ''}`}
-                            onClick={() => setActiveTab('preferences')}
-                        >
-                            Preferences
-                        </li>
-                        <li 
                             className={`${styles.tabItem} ${activeTab === 'notifications' ? styles.activeTab : ''}`}
                             onClick={() => setActiveTab('notifications')}
                         >
@@ -449,7 +397,6 @@ export default function Settings() {
                 {/* Main Content Area */}
                 <div className={styles.contentArea}>
                     {activeTab === 'security' && renderSecuritySection()}
-                    {activeTab === 'preferences' && renderPreferencesSection()}
                     {activeTab === 'notifications' && renderNotificationsSection()}
                 </div>
             </div>

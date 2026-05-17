@@ -4,14 +4,11 @@ import {
     Switch, Modal, TextInput, ActivityIndicator,
     KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../../context/AuthContext';
 import LogoutModal from '../../components/LogoutModal';
 import BackIcon from '../../assets/icons/Back.svg';
 import { Ionicons } from '@expo/vector-icons';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
-
-const DARK_MODE_KEY = 'ngitify_darkMode';
 
 // ─── Password rule checker (mirrors the website exactly) ─────────────────────
 const getChecklist = (pw) => ({
@@ -41,7 +38,6 @@ export default function SettingsScreen({ navigation }) {
     const [notifVisitWindow,  setNotifVisitWindow]  = useState(true);
     const [notifHealthTips,   setNotifHealthTips]   = useState(true);
     const [educationConsent,  setEducationConsent]  = useState(false);
-    const [darkMode,          setDarkMode]          = useState(false);
 
     // ── Loading states ──
     const [loadingSettings, setLoadingSettings] = useState(true);
@@ -87,16 +83,8 @@ export default function SettingsScreen({ navigation }) {
         }
     }, [userToken, API_BASE_URL]);
 
-    const loadDarkMode = async () => {
-        try {
-            const val = await AsyncStorage.getItem(DARK_MODE_KEY);
-            if (val !== null) setDarkMode(val === 'true');
-        } catch {}
-    };
-
     useEffect(() => {
         fetchSettings();
-        loadDarkMode();
     }, [fetchSettings]);
 
     // ── Live password checklist ──────────────────────────────────────────────
@@ -122,11 +110,6 @@ export default function SettingsScreen({ navigation }) {
     const handleToggle = (key, value, setter) => {
         setter(value);
         saveToggle(key, value);
-    };
-
-    const handleDarkModeToggle = async (value) => {
-        setDarkMode(value);
-        try { await AsyncStorage.setItem(DARK_MODE_KEY, String(value)); } catch {}
     };
 
     // ── Change Password flow ─────────────────────────────────────────────────
@@ -394,14 +377,6 @@ export default function SettingsScreen({ navigation }) {
                 {/* ── Application ── */}
                 <Text style={styles.sectionTitle}>Application</Text>
                 <View style={styles.card}>
-                    {renderToggleRow(
-                        'Dark Mode',
-                        'Stored on this device only',
-                        darkMode,
-                        handleDarkModeToggle,
-                        false,
-                    )}
-                    <View style={styles.divider} />
                     <View style={styles.menuItem}>
                         <View style={styles.menuItemLeft}>
                             <Ionicons name="information-circle-outline" size={18} color="#555" style={styles.menuIcon} />

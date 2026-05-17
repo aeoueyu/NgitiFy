@@ -866,7 +866,7 @@ export default function PreRegisterPage() {
                                 <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Emergency Contact</h3>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="emergencyContact_name">
-                                        <label className={styles.fieldLabel}>Emergency Contact{REQUIRED_MARK}</label>
+                                        <label className={styles.fieldLabel}>Emergency Contact Name{REQUIRED_MARK}</label>
                                         <input className={`${styles.fieldInput} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} value={emergencyContact.name} onChange={(e) => handleContactChange('emergencyContact', 'name', e.target.value)} />
                                         {errors.emergencyContact_name && <span className={styles.errorText}>{errors.emergencyContact_name}</span>}
                                     </div>
