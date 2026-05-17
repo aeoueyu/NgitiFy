@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FaDownload, FaFilter, FaSearch } from 'react-icons/fa';
+import LogDetailsModal from '../../components/shared/LogDetailsModal';
 import { authFetch } from '../../utils/api';
 import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
@@ -134,6 +135,7 @@ export default function AuditTrail() {
     const [customFrom, setCustomFrom] = useState(getTodayString());
     const [customTo, setCustomTo] = useState(getTodayString());
     const [page, setPage] = useState(1);
+    const [selectedLog, setSelectedLog] = useState(null);
 
     const fetchAuditLogs = useCallback(async () => {
         try {
@@ -342,14 +344,14 @@ export default function AuditTrail() {
             </div>
 
             <div className={`${scheduleStyles.tableContainer} ${wideTable.tableWrapper}`} style={{ overflowX: 'auto', overflowY: 'hidden' }}>
-                <table className={wideTable.table} style={{ '--wide-table-min-width': '1460px' }}>
+                <table className={wideTable.table} style={{ '--wide-table-min-width': '1200px' }}>
                     <thead>
                         <tr>
                             <th style={{ minWidth: '190px' }}>Date</th>
                             <th style={{ minWidth: '260px' }}>User</th>
                             <th style={{ minWidth: '220px' }}>Role</th>
                             <th style={{ minWidth: '260px' }}>Action</th>
-                            <th style={{ minWidth: '680px' }}>Details</th>
+                            <th style={{ minWidth: '180px' }}>View Details</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -377,7 +379,16 @@ export default function AuditTrail() {
                                             {log.action}
                                         </span>
                                     </td>
-                                    <td title={log.details || 'No extra details recorded.'}>{log.details || 'No extra details recorded.'}</td>
+                                    <td>
+                                        <button
+                                            type="button"
+                                            className={scheduleStyles.secondaryButton}
+                                            style={{ padding: '8px 12px', fontSize: '12px' }}
+                                            onClick={() => setSelectedLog(log)}
+                                        >
+                                            View Details
+                                        </button>
+                                    </td>
                                 </tr>
                             ))
                         ) : (
@@ -406,6 +417,21 @@ export default function AuditTrail() {
                     </div>
                 </div>
             )}
+
+            <LogDetailsModal
+                isOpen={Boolean(selectedLog)}
+                onClose={() => setSelectedLog(null)}
+                title="Audit Log Details"
+                subtitle="Review the complete system message for this audit entry."
+                summaryItems={selectedLog ? [
+                    { label: 'Date', value: selectedLog.date },
+                    { label: 'Time', value: selectedLog.time || 'Unknown Time' },
+                    { label: 'User', value: selectedLog.userName },
+                    { label: 'Action', value: selectedLog.action },
+                ] : []}
+                detailsTitle="Recorded Details"
+                detailsText={selectedLog?.details}
+            />
         </div>
     );
 }

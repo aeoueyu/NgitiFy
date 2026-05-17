@@ -3,6 +3,7 @@ import { FaDownload, FaFilter, FaSearch } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { formatDateShort, formatTime } from '../../utils/dateUtils';
+import LogDetailsModal from './LogDetailsModal';
 import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
 import wideTable from '../../styles/wideTable.module.css';
 
@@ -107,6 +108,7 @@ export default function SharedActivityLogs() {
     const [customFrom, setCustomFrom] = useState(getTodayString());
     const [customTo, setCustomTo] = useState(getTodayString());
     const [page, setPage] = useState(1);
+    const [selectedLog, setSelectedLog] = useState(null);
 
     const fetchLogs = useCallback(async () => {
         setLoading(true);
@@ -278,13 +280,13 @@ export default function SharedActivityLogs() {
             </div>
 
             <div className={`${scheduleStyles.tableContainer} ${wideTable.tableWrapper}`} style={{ overflowX: 'auto', overflowY: 'hidden' }}>
-                <table className={wideTable.table} style={{ '--wide-table-min-width': '1280px' }}>
+                <table className={wideTable.table} style={{ '--wide-table-min-width': '980px' }}>
                     <thead>
                         <tr>
                             <th style={{ minWidth: '190px' }}>Date</th>
                             <th style={{ minWidth: '260px' }}>Action</th>
                             <th style={{ minWidth: '220px' }}>Category</th>
-                            <th style={{ minWidth: '610px' }}>Details</th>
+                            <th style={{ minWidth: '180px' }}>View Details</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -307,7 +309,16 @@ export default function SharedActivityLogs() {
                                         </span>
                                     </td>
                                     <td title={log.category}>{log.category}</td>
-                                    <td title={log.details || 'No extra details recorded.'}>{log.details || 'No extra details recorded.'}</td>
+                                    <td>
+                                        <button
+                                            type="button"
+                                            className={scheduleStyles.secondaryButton}
+                                            style={{ padding: '8px 12px', fontSize: '12px' }}
+                                            onClick={() => setSelectedLog(log)}
+                                        >
+                                            View Details
+                                        </button>
+                                    </td>
                                 </tr>
                             ))
                         ) : (
@@ -336,6 +347,21 @@ export default function SharedActivityLogs() {
                     </div>
                 </div>
             )}
+
+            <LogDetailsModal
+                isOpen={Boolean(selectedLog)}
+                onClose={() => setSelectedLog(null)}
+                title="Activity Log Details"
+                subtitle="Review the complete details recorded for this account action."
+                summaryItems={selectedLog ? [
+                    { label: 'Date', value: selectedLog.formattedDate },
+                    { label: 'Time', value: selectedLog.formattedTime },
+                    { label: 'Action', value: selectedLog.action },
+                    { label: 'Category', value: selectedLog.category },
+                ] : []}
+                detailsTitle="Recorded Details"
+                detailsText={selectedLog?.details}
+            />
         </div>
     );
 }
