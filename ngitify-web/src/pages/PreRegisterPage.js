@@ -26,6 +26,11 @@ import {
     toLandlinePayload,
     toMobilePayload,
 } from '../utils/patientIntake';
+import {
+    getTodayDateInManila,
+    isFutureDateInManila,
+    normalizeDateInputValue,
+} from '../utils/dateUtils';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 const initialProfileState = {
@@ -109,16 +114,9 @@ const PRE_REGISTER_FIELD_ORDER = [
     'consentAcknowledgement_acknowledged',
 ];
 
-const formatDateInputValue = (value) => {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
+const formatDateInputValue = (value) => normalizeDateInputValue(value);
 
-const getTodayDate = () => formatDateInputValue(new Date());
+const getTodayDate = () => getTodayDateInManila();
 
 const createConsentState = (signerRole = 'Patient', value = null, version = '') => ({
     acknowledged: Boolean(value?.acknowledged),
@@ -182,11 +180,7 @@ const boolFromSelect = (value) => {
     return undefined;
 };
 
-const isFutureDate = (value) => {
-    if (!value) return false;
-    const date = new Date(value);
-    return !Number.isNaN(date.getTime()) && date > new Date();
-};
+const isFutureDate = (value) => isFutureDateInManila(value);
 
 const scrollToField = (fieldKey) => {
     window.requestAnimationFrame(() => {

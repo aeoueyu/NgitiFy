@@ -29,6 +29,10 @@ import {
     toLandlinePayload,
     toMobilePayload,
 } from '../../utils/patientIntake';
+import {
+    getTodayDateInManila,
+    isFutureDateInManila,
+} from '../../utils/dateUtils';
 
 const initialMedicalHistory = {
     inGoodHealth: '',
@@ -76,16 +80,7 @@ const selectToBool = (value) => {
     return undefined;
 };
 
-const formatDateInputValue = (value) => {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-const getTodayDate = () => formatDateInputValue(new Date());
+const getTodayDate = () => getTodayDateInManila();
 
 const INTAKE_STEPS = [
     {
@@ -342,10 +337,10 @@ export default function AddPatient({ onClose, onSuccess }) {
         if (!currentFormData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = 'Required'; isValid = false; }
         if (!currentFormData.dataPrivacyConsent.acknowledged) { newErrors.dataPrivacyConsent_acknowledged = 'Required'; isValid = false; }
         if (!currentFormData.dataPrivacyConsent.signerName.trim()) { newErrors.dataPrivacyConsent_signerName = 'Required'; isValid = false; }
-        if (currentFormData.birthdate && new Date(currentFormData.birthdate) > new Date()) { newErrors.birthdate = 'Birthdate cannot be in the future'; isValid = false; }
-        if (currentFormData.dentalHistory.lastExamDate && new Date(currentFormData.dentalHistory.lastExamDate) > new Date()) { newErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future'; isValid = false; }
-        if (currentFormData.consentAcknowledgement.signedAt && new Date(currentFormData.consentAcknowledgement.signedAt) > new Date()) { newErrors.consentAcknowledgement_signedAt = 'Invalid signed date'; isValid = false; }
-        if (currentFormData.dataPrivacyConsent.signedAt && new Date(currentFormData.dataPrivacyConsent.signedAt) > new Date()) { newErrors.dataPrivacyConsent_signedAt = 'Invalid signed date'; isValid = false; }
+        if (currentFormData.birthdate && isFutureDateInManila(currentFormData.birthdate)) { newErrors.birthdate = 'Birthdate cannot be in the future'; isValid = false; }
+        if (currentFormData.dentalHistory.lastExamDate && isFutureDateInManila(currentFormData.dentalHistory.lastExamDate)) { newErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future'; isValid = false; }
+        if (currentFormData.consentAcknowledgement.signedAt && isFutureDateInManila(currentFormData.consentAcknowledgement.signedAt)) { newErrors.consentAcknowledgement_signedAt = 'Invalid signed date'; isValid = false; }
+        if (currentFormData.dataPrivacyConsent.signedAt && isFutureDateInManila(currentFormData.dataPrivacyConsent.signedAt)) { newErrors.dataPrivacyConsent_signedAt = 'Invalid signed date'; isValid = false; }
         requiredYesNoFields.forEach(([section, field]) => {
             if (!currentFormData[section][field]) {
                 newErrors[`${section}_${field}`] = 'Required';

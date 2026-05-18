@@ -30,6 +30,10 @@ import {
     getSelectValueWithOther,
     getOtherTextValue,
 } from '../../utils/patientIntake';
+import {
+    getTodayDateInManila,
+    normalizeDateInputValue,
+} from '../../utils/dateUtils';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -91,16 +95,9 @@ const selectToBool = (value) => {
     return undefined;
 };
 
-const formatDateInputValue = (value) => {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
+const formatDateInputValue = (value) => normalizeDateInputValue(value);
 
-const getTodayDate = () => formatDateInputValue(new Date());
+const getTodayDate = () => getTodayDateInManila();
 
 export default function RegisterGuestPatient({ appointment, onClose, onSuccess }) {
     const { user } = useAuth();
@@ -725,14 +722,14 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                 acknowledged: Boolean(formData.consentAcknowledgement.acknowledged),
                 signerName: formData.consentAcknowledgement.signerName.trim() || undefined,
                 signerRole: formData.consentAcknowledgement.signerRole || (isMinor ? 'Parent/Guardian' : 'Patient'),
-                signedAt: formData.consentAcknowledgement.signedAt || new Date().toISOString(),
+                signedAt: formData.consentAcknowledgement.signedAt || getTodayDate(),
                 version: 'Dentime Patient Form v6.1',
             },
             dataPrivacyConsent: {
                 acknowledged: Boolean(formData.dataPrivacyConsent.acknowledged),
                 signerName: formData.dataPrivacyConsent.signerName.trim() || undefined,
                 signerRole: formData.dataPrivacyConsent.signerRole || (isMinor ? 'Parent/Guardian' : 'Patient'),
-                signedAt: formData.dataPrivacyConsent.signedAt || new Date().toISOString(),
+                signedAt: formData.dataPrivacyConsent.signedAt || getTodayDate(),
                 version: 'Data Privacy Act of 2012',
             },
             homeAddress: { country: 'Philippines', ...formData.homeAddress },

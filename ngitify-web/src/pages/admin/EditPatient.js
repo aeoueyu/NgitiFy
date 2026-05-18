@@ -25,6 +25,11 @@ import {
     getSelectValueWithOther,
     getOtherTextValue,
 } from '../../utils/patientIntake';
+import {
+    getTodayDateInManila,
+    isFutureDateInManila,
+    normalizeDateInputValue,
+} from '../../utils/dateUtils';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 const initialEmergencyContact = { name: '', relationship: '', contactNumber: '' };
@@ -63,16 +68,9 @@ const initialDentalHistory = {
 
 const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
 const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
-const formatDateInputValue = (value) => {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
+const formatDateInputValue = (value) => normalizeDateInputValue(value);
 
-const getTodayDate = () => formatDateInputValue(new Date());
+const getTodayDate = () => getTodayDateInManila();
 
 export default function EditPatient({ patientId, onClose, onSuccess }) {
     const fileInputRef = useRef(null);
@@ -542,19 +540,19 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             nextErrors.dataPrivacyConsent_signerName = 'Required';
             isValid = false;
         }
-        if (formData.birthdate && new Date(formData.birthdate) > new Date()) {
+        if (formData.birthdate && isFutureDateInManila(formData.birthdate)) {
             nextErrors.birthdate = 'Birthdate cannot be in the future';
             isValid = false;
         }
-        if (formData.dentalHistory.lastExamDate && new Date(formData.dentalHistory.lastExamDate) > new Date()) {
+        if (formData.dentalHistory.lastExamDate && isFutureDateInManila(formData.dentalHistory.lastExamDate)) {
             nextErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future';
             isValid = false;
         }
-        if (formData.consentAcknowledgement.signedAt && new Date(formData.consentAcknowledgement.signedAt) > new Date()) {
+        if (formData.consentAcknowledgement.signedAt && isFutureDateInManila(formData.consentAcknowledgement.signedAt)) {
             nextErrors.consentAcknowledgement_signedAt = 'Invalid signed date';
             isValid = false;
         }
-        if (formData.dataPrivacyConsent.signedAt && new Date(formData.dataPrivacyConsent.signedAt) > new Date()) {
+        if (formData.dataPrivacyConsent.signedAt && isFutureDateInManila(formData.dataPrivacyConsent.signedAt)) {
             nextErrors.dataPrivacyConsent_signedAt = 'Invalid signed date';
             isValid = false;
         }
