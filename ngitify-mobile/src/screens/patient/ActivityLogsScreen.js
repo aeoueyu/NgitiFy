@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     // Loading
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     loadingText:      { marginTop: 12, color: '#888', fontSize: 14 },
-    listContent:      { paddingBottom: 40 },
+    listContent:      { paddingBottom: 132 },
 
     // List header
     listHeader: {

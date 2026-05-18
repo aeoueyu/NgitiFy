@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Expo local/cache output
+.expo/
+.expo-shared/
+.expo-export-check/
+.expo-export-check-*/
+
+# Build output
+dist/
+web-build/
+
+# Native/generated folders
+android/
+ios/
+.kotlin/
+
+# Logs and temp files
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# Local env
+.env
+.env.local
+.env*.local
+
+# OS/editor noise
+.DS_Store

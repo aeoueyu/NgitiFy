@@ -12,10 +12,11 @@ import {
     FaTimes,
 } from 'react-icons/fa';
 import { authFetch, publicFetch } from '../../utils/api';
-import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
+import { downloadCsvFile } from '../../utils/exportHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
+import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
 import PatientEMR from '../admin/PatientEMR';
 import RegisterGuestPatient from '../admin/RegisterGuestPatient';
 import ConfirmModal from '../../components/common/ConfirmModal';
@@ -522,6 +523,7 @@ export default function SchedulePage() {
     const [slotError, setSlotError] = useState('');
 
     const [viewEntry, setViewEntry] = useState(null);
+    const [printPreviewConfig, setPrintPreviewConfig] = useState(null);
 
     const todayString = getTodayString();
     const selectedDateRange = useMemo(() => {
@@ -1026,7 +1028,7 @@ export default function SchedulePage() {
         );
     }, [exportRows]);
     const handleExportPdf = useCallback(() => {
-        openPrintReport({
+        setPrintPreviewConfig({
             title: 'Schedule Records Report',
             subtitle: 'Dentime Dental Clinic - NgitiFy',
             summaryItems: [
@@ -2670,6 +2672,11 @@ export default function SchedulePage() {
                     </div>
                 </div>
             )}
+            <PrintReportPreviewModal
+                isOpen={Boolean(printPreviewConfig)}
+                reportConfig={printPreviewConfig}
+                onClose={() => setPrintPreviewConfig(null)}
+            />
         </>
     );
 }

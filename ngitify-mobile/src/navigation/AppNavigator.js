@@ -33,6 +33,7 @@ import EditProfileScreen from '../screens/shared/EditProfileScreen';
 const Stack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const PatientStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator();
 const PatientTabs = createBottomTabNavigator();
 
 // --- NAVIGATORS ---
@@ -61,8 +62,19 @@ function PatientTabsNavigator() {
             <PatientTabs.Screen name="OralCareInsights" component={OralCareInsightsScreen} />
             <PatientTabs.Screen name="MyAppointments" component={PatientAppointmentsScreen} />
             <PatientTabs.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
-            <PatientTabs.Screen name="MyProfile" component={MyProfileScreen} />
+            <PatientTabs.Screen name="MyProfile" component={PatientProfileNavigator} />
         </PatientTabs.Navigator>
+    );
+}
+
+function PatientProfileNavigator() {
+    return (
+        <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+            <ProfileStack.Screen name="MyProfileHome" component={MyProfileScreen} />
+            <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+            <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
+            <ProfileStack.Screen name="ActivityLogs" component={ActivityLogsScreen} />
+        </ProfileStack.Navigator>
     );
 }
 
@@ -78,10 +90,7 @@ function PatientNavigator() {
             <PatientStack.Screen name="PreOpInstructions" component={PreOpInstructionsScreen} />
             <PatientStack.Screen name="AppointmentBooking" component={AppointmentBookingScreen} />
             <PatientStack.Screen name="SurgerySchedules" component={SurgerySchedulesScreen} />
-            <PatientStack.Screen name="Settings" component={SettingsScreen} />
-            <PatientStack.Screen name="EditProfile" component={EditProfileScreen} />
             <PatientStack.Screen name="Notifications" component={NotificationsScreen} />
-            <PatientStack.Screen name="ActivityLogs" component={ActivityLogsScreen} />
         </PatientStack.Navigator>
     );
 }

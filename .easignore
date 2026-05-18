@@ -1,0 +1,31 @@
+# Keep the EAS upload focused on the mobile app inside this monorepo.
+
+# Exclude sibling projects and repo metadata
+backend/
+ngitify-web/
+.git/
+.qodo/
+.codex_tmp/
+tmp_pdf_pages_cute/
+tmp_pdf_pages_latest/
+tmp_*.png
+node_modules/
+
+# Exclude mobile-generated content that should not be uploaded
+ngitify-mobile/node_modules/
+ngitify-mobile/dist/
+ngitify-mobile/.expo/
+ngitify-mobile/.expo-shared/
+ngitify-mobile/.expo-export-check/
+ngitify-mobile/.expo-export-check-*/
+ngitify-mobile/web-build/
+ngitify-mobile/android/
+ngitify-mobile/ios/
+ngitify-mobile/.kotlin/
+ngitify-mobile/.env
+ngitify-mobile/.env.local
+ngitify-mobile/.env*.local
+ngitify-mobile/npm-debug.*
+ngitify-mobile/yarn-debug.*
+ngitify-mobile/yarn-error.*
+ngitify-mobile/*.log

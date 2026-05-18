@@ -1,0 +1,123 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.62);
+    backdrop-filter: blur(4px);
+}
+
+.card {
+    position: relative;
+    z-index: 1;
+    width: min(1200px, 100%);
+    height: min(92vh, 920px);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    background: #f4f7fa;
+    border-radius: 24px;
+    padding: 22px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+}
+
+.toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.title {
+    margin: 0 0 6px;
+    color: #0a3f65;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.subtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.closeButton,
+.printButton {
+    border: none;
+    border-radius: 999px;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.closeButton {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #d7e3ec;
+}
+
+.printButton {
+    background: #0a3f65;
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(10, 63, 101, 0.2);
+}
+
+.closeButton:hover,
+.printButton:hover {
+    transform: translateY(-1px);
+}
+
+.previewFrameShell {
+    flex: 1;
+    min-height: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid #d8e6ef;
+    background: linear-gradient(180deg, #dfeaf2 0%, #edf3f7 100%);
+    padding: 14px;
+}
+
+.previewFrame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 14px;
+    background: #eef4f8;
+}
+
+@media (max-width: 900px) {
+    .overlay {
+        padding: 12px;
+    }
+
+    .card {
+        height: min(95vh, 920px);
+        padding: 16px;
+    }
+
+    .toolbar {
+        flex-direction: column;
+    }
+
+    .actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

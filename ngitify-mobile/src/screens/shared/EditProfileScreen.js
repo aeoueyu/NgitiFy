@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
     editBtn:     { width: 60, alignItems: 'flex-end', padding: 5 },
     editBtnText: { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
 
-    formContainer: { padding: 20, paddingBottom: 48 },
+    formContainer: { padding: 20, paddingBottom: 132 },
 
     // Error / retry
     errorBanner: {

@@ -22,6 +22,7 @@ const { pathToFileURL } = require('url');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
+const { InferenceClient } = require('@huggingface/inference');
 const defaultWebsiteContent = require('../ngitify-web/src/data/websiteContentDefaults.json');
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -282,18 +283,6 @@ const runPythonRadiographEnhancer = async (imageDataUrl, options = {}) => {
     throw lastError || new Error('Could not start the radiograph enhancer.');
 };
 
-const getHuggingFaceImageToImageUrl = ({ model, provider }) => {
-    const trimmedModel = String(model || '').trim();
-    if (!trimmedModel) {
-        throw new Error('HF_RADIOGRAPH_MODEL is not configured.');
-    }
-    const trimmedProvider = String(provider || DEFAULT_HF_RADIOGRAPH_PROVIDER || 'hf-inference').trim().toLowerCase();
-    if (trimmedProvider === 'hf-inference') {
-        return `https://router.huggingface.co/hf-inference/models/${trimmedModel}`;
-    }
-    return `https://router.huggingface.co/${trimmedProvider}/models/${trimmedModel}`;
-};
-
 const runHuggingFaceRadiographEnhancer = async (imageDataUrl, options = {}) => {
     const hfToken = String(process.env.HF_TOKEN || '').trim();
     if (!hfToken) {
@@ -302,38 +291,37 @@ const runHuggingFaceRadiographEnhancer = async (imageDataUrl, options = {}) => {
 
     const model = String(options.model || DEFAULT_HF_RADIOGRAPH_MODEL || '').trim();
     const provider = String(options.provider || DEFAULT_HF_RADIOGRAPH_PROVIDER || 'hf-inference').trim();
-    const { imageBase64 } = parseBase64ImageDataUrl(imageDataUrl);
-    const endpoint = getHuggingFaceImageToImageUrl({ model, provider });
-    const prompt = 'Enhance this dental radiograph for clearer inspection. Preserve anatomy exactly, avoid adding or removing structures, and improve clarity conservatively.';
+    if (!model) {
+        throw new Error('HF_RADIOGRAPH_MODEL is not configured.');
+    }
 
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${hfToken}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            inputs: imageBase64,
+    const { imageBase64 } = parseBase64ImageDataUrl(imageDataUrl);
+    const imageBlob = new Blob([Buffer.from(imageBase64, 'base64')], { type: 'image/png' });
+    const prompt = 'Enhance this dental radiograph for clearer inspection. Preserve anatomy exactly, avoid adding or removing structures, and improve clarity conservatively.';
+    const client = new InferenceClient(hfToken);
+
+    try {
+        const enhancedImageBlob = await client.imageToImage({
+            model,
+            provider,
+            inputs: imageBlob,
             parameters: {
                 prompt,
                 num_inference_steps: 18,
                 guidance_scale: 2.2,
             },
-        }),
-    });
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Hugging Face enhancement failed. ${errorText || `HTTP ${response.status}`}`);
+        const buffer = Buffer.from(await enhancedImageBlob.arrayBuffer());
+        return {
+            mediaType: enhancedImageBlob.type || 'image/png',
+            imageBase64: buffer.toString('base64'),
+            provider,
+            model,
+        };
+    } catch (error) {
+        throw new Error(`Hugging Face enhancement failed. ${error?.message || 'Unknown error.'}`);
     }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return {
-        mediaType: response.headers.get('content-type') || 'image/png',
-        imageBase64: buffer.toString('base64'),
-        provider,
-        model,
-    };
 };
 
 const runRadiographEnhancer = async (imageDataUrl, options = {}) => {
@@ -3510,6 +3498,24 @@ const isNotificationVisibleToUser = (userDoc = null, notification = null) => {
     }
 
     return preferences[preferenceKey] !== false;
+};
+
+const buildNotificationAudienceQuery = (user = null) => {
+    if (!user?.id || !user?.role) {
+        return null;
+    }
+
+    const normalizedRole = String(user.role || '').trim().toLowerCase();
+    if (normalizedRole === 'patient') {
+        return { recipientId: user.id };
+    }
+
+    return {
+        $or: [
+            { recipientRole: user.role },
+            { recipientId: user.id }
+        ]
+    };
 };
 
 const createBranchScopedNotifications = async ({ type, title, message, branch, relatedId, includeOwners = false }) => {
@@ -10470,12 +10476,14 @@ app.get('/api/notifications', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        const rawNotifications = await Notification.find({
-            $or: [
-                { recipientRole: req.user.role },
-                { recipientId: req.user.id }
-            ]
-        }).sort({ createdAt: -1 }).limit(200);
+        const notificationQuery = buildNotificationAudienceQuery(req.user);
+        if (!notificationQuery) {
+            return res.status(400).json({ message: 'Invalid notification audience.' });
+        }
+
+        const rawNotifications = await Notification.find(notificationQuery)
+            .sort({ createdAt: -1 })
+            .limit(200);
 
         const notifications = rawNotifications
             .filter((notification) => isNotificationVisibleToUser(currentUser, notification))
@@ -10491,9 +10499,14 @@ app.get('/api/notifications', verifyToken, async (req, res) => {
 // Mark all notifications as read for the user
 app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
     try {
+        const notificationQuery = buildNotificationAudienceQuery(req.user);
+        if (!notificationQuery) {
+            return res.status(400).json({ message: 'Invalid notification audience.' });
+        }
+
         await Notification.updateMany(
-            { 
-                $or: [{ recipientRole: req.user.role }, { recipientId: req.user.id }],
+            {
+                ...notificationQuery,
                 isRead: false
             },
             { $set: { isRead: true } }

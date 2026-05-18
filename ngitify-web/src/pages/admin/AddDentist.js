@@ -5,10 +5,12 @@ import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
+import useRealtimeStaffEmailValidation from '../../hooks/useRealtimeStaffEmailValidation';
 import {
     addRequiredAddressErrors,
     getMaxDateForMinimumAge,
     getStaffFieldError,
+    hasDuplicateEmailError,
     isAllowedPersonNameInput,
     isValidStaffEmail,
     isValidStaffLicenseNumber,
@@ -46,6 +48,12 @@ export default function AddDentist({ onClose, onSuccess }) {
         homeAddress: { ...initialAddressState },
         permissions: { patients: 'none', appointments: 'none', inventory: 'none' },
         assignedBranch: '',
+    });
+
+    useRealtimeStaffEmailValidation({
+        email: formData.email,
+        setErrors,
+        enabled: !isLoading,
     });
 
     const handleBlur = (e) => {
@@ -101,6 +109,7 @@ export default function AddDentist({ onClose, onSuccess }) {
         else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
 
         if (formData.email && !isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
+        else if (hasDuplicateEmailError(errors.email)) newErrors.email = errors.email;
         if (formData.birthdate && !meetsMinimumAge(formData.birthdate, 21)) newErrors.birthdate = 'Min age 21';
         if (formData.licenseNumber && !isValidStaffLicenseNumber(formData.licenseNumber)) newErrors.licenseNumber = 'Must be 7 digits';
 

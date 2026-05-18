@@ -5,10 +5,12 @@ import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
+import useRealtimeStaffEmailValidation from '../../hooks/useRealtimeStaffEmailValidation';
 import {
     addRequiredAddressErrors,
     getMaxDateForMinimumAge,
     getStaffFieldError,
+    hasDuplicateEmailError,
     isAllowedPersonNameInput,
     isValidStaffEmail,
     isValidStaffLicenseNumber,
@@ -109,6 +111,13 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
         fetchData();
     }, [ownerId, onClose]);
 
+    useRealtimeStaffEmailValidation({
+        email: formData.email,
+        excludeId: ownerId,
+        setErrors,
+        enabled: !isLoading && !isSaving,
+    });
+
     const hasChanges = initialData
         ? JSON.stringify(formData) !== JSON.stringify(initialData) || profileImage !== initialProfileImage
         : false;
@@ -172,6 +181,7 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
         if (!formData.gender) newErrors.gender = 'Required';
         if (!formData.email) newErrors.email = 'Required';
         else if (!isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
+        else if (hasDuplicateEmailError(errors.email)) newErrors.email = errors.email;
         if (!formData.phone) newErrors.phone = 'Required';
         else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
         if (formData.isDentist) {

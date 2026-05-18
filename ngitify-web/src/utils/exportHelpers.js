@@ -64,19 +64,22 @@ export const downloadCsvSections = (filename, sections = []) => {
     window.URL.revokeObjectURL(url);
 };
 
-export const openPrintReport = ({
+const normalizeReportConfig = ({
     title,
     subtitle = '',
     summaryItems = [],
     sections = [],
     orientation = 'landscape',
-}) => {
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1200,height=900');
-    if (!printWindow) {
-        return false;
-    }
+}) => ({
+    title,
+    subtitle,
+    summaryItems: Array.isArray(summaryItems) ? summaryItems : [],
+    sections: Array.isArray(sections) ? sections : [],
+    orientation: orientation === 'portrait' ? 'portrait' : 'landscape',
+});
 
-    const summaryMarkup = summaryItems.length > 0
+const buildSummaryMarkup = (summaryItems = []) => (
+    summaryItems.length > 0
         ? `
             <section class="summary-grid">
                 ${summaryItems.map((item) => `
@@ -87,11 +90,15 @@ export const openPrintReport = ({
                 `).join('')}
             </section>
         `
-        : '';
+        : ''
+);
 
-    const sectionMarkup = sections.map((section) => `
-        <section class="report-section">
+const buildSectionMarkup = (sections = []) => sections.map((section) => `
+    <section class="report-section">
+        <div class="section-heading">
             <h2>${escapeHtml(section.title)}</h2>
+        </div>
+        <div class="table-shell">
             <table>
                 <thead>
                     <tr>
@@ -110,43 +117,101 @@ export const openPrintReport = ({
                     `}
                 </tbody>
             </table>
-        </section>
-    `).join('');
+        </div>
+    </section>
+`).join('');
 
-    printWindow.document.write(`
+export const buildPrintReportDocument = (reportConfig = {}) => {
+    const {
+        title,
+        subtitle,
+        summaryItems,
+        sections,
+        orientation,
+    } = normalizeReportConfig(reportConfig);
+
+    const generatedAt = new Date().toLocaleString('en-PH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+
+    return `
         <!DOCTYPE html>
         <html>
             <head>
+                <meta charset="utf-8" />
                 <title>${escapeHtml(title)}</title>
                 <style>
                     @page {
                         size: ${orientation};
-                        margin: 16mm;
+                        margin: 14mm;
                     }
-                    body {
-                        font-family: Arial, sans-serif;
-                        color: #111827;
+                    * {
+                        box-sizing: border-box;
+                    }
+                    html, body {
                         margin: 0;
                         padding: 0;
-                        background: #ffffff;
+                        background: #eef4f8;
+                    }
+                    body {
+                        font-family: "Lexend Deca", Arial, sans-serif;
+                        color: #14324a;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                     }
                     .report-shell {
-                        padding: 12px 0 24px;
+                        width: 100%;
+                        padding: 28px;
+                    }
+                    .report-document {
+                        background: #ffffff;
+                        border: 1px solid #d8e6ef;
+                        border-radius: 20px;
+                        padding: 28px;
+                        box-shadow: 0 18px 45px rgba(10, 63, 101, 0.08);
                     }
                     .report-header {
+                        display: flex;
+                        justify-content: space-between;
+                        gap: 16px;
+                        align-items: flex-start;
                         border-bottom: 2px solid #0a3f65;
-                        margin-bottom: 20px;
-                        padding-bottom: 12px;
+                        padding-bottom: 16px;
+                        margin-bottom: 18px;
                     }
-                    .report-header h1 {
+                    .report-header-copy h1 {
                         margin: 0 0 6px;
                         color: #0a3f65;
                         font-size: 24px;
+                        line-height: 1.2;
                     }
-                    .report-header p {
+                    .report-header-copy p {
                         margin: 0;
-                        color: #4b5563;
+                        color: #526579;
                         font-size: 13px;
+                        line-height: 1.5;
+                    }
+                    .report-meta {
+                        min-width: 180px;
+                        text-align: right;
+                    }
+                    .report-meta-label {
+                        display: block;
+                        color: #6b7c8f;
+                        font-size: 10px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 4px;
+                    }
+                    .report-meta-value {
+                        color: #0a3f65;
+                        font-size: 12px;
+                        font-weight: 700;
+                        line-height: 1.45;
                     }
                     .summary-grid {
                         display: grid;
@@ -156,68 +221,142 @@ export const openPrintReport = ({
                     }
                     .summary-card {
                         border: 1px solid #dbe5ef;
-                        border-radius: 10px;
+                        border-radius: 14px;
                         padding: 12px 14px;
                         background: #f8fbfd;
+                        min-height: 72px;
                     }
                     .summary-label {
                         display: block;
-                        color: #4b5563;
-                        font-size: 11px;
+                        color: #5b6f82;
+                        font-size: 10px;
                         text-transform: uppercase;
                         margin-bottom: 6px;
-                        letter-spacing: 0.4px;
+                        letter-spacing: 0.45px;
                     }
                     .summary-value {
                         color: #0a3f65;
-                        font-size: 18px;
+                        font-size: 16px;
+                        line-height: 1.35;
                     }
                     .report-section {
-                        margin-bottom: 20px;
+                        margin-bottom: 18px;
+                        break-inside: avoid;
                         page-break-inside: avoid;
                     }
+                    .section-heading {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 12px;
+                        margin-bottom: 8px;
+                    }
                     .report-section h2 {
-                        margin: 0 0 10px;
+                        margin: 0;
                         color: #0a3f65;
-                        font-size: 16px;
+                        font-size: 15px;
+                        line-height: 1.3;
+                    }
+                    .table-shell {
+                        width: 100%;
+                        overflow: hidden;
+                        border: 1px solid #dbe5ef;
+                        border-radius: 14px;
                     }
                     table {
                         width: 100%;
                         border-collapse: collapse;
-                        table-layout: auto;
+                        table-layout: fixed;
                     }
                     th, td {
-                        border: 1px solid #dbe5ef;
+                        border-bottom: 1px solid #dbe5ef;
+                        border-right: 1px solid #dbe5ef;
                         padding: 8px 10px;
-                        font-size: 12px;
+                        font-size: 11px;
                         text-align: left;
                         vertical-align: top;
-                        white-space: nowrap;
+                        white-space: normal;
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
+                        line-height: 1.45;
+                    }
+                    th:last-child, td:last-child {
+                        border-right: none;
+                    }
+                    tbody tr:last-child td {
+                        border-bottom: none;
                     }
                     th {
                         background: #eef7fb;
                         color: #0a3f65;
-                        font-weight: 700;
+                        font-weight: 800;
+                    }
+                    td {
+                        color: #31465a;
                     }
                     .empty-cell {
                         text-align: center;
                         color: #6b7280;
-                        white-space: normal;
+                        padding: 18px;
+                    }
+                    @media print {
+                        html, body {
+                            background: #ffffff;
+                        }
+                        .report-shell {
+                            padding: 0;
+                        }
+                        .report-document {
+                            border: none;
+                            border-radius: 0;
+                            box-shadow: none;
+                            padding: 0;
+                        }
                     }
                 </style>
             </head>
             <body>
                 <main class="report-shell">
-                    <header class="report-header">
-                        <h1>${escapeHtml(title)}</h1>
-                        <p>${escapeHtml(subtitle)}</p>
-                    </header>
-                    ${summaryMarkup}
-                    ${sectionMarkup}
+                    <article class="report-document">
+                        <header class="report-header">
+                            <div class="report-header-copy">
+                                <h1>${escapeHtml(title)}</h1>
+                                <p>${escapeHtml(subtitle)}</p>
+                            </div>
+                            <div class="report-meta">
+                                <span class="report-meta-label">Generated</span>
+                                <span class="report-meta-value">${escapeHtml(generatedAt)}</span>
+                            </div>
+                        </header>
+                        ${buildSummaryMarkup(summaryItems)}
+                        ${buildSectionMarkup(sections)}
+                    </article>
                 </main>
             </body>
         </html>
-    `);
+    `;
+};
+
+export const openPrintReport = ({
+    title,
+    subtitle = '',
+    summaryItems = [],
+    sections = [],
+    orientation = 'landscape',
+}) => {
+    const reportConfig = normalizeReportConfig({
+        title,
+        subtitle,
+        summaryItems,
+        sections,
+        orientation,
+    });
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1200,height=900');
+    if (!printWindow) {
+        return false;
+    }
+
+    printWindow.document.write(buildPrintReportDocument(reportConfig));
 
     printWindow.document.close();
     printWindow.focus();

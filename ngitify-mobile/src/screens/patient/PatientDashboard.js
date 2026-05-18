@@ -164,6 +164,20 @@ function QuickAction({ icon, lib = 'Ionicons', label, sublabel, onPress, tone = 
   );
 }
 
+function navigateWithinPatientShell(navigation, target) {
+  if (target === 'MyProfile' || target === 'MyProfileHome') {
+    navigation.navigate('MyProfile', { screen: 'MyProfileHome' });
+    return;
+  }
+
+  if (['Settings', 'EditProfile', 'ActivityLogs'].includes(target)) {
+    navigation.navigate('MyProfile', { screen: target });
+    return;
+  }
+
+  navigation.navigate(target);
+}
+
 function ProfileSheet({ visible, onClose, navigation, userInfo, logout }) {
   const [logoutVisible, setLogoutVisible] = useState(false);
   const initials = useMemo(() => {
@@ -182,7 +196,7 @@ function ProfileSheet({ visible, onClose, navigation, userInfo, logout }) {
 
   const handlePress = (target) => {
     onClose();
-    setTimeout(() => navigation.navigate(target), 120);
+    setTimeout(() => navigateWithinPatientShell(navigation, target), 120);
   };
 
   return (
@@ -562,7 +576,7 @@ export default function PatientDashboard({ navigation }) {
               icon="settings-outline"
               label="Settings"
               sublabel="Account and privacy"
-              onPress={() => navigation.navigate('Settings')}
+              onPress={() => navigateWithinPatientShell(navigation, 'Settings')}
               tone="secondary"
             />
           </View>

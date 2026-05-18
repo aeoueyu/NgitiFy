@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView,
     Switch, Modal, TextInput, ActivityIndicator,
-    KeyboardAvoidingView, Platform, StatusBar,
+    KeyboardAvoidingView, Platform, StatusBar, Image,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import LogoutModal from '../../components/LogoutModal';
@@ -250,12 +250,16 @@ export default function SettingsScreen({ navigation }) {
 
                 {/* ── Profile Summary ── */}
                 <View style={styles.profileCard}>
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>
-                            {(userInfo?.firstName?.[0] || '?').toUpperCase()}
-                            {(userInfo?.lastName?.[0]  || '').toUpperCase()}
-                        </Text>
-                    </View>
+                    {userInfo?.profileImage ? (
+                        <Image source={{ uri: userInfo.profileImage }} style={styles.avatarImage} />
+                    ) : (
+                        <View style={styles.avatar}>
+                            <Text style={styles.avatarText}>
+                                {(userInfo?.firstName?.[0] || '?').toUpperCase()}
+                                {(userInfo?.lastName?.[0]  || '').toUpperCase()}
+                            </Text>
+                        </View>
+                    )}
                     <View style={styles.profileInfo}>
                         <Text style={styles.profileName}>{displayName}</Text>
                         <Text style={styles.profileEmail}>{displayEmail}</Text>
@@ -267,7 +271,7 @@ export default function SettingsScreen({ navigation }) {
                 <View style={styles.card}>
                     <TouchableOpacity
                         style={styles.menuItem}
-                        onPress={() => navigation.navigate('PatientTabs', { screen: 'MyProfile' })}
+                        onPress={() => navigation.navigate('MyProfileHome')}
                         activeOpacity={0.7}
                     >
                         <View style={styles.menuItemLeft}>
@@ -629,12 +633,16 @@ const styles = StyleSheet.create({
         width: 52, height: 52, borderRadius: 26, backgroundColor: '#01538b',
         justifyContent: 'center', alignItems: 'center', marginRight: 14,
     },
+    avatarImage: {
+        width: 52, height: 52, borderRadius: 26, marginRight: 14,
+        backgroundColor: '#d9e6ef',
+    },
     avatarText:   { color: 'white', fontSize: 18, fontWeight: 'bold' },
     profileInfo:  { flex: 1 },
     profileName:  { fontSize: 16, fontWeight: 'bold', color: '#222', marginBottom: 3 },
     profileEmail: { fontSize: 13, color: '#888' },
 
-    content: { padding: 16, paddingBottom: 48 },
+    content: { padding: 16, paddingBottom: 132 },
 
     sectionTitle: {
         fontSize: 12, fontWeight: '700', color: '#888',

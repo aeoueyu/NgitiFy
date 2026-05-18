@@ -6,7 +6,8 @@ import {
 } from 'recharts';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/BranchAnalytics.module.css';
-import { downloadCsvSections, openPrintReport } from '../../utils/exportHelpers';
+import { downloadCsvSections } from '../../utils/exportHelpers';
+import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
 
 const COLORS = ['#01538b', '#2dccf6', '#27ae60', '#e67e22', '#8e44ad', '#e74c3c'];
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -19,6 +20,7 @@ export default function BranchAnalytics() {
     const [selectedBranch, setSelectedBranch] = useState('All');
     const [from, setFrom]         = useState('');
     const [to, setTo]             = useState('');
+    const [printPreviewConfig, setPrintPreviewConfig] = useState(null);
 
     const fetchAnalytics = useCallback(async () => {
         setLoading(true);
@@ -133,7 +135,7 @@ export default function BranchAnalytics() {
     };
 
     const handleExportPdf = () => {
-        openPrintReport({
+        setPrintPreviewConfig({
             title: 'Branch Analytics Report',
             subtitle: 'Dentime Dental Clinic - NgitiFy',
             summaryItems: [
@@ -277,6 +279,11 @@ export default function BranchAnalytics() {
                     </div>
                 </div>
             )}
+            <PrintReportPreviewModal
+                isOpen={Boolean(printPreviewConfig)}
+                reportConfig={printPreviewConfig}
+                onClose={() => setPrintPreviewConfig(null)}
+            />
         </div>
     );
 }

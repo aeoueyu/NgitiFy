@@ -63,7 +63,16 @@ const initialDentalHistory = {
 
 const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
 const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
-const getTodayDate = () => new Date().toISOString().split('T')[0];
+const formatDateInputValue = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getTodayDate = () => formatDateInputValue(new Date());
 
 export default function EditPatient({ patientId, onClose, onSuccess }) {
     const fileInputRef = useRef(null);
@@ -123,7 +132,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         return age;
     };
 
-    const getMaxDate = () => new Date().toISOString().split('T')[0];
+    const getMaxDate = () => getTodayDate();
     const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
 
     useEffect(() => {
@@ -145,7 +154,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                     firstName: data.name?.first || '',
                     middleName: data.name?.middle || '',
                     lastName: data.name?.last || '',
-                    birthdate: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0] : '',
+                    birthdate: data.birthdate ? formatDateInputValue(data.birthdate) : '',
                     gender: data.gender || '',
                     email: data.email || '',
                     phone: stripMobilePrefix(data.contactNumber || ''),
@@ -204,7 +213,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                         takingBirthControl: boolToSelect(data.medicalHistory?.takingBirthControl),
                     },
                     dentalHistory: {
-                        lastExamDate: data.dentalHistory?.lastExamDate ? new Date(data.dentalHistory.lastExamDate).toISOString().split('T')[0] : '',
+                        lastExamDate: data.dentalHistory?.lastExamDate ? formatDateInputValue(data.dentalHistory.lastExamDate) : '',
                         hadTreatmentReaction: boolToSelect(data.dentalHistory?.hadTreatmentReaction),
                         reactionDetails: data.dentalHistory?.reactionDetails || '',
                         hasConfidentialInfo: boolToSelect(data.dentalHistory?.hasConfidentialInfo),
@@ -213,13 +222,13 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                         acknowledged: Boolean(data.consentAcknowledgement?.acknowledged),
                         signerName: data.consentAcknowledgement?.signerName || '',
                         signerRole: data.consentAcknowledgement?.signerRole || 'Patient',
-                        signedAt: data.consentAcknowledgement?.signedAt ? new Date(data.consentAcknowledgement.signedAt).toISOString().split('T')[0] : getTodayDate(),
+                        signedAt: data.consentAcknowledgement?.signedAt ? formatDateInputValue(data.consentAcknowledgement.signedAt) : getTodayDate(),
                     },
                     dataPrivacyConsent: {
                         acknowledged: Boolean(data.dataPrivacyConsent?.acknowledged),
                         signerName: data.dataPrivacyConsent?.signerName || '',
                         signerRole: data.dataPrivacyConsent?.signerRole || 'Patient',
-                        signedAt: data.dataPrivacyConsent?.signedAt ? new Date(data.dataPrivacyConsent.signedAt).toISOString().split('T')[0] : getTodayDate(),
+                        signedAt: data.dataPrivacyConsent?.signedAt ? formatDateInputValue(data.dataPrivacyConsent.signedAt) : getTodayDate(),
                     },
                 };
 

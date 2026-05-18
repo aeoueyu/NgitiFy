@@ -109,13 +109,22 @@ const PRE_REGISTER_FIELD_ORDER = [
     'consentAcknowledgement_acknowledged',
 ];
 
-const getTodayDate = () => new Date().toISOString().split('T')[0];
+const formatDateInputValue = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getTodayDate = () => formatDateInputValue(new Date());
 
 const createConsentState = (signerRole = 'Patient', value = null, version = '') => ({
     acknowledged: Boolean(value?.acknowledged),
     signerName: value?.signerName || '',
     signerRole: value?.signerRole || signerRole,
-    signedAt: value?.signedAt ? new Date(value.signedAt).toISOString().split('T')[0] : getTodayDate(),
+    signedAt: value?.signedAt ? formatDateInputValue(value.signedAt) : getTodayDate(),
     version: value?.version || version,
 });
 

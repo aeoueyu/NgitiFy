@@ -97,7 +97,7 @@ export default function AdminDashboard() {
                     authFetch('/inventory'),
                     authFetch('/appointments'),
                     authFetch('/audit-logs'),
-                    authFetch('/users?role=dentist'),
+                    authFetch('/assignable-dentists'),
                     authFetch('/users?role=secretary'),
                     authFetch('/users?role=branch-manager'),
                     authFetch('/analytics/branches')

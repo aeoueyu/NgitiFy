@@ -4,10 +4,12 @@ import styles from '../../styles/admin/AddDentist.module.css';
 import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
+import useRealtimeStaffEmailValidation from '../../hooks/useRealtimeStaffEmailValidation';
 import {
     addRequiredAddressErrors,
     getMaxDateForMinimumAge,
     getStaffFieldError,
+    hasDuplicateEmailError,
     isAllowedPersonNameInput,
     isValidStaffEmail,
     isValidStaffLicenseNumber,
@@ -60,6 +62,12 @@ export default function AddOwner({ onClose, onSuccess }) {
         };
         fetchBranches();
     }, []);
+
+    useRealtimeStaffEmailValidation({
+        email: formData.email,
+        setErrors,
+        enabled: !isLoading,
+    });
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -120,6 +128,7 @@ export default function AddOwner({ onClose, onSuccess }) {
         if (!formData.gender)           newErrors.gender    = 'Required';
         if (!formData.email)            newErrors.email     = 'Required';
         else if (!isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
+        else if (hasDuplicateEmailError(errors.email)) newErrors.email = errors.email;
         if (!formData.phone)            newErrors.phone     = 'Required';
         else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
         if (formData.isDentist) {

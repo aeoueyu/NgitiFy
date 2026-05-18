@@ -76,7 +76,16 @@ const selectToBool = (value) => {
     return undefined;
 };
 
-const getTodayDate = () => new Date().toISOString().split('T')[0];
+const formatDateInputValue = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getTodayDate = () => formatDateInputValue(new Date());
 
 const INTAKE_STEPS = [
     {
@@ -155,7 +164,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     };
 
     const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
-    const getMaxDate = () => new Date().toISOString().split('T')[0];
+    const getMaxDate = () => getTodayDate();
     const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
     const duplicateSections = getPatientDuplicateSections(duplicateSummary);
     const duplicateCandidatePatients = getPatientDuplicateCandidates(duplicateSummary);

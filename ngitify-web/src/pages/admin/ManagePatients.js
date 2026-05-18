@@ -7,12 +7,13 @@ import { FaSearch, FaUserPlus, FaEdit, FaEye, FaToggleOn, FaToggleOff, FaDownloa
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
-import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
+import { downloadCsvFile } from '../../utils/exportHelpers';
 
 import AddPatient from './AddPatient';
 import EditPatient from './EditPatient';
 import ViewPatient from './ViewPatient';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
+import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccessRecoveryLabel,
@@ -67,6 +68,7 @@ export default function ManagePatients() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
+    const [printPreviewConfig, setPrintPreviewConfig] = useState(null);
     const [branchTransferState, setBranchTransferState] = useState({
         patient: null,
         preview: null,
@@ -519,7 +521,7 @@ export default function ManagePatients() {
     };
 
     const handleExportPdf = () => {
-        openPrintReport({
+        setPrintPreviewConfig({
             title: 'Patient List Report',
             subtitle: 'Dentime Dental Clinic - NgitiFy',
             summaryItems: [
@@ -906,6 +908,11 @@ export default function ManagePatients() {
                 isDestructive={lifecycleConfig?.isDestructive}
                 onConfirm={lifecycleConfig?.onConfirm}
                 onCancel={() => setLifecycleConfig(null)}
+            />
+            <PrintReportPreviewModal
+                isOpen={Boolean(printPreviewConfig)}
+                reportConfig={printPreviewConfig}
+                onClose={() => setPrintPreviewConfig(null)}
             />
         </div>
     );

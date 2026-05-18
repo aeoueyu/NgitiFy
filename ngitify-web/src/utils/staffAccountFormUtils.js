@@ -6,6 +6,7 @@ export const REQUIRED_MESSAGE = 'Required';
 export const INVALID_EMAIL_MESSAGE = 'Invalid email domain (e.g. gmail.com)';
 export const INVALID_PHONE_MESSAGE = 'Invalid format (9xxxxxxxxx)';
 export const INVALID_LICENSE_MESSAGE = 'Must be 7 digits';
+export const DUPLICATE_EMAIL_MESSAGE = 'Email already exists';
 
 export const isValidStaffEmail = (email = '') => {
     if (!EMAIL_FORMAT_REGEX.test(email)) return false;
@@ -74,6 +75,10 @@ export const addRequiredAddressErrors = (errors, address = {}, prefix) => {
 
     return errors;
 };
+
+export const hasDuplicateEmailError = (message = '') => (
+    String(message).toLowerCase().includes('email already exists')
+);
 
 export const scrollToFirstInvalidField = (errors = {}) => {
     if (typeof document === 'undefined') return;

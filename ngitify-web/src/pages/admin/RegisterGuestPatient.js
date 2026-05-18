@@ -91,7 +91,16 @@ const selectToBool = (value) => {
     return undefined;
 };
 
-const getTodayDate = () => new Date().toISOString().split('T')[0];
+const formatDateInputValue = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getTodayDate = () => formatDateInputValue(new Date());
 
 export default function RegisterGuestPatient({ appointment, onClose, onSuccess }) {
     const { user } = useAuth();
@@ -175,7 +184,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             firstName: nameParts.firstName,
             middleName: nameParts.middleName,
             lastName: nameParts.lastName,
-            birthdate: appointment?.guestBirthdate ? new Date(appointment.guestBirthdate).toISOString().split('T')[0] : prev.birthdate,
+            birthdate: appointment?.guestBirthdate ? formatDateInputValue(appointment.guestBirthdate) : prev.birthdate,
             gender: appointment?.guestGender || prev.gender,
             email: appointment?.guestEmail || '',
             phone: stripMobilePrefix(appointment?.guestPhone || ''),
@@ -199,7 +208,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
             assignedBranch: isBranchScopedStaff ? (user?.assignedBranch || appointment?.branch || '') : (appointment?.branch || ''),
             dentalHistory: {
                 ...prev.dentalHistory,
-                lastExamDate: guestDentalHistory.lastExamDate ? new Date(guestDentalHistory.lastExamDate).toISOString().split('T')[0] : prev.dentalHistory.lastExamDate,
+                lastExamDate: guestDentalHistory.lastExamDate ? formatDateInputValue(guestDentalHistory.lastExamDate) : prev.dentalHistory.lastExamDate,
                 hadTreatmentReaction: guestDentalHistory.hadTreatmentReaction === undefined
                     ? prev.dentalHistory.hadTreatmentReaction
                     : (guestDentalHistory.hadTreatmentReaction ? 'yes' : 'no'),
@@ -265,7 +274,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     };
 
     const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
-    const getMaxDate = () => new Date().toISOString().split('T')[0];
+    const getMaxDate = () => getTodayDate();
     const isMinor = formData.birthdate && getAge(formData.birthdate) < 18;
     const isLinkMode = registrationMode === 'link-existing';
     const patientRecordPath = useMemo(() => {

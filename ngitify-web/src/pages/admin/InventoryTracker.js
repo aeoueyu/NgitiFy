@@ -18,11 +18,12 @@ import {
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
-import { downloadCsvFile, openPrintReport } from '../../utils/exportHelpers';
+import { downloadCsvFile } from '../../utils/exportHelpers';
 import AddInventoryItem from './AddInventoryItem';
 import AddInventoryStock from './AddInventoryStock';
 import EditInventoryItem from './EditInventoryItem';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
 import { useToast } from '../../context/ToastContext';
 import { formatDateShort } from '../../utils/dateUtils';
 
@@ -85,6 +86,7 @@ export default function InventoryTracker() {
     const [selectedItemId, setSelectedItemId] = useState(null);
 
     const [confirmConfig, setConfirmConfig] = useState(null);
+    const [printPreviewConfig, setPrintPreviewConfig] = useState(null);
 
     const fetchInventory = useCallback(async () => {
         try {
@@ -244,7 +246,7 @@ export default function InventoryTracker() {
     };
 
     const handleExportPdf = () => {
-        openPrintReport({
+        setPrintPreviewConfig({
             title: 'Inventory Records Report',
             subtitle: 'Dentime Dental Clinic - NgitiFy',
             summaryItems: [
@@ -620,6 +622,11 @@ export default function InventoryTracker() {
                 isDestructive={confirmConfig?.isDestructive}
                 onConfirm={confirmConfig?.onConfirm}
                 onCancel={() => setConfirmConfig(null)}
+            />
+            <PrintReportPreviewModal
+                isOpen={Boolean(printPreviewConfig)}
+                reportConfig={printPreviewConfig}
+                onClose={() => setPrintPreviewConfig(null)}
             />
         </div>
     );

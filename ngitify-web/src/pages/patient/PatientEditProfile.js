@@ -465,17 +465,8 @@ export default function PatientEditProfile() {
                 </article>
 
                 <article className={styles.infoCard}>
-                    <PatientSectionHeader eyebrow="Medical" title="Emergency and health details" />
+                    <PatientSectionHeader eyebrow="Emergency" title="Emergency contact" />
                     <div className={styles.formGrid}>
-                        <label className={styles.field}>
-                            <span className={styles.label}>Blood Type</span>
-                            <select className={styles.select} value={formData.bloodType} onChange={(event) => handleFieldChange('bloodType', event.target.value)}>
-                                <option value="">Select blood type</option>
-                                {BLOOD_TYPE_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>{option}</option>
-                                ))}
-                            </select>
-                        </label>
                         <label className={styles.field}>
                             <span className={styles.label}>Emergency Contact Name</span>
                             <input className={styles.input} value={formData.emergencyName} onChange={(event) => handleFieldChange('emergencyName', event.target.value)} />
@@ -487,6 +478,21 @@ export default function PatientEditProfile() {
                         <label className={styles.field}>
                             <span className={styles.label}>Emergency Contact Number</span>
                             <input className={styles.input} value={formData.emergencyPhone} onChange={(event) => handleFieldChange('emergencyPhone', event.target.value)} />
+                        </label>
+                    </div>
+                </article>
+
+                <article className={styles.infoCard}>
+                    <PatientSectionHeader eyebrow="Medical" title="Medical snapshot" />
+                    <div className={styles.formGrid}>
+                        <label className={styles.field}>
+                            <span className={styles.label}>Blood Type</span>
+                            <select className={styles.select} value={formData.bloodType} onChange={(event) => handleFieldChange('bloodType', event.target.value)}>
+                                <option value="">Select blood type</option>
+                                {BLOOD_TYPE_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>{option}</option>
+                                ))}
+                            </select>
                         </label>
                         <label className={`${styles.field} ${styles.fieldWide}`}>
                             <span className={styles.label}>Allergies</span>
