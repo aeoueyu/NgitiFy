@@ -9,9 +9,10 @@ import { logActivity } from '../../utils/logActivity';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Header, Screen } from '../../components/mobile/MobileUI';
+import PatientOdontogramChart from '../../components/patient/PatientOdontogramChart';
 import { mobileTheme } from '../../theme/mobileTheme';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const TABS = [
     { key: 'odontogram', label: 'Odontogram' },
@@ -19,11 +20,11 @@ const TABS = [
     { key: 'medical',    label: 'Medical History' },
 ];
 
-// FDI tooth notation — 4 quadrants, upper then lower
-const UPPER_RIGHT = [18,17,16,15,14,13,12,11]; // displayed right→left
+// FDI tooth notation â€” 4 quadrants, upper then lower
+const UPPER_RIGHT = [18,17,16,15,14,13,12,11]; // displayed rightâ†’left
 const UPPER_LEFT  = [21,22,23,24,25,26,27,28];
 const LOWER_LEFT  = [31,32,33,34,35,36,37,38];
-const LOWER_RIGHT = [48,47,46,45,44,43,42,41]; // displayed right→left
+const LOWER_RIGHT = [48,47,46,45,44,43,42,41]; // displayed rightâ†’left
 
 const SURFACE_CODES = ['M', 'D', 'O', 'B', 'L'];
 const SURFACE_LABELS = {
@@ -130,10 +131,10 @@ const SURGERY_STATUS_COLORS = {
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
                 'Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const fmtDate = (iso) => {
-    if (!iso) return '—';
+    if (!iso) return '-';
     const d = new Date(iso);
     return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 };
@@ -144,7 +145,7 @@ const yesNoDisplay = (value) => (
             : 'Not specified'
 );
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function EmptyState({ iconComponent, title, sub }) {
     return (
@@ -160,7 +161,7 @@ function LoadingState() {
     return (
         <View style={shared.loadingBox}>
             <ActivityIndicator color="#01538b" size="large" />
-            <Text style={shared.loadingText}>Loading records…</Text>
+            <Text style={shared.loadingText}>Loading records...</Text>
         </View>
     );
 }
@@ -177,7 +178,7 @@ function ErrorState({ message, onRetry }) {
     );
 }
 
-// ─── Tab: Treatment History ───────────────────────────────────────────────────
+// â”€â”€â”€ Tab: Treatment History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function TreatmentTab({ logs, loading, error, onRetry }) {
     const [expanded, setExpanded] = useState(null);
@@ -247,7 +248,7 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
     );
 }
 
-// ─── Tab: Odontogram ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Tab: Odontogram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function OdontogramTab({ data, loading, error, onRetry }) {
     if (loading) return <LoadingState />;
@@ -280,7 +281,7 @@ function OdontogramTab({ data, loading, error, onRetry }) {
                 </Text>
                 {statusLabel && !['healthy', 'normal'].includes(normalizedStatusKey) && (
                     <Text style={[styles.toothStatus, { color: colors.text }]} numberOfLines={1}>
-                        {`${statusLabel}${surfaceSuffix}`.length > 12 ? `${statusLabel}${surfaceSuffix}`.slice(0, 11) + '…' : `${statusLabel}${surfaceSuffix}`}
+                        {`${statusLabel}${surfaceSuffix}`.length > 12 ? `${statusLabel}${surfaceSuffix}`.slice(0, 11) + '...' : `${statusLabel}${surfaceSuffix}`}
                     </Text>
                 )}
             </View>
@@ -341,7 +342,7 @@ function OdontogramTab({ data, loading, error, onRetry }) {
     );
 }
 
-// ─── Tab: Radiographs ────────────────────────────────────────────────────────
+// â”€â”€â”€ Tab: Radiographs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
     if (loading) return <LoadingState />;
@@ -542,7 +543,7 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
                 <Text style={styles.odontogramTitle}>Odontogram</Text>
-                <Text style={styles.odontogramSub}>Surface-based 2D odontogram � FDI notation � Tap a tooth to view its status</Text>
+                <Text style={styles.odontogramSub}>Surface-based 2D odontogram · FDI notation · Tap a tooth to view its status</Text>
 
                 {!hasData && (
                     <View style={styles.odontogramEmpty}>
@@ -651,7 +652,7 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
                         {item.notes ? (
                             <Text style={styles.xrayNotes} numberOfLines={1}>{item.notes}</Text>
                         ) : null}
-                        <Text style={styles.xrayTapHint}>Tap to view →</Text>
+                        <Text style={styles.xrayTapHint}>Tap to view -></Text>
                     </View>
                 </TouchableOpacity>
             )}
@@ -659,7 +660,7 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
     );
 }
 
-// ─── Tab: History ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Tab: History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function MedicalHistoryTab({ profile, loading, error, onRetry }) {
     if (loading) return <LoadingState />;
@@ -763,7 +764,7 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
     );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function MedicalRecordsScreen({ navigation }) {
     const { userToken, userId, API_BASE_URL } = useContext(AuthContext);
@@ -786,7 +787,7 @@ export default function MedicalRecordsScreen({ navigation }) {
     const setTabError   = (tab, val) => setErrors(prev =>  ({ ...prev, [tab]: val }));
     const setTabFetched = (tab)      => setFetched(prev => ({ ...prev, [tab]: true }));
 
-    // ── Fetchers ──────────────────────────────────────────────────────────────
+    // â”€â”€ Fetchers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     const fetchOdontogram = useCallback(async () => {
         setTabLoading('odontogram', true);
@@ -849,10 +850,26 @@ export default function MedicalRecordsScreen({ navigation }) {
         }
         logActivity(
             'EMR_VIEWED',
-            `Viewed Medical Records — ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab`,
+            `Viewed Medical Records - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab`,
             userToken, API_BASE_URL
         );
     }, [activeTab]);
+
+    useEffect(() => {
+        if (activeTab !== 'odontogram') return undefined;
+
+        const refreshOdontogram = () => {
+            fetchOdontogram();
+        };
+
+        const unsubscribe = navigation?.addListener?.('focus', refreshOdontogram);
+        const intervalId = setInterval(refreshOdontogram, 30000);
+
+        return () => {
+            if (typeof unsubscribe === 'function') unsubscribe();
+            clearInterval(intervalId);
+        };
+    }, [activeTab, navigation, fetchOdontogram]);
 
     // Animate tab underline
     const TAB_INDEX = { odontogram: 0, radiograph: 1, medical: 2 };
@@ -864,7 +881,7 @@ export default function MedicalRecordsScreen({ navigation }) {
         }).start();
     }, [activeTab]);
 
-    // ─── Render ───────────────────────────────────────────────────────────────
+    // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     return (
         <Screen>
             <Header
@@ -908,12 +925,13 @@ export default function MedicalRecordsScreen({ navigation }) {
             {/* Tab content */}
             <View style={{ flex: 1 }}>
                 {activeTab === 'odontogram' && (
-                    <OdontogramSurfaceTab
-                        data={odontogramData}
-                        loading={loading.odontogram}
-                        error={errors.odontogram}
-                        onRetry={fetchOdontogram}
-                    />
+                    loading.odontogram ? (
+                        <LoadingState />
+                    ) : errors.odontogram ? (
+                        <ErrorState message={errors.odontogram} onRetry={fetchOdontogram} />
+                    ) : (
+                        <PatientOdontogramChart data={odontogramData} />
+                    )
                 )}
                 {activeTab === 'radiograph' && (
                     <RadiographTab
@@ -938,7 +956,7 @@ export default function MedicalRecordsScreen({ navigation }) {
     );
 }
 
-// ─── Shared styles ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Shared styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const shared = StyleSheet.create({
     emptyBox:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 },
@@ -952,7 +970,7 @@ const shared = StyleSheet.create({
     retryText:  { color: 'white', fontWeight: 'bold', fontSize: 14 },
 });
 
-// ─── Screen styles ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Screen styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const styles = StyleSheet.create({
     container:   { flex: 1, backgroundColor: mobileTheme.colors.background },
@@ -1109,6 +1127,7 @@ const styles = StyleSheet.create({
     checklistItem: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: mobileTheme.colors.surfaceAlt, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9 },
     checklistText: { flex: 1, fontSize: 12, color: mobileTheme.colors.textMuted },
 });
+
 
 
 
