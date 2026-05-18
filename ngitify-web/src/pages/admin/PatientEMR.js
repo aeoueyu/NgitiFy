@@ -2159,29 +2159,9 @@ export default function PatientEMR({
                                             ? 'Processing Basic Enhance...'
                                             : <><FaMagic /> Save Basic Enhance</>}
                                     </button>
-                                    <button
-                                        className={styles.aiEnhanceBtn}
-                                        onClick={() => handleAIEnhance('self-hosted')}
-                                        disabled={isEnhancing}
-                                        type="button"
-                                    >
-                                        {isEnhancing && enhancingEngine === 'self-hosted'
-                                            ? 'Processing Self-Hosted AI...'
-                                            : <><FaRobot /> Save Self-Hosted AI</>}
-                                    </button>
-                                    <button
-                                        className={styles.aiEnhanceBtn}
-                                        onClick={() => handleAIEnhance('hugging-face')}
-                                        disabled={isEnhancing}
-                                        type="button"
-                                    >
-                                        {isEnhancing && enhancingEngine === 'hugging-face'
-                                            ? 'Processing Hugging Face AI...'
-                                            : <><FaRobot /> Save Hugging Face AI</>}
-                                    </button>
                                 </div>
                                 <p style={{ margin: 0, color: '#64748b', fontSize: '12px', lineHeight: 1.5 }}>
-                                    `Basic Enhance` keeps the existing OpenCV pipeline. `Self-Hosted AI` uses the local Real-ESRGAN path when its optional Python packages are installed. `Hugging Face AI` is a configurable external test harness and should be reviewed against the original before clinical use.
+                                    `Basic Enhance` keeps the existing OpenCV pipeline.
                                 </p>
                             </div>
                         ) : null}
