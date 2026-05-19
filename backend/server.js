@@ -1952,6 +1952,22 @@ const buildBranchOwnershipFilter = (branch) => {
     };
 };
 
+const applyBranchOwnershipFilter = (query = {}, branch) => {
+    const branchFilter = buildBranchOwnershipFilter(branch);
+    if (!branchFilter.$or) return { ...query };
+
+    if (!query || Object.keys(query).length === 0) {
+        return branchFilter;
+    }
+
+    return {
+        $and: [
+            query,
+            branchFilter,
+        ],
+    };
+};
+
 const parseBooleanQueryFlag = (value) => ['true', '1', 'yes'].includes(String(value || '').trim().toLowerCase());
 
 const applyArchiveVisibilityFilter = (query = {}, { includeArchived = false, archivedOnly = false } = {}) => {
@@ -5025,7 +5041,7 @@ app.get('/api/assignable-dentists', verifyToken, async (req, res) => {
     try {
         const includeArchived = parseBooleanQueryFlag(req.query.includeArchived);
         const archivedOnly = parseBooleanQueryFlag(req.query.archivedOnly);
-        const query = applyArchiveVisibilityFilter({
+        let query = applyArchiveVisibilityFilter({
             $or: [
                 { role: 'dentist' },
                 { role: 'owner', isDentist: true },
@@ -5036,7 +5052,7 @@ app.get('/api/assignable-dentists', verifyToken, async (req, res) => {
             if (!req.user.assignedBranch) {
                 return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
-            Object.assign(query, buildBranchOwnershipFilter(req.user.assignedBranch));
+            query = applyBranchOwnershipFilter(query, req.user.assignedBranch);
         }
 
         const dentists = await User.find(query).select('-password');
@@ -5086,7 +5102,7 @@ app.get('/api/users', verifyToken, async (req, res) => {
             if (!req.user.assignedBranch) {
                 return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
-            Object.assign(query, buildBranchOwnershipFilter(req.user.assignedBranch));
+            query = applyBranchOwnershipFilter(query, req.user.assignedBranch);
         }
 
         const users = await User.find(query).select('-password');
@@ -5108,14 +5124,14 @@ app.get('/api/patients', verifyToken, async (req, res) => {
         const skip = (page - 1) * limit;
         const includeArchived = parseBooleanQueryFlag(req.query.includeArchived);
         const archivedOnly = parseBooleanQueryFlag(req.query.archivedOnly);
-        const baseFilter = applyArchiveVisibilityFilter({ role: 'patient' }, { includeArchived, archivedOnly });
+        let baseFilter = applyArchiveVisibilityFilter({ role: 'patient' }, { includeArchived, archivedOnly });
 
         // Branch-scoped staff only see patients in their assigned branch
         if (req.user.role === 'branch-manager' || req.user.role === 'secretary') {
             if (!req.user.assignedBranch) {
                 return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
-            Object.assign(baseFilter, buildBranchOwnershipFilter(req.user.assignedBranch));
+            baseFilter = applyBranchOwnershipFilter(baseFilter, req.user.assignedBranch);
         }
 
         if (req.user.role === 'dentist') {
