@@ -1,17 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    FaHistory,
-    FaInfoCircle,
-    FaLock,
-    FaPencilAlt,
-    FaSignOutAlt,
-    FaUserCircle,
-} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
-import { PatientPageFrame, PatientSectionHeader } from '../../components/patient/PatientFrame';
-import styles from '../../styles/patient/PatientPortal.module.css';
+import styles from '../../styles/admin/AdminSettings.module.css';
 
 const getPasswordChecklist = (value) => ({
     length: value.length >= 8,
@@ -23,15 +14,16 @@ const getPasswordChecklist = (value) => ({
 
 const PASSWORD_RULES = [
     { key: 'length', label: 'At least 8 characters' },
-    { key: 'upper', label: 'One uppercase letter (A-Z)' },
-    { key: 'lower', label: 'One lowercase letter (a-z)' },
-    { key: 'number', label: 'One number (0-9)' },
-    { key: 'special', label: 'One special character like ! @ # $ % ^ & *' },
+    { key: 'upper', label: 'One uppercase letter' },
+    { key: 'lower', label: 'One lowercase letter' },
+    { key: 'number', label: 'One number' },
+    { key: 'special', label: 'One special character like `! @ # $ % ^ & *`' },
 ];
 
 export default function PatientSettings() {
     const navigate = useNavigate();
     const { logout, user } = useAuth();
+    const [activeTab, setActiveTab] = useState('security');
     const [settings, setSettings] = useState({
         notifAppointments: true,
         notifVisitWindow: true,
@@ -40,7 +32,6 @@ export default function PatientSettings() {
     });
     const [loading, setLoading] = useState(true);
     const [savingKey, setSavingKey] = useState('');
-    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -49,6 +40,7 @@ export default function PatientSettings() {
     const [changingPassword, setChangingPassword] = useState(false);
     const [passwordError, setPasswordError] = useState('');
     const [passwordSuccess, setPasswordSuccess] = useState('');
+    const [settingsMessage, setSettingsMessage] = useState('');
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -65,7 +57,7 @@ export default function PatientSettings() {
                     educationConsent: payload.educationConsent ?? false,
                 });
             } catch {
-                // Keep defaults on failure.
+                setSettingsMessage('Patient settings could not be loaded. Default values are shown.');
             } finally {
                 setLoading(false);
             }
@@ -76,28 +68,26 @@ export default function PatientSettings() {
 
     const checklist = useMemo(() => getPasswordChecklist(newPassword), [newPassword]);
     const allCriteriaMet = useMemo(() => Object.values(checklist).every(Boolean), [checklist]);
+    const isSamePassword = newPassword && newPassword === currentPassword;
 
     const saveSetting = async (key, value) => {
         setSavingKey(key);
+        setSettingsMessage('');
         setSettings((current) => ({ ...current, [key]: value }));
         try {
-            await authFetch('/my/settings', {
+            const response = await authFetch('/my/settings', {
                 method: 'PATCH',
                 body: JSON.stringify({ [key]: value }),
             });
+            if (!response.ok) throw new Error();
+            setSettingsMessage('Settings saved successfully.');
+            window.setTimeout(() => setSettingsMessage(''), 2500);
+        } catch {
+            setSettings((current) => ({ ...current, [key]: !value }));
+            setSettingsMessage('Unable to save this setting. Please try again.');
         } finally {
             setSavingKey('');
         }
-    };
-
-    const openPasswordModal = () => {
-        setPasswordModalOpen(true);
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-        setPasswordVerified(false);
-        setPasswordError('');
-        setPasswordSuccess('');
     };
 
     const verifyCurrentPassword = async () => {
@@ -114,7 +104,7 @@ export default function PatientSettings() {
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.success) {
-                throw new Error(payload.message || 'Incorrect password.');
+                throw new Error(payload.message || 'Incorrect current password.');
             }
             setPasswordVerified(true);
         } catch (error) {
@@ -124,15 +114,17 @@ export default function PatientSettings() {
         }
     };
 
-    const changePassword = async () => {
+    const changePassword = async (event) => {
+        event.preventDefault();
         setPasswordError('');
         setPasswordSuccess('');
 
+        if (!passwordVerified) return;
         if (!allCriteriaMet) {
-            setPasswordError('Your new password does not meet all requirements.');
+            setPasswordError('Please complete all password requirements.');
             return;
         }
-        if (newPassword === currentPassword) {
+        if (isSamePassword) {
             setPasswordError('New password must be different from your current password.');
             return;
         }
@@ -146,7 +138,7 @@ export default function PatientSettings() {
             const response = await authFetch('/change-password', {
                 method: 'POST',
                 body: JSON.stringify({
-                    userId: user?.id,
+                    userId: user?.id || user?.userId || user?._id,
                     currentPassword,
                     newPassword,
                 }),
@@ -158,8 +150,8 @@ export default function PatientSettings() {
 
             setPasswordSuccess('Password changed successfully. You will be logged out for security.');
             window.setTimeout(() => {
-                setPasswordModalOpen(false);
                 logout();
+                navigate('/login', { state: { message: 'Password changed successfully. Please log in again.' } });
             }, 1500);
         } catch (error) {
             setPasswordError(error.message || 'Failed to update password.');
@@ -168,201 +160,234 @@ export default function PatientSettings() {
         }
     };
 
-    const accountLinks = [
-        { title: 'View My Profile', text: 'See your patient identity and details.', icon: <FaUserCircle />, action: () => navigate('/patient/profile') },
-        { title: 'Edit Profile', text: 'Update personal, medical, and address information.', icon: <FaPencilAlt />, action: () => navigate('/patient/profile/edit') },
-        { title: 'Activity Logs', text: 'Review your recent patient account actions.', icon: <FaHistory />, action: () => navigate('/patient/activity-logs') },
-    ];
+    const renderSecuritySection = () => (
+        <div>
+            <h3 className={styles.mainSectionTitle}>Account Security</h3>
+            <p className={styles.sectionDescription}>Verify your current password before setting a new password for your patient account.</p>
 
-    return (
-        <PatientPageFrame
-            title="Settings"
-            subtitle="Manage notifications, privacy, password, and patient account preferences."
-        >
-            {loading ? (
-                <div className={styles.loaderBox}>
-                    <span className={styles.loaderText}>Loading your settings...</span>
-                </div>
-            ) : (
-                <>
-                    <section style={{ marginBottom: '24px' }}>
-                        <PatientSectionHeader eyebrow="Account" title="Patient account shortcuts" />
-                        <div className={styles.toolGrid}>
-                            {accountLinks.map((item) => (
+            {passwordError && <div className={styles.apiErrorMessage}>{passwordError}</div>}
+            {passwordSuccess && <div className={styles.successMessage}>{passwordSuccess}</div>}
+
+            <form onSubmit={changePassword} noValidate>
+                <div className={styles.row}>
+                    <div className={styles.formGroup}>
+                        <label>CURRENT PASSWORD <span style={{ color: 'red' }}>*</span></label>
+                        <div className={styles.inputRow}>
+                            <input
+                                type="password"
+                                className={styles.inputField}
+                                value={currentPassword}
+                                onChange={(event) => setCurrentPassword(event.target.value)}
+                                disabled={passwordVerified || verifyingPassword || changingPassword}
+                                placeholder="Enter current password"
+                            />
+                            {!passwordVerified ? (
                                 <button
-                                    key={item.title}
                                     type="button"
-                                    className={styles.toolCard}
-                                    onClick={item.action}
-                                    style={{ textAlign: 'left', border: 'none', cursor: 'pointer' }}
+                                    className={styles.verifyBtn}
+                                    onClick={verifyCurrentPassword}
+                                    disabled={verifyingPassword || !currentPassword}
                                 >
-                                    <span className={styles.toolIcon}>{item.icon}</span>
-                                    <h3 className={styles.toolTitle}>{item.title}</h3>
-                                    <p className={styles.toolText}>{item.text}</p>
+                                    {verifyingPassword ? 'VERIFYING...' : 'VERIFY'}
                                 </button>
-                            ))}
-                            <button
-                                type="button"
-                                className={styles.toolCard}
-                                onClick={openPasswordModal}
-                                style={{ textAlign: 'left', border: 'none', cursor: 'pointer' }}
-                            >
-                                <span className={styles.toolIcon}><FaLock /></span>
-                                <h3 className={styles.toolTitle}>Change Password</h3>
-                                <p className={styles.toolText}>Verify your current password, then set a new secure one.</p>
-                            </button>
+                            ) : (
+                                <div className={styles.verifiedBadge}>Verified</div>
+                            )}
                         </div>
-                    </section>
-
-                    <section className={styles.cardGrid} style={{ marginBottom: '24px' }}>
-                        <article className={styles.summaryCard}>
-                            <PatientSectionHeader eyebrow="Notifications" title="Patient alerts" />
-                            <div className={styles.timeline}>
-                                {[
-                                    ['notifAppointments', 'Appointment Alerts', 'Confirmations, declines, and reminders'],
-                                    ['notifVisitWindow', 'Visit Window Reminders', 'Notify me when my next preventive visit is due'],
-                                    ['notifHealthTips', 'Weekly Dental Health Tips', 'Send educational oral health reminders'],
-                                ].map(([key, label, description]) => (
-                                    <label key={key} className={styles.switchRow}>
-                                        <div>
-                                            <strong style={{ display: 'block', marginBottom: '4px', color: '#17364a' }}>{label}</strong>
-                                            <p className={styles.toolText}>{description}</p>
-                                        </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={settings[key]}
-                                            onChange={(event) => saveSetting(key, event.target.checked)}
-                                            disabled={savingKey === key}
-                                        />
-                                    </label>
-                                ))}
-                            </div>
-                        </article>
-
-                        <article className={styles.summaryCard}>
-                            <PatientSectionHeader eyebrow="Privacy & Data" title="Consent controls" />
-                            <div className={styles.timeline}>
-                                <label className={styles.switchRow}>
-                                    <div>
-                                        <strong style={{ display: 'block', marginBottom: '4px', color: '#17364a' }}>Personalized Dental Education</strong>
-                                        <p className={styles.toolText}>Allow Dentime to use your treatment history to personalize educational guidance.</p>
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        checked={settings.educationConsent}
-                                        onChange={(event) => saveSetting('educationConsent', event.target.checked)}
-                                        disabled={savingKey === 'educationConsent'}
-                                    />
-                                </label>
-                            </div>
-                        </article>
-                    </section>
-
-                    <section className={styles.alertCard}>
-                        <span className={styles.toolIcon}><FaSignOutAlt /></span>
-                        <div style={{ flex: 1 }}>
-                            <h3 className={styles.alertTitle}>Ready to end your session?</h3>
-                            <p className={styles.alertText}>You can also log out from the sidebar, but this patient page keeps the action available like the mobile settings screen.</p>
-                        </div>
-                        <button type="button" className={styles.buttonSecondary} onClick={() => logout()}>
-                            Log Out
-                        </button>
-                    </section>
-
-                    <section className={styles.summaryCard} style={{ marginTop: '24px' }}>
-                        <PatientSectionHeader eyebrow="About" title="NgitiFy patient web portal" />
-                        <div className={styles.timeline}>
-                            <div className={styles.timelineItem}>
-                                <span className={styles.timelineDot} />
-                                <div>
-                                    <h3 className={styles.timelineTitle}>Version</h3>
-                                    <p className={styles.timelineText}>Dentime patient portal web experience • v1.0.0</p>
-                                </div>
-                            </div>
-                            <div className={styles.timelineItem}>
-                                <span className={styles.timelineDot} />
-                                <div>
-                                    <h3 className={styles.timelineTitle}>What this matches</h3>
-                                    <p className={styles.timelineText}>This page keeps the same account, notifications, privacy, password, and logout tools that were already available on the patient mobile settings screen.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className={styles.detailPills}>
-                            <span className={styles.detailPill}><FaInfoCircle /> Patient web portal</span>
-                        </div>
-                    </section>
-                </>
-            )}
-
-            {passwordModalOpen ? (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
-                        <div className={styles.modalHeader}>
-                            <div>
-                                <h3 className={styles.modalTitle}>Change Password</h3>
-                                <p className={styles.modalSubtitle}>Verify your current password before setting a new one.</p>
-                            </div>
-                            <button type="button" className={styles.modalClose} onClick={() => setPasswordModalOpen(false)}>×</button>
-                        </div>
-
-                        {!passwordVerified ? (
-                            <div className={styles.field}>
-                                <span className={styles.label}>Current Password</span>
-                                <input
-                                    className={styles.input}
-                                    type="password"
-                                    value={currentPassword}
-                                    onChange={(event) => setCurrentPassword(event.target.value)}
-                                    placeholder="Enter your current password"
-                                />
-                                {passwordError ? <p className={styles.helpText} style={{ color: '#b91c1c' }}>{passwordError}</p> : null}
-                                <button type="button" className={styles.buttonPrimary} onClick={verifyCurrentPassword} disabled={verifyingPassword}>
-                                    {verifyingPassword ? 'Verifying...' : 'Verify & Continue'}
-                                </button>
-                            </div>
-                        ) : (
-                            <div className={styles.timeline}>
-                                <label className={styles.field}>
-                                    <span className={styles.label}>New Password</span>
-                                    <input
-                                        className={styles.input}
-                                        type="password"
-                                        value={newPassword}
-                                        onChange={(event) => setNewPassword(event.target.value)}
-                                        placeholder="Create a strong password"
-                                    />
-                                </label>
-
-                                <div className={styles.noticeBox}>
-                                    {PASSWORD_RULES.map((rule) => (
-                                        <div key={rule.key} style={{ marginBottom: '6px', color: checklist[rule.key] ? '#15803d' : '#64748b' }}>
-                                            {checklist[rule.key] ? '✓' : '•'} {rule.label}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <label className={styles.field}>
-                                    <span className={styles.label}>Confirm New Password</span>
-                                    <input
-                                        className={styles.input}
-                                        type="password"
-                                        value={confirmPassword}
-                                        onChange={(event) => setConfirmPassword(event.target.value)}
-                                        placeholder="Re-enter your new password"
-                                    />
-                                </label>
-
-                                {passwordError ? <p className={styles.helpText} style={{ color: '#b91c1c' }}>{passwordError}</p> : null}
-                                {passwordSuccess ? <p className={styles.helpText} style={{ color: '#15803d' }}>{passwordSuccess}</p> : null}
-
-                                <button type="button" className={styles.buttonPrimary} onClick={changePassword} disabled={changingPassword || !allCriteriaMet}>
-                                    {changingPassword ? 'Updating...' : 'Update Password'}
-                                </button>
-                            </div>
-                        )}
                     </div>
                 </div>
-            ) : null}
-        </PatientPageFrame>
+
+                <div style={{ opacity: passwordVerified ? 1 : 0.5, transition: 'opacity 0.3s' }}>
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>NEW PASSWORD <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                                type="password"
+                                className={`${styles.inputField} ${isSamePassword ? styles.errorBorder : ''}`}
+                                value={newPassword}
+                                onChange={(event) => setNewPassword(event.target.value)}
+                                disabled={!passwordVerified || changingPassword}
+                                placeholder="Enter new password"
+                            />
+                            {isSamePassword && <span className={styles.errorText}>New password cannot be the same as the current password.</span>}
+                            <ul className={styles.checklist} style={{ marginTop: '10px' }}>
+                                {PASSWORD_RULES.map((rule) => (
+                                    <li key={rule.key} className={`${styles.checkItem} ${checklist[rule.key] ? styles.valid : ''}`}>
+                                        {rule.label}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className={styles.row}>
+                        <div className={styles.formGroup}>
+                            <label>CONFIRM NEW PASSWORD <span style={{ color: 'red' }}>*</span></label>
+                            <input
+                                type="password"
+                                className={styles.inputField}
+                                value={confirmPassword}
+                                onChange={(event) => setConfirmPassword(event.target.value)}
+                                disabled={!passwordVerified || changingPassword}
+                                placeholder="Re-enter new password"
+                            />
+                        </div>
+                    </div>
+
+                    <div className={styles.buttonGroup} style={{ borderTop: 'none', marginTop: 0 }}>
+                        <button
+                            type="submit"
+                            className={styles.submitBtn}
+                            disabled={!passwordVerified || !allCriteriaMet || newPassword !== confirmPassword || isSamePassword || changingPassword}
+                        >
+                            {changingPassword ? 'UPDATING...' : 'UPDATE PASSWORD'}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    );
+
+    const renderNotificationsSection = () => (
+        <div>
+            <h3 className={styles.mainSectionTitle}>Notification Settings</h3>
+            <p className={styles.sectionDescription}>Choose which patient alerts should be active for your account.</p>
+            {settingsMessage && (
+                <div className={settingsMessage.includes('success') ? styles.successMessage : styles.apiErrorMessage}>
+                    {settingsMessage}
+                </div>
+            )}
+
+            {[
+                ['notifAppointments', 'Appointment Alerts', 'Receive confirmations, declines, reminders, and appointment updates.'],
+                ['notifVisitWindow', 'Visit Window Reminders', 'Receive reminders when your next preventive visit is due.'],
+                ['notifHealthTips', 'Weekly Dental Health Tips', 'Receive educational reminders about oral health and preventive care.'],
+            ].map(([key, label, description]) => (
+                <div key={key} className={styles.toggleRow}>
+                    <div className={styles.toggleLabel}>
+                        <span className={styles.toggleTitle}>{label}</span>
+                        <span className={styles.toggleDesc}>{description}</span>
+                    </div>
+                    <label className={styles.switch}>
+                        <input
+                            type="checkbox"
+                            checked={settings[key]}
+                            onChange={(event) => saveSetting(key, event.target.checked)}
+                            disabled={savingKey === key}
+                        />
+                        <span className={styles.slider}></span>
+                    </label>
+                </div>
+            ))}
+        </div>
+    );
+
+    const renderPrivacySection = () => (
+        <div>
+            <h3 className={styles.mainSectionTitle}>Privacy and Data Preferences</h3>
+            <p className={styles.sectionDescription}>Manage consent settings related to patient education and personalized guidance.</p>
+            {settingsMessage && (
+                <div className={settingsMessage.includes('success') ? styles.successMessage : styles.apiErrorMessage}>
+                    {settingsMessage}
+                </div>
+            )}
+
+            <div className={styles.toggleRow}>
+                <div className={styles.toggleLabel}>
+                    <span className={styles.toggleTitle}>Personalized Dental Education</span>
+                    <span className={styles.toggleDesc}>Allow Dentime to use your treatment history to personalize educational guidance.</span>
+                </div>
+                <label className={styles.switch}>
+                    <input
+                        type="checkbox"
+                        checked={settings.educationConsent}
+                        onChange={(event) => saveSetting('educationConsent', event.target.checked)}
+                        disabled={savingKey === 'educationConsent'}
+                    />
+                    <span className={styles.slider}></span>
+                </label>
+            </div>
+        </div>
+    );
+
+    const renderAccountSection = () => (
+        <div>
+            <h3 className={styles.mainSectionTitle}>Account Actions</h3>
+            <p className={styles.sectionDescription}>Open related patient account pages or end the current session.</p>
+
+            <div className={styles.row}>
+                <button type="button" className={styles.verifyBtn} onClick={() => navigate('/patient/profile')}>
+                    VIEW MY PROFILE
+                </button>
+                <button type="button" className={styles.verifyBtn} onClick={() => navigate('/patient/profile/edit')}>
+                    EDIT PROFILE
+                </button>
+                <button type="button" className={styles.verifyBtn} onClick={() => navigate('/patient/activity-logs')}>
+                    ACTIVITY LOGS
+                </button>
+            </div>
+
+            <div className={styles.buttonGroup}>
+                <button type="button" className={styles.submitBtn} onClick={() => logout()}>
+                    LOG OUT
+                </button>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className={styles.container}>
+            <div className={styles.headerWrapper}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>Settings</h1>
+                    <p className={styles.subtitle}>Manage your patient account security, notifications, privacy, and account actions.</p>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className={styles.contentArea}>
+                    <h3 className={styles.mainSectionTitle}>Loading Settings</h3>
+                    <p className={styles.sectionDescription}>Loading your patient settings...</p>
+                </div>
+            ) : (
+                <div className={styles.settingsLayout}>
+                    <div className={styles.sidebar}>
+                        <ul className={styles.tabList}>
+                            <li
+                                className={`${styles.tabItem} ${activeTab === 'security' ? styles.activeTab : ''}`}
+                                onClick={() => setActiveTab('security')}
+                            >
+                                Account Security
+                            </li>
+                            <li
+                                className={`${styles.tabItem} ${activeTab === 'notifications' ? styles.activeTab : ''}`}
+                                onClick={() => setActiveTab('notifications')}
+                            >
+                                Notifications
+                            </li>
+                            <li
+                                className={`${styles.tabItem} ${activeTab === 'privacy' ? styles.activeTab : ''}`}
+                                onClick={() => setActiveTab('privacy')}
+                            >
+                                Privacy and Data
+                            </li>
+                            <li
+                                className={`${styles.tabItem} ${activeTab === 'account' ? styles.activeTab : ''}`}
+                                onClick={() => setActiveTab('account')}
+                            >
+                                Account Actions
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className={styles.contentArea}>
+                        {activeTab === 'security' && renderSecuritySection()}
+                        {activeTab === 'notifications' && renderNotificationsSection()}
+                        {activeTab === 'privacy' && renderPrivacySection()}
+                        {activeTab === 'account' && renderAccountSection()}
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

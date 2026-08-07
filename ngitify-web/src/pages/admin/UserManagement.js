@@ -9,6 +9,7 @@ import {
     countAccountsByLifecycle,
     getAccountLifecycleKey,
 } from '../../utils/accountStatus';
+import { readUserListResponse } from '../../utils/userListResponse';
 
 const buildSections = (role) => {
     if (role === 'branch-manager') {
@@ -113,14 +114,13 @@ export default function UserManagement() {
                             return [section.key, { total: 0, pending: 0, active: 0 }];
                         }
 
-                        const data = await response.json();
-                        const records = Array.isArray(data)
-                            ? data.map((entry) => ({
+                        const { users } = await readUserListResponse(response);
+                        const records = users
+                            .map((entry) => ({
                                 rawStatus: entry.status || 'inactive',
                                 isVerified: entry.isVerified,
                                 isArchived: Boolean(entry.isArchived),
-                            }))
-                            : [];
+                            }));
 
                         return [section.key, {
                             total: records.length,

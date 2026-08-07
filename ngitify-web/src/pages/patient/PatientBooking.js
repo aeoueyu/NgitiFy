@@ -6,7 +6,6 @@ import {
     FaCheckCircle,
     FaClock,
     FaInfoCircle,
-    FaRobot,
     FaShieldAlt,
     FaStethoscope,
 } from 'react-icons/fa';
@@ -779,23 +778,6 @@ export default function PatientBooking() {
                                 </div>
                             </article>
 
-                            <article className={styles.listCard}>
-                                <div className={styles.listHeader}>
-                                    <div>
-                                        <h3 className={styles.listTitle}>Need guidance first?</h3>
-                                        <p className={styles.listMeta}>NgitiBot and AI Companion are still available</p>
-                                    </div>
-                                    <FaRobot color="#01538b" />
-                                </div>
-                                <p className={styles.toolText}>
-                                    If you are unsure which direct-book service best matches your visit, open the patient AI tools first and then come back to this booking flow.
-                                </p>
-                                <div className={styles.heroActions}>
-                                    <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/chatbot')}>
-                                        Open NgitiBot
-                                    </button>
-                                </div>
-                            </article>
                         </aside>
                     </section>
                 </>

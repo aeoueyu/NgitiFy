@@ -3,12 +3,10 @@ import {
     FaBell,
     FaCalendarAlt,
     FaCheck,
-    FaComments,
     FaFileMedical,
     FaSearch,
     FaTimes,
 } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
@@ -23,12 +21,10 @@ const TYPE_META = {
     APPOINTMENT_REMINDER: { label: 'Reminder', tone: wideTable.statusBlue, icon: FaCalendarAlt },
     NEW_PATIENT_REGISTRATION: { label: 'Patient', tone: wideTable.statusGreen, icon: FaFileMedical },
     NEW_RADIOGRAPH: { label: 'Radiograph', tone: wideTable.statusBlue, icon: FaFileMedical },
-    CHAT_TICKET_RAISED: { label: 'Support Ticket', tone: wideTable.statusAmber, icon: FaComments },
     LOW_INVENTORY: { label: 'Inventory', tone: wideTable.statusAmber, icon: FaBell },
     PREDICTIVE_VISIT_DUE: { label: 'Visit Due', tone: wideTable.statusAmber, icon: FaBell },
     PREDICTIVE_VISIT_OVERDUE: { label: 'Visit Overdue', tone: wideTable.statusRed, icon: FaBell },
     DENTAL_HEALTH_TIP: { label: 'Health Tip', tone: wideTable.statusGray, icon: FaBell },
-    INQUIRY_ESCALATED: { label: 'Escalated', tone: wideTable.statusAmber, icon: FaComments },
     QUEUE_EVENT: { label: 'Queue', tone: wideTable.statusGreen, icon: FaCalendarAlt },
 };
 
@@ -102,10 +98,7 @@ const getDateRange = (range, customFrom, customTo) => {
     return { from: today, to: today };
 };
 
-export default function NotificationsCenter({
-    chatPath = '',
-}) {
-    const navigate = useNavigate();
+export default function NotificationsCenter() {
     const { addToast } = useToast();
 
     const [notifications, setNotifications] = useState([]);
@@ -462,13 +455,6 @@ export default function NotificationsCenter({
                                 <div style={{ marginTop: '14px' }}>
                                     <button type="button" className={scheduleStyles.secondaryButton} style={{ padding: '8px 12px', fontSize: '12px' }} onClick={() => markAsUnread(selectedNotification._id)}>
                                         Mark as Unread
-                                    </button>
-                                </div>
-                            )}
-                            {selectedNotification.type === 'CHAT_TICKET_RAISED' && chatPath && (
-                                <div style={{ marginTop: '14px' }}>
-                                    <button type="button" className={scheduleStyles.secondaryButton} onClick={() => navigate(chatPath)}>
-                                        View Chat
                                     </button>
                                 </div>
                             )}

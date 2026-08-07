@@ -61,7 +61,6 @@ const buildInitialConfig = () => ({
     featureToggles: {
         queueManagement: true,
         radiographUploads: true,
-        chatSupport: false,
         sessionTimeout: true,
     },
     websiteContent: cloneWebsiteContentDefaults(),
@@ -1127,7 +1126,6 @@ const SystemConfig = () => {
                             {[
                                 { key: 'queueManagement', label: 'Queue Management', desc: 'Walk-in patient queue module.' },
                                 { key: 'radiographUploads', label: 'Radiograph Uploads', desc: 'Allow radiograph image uploads in patient EMR.' },
-                                { key: 'chatSupport', label: 'Chat Support', desc: 'Enable the chat/ticket support system.' },
                                 { key: 'sessionTimeout', label: 'Session Timeout', desc: 'Auto logout after inactivity.' },
                             ].map((feature) => (
                                 <div key={feature.key} className={styles.toggleRow}>

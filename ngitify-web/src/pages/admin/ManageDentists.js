@@ -20,6 +20,7 @@ import {
     matchesAccountLifecycleFilter,
     shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
+import { readUserListResponse } from '../../utils/userListResponse';
 
 export default function ManageDentists() {
     const { addToast } = useToast();
@@ -27,7 +28,7 @@ export default function ManageDentists() {
     const isBranchManager = user?.role === 'branch-manager';
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('active');
+    const [statusFilter, setStatusFilter] = useState('all');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [dentistsList, setDentistsList] = useState([]);
@@ -44,9 +45,9 @@ export default function ManageDentists() {
         try {
             setIsLoading(true);
             const response = await authFetch('/users?role=dentist&includeArchived=true');
-            if (response.ok) {
-                const data = await response.json();
-                const mappedDentists = data
+            const { ok, users, message } = await readUserListResponse(response);
+            if (ok) {
+                const mappedDentists = users
                     .filter(u => u.role === 'dentist')
                     .map(u => {
                         let parsedName = 'Unknown Dentist';
@@ -72,13 +73,16 @@ export default function ManageDentists() {
                         };
                     });
                 setDentistsList(mappedDentists);
+            } else {
+                addToast(message || 'Failed to load dentists.', 'error');
             }
         } catch (error) {
             console.error('Failed to fetch dentists:', error);
+            addToast('Cannot connect to server while loading dentists.', 'error');
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [addToast]);
 
     useEffect(() => {
         fetchDentists();

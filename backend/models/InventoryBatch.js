@@ -26,7 +26,7 @@ inventoryBatchSchema.index(
     { stockInNumber: 1 },
     {
         unique: true,
-        partialFilterExpression: { stockInNumber: { $exists: true, $type: 'string', $ne: '' } },
+        partialFilterExpression: { stockInNumber: { $exists: true, $type: 'string', $gt: '' } },
     }
 );
 inventoryBatchSchema.index(

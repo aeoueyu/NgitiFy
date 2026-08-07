@@ -10,7 +10,6 @@ const NotificationSchema = new mongoose.Schema({
             'APPOINTMENT_CANCELLED',
             'LOW_INVENTORY',
             'NEW_PATIENT_REGISTRATION',
-            'CHAT_TICKET_RAISED',
 
             // ── Patient-facing (Phase 3 additions) ───────────────────────
             'APPOINTMENT_CONFIRMED',       // Admin/secretary confirmed booking
@@ -20,7 +19,6 @@ const NotificationSchema = new mongoose.Schema({
             'PREDICTIVE_VISIT_DUE',        // 14 days before predicted visit date
             'PREDICTIVE_VISIT_OVERDUE',    // Past predicted visit date
             'DENTAL_HEALTH_TIP',           // Weekly educational notification
-            'INQUIRY_ESCALATED',           // Chatbot escalation acknowledged
             'NEW_RADIOGRAPH',              // Dentist uploaded a new X-ray
         ]
     },

@@ -38,8 +38,6 @@ const NOTIF_ICON_MAP = {
     PREDICTIVE_VISIT_DUE:        { name: 'warning-outline',          lib: 'Ionicons',               color: '#e65100' },
     PREDICTIVE_VISIT_OVERDUE:    { name: 'alert-circle-outline',     lib: 'Ionicons',               color: '#b71c1c' },
     DENTAL_HEALTH_TIP:           { name: 'tooth-outline',            lib: 'MaterialCommunityIcons', color: '#00897b' },
-    CHAT_TICKET_RAISED:          { name: 'chatbubble-outline',       lib: 'Ionicons',               color: '#6a1b9a' },
-    INQUIRY_ESCALATED:           { name: 'megaphone-outline',        lib: 'Ionicons',               color: '#ad1457' },
     NEW_RADIOGRAPH:              { name: 'bone',                     lib: 'MaterialCommunityIcons', color: '#4527a0' },
     LOW_INVENTORY:               { name: 'cube-outline',             lib: 'Ionicons',               color: '#558b2f' },
     NEW_PATIENT_REGISTRATION:    { name: 'person-add-outline',       lib: 'Ionicons',               color: '#00838f' },

@@ -11,7 +11,6 @@ const Branch = require('../models/Branch');
 const Queue = require('../models/Queue');
 const InventoryItem = require('../models/InventoryItem');
 const InventoryBatch = require('../models/InventoryBatch');
-const SupportTicket = require('../models/SupportTicket');
 
 const Surgery = Appointment;
 
@@ -267,56 +266,6 @@ const analyzeInventoryBatch = (batch, item, now = new Date()) => {
         status: normalizeText(batch.status),
         expectedStatus,
         expirationDate: batch.expirationDate || null,
-        issueTypes,
-        safeUpdate: Object.keys(safeUpdate).length > 0 ? safeUpdate : null,
-    };
-};
-
-const analyzeSupportTicket = (ticket, usersById) => {
-    const issueTypes = [];
-    const safeUpdate = {};
-    const patientUser = ticket.patientId ? usersById.get(String(ticket.patientId)) : null;
-    const assigneeUser = ticket.assignedTo ? usersById.get(String(ticket.assignedTo)) : null;
-    const normalizedStatus = normalizeKey(ticket.status);
-
-    if (ticket.patientId && !patientUser) {
-        issueTypes.push('Missing patient reference');
-    }
-    if (ticket.assignedTo && !assigneeUser) {
-        issueTypes.push('Missing assignee account');
-        safeUpdate.assignedTo = null;
-        safeUpdate.assignedToName = null;
-    } else if (!ticket.assignedTo && normalizeText(ticket.assignedToName)) {
-        issueTypes.push('Assignee name has no linked account');
-        safeUpdate.assignedTo = null;
-        safeUpdate.assignedToName = null;
-    }
-    if (normalizedStatus === 'resolved' && !ticket.resolvedAt) {
-        issueTypes.push('Resolved ticket missing resolvedAt');
-        safeUpdate.resolvedAt = ticket.updatedAt || ticket.createdAt || new Date();
-    }
-    if (normalizedStatus === 'closed' && !ticket.closedAt) {
-        issueTypes.push('Closed ticket missing closedAt');
-        safeUpdate.closedAt = ticket.updatedAt || ticket.resolvedAt || ticket.createdAt || new Date();
-    }
-    if (!Array.isArray(ticket.messages) || ticket.messages.length === 0) {
-        issueTypes.push('Empty message thread');
-    }
-
-    if (issueTypes.length === 0) {
-        return null;
-    }
-
-    return {
-        ticketId: ticket._id,
-        subject: normalizeText(ticket.subject),
-        status: normalizeText(ticket.status),
-        patientName: normalizeText(ticket.patientName),
-        patientEmail: normalizeText(ticket.patientEmail),
-        assignedToName: normalizeText(ticket.assignedToName),
-        messageCount: Array.isArray(ticket.messages) ? ticket.messages.length : 0,
-        resolvedAt: ticket.resolvedAt || null,
-        closedAt: ticket.closedAt || null,
         issueTypes,
         safeUpdate: Object.keys(safeUpdate).length > 0 ? safeUpdate : null,
     };
@@ -686,31 +635,6 @@ async function collectInventoryBatchIssues() {
     };
 }
 
-async function scanSupportTicketIntegrity() {
-    const tickets = await SupportTicket.find({})
-        .select('_id patientId patientName patientEmail subject status messages assignedTo assignedToName resolvedAt closedAt createdAt updatedAt')
-        .lean();
-
-    const userIds = uniqueIds(tickets.flatMap((ticket) => [ticket.patientId, ticket.assignedTo]));
-    const users = userIds.length > 0
-        ? await User.find({ _id: { $in: userIds } })
-            .select('_id name email role')
-            .lean()
-        : [];
-    const usersById = new Map(users.map((user) => [String(user._id), user]));
-
-    return tickets
-        .map((ticket) => analyzeSupportTicket(ticket, usersById))
-        .filter(Boolean);
-}
-
-async function collectSupportTicketIntegrity() {
-    const records = await scanSupportTicketIntegrity();
-    return {
-        records: records.map(({ safeUpdate, ...record }) => record),
-    };
-}
-
 async function fixOrphanedSurgeries() {
     const scan = await collectOrphanedSurgeries();
     const ids = scan.records.map((record) => record.id);
@@ -902,29 +826,6 @@ async function fixInventoryBatchIssues() {
     };
 }
 
-async function fixSupportTicketIntegrity() {
-    const records = await scanSupportTicketIntegrity();
-    let fixed = 0;
-
-    for (const record of records) {
-        if (!record.safeUpdate) continue;
-
-        const result = await SupportTicket.updateOne(
-            { _id: record.ticketId },
-            { $set: record.safeUpdate }
-        );
-
-        if (result.modifiedCount > 0) {
-            fixed += 1;
-        }
-    }
-
-    return {
-        fixed,
-        action: 'Backfilled support ticket timestamps and cleared invalid assignee references',
-    };
-}
-
 const INTEGRITY_CHECKS = [
     {
         checkName: 'orphaned_surgeries',
@@ -984,16 +885,6 @@ const INTEGRITY_CHECKS = [
         issueStatus: 'warn',
         run: collectInventoryBatchIssues,
         fix: fixInventoryBatchIssues,
-    },
-    {
-        checkName: 'support_ticket_integrity',
-        label: 'Support Ticket Integrity',
-        description: 'Support tickets with missing references, missing timestamps, or empty message threads.',
-        category: 'Support',
-        fixMode: 'safe',
-        issueStatus: 'warn',
-        run: collectSupportTicketIntegrity,
-        fix: fixSupportTicketIntegrity,
     },
     {
         checkName: 'unverified_users',

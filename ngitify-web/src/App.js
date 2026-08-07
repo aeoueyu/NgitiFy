@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './routes/ProtectedRoute';
-import FeatureRoute from './routes/FeatureRoute';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 
@@ -53,7 +52,6 @@ const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const RolesPermissions = lazy(() => import('./pages/admin/RolesPermissions'));
 const BranchManagement = lazy(() => import('./pages/admin/BranchManagement'));
 const BranchAnalytics  = lazy(() => import('./pages/admin/BranchAnalytics'));
-const ChatSupport = lazy(() => import('./pages/admin/ChatSupport'));
 const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const IntegrityTools = lazy(() => import('./pages/admin/IntegrityTools'));
 const ArchiveReview = lazy(() => import('./pages/admin/ArchiveReview'));
@@ -76,14 +74,12 @@ const SecretaryAddPatient   = lazy(() => import('./pages/secretary/SecretaryAddP
 const SecretaryEditPatient  = lazy(() => import('./pages/secretary/SecretaryEditPatient'));
 const SecretaryViewPatient  = lazy(() => import('./pages/secretary/SecretaryViewPatient'));
 const SecretaryPatientEMR   = lazy(() => import('./pages/secretary/SecretaryPatientEMR'));
-const SecretaryChatSupport  = lazy(() => import('./pages/secretary/SecretaryChatSupport'));
 const SecretaryNotifications = lazy(() => import('./pages/secretary/SecretaryNotifications'));
 const SecretaryActivityLogs = lazy(() => import('./pages/secretary/SecretaryActivityLogs'));
 const SecretarySettings     = lazy(() => import('./pages/secretary/SecretarySettings'));
 
 // Pages - Branch Manager
 const BranchManagerDashboard = lazy(() => import('./pages/branch-manager/BranchManagerDashboard'));
-const BranchManagerChatSupport = lazy(() => import('./pages/branch-manager/BranchManagerChatSupport'));
 const BranchManagerAnalytics = lazy(() => import('./pages/branch-manager/BranchManagerAnalytics'));
 const BranchManagerPatientEMR = lazy(() => import('./pages/branch-manager/BranchManagerPatientEMR'));
 const BranchManagerActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
@@ -100,7 +96,6 @@ const PatientBooking = lazy(() => import('./pages/patient/PatientBooking'));
 const PatientOralCare = lazy(() => import('./pages/patient/PatientOralCare'));
 const PatientEditProfile = lazy(() => import('./pages/patient/PatientEditProfile'));
 const PatientAiCompanion = lazy(() => import('./pages/patient/PatientAiCompanion'));
-const PatientChatbot = lazy(() => import('./pages/patient/PatientChatbot'));
 
 
 const PageLoader = () => (
@@ -152,7 +147,6 @@ function App() {
                   <Route path="/patient/settings" element={<SettingsPage />} />
                   <Route path="/patient/activity-logs" element={<SharedActivityLogsPage />} />
                   <Route path="/patient/ai-companion" element={<PatientAiCompanion />} />
-                  <Route path="/patient/chatbot" element={<PatientChatbot />} />
                 </Route>
               </Route>
 
@@ -188,14 +182,6 @@ function App() {
                   <Route path="/branch-manager/manage-users/secretaries" element={<ManageSecretaries />} />
                   <Route path="/branch-manager/patients"     element={<ManagePatients />} />
                   <Route path="/branch-manager/queue"        element={<Navigate to="/branch-manager/schedule" replace />} />
-                  <Route
-                    path="/branch-manager/chat-support"
-                    element={(
-                      <FeatureRoute featureKey="chatSupport" fallbackPath="/branch-manager/dashboard">
-                        <BranchManagerChatSupport />
-                      </FeatureRoute>
-                    )}
-                  />
                   <Route path="/branch-manager/branches"     element={<Navigate to="/branch-manager/dashboard" replace />} />
                   <Route path="/branch-manager/analytics"    element={<BranchManagerAnalytics />} />
                   <Route path="/branch-manager/activity-logs" element={<BranchManagerActivityLogs />} />
@@ -251,14 +237,6 @@ function App() {
                   <Route path="/secretary/patient-emr"                 element={<Navigate to="/secretary/patients" replace />} />
                   <Route path="/secretary/patients/:patientId/emr"      element={<SecretaryPatientEMR />} />
                   <Route path="/secretary/queue"                        element={<Navigate to="/secretary/schedule" replace />} />
-                  <Route
-                    path="/secretary/chat-support"
-                    element={(
-                      <FeatureRoute featureKey="chatSupport" fallbackPath="/secretary/dashboard">
-                        <SecretaryChatSupport />
-                      </FeatureRoute>
-                    )}
-                  />
                   <Route path="/secretary/notifications"                element={<SecretaryNotifications />} />
                   <Route path="/secretary/activity-logs"                element={<SecretaryActivityLogs />} />
                   <Route path="/secretary/profile"                      element={<AdminProfile />} />
@@ -308,14 +286,6 @@ function App() {
                   <Route path="/admin/roles" element={<RolesPermissions />} />
                   <Route path="/admin/backup" element={<DatabaseBackup />} />
                   <Route path="/admin/archive-review" element={<ArchiveReview />} />
-                  <Route
-                    path="/admin/chat-support"
-                    element={(
-                      <FeatureRoute featureKey="chatSupport" fallbackPath="/admin/dashboard">
-                        <ChatSupport />
-                      </FeatureRoute>
-                    )}
-                  />
                   <Route path="/admin/integrity" element={<IntegrityTools />} />
                   <Route path="/admin/activity-logs" element={<ActivityLogs />} />
                   <Route path="/admin/ai-assistant" element={<AdminAIAssistant />} />

@@ -126,6 +126,10 @@ const formatListValue = (value) => {
 };
 const normalizeTextValue = (value) => value ? String(value) : 'Not specified';
 const buildDetailRows = (pairs = []) => pairs.map(([label, value]) => [label, value || 'Not specified']);
+const normalizeTreatmentNotes = (value) => {
+    const text = String(value || '').trim();
+    return /^\[AUTO-APPOINTMENT:[^\]]+\]$/.test(text) ? '' : text;
+};
 const RADIOGRAPH_VARIANT_LABELS = {
     basic: 'Basic Enhance',
     selfHosted: 'Self-Hosted AI',
@@ -176,6 +180,27 @@ const normalizeRadiographRecord = (radiograph = {}) => {
         radiographNumber: radiograph.radiographNumber || '',
         findings: radiograph.findings || '',
         notes: radiograph.notes || '',
+    };
+};
+const normalizeTreatmentLogRecord = (log = {}) => {
+    const rawDateValue = log.date || log.rawDate || log.completedAt || log.createdAt || 0;
+    const amountCharged = Number(log.amountCharged ?? 0);
+    const amountPaid = Number(log.amountPaid ?? 0);
+    const computedBalance = Math.max(amountCharged - amountPaid, 0);
+    return {
+        ...log,
+        id: log._id || log.id,
+        rawDate: new Date(rawDateValue),
+        procedure: log.procedure || log.performedProcedure || log.treatment || log.service || 'Not specified',
+        category: log.category || 'Other',
+        dentistName: log.dentistName || log.doctor || log.dentist || '',
+        tooth: log.tooth || '',
+        branch: log.branch || log.branchName || '',
+        notes: normalizeTreatmentNotes(log.notes || log.note || log.remarks || ''),
+        amountCharged,
+        amountPaid,
+        balance: Number(log.balance ?? computedBalance),
+        nextAppointment: log.nextAppointment || null,
     };
 };
 const sanitizeFilenamePart = (value) => String(value || '')
@@ -382,6 +407,7 @@ export default function PatientEMR({
         amountPaid: '',
         nextAppointment: '',
         branchId: '',
+        notes: '',
     });
     const [expandedLogRows, setExpandedLogRows] = useState({});
     const [odontogramLogs, setOdontogramLogs] = useState([]);
@@ -517,11 +543,7 @@ export default function PatientEMR({
                 const logsRes = await authFetch(`/patients/${activePatientId}/treatment-logs`);
                 if (logsRes.ok) {
                     const logsData = await logsRes.json();
-                    const normalized = logsData.map(log => ({
-                        ...log,
-                        id: log._id || log.id,
-                        rawDate: new Date(log.date || log.rawDate),
-                    }));
+                    const normalized = logsData.map(normalizeTreatmentLogRecord);
                     setLogs(normalized.sort((a, b) => b.rawDate - a.rawDate));
                 }
 
@@ -645,7 +667,7 @@ export default function PatientEMR({
             title: 'Treatment History',
             kind: 'table',
             variant: 'treatmentHistory',
-            headers: ['Date', 'Procedure', 'Category', 'Dentist', 'Tooth', 'Branch', 'Charged', 'Paid', 'Balance', 'Next Appointment'],
+            headers: ['Date', 'Procedure', 'Category', 'Dentist', 'Tooth', 'Branch', 'Charged', 'Paid', 'Balance', 'Next Appointment', 'Notes'],
             rows: logs
                 .slice()
                 .sort((a, b) => b.rawDate - a.rawDate)
@@ -660,6 +682,7 @@ export default function PatientEMR({
                 formatMoney(log.amountPaid),
                 formatMoney(log.balance),
                 formatShortDate(log.nextAppointment),
+                log.notes || '-',
                 ])),
         },
         {
@@ -1663,16 +1686,16 @@ export default function PatientEMR({
                     amountPaid: newLogForm.amountPaid || 0,
                     nextAppointment: newLogForm.nextAppointment || '',
                     branch: newLogForm.branchId,
+                    notes: newLogForm.notes || '',
                 }),
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to save log.');
 
             const saved = await res.json();
-            const newLog = {
+            const newLog = normalizeTreatmentLogRecord({
                 ...saved,
-                id: saved._id || saved.id,
-                rawDate: new Date(saved.date || newLogForm.date),
-            };
+                date: saved.date || newLogForm.date,
+            });
             setLogs(prev => [newLog, ...prev].sort((a, b) => b.rawDate - a.rawDate));
             setIsAddLogOpen(false);
             setNewLogForm({
@@ -1684,6 +1707,7 @@ export default function PatientEMR({
                 amountPaid: '',
                 nextAppointment: '',
                 branchId: '',
+                notes: '',
             });
             addToast("Treatment log added successfully.", "success");
         } catch (err) {
@@ -1725,6 +1749,10 @@ export default function PatientEMR({
         const matchesSearch =
             (log.procedure || '').toLowerCase().includes(searchLower)
             || (log.dentistName || '').toLowerCase().includes(searchLower)
+            || (log.category || '').toLowerCase().includes(searchLower)
+            || (log.tooth || '').toLowerCase().includes(searchLower)
+            || (log.branch || '').toLowerCase().includes(searchLower)
+            || (log.notes || '').toLowerCase().includes(searchLower)
             || String(log.amountCharged || '').includes(searchLower)
             || String(log.amountPaid || '').includes(searchLower)
             || String(log.balance || '').includes(searchLower);
@@ -1871,6 +1899,10 @@ export default function PatientEMR({
                                                     <span className={styles.expandedDetailLabel}>Next Appointment</span>
                                                     <p className={styles.expandedDetailValue}>{formatShortDate(log.nextAppointment)}</p>
                                                 </div>
+                                                <div>
+                                                    <span className={styles.expandedDetailLabel}>Notes</span>
+                                                    <p className={styles.expandedDetailValue}>{log.notes || '-'}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -1953,6 +1985,15 @@ export default function PatientEMR({
                                 <div className={styles.formGroup}>
                                     <label>Next Appointment</label>
                                     <input type="date" className={styles.inputField} value={newLogForm.nextAppointment} onChange={(e) => setNewLogForm({...newLogForm, nextAppointment: e.target.value})} />
+                                </div>
+                                <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                                    <label>Notes</label>
+                                    <textarea
+                                        className={styles.textareaField}
+                                        value={newLogForm.notes}
+                                        onChange={(e) => setNewLogForm({...newLogForm, notes: e.target.value})}
+                                        placeholder="Clinical notes, remarks, or follow-up instructions"
+                                    />
                                 </div>
                             </div>
                             <div className={styles.modalButtonGroup}>

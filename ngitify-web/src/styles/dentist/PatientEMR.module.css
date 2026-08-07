@@ -113,6 +113,11 @@
     box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     border: 1px solid rgba(1, 83, 139, 0.05);
     min-height: 300px; animation: fadeIn 0.3s ease;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 /* --- TAB 1: OVERVIEW (MEDICAL HISTORY) --- */

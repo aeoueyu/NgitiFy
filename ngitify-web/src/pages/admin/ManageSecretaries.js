@@ -20,6 +20,7 @@ import {
     matchesAccountLifecycleFilter,
     shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
+import { readUserListResponse } from '../../utils/userListResponse';
 
 export default function ManageSecretaries() {
     const { addToast } = useToast();
@@ -27,7 +28,7 @@ export default function ManageSecretaries() {
     const isBranchManager = user?.role === 'branch-manager';
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('active');
+    const [statusFilter, setStatusFilter] = useState('all');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [secretariesList, setSecretariesList] = useState([]);
@@ -44,9 +45,9 @@ export default function ManageSecretaries() {
         try {
             setIsLoading(true);
             const response = await authFetch('/users?role=secretary&includeArchived=true');
-            if (response.ok) {
-                const data = await response.json();
-                const mappedSecretaries = data
+            const { ok, users, message } = await readUserListResponse(response);
+            if (ok) {
+                const mappedSecretaries = users
                     .filter(u => u.role === 'secretary')
                     .map(u => {
                         let parsedName = 'Unknown Secretary';
@@ -72,13 +73,16 @@ export default function ManageSecretaries() {
                         };
                     });
                 setSecretariesList(mappedSecretaries);
+            } else {
+                addToast(message || 'Failed to load secretaries.', 'error');
             }
         } catch (error) {
             console.error('Failed to fetch secretaries:', error);
+            addToast('Cannot connect to server while loading secretaries.', 'error');
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [addToast]);
 
     useEffect(() => {
         fetchSecretaries();

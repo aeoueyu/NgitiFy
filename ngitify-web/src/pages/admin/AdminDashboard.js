@@ -9,13 +9,13 @@ import {
     FaHistory, FaCheckCircle, FaUserClock, 
     FaArrowUp, FaArrowDown, FaChartPie, FaUserPlus, 
     FaCalendarPlus, FaTimes, FaExclamationTriangle,
-    FaChartLine, FaBell
+    FaChartLine
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
-import { formatWeekdayDate, formatTime, formatDateShort } from '../../utils/dateUtils';
+import { formatTime, formatDateShort } from '../../utils/dateUtils';
 import UserAvatar from '../../components/common/UserAvatar'; 
-import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
+import { AdminDashboardPage } from '../../components/dashboard/AdminDashboardComponents';
 
 import StaffIcon from '../../assets/icons/ViewStaffRecords.svg';
 import InventoryIcon from '../../assets/icons/InventoryTracker.svg';
@@ -346,31 +346,13 @@ export default function AdminDashboard() {
 
     return (
         <>
-            <main className={styles['main-content']}>
-                <header className={styles['header']}>
-                    <div className={styles['header-left']}>
-                        <h1 className={styles['title']}>Administrator Overview</h1>
-                        <p className={styles['subtitle']}>
-                            {formatWeekdayDate(currentTime)} <span style={{ margin: '0 8px', color: '#2dccf6' }}>|</span> <strong style={{ color: '#01538b' }}>{formatTime(currentTime, true)}</strong>
-                        </p>
-                    </div>
-                    <div className={styles['header-right']}>
-                        {/* 🔔 Notification Bell */}
-                        <button
-                            className={styles['bell-btn']}
-                            onClick={() => navigate('/admin/notifications')}
-                            aria-label="Notifications"
-                        >
-                            <FaBell className={styles['bell-icon']} />
-                            {unreadCount > 0 && (
-                                <span className={styles['bell-badge']}>
-                                    {unreadCount > 99 ? '99+' : unreadCount}
-                                </span>
-                            )}
-                        </button>
-                    </div>
-                </header>
-                <PasswordChangeWarning />
+            <AdminDashboardPage
+                title="Administrator Overview"
+                currentTime={currentTime}
+                notificationPath="/admin/notifications"
+                unreadCount={unreadCount}
+                navigate={navigate}
+            >
 
                 {lowStockAlerts > 0 && showAlertBanner && (
                     <div className={styles['alert-banner']}>
@@ -641,10 +623,10 @@ export default function AdminDashboard() {
                         className={styles['quick-action-btn']} 
                         onClick={() => navigate('/admin/appointments')}
                     >
-                        <FaCalendarPlus /> Add Appointment
+                        <FaCalendarPlus /> Manage Appointments
                     </button>
                 </div>
-            </main>
+            </AdminDashboardPage>
 
             {showLogoutModal && (
                 <div className={styles.modalOverlay}>

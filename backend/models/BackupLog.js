@@ -68,6 +68,65 @@ const backupLogSchema = new mongoose.Schema({
         default: null,
     },
 
+    verificationStatus: {
+        type: String,
+        enum: ['unverified', 'verified', 'failed'],
+        default: 'unverified',
+    },
+
+    verifiedAt: {
+        type: Date,
+        default: null,
+    },
+
+    verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+    },
+
+    verifiedByName: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+
+    verificationDurationMs: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+
+    verificationCollections: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+
+    verificationDocuments: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+
+    verificationTempDb: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+
+    verificationError: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+
+    restoreToolVersion: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

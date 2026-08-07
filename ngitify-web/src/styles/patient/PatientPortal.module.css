@@ -4,9 +4,9 @@
     --patient-bg: #f4f7fa;
     --patient-surface: #ffffff;
     --patient-surface-muted: #f8fafc;
-    --patient-border: rgba(1, 83, 139, 0.05);
+    --patient-border: #e2e8f0;
     --patient-border-strong: #e2e8f0;
-    --patient-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    --patient-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     --patient-text: #17364a;
     --patient-text-muted: #64748b;
     --patient-text-subtle: #7b8794;
@@ -48,7 +48,7 @@
     color: var(--patient-primary);
     font-size: 24px;
     font-weight: 800;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
 }
 
 .subtitle {
@@ -138,7 +138,7 @@
 .modalCard {
     background: var(--patient-surface);
     border: 1px solid var(--patient-border);
-    border-radius: 16px;
+    border-radius: 8px;
     box-shadow: var(--patient-shadow);
 }
 
@@ -224,7 +224,7 @@
 .dashboardWidget {
     background: var(--patient-surface);
     border: 1px solid var(--patient-border);
-    border-radius: 16px;
+    border-radius: 8px;
     box-shadow: var(--patient-shadow);
 }
 
@@ -249,7 +249,7 @@
 .dashboardIconWrap {
     width: 38px;
     height: 38px;
-    border-radius: 12px;
+    border-radius: 8px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -330,7 +330,7 @@
     grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
     gap: 16px;
     padding: 18px;
-    border-radius: 14px;
+    border-radius: 8px;
     background: var(--patient-surface-muted);
     border: 1px solid var(--patient-border-strong);
 }
@@ -394,7 +394,7 @@
 
 .dashboardSummaryPanel {
     padding: 18px;
-    border-radius: 14px;
+    border-radius: 8px;
     background: var(--patient-surface-muted);
     border: 1px solid var(--patient-border-strong);
 }
@@ -422,7 +422,7 @@
     flex-direction: column;
     gap: 6px;
     padding: 14px 16px;
-    border-radius: 12px;
+    border-radius: 8px;
     background: var(--patient-surface-muted);
     border: 1px solid var(--patient-border-strong);
 }
@@ -525,7 +525,7 @@
 .toolIcon {
     width: 44px;
     height: 44px;
-    border-radius: 12px;
+    border-radius: 8px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -644,7 +644,7 @@
     align-items: center;
     justify-content: center;
     padding: 34px 24px;
-    border-radius: 16px;
+    border-radius: 8px;
     border: none;
     background: transparent;
     text-align: center;
@@ -867,7 +867,7 @@
     justify-content: center;
     gap: 5px;
     padding: 6px;
-    border-radius: 12px;
+    border-radius: 8px;
     border: 1px solid var(--patient-border-strong);
     background: var(--patient-surface);
     cursor: pointer;
@@ -1074,6 +1074,164 @@
     margin-top: 12px;
 }
 
+.patientOdontogramChart {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.patientBiomathChartShell {
+    width: 100%;
+    min-height: 420px;
+    padding: 12px 8px 4px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    overflow-x: auto;
+}
+
+.patientBiomathDiagramFrame {
+    position: relative;
+    width: min(100%, 900px);
+    min-width: 620px;
+    margin: 0 auto;
+}
+
+.patientBiomathOdontogram {
+    width: 100%;
+    --odontogram-tooltip-bg: rgba(15, 23, 42, 0.92);
+    --odontogram-tooltip-fg: #ffffff;
+}
+
+.patientBiomathOdontogram svg {
+    display: block;
+    max-height: 560px;
+}
+
+.patientToothNumberOverlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.patientToothNumberOverlayLabel {
+    position: absolute;
+    width: 28px;
+    height: 22px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0;
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.patientToothNumberOverlayLabelActive {
+    box-shadow: 0 0 0 2px rgba(1, 83, 139, 0.14);
+}
+
+.patientOdontogramArch {
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.patientOdontogramArchHeader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.patientOdontogramArchHeader h3 {
+    margin: 0;
+    color: #17364a;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.patientOdontogramHalves {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.patientToothHalf {
+    min-width: 0;
+}
+
+.patientArchLabel {
+    display: block;
+    margin-bottom: 8px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.patientTeethTrack {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(42px, 1fr));
+    gap: 6px;
+}
+
+.patientMidline {
+    width: 1px;
+    min-height: 82px;
+    background: #cbd5e1;
+}
+
+.patientToothButton {
+    display: grid;
+    grid-template-rows: 52px 16px;
+    align-items: center;
+    justify-items: center;
+    min-width: 0;
+    min-height: 78px;
+    padding: 6px 4px;
+    border: 1px solid var(--tooth-border);
+    border-radius: 8px;
+    background: var(--tooth-bg);
+    color: var(--tooth-accent);
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background-color 0.18s ease;
+}
+
+.patientToothButton:hover {
+    border-color: var(--tooth-accent);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+}
+
+.patientToothButtonSelected {
+    border-color: var(--tooth-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tooth-accent) 24%, transparent);
+}
+
+.patientOdontogramSvg {
+    width: 54px;
+    height: 46px;
+}
+
+.patientToothNumber {
+    color: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+}
+
 @media (max-width: 1100px) {
     .dashboardGrid,
     .dashboardStatGrid,
@@ -1115,5 +1273,41 @@
 
     .calendarGrid {
         gap: 6px;
+    }
+
+    .patientOdontogramArch {
+        padding: 12px;
+    }
+
+    .patientBiomathChartShell {
+        min-height: 360px;
+        padding: 8px 4px;
+    }
+
+    .patientBiomathOdontogram {
+        min-width: 560px;
+    }
+
+    .patientBiomathDiagramFrame {
+        min-width: 560px;
+    }
+
+    .patientToothNumberOverlayLabel {
+        width: 24px;
+        height: 20px;
+        font-size: 10px;
+    }
+
+    .patientOdontogramHalves {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .patientMidline {
+        display: none;
+    }
+
+    .patientTeethTrack {
+        grid-template-columns: repeat(4, minmax(54px, 1fr));
     }
 }

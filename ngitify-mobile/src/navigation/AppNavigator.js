@@ -15,7 +15,6 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import PatientDashboard from '../screens/patient/PatientDashboard';
 import MyProfileScreen from '../screens/patient/MyProfileScreen';
 import MedicalRecordsScreen from '../screens/patient/MedicalRecordsScreen';
-import ChatbotScreen from '../screens/patient/ChatbotScreen';
 import AiPatientCareCompanionScreen from '../screens/patient/AIPatientCareCompanionScreen';
 import OralCareInsightsScreen from '../screens/patient/OralCareInsightsScreen';
 import PatientXRayView from '../screens/patient/PatientXRayView';
@@ -82,7 +81,6 @@ function PatientNavigator() {
     return (
         <PatientStack.Navigator screenOptions={{ headerShown: false }}>
             <PatientStack.Screen name="PatientTabs" component={PatientTabsNavigator} />
-            <PatientStack.Screen name="Chatbot" component={ChatbotScreen} />
             {/* FR#5 — AI Patient Care Companion (replaces PatientPredictiveView) */}
             <PatientStack.Screen name="AiPatientCareCompanion" component={AiPatientCareCompanionScreen} />
             {/* X-Ray View — accessed from EMR Radiograph tab */}

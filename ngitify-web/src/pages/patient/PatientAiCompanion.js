@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FaBook, FaCalendarAlt, FaComments, FaRobot, FaTooth } from 'react-icons/fa';
+import { FaBook, FaCalendarAlt, FaTooth } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import PatientMonthCalendar from '../../components/patient/PatientMonthCalendar';
@@ -8,7 +8,6 @@ import PatientIcon from '../../components/patient/PatientIcon';
 import { PatientPageFrame, PatientSectionHeader } from '../../components/patient/PatientFrame';
 import {
     EDUCATION_ARTICLES,
-    INQUIRY_CATEGORIES,
     ORAL_HEALTH_TIPS,
     formatDateDisplay,
     parseDateKey,
@@ -18,7 +17,6 @@ import styles from '../../styles/patient/PatientPortal.module.css';
 
 const SECTIONS = [
     { key: 'overview', label: 'Overview' },
-    { key: 'inquiry', label: 'Inquiry' },
     { key: 'education', label: 'Education' },
     { key: 'oral-health', label: 'Oral Health' },
     { key: 'visit-window', label: 'Visit Window' },
@@ -61,9 +59,6 @@ export default function PatientAiCompanion() {
     const [visitInfo, setVisitInfo] = useState(null);
     const [treatmentHistory, setTreatmentHistory] = useState([]);
     const [loadingVisit, setLoadingVisit] = useState(true);
-    const [inquiryText, setInquiryText] = useState('');
-    const [inquiryCategory, setInquiryCategory] = useState('General');
-    const [submittingInquiry, setSubmittingInquiry] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState(null);
     const [selectedVisitDate, setSelectedVisitDate] = useState('');
     const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -125,41 +120,16 @@ export default function PatientAiCompanion() {
         [selectedVisitDate, visitInfo]
     );
 
-    const handleSubmitInquiry = async () => {
-        if (!inquiryText.trim()) return;
-
-        setSubmittingInquiry(true);
-        try {
-            const subject = `[${inquiryCategory}] Inquiry from ${user?.fullName || user?.firstName || 'Patient'}`;
-            const response = await authFetch('/support-tickets', {
-                method: 'POST',
-                body: JSON.stringify({
-                    subject,
-                    message: inquiryText.trim(),
-                }),
-            });
-
-            if (response.ok) {
-                setInquiryText('');
-            }
-        } finally {
-            setSubmittingInquiry(false);
-        }
-    };
-
     const renderOverview = () => (
         <>
             <div className={styles.heroGrid}>
                 <section className={`${styles.heroCard} ${styles.heroCardDark}`}>
                     <span className={styles.heroTag}>AI Care Companion</span>
-                    <h2 className={styles.heroTitle}>Patient support, education, and care reminders</h2>
+                    <h2 className={styles.heroTitle}>Education and care reminders</h2>
                     <p className={styles.heroText}>
-                        This is the web counterpart of the patient mobile AI companion. Use it to reach NgitiBot, send clinic inquiries, review approved dental education, and understand your next care window.
+                        Review approved dental education, oral health guidance, and your next care window based on clinic-recorded treatment history.
                     </p>
                     <div className={styles.heroActions}>
-                        <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/chatbot')}>
-                            Open NgitiBot
-                        </button>
                         <button type="button" className={styles.buttonGhost} onClick={() => navigate('/patient/book')}>
                             Book Appointment
                         </button>
@@ -180,16 +150,15 @@ export default function PatientAiCompanion() {
                     <article className={styles.metricCard}>
                         <span className={styles.metricLabel}>Assigned Branch</span>
                         <h3 className={styles.metricValue} style={{ fontSize: '22px' }}>{user?.assignedBranch || 'Pending'}</h3>
-                        <p className={styles.metricSub}>Where live slot availability is checked for patient AI replies.</p>
+                        <p className={styles.metricSub}>Where your booking slots and clinic schedule are sourced.</p>
                     </article>
                 </section>
             </div>
 
             <div className={styles.toolGrid}>
                 {[
-                    { title: 'NgitiBot', text: 'Chat about appointments, slots, post-op guidance, and approved routine dental care.', icon: <FaRobot />, action: () => navigate('/patient/chatbot') },
-                    { title: 'Inquiry', text: 'Send a support message to the clinic team from your patient account.', icon: <FaComments />, action: () => updateSection('inquiry') },
                     { title: 'Dental Education', text: 'Read patient-friendly articles and oral health reminders.', icon: <FaBook />, action: () => updateSection('education') },
+                    { title: 'Oral Health', text: 'Review daily care reminders and watch signals.', icon: <FaTooth />, action: () => updateSection('oral-health') },
                     { title: 'Visit Window', text: 'Review your preventive window and the recent treatment data behind it.', icon: <FaCalendarAlt />, action: () => updateSection('visit-window') },
                 ].map((item) => (
                     <button
@@ -206,47 +175,6 @@ export default function PatientAiCompanion() {
                 ))}
             </div>
         </>
-    );
-
-    const renderInquiry = () => (
-        <section className={styles.tabPanel}>
-            <PatientSectionHeader
-                eyebrow="Clinic Support"
-                title="Send an inquiry"
-                description="Use the same patient support ticket flow from mobile to reach the clinic team."
-            />
-            <div className={styles.detailPills}>
-                {INQUIRY_CATEGORIES.map((category) => (
-                    <button
-                        key={category}
-                        type="button"
-                        className={styles.detailPill}
-                        onClick={() => setInquiryCategory(category)}
-                        style={{
-                            background: inquiryCategory === category ? '#01538b' : '#ffffff',
-                            color: inquiryCategory === category ? '#ffffff' : '#01538b',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        {category}
-                    </button>
-                ))}
-            </div>
-            <label className={styles.field}>
-                <span className={styles.label}>Your Message</span>
-                <textarea
-                    className={styles.textarea}
-                    value={inquiryText}
-                    onChange={(event) => setInquiryText(event.target.value)}
-                    placeholder="Describe your question or concern for the clinic team."
-                />
-            </label>
-            <div className={styles.heroActions}>
-                <button type="button" className={styles.buttonPrimary} onClick={handleSubmitInquiry} disabled={submittingInquiry || !inquiryText.trim()}>
-                    {submittingInquiry ? 'Sending...' : 'Send Inquiry'}
-                </button>
-            </div>
-        </section>
     );
 
     const renderEducation = () => (
@@ -281,7 +209,7 @@ export default function PatientAiCompanion() {
             <PatientSectionHeader
                 eyebrow="Daily Care"
                 title="Oral health reminders"
-                description="Routine tips that complement your preventive care window and NgitiBot guidance."
+                description="Routine tips that complement your preventive care window."
             />
             <div className={styles.toolGrid}>
                 {ORAL_HEALTH_TIPS.map((tip) => (
@@ -299,7 +227,7 @@ export default function PatientAiCompanion() {
                 <div>
                     <h3 className={styles.alertTitle}>Reminder</h3>
                     <p className={styles.alertText}>
-                        AI can support routine education and clinic workflow guidance, but it should never replace a dentist&apos;s judgment for diagnosis or treatment decisions.
+                        AI can provide routine education and clinic workflow guidance, but it should never replace a dentist&apos;s judgment for diagnosis or treatment decisions.
                     </p>
                 </div>
             </div>
@@ -393,7 +321,7 @@ export default function PatientAiCompanion() {
     return (
         <PatientPageFrame
             title="AI Care Companion"
-            subtitle="The patient-side AI hub for NgitiBot, clinic inquiries, education, oral health guidance, and predictive visit windows."
+            subtitle="The patient-side hub for education, oral health guidance, and predictive visit windows."
         >
             <div className={styles.tabs}>
                 {SECTIONS.map((section) => (
@@ -409,7 +337,6 @@ export default function PatientAiCompanion() {
             </div>
 
             {activeSection === 'overview' ? renderOverview() : null}
-            {activeSection === 'inquiry' ? renderInquiry() : null}
             {activeSection === 'education' ? renderEducation() : null}
             {activeSection === 'oral-health' ? renderOralHealth() : null}
             {activeSection === 'visit-window' ? renderVisitWindow() : null}
@@ -431,4 +358,3 @@ export default function PatientAiCompanion() {
         </PatientPageFrame>
     );
 }
-

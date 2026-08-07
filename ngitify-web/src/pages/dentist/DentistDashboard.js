@@ -2,21 +2,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/AdminDashboard.module.css';
 import {
-    FaBell,
     FaBoxes,
+    FaCalendarPlus,
     FaCalendarAlt,
+    FaCheckCircle,
     FaClipboardList,
     FaFileMedical,
+    FaHistory,
     FaRegCalendarCheck,
-    FaRobot,
     FaTooth,
     FaUserInjured,
 } from 'react-icons/fa';
 import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
-import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
-import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
+import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import { useAuth } from '../../hooks/useAuth';
+import { AdminDashboardPage } from '../../components/dashboard/AdminDashboardComponents';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -168,50 +169,7 @@ export default function DentistDashboard() {
         ? `Dr. ${profile.name.first} ${profile.name.last || ''}`.trim()
         : 'Dentist';
 
-    const upcomingAppointments = useMemo(() => {
-        const now = new Date();
-        return appointments
-            .filter((item) => item.rawDate >= startOfDay(now) && ['pending', 'confirmed', 'in-clinic'].includes(item.status))
-            .slice(0, 4);
-    }, [appointments]);
-
-    const recentNotifications = notifications.slice(0, 4);
     const recentActivity = activityLogs.slice(0, 5);
-
-    const moduleCards = [
-        {
-            title: 'Manage Patients',
-            description: 'Open your assigned patients and update their EMR records from one place.',
-            value: `${patients.length} assigned patients`,
-            action: () => navigate('/dentist/patients'),
-            actionLabel: 'Open Patients',
-            icon: <FaFileMedical className={styles['widget-icon']} />,
-        },
-        {
-            title: 'Material Usage',
-            description: 'Track consumables used during procedures and support stock monitoring.',
-            value: `${materialLogsThisMonth} logs this month`,
-            action: () => navigate('/dentist/material-usage'),
-            actionLabel: 'View Logs',
-            icon: <FaBoxes className={styles['widget-icon']} />,
-        },
-        {
-            title: 'Notifications',
-            description: 'Review schedule changes and patient-related alerts tied to your assignments.',
-            value: `${unreadNotifications} unread alerts`,
-            action: () => navigate('/dentist/notifications'),
-            actionLabel: 'Open Alerts',
-            icon: <FaBell className={styles['widget-icon']} />,
-        },
-        {
-            title: 'AI Assistant',
-            description: 'Preview the staff AI workspace for faster guidance inside the system.',
-            value: 'Frontend preview ready',
-            action: () => navigate('/dentist/ai-assistant'),
-            actionLabel: 'Open Preview',
-            icon: <FaRobot className={styles['widget-icon']} />,
-        },
-    ];
 
     const getCalendarDays = () => {
         const year = currentMonthView.getFullYear();
@@ -255,82 +213,71 @@ export default function DentistDashboard() {
 
     const calendarDays = getCalendarDays();
     const monthLabel = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const isTodaySelected = selectedDate.toDateString() === new Date().toDateString();
+    const visibleHolidays = PH_HOLIDAYS.filter((holiday) => holiday.month === currentMonthView.getMonth());
+    const handlePrevMonth = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1));
+    const handleNextMonth = () => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1));
+    const handleDateClick = (day) => {
+        setSelectedDate(day.date);
+        if (day.faded) {
+            setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
+        }
+    };
 
     return (
         <>
-            <main className={styles['main-content']}>
-                <header className={styles.header}>
-                    <div className={styles['header-left']}>
-                        <h1 className={styles.title}>Dentist Dashboard</h1>
-                        <p className={styles.subtitle}>
-                            {formatWeekdayDate(currentTime)}
-                            <span className={styles.divider}>|</span>
-                            <strong className={styles['time-accent']}>{formatTime(currentTime, true)}</strong>
-                        </p>
-                        <p className={styles.subtitle} style={{ marginTop: '6px' }}>
-                            {dentistName} overview for appointments, EMR access, materials, and clinical follow-ups.
-                        </p>
-                    </div>
-                    <div className={styles['header-right']}>
-                        <button
-                            className={styles['bell-btn']}
-                            onClick={() => navigate('/dentist/notifications')}
-                            aria-label="Notifications"
-                        >
-                            <FaBell className={styles['bell-icon']} />
-                            {unreadNotifications > 0 && (
-                                <span className={styles['bell-badge']}>
-                                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                                </span>
-                            )}
-                        </button>
-                    </div>
-                </header>
-                <PasswordChangeWarning />
+            <AdminDashboardPage
+                title="Dentist Dashboard"
+                currentTime={currentTime}
+                subtitle={`${dentistName} overview for appointments, EMR access, materials, and clinical follow-ups.`}
+                notificationPath="/dentist/notifications"
+                unreadCount={unreadNotifications}
+                navigate={navigate}
+            >
 
-                <div className={`${styles['stats-grid']} ${styles.statsGridFour}`}>
-                    <div className={styles['stat-card']}>
+                <div className={styles['stats-grid']}>
+                    <div className={`${styles['stat-card']} ${styles.clickable}`} onClick={() => navigate('/dentist/appointments')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Today&apos;s Appointments</p>
-                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-blue']}`}>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}>
                                 <FaRegCalendarCheck className={styles['stat-icon']} />
                             </div>
                         </div>
-                        <h2 className={styles['stat-value']}>{todayAppointments.length}</h2>
+                        <div className={styles['stat-value-wrapper']}>
+                            <h2 className={styles['stat-value']}>{todayAppointments.length}</h2>
+                            <span className={`${styles['trend-indicator']} ${styles['trend-positive']}`}>
+                                <FaCheckCircle style={{ fontSize: '10px' }} /> Active
+                            </span>
+                        </div>
                         <p className={styles['stat-desc']}>Scheduled under your care today</p>
                     </div>
 
-                    <div className={styles['stat-card']}>
+                    <div className={`${styles['stat-card']} ${styles.clickable}`} onClick={() => navigate('/dentist/patients')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Assigned Patients</p>
-                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}>
                                 <FaUserInjured className={styles['stat-icon']} />
                             </div>
                         </div>
-                        <h2 className={styles['stat-value']}>{patients.length}</h2>
-                        <p className={styles['stat-desc']}>Patients whose EMRs you can access</p>
-                    </div>
-
-                    <div className={styles['stat-card']}>
-                        <div className={styles['stat-header']}>
-                            <p className={styles['stat-title']}>Unread Notifications</p>
-                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}>
-                                <FaBell className={styles['stat-icon']} />
-                            </div>
+                        <div className={styles['stat-value-wrapper']}>
+                            <h2 className={styles['stat-value']}>{patients.length}</h2>
+                            <span className={`${styles['trend-indicator']} ${styles['trend-neutral']}`}>EMR</span>
                         </div>
-                        <h2 className={styles['stat-value']}>{unreadNotifications}</h2>
-                        <p className={styles['stat-desc']}>Schedule and patient alerts awaiting review</p>
+                        <p className={`${styles['stat-desc']} ${styles.neutral}`}>Patients whose EMRs you can access</p>
                     </div>
 
-                    <div className={styles['stat-card']}>
+                    <div className={`${styles['stat-card']} ${styles.clickable}`} onClick={() => navigate('/dentist/material-usage')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Material Usage Logs</p>
-                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-blue']}`}>
+                            <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}>
                                 <FaBoxes className={styles['stat-icon']} />
                             </div>
                         </div>
-                        <h2 className={styles['stat-value']}>{materialLogsThisMonth}</h2>
-                        <p className={styles['stat-desc']}>Entries recorded this month</p>
+                        <div className={styles['stat-value-wrapper']}>
+                            <h2 className={styles['stat-value']}>{materialLogsThisMonth}</h2>
+                            <span className={`${styles['trend-indicator']} ${styles['trend-neutral']}`}>This Mo</span>
+                        </div>
+                        <p className={`${styles['stat-desc']} ${styles.neutral}`}>{unreadNotifications} unread notifications</p>
                     </div>
                 </div>
 
@@ -379,27 +326,53 @@ export default function DentistDashboard() {
                             <div className={styles['widget-header']}>
                                 <h2 className={styles['widget-title']}>
                                     <FaClipboardList className={styles['widget-icon']} />
-                                    Module Summary
+                                    Clinical Work Summary
                                 </h2>
                             </div>
 
-                            <div className={styles.moduleGrid}>
-                                {moduleCards.map((card) => (
-                                    <article key={card.title} className={styles.moduleCard}>
-                                        <div className={styles.moduleHeader}>
-                                            {card.icon}
-                                            <div>
-                                                <h3 className={styles.moduleTitle}>{card.title}</h3>
-                                                <p className={styles.moduleValue}>{card.value}</p>
-                                            </div>
-                                        </div>
-                                        <p className={styles.moduleDescription}>{card.description}</p>
-                                        <button className={styles.quickLinkBtn} onClick={card.action}>
-                                            {card.actionLabel}
-                                        </button>
-                                    </article>
-                                ))}
+                            <div className={styles['quick-grid']}>
+                                <div className={styles['quick-card']}>
+                                    <span className={styles['quick-label']}>Assigned Patients</span>
+                                    <strong className={styles['quick-value']}>{patients.length}</strong>
+                                    <p className={styles['quick-text']}>Patient records available for clinical review.</p>
+                                </div>
+                                <div className={styles['quick-card']}>
+                                    <span className={styles['quick-label']}>Material Logs</span>
+                                    <strong className={styles['quick-value']}>{materialLogsThisMonth}</strong>
+                                    <p className={styles['quick-text']}>Consumable usage entries recorded this month.</p>
+                                </div>
+                                <div className={styles['quick-card']}>
+                                    <span className={styles['quick-label']}>Unread Alerts</span>
+                                    <strong className={styles['quick-value']}>{unreadNotifications}</strong>
+                                    <p className={styles['quick-text']}>Notifications waiting for review.</p>
+                                </div>
                             </div>
+                        </section>
+
+                        <section className={`${styles['widget-card']} ${styles.clickable}`} onClick={() => navigate('/dentist/activity-logs')}>
+                            <div className={styles['widget-header']}>
+                                <FaHistory className={styles['widget-icon']} />
+                                <h2 className={styles['widget-title']}>Recent Account Activity</h2>
+                            </div>
+
+                            {recentActivity.length === 0 ? (
+                                <div className={styles['empty-state']}>No activity logs available yet.</div>
+                            ) : (
+                                <ul className={styles.timeline}>
+                                    {recentActivity.map((log) => (
+                                        <li key={log._id} className={styles['timeline-item']}>
+                                            <div className={styles['timeline-dot']}><FaTooth /></div>
+                                            <div className={styles['timeline-content']}>
+                                                <p className={styles['log-action']}>{log.action}</p>
+                                                <div className={styles['log-meta']}>
+                                                    <span className={styles['role-tag']}>dentist</span>
+                                                    <span>{formatDateShort(log.timestamp || log.createdAt)}</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </section>
                     </div>
 
@@ -408,8 +381,8 @@ export default function DentistDashboard() {
                             <div className={styles['calendar-header']}>
                                 <h3 className={styles['month-text']}>{monthLabel}</h3>
                                 <div className={styles['cal-nav']}>
-                                    <button className={styles['cal-nav-btn']} onClick={() => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1))}>&lt;</button>
-                                    <button className={styles['cal-nav-btn']} onClick={() => setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1))}>&gt;</button>
+                                    <button className={styles['cal-nav-btn']} onClick={handlePrevMonth}>&lt;</button>
+                                    <button className={styles['cal-nav-btn']} onClick={handleNextMonth}>&gt;</button>
                                 </div>
                             </div>
 
@@ -422,12 +395,7 @@ export default function DentistDashboard() {
                                     <div
                                         key={`${day.date.toISOString()}-${index}`}
                                         title={day.holidayName || ''}
-                                        onClick={() => {
-                                            setSelectedDate(day.date);
-                                            if (day.faded) {
-                                                setCurrentMonthView(new Date(day.date.getFullYear(), day.date.getMonth(), 1));
-                                            }
-                                        }}
+                                        onClick={() => handleDateClick(day)}
                                         className={`
                                             ${styles['date-num']}
                                             ${day.faded ? styles.faded : ''}
@@ -441,29 +409,20 @@ export default function DentistDashboard() {
                                     </div>
                                 ))}
                             </div>
-                        </section>
 
-                        <section className={styles['widget-card']}>
-                            <div className={styles['widget-header']}>
-                                <h2 className={styles['widget-title']}>
-                                    <FaBell className={styles['widget-icon']} />
-                                    Notification Snapshot
-                                </h2>
-                            </div>
-
-                            <div className={styles.compactList}>
-                                {recentNotifications.length === 0 ? (
-                                    <div className={styles['empty-state']}>No notifications yet.</div>
-                                ) : (
-                                    recentNotifications.map((notification) => (
-                                        <div key={notification._id} className={styles.notificationItem}>
-                                            <div>
-                                                <p className={styles.compactTitle}>{notification.title}</p>
-                                                <p className={styles.compactText}>{notification.message}</p>
+                            <div className={styles['holiday-panel']}>
+                                <p className={styles['holiday-heading']}>Holidays This Month</p>
+                                {visibleHolidays.length > 0 ? (
+                                    <div className={styles['holiday-list']}>
+                                        {visibleHolidays.map((holiday) => (
+                                            <div key={`${holiday.month}-${holiday.day}`} className={styles['holiday-item']}>
+                                                <span className={styles['holiday-date']}>{holiday.day}</span>
+                                                <span className={styles['holiday-name']}>{holiday.name}</span>
                                             </div>
-                                            {!notification.isRead && <span className={styles.helperPill}>Unread</span>}
-                                        </div>
-                                    ))
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className={styles['holiday-empty']}>No fixed holidays in this month.</p>
                                 )}
                             </div>
                         </section>
@@ -471,53 +430,59 @@ export default function DentistDashboard() {
                         <section className={styles['widget-card']}>
                             <div className={styles['widget-header']}>
                                 <h2 className={styles['widget-title']}>
-                                    <FaTooth className={styles['widget-icon']} />
-                                    Recent Account Activity
+                                    {isTodaySelected ? "Today's Appointments" : `Appointments for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                                 </h2>
+                                <span className={styles['view-all']} onClick={() => navigate('/dentist/appointments')}>View All</span>
                             </div>
 
-                            <div className={styles.compactList}>
-                                {recentActivity.length === 0 ? (
-                                    <div className={styles['empty-state']}>No activity logs available yet.</div>
-                                ) : (
-                                    recentActivity.map((log) => (
-                                        <div key={log._id} className={styles.activityItem}>
-                                            <p className={styles.compactTitle}>{log.action}</p>
-                                            <p className={styles.compactText}>{log.details}</p>
-                                            <span className={styles.compactMeta}>{formatDateShort(log.timestamp || log.createdAt)}</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </section>
-
-                        <section className={styles['widget-card']}>
-                            <div className={styles['widget-header']}>
-                                <h2 className={styles['widget-title']}>
-                                    <FaRegCalendarCheck className={styles['widget-icon']} />
-                                    Upcoming Queue
-                                </h2>
-                            </div>
-
-                            <div className={styles.compactList}>
-                                {upcomingAppointments.length === 0 ? (
-                                    <div className={styles['empty-state']}>No upcoming appointments found.</div>
-                                ) : (
-                                    upcomingAppointments.map((appointment) => (
-                                        <div key={appointment.id} className={styles.notificationItem}>
-                                            <div>
-                                                <p className={styles.compactTitle}>{appointment.patientName}</p>
-                                                <p className={styles.compactText}>{appointment.procedure}</p>
+                            <div className={styles['list-content']}>
+                                {selectedDateAppointments.length > 0 ? (
+                                    selectedDateAppointments.slice(0, 6).map((appointment) => (
+                                        <div key={`mini-${appointment.id}`} className={styles['appointment-item']}>
+                                            <div className={styles['patient-info']}>
+                                                <div className={styles['patient-avatar']}>
+                                                    {appointment.patientName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className={styles['patient-details']}>
+                                                    <p className={styles['patient-name']}>{appointment.patientName}</p>
+                                                    <p className={styles['treatment-type']}>{appointment.procedure}</p>
+                                                </div>
                                             </div>
-                                            <span className={styles.helperPill}>{appointment.time || formatDateShort(appointment.rawDate)}</span>
+                                            <div className={styles['appointment-time']}>
+                                                <p className={styles['time-text']}>{appointment.time || formatTime(appointment.rawDate)}</p>
+                                                <span className={`${styles['status-badge']} ${formatStatus(appointment.status) === 'Completed' ? styles['status-done'] : styles['status-pending']}`}>
+                                                    {formatStatus(appointment.status)}
+                                                </span>
+                                            </div>
                                         </div>
                                     ))
+                                ) : isLoading ? (
+                                    <div className={styles['empty-state']}>Loading appointments...</div>
+                                ) : (
+                                    <div className={styles['empty-state']}>
+                                        <p>No appointments scheduled for this date.</p>
+                                    </div>
                                 )}
                             </div>
                         </section>
                     </div>
                 </div>
-            </main>
+
+                <div className={styles['quick-actions-bar']}>
+                    <button
+                        className={`${styles['quick-action-btn']} ${styles.secondary}`}
+                        onClick={() => navigate('/dentist/patients')}
+                    >
+                        <FaFileMedical /> Manage Patients
+                    </button>
+                    <button
+                        className={styles['quick-action-btn']}
+                        onClick={() => navigate('/dentist/appointments')}
+                    >
+                        <FaCalendarPlus /> Manage Appointments
+                    </button>
+                </div>
+            </AdminDashboardPage>
         </>
     );
 }

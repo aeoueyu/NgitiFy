@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Circle, Ellipse, G, Line, Path, Polygon } from 'react-native-svg';
+import Svg, { Circle, Ellipse, G, Line, Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { mobileTheme } from '../../theme/mobileTheme';
 
@@ -216,6 +216,11 @@ const FINDING_STAGE_ALIASES = {
     done: 'completed',
 };
 
+const EMPTY_STAGE_LABELS = {
+    planned: 'No planned entry',
+    completed: 'No completed entry',
+};
+
 const LEGEND_KEYS = [
     'healthy',
     'filled',
@@ -266,88 +271,88 @@ const STAGE_FILTER_OPTIONS = [
     })),
 ];
 
-const FACE_GEOMETRY = {
+const FACE_DIAGRAM_GEOMETRY = {
     incisor: {
-        outline: 'M22 8 C24 6 32 6 34 8 L38 14 C39 16 39 20 38 24 L35 36 C34 41 31 47 28 52 C25 47 22 41 21 36 L18 24 C17 20 17 16 18 14 Z',
+        outline: 'M23 7 C25 5 31 5 33 7 L36 12 C38 15 38 20 37 25 L35 36 C34 41 31 48 28 53 C25 48 22 41 21 36 L19 25 C18 20 18 15 20 12 Z',
         surfaces: {
-            M: '18,14 24,11 24,45 20,36',
-            C: '24,11 32,11 33,45 23,45',
-            D: '32,11 38,14 36,36 33,45',
-            O: '23,8 33,8 31,14 25,14',
+            M: 'M20 13 C21 11 23 10 24 10 C24 19 24 38 23 45 C21 43 20 37 19 31 C18 25 18 17 20 13 Z',
+            C: 'M24 10 C26 9 30 9 32 10 C32 20 32 37 31 45 C30 41 29 35 28 29 C28 21 28 15 24 10 Z',
+            D: 'M32 10 C33 10 36 12 37 13 C38 17 38 25 37 31 C36 37 35 43 33 45 C32 37 32 19 32 10 Z',
+            O: 'M24 7 C26 6 30 6 32 7 C31 10 31 12 31 14 C28 13 26 13 24 14 C24 11 23 9 24 7 Z',
         },
         rootPaths: ['M28 52 C27 60 26 67 28 72'],
     },
     canine: {
-        outline: 'M24 8 L28 5 L32 8 L36 15 C37 18 37 22 36 26 L33 38 C32 42 30 48 28 54 C26 48 24 42 23 38 L20 26 C19 22 19 18 20 15 Z',
+        outline: 'M25 7 L28 5 L31 7 L35 14 C37 17 37 22 36 27 L33 39 C32 43 30 49 28 55 C26 49 24 43 23 39 L20 27 C19 22 19 17 21 14 Z',
         surfaces: {
-            M: '20,15 25,12 25,46 21,36',
-            C: '25,12 31,8 33,46 24,46',
-            D: '31,8 36,15 35,36 33,46',
-            O: '24,9 32,9 30,15 26,15',
+            M: 'M21 14 C23 11 25 10 26 10 C26 19 26 38 25 46 C23 43 21 37 20 30 C19 24 19 17 21 14 Z',
+            C: 'M26 10 C27 9 29 8 30 9 C31 18 31 37 30 46 C29 41 28 35 28 28 C28 20 28 14 26 10 Z',
+            D: 'M30 9 C32 10 34 12 36 14 C37 17 37 24 36 30 C35 37 33 43 31 46 C30 37 30 18 30 9 Z',
+            O: 'M25 7 C26 6 30 6 31 7 C31 10 31 12 31 14 C29 14 27 14 25 14 C25 11 24 9 25 7 Z',
         },
         rootPaths: ['M28 54 C28 62 27 70 28 74'],
     },
     premolar: {
-        outline: 'M19 10 C22 7 34 7 37 10 L40 16 C41 19 41 24 39 29 L36 39 C34 45 31 51 28 55 C25 51 22 45 20 39 L17 29 C15 24 15 19 16 16 Z',
+        outline: 'M19 9 C22 6 34 6 37 9 L40 16 C41 20 41 25 39 30 L36 40 C34 46 31 52 28 56 C25 52 22 46 20 40 L17 30 C15 25 15 20 16 16 Z',
         surfaces: {
-            M: '17,16 23,12 23,46 19,38',
-            C: '23,12 33,12 34,46 22,46',
-            D: '33,12 40,16 37,38 34,46',
-            O: '22,10 34,10 31,17 25,17',
+            M: 'M17 15 C20 12 22 11 23 11 C23 20 23 39 22 46 C20 43 18 37 17 30 C16 24 16 18 17 15 Z',
+            C: 'M23 11 C26 10 30 10 33 11 C33 20 33 38 32 46 C31 41 30 35 28 29 C28 21 28 15 23 11 Z',
+            D: 'M33 11 C35 11 38 13 40 15 C41 18 41 24 40 30 C39 37 37 43 35 46 C34 38 34 20 33 11 Z',
+            O: 'M23 9 C25 8 31 8 33 9 C32 12 32 15 32 17 C29 16 27 16 24 17 C24 14 23 11 23 9 Z',
         },
         rootPaths: ['M24 55 C23 61 22 67 23 71', 'M32 55 C33 61 34 67 33 71'],
     },
     molar: {
-        outline: 'M16 12 C20 8 36 8 40 12 L44 19 C46 22 46 28 44 33 L40 42 C38 48 34 53 28 57 C22 53 18 48 16 42 L12 33 C10 28 10 22 12 19 Z',
+        outline: 'M16 11 C20 7 36 7 40 11 L44 18 C46 22 46 28 44 33 L40 42 C38 48 34 54 28 58 C22 54 18 48 16 42 L12 33 C10 28 10 22 12 18 Z',
         surfaces: {
-            M: '12,19 21,15 21,47 15,37',
-            C: '21,15 35,15 36,47 20,47',
-            D: '35,15 44,19 41,37 36,47',
-            O: '20,12 36,12 32,19 24,19',
+            M: 'M12 18 C15 15 18 14 21 14 C21 24 21 40 20 47 C17 43 15 37 13 31 C12 26 12 21 12 18 Z',
+            C: 'M21 14 C24 13 32 13 35 14 C36 23 36 40 35 47 C33 42 31 36 28 30 C28 24 28 19 21 14 Z',
+            D: 'M35 14 C38 14 41 16 44 18 C44 21 44 26 43 31 C41 37 39 43 36 47 C35 40 35 24 35 14 Z',
+            O: 'M21 11 C24 10 32 10 35 11 C34 14 34 16 34 19 C31 18 29 18 28 18 C26 18 24 18 21 19 C21 16 20 13 21 11 Z',
         },
         rootPaths: ['M23 57 C20 63 18 69 19 73', 'M33 57 C36 63 38 69 37 73'],
     },
 };
 
-const TOP_GEOMETRY = {
+const TOP_DIAGRAM_GEOMETRY = {
     incisor: {
-        outline: 'M18 14 C21 9 35 9 38 14 C40 18 40 27 38 31 C35 35 21 35 18 31 C16 27 16 18 18 14 Z',
+        outline: 'M18 13 C21 8 35 8 38 13 C40 17 40 27 38 31 C35 35 21 35 18 31 C16 27 16 17 18 13 Z',
         surfaces: {
-            M: '18,16 24,18 24,28 18,27',
-            D: '32,18 38,16 38,27 32,28',
-            O: '24,18 32,18 32,28 24,28',
-            B: '21,12 35,12 32,18 24,18',
-            L: '24,28 32,28 35,34 21,34',
+            M: 'M18 16 C21 15 23 16 24 18 L24 28 C22 27 20 27 18 27 C16 24 16 19 18 16 Z',
+            D: 'M32 18 C33 16 35 15 38 16 C40 19 40 24 38 27 C36 27 34 27 32 28 L32 18 Z',
+            O: 'M24 18 C26 17 30 17 32 18 L32 28 C29 28 27 28 24 28 Z',
+            B: 'M21 12 C24 11 32 11 35 12 C34 14 33 16 32 18 C29 17 27 17 24 18 C23 15 22 13 21 12 Z',
+            L: 'M24 28 C27 28 29 28 32 28 C34 30 35 32 35 34 C32 34 24 34 21 34 C22 32 23 30 24 28 Z',
         },
     },
     canine: {
         outline: 'M26 8 L30 8 L37 16 L34 31 L22 31 L19 16 Z',
         surfaces: {
-            M: '20,16 25,18 25,28 21,27',
-            D: '31,18 36,16 35,27 31,28',
-            O: '25,18 31,18 31,28 25,28',
-            B: '24,11 32,11 31,18 25,18',
-            L: '25,28 31,28 32,31 24,31',
+            M: 'M20 16 C22 14 24 15 25 18 L25 28 C22 27 20 26 20 24 C19 21 19 18 20 16 Z',
+            D: 'M31 18 C33 15 35 15 36 16 C36 19 36 24 35 27 C33 28 32 28 31 28 L31 18 Z',
+            O: 'M25 18 C27 17 29 17 31 18 L31 28 C29 28 27 28 25 28 Z',
+            B: 'M24 11 C26 10 30 10 32 11 C32 13 31 16 31 18 C28 17 27 17 25 18 C25 15 24 13 24 11 Z',
+            L: 'M25 28 C27 28 29 28 31 28 C32 30 32 31 32 31 C29 31 25 31 24 31 C24 30 24 29 25 28 Z',
         },
     },
     premolar: {
         outline: 'M17 14 C20 9 36 9 39 14 C41 18 40 29 36 33 C32 37 24 37 20 33 C16 29 15 18 17 14 Z',
         surfaces: {
-            M: '17,18 24,20 23,30 17,27',
-            D: '32,20 39,18 39,27 33,30',
-            O: '24,20 32,20 33,30 28,33 23,30',
-            B: '22,13 34,13 32,20 24,20',
-            L: '23,30 28,33 33,30 34,35 22,35',
+            M: 'M17 18 C20 16 22 17 24 20 L23 30 C20 28 18 27 17 27 C16 24 16 21 17 18 Z',
+            D: 'M32 20 C35 17 37 17 39 18 C39 22 39 26 39 27 C36 29 34 30 33 30 L32 20 Z',
+            O: 'M24 20 C27 19 29 19 32 20 L33 30 C31 33 30 33 28 33 C26 33 25 32 23 30 Z',
+            B: 'M22 13 C25 12 31 12 34 13 C33 16 32 18 32 20 C29 19 27 19 24 20 C23 17 22 15 22 13 Z',
+            L: 'M23 30 C26 31 28 32 33 30 C34 32 34 34 34 35 C30 35 26 35 22 35 C22 33 22 31 23 30 Z',
         },
     },
     molar: {
         outline: 'M12 13 C15 8 41 8 44 13 C47 17 47 30 44 34 C41 38 15 38 12 34 C9 30 9 17 12 13 Z',
         surfaces: {
-            M: '12,18 21,20 20,30 12,27',
-            D: '35,20 44,18 44,27 36,30',
-            O: '21,20 35,20 36,30 28,34 20,30',
-            B: '18,12 38,12 35,20 21,20',
-            L: '20,30 28,34 36,30 38,36 18,36',
+            M: 'M12 18 C15 15 18 15 21 20 L20 30 C17 29 14 28 12 27 C11 24 11 21 12 18 Z',
+            D: 'M35 20 C38 16 41 16 44 18 C44 22 44 26 44 27 C41 29 38 30 36 30 L35 20 Z',
+            O: 'M21 20 C24 19 30 19 35 20 L36 30 C34 34 31 34 28 34 C25 34 22 33 20 30 Z',
+            B: 'M18 12 C22 11 34 11 38 12 C37 14 36 17 35 20 C31 19 25 19 21 20 C20 17 19 14 18 12 Z',
+            L: 'M20 30 C23 31 25 33 28 34 C31 33 33 31 36 30 C37 32 38 34 38 36 C33 36 23 36 18 36 C18 34 19 32 20 30 Z',
         },
     },
 };
@@ -391,7 +396,7 @@ const isUpperTooth = (toothNumber) => {
 const buildHealthyFinding = (stage = 'existing') => ({
     id: `healthy-${stage}`,
     status: 'healthy',
-    statusLabel: STATUS_META.healthy.label,
+    statusLabel: stage === 'existing' ? STATUS_META.healthy.label : EMPTY_STAGE_LABELS[stage] || STATUS_META.healthy.label,
     surfaces: [],
     stage,
     note: '',
@@ -496,7 +501,7 @@ const getHighlightedSurfaces = (statusKey, surfaces) => {
 const faceCenterSurface = (viewType) => (viewType === 'front' ? 'B' : 'L');
 
 function FaceView({ toothNumber, viewType, statusKey, surfaces, stageKey, sizeStyle }) {
-    const familyGeometry = FACE_GEOMETRY[getToothFamily(toothNumber)];
+    const familyGeometry = FACE_DIAGRAM_GEOMETRY[getToothFamily(toothNumber)];
     const meta = getStatusMeta(statusKey);
     const stageMeta = getStageMeta(stageKey);
     const activeSurfaces = getHighlightedSurfaces(statusKey, surfaces);
@@ -520,16 +525,21 @@ function FaceView({ toothNumber, viewType, statusKey, surfaces, stageKey, sizeSt
         <Svg viewBox="0 0 56 76" style={sizeStyle}>
             <Path
                 d={familyGeometry.outline}
-                fill="#ffffff"
+                fill="#fffdf8"
                 stroke={outlineStroke}
-                strokeWidth={1.7}
+                strokeWidth={1.6}
                 strokeLinejoin="round"
-                strokeDasharray={statusKey === 'mobility' ? '3 2' : stageKey === 'planned' ? '2.6 1.6' : undefined}
+                strokeLinecap="round"
+                strokeDasharray={statusKey === 'mobility' ? '3 2' : stageKey === 'planned' ? '2.4 1.8' : undefined}
             />
-            <Polygon points={familyGeometry.surfaces.M} fill={regionFill('M')} stroke={regionStroke('M')} strokeWidth={1.1} />
-            <Polygon points={familyGeometry.surfaces.C} fill={regionFill(centerSurface)} stroke={regionStroke(centerSurface)} strokeWidth={1.1} />
-            <Polygon points={familyGeometry.surfaces.D} fill={regionFill('D')} stroke={regionStroke('D')} strokeWidth={1.1} />
-            <Polygon points={familyGeometry.surfaces.O} fill={regionFill('O')} stroke={regionStroke('O')} strokeWidth={1.05} />
+            <Path d={familyGeometry.surfaces.M} fill={regionFill('M')} stroke={regionStroke('M')} strokeWidth={1.05} />
+            <Path d={familyGeometry.surfaces.C} fill={regionFill(centerSurface)} stroke={regionStroke(centerSurface)} strokeWidth={1.05} />
+            <Path d={familyGeometry.surfaces.D} fill={regionFill('D')} stroke={regionStroke('D')} strokeWidth={1.05} />
+            <Path d={familyGeometry.surfaces.O} fill={regionFill('O')} stroke={regionStroke('O')} strokeWidth={0.95} />
+            <Path d="M24 18 C26 17 30 17 32 18" fill="none" stroke="#d8e1ea" strokeWidth={0.9} strokeLinecap="round" />
+            <Path d="M28 18 C28 26 28 35 28 52" fill="none" stroke="#d8e1ea" strokeWidth={0.9} strokeLinecap="round" />
+            <Path d="M23 27 C25 28 26 30 27 35" fill="none" stroke="#e1e8ef" strokeWidth={0.8} strokeLinecap="round" />
+            <Path d="M33 27 C31 28 30 30 29 35" fill="none" stroke="#e1e8ef" strokeWidth={0.8} strokeLinecap="round" />
             {familyGeometry.rootPaths.map((rootPath, index) => (
                 <Path
                     key={`${toothNumber}-${viewType}-root-${index}`}
@@ -590,7 +600,7 @@ function FaceView({ toothNumber, viewType, statusKey, surfaces, stageKey, sizeSt
 }
 
 function TopView({ toothNumber, statusKey, surfaces, stageKey, sizeStyle }) {
-    const familyGeometry = TOP_GEOMETRY[getToothFamily(toothNumber)];
+    const familyGeometry = TOP_DIAGRAM_GEOMETRY[getToothFamily(toothNumber)];
     const meta = getStatusMeta(statusKey);
     const stageMeta = getStageMeta(stageKey);
     const activeSurfaces = getHighlightedSurfaces(statusKey, surfaces);
@@ -616,17 +626,21 @@ function TopView({ toothNumber, statusKey, surfaces, stageKey, sizeStyle }) {
         <Svg viewBox="0 0 56 44" style={sizeStyle}>
             <Path
                 d={familyGeometry.outline}
-                fill="#ffffff"
+                fill="#fffdf8"
                 stroke={outlineStroke}
-                strokeWidth={1.7}
+                strokeWidth={1.6}
                 strokeLinejoin="round"
-                strokeDasharray={statusKey === 'mobility' ? '3 2' : stageKey === 'planned' ? '2.6 1.6' : undefined}
+                strokeLinecap="round"
+                strokeDasharray={statusKey === 'mobility' ? '3 2' : stageKey === 'planned' ? '2.4 1.8' : undefined}
             />
-            <Polygon points={familyGeometry.surfaces.M} fill={regionFill('M')} stroke={regionStroke('M')} strokeWidth={1.1} />
-            <Polygon points={familyGeometry.surfaces.D} fill={regionFill('D')} stroke={regionStroke('D')} strokeWidth={1.1} />
-            <Polygon points={familyGeometry.surfaces.O} fill={regionFill('O')} stroke={regionStroke('O')} strokeWidth={1.1} />
-            <Polygon points={familyGeometry.surfaces.B} fill={regionFill(buccalSurface)} stroke={regionStroke(buccalSurface)} strokeWidth={1.1} />
-            <Polygon points={familyGeometry.surfaces.L} fill={regionFill(lingualSurface)} stroke={regionStroke(lingualSurface)} strokeWidth={1.1} />
+            <Path d={familyGeometry.surfaces.M} fill={regionFill('M')} stroke={regionStroke('M')} strokeWidth={1.05} />
+            <Path d={familyGeometry.surfaces.D} fill={regionFill('D')} stroke={regionStroke('D')} strokeWidth={1.05} />
+            <Path d={familyGeometry.surfaces.O} fill={regionFill('O')} stroke={regionStroke('O')} strokeWidth={1.05} />
+            <Path d={familyGeometry.surfaces.B} fill={regionFill(buccalSurface)} stroke={regionStroke(buccalSurface)} strokeWidth={1.05} />
+            <Path d={familyGeometry.surfaces.L} fill={regionFill(lingualSurface)} stroke={regionStroke(lingualSurface)} strokeWidth={1.05} />
+            <Path d="M24 18 C26 17 30 17 32 18" fill="none" stroke="#d8e1ea" strokeWidth={0.9} strokeLinecap="round" />
+            <Path d="M28 18 C28 22 28 26 28 28" fill="none" stroke="#d8e1ea" strokeWidth={0.9} strokeLinecap="round" />
+            <Path d="M23 23 C25 22 26 21 28 21 C30 21 31 22 33 23" fill="none" stroke="#e1e8ef" strokeWidth={0.8} strokeLinecap="round" />
             {statusKey === 'missing' || statusKey === 'extraction-site' ? (
                 <G stroke={meta.accent} strokeWidth={2.1} strokeLinecap="round" opacity={0.84}>
                     <Line x1="13" y1="11" x2="43" y2="34" />

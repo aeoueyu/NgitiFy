@@ -71,6 +71,9 @@ select.inputField { cursor: pointer; background-image: url('data:image/svg+xml;c
 
 .errorBorder { border: 1.5px solid #dc3545 !important; background-color: #ffe6e6 !important; }
 .errorText { color: #dc3545; font-size: 11px; font-weight: 600; margin-top: 4px; margin-left: 10px; }
+.checkboxGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 16px; margin-top: 8px; }
+.checkboxOption { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; }
+.checkboxOption input { width: 16px; height: 16px; accent-color: #01538b; flex-shrink: 0; }
 
 .buttonGroup { display: flex; justify-content: flex-end; gap: 15px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9; }
 

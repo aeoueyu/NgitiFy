@@ -11,7 +11,6 @@ import { downloadCsvFile } from '../../utils/exportHelpers';
 
 import AddPatient from './AddPatient';
 import EditPatient from './EditPatient';
-import ViewPatient from './ViewPatient';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
 import { useToast } from '../../context/ToastContext';
@@ -66,7 +65,6 @@ export default function ManagePatients() {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [printPreviewConfig, setPrintPreviewConfig] = useState(null);
     const [branchTransferState, setBranchTransferState] = useState({
@@ -345,15 +343,12 @@ export default function ManagePatients() {
             navigate(`/dentist/patients/${id}/emr`);
             return;
         }
-        setIsViewModalOpen(false);
         setSelectedPatientId(id);
         setIsEditModalOpen(true);
     };
 
     const handleViewClick = (id) => {
-        setIsEditModalOpen(false);
-        setSelectedPatientId(id);
-        setIsViewModalOpen(true);
+        openPatientRecord(id);
     };
 
     useEffect(() => {
@@ -499,7 +494,6 @@ export default function ManagePatients() {
     };
 
     const handleCloseEditModal = () => { setIsEditModalOpen(false); setSelectedPatientId(null); };
-    const handleCloseViewModal = () => { setIsViewModalOpen(false); setSelectedPatientId(null); };
 
     const exportRows = filteredPatients.map((patient) => {
         const computedStatus = getPatientLifecycleLabel(patient);
@@ -693,7 +687,7 @@ export default function ManagePatients() {
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
                                         <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
-                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(patient.id)} title="View Patient Summary"><FaEye /></button>
+                                            <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(patient.id)} title="View Patient EMR"><FaEye /></button>
                                             {(canEditPatients || isDentist) && (
                                                 <>
                                                     <button
@@ -752,18 +746,6 @@ export default function ManagePatients() {
             </div>
 
             {isAddModalOpen && <AddPatient onClose={() => setIsAddModalOpen(false)} onSuccess={fetchPatients} />}
-            {isViewModalOpen && selectedPatientId && (
-                <ViewPatient
-                    patientId={selectedPatientId}
-                    onClose={handleCloseViewModal}
-                    onEdit={isDentist ? null : () => { setIsViewModalOpen(false); setIsEditModalOpen(true); }}
-                    onOpenRecord={() => {
-                        handleCloseViewModal();
-                        openPatientRecord(selectedPatientId);
-                    }}
-                    onRecoverAccess={handleRecoverAccess}
-                />
-            )}
             {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}
 
             {branchTransferState.patient && (
