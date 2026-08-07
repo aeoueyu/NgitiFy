@@ -13,14 +13,16 @@ export default function ForgotPassPage() {
     const handleSendCode = async (e) => {
         e.preventDefault(); // Prevent page reload on form submit
 
-        if (!email) {
+        const trimmedEmail = email.trim();
+
+        if (!trimmedEmail) {
             setErrorMessage('Please enter your email address.');
             return;
         }
 
         // Basic email format validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (!emailRegex.test(trimmedEmail)) {
             setErrorMessage('Please enter a valid email address.');
             return;
         }
@@ -33,18 +35,18 @@ export default function ForgotPassPage() {
             await fetch(`${BASE_URL}/api/forgot-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
+                body: JSON.stringify({ email: trimmedEmail }),
             });
 
             // Navigate to the verification page regardless of whether the email exists,
             // passing the email along so the next page knows who is trying to verify.
-            navigate('/verification-code', { state: { email } });
+            navigate('/verification-code', { state: { email: trimmedEmail } });
 
         } catch (error) {
             console.error("Error requesting password reset:", error);
             // Even if the server connection fails, we proceed to the next page
             // to avoid leaking information about the server's status.
-            navigate('/verification-code', { state: { email } });
+            navigate('/verification-code', { state: { email: trimmedEmail } });
         } finally {
             setIsLoading(false);
         }
@@ -53,7 +55,7 @@ export default function ForgotPassPage() {
     return (
         <div className={styles['main-container']}>
             {/* Wrapped in a form to allow native "Enter" key submission */}
-            <form className={styles['container']} onSubmit={handleSendCode}>
+            <form className={styles['container']} onSubmit={handleSendCode} noValidate>
                 <img src={logo} alt='Logo' className={styles.logo}/>
                 
                 <div className={styles['page-title']}>
@@ -66,18 +68,18 @@ export default function ForgotPassPage() {
                 <div className={styles['label-container']}><p className={styles.label}>EMAIL ADDRESS</p></div>
                 <input 
                     type='email' 
-                    className={styles['input-field']} 
+                    className={`${styles['input-field']} ${errorMessage ? styles['input-error'] : ''}`}
                     value={email} 
                     onChange={(e) => {
                         setEmail(e.target.value);
                         if (errorMessage) setErrorMessage('');
                     }} 
                     disabled={isLoading}
-                    required
+                    aria-invalid={Boolean(errorMessage)}
+                    aria-describedby="forgot-password-email-error"
                 />
                 
-                {/* Added inline styles strictly for error formatting without changing external CSS */}
-                <div className={styles.error} style={{ color: '#ff4d4d', minHeight: '20px', fontSize: '14px', marginTop: '5px', textAlign: 'center' }}>
+                <div id="forgot-password-email-error" className={styles.error}>
                     {errorMessage}
                 </div>
                 

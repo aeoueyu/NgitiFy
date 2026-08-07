@@ -101,9 +101,14 @@
     box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.15);
 }
 
+.input-field.input-error {
+    border-color: #d9534f;
+    box-shadow: 0 0 0 4px rgba(217, 83, 79, 0.12);
+}
+
 .error {
     color: #d9534f;
-    font-size: 12px;
+    font-size: 14px;
     margin-top: 5px;
     min-height: 20px;
     text-align: center;

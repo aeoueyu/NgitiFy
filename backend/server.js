@@ -1223,6 +1223,7 @@ const PREDICTIVE_VISIT_DEFAULT_MONTHS = 6;
 const PREDICTIVE_VISIT_WINDOW_DAYS = 7;
 const PREDICTIVE_VISIT_DUE_SOON_DAYS = 14;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const IN_CLINIC_COMPLETION_REMINDER_MS = DAY_IN_MS;
 
 const getAppointmentGraceDeadline = (appointment) => {
     if (!appointment?.date || !appointment?.time) return null;
@@ -1747,6 +1748,33 @@ const parseScheduleDateKey = (dateKey, time = '12:00') => {
     if (!/^\d{2}:\d{2}$/.test(String(time || '').trim())) return null;
     const parsed = new Date(`${dateKey}T${time}:00+08:00`);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getScheduleDateTime = (appointment) => {
+    if (!appointment?.date || !appointment?.time) return null;
+
+    const dateKey = getManilaDateKey(appointment.date);
+    const normalizedTime = String(appointment.time || '').trim();
+    const timeMatch = normalizedTime.match(/^(\d{1,2}):(\d{2})(?:\s*([APap][Mm]))?$/);
+    if (!timeMatch) return null;
+
+    let hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const meridiem = timeMatch[3] ? timeMatch[3].toUpperCase() : '';
+
+    if (Number.isNaN(hours) || Number.isNaN(minutes) || minutes < 0 || minutes > 59) return null;
+    if (hours === 24 && minutes === 0 && !meridiem) hours = 0;
+    if (hours < 0 || hours > 23 || (meridiem && hours > 12)) return null;
+
+    if (meridiem) {
+        if (hours === 12) hours = 0;
+        if (meridiem === 'PM') hours += 12;
+    }
+
+    return parseScheduleDateKey(
+        dateKey,
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+    );
 };
 
 const timeToMinutes = (time = '') => {
@@ -8323,12 +8351,15 @@ const autoCancelOverdueAppointments = async () => {
 };
 
 const remindIncompleteSchedulesForStaff = async () => {
-    const todayStart = getStartOfManilaDay();
+    const now = new Date();
+    const reminderCutoff = new Date(now.getTime() - IN_CLINIC_COMPLETION_REMINDER_MS);
+    const reminderCutoffDayStart = getStartOfManilaDay(reminderCutoff);
+    const reminderCutoffDayEnd = new Date(reminderCutoffDayStart.getTime() + DAY_IN_MS - 1);
     const todayKey = getManilaDayKey();
     const candidates = await Surgery.find({
-        status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+        status: 'in-clinic',
         isArchived: false,
-        date: { $lt: todayStart },
+        date: { $lte: reminderCutoffDayEnd },
         $or: [
             { statusReminderDayKey: { $ne: todayKey } },
             { statusReminderDayKey: { $exists: false } },
@@ -8336,15 +8367,17 @@ const remindIncompleteSchedulesForStaff = async () => {
     }).populate('patient', 'name').populate('dentist', 'name email');
 
     for (const appointment of candidates) {
-        const statusLabel = String(appointment.status || 'pending')
-            .replace(/-/g, ' ')
-            .replace(/\b\w/g, (char) => char.toUpperCase());
+        const checkInDateTime = getScheduleDateTime(appointment);
+        if (!checkInDateTime || now.getTime() - checkInDateTime.getTime() <= IN_CLINIC_COMPLETION_REMINDER_MS) {
+            continue;
+        }
+
         const scheduleDateLabel = formatEmailDateLabel(appointment.date);
-        const reminderMessage = `${getPatientDisplayName(appointment)}'s ${appointment.procedure} schedule from ${scheduleDateLabel} is still marked ${statusLabel}. Please update the schedule status.`;
+        const reminderMessage = `${getPatientDisplayName(appointment)} has been in clinic since ${scheduleDateLabel} at ${appointment.time || 'the recorded check-in time'}, but the schedule is not marked complete yet. Please review and mark the schedule as completed when appropriate.`;
 
         await createBranchScopedNotifications({
             type: 'APPOINTMENT_STATUS_UPDATED',
-            title: 'Schedule Update Reminder',
+            title: 'In-Clinic Schedule Overdue',
             message: reminderMessage,
             branch: appointment.branch,
             relatedId: appointment._id,
@@ -8354,7 +8387,7 @@ const remindIncompleteSchedulesForStaff = async () => {
         if (appointment.dentist?._id) {
             await Notification.create({
                 type: 'APPOINTMENT_STATUS_UPDATED',
-                title: 'Schedule Update Reminder',
+                title: 'In-Clinic Schedule Overdue',
                 message: reminderMessage,
                 recipientId: appointment.dentist._id,
                 recipientRole: 'dentist',
@@ -8370,7 +8403,7 @@ const remindIncompleteSchedulesForStaff = async () => {
             action: 'SCHEDULE_STATUS_REMINDER_SENT',
             user: 'SYSTEM',
             role: 'SYSTEM',
-            details: `Sent schedule update reminder for appointment ${appointment._id} with current status ${appointment.status}.`,
+            details: `Sent in-clinic completion reminder for appointment ${appointment._id}; checked in at ${checkInDateTime.toISOString()} and still not completed.`,
         });
     }
 };
