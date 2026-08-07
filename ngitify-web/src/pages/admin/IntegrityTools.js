@@ -195,17 +195,6 @@ const CHECK_TABLES = {
         { key: 'expirationDate', label: 'Expiration', render: (value) => formatDate(value) },
         { key: 'issueTypes', label: 'Issues', render: (value) => renderTagList(value) },
     ],
-    support_ticket_integrity: [
-        { key: 'subject', label: 'Subject' },
-        { key: 'patientName', label: 'Patient' },
-        { key: 'patientEmail', label: 'Patient Email' },
-        { key: 'status', label: 'Status', render: (value) => renderPill(value) },
-        { key: 'assignedToName', label: 'Assignee' },
-        { key: 'messageCount', label: 'Messages' },
-        { key: 'resolvedAt', label: 'Resolved At', render: (value) => formatDate(value, true) },
-        { key: 'closedAt', label: 'Closed At', render: (value) => formatDate(value, true) },
-        { key: 'issueTypes', label: 'Issues', render: (value) => renderTagList(value) },
-    ],
 };
 
 function RecordsTable({ check }) {

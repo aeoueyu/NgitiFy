@@ -17,6 +17,7 @@ import {
     matchesAccountLifecycleFilter,
     shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
+import { readUserListResponse } from '../../utils/userListResponse';
 
 const ManageBranchManagers = () => {
     const { addToast } = useToast();
@@ -24,7 +25,7 @@ const ManageBranchManagers = () => {
     const [managers, setManagers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('active');
+    const [statusFilter, setStatusFilter] = useState('all');
     const [branchFilter, setBranchFilter] = useState('All');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -37,9 +38,9 @@ const ManageBranchManagers = () => {
         setIsLoading(true);
         try {
             const res = await authFetch('/users?role=branch-manager&includeArchived=true');
-            if (res.ok) {
-                const data = await res.json();
-                setManagers(data.map((u) => ({
+            const { ok, users, message } = await readUserListResponse(res);
+            if (ok) {
+                setManagers(users.map((u) => ({
                     id: u._id,
                     name: `${u.name?.first || ''} ${u.name?.last || ''}`.trim() || 'Unknown',
                     email: u.email || 'N/A',
@@ -52,7 +53,7 @@ const ManageBranchManagers = () => {
                     assignedBranch: u.assignedBranch || u.assignedBranches?.[0] || '',
                 })));
             } else {
-                addToast('Failed to load branch managers.', 'error');
+                addToast(message || 'Failed to load branch managers.', 'error');
             }
         } catch {
             addToast('Network error. Please try again.', 'error');

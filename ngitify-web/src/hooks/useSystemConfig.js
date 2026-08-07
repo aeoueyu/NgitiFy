@@ -57,7 +57,6 @@ const DEFAULT_SYSTEM_CONFIG = {
     featureToggles: {
         queueManagement: true,
         radiographUploads: true,
-        chatSupport: false,
         sessionTimeout: true,
     },
     websiteContent: cloneWebsiteContentDefaults(),

@@ -1,31 +1,29 @@
 import React, { useContext, useEffect, useRef, useState, useCallback } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
-    Animated, Modal, TextInput, Alert, ActivityIndicator,
+    Animated, Modal, ActivityIndicator,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
-import { logActivity } from '../../utils/logActivity';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 
-// ─── DENTAL HEALTH EDUCATION CONTENT ────────────────────────────────────────
 const EDUCATION_ARTICLES = [
     {
         id: '1',
         iconName: 'toothbrush',
-        iconLib:  'MaterialCommunityIcons',
+        iconLib: 'MaterialCommunityIcons',
         iconColor: '#01538b',
         title: 'Proper Brushing Technique',
-        summary: 'Brush for 2 minutes, twice a day using circular motions at a 45° angle.',
-        body: "Use a soft-bristled toothbrush and fluoride toothpaste. Hold the brush at a 45° angle to your gums. Use short, gentle circular strokes — never scrub. Brush outer surfaces, inner surfaces, and chewing surfaces of all teeth. Don't forget to brush your tongue to remove bacteria and freshen breath. Replace your toothbrush every 3–4 months.",
+        summary: 'Brush for 2 minutes, twice a day using circular motions at a 45 degree angle.',
+        body: "Use a soft-bristled toothbrush and fluoride toothpaste. Hold the brush at a 45 degree angle to your gums. Use short, gentle circular strokes, never scrub. Brush outer surfaces, inner surfaces, and chewing surfaces of all teeth. Don't forget to brush your tongue to remove bacteria and freshen breath. Replace your toothbrush every 3 to 4 months.",
     },
     {
         id: '2',
         iconName: 'tooth-outline',
-        iconLib:  'MaterialCommunityIcons',
+        iconLib: 'MaterialCommunityIcons',
         iconColor: '#00897b',
         title: 'Why Flossing Matters',
         summary: 'Flossing removes plaque from areas your toothbrush cannot reach.',
@@ -34,46 +32,42 @@ const EDUCATION_ARTICLES = [
     {
         id: '3',
         iconName: 'nutrition-outline',
-        iconLib:  'Ionicons',
+        iconLib: 'Ionicons',
         iconColor: '#2e7d32',
         title: 'Foods That Protect Your Teeth',
         summary: 'Cheese, leafy greens, and crunchy vegetables naturally strengthen enamel.',
-        body: 'Dairy products (cheese, milk, yogurt) provide calcium and phosphates that remineralize enamel. Crunchy fruits and vegetables like apples and carrots increase saliva production, washing away bacteria. Leafy greens are rich in calcium and folic acid. Green and black teas contain polyphenols that suppress bacteria. Drink plenty of water — especially fluoridated water — throughout the day.',
+        body: 'Dairy products provide calcium and phosphates that remineralize enamel. Crunchy fruits and vegetables like apples and carrots increase saliva production, washing away bacteria. Leafy greens are rich in calcium and folic acid. Green and black teas contain polyphenols that suppress bacteria. Drink plenty of water throughout the day.',
     },
     {
         id: '4',
         iconName: 'cafe-outline',
-        iconLib:  'Ionicons',
+        iconLib: 'Ionicons',
         iconColor: '#c62828',
         title: 'Habits That Harm Your Teeth',
         summary: 'Coffee, soda, and tobacco significantly accelerate dental decay.',
-        body: 'Sugary and acidic drinks erode enamel over time. Sipping throughout the day is worse than drinking in one sitting. Tobacco use causes gum disease, tooth loss, and oral cancer. Grinding your teeth (bruxism) damages enamel and causes jaw pain — ask your dentist about a night guard. Using your teeth to open packaging or bottles can cause chips or fractures.',
+        body: 'Sugary and acidic drinks erode enamel over time. Sipping throughout the day is worse than drinking in one sitting. Tobacco use causes gum disease, tooth loss, and oral cancer. Grinding your teeth damages enamel and causes jaw pain, so ask your dentist about a night guard. Using your teeth to open packaging or bottles can cause chips or fractures.',
     },
 ];
 
-// ─── ORAL HEALTH TIPS ────────────────────────────────────────────────────────
 const ORAL_HEALTH_TIPS = [
-    { id: '1', iconName: 'sunny-outline',        iconLib: 'Ionicons',               iconColor: '#f57f17', title: 'Morning Routine',   tip: 'Brush and rinse before breakfast to remove overnight bacteria buildup.' },
-    { id: '2', iconName: 'moon-outline',          iconLib: 'Ionicons',               iconColor: '#5c6bc0', title: 'Night Routine',     tip: 'Brush and floss before bed. This is the most important brushing session.' },
-    { id: '3', iconName: 'water-outline',         iconLib: 'Ionicons',               iconColor: '#0288d1', title: 'Stay Hydrated',     tip: 'Drink water after meals to rinse away food particles and acid.' },
-    { id: '4', iconName: 'flask-outline',         iconLib: 'Ionicons',               iconColor: '#00897b', title: 'Mouthwash',         tip: 'Use fluoride or antibacterial mouthwash to reach areas brushing misses.' },
-    { id: '5', iconName: 'calendar-outline',      iconLib: 'Ionicons',               iconColor: '#01538b', title: 'Regular Check-ups', tip: 'Visit your dentist every 6 months for cleaning and early detection.' },
-    { id: '6', iconName: 'toothbrush',            iconLib: 'MaterialCommunityIcons', iconColor: '#6a1b9a', title: 'Change Your Brush', tip: 'Replace your toothbrush every 3 months or after any illness.' },
+    { id: '1', iconName: 'sunny-outline', iconLib: 'Ionicons', iconColor: '#f57f17', title: 'Morning Routine', tip: 'Brush and rinse before breakfast to remove overnight bacteria buildup.' },
+    { id: '2', iconName: 'moon-outline', iconLib: 'Ionicons', iconColor: '#5c6bc0', title: 'Night Routine', tip: 'Brush and floss before bed. This is the most important brushing session.' },
+    { id: '3', iconName: 'water-outline', iconLib: 'Ionicons', iconColor: '#0288d1', title: 'Stay Hydrated', tip: 'Drink water after meals to rinse away food particles and acid.' },
+    { id: '4', iconName: 'flask-outline', iconLib: 'Ionicons', iconColor: '#00897b', title: 'Mouthwash', tip: 'Use fluoride or antibacterial mouthwash to reach areas brushing misses.' },
+    { id: '5', iconName: 'calendar-outline', iconLib: 'Ionicons', iconColor: '#01538b', title: 'Regular Check-ups', tip: 'Visit your dentist every 6 months for cleaning and early detection.' },
+    { id: '6', iconName: 'toothbrush', iconLib: 'MaterialCommunityIcons', iconColor: '#6a1b9a', title: 'Change Your Brush', tip: 'Replace your toothbrush every 3 months or after any illness.' },
 ];
 
-// ─── SECTION CONFIG ──────────────────────────────────────────────────────────
-const SECTIONS = ['overview', 'inquiry', 'education', 'oralHealth', 'visitWindow'];
+const SECTIONS = ['overview', 'education', 'oralHealth', 'visitWindow'];
 const SECTION_LABELS = {
-    overview:    'Overview',
-    inquiry:     'Inquiry',
-    education:   'Education',
-    oralHealth:  'Oral Health',
+    overview: 'Overview',
+    education: 'Education',
+    oralHealth: 'Oral Health',
     visitWindow: 'Visit Window',
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmtDate = (iso) => {
-    if (!iso) return '—';
+    if (!iso) return '-';
     const d = new Date(iso);
     return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 };
@@ -135,35 +129,23 @@ function DynamicIcon({ iconName, iconLib, iconColor, size }) {
     return <Ionicons name={iconName} size={size} color={iconColor} />;
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function AiPatientCareCompanionScreen({ navigation, route }) {
-    const { userToken, userInfo, userId, API_BASE_URL } = useContext(AuthContext);
+    const { userToken, API_BASE_URL } = useContext(AuthContext);
 
-    const fadeAnim    = useRef(new Animated.Value(0)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
     const [activeSection, setActiveSection] = useState('overview');
-    const [selectedVisitDate,  setSelectedVisitDate]  = useState(route?.params?.focusDate || '');
-
-    // ── Visit prediction state ──
-    const [visitInfo,          setVisitInfo]          = useState(null);
-    const [treatmentHistory,   setTreatmentHistory]   = useState([]);
-    const [loadingVisit,       setLoadingVisit]       = useState(true);
-
-    // ── Inquiry state ──
-    const [inquiryText,        setInquiryText]        = useState('');
-    const [inquiryCategory,    setInquiryCategory]    = useState('General');
-    const [submittingInquiry,  setSubmittingInquiry]  = useState(false);
-
-    // ── Education state ──
-    const [selectedArticle,    setSelectedArticle]    = useState(null);
+    const [selectedVisitDate, setSelectedVisitDate] = useState(route?.params?.focusDate || '');
+    const [visitInfo, setVisitInfo] = useState(null);
+    const [treatmentHistory, setTreatmentHistory] = useState([]);
+    const [loadingVisit, setLoadingVisit] = useState(true);
+    const [selectedArticle, setSelectedArticle] = useState(null);
 
     const authHeader = { Authorization: `Bearer ${userToken}` };
 
-    // ── Fade in ──────────────────────────────────────────────────────────────
     useEffect(() => {
         Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-    }, []);
+    }, [fadeAnim]);
 
-    // ── Fetch last treatment log for visit prediction ─────────────────────────
     const fetchLastVisit = useCallback(async () => {
         setLoadingVisit(true);
         try {
@@ -176,13 +158,11 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
 
             const logs = await logsRes.json();
             const predictionPayload = await predictionRes.json();
-            const safeLogs = Array.isArray(logs) ? logs : [];
-            setTreatmentHistory(safeLogs);
+            setTreatmentHistory(Array.isArray(logs) ? logs : []);
             setVisitInfo(predictionPayload?.prediction || null);
         } catch {
             setTreatmentHistory([]);
             setVisitInfo(null);
-            // Non-critical — visit prediction simply won't show
         } finally {
             setLoadingVisit(false);
         }
@@ -201,43 +181,6 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
         }
     }, [route?.params?.focusDate, route?.params?.initialSection]);
 
-    // ── Computed visit prediction (uses shared utility) ───────────────────────
-    // ── Submit Inquiry → POST /api/support-tickets ────────────────────────────
-    const handleSubmitInquiry = async () => {
-        if (!inquiryText.trim()) {
-            Alert.alert('Empty Inquiry', 'Please type your question or concern first.');
-            return;
-        }
-
-        setSubmittingInquiry(true);
-        try {
-            const subject = `[${inquiryCategory}] Inquiry from ${userInfo?.fullName || userInfo?.firstName || 'Patient'}`;
-            const res = await fetch(`${API_BASE_URL}/api/support-tickets`, {
-                method:  'POST',
-                headers: { ...authHeader, 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ subject, message: inquiryText.trim() }),
-            });
-
-            if (res.ok) {
-                setInquiryText('');
-                logActivity('INQUIRY_SENT', `Sent ${inquiryCategory} inquiry`, userToken, API_BASE_URL);
-                Alert.alert(
-                    'Inquiry Sent ✅',
-                    'Your inquiry has been forwarded to our clinic team. We will get back to you shortly.',
-                );
-            } else {
-                const data = await res.json();
-                Alert.alert('Failed to Send', data.message || 'Please try again or contact us directly.');
-            }
-        } catch {
-            // Network error — still clear input and show graceful message
-            setInquiryText('');
-            Alert.alert('Inquiry Sent ✅', 'Your inquiry has been received. Our team will respond shortly.');
-        } finally {
-            setSubmittingInquiry(false);
-        }
-    };
-
     // ─── RENDERS ─────────────────────────────────────────────────────────────
 
     const renderOverview = () => {
@@ -247,27 +190,10 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
         return (
             <View>
                 <Text style={styles.welcomeText}>
-                    Your personal AI-powered companion for dental care, education, and clinic support.
+                    Your personal AI-powered companion for dental care, education, and visit guidance.
                 </Text>
 
-                <View style={styles.featureGrid}>
-                    <TouchableOpacity
-                        style={[styles.featureCard, { backgroundColor: '#01538b' }]}
-                        onPress={() => navigation.navigate('Chatbot')}
-                    >
-                        <Ionicons name="chatbubbles-outline" size={28} color="white" style={styles.featureIcon} />
-                        <Text style={styles.featureCardTitle}>NgitiBot</Text>
-                        <Text style={styles.featureCardSub}>Chat with our AI dental assistant</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.featureCard, { backgroundColor: '#006064' }]}
-                        onPress={() => setActiveSection('inquiry')}
-                    >
-                        <Ionicons name="mail-outline" size={28} color="white" style={styles.featureIcon} />
-                        <Text style={styles.featureCardTitle}>Inquiry</Text>
-                        <Text style={styles.featureCardSub}>Send questions to our team</Text>
-                    </TouchableOpacity>
+                <View style={styles.featureGrid}>
 
                     <TouchableOpacity
                         style={[styles.featureCard, { backgroundColor: '#1565c0' }]}
@@ -325,68 +251,7 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
             </View>
         );
     };
-
-    const renderInquiry = () => (
-        <View>
-            <Text style={styles.sectionHeader}>Send an Inquiry</Text>
-            <Text style={styles.sectionSub}>
-                Have questions about your treatment, billing, or schedule? Send us a message and we'll get back to you.
-            </Text>
-
-            <Text style={styles.fieldLabel}>Category</Text>
-            <View style={styles.categoryRow}>
-                {['General', 'Treatment', 'Schedule', 'Billing'].map(cat => (
-                    <TouchableOpacity
-                        key={cat}
-                        style={[styles.categoryChip, inquiryCategory === cat && styles.categoryChipActive]}
-                        onPress={() => setInquiryCategory(cat)}
-                    >
-                        <Text style={[styles.categoryChipText, inquiryCategory === cat && styles.categoryChipTextActive]}>
-                            {cat}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <Text style={styles.fieldLabel}>Your Question or Concern</Text>
-            <TextInput
-                style={styles.inquiryInput}
-                placeholder="Type your message here..."
-                placeholderTextColor="#aaa"
-                multiline
-                numberOfLines={5}
-                value={inquiryText}
-                onChangeText={setInquiryText}
-                textAlignVertical="top"
-                editable={!submittingInquiry}
-            />
-
-            <TouchableOpacity
-                style={[styles.submitBtn, submittingInquiry && { opacity: 0.6 }]}
-                onPress={handleSubmitInquiry}
-                disabled={submittingInquiry}
-                activeOpacity={0.8}
-            >
-                {submittingInquiry
-                    ? <ActivityIndicator color="white" />
-                    : <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="send-outline" size={15} color="white" style={{ marginRight: 8 }} />
-                        <Text style={styles.submitBtnText}>Send Inquiry</Text>
-                      </View>
-                }
-            </TouchableOpacity>
-
-            <View style={styles.infoNote}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                    <Ionicons name="call-outline" size={14} color="#1565c0" style={{ marginRight: 6, marginTop: 2 }} />
-                    <Text style={styles.infoNoteText}>
-                        You can also reach us at (02) 8123-4567 or visit the clinic during operating hours: Mon–Sat, 9:00 AM–5:00 PM.
-                    </Text>
-                </View>
-            </View>
-        </View>
-    );
-
+
     const renderEducation = () => (
         <View>
             <Text style={styles.sectionHeader}>Dental Health Education</Text>
@@ -675,7 +540,6 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
                 showsVerticalScrollIndicator={false}
             >
                 {activeSection === 'overview'    && renderOverview()}
-                {activeSection === 'inquiry'     && renderInquiry()}
                 {activeSection === 'education'   && renderEducation()}
                 {activeSection === 'oralHealth'  && renderOralHealth()}
                 {activeSection === 'visitWindow' && renderVisitWindow()}
@@ -767,15 +631,6 @@ const styles = StyleSheet.create({
     // Inquiry
     fieldLabel:             { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 8 },
     categoryRow:            { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18 },
-    categoryChip:           { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#eee', marginRight: 8, marginBottom: 8 },
-    categoryChipActive:     { backgroundColor: '#01538b' },
-    categoryChipText:       { fontSize: 13, color: '#555', fontWeight: '600' },
-    categoryChipTextActive: { color: 'white' },
-    inquiryInput:           { backgroundColor: 'white', borderWidth: 1, borderColor: '#ddd', borderRadius: 12, padding: 15, fontSize: 14, minHeight: 120, marginBottom: 15, color: '#333' },
-    submitBtn:              { backgroundColor: '#01538b', paddingVertical: 15, borderRadius: 12, alignItems: 'center', elevation: 2, marginBottom: 15 },
-    submitBtnText:          { color: 'white', fontWeight: 'bold', fontSize: 15 },
-    infoNote:               { backgroundColor: '#e3f2fd', padding: 15, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#1565c0' },
-    infoNoteText:           { color: '#1565c0', fontSize: 12, lineHeight: 18 },
 
     // Education
     articleCard:    { backgroundColor: 'white', padding: 15, borderRadius: 15, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },

@@ -64,8 +64,6 @@ export const ORAL_HEALTH_TIPS = [
     { id: '6', iconName: 'toothbrush', iconLib: 'MaterialCommunityIcons', iconColor: '#6a1b9a', title: 'Change Your Brush', tip: 'Replace your toothbrush every 3 months or after any illness.' },
 ];
 
-export const CHATBOT_WELCOME_MESSAGE = "Hello! I'm NgitiBot, your AI dental assistant.\n\nI can help you with:\n- Dental care tips and advice\n- Procedure information\n- Preventive care guidance\n- General post-op support\n- Your current appointment details\n- Available booking slots for your branch\n- Dentime-approved routine dental information\n\nYou can also ask in English, Filipino, Tagalog, or Cebuano/Bisaya.\n\nWhat can I help you with today?";
-
 export const NOTIFICATION_META = {
     NEW_APPOINTMENT: { icon: 'calendar-outline', library: 'Ionicons', color: '#1e88e5', label: 'Appointment' },
     APPOINTMENT_CONFIRMED: { icon: 'checkmark-circle-outline', library: 'Ionicons', color: '#2e7d32', label: 'Confirmed' },
@@ -76,8 +74,6 @@ export const NOTIFICATION_META = {
     PREDICTIVE_VISIT_DUE: { icon: 'warning-outline', library: 'Ionicons', color: '#e65100', label: 'Visit Due' },
     PREDICTIVE_VISIT_OVERDUE: { icon: 'alert-circle-outline', library: 'Ionicons', color: '#b71c1c', label: 'Visit Overdue' },
     DENTAL_HEALTH_TIP: { icon: 'tooth-outline', library: 'MaterialCommunityIcons', color: '#00897b', label: 'Dental Tip' },
-    CHAT_TICKET_RAISED: { icon: 'chatbubble-outline', library: 'Ionicons', color: '#6a1b9a', label: 'Support' },
-    INQUIRY_ESCALATED: { icon: 'megaphone-outline', library: 'Ionicons', color: '#ad1457', label: 'Support' },
     NEW_RADIOGRAPH: { icon: 'bone', library: 'MaterialCommunityIcons', color: '#4527a0', label: 'Radiograph' },
 };
 

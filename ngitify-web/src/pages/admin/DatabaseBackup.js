@@ -57,32 +57,43 @@ const shortenChecksum = (value) => {
 
 const getTriggerLabel = (triggerType) => (
     String(triggerType || '').trim().toLowerCase() === 'scheduled'
-        ? 'Scheduled'
-        : 'Manual'
+        ? 'Automatic schedule'
+        : 'Created manually'
 );
 
 const getStatusMeta = (backup) => {
     const normalized = String(backup?.status || '').trim().toLowerCase();
     if (normalized === 'running') {
-        return { label: 'Running', className: styles.statusRunning, icon: FaSyncAlt };
+        return { label: 'In progress', className: styles.statusRunning, icon: FaSyncAlt };
     }
     if (normalized === 'success') {
-        return { label: 'Success', className: styles.statusSuccess, icon: FaCheckCircle };
+        return { label: 'Completed', className: styles.statusSuccess, icon: FaCheckCircle };
     }
     return { label: 'Failed', className: styles.statusFailed, icon: FaTimesCircle };
 };
 
 const getFileMeta = (backup) => {
     if (backup?.fileState === 'pruned') {
-        return { label: 'Pruned by retention', className: styles.filePruned };
+        return { label: 'Removed by file limit', className: styles.filePruned };
     }
     if (backup?.fileState === 'available') {
-        return { label: 'Available', className: styles.fileAvailable };
+        return { label: 'Available for download', className: styles.fileAvailable };
     }
     if (backup?.fileState === 'missing') {
-        return { label: 'Missing', className: styles.fileMissing };
+        return { label: 'File missing', className: styles.fileMissing };
     }
-    return { label: 'N/A', className: styles.fileNeutral };
+    return { label: 'Not applicable', className: styles.fileNeutral };
+};
+
+const getVerificationMeta = (backup) => {
+    const normalized = String(backup?.verificationStatus || 'unverified').trim().toLowerCase();
+    if (normalized === 'verified') {
+        return { label: 'Restore verified', className: styles.verifySuccess, icon: FaCheckCircle };
+    }
+    if (normalized === 'failed') {
+        return { label: 'Verification failed', className: styles.verifyFailed, icon: FaTimesCircle };
+    }
+    return { label: 'Not yet verified', className: styles.verifyNeutral, icon: FaClock };
 };
 
 const clampWholeNumber = (value, fallback, min, max) => {
@@ -100,6 +111,7 @@ export default function DatabaseBackup() {
     const [refreshing, setRefreshing] = useState(false);
     const [creating, setCreating] = useState(false);
     const [downloading, setDownloading] = useState(null);
+    const [verifying, setVerifying] = useState(null);
     const [savingSettings, setSavingSettings] = useState(false);
     const [settingsForm, setSettingsForm] = useState({
         enabled: false,
@@ -126,22 +138,22 @@ export default function DatabaseBackup() {
                 setStatus(await statusRes.json());
             } else {
                 hadError = true;
-                addToast('Failed to load backup status.', 'error');
+                addToast('Unable to load the current backup readiness status.', 'error');
             }
 
             if (listRes.ok) {
                 setBackups(await listRes.json());
             } else {
                 hadError = true;
-                addToast('Failed to load backup history.', 'error');
+                addToast('Unable to load the backup history.', 'error');
             }
 
             if (silent && !hadError) {
-                addToast('Backup status refreshed.', 'success');
+                addToast('Backup information refreshed successfully.', 'success');
             }
         } catch (error) {
             console.error('Error loading backup data:', error);
-            addToast('Network error loading backup tools.', 'error');
+            addToast('Network error. Backup information could not be loaded.', 'error');
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -169,7 +181,7 @@ export default function DatabaseBackup() {
     const handleCreate = async () => {
         if (creating) return;
         setCreating(true);
-        addToast('Creating backup. This may take a moment.', 'info');
+        addToast('Creating a database backup. Please wait while the backup file is being prepared.', 'info');
 
         try {
             const res = await authFetch('/backup/create', { method: 'POST' });
@@ -179,7 +191,7 @@ export default function DatabaseBackup() {
                 const prunedCount = Number(data?.retention?.deletedCount || 0);
                 addToast(
                     prunedCount > 0
-                        ? `Backup created successfully. Retention pruned ${prunedCount} older backup(s).`
+                        ? `Backup created successfully. ${prunedCount} older backup(s) were removed based on the retention limit.`
                         : 'Backup created successfully.',
                     'success'
                 );
@@ -188,7 +200,7 @@ export default function DatabaseBackup() {
             }
 
             if (res.status === 409) {
-                addToast(data.message || 'A backup is already running.', 'warning');
+                addToast(data.message || 'A backup is already in progress. Please wait for it to finish.', 'warning');
                 await loadData({ silent: false });
                 return;
             }
@@ -196,7 +208,7 @@ export default function DatabaseBackup() {
             addToast(data.message || 'Backup creation failed.', 'error');
         } catch (error) {
             console.error('Backup create error:', error);
-            addToast('Network error. Backup could not be created.', 'error');
+            addToast('Network error. The backup could not be created.', 'error');
         } finally {
             setCreating(false);
         }
@@ -207,7 +219,7 @@ export default function DatabaseBackup() {
         try {
             const res = await authFetch(`/backup/download/${encodeURIComponent(filename)}`);
             if (!res.ok) {
-                addToast('Download failed. The file may no longer exist on the server.', 'error');
+                addToast('Download failed. The backup file may no longer be available on the server.', 'error');
                 return;
             }
 
@@ -225,6 +237,32 @@ export default function DatabaseBackup() {
             addToast('Download error. Please try again.', 'error');
         } finally {
             setDownloading(null);
+        }
+    };
+
+    const handleVerify = async (filename) => {
+        if (verifying) return;
+
+        setVerifying(filename);
+        addToast('Verifying the backup by restoring it to a temporary database.', 'info');
+
+        try {
+            const res = await authFetch(`/backup/verify/${encodeURIComponent(filename)}`, { method: 'POST' });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                addToast(data.message || 'Backup verification failed.', 'error');
+                await loadData();
+                return;
+            }
+
+            addToast(data.message || 'Backup verified successfully.', 'success');
+            await loadData();
+        } catch (error) {
+            console.error('Backup verify error:', error);
+            addToast('Network error. Backup verification could not be completed.', 'error');
+        } finally {
+            setVerifying(null);
         }
     };
 
@@ -283,6 +321,7 @@ export default function DatabaseBackup() {
     const summary = status?.summary || {};
     const scheduler = status?.scheduler || {};
     const mongodump = status?.mongodump || {};
+    const mongorestore = status?.mongorestore || {};
     const activeBackup = status?.activeBackup || null;
     const schedulerDirty = (
         settingsForm.enabled !== (scheduler.enabled === true)
@@ -299,7 +338,7 @@ export default function DatabaseBackup() {
                     <div>
                         <h1 className={styles.pageTitle}>Database Backup</h1>
                         <p className={styles.pageSubtitle}>
-                            Create verified MongoDB backup archives, monitor scheduler readiness, and track local retention from one admin control center.
+                            Create database backup files, verify that they can be restored, and manage the automatic backup schedule from one admin page.
                         </p>
                     </div>
                 </div>
@@ -322,7 +361,7 @@ export default function DatabaseBackup() {
                         {creating
                             ? <><FaSyncAlt className={styles.spinning} /> Creating...</>
                             : activeBackup
-                                ? <><FaClock /> Backup Running...</>
+                                ? <><FaClock /> Backup in Progress...</>
                                 : <><FaPlus /> Create Backup Now</>
                         }
                     </button>
@@ -336,12 +375,12 @@ export default function DatabaseBackup() {
                     </div>
                     <div>
                         <h2 className={styles.bannerTitle}>
-                            {mongodump.available ? 'Backup binary ready' : 'Backup binary unavailable'}
+                            {mongodump.available ? 'Backup tool ready' : 'Backup tool unavailable'}
                         </h2>
                         <p className={styles.bannerCopy}>
                             {mongodump.available
-                                ? `${mongodump.version || status?.binary || 'mongodump'}`
-                                : (mongodump.error || 'The server could not execute mongodump.')}
+                                ? `The server can create compressed database backup files. ${mongodump.version || status?.binary || ''}`
+                                : (mongodump.error || 'The server could not run the database backup tool.')}
                         </p>
                     </div>
                 </div>
@@ -351,9 +390,25 @@ export default function DatabaseBackup() {
                         <FaShieldAlt />
                     </div>
                     <div>
-                        <h2 className={styles.bannerTitle}>Local protection only</h2>
+                        <h2 className={styles.bannerTitle}>Stored on this server</h2>
                         <p className={styles.bannerCopy}>
-                            Backups are stored in <code>{status?.backupDir || 'backend/backups'}</code>. Keep downloading copies off-server until off-site sync is added.
+                            Backup files are saved in <code>{status?.backupDir || 'backend/backups'}</code>. Download important copies and keep them outside the server for additional protection.
+                        </p>
+                    </div>
+                </div>
+
+                <div className={`${styles.bannerCard} ${mongorestore.available ? styles.bannerReady : styles.bannerWarning}`}>
+                    <div className={styles.bannerIcon}>
+                        {mongorestore.available ? <FaCheckCircle /> : <FaExclamationTriangle />}
+                    </div>
+                    <div>
+                        <h2 className={styles.bannerTitle}>
+                            {mongorestore.available ? 'Restore verification ready' : 'Restore verification unavailable'}
+                        </h2>
+                        <p className={styles.bannerCopy}>
+                            {mongorestore.available
+                                ? `The server can test a backup by restoring it into a temporary database. ${mongorestore.version || ''}`
+                                : (mongorestore.error || 'The server could not run the restore verification tool.')}
                         </p>
                     </div>
                 </div>
@@ -363,7 +418,7 @@ export default function DatabaseBackup() {
                 <div className={styles.jobBanner}>
                     <FaSyncAlt className={styles.spinning} />
                     <div>
-                        <strong>{activeBackup.filename}</strong> is currently running.
+                        <strong>{activeBackup.filename}</strong> is currently being created.
                         Started {formatDate(activeBackup.startedAt)} by {activeBackup.createdByName || getTriggerLabel(activeBackup.triggerType)}.
                     </div>
                 </div>
@@ -372,11 +427,11 @@ export default function DatabaseBackup() {
             <div className={styles.statsRow}>
                 <div className={styles.statCard}>
                     <span className={styles.statValue}>{summary.totalRuns ?? backups.length}</span>
-                    <span className={styles.statLabel}>Total Runs</span>
+                    <span className={styles.statLabel}>Backup Attempts</span>
                 </div>
                 <div className={styles.statCard}>
                     <span className={`${styles.statValue} ${styles.statGreen}`}>{summary.successfulRuns ?? backups.filter((backup) => backup.status === 'success').length}</span>
-                    <span className={styles.statLabel}>Successful</span>
+                    <span className={styles.statLabel}>Completed</span>
                 </div>
                 <div className={styles.statCard}>
                     <span className={`${styles.statValue} ${styles.statRed}`}>{summary.failedRuns ?? backups.filter((backup) => backup.status === 'failed').length}</span>
@@ -384,11 +439,11 @@ export default function DatabaseBackup() {
                 </div>
                 <div className={styles.statCard}>
                     <span className={styles.statValue}>{scheduler.enabled ? `${scheduler.intervalHours || 24}h` : 'Off'}</span>
-                    <span className={styles.statLabel}>Auto Backup</span>
+                    <span className={styles.statLabel}>Automatic Schedule</span>
                 </div>
                 <div className={styles.statCard}>
                     <span className={styles.statValue}>{scheduler.retentionCount > 0 ? scheduler.retentionCount : 'Off'}</span>
-                    <span className={styles.statLabel}>Local Retention</span>
+                    <span className={styles.statLabel}>Files Kept</span>
                 </div>
             </div>
 
@@ -396,24 +451,24 @@ export default function DatabaseBackup() {
                 <div className={styles.detailCard}>
                     <div className={styles.detailHeader}>
                         <FaClock />
-                        <h2>Scheduler</h2>
+                        <h2>Automatic Schedule</h2>
                     </div>
                     <div className={styles.detailList}>
                         <div className={styles.detailRow}>
-                            <span>Automatic backups</span>
+                            <span>Status</span>
                             <strong>{scheduler.enabled ? 'Enabled' : 'Disabled'}</strong>
                         </div>
                         <div className={styles.detailRow}>
-                            <span>Interval</span>
-                            <strong>{scheduler.enabled ? `${scheduler.intervalHours || 24} hour(s)` : 'Manual only'}</strong>
+                            <span>Backup frequency</span>
+                            <strong>{scheduler.enabled ? `Every ${scheduler.intervalHours || 24} hour(s)` : 'Manual backup only'}</strong>
                         </div>
                         <div className={styles.detailRow}>
-                            <span>Next automatic run</span>
+                            <span>Next automatic backup</span>
                             <strong>{scheduler.enabled ? formatDate(scheduler.nextAutomaticBackupAt) : '-'}</strong>
                         </div>
                         <div className={styles.detailRow}>
-                            <span>Last updated</span>
-                            <strong>{scheduler.updatedAt ? formatDate(scheduler.updatedAt) : 'Env/defaults'}</strong>
+                            <span>Settings last updated</span>
+                            <strong>{scheduler.updatedAt ? formatDate(scheduler.updatedAt) : 'System defaults'}</strong>
                         </div>
                     </div>
                 </div>
@@ -421,20 +476,20 @@ export default function DatabaseBackup() {
                 <div className={styles.detailCard}>
                     <div className={styles.detailHeader}>
                         <FaDatabase />
-                        <h2>Retention</h2>
+                        <h2>File Retention</h2>
                     </div>
                     <div className={styles.detailList}>
                         <div className={styles.detailRow}>
-                            <span>Local retention limit</span>
-                            <strong>{scheduler.retentionCount > 0 ? `${scheduler.retentionCount} successful backups` : 'Disabled'}</strong>
+                            <span>Backup files to keep</span>
+                            <strong>{scheduler.retentionCount > 0 ? `${scheduler.retentionCount} completed backups` : 'No limit set'}</strong>
                         </div>
                         <div className={styles.detailRow}>
-                            <span>Pruning behavior</span>
-                            <strong>{scheduler.retentionCount > 0 ? 'Older local files are deleted automatically' : 'No automatic pruning'}</strong>
+                            <span>When the limit is exceeded</span>
+                            <strong>{scheduler.retentionCount > 0 ? 'Oldest backup files are removed automatically' : 'Old files are not removed automatically'}</strong>
                         </div>
                         <div className={styles.detailRow}>
-                            <span>Storage strategy</span>
-                            <strong>Server local only</strong>
+                            <span>Storage location</span>
+                            <strong>Server storage</strong>
                         </div>
                     </div>
                 </div>
@@ -442,19 +497,23 @@ export default function DatabaseBackup() {
                 <div className={styles.detailCard}>
                     <div className={styles.detailHeader}>
                         <FaDatabase />
-                        <h2>Verification</h2>
+                        <h2>Backup Verification</h2>
                     </div>
                     <div className={styles.detailList}>
                         <div className={styles.detailRow}>
-                            <span>Archive format</span>
-                            <strong>`mongodump --archive --gzip`</strong>
+                            <span>Backup file type</span>
+                            <strong>Compressed database archive</strong>
                         </div>
                         <div className={styles.detailRow}>
-                            <span>Integrity metadata</span>
-                            <strong>SHA-256 + duration saved per run</strong>
+                            <span>Integrity record</span>
+                            <strong>Checksum and duration are saved</strong>
                         </div>
                         <div className={styles.detailRow}>
-                            <span>Binary path</span>
+                            <span>Restore test</span>
+                            <strong>{mongorestore.available ? 'Available using a temporary database' : 'Unavailable'}</strong>
+                        </div>
+                        <div className={styles.detailRow}>
+                            <span>Backup tool path</span>
                             <strong>{status?.binary || 'mongodump'}</strong>
                         </div>
                     </div>
@@ -466,7 +525,7 @@ export default function DatabaseBackup() {
                     <div>
                         <h2 className={styles.tableTitle}>Automatic Backup Settings</h2>
                         <p className={styles.tableSubtitle}>
-                            These settings control the local scheduler only. They improve backup frequency, but they are still not real-time replication.
+                            These settings control when the server creates backup files automatically. Automatic backups are scheduled copies of the database, not real-time database replication.
                         </p>
                     </div>
                     <button
@@ -482,8 +541,8 @@ export default function DatabaseBackup() {
 
                 <div className={styles.settingsGrid}>
                     <label className={styles.fieldCard}>
-                        <span className={styles.fieldLabel}>Automatic backups</span>
-                        <span className={styles.fieldHelp}>Turn scheduled `mongodump` runs on or off.</span>
+                        <span className={styles.fieldLabel}>Enable automatic backups</span>
+                        <span className={styles.fieldHelp}>When enabled, the server creates backup files on the schedule below.</span>
                         <input
                             type="checkbox"
                             className={styles.checkbox}
@@ -493,8 +552,8 @@ export default function DatabaseBackup() {
                     </label>
 
                     <label className={styles.fieldCard}>
-                        <span className={styles.fieldLabel}>Interval hours</span>
-                        <span className={styles.fieldHelp}>Choose how often the server creates a full archive. Allowed: 1 to 168 hours.</span>
+                        <span className={styles.fieldLabel}>Backup frequency in hours</span>
+                        <span className={styles.fieldHelp}>Set how often the server should create a full database backup. Allowed range: 1 to 168 hours.</span>
                         <input
                             type="number"
                             min="1"
@@ -507,8 +566,8 @@ export default function DatabaseBackup() {
                     </label>
 
                     <label className={styles.fieldCard}>
-                        <span className={styles.fieldLabel}>Retention count</span>
-                        <span className={styles.fieldHelp}>Keep this many successful local backups before pruning older files. Use 0 to disable pruning.</span>
+                        <span className={styles.fieldLabel}>Number of completed backups to keep</span>
+                        <span className={styles.fieldHelp}>When the limit is reached, the oldest backup files are removed automatically. Use 0 if older files should not be removed automatically.</span>
                         <input
                             type="number"
                             min="0"
@@ -525,12 +584,12 @@ export default function DatabaseBackup() {
             <div className={styles.infoBanner}>
                 <FaExclamationTriangle className={styles.infoIcon} />
                 <p>
-                    Automatic backups now use saved admin settings and fall back to environment defaults when no saved settings exist:
+                    Automatic backups use the saved admin settings on this page. If no saved settings exist, the server uses these configured defaults:
                     <code>BACKUP_AUTO_ENABLED</code>,
                     <code>BACKUP_AUTO_INTERVAL_HOURS</code>,
                     <code>BACKUP_RETENTION_COUNT</code>,
                     and optional <code>MONGODUMP_BIN</code>.
-                    Restore is still intentionally manual and should be done outside the live admin UI.
+                    The Verify action restores the backup into a temporary database, checks that collections and documents can be read, records the result, and then removes the temporary database.
                 </p>
             </div>
 
@@ -539,7 +598,7 @@ export default function DatabaseBackup() {
                     <div>
                         <h2 className={styles.tableTitle}>Backup History</h2>
                         <p className={styles.tableSubtitle}>
-                            Recent runs include runtime status, checksum, trigger source, and local file state.
+                            This table shows each backup attempt, whether the file is still available, and whether the backup has passed restore verification.
                         </p>
                     </div>
                 </div>
@@ -547,12 +606,12 @@ export default function DatabaseBackup() {
                 {loading ? (
                     <div className={styles.loadingState}>
                         <FaSyncAlt className={styles.spinning} />
-                        <span>Loading backup tools...</span>
+                        <span>Loading backup information...</span>
                     </div>
                 ) : backups.length === 0 ? (
                     <div className={styles.emptyState}>
                         <FaDatabase className={styles.emptyIcon} />
-                        <p>No backups yet. Click <strong>Create Backup Now</strong> to start the first verified archive.</p>
+                        <p>No backups have been created yet. Click <strong>Create Backup Now</strong> to create the first database backup file.</p>
                     </div>
                 ) : (
                     <div className={`${styles.tableWrapper} ${tblStyles.tableWrapper}`}>
@@ -560,14 +619,15 @@ export default function DatabaseBackup() {
                             <thead>
                                 <tr>
                                     <th className={styles.filenameColumn}>Filename</th>
-                                    <th className={styles.triggerColumn}>Trigger</th>
+                                    <th className={styles.triggerColumn}>Created Through</th>
                                     <th className={styles.sizeColumn}>Size</th>
                                     <th className={styles.durationColumn}>Duration</th>
-                                    <th className={styles.checksumColumn}>Checksum</th>
-                                    <th className={styles.fileColumn}>File</th>
+                                    <th className={styles.checksumColumn}>Integrity Checksum</th>
+                                    <th className={styles.verificationColumn}>Verification</th>
+                                    <th className={styles.fileColumn}>File Availability</th>
                                     <th className={styles.statusColumn}>Status</th>
                                     <th className={styles.createdByColumn}>Created By</th>
-                                    <th className={styles.completedColumn}>Completed</th>
+                                    <th className={styles.completedColumn}>Completed On</th>
                                     <th className={styles.actionColumn}>Action</th>
                                 </tr>
                             </thead>
@@ -575,8 +635,11 @@ export default function DatabaseBackup() {
                                 {backups.map((backup) => {
                                     const statusMeta = getStatusMeta(backup);
                                     const fileMeta = getFileMeta(backup);
+                                    const verificationMeta = getVerificationMeta(backup);
                                     const StatusIcon = statusMeta.icon;
+                                    const VerificationIcon = verificationMeta.icon;
                                     const canDownload = backup.status === 'success' && backup.fileState === 'available';
+                                    const canVerify = canDownload && mongorestore.available !== false;
 
                                     return (
                                         <tr key={backup._id}>
@@ -594,6 +657,20 @@ export default function DatabaseBackup() {
                                             </td>
                                             <td className={styles.checksumColumn} title={backup.checksumSha256 || ''}>
                                                 <span className={styles.checksumCell}>{shortenChecksum(backup.checksumSha256)}</span>
+                                            </td>
+                                            <td className={styles.verificationColumn} title={backup.verificationError || ''}>
+                                                <span className={`${styles.verifyBadge} ${verificationMeta.className}`}>
+                                                    <VerificationIcon />
+                                                    {verificationMeta.label}
+                                                </span>
+                                                {backup.verificationStatus === 'verified' && (
+                                                    <span className={styles.verifyMeta}>
+                                                        {backup.verificationCollections || 0} collections, {backup.verificationDocuments || 0} documents
+                                                    </span>
+                                                )}
+                                                {backup.verificationStatus === 'failed' && backup.verificationError && (
+                                                    <span className={styles.verifyMeta}>{backup.verificationError}</span>
+                                                )}
                                             </td>
                                             <td className={styles.fileColumn}>
                                                 <span className={`${styles.fileBadge} ${fileMeta.className}`}>
@@ -617,22 +694,34 @@ export default function DatabaseBackup() {
                                             </td>
                                             <td className={styles.actionColumn}>
                                                 {canDownload ? (
-                                                    <button
-                                                        className={styles.downloadBtn}
-                                                        onClick={() => handleDownload(backup.filename)}
-                                                        disabled={downloading === backup.filename}
-                                                    >
-                                                        {downloading === backup.filename
-                                                            ? <><FaSyncAlt className={styles.spinning} /> Downloading...</>
-                                                            : <><FaDownload /> Download</>
-                                                        }
-                                                    </button>
+                                                    <div className={styles.actionStack}>
+                                                        <button
+                                                            className={styles.downloadBtn}
+                                                            onClick={() => handleDownload(backup.filename)}
+                                                            disabled={downloading === backup.filename || verifying === backup.filename}
+                                                        >
+                                                            {downloading === backup.filename
+                                                                ? <><FaSyncAlt className={styles.spinning} /> Downloading...</>
+                                                                : <><FaDownload /> Download</>
+                                                            }
+                                                        </button>
+                                                        <button
+                                                            className={styles.secondaryBtn}
+                                                            onClick={() => handleVerify(backup.filename)}
+                                                            disabled={!canVerify || verifying === backup.filename || downloading === backup.filename}
+                                                        >
+                                                            {verifying === backup.filename
+                                                                ? <><FaSyncAlt className={styles.spinning} /> Verifying...</>
+                                                                : <><FaShieldAlt /> Verify Restore</>
+                                                            }
+                                                        </button>
+                                                    </div>
                                                 ) : (
                                                     <span className={styles.unavailable}>
                                                         {backup.fileState === 'pruned'
-                                                            ? 'Pruned'
+                                                            ? 'Removed'
                                                             : backup.status === 'failed'
-                                                                ? 'N/A'
+                                                                ? 'Not applicable'
                                                                 : backup.status === 'running'
                                                                     ? 'Pending'
                                                                     : 'Unavailable'}

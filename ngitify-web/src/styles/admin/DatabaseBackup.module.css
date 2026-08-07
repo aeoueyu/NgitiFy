@@ -63,6 +63,14 @@
     white-space: nowrap;
 }
 
+.actionStack .secondaryBtn,
+.actionStack .downloadBtn {
+    justify-content: center;
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 12px;
+}
+
 .secondaryBtn {
     background: #fff;
     color: #01538b;
@@ -397,7 +405,7 @@
 
 .tableWrapper .table {
     width: max-content !important;
-    min-width: 1540px !important;
+    min-width: 1780px !important;
     border-collapse: collapse;
     font-size: 13px;
     table-layout: auto !important;
@@ -476,6 +484,10 @@
     min-width: 230px;
 }
 
+.verificationColumn {
+    min-width: 210px;
+}
+
 .fileColumn {
     min-width: 170px;
 }
@@ -493,7 +505,7 @@
 }
 
 .actionColumn {
-    min-width: 170px;
+    min-width: 190px;
 }
 
 .sizeCell,
@@ -505,7 +517,8 @@
 
 .neutralBadge,
 .fileBadge,
-.statusBadge {
+.statusBadge,
+.verifyBadge {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -563,6 +576,42 @@
     color: #b91c1c;
     border: 1px solid #fecaca;
     cursor: help;
+}
+
+.verifySuccess {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.verifyFailed {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    cursor: help;
+}
+
+.verifyNeutral {
+    background: #e2e8f0;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+.verifyMeta {
+    display: block;
+    max-width: 190px;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: normal;
+}
+
+.actionStack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 150px;
 }
 
 .statusAnimated {

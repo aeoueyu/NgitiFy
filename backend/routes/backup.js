@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
+const mongoose = require('mongoose');
 
 const verifyToken = require('../middleware/auth');
 const isAdmin = require('../middleware/isAdmin');
@@ -15,6 +16,7 @@ const normalizeText = (value) => String(value || '').trim();
 
 const BACKUP_DIR = path.join(__dirname, '..', 'backups');
 const MONGODUMP_BIN = normalizeText(process.env.MONGODUMP_BIN) || 'mongodump';
+const MONGORESTORE_BIN = normalizeText(process.env.MONGORESTORE_BIN) || '';
 const BACKUP_AUTO_ENABLED = String(process.env.BACKUP_AUTO_ENABLED || '').trim().toLowerCase() === 'true';
 const BACKUP_AUTO_INTERVAL_HOURS = (() => {
     const parsed = Number(process.env.BACKUP_AUTO_INTERVAL_HOURS);
@@ -39,6 +41,7 @@ const backupRuntime = {
     nextAutomaticBackupAt: null,
     schedulerTimer: null,
     probe: null,
+    restoreProbe: null,
     interruptedRunsReconciled: false,
     settings: { ...DEFAULT_BACKUP_SETTINGS },
 };
@@ -84,8 +87,8 @@ const listImmediateDirectories = (rootDir) => {
     }
 };
 
-const buildMongodumpCandidates = () => {
-    const executableName = process.platform === 'win32' ? 'mongodump.exe' : 'mongodump';
+const buildMongoToolCandidates = ({ executableBaseName, configuredPath = '' }) => {
+    const executableName = process.platform === 'win32' ? `${executableBaseName}.exe` : executableBaseName;
     const localToolRoots = [
         path.join(__dirname, '..', 'tools', 'mongodb-database-tools'),
         path.join(__dirname, '..', 'tools', 'mongo-tools'),
@@ -113,12 +116,29 @@ const buildMongodumpCandidates = () => {
     ];
 
     const commandCandidates = [
-        MONGODUMP_BIN,
-        'mongodump',
+        configuredPath,
+        executableBaseName,
         ...fileCandidates.filter((candidatePath) => fs.existsSync(candidatePath)),
     ];
 
     return [...new Set(commandCandidates.map(normalizeText).filter(Boolean))];
+};
+
+const buildMongodumpCandidates = () => buildMongoToolCandidates({
+    executableBaseName: 'mongodump',
+    configuredPath: MONGODUMP_BIN,
+});
+
+const buildMongorestoreCandidates = () => {
+    const configuredPath = MONGORESTORE_BIN
+        || (path.basename(MONGODUMP_BIN).toLowerCase() === (process.platform === 'win32' ? 'mongodump.exe' : 'mongodump')
+            ? path.join(path.dirname(MONGODUMP_BIN), process.platform === 'win32' ? 'mongorestore.exe' : 'mongorestore')
+            : '');
+
+    return buildMongoToolCandidates({
+        executableBaseName: 'mongorestore',
+        configuredPath,
+    });
 };
 
 const formatDurationLabel = (durationMs) => {
@@ -266,6 +286,57 @@ const probeMongodump = async (force = false) => {
     return backupRuntime.probe;
 };
 
+const probeMongorestore = async (force = false) => {
+    const now = Date.now();
+    if (
+        !force
+        && backupRuntime.restoreProbe
+        && now - new Date(backupRuntime.restoreProbe.checkedAt).getTime() < BACKUP_PROBE_CACHE_MS
+    ) {
+        return backupRuntime.restoreProbe;
+    }
+
+    const tried = [];
+    let lastError = '';
+
+    for (const candidate of buildMongorestoreCandidates()) {
+        tried.push(candidate);
+
+        try {
+            const { stdout, stderr } = await runProcess(candidate, ['--version']);
+            const combined = `${stdout}\n${stderr}`.trim();
+            const version = combined
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .find(Boolean) || 'mongorestore available';
+
+            backupRuntime.restoreProbe = {
+                available: true,
+                binary: candidate,
+                version,
+                checkedAt: new Date().toISOString(),
+                error: '',
+                searchedPaths: tried,
+            };
+
+            return backupRuntime.restoreProbe;
+        } catch (error) {
+            lastError = normalizeText(error.message) || 'Unable to execute mongorestore.';
+        }
+    }
+
+    backupRuntime.restoreProbe = {
+        available: false,
+        binary: MONGORESTORE_BIN || 'mongorestore',
+        version: '',
+        checkedAt: new Date().toISOString(),
+        error: lastError || 'Unable to execute mongorestore.',
+        searchedPaths: tried,
+    };
+
+    return backupRuntime.restoreProbe;
+};
+
 const computeFileChecksum = (filePath) => new Promise((resolve, reject) => {
     const hash = crypto.createHash('sha256');
     const stream = fs.createReadStream(filePath);
@@ -309,6 +380,112 @@ const runMongodumpArchive = ({ command, mongoUri, outputPath }) => new Promise((
         reject(error);
     });
 });
+
+const parseMongoUriParts = (mongoUri) => {
+    const sourceUri = normalizeText(mongoUri);
+    if (!sourceUri) {
+        throw new Error('MONGO_URI is not configured for backup operations.');
+    }
+
+    let parsed;
+    try {
+        parsed = new URL(sourceUri);
+    } catch {
+        throw new Error('MONGO_URI is not a valid MongoDB connection string.');
+    }
+
+    const databaseName = decodeURIComponent(parsed.pathname || '').replace(/^\/+/, '').split('/')[0];
+    if (!databaseName) {
+        throw new Error('MONGO_URI must include a database name before backups can be restore-tested.');
+    }
+
+    return { parsed, databaseName };
+};
+
+const buildMongoUriForDatabase = (mongoUri, databaseName) => {
+    const { parsed } = parseMongoUriParts(mongoUri);
+    parsed.pathname = `/${encodeURIComponent(databaseName)}`;
+    return parsed.toString();
+};
+
+const buildRestoreVerificationDbName = (sourceDbName) => {
+    const safeSource = normalizeText(sourceDbName).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 12) || 'ngitify';
+    const suffix = new Date().toISOString().replace(/[^0-9]/g, '').slice(2, 12);
+    const random = crypto.randomBytes(3).toString('hex');
+    return `${safeSource}_bkverify_${suffix}_${random}`.slice(0, 38);
+};
+
+const runMongorestoreArchive = ({
+    command,
+    mongoUri,
+    archivePath,
+    sourceDbName,
+    targetDbName,
+}) => new Promise((resolve, reject) => {
+    if (!normalizeText(mongoUri)) {
+        reject(new Error('MONGO_URI is not configured for restore verification.'));
+        return;
+    }
+
+    const restore = spawn(
+        command,
+        [
+            `--uri=${mongoUri}`,
+            `--archive=${archivePath}`,
+            '--gzip',
+            '--drop',
+            `--nsFrom=${sourceDbName}.*`,
+            `--nsTo=${targetDbName}.*`,
+        ],
+        { windowsHide: true }
+    );
+
+    let stderr = '';
+
+    restore.stderr?.on('data', (chunk) => {
+        stderr += chunk.toString();
+    });
+
+    restore.on('error', reject);
+    restore.on('close', (code) => {
+        if (code === 0) {
+            resolve({ stderr });
+            return;
+        }
+
+        const error = new Error(stderr.trim() || `mongorestore exited with code ${code}`);
+        error.exitCode = code;
+        reject(error);
+    });
+});
+
+const countDocumentsInDatabase = async (mongoUri) => {
+    const connection = await mongoose.createConnection(mongoUri).asPromise();
+    try {
+        const collections = await connection.db.listCollections().toArray();
+        let documentCount = 0;
+
+        for (const collection of collections) {
+            documentCount += await connection.db.collection(collection.name).countDocuments({});
+        }
+
+        return {
+            collectionCount: collections.length,
+            documentCount,
+        };
+    } finally {
+        await connection.close();
+    }
+};
+
+const dropDatabaseIfExists = async (mongoUri) => {
+    const connection = await mongoose.createConnection(mongoUri).asPromise();
+    try {
+        await connection.dropDatabase();
+    } finally {
+        await connection.close();
+    }
+};
 
 const buildActiveBackupPayload = (log) => (
     log
@@ -519,6 +696,116 @@ const createBackupRun = async ({
     }
 };
 
+const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName = 'Administrator' }) => {
+    await reconcileInterruptedBackups();
+
+    const safeFilename = path.basename(filename);
+    const filePath = path.join(BACKUP_DIR, safeFilename);
+    const backup = await BackupLog.findOne({ filename: safeFilename });
+
+    if (!backup) {
+        const error = new Error('Backup log not found.');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (backup.status !== 'success') {
+        const error = new Error('Only successful backups can be verified.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (!fs.existsSync(filePath)) {
+        const error = new Error('Backup file is missing from local storage.');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const startedAt = new Date();
+    const restoreProbe = await probeMongorestore(true);
+    const { databaseName: sourceDbName } = parseMongoUriParts(process.env.MONGO_URI);
+    const tempDbName = buildRestoreVerificationDbName(sourceDbName);
+    const tempMongoUri = buildMongoUriForDatabase(process.env.MONGO_URI, tempDbName);
+
+    try {
+        const checksumSha256 = await computeFileChecksum(filePath);
+        if (backup.checksumSha256 && checksumSha256 !== backup.checksumSha256) {
+            throw new Error('Backup checksum mismatch. The archive may have been changed or corrupted.');
+        }
+
+        await runMongorestoreArchive({
+            command: restoreProbe.binary,
+            mongoUri: process.env.MONGO_URI,
+            archivePath: filePath,
+            sourceDbName,
+            targetDbName: tempDbName,
+        });
+
+        const { collectionCount, documentCount } = await countDocumentsInDatabase(tempMongoUri);
+        if (collectionCount <= 0) {
+            throw new Error('Restore verification produced no collections.');
+        }
+
+        const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
+
+        const updatedBackup = await BackupLog.findByIdAndUpdate(
+            backup._id,
+            {
+                $set: {
+                    verificationStatus: 'verified',
+                    verifiedAt: completedAt,
+                    verifiedBy,
+                    verifiedByName,
+                    verificationDurationMs: durationMs,
+                    verificationCollections: collectionCount,
+                    verificationDocuments: documentCount,
+                    verificationTempDb: tempDbName,
+                    verificationError: '',
+                    restoreToolVersion: restoreProbe.available ? restoreProbe.version : '',
+                },
+            },
+            { new: true }
+        );
+
+        await AuditLog.create({
+            action: 'BACKUP_VERIFIED',
+            user: verifiedByName,
+            role: 'administrator',
+            details: `Database backup verified by restore test: ${safeFilename} (${collectionCount} collection(s), ${documentCount} document(s), ${formatDurationLabel(durationMs)}). Temporary database ${tempDbName} was dropped after verification.`,
+        }).catch(() => {});
+
+        return updatedBackup;
+    } catch (error) {
+        const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
+
+        await BackupLog.findByIdAndUpdate(backup._id, {
+            $set: {
+                verificationStatus: 'failed',
+                verifiedAt: completedAt,
+                verifiedBy,
+                verifiedByName,
+                verificationDurationMs: durationMs,
+                verificationTempDb: tempDbName,
+                verificationError: normalizeText(error.message) || 'Restore verification failed.',
+                restoreToolVersion: restoreProbe.available ? restoreProbe.version : '',
+            },
+        }).catch(() => {});
+
+        await AuditLog.create({
+            action: 'BACKUP_VERIFICATION_FAILED',
+            user: verifiedByName,
+            role: 'administrator',
+            details: `Database backup restore verification failed for ${safeFilename}. ${normalizeText(error.message) || 'Unknown error.'}`,
+        }).catch(() => {});
+
+        throw error;
+    } finally {
+        await dropDatabaseIfExists(tempMongoUri).catch(() => {});
+    }
+};
+
 const scheduleAutomaticBackups = (settings = backupRuntime.settings) => {
     backupRuntime.settings = normalizeBackupSettings(settings);
 
@@ -589,6 +876,7 @@ router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
 
         const [
             probe,
+            restoreProbe,
             totalRuns,
             successfulRuns,
             failedRuns,
@@ -597,6 +885,7 @@ router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
             lastFailedBackup,
         ] = await Promise.all([
             probeMongodump(),
+            probeMongorestore(),
             BackupLog.countDocuments({}),
             BackupLog.countDocuments({ status: 'success' }),
             BackupLog.countDocuments({ status: 'failed' }),
@@ -609,6 +898,7 @@ router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
             backupDir: BACKUP_DIR,
             binary: probe.binary || MONGODUMP_BIN,
             mongodump: probe,
+            mongorestore: restoreProbe,
             scheduler: {
                 enabled: backupRuntime.settings.enabled,
                 intervalHours: backupRuntime.settings.intervalHours,
@@ -707,6 +997,26 @@ router.get('/backup/list', verifyToken, isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error listing backups:', error);
         res.status(500).json({ message: 'Server error loading backup history.' });
+    }
+});
+
+router.post('/backup/verify/:filename', verifyToken, isAdmin, async (req, res) => {
+    try {
+        const backup = await verifyBackupArchive({
+            filename: req.params.filename,
+            verifiedBy: req.user.id || null,
+            verifiedByName: req.user.email || 'Administrator',
+        });
+
+        res.json({
+            message: 'Backup verified successfully by restore test.',
+            backup,
+        });
+    } catch (error) {
+        console.error('Backup verification failed:', error);
+        res.status(error.statusCode || 500).json({
+            message: normalizeText(error.message) || 'Backup verification failed.',
+        });
     }
 });
 

@@ -109,7 +109,6 @@ const REQUIRED_FIELD_ORDER = [
 ];
 
 const REQUIRED_MARK = <span style={{ color: '#dc2626' }}> *</span>;
-
 export default function WebsiteAppointment() {
     const {
         clinicInfo,
@@ -125,6 +124,7 @@ export default function WebsiteAppointment() {
     );
     const turnstileContainerRef = useRef(null);
     const turnstileWidgetIdRef = useRef(null);
+    const privacyModalBodyRef = useRef(null);
     const [formData, setFormData] = useState(() => buildInitialForm({ branchOptions, appointmentProcedureOptions }));
     const [errors, setErrors] = useState({});
     const [submittedMessage, setSubmittedMessage] = useState('');
@@ -141,6 +141,7 @@ export default function WebsiteAppointment() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [captchaReady, setCaptchaReady] = useState(false);
     const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+    const [hasViewedPrivacyPolicy, setHasViewedPrivacyPolicy] = useState(false);
 
     const renderTurnstile = useCallback(() => {
         if (!TURNSTILE_SITE_KEY || !turnstileContainerRef.current || !window.turnstile) return;
@@ -198,6 +199,28 @@ export default function WebsiteAppointment() {
                 : (appointmentProcedureOptions[0] || ''),
         }));
     }, [appointmentProcedureOptions, branchOptions]);
+
+    useEffect(() => {
+        if (!isPrivacyModalOpen) return;
+        setHasViewedPrivacyPolicy(false);
+        const frame = requestAnimationFrame(() => {
+            if (!privacyModalBodyRef.current) return;
+            privacyModalBodyRef.current.scrollTop = 0;
+            const { clientHeight, scrollHeight } = privacyModalBodyRef.current;
+            if (scrollHeight <= clientHeight + 12) {
+                setHasViewedPrivacyPolicy(true);
+            }
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [isPrivacyModalOpen]);
+
+    const handlePrivacyModalScroll = () => {
+        if (!privacyModalBodyRef.current || hasViewedPrivacyPolicy) return;
+        const { scrollTop, clientHeight, scrollHeight } = privacyModalBodyRef.current;
+        if (scrollTop + clientHeight >= scrollHeight - 12) {
+            setHasViewedPrivacyPolicy(true);
+        }
+    };
 
     const fetchBlockedDates = useCallback(async (branch, month) => {
         if (!branch) return;
@@ -374,6 +397,14 @@ export default function WebsiteAppointment() {
 
     const handleChange = (event) => {
         const { name, type, value, checked } = event.target;
+        if (name === 'privacyConsent' && type === 'checkbox') {
+            if (checked) {
+                setIsPrivacyModalOpen(true);
+            } else {
+                setFormData((prev) => ({ ...prev, privacyConsent: false }));
+            }
+            return;
+        }
         const nextValue = name === 'phone'
                 ? normalizePhone(value)
                 : ['firstName', 'lastName'].includes(name)
@@ -419,6 +450,19 @@ export default function WebsiteAppointment() {
                 delete nextErrors.preferredTime;
             }
 
+            return nextErrors;
+        });
+    };
+
+    const handlePrivacyAcknowledged = (acknowledged) => {
+        setFormData((prev) => ({ ...prev, privacyConsent: Boolean(acknowledged) }));
+        setSubmittedMessage('');
+        setSubmitState('idle');
+        setIsSuccessModalOpen(false);
+        setIsErrorModalOpen(false);
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+            delete nextErrors.privacyConsent;
             return nextErrors;
         });
     };
@@ -922,7 +966,7 @@ export default function WebsiteAppointment() {
                                 Close
                             </button>
                         </div>
-                        <div className={styles.privacyModalBody}>
+                        <div className={styles.privacyModalBody} ref={privacyModalBodyRef} onScroll={handlePrivacyModalScroll}>
                             {privacyPolicySections.map((section) => (
                                 <article key={section.heading} className={styles.privacyPolicyCard}>
                                     <h4>{section.heading}</h4>
@@ -931,8 +975,22 @@ export default function WebsiteAppointment() {
                             ))}
                         </div>
                         <div className={styles.privacyModalFooter}>
-                            <button type="button" className={styles.primaryBtn} onClick={() => setIsPrivacyModalOpen(false)}>
-                                I Understand
+                            {!hasViewedPrivacyPolicy ? (
+                                <p className={styles.helperText}>Scroll to the end of the privacy policy to enable consent.</p>
+                            ) : (
+                                <p className={styles.helperText}>Full privacy policy reviewed. You may now confirm consent.</p>
+                            )}
+                            <button
+                                type="button"
+                                className={styles.primaryBtn}
+                                onClick={() => {
+                                    if (!hasViewedPrivacyPolicy) return;
+                                    handlePrivacyAcknowledged(true);
+                                    setIsPrivacyModalOpen(false);
+                                }}
+                                disabled={!hasViewedPrivacyPolicy}
+                            >
+                                I Understand and Consent
                             </button>
                         </div>
                     </div>

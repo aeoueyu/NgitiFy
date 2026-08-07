@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaXmark } from 'react-icons/fa6';
-import { FaRegComments, FaPaperPlane } from 'react-icons/fa';
 import styles from '../../styles/website/WebsiteShell.module.css';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 import { websiteMediaDefaults } from '../../data/websiteMediaDefaults';
@@ -18,18 +17,12 @@ const navItems = [
 export default function WebsiteShell({ children }) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { clinicInfo, featureToggles, websiteContent } = usePublicClinicConfig();
+    const { clinicInfo, websiteContent } = usePublicClinicConfig();
     const [menuOpen, setMenuOpen] = useState(false);
-    const [chatOpen, setChatOpen] = useState(false);
-    const isChatSupportEnabled = featureToggles?.chatSupport === true;
     const logoUrl = websiteContent?.media?.logoUrl || websiteContent?.media?.logoIconUrl || '';
 
     useEffect(() => {
         setMenuOpen(false);
-    }, [location.pathname]);
-
-    useEffect(() => {
-        setChatOpen(false);
     }, [location.pathname]);
 
     useEffect(() => {
@@ -159,61 +152,6 @@ export default function WebsiteShell({ children }) {
                 </button>
             </div>
 
-            {isChatSupportEnabled && (
-                <div className={styles.chatbotLayer}>
-                    {chatOpen ? (
-                    <div className={styles.chatbotPanel}>
-                        <div className={styles.chatbotHeader}>
-                            <div>
-                                <p className={styles.chatbotEyebrow}>Dentime Assistant</p>
-                                <h3 className={styles.chatbotTitle}>Chat Support</h3>
-                            </div>
-                            <button
-                                className={styles.chatbotClose}
-                                type="button"
-                                aria-label="Close chat support"
-                                onClick={() => setChatOpen(false)}
-                            >
-                                <FaXmark />
-                            </button>
-                        </div>
-
-                        <div className={styles.chatbotBody}>
-                            <div className={styles.chatBubbleBot}>
-                                Hello! Our website assistant is still being prepared.
-                            </div>
-                            <div className={styles.chatBubbleBot}>
-                                For now, you may book an appointment, call the clinic, or visit the Contact Us page for help.
-                            </div>
-                            <div className={styles.chatQuickActions}>
-                                <button type="button" className={styles.chatActionBtn} onClick={() => navigate('/appointment')}>
-                                    Book Appointment
-                                </button>
-                                <button type="button" className={styles.chatActionBtn} onClick={() => navigate('/contact-us')}>
-                                    Contact Us
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className={styles.chatbotInputRow}>
-                            <div className={styles.chatbotStaticInput}>Type your message...</div>
-                            <button type="button" className={styles.chatbotSendBtn} aria-label="Static send button">
-                                <FaPaperPlane />
-                            </button>
-                        </div>
-                    </div>
-                    ) : null}
-
-                    <button
-                        className={styles.chatbotFab}
-                        type="button"
-                        aria-label={chatOpen ? 'Hide chat support' : 'Open chat support'}
-                        onClick={() => setChatOpen((prev) => !prev)}
-                    >
-                        <FaRegComments />
-                    </button>
-                </div>
-            )}
         </div>
     );
 }

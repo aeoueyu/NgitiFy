@@ -14,10 +14,10 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
-import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
+import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import { normalizeBranchLabel } from '../../utils/addressHelpers';
 import styles from '../../styles/admin/AdminDashboard.module.css';
-import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
+import { AdminDashboardPage } from '../../components/dashboard/AdminDashboardComponents';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -274,35 +274,14 @@ export default function BranchManagerDashboard() {
     const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     return (
-        <main className={styles['main-content']}>
-            <header className={styles.header}>
-                <div className={styles['header-left']}>
-                    <h1 className={styles.title}>Branch Manager Dashboard</h1>
-                    <p className={styles.subtitle}>
-                        {formatWeekdayDate(currentTime)}
-                        <span className={styles.divider}>|</span>
-                        <strong className={styles['time-accent']}>{formatTime(currentTime, true)}</strong>
-                    </p>
-                    <p className={styles.subtitle} style={{ marginTop: '6px' }}>
-                        {branchLabel} overview for appointments, branch staff, patients, and queue operations.
-                    </p>
-                </div>
-                <div className={styles['header-right']}>
-                    <button
-                        className={styles['bell-btn']}
-                        onClick={() => navigate('/branch-manager/notifications')}
-                        aria-label="Notifications"
-                    >
-                        <FaBell className={styles['bell-icon']} />
-                        {unreadNotifications > 0 && (
-                            <span className={styles['bell-badge']}>
-                                {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                            </span>
-                        )}
-                    </button>
-                </div>
-            </header>
-            <PasswordChangeWarning />
+        <AdminDashboardPage
+            title="Branch Manager Dashboard"
+            currentTime={currentTime}
+            subtitle={`${branchLabel} overview for appointments, branch staff, patients, and queue operations.`}
+            notificationPath="/branch-manager/notifications"
+            unreadCount={unreadNotifications}
+            navigate={navigate}
+        >
 
             {priorityAlertsCount > 0 && showAlertBanner && (
                 <div className={styles['alert-banner']}>
@@ -544,17 +523,17 @@ export default function BranchManagerDashboard() {
             <div className={styles['quick-actions-bar']}>
                 <button
                     className={`${styles['quick-action-btn']} ${styles.secondary}`}
-                    onClick={() => navigate('/branch-manager/patients')}
+                    onClick={() => navigate('/branch-manager/patients', { state: { openAddModal: true } })}
                 >
-                    <FaUserPlus /> Manage Patients
+                    <FaUserPlus /> Add Patient
                 </button>
                 <button
                     className={styles['quick-action-btn']}
-                    onClick={() => navigate('/branch-manager/manage-users')}
+                    onClick={() => navigate('/branch-manager/schedule')}
                 >
-                    <FaCalendarPlus /> Manage Staff
+                    <FaCalendarPlus /> Manage Schedule
                 </button>
             </div>
-        </main>
+        </AdminDashboardPage>
     );
 }

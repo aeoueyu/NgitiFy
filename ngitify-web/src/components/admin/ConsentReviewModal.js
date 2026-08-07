@@ -2,15 +2,26 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './ConsentReviewModal.module.css';
 import { consentSectionsEnglish, consentSectionsTagalog } from '../../data/consentDocument';
 
-export default function ConsentReviewModal({ isOpen, onClose, onConfirm, initiallyAcknowledged = false }) {
+export default function ConsentReviewModal({
+    isOpen,
+    onClose,
+    onConfirm,
+    initiallyAcknowledged = false,
+    title = 'Consent Form Review',
+    subtitle = 'Please review the full English and Tagalog consent forms. The acknowledgement checkbox will only be enabled after scrolling through the entire document.',
+    reviewGroups,
+    acknowledgementLabel = 'I acknowledge that the patient or authorized representative has reviewed the full consent form.',
+    confirmLabel = 'Save Consent Acknowledgement',
+}) {
     const scrollRef = useRef(null);
     const [hasReachedEnd, setHasReachedEnd] = useState(false);
     const [isChecked, setIsChecked] = useState(initiallyAcknowledged);
 
-    const allSections = useMemo(() => ([
+    const defaultGroups = useMemo(() => ([
         { heading: 'English Version', sections: consentSectionsEnglish },
         { heading: 'Tagalog Version', sections: consentSectionsTagalog },
     ]), []);
+    const allSections = reviewGroups || defaultGroups;
 
     useEffect(() => {
         if (!isOpen) return;
@@ -19,6 +30,10 @@ export default function ConsentReviewModal({ isOpen, onClose, onConfirm, initial
         const frame = requestAnimationFrame(() => {
             if (scrollRef.current) {
                 scrollRef.current.scrollTop = 0;
+                const { clientHeight, scrollHeight } = scrollRef.current;
+                if (scrollHeight <= clientHeight + 12) {
+                    setHasReachedEnd(true);
+                }
             }
         });
         return () => cancelAnimationFrame(frame);
@@ -44,11 +59,8 @@ export default function ConsentReviewModal({ isOpen, onClose, onConfirm, initial
         <div className={styles.overlay}>
             <div className={styles.modal}>
                 <div className={styles.header}>
-                    <h3 className={styles.title}>Consent Form Review</h3>
-                    <p className={styles.subtitle}>
-                        Please review the full English and Tagalog consent forms. The acknowledgement checkbox
-                        will only be enabled after scrolling through the entire document.
-                    </p>
+                    <h3 className={styles.title}>{title}</h3>
+                    <p className={styles.subtitle}>{subtitle}</p>
                 </div>
 
                 <div className={styles.body} ref={scrollRef} onScroll={handleScroll}>
@@ -79,13 +91,13 @@ export default function ConsentReviewModal({ isOpen, onClose, onConfirm, initial
                             onChange={(event) => setIsChecked(event.target.checked)}
                             disabled={!hasReachedEnd}
                         />
-                        <span>I acknowledge that the patient or authorized representative has reviewed the full consent form.</span>
+                        <span>{acknowledgementLabel}</span>
                     </label>
 
                     <div className={styles.actions}>
                         <button type="button" className={styles.secondaryBtn} onClick={onClose}>Close</button>
                         <button type="button" className={styles.primaryBtn} onClick={handleConfirm} disabled={!hasReachedEnd || !isChecked}>
-                            Save Consent Acknowledgement
+                            {confirmLabel}
                         </button>
                     </div>
                 </div>

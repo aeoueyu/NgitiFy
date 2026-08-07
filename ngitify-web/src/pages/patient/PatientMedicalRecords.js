@@ -9,26 +9,41 @@ import {
 } from '../../utils/patientPortal';
 import { getHomeAddress } from '../../utils/addressHelpers';
 import { PatientEmptyState, PatientPageFrame, PatientSectionHeader } from '../../components/patient/PatientFrame';
+import DentalPinStyleOdontogram from '../../components/dentist/odontogram/DentalPinStyleOdontogram';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
 const UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
 const UPPER_LEFT = [21, 22, 23, 24, 25, 26, 27, 28];
 const LOWER_LEFT = [31, 32, 33, 34, 35, 36, 37, 38];
 const LOWER_RIGHT = [48, 47, 46, 45, 44, 43, 42, 41];
+const ALL_TOOTH_NUMBERS = [...UPPER_RIGHT, ...UPPER_LEFT, ...LOWER_LEFT, ...LOWER_RIGHT];
 
 const STATUS_META = {
-    healthy: { label: 'Healthy', background: '#ffffff', color: '#475569', border: '#cbd5e1' },
-    filled: { label: 'Filled', background: '#e0f2fe', color: '#0369a1', border: '#38bdf8' },
-    decayed: { label: 'Caries / Decayed', background: '#fee2e2', color: '#b91c1c', border: '#ef4444' },
-    crown: { label: 'Crown', background: '#fef3c7', color: '#92400e', border: '#f59e0b' },
-    implant: { label: 'Implant', background: '#ede9fe', color: '#6d28d9', border: '#8b5cf6' },
-    bridge: { label: 'Bridge', background: '#ffedd5', color: '#9a3412', border: '#fb923c' },
-    'extraction-site': { label: 'Extraction Site', background: '#e2e8f0', color: '#334155', border: '#94a3b8' },
-    missing: { label: 'Missing', background: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
-    mobility: { label: 'Mobility', background: '#fce7f3', color: '#be185d', border: '#ec4899' },
-    fractured: { label: 'Fractured', background: '#ffedd5', color: '#c2410c', border: '#f97316' },
-    'root-canal': { label: 'Root Canal', background: '#fae8ff', color: '#7e22ce', border: '#c084fc' },
-    'under-observation': { label: 'Under Observation', background: '#ccfbf1', color: '#0f766e', border: '#14b8a6' },
+    healthy: { label: 'Healthy', fill: '#ffffff', stroke: '#cbd5e1', accent: '#64748b', badgeBg: '#f8fafc', badgeText: '#475569' },
+    filled: { label: 'Filled', fill: '#dff3ff', stroke: '#0ea5e9', accent: '#0284c7', badgeBg: '#e0f2fe', badgeText: '#0369a1' },
+    decayed: { label: 'Caries / Decayed', fill: '#fee2e2', stroke: '#ef4444', accent: '#b91c1c', badgeBg: '#fee2e2', badgeText: '#b91c1c' },
+    crown: { label: 'Crown', fill: '#fef3c7', stroke: '#f59e0b', accent: '#b45309', badgeBg: '#fef3c7', badgeText: '#92400e' },
+    implant: { label: 'Implant', fill: '#ede9fe', stroke: '#8b5cf6', accent: '#6d28d9', badgeBg: '#ede9fe', badgeText: '#6d28d9' },
+    bridge: { label: 'Bridge', fill: '#ffedd5', stroke: '#f97316', accent: '#c2410c', badgeBg: '#ffedd5', badgeText: '#9a3412' },
+    'extraction-site': { label: 'Extraction Site', fill: '#e2e8f0', stroke: '#64748b', accent: '#334155', badgeBg: '#e2e8f0', badgeText: '#334155' },
+    missing: { label: 'Missing', fill: '#e5e7eb', stroke: '#94a3b8', accent: '#475569', badgeBg: '#e5e7eb', badgeText: '#475569' },
+    mobility: { label: 'Mobility', fill: '#fce7f3', stroke: '#ec4899', accent: '#be185d', badgeBg: '#fce7f3', badgeText: '#be185d' },
+    fractured: { label: 'Fractured', fill: '#ffedd5', stroke: '#fb923c', accent: '#c2410c', badgeBg: '#ffedd5', badgeText: '#c2410c' },
+    'root-canal': { label: 'Root Canal', fill: '#fae8ff', stroke: '#a855f7', accent: '#7e22ce', badgeBg: '#fae8ff', badgeText: '#7e22ce' },
+    'under-observation': { label: 'Under Observation', fill: '#ccfbf1', stroke: '#14b8a6', accent: '#0f766e', badgeBg: '#ccfbf1', badgeText: '#0f766e' },
+    unknown: { label: 'Recorded Finding', fill: '#eef2ff', stroke: '#818cf8', accent: '#4f46e5', badgeBg: '#eef2ff', badgeText: '#4338ca' },
+};
+
+Object.values(STATUS_META).forEach((meta) => {
+    meta.background = meta.badgeBg;
+    meta.color = meta.badgeText;
+    meta.border = meta.stroke;
+});
+
+const STAGE_META = {
+    existing: { label: 'Existing', accent: '#475569', badgeBg: '#f8fafc' },
+    planned: { label: 'Planned', accent: '#f59e0b', badgeBg: '#fff7ed' },
+    completed: { label: 'Completed', accent: '#16a34a', badgeBg: '#dcfce7' },
 };
 
 const STATUS_ALIASES = {
@@ -40,6 +55,7 @@ const STATUS_ALIASES = {
     decayed: 'decayed',
     caries: 'decayed',
     crown: 'crown',
+    crowned: 'crown',
     implant: 'implant',
     bridge: 'bridge',
     pontic: 'bridge',
@@ -70,62 +86,18 @@ const normalizeOdontogramEntry = (rawEntry) => {
     const activeFinding = findings[0] || rawEntry;
     const rawStatus = String(activeFinding.status || rawEntry.status || '').trim().toLowerCase();
     const statusKey = STATUS_ALIASES[rawStatus] || rawStatus || 'healthy';
-    const surfaces = Array.isArray(activeFinding.surfaces) ? activeFinding.surfaces : [];
+    const surfaces = Array.isArray(activeFinding.surfaces)
+        ? activeFinding.surfaces.map((surface) => String(surface).trim().toUpperCase()).filter(Boolean)
+        : [];
+    const rawStage = String(activeFinding.stage || rawEntry.stage || '').trim().toLowerCase();
+    const stageKey = STAGE_META[rawStage] ? rawStage : 'existing';
     return {
-        statusKey: STATUS_META[statusKey] ? statusKey : 'healthy',
+        statusKey: STATUS_META[statusKey] ? statusKey : 'unknown',
         label: STATUS_META[statusKey]?.label || rawStatus || STATUS_META.healthy.label,
         surfaces,
+        stageKey,
     };
 };
-
-function ToothRow({ title, teeth, data, selectedTooth, onSelectTooth }) {
-    return (
-        <div style={{ marginBottom: '16px' }}>
-            <span className={styles.sectionEyebrow}>{title}</span>
-            <div
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(8, minmax(0, 1fr))',
-                    gap: '10px',
-                    marginTop: '10px',
-                }}
-            >
-                {teeth.map((toothNumber) => {
-                    const entry = normalizeOdontogramEntry(data[String(toothNumber)]);
-                    const meta = STATUS_META[entry.statusKey] || STATUS_META.healthy;
-                    const isSelected = selectedTooth === toothNumber;
-                    return (
-                        <button
-                            key={toothNumber}
-                            type="button"
-                            onClick={() => onSelectTooth(toothNumber)}
-                            aria-pressed={isSelected}
-                            title={`View tooth ${toothNumber}`}
-                            style={{
-                                borderRadius: '16px',
-                                border: `1px solid ${isSelected ? meta.color : meta.border}`,
-                                background: meta.background,
-                                padding: '12px 10px',
-                                minHeight: '76px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                cursor: 'pointer',
-                                boxShadow: isSelected ? `0 0 0 2px ${meta.border}` : 'none',
-                            }}
-                        >
-                            <strong style={{ color: meta.color, fontSize: '14px', marginBottom: '6px' }}>{toothNumber}</strong>
-                            <span style={{ color: '#64748b', fontSize: '10px', fontWeight: 700 }}>
-                                {isSelected ? 'Selected' : 'Tap to view'}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-    );
-}
 
 export default function PatientMedicalRecords() {
     const { user } = useAuth();
@@ -212,6 +184,18 @@ export default function PatientMedicalRecords() {
         ? (STATUS_META[selectedToothEntry.statusKey] || STATUS_META.healthy)
         : null;
 
+    const getPatientToothData = useCallback((toothNumber) => {
+        const entry = normalizeOdontogramEntry(odontogram?.[String(toothNumber)]);
+        return {
+            status: entry.statusKey,
+            statusLabel: entry.label,
+            surfaces: entry.surfaces,
+            stage: entry.stageKey || 'existing',
+        };
+    }, [odontogram]);
+
+    const getPatientStatusMeta = useCallback((statusKey) => STATUS_META[statusKey] || STATUS_META.unknown, []);
+
     return (
         <PatientPageFrame
             title="My EMR"
@@ -273,6 +257,14 @@ export default function PatientMedicalRecords() {
                                             <p className={styles.infoValue} style={{ color: selectedToothMeta.color, fontWeight: 800, marginBottom: '10px' }}>
                                                 Tooth {selectedTooth} - {selectedToothEntry.label}
                                             </p>
+                                            {selectedToothEntry.stageKey && selectedToothEntry.stageKey !== 'existing' ? (
+                                                <>
+                                                    <span className={styles.infoLabel}>Treatment Stage</span>
+                                                    <p className={styles.infoValue}>
+                                                        {STAGE_META[selectedToothEntry.stageKey]?.label || 'Existing'}
+                                                    </p>
+                                                </>
+                                            ) : null}
                                             <span className={styles.infoLabel}>Recorded Surfaces</span>
                                             <p className={styles.infoValue}>
                                                 {selectedToothEntry.surfaces.length
@@ -286,10 +278,13 @@ export default function PatientMedicalRecords() {
                                             <p className={styles.infoValue}>Select any tooth below to view its recorded condition.</p>
                                         </article>
                                     )}
-                                    <ToothRow title="Upper Right" teeth={UPPER_RIGHT} data={odontogram} selectedTooth={selectedTooth} onSelectTooth={setSelectedTooth} />
-                                    <ToothRow title="Upper Left" teeth={UPPER_LEFT} data={odontogram} selectedTooth={selectedTooth} onSelectTooth={setSelectedTooth} />
-                                    <ToothRow title="Lower Right" teeth={LOWER_RIGHT} data={odontogram} selectedTooth={selectedTooth} onSelectTooth={setSelectedTooth} />
-                                    <ToothRow title="Lower Left" teeth={LOWER_LEFT} data={odontogram} selectedTooth={selectedTooth} onSelectTooth={setSelectedTooth} />
+                                    <div className={styles.patientBiomathChartShell}>
+                                        <DentalPinStyleOdontogram
+                                            getDisplayToothData={getPatientToothData}
+                                            getStatusMeta={getPatientStatusMeta}
+                                            onSelect={setSelectedTooth}
+                                        />
+                                    </div>
                                 </>
                             ) : (
                                 <PatientEmptyState

@@ -95,7 +95,8 @@
 
 .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; flex-shrink: 0; }
 .statsGridFour { grid-template-columns: repeat(4, 1fr); }
-.stat-card { background-color: #ffffff; padding: 18px 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); border: 1px solid rgba(1, 83, 139, 0.05); display: flex; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+.stat-card { background-color: #ffffff; padding: 18px 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); border: 1px solid rgba(1, 83, 139, 0.05); display: flex; flex-direction: column; text-align: left; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+.statButton { width: 100%; text-align: left; font-family: 'Lexend Deca', sans-serif; }
 .stat-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(1, 83, 139, 0.08); }
 .stat-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
 .stat-title { color: #888; font-size: 13px; font-weight: 600; margin: 0; }
@@ -114,7 +115,7 @@
 .trend-negative { background-color: #fef2f2; color: #dc2626; }
 .trend-neutral { background-color: #f1f5f9; color: #64748b; }
 
-.stat-desc { color: #2e7d32; font-size: 12px; font-weight: 600; margin: 0; }
+.stat-desc { color: #2e7d32; font-size: 12px; font-weight: 600; margin: 0; text-align: left; }
 .stat-desc.danger { color: #d9534f; }
 .stat-desc.neutral { color: #888; }
 

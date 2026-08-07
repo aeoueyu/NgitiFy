@@ -4,6 +4,18 @@ import { authFetch } from '../utils/api';
 
 export const AuthContext = createContext();
 
+const getUserIdFromToken = (token = '') => {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return '';
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decodedPayload = JSON.parse(window.atob(normalizedPayload));
+    return decodedPayload.id || decodedPayload.userId || decodedPayload._id || '';
+  } catch {
+    return '';
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +33,8 @@ export const AuthProvider = ({ children }) => {
       try {
         const parsedUser = JSON.parse(storedUser);
         const restoredUser = new User(parsedUser);
-        const userId = restoredUser.id || restoredUser.userId || restoredUser._id;
+        const tokenUserId = getUserIdFromToken(token);
+        const userId = tokenUserId || restoredUser.id || restoredUser.userId || restoredUser._id;
 
         if (!userId) {
           throw new Error('Missing stored user id.');

@@ -60,7 +60,6 @@ const InventoryBatch = require('./models/InventoryBatch');
 const Notification = require('./models/Notification');
 const Branch = require('./models/Branch');
 const Queue = require('./models/Queue');
-const SupportTicket = require('./models/SupportTicket');
 const SystemConfig = require('./models/SystemConfig');
 const RolePermission = require('./models/RolePermission');
 const backupRoutes = require('./routes/backup');
@@ -178,6 +177,25 @@ const buildRadiographPayload = (radiograph = {}) => {
         enhancementVariants: variants,
     };
 };
+
+const buildTreatmentLogPayload = (entry = {}) => ({
+    _id: entry._id,
+    id: entry._id || entry.id,
+    date: entry.date,
+    procedure: entry.procedure || '',
+    tooth: entry.tooth || '',
+    category: entry.category || 'Other',
+    notes: entry.notes || '',
+    dentistId: entry.dentistId || null,
+    dentistName: entry.dentistName || '',
+    branch: entry.branch || '',
+    amountCharged: entry.amountCharged ?? 0,
+    amountPaid: entry.amountPaid ?? 0,
+    balance: entry.balance ?? 0,
+    nextAppointment: entry.nextAppointment || null,
+    createdAt: entry.createdAt || null,
+    updatedAt: entry.updatedAt || null,
+});
 
 const getRadiographEnhancerCommands = () => {
     const configuredCommand = String(process.env.OPENCV_PYTHON_BIN || '').trim();
@@ -1188,7 +1206,6 @@ const DEFAULT_ALLOWED_TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '13:00',
 const DEFAULT_SYSTEM_FEATURE_TOGGLES = {
     queueManagement: true,
     radiographUploads: true,
-    chatSupport: false,
     sessionTimeout: true,
 };
 const DEFAULT_SYSTEM_EMAIL_TEMPLATES = {
@@ -1198,7 +1215,6 @@ const DEFAULT_SYSTEM_EMAIL_TEMPLATES = {
 const SYSTEM_FEATURE_DISABLED_MESSAGES = {
     queueManagement: 'Queue management is currently disabled in System Configuration.',
     radiographUploads: 'Radiograph uploads are currently disabled in System Configuration.',
-    chatSupport: 'Chat support is currently disabled in System Configuration.',
     sessionTimeout: 'Session timeout is currently disabled in System Configuration.',
 };
 const AUTO_CANCELLATION_REASON = 'Auto-cancelled: patient did not check in within 15 minutes of the appointment time.';
@@ -1322,7 +1338,6 @@ const normalizeEmailTemplateMap = (templates = {}) => ({
 const normalizeFeatureToggleMap = (featureToggles = {}) => ({
     queueManagement: normalizeBooleanValue(featureToggles?.queueManagement, DEFAULT_SYSTEM_FEATURE_TOGGLES.queueManagement),
     radiographUploads: normalizeBooleanValue(featureToggles?.radiographUploads, DEFAULT_SYSTEM_FEATURE_TOGGLES.radiographUploads),
-    chatSupport: normalizeBooleanValue(featureToggles?.chatSupport, DEFAULT_SYSTEM_FEATURE_TOGGLES.chatSupport),
     sessionTimeout: normalizeBooleanValue(featureToggles?.sessionTimeout, DEFAULT_SYSTEM_FEATURE_TOGGLES.sessionTimeout),
 });
 
@@ -2178,8 +2193,6 @@ const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' })
         treatmentLogs: 0,
         radiographs: 0,
         odontogramEntries: 0,
-        supportTickets: 0,
-        assignedSupportTickets: 0,
         auditLogs: 0,
         queueEntries: 0,
         patientMaterialUsage: 0,
@@ -2203,15 +2216,6 @@ const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' })
                 isArchived: { $ne: true },
                 date: { $gte: now },
             });
-        })(),
-        (async () => {
-            if (targetRole !== 'patient') return 0;
-            const email = String(targetUser.email || '').trim();
-            const ticketQueries = [{ patientId: targetUser._id }];
-            if (email) {
-                ticketQueries.push({ patientEmail: email });
-            }
-            return SupportTicket.countDocuments({ $or: ticketQueries });
         })(),
         (async () => {
             if (targetRole !== 'patient') return 0;
@@ -2239,10 +2243,6 @@ const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' })
             return MaterialUsageLog.countDocuments({ dentistId: targetUser._id });
         })(),
         (async () => {
-            if (targetRole === 'patient') return 0;
-            return SupportTicket.countDocuments({ assignedTo: targetUser._id });
-        })(),
-        (async () => {
             const auditQueries = [];
             if (targetUser?._id) {
                 auditQueries.push({ targetId: targetUser._id, targetModel: 'User' });
@@ -2258,19 +2258,17 @@ const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' })
     if (targetRole === 'patient') {
         metrics.totalAppointments = counts[0];
         metrics.upcomingAppointments = counts[1];
-        metrics.supportTickets = counts[2];
-        metrics.queueEntries = counts[3];
-        metrics.patientMaterialUsage = counts[4];
+        metrics.queueEntries = counts[2];
+        metrics.patientMaterialUsage = counts[3];
         metrics.treatmentLogs = Array.isArray(targetUser.treatmentLogs) ? targetUser.treatmentLogs.length : 0;
         metrics.radiographs = Array.isArray(targetUser.radiographs) ? targetUser.radiographs.length : 0;
         metrics.odontogramEntries = getOdontogramEntryCount(targetUser.odontogram);
-        metrics.auditLogs = counts[9];
+        metrics.auditLogs = counts[7];
     } else {
-        metrics.totalAppointments = counts[5];
-        metrics.upcomingAppointments = counts[6];
-        metrics.dentistMaterialUsage = counts[7];
-        metrics.assignedSupportTickets = counts[8];
-        metrics.auditLogs = counts[9];
+        metrics.totalAppointments = counts[4];
+        metrics.upcomingAppointments = counts[5];
+        metrics.dentistMaterialUsage = counts[6];
+        metrics.auditLogs = counts[7];
     }
 
     metrics.managedBranchesCount = branchCoverage.managedBranches.length;
@@ -2282,8 +2280,6 @@ const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' })
         buildLifecycleImpactItem('treatmentLogs', 'Treatment Logs', metrics.treatmentLogs),
         buildLifecycleImpactItem('radiographs', 'Radiograph Records', metrics.radiographs),
         buildLifecycleImpactItem('odontogramEntries', 'Odontogram Entries', metrics.odontogramEntries),
-        buildLifecycleImpactItem('supportTickets', 'Patient Support Tickets', metrics.supportTickets),
-        buildLifecycleImpactItem('assignedSupportTickets', 'Assigned Support Tickets', metrics.assignedSupportTickets),
         buildLifecycleImpactItem('queueEntries', 'Queue History Entries', metrics.queueEntries),
         buildLifecycleImpactItem('patientMaterialUsage', 'Material Usage Links', metrics.patientMaterialUsage),
         buildLifecycleImpactItem('dentistMaterialUsage', 'Material Usage Logs', metrics.dentistMaterialUsage),
@@ -2304,9 +2300,6 @@ const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' })
     }
     if (targetRole === 'patient' && (metrics.treatmentLogs > 0 || metrics.radiographs > 0 || metrics.odontogramEntries > 0) && ['archive', 'delete'].includes(normalizedAction)) {
         warnings.push('This patient has stored EMR content that should stay preserved as history.');
-    }
-    if (metrics.assignedSupportTickets > 0 && ['deactivate', 'archive', 'delete'].includes(normalizedAction)) {
-        warnings.push(`${displayName} is still assigned to ${metrics.assignedSupportTickets} support ticket${metrics.assignedSupportTickets === 1 ? '' : 's'}.`);
     }
     if (branchCoverage.managedBranches.length > 0 && ['deactivate', 'archive', 'delete'].includes(normalizedAction)) {
         warnings.push(`${displayName} is still linked to ${branchCoverage.managedBranches.length} branch manager assignment${branchCoverage.managedBranches.length === 1 ? '' : 's'}.`);
@@ -2346,11 +2339,9 @@ const collectLifecycleImpact = async ({ actor, targetUser, action = 'archive' })
             if (metrics.treatmentLogs > 0) blockers.push('Patient treatment logs must be preserved.');
             if (metrics.radiographs > 0) blockers.push('Patient radiograph records must be preserved.');
             if (metrics.odontogramEntries > 0) blockers.push('Patient odontogram history must be preserved.');
-            if (metrics.supportTickets > 0) blockers.push('Patient support ticket history still exists.');
             if (metrics.queueEntries > 0) blockers.push('Patient queue history still exists.');
             if (metrics.patientMaterialUsage > 0) blockers.push('Material usage history still references this patient.');
         } else {
-            if (metrics.assignedSupportTickets > 0) blockers.push('Support tickets are still assigned to this account.');
             if (branchCoverage.managedBranches.length > 0) blockers.push(`Branch records still reference this branch manager: ${branchCoverage.managedBranches.join(', ')}.`);
             if (metrics.dentistMaterialUsage > 0) blockers.push('Material usage logs still reference this dentist account.');
         }
@@ -3388,8 +3379,6 @@ const APPOINTMENT_NOTIFICATION_TYPES = new Set([
 ]);
 
 const SUPPORT_NOTIFICATION_TYPES = new Set([
-    'CHAT_TICKET_RAISED',
-    'INQUIRY_ESCALATED',
 ]);
 
 const INVENTORY_NOTIFICATION_TYPES = new Set([
@@ -3799,16 +3788,75 @@ const appendAutomaticTreatmentLogIfMissing = async ({
     normalizedDate.setHours(0, 0, 0, 0);
     const metadataToken = String(sourceKey || notes || '').trim();
 
-    const duplicate = (patient.treatmentLogs || []).some((log) => {
+    const duplicate = (patient.treatmentLogs || []).find((log) => {
         const logDate = new Date(log.date);
         logDate.setHours(0, 0, 0, 0);
-        return logDate.getTime() === normalizedDate.getTime()
+        const matchesAutoSource = metadataToken && String(log.notes || '').includes(metadataToken);
+        const matchesSameTreatment = logDate.getTime() === normalizedDate.getTime()
             && String(log.procedure || '').trim().toLowerCase() === String(procedure).trim().toLowerCase()
             && String(log.branch || '').trim().toLowerCase() === String(branch).trim().toLowerCase()
             && (!metadataToken || String(log.notes || '').includes(metadataToken));
+        return matchesAutoSource || matchesSameTreatment;
     });
 
-    if (duplicate) return;
+    if (duplicate) {
+        let changed = false;
+        const normalizedCategory = normalizeTreatmentCategory(category);
+        const normalizedAmountCharged = normalizeCurrencyAmount(amountCharged) ?? 0;
+        const normalizedAmountPaid = normalizeCurrencyAmount(amountPaid) ?? 0;
+        const normalizedBalance = normalizeCurrencyAmount(balance) ?? 0;
+        const normalizedNextAppointment = nextAppointment ? new Date(nextAppointment) : null;
+
+        if (!String(duplicate.procedure || '').trim() || duplicate.procedure === 'Not specified') {
+            duplicate.procedure = procedure;
+            changed = true;
+        }
+        if (!String(duplicate.branch || '').trim()) {
+            duplicate.branch = branch;
+            changed = true;
+        }
+        if (!String(duplicate.tooth || '').trim() && tooth) {
+            duplicate.tooth = tooth;
+            changed = true;
+        }
+        if ((!duplicate.category || duplicate.category === 'Other') && normalizedCategory !== 'Other') {
+            duplicate.category = normalizedCategory;
+            changed = true;
+        }
+        if (!duplicate.dentistId && dentistId) {
+            duplicate.dentistId = dentistId;
+            changed = true;
+        }
+        if (!String(duplicate.dentistName || '').trim() && dentistName) {
+            duplicate.dentistName = dentistName;
+            changed = true;
+        }
+        if ((duplicate.amountCharged ?? 0) === 0 && normalizedAmountCharged > 0) {
+            duplicate.amountCharged = normalizedAmountCharged;
+            changed = true;
+        }
+        if ((duplicate.amountPaid ?? 0) === 0 && normalizedAmountPaid > 0) {
+            duplicate.amountPaid = normalizedAmountPaid;
+            changed = true;
+        }
+        if ((duplicate.balance ?? 0) === 0 && normalizedBalance > 0) {
+            duplicate.balance = normalizedBalance;
+            changed = true;
+        }
+        if (!duplicate.nextAppointment && normalizedNextAppointment && !Number.isNaN(normalizedNextAppointment.getTime())) {
+            duplicate.nextAppointment = normalizedNextAppointment;
+            changed = true;
+        }
+        if (metadataToken && !String(duplicate.notes || '').includes(metadataToken)) {
+            duplicate.notes = [duplicate.notes, metadataToken].filter(Boolean).join(' ');
+            changed = true;
+        }
+
+        if (changed) {
+            await patient.save();
+        }
+        return;
+    }
 
     patient.treatmentLogs.push({
         date,
@@ -6125,12 +6173,19 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             birthdate, 
             gender, 
             homePhone,
+            workPhone,
             occupation,
             civilStatus,
+            nationality,
+            religion,
             bloodType,
+            referredBy,
             reasonForConsultation,
             emergencyContact,
+            guardian,
+            physician,
             medicalHistory,
+            dentalHistory,
             consentAcknowledgement,
             homeAddress,
             currentAddress,
@@ -6166,9 +6221,13 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         if (birthdate !== undefined) user.birthdate = birthdate;
         if (gender !== undefined) user.gender = gender;
         if (homePhone !== undefined) user.homePhone = homePhone;
+        if (workPhone !== undefined) user.workPhone = workPhone;
         if (occupation !== undefined) user.occupation = occupation;
         if (civilStatus !== undefined) user.civilStatus = civilStatus;
+        if (nationality !== undefined) user.nationality = nationality;
+        if (religion !== undefined) user.religion = religion;
         if (bloodType !== undefined) user.bloodType = bloodType;
+        if (referredBy !== undefined) user.referredBy = referredBy;
         if (reasonForConsultation !== undefined) user.reasonForConsultation = reasonForConsultation;
         if (licenseNumber !== undefined) user.licenseNumber = licenseNumber;
         if (specialization !== undefined) user.specialization = specialization;
@@ -6188,11 +6247,35 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
             };
         }
 
+        if (guardian) {
+            user.guardian = {
+                ...user.guardian?.toObject?.(),
+                ...user.guardian,
+                ...guardian
+            };
+        }
+
+        if (physician) {
+            user.physician = {
+                ...user.physician?.toObject?.(),
+                ...user.physician,
+                ...physician
+            };
+        }
+
         if (medicalHistory) {
             user.medicalHistory = {
                 ...user.medicalHistory?.toObject?.(),
                 ...user.medicalHistory,
                 ...medicalHistory
+            };
+        }
+
+        if (dentalHistory) {
+            user.dentalHistory = {
+                ...user.dentalHistory?.toObject?.(),
+                ...user.dentalHistory,
+                ...dentalHistory
             };
         }
 
@@ -8643,9 +8726,7 @@ app.get('/api/public/system-config', async (req, res) => {
                 address: config.clinicAddress,
             },
             appointmentProcedures: config.onlineBookingProcedures,
-            featureToggles: {
-                chatSupport: config.featureToggles?.chatSupport !== false,
-            },
+            featureToggles: {},
             websiteContent: config.websiteContent,
             branches: branches.map((branch) => ({
                 name: branch.name,
@@ -9169,7 +9250,7 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             (a, b) => new Date(b.date) - new Date(a.date)
         );
 
-        res.json(sorted.map((entry) => buildRadiographPayload(entry)));
+        res.json(sorted.map((entry) => buildTreatmentLogPayload(entry)));
     } catch (error) {
         console.error('Error fetching treatment logs:', error);
         res.status(500).json({ message: 'Server error fetching treatment logs.' });
@@ -9197,7 +9278,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             }
         }
 
-        const { date, procedure, tooth, category, branch, amountCharged, amountPaid, nextAppointment } = req.body;
+        const { date, procedure, tooth, category, branch, notes, amountCharged, amountPaid, nextAppointment } = req.body;
 
         if (!date || !procedure) {
             return res.status(400).json({ message: 'Date and procedure are required.' });
@@ -9230,7 +9311,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             procedure,
             tooth: tooth || '',
             category: normalizeTreatmentCategory(category),
-            notes: '',
+            notes: notes || '',
             dentistId: req.user.id,
             dentistName,
             branch: branch,
@@ -11911,268 +11992,15 @@ app.get('/api/analytics/branches', verifyToken, async (req, res) => {
 });
 
 // ================= SUPPORT TICKETS ================= //
+// Retired: chat/ticket support has been removed from the system.
+const retiredSupportTicketHandler = (req, res) => {
+    res.status(410).json({ message: 'Chat and ticket support has been removed from the system.' });
+};
 
-// POST /api/support-tickets — Patient or any authenticated user creates a ticket
-app.post('/api/support-tickets', verifyToken, async (req, res) => {
-    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
-        return;
-    }
-    try {
-        const { subject, message } = req.body;
-        if (!subject || !message) {
-            return res.status(400).json({ message: 'Subject and message are required.' });
-        }
-
-        const sender = await User.findById(req.user.id).select('name email role assignedBranch');
-        if (!sender) return res.status(404).json({ message: 'User not found.' });
-
-        const fullName = `${sender.name?.first || ''} ${sender.name?.last || ''}`.trim() || sender.email;
-
-        const ticket = await SupportTicket.create({
-            patientId: req.user.id,
-            patientName: fullName,
-            patientEmail: sender.email,
-            subject,
-            messages: [{
-                sender: req.user.id,
-                senderName: fullName,
-                senderRole: sender.role,
-                content: message
-            }]
-        });
-
-        const supportNotifications = [
-            {
-                type: 'CHAT_TICKET_RAISED',
-                title: 'New Support Ticket',
-                message: `${fullName} submitted a ticket: "${subject}"`,
-                recipientRole: 'administrator',
-                relatedId: ticket._id
-            },
-            {
-                type: 'CHAT_TICKET_RAISED',
-                title: 'New Support Ticket',
-                message: `${fullName} submitted a ticket: "${subject}"`,
-                recipientRole: 'owner',
-                relatedId: ticket._id
-            }
-        ];
-
-        if (sender.assignedBranch) {
-            const supportStaff = await User.find({
-                role: { $in: ['branch-manager', 'secretary'] },
-                status: 'active',
-                isArchived: { $ne: true },
-                $or: [
-                    { assignedBranch: sender.assignedBranch },
-                    { assignedBranches: sender.assignedBranch },
-                ],
-            }).select('_id');
-
-            supportStaff.forEach((staff) => {
-                supportNotifications.push({
-                    type: 'CHAT_TICKET_RAISED',
-                    title: 'New Support Ticket',
-                    message: `${fullName} submitted a ticket: "${subject}"`,
-                    recipientId: staff._id,
-                    relatedId: ticket._id,
-                });
-            });
-        }
-
-        await Notification.insertMany(supportNotifications);
-
-        await createPatientNotification({
-            patientId: req.user.id,
-            type: 'INQUIRY_ESCALATED',
-            title: 'Clinic Inquiry Received',
-            message: `Your inquiry "${subject}" was sent to the clinic team. You will be notified when support replies.`,
-            relatedId: ticket._id,
-        });
-
-        await AuditLog.create({
-            action: 'TICKET_CREATED',
-            user: sender.email,
-            role: sender.role,
-            details: `Support ticket created: "${subject}" (ID: ${ticket._id})`
-        });
-
-        res.status(201).json(ticket);
-    } catch (error) {
-        console.error('Error creating support ticket:', error);
-        res.status(500).json({ message: 'Server error.' });
-    }
-});
-
-// GET /api/support-tickets — Admin views all tickets with optional filters
-app.get('/api/support-tickets', verifyToken, async (req, res) => {
-    if (!['administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Access denied.' });
-    }
-    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
-        return;
-    }
-    try {
-        const { status, priority, page = 1, limit = 20 } = req.query;
-        const filter = {};
-        if (status)   filter.status   = status;
-        if (priority) filter.priority = priority;
-
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-
-        const [tickets, total] = await Promise.all([
-            SupportTicket.find(filter)
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(parseInt(limit))
-                .select('-messages'), // Exclude message thread from list view for performance
-            SupportTicket.countDocuments(filter)
-        ]);
-
-        res.json({ tickets, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
-    } catch (error) {
-        console.error('Error fetching tickets:', error);
-        res.status(500).json({ message: 'Server error.' });
-    }
-});
-
-// GET /api/support-tickets/:id — Full ticket with message thread
-app.get('/api/support-tickets/:id', verifyToken, async (req, res) => {
-    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
-        return;
-    }
-    try {
-        const ticket = await SupportTicket.findById(req.params.id);
-        if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
-
-        const isStaff = ['administrator', 'branch-manager', 'secretary'].includes(req.user.role);
-        const isPatientOwner = ticket.patientId?.toString() === req.user.id;
-        if (!isStaff && !isPatientOwner) {
-            return res.status(403).json({ message: 'Access denied.' });
-        }
-
-        res.json(ticket);
-    } catch (error) {
-        console.error('Error fetching ticket:', error);
-        res.status(500).json({ message: 'Server error.' });
-    }
-});
-
-// POST /api/support-tickets/:id/messages — Admin or patient adds a reply
-app.post('/api/support-tickets/:id/messages', verifyToken, async (req, res) => {
-    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
-        return;
-    }
-    try {
-        const { content } = req.body;
-        if (!content?.trim()) {
-            return res.status(400).json({ message: 'Message content is required.' });
-        }
-
-        const ticket = await SupportTicket.findById(req.params.id);
-        if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
-        const isStaff = ['administrator', 'branch-manager', 'secretary'].includes(req.user.role);
-        const isPatientOwner = ticket.patientId?.toString() === req.user.id;
-        if (!isStaff && !isPatientOwner) {
-            return res.status(403).json({ message: 'Access denied.' });
-        }
-
-        if (ticket.status === 'closed') {
-            return res.status(400).json({ message: 'Cannot reply to a closed ticket.' });
-        }
-
-        const sender = await User.findById(req.user.id).select('name email role');
-        const fullName = `${sender.name?.first || ''} ${sender.name?.last || ''}`.trim() || sender.email;
-
-        ticket.messages.push({
-            sender: req.user.id,
-            senderName: fullName,
-            senderRole: sender.role,
-            content: content.trim()
-        });
-
-        // Auto-set to in-progress when staff first replies
-        if (['administrator', 'branch-manager', 'secretary'].includes(req.user.role) && ticket.status === 'open') {
-            ticket.status = 'in-progress';
-            if (!ticket.assignedTo) {
-                ticket.assignedTo = req.user.id;
-                ticket.assignedToName = fullName;
-            }
-        }
-
-        await ticket.save();
-
-        if (isStaff && ticket.patientId) {
-            await createPatientNotification({
-                patientId: ticket.patientId,
-                type: 'INQUIRY_ESCALATED',
-                title: 'Clinic Support Replied',
-                message: `Clinic support replied to your inquiry "${ticket.subject}". Open your support conversation to continue.`,
-                relatedId: ticket._id,
-            });
-        }
-
-        res.json(ticket);
-    } catch (error) {
-        console.error('Error adding message:', error);
-        res.status(500).json({ message: 'Server error.' });
-    }
-});
-
-// PATCH /api/support-tickets/:id/status — Admin updates ticket status/priority/assignee
-app.patch('/api/support-tickets/:id/status', verifyToken, async (req, res) => {
-    if (!['administrator', 'branch-manager', 'secretary'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Access denied.' });
-    }
-    if (!(await assertSystemFeatureEnabled(res, 'chatSupport'))) {
-        return;
-    }
-    try {
-        const { status, priority, assignedTo, assignedToName } = req.body;
-
-        const ticket = await SupportTicket.findById(req.params.id);
-        if (!ticket) return res.status(404).json({ message: 'Ticket not found.' });
-
-        if (status)         ticket.status         = status;
-        if (priority)       ticket.priority       = priority;
-        if (assignedTo)     ticket.assignedTo     = assignedTo;
-        if (assignedToName) ticket.assignedToName = assignedToName;
-
-        if (status === 'resolved') ticket.resolvedAt = new Date();
-        if (status === 'closed')   ticket.closedAt   = new Date();
-
-        await ticket.save();
-
-        await AuditLog.create({
-            action: 'TICKET_RESOLVED',
-            user: req.user.email,
-            role: req.user.role,
-            details: `Ticket ${ticket._id} updated — status: ${status || ticket.status}`
-        });
-
-        if (status && ticket.patientId) {
-            const statusTitle = {
-                'in-progress': 'Support Ticket In Progress',
-                resolved: 'Support Ticket Resolved',
-                closed: 'Support Ticket Closed',
-                open: 'Support Ticket Reopened',
-            }[status] || 'Support Ticket Updated';
-
-            await createPatientNotification({
-                patientId: ticket.patientId,
-                type: 'INQUIRY_ESCALATED',
-                title: statusTitle,
-                message: `Your inquiry "${ticket.subject}" is now marked ${String(status).replace(/-/g, ' ')} by the clinic team.`,
-                relatedId: ticket._id,
-            });
-        }
-
-        res.json(ticket);
-    } catch (error) {
-        console.error('Error updating ticket status:', error);
-        res.status(500).json({ message: 'Server error.' });
-    }
-});
+app.all('/api/support-tickets', verifyToken, retiredSupportTicketHandler);
+app.all('/api/support-tickets/:id', verifyToken, retiredSupportTicketHandler);
+app.all('/api/support-tickets/:id/messages', verifyToken, retiredSupportTicketHandler);
+app.all('/api/support-tickets/:id/status', verifyToken, retiredSupportTicketHandler);
 
 // -------------------------------------------------------
 // TRANSFER SYSTEM OWNERSHIP

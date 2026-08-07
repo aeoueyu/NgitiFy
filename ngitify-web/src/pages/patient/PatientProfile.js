@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaCalendarAlt, FaClipboardList, FaUserCircle } from 'react-icons/fa';
 import UserAvatar from '../../components/common/UserAvatar';
-import { PatientEmptyState, PatientPageFrame, PatientSectionHeader } from '../../components/patient/PatientFrame';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import {
@@ -12,9 +10,13 @@ import {
     getFullName,
 } from '../../utils/patientPortal';
 import { getHomeAddress } from '../../utils/addressHelpers';
-import styles from '../../styles/patient/PatientPortal.module.css';
+import styles from '../../styles/admin/AdminProfile.module.css';
 
-const buildCommaText = (value) => (Array.isArray(value) && value.length ? value.join(', ') : 'Not specified');
+const notSpecified = (value) => value || 'Not specified';
+
+const buildCommaText = (value) => (
+    Array.isArray(value) && value.length ? value.join(', ') : 'Not specified'
+);
 
 const formatTimestamp = (value) => {
     if (!value) return 'Not specified';
@@ -40,10 +42,10 @@ const formatCreatedDate = (value) => {
     });
 };
 
-const InfoField = ({ label, value }) => (
-    <div className={styles.infoCard}>
-        <span className={styles.infoLabel}>{label}</span>
-        <p className={styles.infoValue}>{value || 'Not specified'}</p>
+const ReadOnlyField = ({ label, value, wide = false }) => (
+    <div className={styles.formGroup} style={wide ? { flex: '1 1 100%' } : undefined}>
+        <label>{label}</label>
+        <input className={styles.inputField} value={notSpecified(value)} disabled readOnly />
     </div>
 );
 
@@ -65,8 +67,7 @@ export default function PatientProfile() {
             if (!response.ok) {
                 throw new Error('Failed to load profile.');
             }
-            const payload = await response.json();
-            setProfile(payload);
+            setProfile(await response.json());
         } catch {
             setProfile(null);
             setError('Could not load your profile. Please try again.');
@@ -90,6 +91,12 @@ export default function PatientProfile() {
     const summary = useMemo(() => ({
         email: profile?.email || user?.email || 'Not specified',
         contactNumber: profile?.contactNumber || 'Not specified',
+        homePhone: profile?.homePhone || 'Not specified',
+        workPhone: profile?.workPhone || 'Not specified',
+        nationality: profile?.nationality || 'Not specified',
+        religion: profile?.religion || 'Not specified',
+        referredBy: profile?.referredBy || 'Not specified',
+        reasonForConsultation: profile?.reasonForConsultation || profile?.dentalHistory?.chiefComplaint || 'Not specified',
         bloodType: profile?.bloodType || profile?.medicalHistory?.bloodType || 'Not specified',
         allergies: buildCommaText(profile?.medicalHistory?.allergies),
         conditions: buildCommaText(profile?.medicalHistory?.conditions),
@@ -99,163 +106,186 @@ export default function PatientProfile() {
         emergencyNumber: profile?.emergencyContact?.contactNumber || 'Not specified',
     }), [profile, user?.email]);
 
+    const medicalHistory = profile?.medicalHistory || {};
+    const dentalHistory = profile?.dentalHistory || {};
+    const guardian = profile?.guardian || {};
+    const physician = profile?.physician || {};
+    const formatBoolean = (value) => (value === true ? 'Yes' : value === false ? 'No' : 'Not specified');
+
     if (loading) {
         return (
-            <PatientPageFrame
-                title="My Profile"
-                subtitle="Loading your patient identity and account details..."
-            >
-                <div className={styles.loaderBox}>
-                    <span className={styles.loaderText}>Loading profile data...</span>
+            <div className={styles.container}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#01538b' }}>
+                    <h2>Loading Profile Data...</h2>
                 </div>
-            </PatientPageFrame>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <PatientPageFrame
-                title="My Profile"
-                subtitle="Review your patient identity, clinic assignment, and medical summary."
-            >
-                <PatientEmptyState
-                    icon={<FaUserCircle />}
-                    title="Could not load your profile"
-                    message={error}
-                    action={(
-                        <button type="button" className={styles.buttonSecondary} onClick={fetchProfile}>
-                            Try Again
-                        </button>
-                    )}
-                />
-            </PatientPageFrame>
+            <div className={styles.container}>
+                <div style={{ textAlign: 'center', padding: '100px', color: '#dc3545', fontWeight: '600' }}>
+                    <p>{error}</p>
+                    <button type="button" className={styles.editBtn} onClick={fetchProfile}>
+                        TRY AGAIN
+                    </button>
+                </div>
+            </div>
         );
     }
 
     return (
-        <PatientPageFrame
-            title="My Profile"
-            subtitle="Your patient-only profile page now uses the same shared portal styling as the rest of the web dashboard."
-            actions={(
-                <>
-                    <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/settings')}>
-                        Settings
-                    </button>
-                    <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/activity-logs')}>
-                        Activity Logs
-                    </button>
-                    <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/profile/edit')}>
-                        Edit Profile
-                    </button>
-                </>
-            )}
-        >
-            <div className={styles.heroGrid}>
-                <section className={styles.heroCard}>
-                    <span className={styles.heroEyebrow}>Patient Identity</span>
-                    <div className={styles.profileIdentity}>
-                        <div className={styles.profileAvatar}>
-                            <UserAvatar
-                                user={{ name: fullName, profileImage: profile?.profileImage }}
-                                size={96}
-                                style={{ border: '3px solid #2dccf6' }}
-                            />
-                        </div>
-                        <div>
-                            <h2 className={styles.heroTitle} style={{ color: '#17364a', marginBottom: '8px' }}>{fullName}</h2>
-                            <p className={styles.heroText} style={{ color: '#5f7a8d' }}>
-                                Review the personal, medical, and clinic details that power your patient-side web and mobile experience.
-                            </p>
-                            <div className={styles.detailPills}>
-                                <span className={styles.detailPill}>Patient Account</span>
-                                <span className={styles.detailPill}>{assignedBranch}</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section className={styles.metricGrid} style={{ gridTemplateColumns: '1fr', marginBottom: 0 }}>
-                    <article className={styles.metricCard}>
-                        <span className={styles.metricLabel}>Age</span>
-                        <h3 className={styles.metricValue}>{age !== null ? age : '—'}</h3>
-                        <p className={styles.metricSub}>Years old based on your recorded birthdate.</p>
-                    </article>
-                    <article className={styles.metricCard}>
-                        <span className={styles.metricLabel}>Account Created</span>
-                        <h3 className={styles.metricValue} style={{ fontSize: '21px' }}>{formatCreatedDate(profile?.createdAt)}</h3>
-                        <p className={styles.metricSub}>When your patient account first became active.</p>
-                    </article>
-                    <article className={styles.metricCard}>
-                        <span className={styles.metricLabel}>Last Login</span>
-                        <h3 className={styles.metricValue} style={{ fontSize: '18px', lineHeight: 1.4 }}>{formatTimestamp(profile?.lastLogin)}</h3>
-                        <p className={styles.metricSub}>Most recent patient-side access recorded on your account.</p>
-                    </article>
-                </section>
+        <div className={styles.container}>
+            <div className={styles.headerWrapper}>
+                <div className={styles.header}>
+                    <h1 className={styles.title}>My Profile</h1>
+                    <p className={styles.subtitle}>View your patient information, clinic assignment, and account details.</p>
+                </div>
             </div>
 
-            <div className={styles.cardGrid}>
-                <section className={styles.summaryCard}>
-                    <PatientSectionHeader eyebrow="Basics" title="Personal Information" />
-                    <div className={styles.infoGrid}>
-                        <InfoField label="First Name" value={profile?.name?.first} />
-                        <InfoField label="Middle Name" value={profile?.name?.middle} />
-                        <InfoField label="Last Name" value={profile?.name?.last} />
-                        <InfoField label="Birthdate" value={formatDateDisplay(profile?.birthdate, { month: 'long' })} />
-                        <InfoField label="Gender" value={profile?.gender} />
-                        <InfoField label="Civil Status" value={profile?.civilStatus} />
-                        <InfoField label="Occupation" value={profile?.occupation} />
-                        <InfoField label="Assigned Branch" value={assignedBranch} />
+            <div className={styles.card}>
+                <div className={styles.profileSection}>
+                    <div className={styles.imageWrapper}>
+                        <UserAvatar
+                            user={{ name: fullName, profileImage: profile?.profileImage }}
+                            size={100}
+                            style={{ border: '3px solid #2dccf6' }}
+                        />
                     </div>
-                </section>
+                    <div className={styles.profileText}>
+                        <h2>{fullName}</h2>
+                        <span className={styles.roleTag}>Patient Account</span>
+                    </div>
+                </div>
 
-                <section className={styles.summaryCard}>
-                    <PatientSectionHeader eyebrow="Contact" title="Contact and Emergency Details" />
-                    <div className={styles.infoGrid}>
-                        <InfoField label="Email Address" value={summary.email} />
-                        <InfoField label="Contact Number" value={summary.contactNumber} />
-                        <InfoField label="Emergency Contact" value={summary.emergencyName} />
-                        <InfoField label="Relationship" value={summary.emergencyRelationship} />
-                        <InfoField label="Emergency Number" value={summary.emergencyNumber} />
-                        <InfoField label="Home Address" value={address} />
-                    </div>
-                </section>
+                <h3 className={styles.mainSectionTitle}>Personal Information</h3>
+                <div className={styles.row}>
+                    <ReadOnlyField label="FIRST NAME" value={profile?.name?.first} />
+                    <ReadOnlyField label="MIDDLE NAME" value={profile?.name?.middle} />
+                    <ReadOnlyField label="LAST NAME" value={profile?.name?.last} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="BIRTHDATE" value={formatDateDisplay(profile?.birthdate, { month: 'long' })} />
+                    <ReadOnlyField label="AGE" value={age !== null ? `${age} years old` : 'Not specified'} />
+                    <ReadOnlyField label="GENDER" value={profile?.gender} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="CIVIL STATUS" value={profile?.civilStatus} />
+                    <ReadOnlyField label="NATIONALITY" value={summary.nationality} />
+                    <ReadOnlyField label="RELIGION" value={summary.religion} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="OCCUPATION" value={profile?.occupation} />
+                    <ReadOnlyField label="ASSIGNED BRANCH" value={assignedBranch} />
+                    <ReadOnlyField label="REFERRED BY" value={summary.referredBy} />
+                </div>
 
-                <section className={styles.summaryCard}>
-                    <PatientSectionHeader eyebrow="Medical" title="Medical Snapshot" />
-                    <div className={styles.infoGrid}>
-                        <InfoField label="Blood Type" value={summary.bloodType} />
-                        <InfoField label="Allergies" value={summary.allergies} />
-                        <InfoField label="Conditions" value={summary.conditions} />
-                        <InfoField label="Medications" value={summary.medications} />
-                    </div>
-                </section>
+                <h3 className={styles.mainSectionTitle}>Contact Information</h3>
+                <div className={styles.row}>
+                    <ReadOnlyField label="EMAIL ADDRESS" value={summary.email} />
+                    <ReadOnlyField label="MOBILE NUMBER" value={summary.contactNumber} />
+                    <ReadOnlyField label="HOME PHONE" value={summary.homePhone} />
+                    <ReadOnlyField label="WORK PHONE" value={summary.workPhone} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="HOME ADDRESS" value={address} wide />
+                </div>
 
-                <section className={styles.summaryCard}>
-                    <PatientSectionHeader eyebrow="Care Context" title="Visit and Account Context" />
-                    <div className={styles.toolGrid} style={{ gridTemplateColumns: '1fr', marginTop: '8px' }}>
-                        <button
-                            type="button"
-                            className={styles.toolCard}
-                            onClick={() => navigate('/patient/records')}
-                            style={{ textAlign: 'left', border: 'none', cursor: 'pointer' }}
-                        >
-                            <span className={styles.toolIcon}><FaClipboardList /></span>
-                            <h3 className={styles.toolTitle}>Open Medical Records</h3>
-                            <p className={styles.toolText}>See your odontogram, x-rays, and treatment-linked history from the patient portal.</p>
-                        </button>
-                        <button
-                            type="button"
-                            className={styles.toolCard}
-                            onClick={() => navigate('/patient/appointments')}
-                            style={{ textAlign: 'left', border: 'none', cursor: 'pointer' }}
-                        >
-                            <span className={styles.toolIcon}><FaCalendarAlt /></span>
-                            <h3 className={styles.toolTitle}>Review Visits</h3>
-                            <p className={styles.toolText}>Check upcoming appointments, completed visits, and booking history in one place.</p>
-                        </button>
-                    </div>
-                </section>
+                <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
+                <div className={styles.row}>
+                    <ReadOnlyField label="CONTACT PERSON" value={summary.emergencyName} />
+                    <ReadOnlyField label="RELATIONSHIP" value={summary.emergencyRelationship} />
+                    <ReadOnlyField label="CONTACT NUMBER" value={summary.emergencyNumber} />
+                </div>
+
+                <h3 className={styles.mainSectionTitle}>Guardian Information</h3>
+                <div className={styles.row}>
+                    <ReadOnlyField label="GUARDIAN NAME" value={guardian.name} />
+                    <ReadOnlyField label="RELATIONSHIP" value={guardian.relationship} />
+                    <ReadOnlyField label="CONTACT NUMBER" value={guardian.contactNumber} />
+                    <ReadOnlyField label="OCCUPATION" value={guardian.occupation} />
+                </div>
+
+                <h3 className={styles.mainSectionTitle}>Dental History</h3>
+                <div className={styles.row}>
+                    <ReadOnlyField label="REASON FOR CONSULTATION" value={summary.reasonForConsultation} wide />
+                    <ReadOnlyField label="LAST DENTAL VISIT" value={formatDateDisplay(dentalHistory.lastExamDate, { month: 'long' })} />
+                    <ReadOnlyField label="REACTION AFTER DENTAL TREATMENT" value={formatBoolean(dentalHistory.hadTreatmentReaction)} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="REACTION DETAILS" value={dentalHistory.reactionDetails} wide />
+                    <ReadOnlyField label="CONFIDENTIAL INFORMATION TO DISCUSS" value={formatBoolean(dentalHistory.hasConfidentialInfo)} />
+                    <ReadOnlyField label="DENTAL NOTES" value={dentalHistory.notes} wide />
+                </div>
+
+                <h3 className={styles.mainSectionTitle}>Physician Details</h3>
+                <div className={styles.row}>
+                    <ReadOnlyField label="PHYSICIAN NAME" value={physician.name} />
+                    <ReadOnlyField label="SPECIALTY" value={physician.specialty} />
+                    <ReadOnlyField label="OFFICE NUMBER" value={physician.officeNumber} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="OFFICE ADDRESS" value={physician.officeAddress} wide />
+                </div>
+
+                <h3 className={styles.mainSectionTitle}>Medical Snapshot</h3>
+                <div className={styles.row}>
+                    <ReadOnlyField label="BLOOD TYPE" value={summary.bloodType} />
+                    <ReadOnlyField label="IN GOOD HEALTH" value={formatBoolean(medicalHistory.inGoodHealth)} />
+                    <ReadOnlyField label="UNDER MEDICAL TREATMENT" value={formatBoolean(medicalHistory.underMedicalTreatment)} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="MEDICAL TREATMENT DETAILS" value={medicalHistory.medicalTreatmentDetails} wide />
+                    <ReadOnlyField label="SERIOUS ILLNESS OR SURGERY" value={formatBoolean(medicalHistory.hadSeriousIllnessOrSurgery)} />
+                    <ReadOnlyField label="SERIOUS ILLNESS / SURGERY DETAILS" value={medicalHistory.seriousIllnessOrSurgeryDetails} wide />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="HOSPITALIZED" value={formatBoolean(medicalHistory.hadHospitalization)} />
+                    <ReadOnlyField label="HOSPITALIZATION DETAILS" value={medicalHistory.hospitalizationDetails} wide />
+                    <ReadOnlyField label="TAKING MEDICATION" value={formatBoolean(medicalHistory.isTakingMedication)} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="ALLERGIES" value={summary.allergies} />
+                    <ReadOnlyField label="HAS ALLERGIES" value={formatBoolean(medicalHistory.hasAllergies)} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="MEDICAL CONDITIONS" value={summary.conditions} />
+                    <ReadOnlyField label="MEDICATIONS" value={summary.medications} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="USES TOBACCO" value={formatBoolean(medicalHistory.usesTobacco)} />
+                    <ReadOnlyField label="USES ALCOHOL OR DANGEROUS DRUGS" value={formatBoolean(medicalHistory.usesAlcoholOrDrugs)} />
+                    <ReadOnlyField label="BLEEDING TIME" value={medicalHistory.bleedingTime} />
+                    <ReadOnlyField label="BLOOD PRESSURE" value={medicalHistory.bloodPressure} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="PREGNANT" value={formatBoolean(medicalHistory.isPregnant)} />
+                    <ReadOnlyField label="NURSING" value={formatBoolean(medicalHistory.isNursing)} />
+                    <ReadOnlyField label="TAKING BIRTH CONTROL" value={formatBoolean(medicalHistory.takingBirthControl)} />
+                </div>
+                <div className={styles.row}>
+                    <ReadOnlyField label="MEDICAL NOTES" value={medicalHistory.notes} wide />
+                </div>
+
+                <h3 className={styles.mainSectionTitle}>Account Information</h3>
+                <div className={styles.row}>
+                    <ReadOnlyField label="ACCOUNT CREATED" value={formatCreatedDate(profile?.createdAt)} />
+                    <ReadOnlyField label="LAST LOGIN" value={formatTimestamp(profile?.lastLogin)} />
+                </div>
+
+                <div className={styles.buttonGroup}>
+                    <button type="button" className={styles.cancelBtn} onClick={() => navigate('/patient/settings')}>
+                        SETTINGS
+                    </button>
+                    <button type="button" className={styles.cancelBtn} onClick={() => navigate('/patient/activity-logs')}>
+                        ACTIVITY LOGS
+                    </button>
+                    <button type="button" className={styles.editBtn} onClick={() => navigate('/patient/profile/edit')}>
+                        EDIT PROFILE
+                    </button>
+                </div>
             </div>
-        </PatientPageFrame>
+        </div>
     );
 }

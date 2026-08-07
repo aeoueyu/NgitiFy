@@ -129,11 +129,6 @@ export default function PatientOralCare() {
                     <p className={styles.heroText}>
                         Dentime explains your next preventive care window using clinic-recorded treatment history plus watch signals and at-home care reminders, instead of an invented diagnosis.
                     </p>
-                    <div className={styles.heroActions}>
-                        <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/chatbot')}>
-                            Ask NgitiBot
-                        </button>
-                    </div>
                 </section>
             </div>
 

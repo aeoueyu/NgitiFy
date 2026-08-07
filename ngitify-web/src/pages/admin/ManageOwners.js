@@ -17,6 +17,7 @@ import {
     matchesAccountLifecycleFilter,
     shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
+import { readUserListResponse } from '../../utils/userListResponse';
 
 export default function ManageOwners() {
     const { addToast } = useToast();
@@ -24,7 +25,7 @@ export default function ManageOwners() {
     const [ownersList, setOwnersList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('active');
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -36,10 +37,10 @@ export default function ManageOwners() {
         try {
             setIsLoading(true);
             const res = await authFetch('/users?role=owner&includeArchived=true');
-            if (res.ok) {
-                const data = await res.json();
+            const { ok, users, message } = await readUserListResponse(res);
+            if (ok) {
                 setOwnersList(
-                    data
+                    users
                         .filter(u => u.role === 'owner')
                         .map(u => ({
                             id: u._id,
@@ -53,13 +54,16 @@ export default function ManageOwners() {
                             profileImage: u.profileImage,
                         }))
                 );
+            } else {
+                addToast(message || 'Failed to load owners.', 'error');
             }
         } catch (err) {
             console.error('Failed to fetch owners:', err);
+            addToast('Cannot connect to server while loading owners.', 'error');
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [addToast]);
 
     useEffect(() => {
         fetchOwners();

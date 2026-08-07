@@ -17,10 +17,10 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { getStaticOralCarePreview } from '../../utils/oralCarePreview';
-import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
+import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import { formatDateDisplay, formatTime24 } from '../../utils/patientPortal';
-import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
 import { PatientEmptyState, PatientStatusBadge } from '../../components/patient/PatientFrame';
+import { AdminDashboardPage } from '../../components/dashboard/AdminDashboardComponents';
 import adminStyles from '../../styles/admin/AdminDashboard.module.css';
 import patientStyles from '../../styles/patient/PatientPortal.module.css';
 
@@ -287,8 +287,8 @@ export default function PatientDashboard() {
     const supportCards = [
         {
             title: 'AI Companion',
-            description: 'Ask NgitiBot about your booking status, visit timing, and approved dental guidance.',
-            value: 'Patient support ready',
+            description: 'Review visit timing, education, and approved dental guidance.',
+            value: 'Care guide ready',
             actionLabel: 'Open AI',
             icon: <FaRobot className={adminStyles['widget-icon']} />,
             action: () => navigate('/patient/ai-companion'),
@@ -320,36 +320,14 @@ export default function PatientDashboard() {
     ];
 
     return (
-        <main className={adminStyles['main-content']}>
-            <header className={adminStyles.header}>
-                <div className={adminStyles['header-left']}>
-                    <h1 className={adminStyles.title}>Patient Dashboard</h1>
-                    <p className={adminStyles.subtitle}>
-                        {formatWeekdayDate(currentTime)}
-                        <span className={adminStyles.divider}>|</span>
-                        <strong className={adminStyles['time-accent']}>{formatTime(currentTime, true)}</strong>
-                        <span className={adminStyles.divider}>|</span>
-                        {assignedBranch}
-                    </p>
-                </div>
-                <div className={adminStyles['header-right']}>
-                    <button
-                        type="button"
-                        className={adminStyles['bell-btn']}
-                        onClick={() => navigate('/patient/notifications')}
-                        aria-label="Notifications"
-                    >
-                        <FaBell className={adminStyles['bell-icon']} />
-                        {unreadCount > 0 ? (
-                            <span className={adminStyles['bell-badge']}>
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                            </span>
-                        ) : null}
-                    </button>
-                </div>
-            </header>
-
-            <PasswordChangeWarning />
+        <AdminDashboardPage
+            title="Patient Dashboard"
+            currentTime={currentTime}
+            subtitle={assignedBranch}
+            notificationPath="/patient/notifications"
+            unreadCount={unreadCount}
+            navigate={navigate}
+        >
 
             <div className={adminStyles['stats-grid']}>
                 <div className={adminStyles['stat-card']}>
@@ -682,6 +660,6 @@ export default function PatientDashboard() {
                     </section>
                 </div>
             </div>
-        </main>
+        </AdminDashboardPage>
     );
 }

@@ -18,9 +18,9 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
+import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
+import { AdminDashboardPage } from '../../components/dashboard/AdminDashboardComponents';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -50,7 +50,6 @@ export default function SecretaryDashboard() {
     const [queueEntries, setQueueEntries] = useState([]);
     const [patientCount, setPatientCount] = useState(0);
     const [unreadNotifications, setUnreadNotifications] = useState(0);
-    const [openChatTickets, setOpenChatTickets] = useState(0);
     const [activityLogsToday, setActivityLogsToday] = useState(0);
     const [showAlertBanner, setShowAlertBanner] = useState(true);
     const [checkInTarget, setCheckInTarget] = useState(null);
@@ -69,13 +68,12 @@ export default function SecretaryDashboard() {
                 const userId = user?.userId || user?.id || user?._id;
                 const todayKey = new Date().toDateString();
 
-                const [statsRes, surgeriesRes, queueRes, patientsRes, notificationsRes, ticketsRes, logsRes] = await Promise.all([
+                const [statsRes, surgeriesRes, queueRes, patientsRes, notificationsRes, logsRes] = await Promise.all([
                     authFetch('/dashboard/stats'),
                     authFetch('/appointments'),
                     authFetch('/queue'),
                     authFetch('/patients'),
                     authFetch('/notifications'),
-                    authFetch('/support-tickets'),
                     userId ? authFetch(`/audit-logs?userId=${userId}`) : Promise.resolve(null),
                 ]);
 
@@ -118,12 +116,6 @@ export default function SecretaryDashboard() {
                 if (notificationsRes?.ok) {
                     const notificationData = await notificationsRes.json();
                     setUnreadNotifications(notificationData.filter((item) => !item.isRead).length);
-                }
-
-                if (ticketsRes?.ok) {
-                    const ticketData = await ticketsRes.json();
-                    const tickets = ticketData.tickets || [];
-                    setOpenChatTickets(tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in-progress').length);
                 }
 
                 if (logsRes?.ok) {
@@ -185,7 +177,7 @@ export default function SecretaryDashboard() {
         total: queueEntries.length,
     }), [queueEntries]);
 
-    const priorityAlertsCount = pendingConfirmations + unreadNotifications + openChatTickets;
+    const priorityAlertsCount = pendingConfirmations + unreadNotifications;
 
     const getCalendarDays = () => {
         const year = currentMonthView.getFullYear();
@@ -271,32 +263,13 @@ export default function SecretaryDashboard() {
 
     return (
         <>
-            <main className={styles['main-content']}>
-                <header className={styles.header}>
-                    <div className={styles['header-left']}>
-                        <h1 className={styles.title}>Front Desk Dashboard</h1>
-                        <p className={styles.subtitle}>
-                            {formatWeekdayDate(currentTime)}
-                            <span className={styles.divider}>|</span>
-                            <strong className={styles['time-accent']}>{formatTime(currentTime, true)}</strong>
-                        </p>
-                    </div>
-                    <div className={styles['header-right']}>
-                        <button
-                            className={styles['bell-btn']}
-                            onClick={() => navigate('/secretary/notifications')}
-                            aria-label="Notifications"
-                        >
-                            <FaBell className={styles['bell-icon']} />
-                            {unreadNotifications > 0 && (
-                                <span className={styles['bell-badge']}>
-                                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                                </span>
-                            )}
-                        </button>
-                    </div>
-                </header>
-                <PasswordChangeWarning />
+            <AdminDashboardPage
+                title="Front Desk Dashboard"
+                currentTime={currentTime}
+                notificationPath="/secretary/notifications"
+                unreadCount={unreadNotifications}
+                navigate={navigate}
+            >
 
                 {priorityAlertsCount > 0 && showAlertBanner && (
                     <div className={styles['alert-banner']}>
@@ -441,9 +414,9 @@ export default function SecretaryDashboard() {
                                     <p className={styles['quick-text']}>Booking updates and branch-level alerts waiting for review.</p>
                                 </div>
                                 <div className={styles['quick-card']}>
-                                    <span className={styles['quick-label']}>Open Chat Tickets</span>
-                                    <strong className={styles['quick-value']}>{openChatTickets}</strong>
-                                    <p className={styles['quick-text']}>Patient inquiries currently escalated to live support.</p>
+                                    <span className={styles['quick-label']}>Pending Confirmations</span>
+                                    <strong className={styles['quick-value']}>{pendingConfirmations}</strong>
+                                    <p className={styles['quick-text']}>Appointments still waiting for front desk confirmation.</p>
                                 </div>
                             </div>
                         </div>
@@ -561,7 +534,7 @@ export default function SecretaryDashboard() {
                         <FaCalendarPlus /> Manage Appointments
                     </button>
                 </div>
-            </main>
+            </AdminDashboardPage>
 
             <ConfirmModal
                 isOpen={!!checkInTarget}

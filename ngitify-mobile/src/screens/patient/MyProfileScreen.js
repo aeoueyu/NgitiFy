@@ -308,7 +308,7 @@ export default function MyProfileScreen({ navigation }) {
         },
         {
             title: 'Help',
-            subtitle: 'Open patient support and dental guidance',
+            subtitle: 'Open patient education and dental guidance',
             icon: 'help-circle-outline',
             iconColor: COLORS.text,
             iconBg: COLORS.accentGray,

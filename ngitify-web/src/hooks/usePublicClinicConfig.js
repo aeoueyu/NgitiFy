@@ -117,9 +117,7 @@ const FALLBACK_PUBLIC_CONFIG = {
         address: fallbackLocationCards[0]?.address || '',
     },
     appointmentProcedures: fallbackAppointmentProcedures,
-    featureToggles: {
-        chatSupport: false,
-    },
+    featureToggles: {},
     websiteContent: cloneWebsiteContentDefaults(),
     branches: fallbackLocationCards.map((branch) => ({
         name: branch.name,

@@ -11,12 +11,10 @@ import {
     FaCalendarPlus,
     FaChevronRight,
     FaClipboardList,
-    FaComments,
     FaCodeBranch,
     FaCog,
     FaDatabase,
     FaHistory,
-    FaHeadset,
     FaNotesMedical,
     FaRobot,
     FaShieldAlt,
@@ -31,7 +29,6 @@ import { authFetch } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import ConfirmModal from '../common/ConfirmModal';
 import AIChatAssistant from '../common/AIChatAssistant';
-import { useSystemConfig } from '../../hooks/useSystemConfig';
 
 const PROFILE_REFRESH_EVENT = 'ngitify-profile-updated';
 
@@ -39,7 +36,6 @@ export default function Sidebar() {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const { config: systemConfig } = useSystemConfig();
 
     const { canReadInventory } = usePermissions();
 
@@ -49,7 +45,6 @@ export default function Sidebar() {
     const isOwner = user?.role === 'owner';
     const isPatient = user?.role === 'patient';
     const isDentistUser = user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist);
-    const isChatSupportEnabled = systemConfig?.featureToggles?.chatSupport === true;
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -314,10 +309,9 @@ export default function Sidebar() {
                             {sectionLabel('Care')}
                             {navItem('/patient/records', FaNotesMedical, 'Medical Records')}
                             {navItem('/patient/oral-care', FaTooth, 'Oral Care')}
-                            {sectionLabel('Support')}
+                            {sectionLabel('Updates')}
                             {navItem('/patient/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/patient/activity-logs', FaHistory, 'Activity Logs')}
-                            {navItem('/patient/chatbot', FaComments, 'NgitiBot')}
                         </>
                     ) : (
                         <>
@@ -333,7 +327,6 @@ export default function Sidebar() {
                             {sectionLabel('Management')}
                             {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
-                            {isChatSupportEnabled && navItem('/branch-manager/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/branch-manager/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
@@ -353,7 +346,6 @@ export default function Sidebar() {
                         <>
                             {sectionLabel('Management')}
                             {navItem('/secretary/notifications', FaBell, 'Notifications', notifBadge)}
-                            {isChatSupportEnabled && navItem('/secretary/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/secretary/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
@@ -377,7 +369,6 @@ export default function Sidebar() {
                             {navItem(userManagementPath, FaUsers, 'Manage Users')}
                             {navItem('/admin/notifications', FaBell, 'Notifications', notifBadge)}
                             {sectionLabel('System')}
-                            {isChatSupportEnabled && navItem('/admin/chat-support', FaHeadset, 'Chat Support')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
                             {navItem('/admin/activity-logs', FaHistory, 'Activity Logs')}
                             {navItem('/admin/audit-trail', FaClipboardList, 'Audit Trail')}

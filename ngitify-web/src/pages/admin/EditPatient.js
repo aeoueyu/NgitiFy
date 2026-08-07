@@ -6,6 +6,7 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
+import { privacyPolicySections, privacyPolicyUpdatedAt, privacyPolicyVersion } from '../../data/consentDocument';
 import {
     ALLERGY_OPTIONS,
     MEDICAL_CONDITION_OPTIONS,
@@ -71,6 +72,9 @@ const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false 
 const formatDateInputValue = (value) => normalizeDateInputValue(value);
 
 const getTodayDate = () => getTodayDateInManila();
+const dataPrivacyReviewGroups = [
+    { heading: `Data Privacy Notice ${privacyPolicyVersion} - Updated ${privacyPolicyUpdatedAt}`, sections: privacyPolicySections },
+];
 
 export default function EditPatient({ patientId, onClose, onSuccess }) {
     const fileInputRef = useRef(null);
@@ -80,6 +84,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     const [profileImage, setProfileImage] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
+    const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
     const [errors, setErrors] = useState({});
     const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -1004,16 +1009,20 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                     </div>
                                 </div>
                                 <div style={{ display: 'grid', gap: '8px' }}>
-                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#01538b', fontWeight: 700, cursor: isSaving ? 'not-allowed' : 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.dataPrivacyConsent.acknowledged}
-                                            onChange={(e) => handlePrivacyAcknowledged(e.target.checked)}
-                                            disabled={isSaving}
-                                            style={{ width: '14px', height: '14px', accentColor: '#01538b', cursor: isSaving ? 'not-allowed' : 'pointer' }}
-                                        />
-                                        <span>Acknowledge data privacy consent</span>
-                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (formData.dataPrivacyConsent.acknowledged) {
+                                                handlePrivacyAcknowledged(false);
+                                            } else {
+                                                setIsPrivacyModalOpen(true);
+                                            }
+                                        }}
+                                        disabled={isSaving}
+                                        style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#01538b', fontWeight: 700, cursor: isSaving ? 'not-allowed' : 'pointer', textDecoration: 'underline' }}
+                                    >
+                                        {formData.dataPrivacyConsent.acknowledged ? 'Undo privacy acknowledgement' : 'Review and acknowledge data privacy consent'}
+                                    </button>
                                     <span style={{ fontSize: '12px', color: formData.dataPrivacyConsent.acknowledged ? '#166534' : '#64748b', fontWeight: 600 }}>
                                         {formData.dataPrivacyConsent.acknowledged ? 'Data privacy consent acknowledged.' : 'Data privacy consent has not been acknowledged yet.'}
                                     </span>
@@ -1088,6 +1097,17 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 onClose={() => setIsConsentModalOpen(false)}
                 onConfirm={handleConsentAcknowledged}
                 initiallyAcknowledged={formData.consentAcknowledgement.acknowledged}
+            />
+            <ConsentReviewModal
+                isOpen={isPrivacyModalOpen}
+                onClose={() => setIsPrivacyModalOpen(false)}
+                onConfirm={handlePrivacyAcknowledged}
+                initiallyAcknowledged={formData.dataPrivacyConsent.acknowledged}
+                title="Data Privacy Consent Review"
+                subtitle="Please review the full data privacy notice. The acknowledgement checkbox will only be enabled after the complete notice has been viewed."
+                reviewGroups={dataPrivacyReviewGroups}
+                acknowledgementLabel="I acknowledge that the patient or authorized representative has reviewed the full data privacy notice."
+                confirmLabel="Save Privacy Acknowledgement"
             />
         </div>
     );

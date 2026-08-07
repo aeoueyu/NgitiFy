@@ -68,7 +68,6 @@ const systemConfigSchema = new mongoose.Schema({
     featureToggles: {
         queueManagement:   { type: Boolean, default: true },
         radiographUploads: { type: Boolean, default: true },
-        chatSupport:       { type: Boolean, default: false },
         sessionTimeout:    { type: Boolean, default: true }
     },
     backupSettings: {

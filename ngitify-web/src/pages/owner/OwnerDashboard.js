@@ -14,9 +14,9 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { authFetch } from '../../utils/api';
-import { formatDateShort, formatTime, formatWeekdayDate } from '../../utils/dateUtils';
+import { formatDateShort, formatTime } from '../../utils/dateUtils';
 import styles from '../../styles/admin/AdminDashboard.module.css';
-import PasswordChangeWarning from '../../components/common/PasswordChangeWarning';
+import { AdminDashboardPage } from '../../components/dashboard/AdminDashboardComponents';
 
 const PH_HOLIDAYS = [
     { month: 0, day: 1, name: "New Year's Day" },
@@ -266,35 +266,14 @@ export default function OwnerDashboard() {
     const dynamicMonthYear = currentMonthView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     return (
-        <main className={styles['main-content']}>
-            <header className={styles.header}>
-                <div className={styles['header-left']}>
-                    <h1 className={styles.title}>Owner Dashboard</h1>
-                    <p className={styles.subtitle}>
-                        {formatWeekdayDate(currentTime)}
-                        <span className={styles.divider}>|</span>
-                        <strong className={styles['time-accent']}>{formatTime(currentTime, true)}</strong>
-                    </p>
-                    <p className={styles.subtitle} style={{ marginTop: '6px' }}>
-                        Clinic-wide overview for appointments, people, notifications, and supply health.
-                    </p>
-                </div>
-                <div className={styles['header-right']}>
-                    <button
-                        className={styles['bell-btn']}
-                        onClick={() => navigate('/owner/notifications')}
-                        aria-label="Notifications"
-                    >
-                        <FaBell className={styles['bell-icon']} />
-                        {unreadNotifications > 0 && (
-                            <span className={styles['bell-badge']}>
-                                {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                            </span>
-                        )}
-                    </button>
-                </div>
-            </header>
-            <PasswordChangeWarning />
+        <AdminDashboardPage
+            title="Owner Dashboard"
+            currentTime={currentTime}
+            subtitle="Clinic-wide overview for appointments, people, notifications, and supply health."
+            notificationPath="/owner/notifications"
+            unreadCount={unreadNotifications}
+            navigate={navigate}
+        >
 
             {priorityAlertsCount > 0 && showAlertBanner && (
                 <div className={styles['alert-banner']}>
@@ -547,6 +526,6 @@ export default function OwnerDashboard() {
                     <FaCalendarPlus /> Manage Schedule
                 </button>
             </div>
-        </main>
+        </AdminDashboardPage>
     );
 }
