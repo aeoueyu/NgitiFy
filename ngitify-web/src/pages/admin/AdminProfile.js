@@ -31,6 +31,8 @@ export default function MyProfile() {
     const [emailFormData, setEmailFormData] = useState({ newEmail: '', currentPassword: '' });
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
     const [emailError, setEmailError] = useState('');
+    const [showEmailSuccessModal, setShowEmailSuccessModal] = useState(false);
+    const [emailSuccessMessage, setEmailSuccessMessage] = useState('');
 
     // Main Form State - Unified for All Roles
     const [formData, setFormData] = useState({
@@ -312,8 +314,11 @@ export default function MyProfile() {
     const handleRequestEmailChange = async (e) => {
         e.preventDefault();
         setEmailError('');
-        if (!emailFormData.newEmail || !emailFormData.currentPassword) {
-            setEmailError('All fields are required.'); return;
+        if (!emailFormData.newEmail.trim()) {
+            setEmailError('Email address is required.'); return;
+        }
+        if (!emailFormData.currentPassword) {
+            setEmailError('Current password is required.'); return;
         }
         const emailFormatError = getEmailFormatError(emailFormData.newEmail);
         if (emailFormatError) {
@@ -334,8 +339,10 @@ export default function MyProfile() {
             const data = await response.json();
 
             if (response.ok) {
-                logout();
-                navigate('/login', { state: { message: 'We sent a verification link to your new email. Please verify it to continue.' } });
+                setEmailSuccessMessage(data.message || 'Request link has been sent to your new email address.');
+                setShowEmailModal(false);
+                setEmailFormData({ newEmail: '', currentPassword: '' });
+                setShowEmailSuccessModal(true);
             } else {
                 setEmailError(data.message || 'Failed to request email change.');
             }
@@ -344,6 +351,14 @@ export default function MyProfile() {
         } finally {
             setIsSubmittingEmail(false);
         }
+    };
+
+    const handleEmailSuccessDone = async () => {
+        setShowEmailSuccessModal(false);
+        await logout('email_change_requested');
+        navigate('/login', {
+            state: { message: 'We sent a verification link to your new email. Please verify it to continue.' },
+        });
     };
 
     if (isLoading) {
@@ -383,6 +398,9 @@ export default function MyProfile() {
 
     const roleTitle = roleMap[user?.role] || 'Staff Account';
     const fullName  = `${formData.firstName} ${formData.lastName}`.trim();
+    const isEmailInputError = ['Email address is required.', 'Please enter a valid email address.', 'A valid email address is required.'].includes(emailError);
+    const isPasswordInputError = emailError.toLowerCase().includes('password');
+    const generalEmailChangeError = emailError && !isEmailInputError && !isPasswordInputError;
 
     return (
         <div className={styles.container}>
@@ -743,36 +761,57 @@ export default function MyProfile() {
                         <p className={styles.modalMessage} style={{ marginBottom: '20px' }}>
                             Enter your new email address and your current password to verify this request.
                         </p>
+                        <p
+                            className={styles.modalMessage}
+                            style={{
+                                color: '#b45309',
+                                background: '#fff7ed',
+                                border: '1px solid #fed7aa',
+                                borderRadius: '12px',
+                                padding: '12px 14px',
+                                marginBottom: '20px',
+                                textAlign: 'left',
+                            }}
+                        >
+                            You will be logged out after the request link is sent. Please verify your new email before logging in again.
+                        </p>
                         
-                        <form onSubmit={handleRequestEmailChange} style={{ width: '100%', textAlign: 'left' }}>
+                        <form onSubmit={handleRequestEmailChange} style={{ width: '100%', textAlign: 'left' }} noValidate>
                             <div className={styles.formGroup} style={{ marginBottom: '15px' }}>
                                 <label>NEW EMAIL ADDRESS</label>
                                 <input 
-                                    type="email"
-                                    className={`${styles.inputField} ${emailError.toLowerCase().includes('valid email') ? styles.errorBorder : ''}`}
+                                    type="text"
+                                    inputMode="email"
+                                    autoComplete="email"
+                                    className={`${styles.inputField} ${isEmailInputError ? styles.errorBorder : ''}`}
                                     value={emailFormData.newEmail} 
                                     onChange={(e) => {
                                         const newEmail = e.target.value;
                                         setEmailFormData({...emailFormData, newEmail});
                                         setEmailError(getEmailFormatError(newEmail));
                                     }}
-                                    required
+                                    aria-invalid={isEmailInputError}
                                     disabled={isSubmittingEmail}
                                 />
+                                {isEmailInputError && <span className={styles.errorText}>{emailError}</span>}
                             </div>
                             <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
                                 <label>CURRENT PASSWORD</label>
                                 <input 
                                     type="password"
-                                    className={styles.inputField} 
+                                    className={`${styles.inputField} ${isPasswordInputError ? styles.errorBorder : ''}`}
                                     value={emailFormData.currentPassword} 
-                                    onChange={(e) => setEmailFormData({...emailFormData, currentPassword: e.target.value})}
-                                    required
+                                    onChange={(e) => {
+                                        setEmailFormData({...emailFormData, currentPassword: e.target.value});
+                                        if (isPasswordInputError || emailError === 'All fields are required.') setEmailError('');
+                                    }}
+                                    aria-invalid={isPasswordInputError}
                                     disabled={isSubmittingEmail}
                                 />
+                                {isPasswordInputError && <span className={styles.errorText}>{emailError}</span>}
                             </div>
 
-                            {emailError && <div className={styles.errorText} style={{ textAlign: 'center', marginBottom: '15px' }}>{emailError}</div>}
+                            {generalEmailChangeError && <div className={styles.errorText} style={{ textAlign: 'center', marginBottom: '15px' }}>{emailError}</div>}
 
                             <button type="submit" className={styles.submitBtn} style={{ width: '100%', marginBottom: '10px' }} disabled={isSubmittingEmail}>
                                 {isSubmittingEmail ? 'REQUESTING...' : 'SEND VERIFICATION LINK'}
@@ -781,6 +820,25 @@ export default function MyProfile() {
                                 CANCEL
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Email Change Request Sent Modal */}
+            {showEmailSuccessModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <img src={successIcon} alt="Success" className={styles.modalIcon} />
+                        <h3 className={styles.modalTitle}>Request Link Sent</h3>
+                        <p className={styles.modalMessage}>
+                            {emailSuccessMessage || 'Request link has been sent to your new email address.'}
+                        </p>
+                        <p className={styles.modalMessage}>
+                            You will now be logged out. Please verify your new email before logging in again.
+                        </p>
+                        <button className={styles.modalButton} onClick={handleEmailSuccessDone}>
+                            DONE
+                        </button>
                     </div>
                 </div>
             )}

@@ -6367,7 +6367,7 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
         // Verify current password before allowing email change
         const isMatch = await bcrypt.compare(currentPassword, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: 'Current password is incorrect.' });
+            return res.status(400).json({ message: 'Current password is incorrect.' });
         }
 
         const normalizedNewEmail = normalizeEmail(newEmail || '');
