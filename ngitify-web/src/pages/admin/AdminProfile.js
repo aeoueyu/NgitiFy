@@ -32,7 +32,9 @@ export default function MyProfile() {
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
     const [isVerifyingEmailPassword, setIsVerifyingEmailPassword] = useState(false);
     const [isEmailPasswordVerified, setIsEmailPasswordVerified] = useState(false);
-    const [emailError, setEmailError] = useState('');
+    const [emailAddressError, setEmailAddressError] = useState('');
+    const [emailPasswordError, setEmailPasswordError] = useState('');
+    const [emailChangeError, setEmailChangeError] = useState('');
     const [showEmailSuccessModal, setShowEmailSuccessModal] = useState(false);
     const [emailSuccessMessage, setEmailSuccessMessage] = useState('');
 
@@ -57,13 +59,6 @@ export default function MyProfile() {
         const trimmedEmail = String(email).trim();
         return trimmedEmail && !isValidEmail(trimmedEmail) ? 'Please enter a valid email address.' : '';
     };
-    const passwordFieldErrors = [
-        'Current password is required.',
-        'Current password is incorrect.',
-        'Incorrect current password.',
-        'Please verify your current password first.',
-    ];
-
     // Exact derived properties
     const availableProvinces = formData.region ? provinces[formData.region] || [] : [];
     const availableCities = formData.province ? cities[formData.province] || [] : [];
@@ -321,11 +316,12 @@ export default function MyProfile() {
 
     const handleVerifyEmailPassword = async () => {
         if (!emailFormData.currentPassword) {
-            setEmailError('Current password is required.'); return;
+            setEmailPasswordError('Current password is required.'); return;
         }
 
         setIsVerifyingEmailPassword(true);
-        setEmailError('');
+        setEmailPasswordError('');
+        setEmailChangeError('');
         setIsEmailPasswordVerified(false);
 
         try {
@@ -340,10 +336,10 @@ export default function MyProfile() {
             if (response.ok && data.success) {
                 setIsEmailPasswordVerified(true);
             } else {
-                setEmailError('Current password is incorrect.');
+                setEmailPasswordError('Current password is incorrect.');
             }
         } catch {
-            setEmailError('Cannot connect to server to verify password.');
+            setEmailChangeError('Cannot connect to server to verify password.');
         } finally {
             setIsVerifyingEmailPassword(false);
         }
@@ -351,19 +347,21 @@ export default function MyProfile() {
 
     const handleRequestEmailChange = async (e) => {
         e.preventDefault();
-        setEmailError('');
+        setEmailAddressError('');
+        setEmailPasswordError('');
+        setEmailChangeError('');
         if (!emailFormData.newEmail.trim()) {
-            setEmailError('Email address is required.'); return;
+            setEmailAddressError('Email address is required.'); return;
         }
         if (!emailFormData.currentPassword) {
-            setEmailError('Current password is required.'); return;
+            setEmailPasswordError('Current password is required.'); return;
         }
         const emailFormatError = getEmailFormatError(emailFormData.newEmail);
         if (emailFormatError) {
-            setEmailError(emailFormatError); return;
+            setEmailAddressError(emailFormatError); return;
         }
         if (!isEmailPasswordVerified) {
-            setEmailError('Please verify your current password first.'); return;
+            setEmailPasswordError('Please verify your current password first.'); return;
         }
         setIsSubmittingEmail(true);
 
@@ -384,12 +382,22 @@ export default function MyProfile() {
                 setShowEmailModal(false);
                 setEmailFormData({ newEmail: '', currentPassword: '' });
                 setIsEmailPasswordVerified(false);
+                setEmailAddressError('');
+                setEmailPasswordError('');
+                setEmailChangeError('');
                 setShowEmailSuccessModal(true);
             } else {
-                setEmailError(data.message || 'Failed to request email change.');
+                const message = data.message || 'Failed to request email change.';
+                if (message.toLowerCase().includes('password')) {
+                    setEmailPasswordError(message);
+                } else if (message.toLowerCase().includes('email')) {
+                    setEmailAddressError(message);
+                } else {
+                    setEmailChangeError(message);
+                }
             }
         } catch (error) {
-            setEmailError('Cannot connect to server.');
+            setEmailChangeError('Cannot connect to server.');
         } finally {
             setIsSubmittingEmail(false);
         }
@@ -440,9 +448,8 @@ export default function MyProfile() {
 
     const roleTitle = roleMap[user?.role] || 'Staff Account';
     const fullName  = `${formData.firstName} ${formData.lastName}`.trim();
-    const isEmailInputError = ['Email address is required.', 'Please enter a valid email address.', 'A valid email address is required.'].includes(emailError);
-    const isPasswordInputError = passwordFieldErrors.includes(emailError);
-    const generalEmailChangeError = emailError && !isEmailInputError && !isPasswordInputError;
+    const isEmailInputError = Boolean(emailAddressError);
+    const isPasswordInputError = Boolean(emailPasswordError);
     const canRequestEmailChange = Boolean(
         emailFormData.newEmail.trim()
         && !getEmailFormatError(emailFormData.newEmail)
@@ -837,12 +844,13 @@ export default function MyProfile() {
                                     onChange={(e) => {
                                         const newEmail = e.target.value;
                                         setEmailFormData({...emailFormData, newEmail});
-                                        setEmailError(getEmailFormatError(newEmail));
+                                        setEmailAddressError(getEmailFormatError(newEmail));
+                                        setEmailChangeError('');
                                     }}
                                     aria-invalid={isEmailInputError}
                                     disabled={isSubmittingEmail}
                                 />
-                                {isEmailInputError && <span className={styles.errorText}>{emailError}</span>}
+                                {isEmailInputError && <span className={styles.errorText}>{emailAddressError}</span>}
                             </div>
                             <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
                                 <label>CURRENT PASSWORD</label>
@@ -854,7 +862,8 @@ export default function MyProfile() {
                                         onChange={(e) => {
                                             setEmailFormData({...emailFormData, currentPassword: e.target.value});
                                             setIsEmailPasswordVerified(false);
-                                            if (isPasswordInputError || emailError === 'All fields are required.') setEmailError('');
+                                            setEmailPasswordError('');
+                                            setEmailChangeError('');
                                         }}
                                         aria-invalid={isPasswordInputError}
                                         disabled={isSubmittingEmail || isVerifyingEmailPassword}
@@ -868,16 +877,16 @@ export default function MyProfile() {
                                         {isVerifyingEmailPassword ? 'VERIFYING...' : 'VERIFY'}
                                     </button>
                                 </div>
-                                {isPasswordInputError && <span className={styles.errorText}>{emailError}</span>}
+                                {isPasswordInputError && <span className={styles.errorText}>{emailPasswordError}</span>}
                                 {isEmailPasswordVerified && <span className={styles.errorText} style={{ color: '#16a34a' }}>Password verified.</span>}
                             </div>
 
-                            {generalEmailChangeError && <div className={styles.errorText} style={{ textAlign: 'center', marginBottom: '15px' }}>{emailError}</div>}
+                            {emailChangeError && <div className={styles.errorText} style={{ textAlign: 'center', marginBottom: '15px' }}>{emailChangeError}</div>}
 
                             <button type="submit" className={styles.submitBtn} style={{ width: '100%', marginBottom: '10px' }} disabled={!canRequestEmailChange}>
                                 {isSubmittingEmail ? 'REQUESTING...' : 'SEND VERIFICATION LINK'}
                             </button>
-                            <button type="button" className={styles.cancelBtn} style={{ width: '100%' }} onClick={() => { setShowEmailModal(false); setEmailError(''); setEmailFormData({newEmail: '', currentPassword: ''}); setIsEmailPasswordVerified(false); }} disabled={isSubmittingEmail}>
+                            <button type="button" className={styles.cancelBtn} style={{ width: '100%' }} onClick={() => { setShowEmailModal(false); setEmailAddressError(''); setEmailPasswordError(''); setEmailChangeError(''); setEmailFormData({newEmail: '', currentPassword: ''}); setIsEmailPasswordVerified(false); }} disabled={isSubmittingEmail}>
                                 CANCEL
                             </button>
                         </form>
