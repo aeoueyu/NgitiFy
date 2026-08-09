@@ -6253,6 +6253,14 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
 });
 
 app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
+    const MAX_PROFILE_IMAGE_SIZE_MB = 2;
+    const MAX_PROFILE_IMAGE_SIZE_BYTES = MAX_PROFILE_IMAGE_SIZE_MB * 1024 * 1024;
+    const getImagePayloadSize = (image = '') => {
+        if (!image || !image.startsWith('data:image/')) return 0;
+        const base64Payload = image.includes(',') ? image.split(',').pop() : image;
+        return Buffer.byteLength(base64Payload, 'base64');
+    };
+
     const isAdminTier = req.user.role === 'administrator';
     if (req.params.id !== req.user.id && !isAdminTier) {
         return res.status(403).json({ message: 'Access denied.' });
@@ -6325,8 +6333,8 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         if (specialization !== undefined) user.specialization = specialization;
         if (bio !== undefined) user.bio = bio;
         if (profileImage !== undefined) {
-            if (profileImage && profileImage.length > 1.5 * 1024 * 1024) {
-                return res.status(413).json({ message: 'Profile image must be under 1.5MB.' });
+            if (getImagePayloadSize(profileImage) > MAX_PROFILE_IMAGE_SIZE_BYTES) {
+                return res.status(413).json({ message: `Profile image must be under ${MAX_PROFILE_IMAGE_SIZE_MB}MB.` });
             }
             user.profileImage = profileImage;
         }

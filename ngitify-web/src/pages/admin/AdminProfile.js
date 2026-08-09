@@ -16,6 +16,8 @@ const getEmailFormatError = (email = '') => {
     const trimmedEmail = String(email).trim();
     return trimmedEmail && !isValidEmail(trimmedEmail) ? 'Please enter a valid email address.' : '';
 };
+const MAX_PROFILE_IMAGE_SIZE_MB = 2;
+const MAX_PROFILE_IMAGE_SIZE_BYTES = MAX_PROFILE_IMAGE_SIZE_MB * 1024 * 1024;
 
 export default function MyProfile() {
     const { user, logout } = useAuth();
@@ -29,6 +31,7 @@ export default function MyProfile() {
     const [isSaving, setIsSaving] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showImageSizeModal, setShowImageSizeModal] = useState(false);
     const [errors, setErrors] = useState({});
     const [fetchError, setFetchError] = useState(null); 
 
@@ -261,6 +264,12 @@ export default function MyProfile() {
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
+            if (file.size > MAX_PROFILE_IMAGE_SIZE_BYTES) {
+                setShowImageSizeModal(true);
+                e.target.value = '';
+                return;
+            }
+
             const reader = new FileReader();
             reader.onloadend = () => {
                 setFormData(prev => ({ ...prev, profileImage: reader.result }));
@@ -848,6 +857,19 @@ export default function MyProfile() {
                         <h3 className={styles.modalTitle}>Success!</h3>
                         <p className={styles.modalMessage}>Your profile has been successfully updated.</p>
                         <button className={styles.modalButton} onClick={() => setShowSuccessModal(false)}>DONE</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Profile Image Size Modal */}
+            {showImageSizeModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <h3 className={styles.modalTitle}>Upload Failed</h3>
+                        <p className={styles.modalMessage}>File exceeds the recommended 2MB size.</p>
+                        <button className={styles.modalButton} onClick={() => setShowImageSizeModal(false)}>
+                            OK
+                        </button>
                     </div>
                 </div>
             )}
