@@ -325,7 +325,7 @@ export default function Sidebar() {
                     {isBranchManager && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem(userManagementPath, FaUsers, 'Manage Users')}
+                            {navItem(userManagementPath, FaUsers, 'Manage Staffs')}
                             {navItem('/branch-manager/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/branch-manager/activity-logs', FaHistory, 'Activity Logs')}
                         </>
@@ -334,7 +334,7 @@ export default function Sidebar() {
                     {isOwner && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem(userManagementPath, FaUsers, 'Manage Users')}
+                            {navItem(userManagementPath, FaUsers, 'Manage Staffs')}
                             {navItem('/owner/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/owner/branches', FaCodeBranch, 'Branches')}
                             {navItem('/owner/inventory', FaBoxes, 'Inventory', inventoryBadge)}
@@ -366,7 +366,7 @@ export default function Sidebar() {
                     {isAdmin && (
                         <>
                             {sectionLabel('Management')}
-                            {navItem(userManagementPath, FaUsers, 'Manage Users')}
+                            {navItem(userManagementPath, FaUsers, 'Manage Staffs')}
                             {navItem('/admin/notifications', FaBell, 'Notifications', notifBadge)}
                             {sectionLabel('System')}
                             {navItem('/admin/branches', FaCodeBranch, 'Branches')}
