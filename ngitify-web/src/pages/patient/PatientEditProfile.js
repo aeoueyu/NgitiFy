@@ -146,6 +146,7 @@ export default function PatientEditProfile() {
     const [error, setError] = useState('');
     const [saveError, setSaveError] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     const availableProvinces = useMemo(() => (formData?.region ? (provinces[formData.region] || []) : []), [formData?.region]);
     const availableCities = useMemo(() => (formData?.province ? (cities[formData.province] || []) : []), [formData?.province]);
@@ -350,6 +351,15 @@ export default function PatientEditProfile() {
             setSaveError(validationError);
             return;
         }
+        setShowConfirmModal(true);
+    };
+
+    const handleConfirmSave = async () => {
+        const userId = user?.id || user?.userId || user?._id;
+        if (!formData || !userId) return;
+
+        setSaveError('');
+        setShowConfirmModal(false);
 
         const homeAddress = {
             country: 'Philippines',
@@ -781,7 +791,7 @@ export default function PatientEditProfile() {
                         <button type="button" className={styles.cancelBtn} onClick={() => navigate('/patient/profile')} disabled={saving}>
                             CANCEL
                         </button>
-                        <button type="button" className={styles.cancelBtn} onClick={() => setFormData(cloneFormState(initialFormData))} disabled={saving || !hasChanges}>
+                        <button type="button" className={styles.cancelBtn} onClick={() => { setShowConfirmModal(false); setFormData(cloneFormState(initialFormData)); }} disabled={saving || !hasChanges}>
                             RESET
                         </button>
                         <button type="submit" className={styles.submitBtn} disabled={saving || !hasChanges}>
@@ -790,6 +800,27 @@ export default function PatientEditProfile() {
                     </div>
                 </form>
             </div>
+
+            {showConfirmModal ? (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <h3 className={styles.modalTitle}>Update Profile?</h3>
+                        <p className={styles.modalMessage}>Are you sure you want to update your profile details?</p>
+                        <button className={styles.modalButton} onClick={handleConfirmSave} disabled={saving}>
+                            {saving ? 'SAVING...' : 'YES'}
+                        </button>
+                        <button
+                            type="button"
+                            className={styles.cancelBtn}
+                            style={{ width: '100%', marginTop: '10px' }}
+                            onClick={() => setShowConfirmModal(false)}
+                            disabled={saving}
+                        >
+                            CANCEL
+                        </button>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

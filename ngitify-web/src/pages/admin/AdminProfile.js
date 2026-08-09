@@ -21,6 +21,7 @@ export default function MyProfile() {
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({});
     const [fetchError, setFetchError] = useState(null); 
@@ -46,6 +47,8 @@ export default function MyProfile() {
     });
     
     const [initialData, setInitialData] = useState(null);
+
+    const isValidEmail = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 
     // Exact derived properties
     const availableProvinces = formData.region ? provinces[formData.region] || [] : [];
@@ -237,6 +240,11 @@ export default function MyProfile() {
             addToast("Please fill out all required fields correctly.", "error");
             return;
         }
+        setShowConfirmModal(true);
+    };
+
+    const handleConfirmSave = async () => {
+        setShowConfirmModal(false);
         setIsSaving(true);
 
         try {
@@ -293,6 +301,7 @@ export default function MyProfile() {
     const handleCancel = () => {
         setFormData(initialData);
         setErrors({});
+        setShowConfirmModal(false);
         setIsEditing(false);
     };
 
@@ -301,6 +310,9 @@ export default function MyProfile() {
         setEmailError('');
         if (!emailFormData.newEmail || !emailFormData.currentPassword) {
             setEmailError('All fields are required.'); return;
+        }
+        if (!isValidEmail(emailFormData.newEmail)) {
+            setEmailError('Please enter a valid email address.'); return;
         }
         setIsSubmittingEmail(true);
 
@@ -695,6 +707,28 @@ export default function MyProfile() {
                 </div>
             )}
 
+            {/* Confirm Profile Update Modal */}
+            {showConfirmModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard}>
+                        <h3 className={styles.modalTitle}>Update Profile?</h3>
+                        <p className={styles.modalMessage}>Are you sure you want to update your profile details?</p>
+                        <button className={styles.modalButton} onClick={handleConfirmSave} disabled={isSaving}>
+                            {isSaving ? 'SAVING...' : 'YES'}
+                        </button>
+                        <button
+                            type="button"
+                            className={styles.cancelBtn}
+                            style={{ width: '100%', marginTop: '10px' }}
+                            onClick={() => setShowConfirmModal(false)}
+                            disabled={isSaving}
+                        >
+                            CANCEL
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Request Email Change Modal */}
             {showEmailModal && (
                 <div className={styles.modalOverlay}>
@@ -709,9 +743,9 @@ export default function MyProfile() {
                                 <label>NEW EMAIL ADDRESS</label>
                                 <input 
                                     type="email"
-                                    className={styles.inputField} 
+                                    className={`${styles.inputField} ${emailError.toLowerCase().includes('valid email') ? styles.errorBorder : ''}`}
                                     value={emailFormData.newEmail} 
-                                    onChange={(e) => setEmailFormData({...emailFormData, newEmail: e.target.value})}
+                                    onChange={(e) => { setEmailError(''); setEmailFormData({...emailFormData, newEmail: e.target.value}); }}
                                     required
                                     disabled={isSubmittingEmail}
                                 />
