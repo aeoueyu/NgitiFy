@@ -30,6 +30,8 @@ export default function MyProfile() {
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [emailFormData, setEmailFormData] = useState({ newEmail: '', currentPassword: '' });
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
+    const [isVerifyingEmailPassword, setIsVerifyingEmailPassword] = useState(false);
+    const [isEmailPasswordVerified, setIsEmailPasswordVerified] = useState(false);
     const [emailError, setEmailError] = useState('');
     const [showEmailSuccessModal, setShowEmailSuccessModal] = useState(false);
     const [emailSuccessMessage, setEmailSuccessMessage] = useState('');
@@ -55,6 +57,12 @@ export default function MyProfile() {
         const trimmedEmail = String(email).trim();
         return trimmedEmail && !isValidEmail(trimmedEmail) ? 'Please enter a valid email address.' : '';
     };
+    const passwordFieldErrors = [
+        'Current password is required.',
+        'Current password is incorrect.',
+        'Incorrect current password.',
+        'Please verify your current password first.',
+    ];
 
     // Exact derived properties
     const availableProvinces = formData.region ? provinces[formData.region] || [] : [];
@@ -311,6 +319,36 @@ export default function MyProfile() {
         setIsEditing(false);
     };
 
+    const handleVerifyEmailPassword = async () => {
+        if (!emailFormData.currentPassword) {
+            setEmailError('Current password is required.'); return;
+        }
+
+        setIsVerifyingEmailPassword(true);
+        setEmailError('');
+        setIsEmailPasswordVerified(false);
+
+        try {
+            const userId = user?.userId || user?.id || user?._id;
+            const response = await authFetch('/verify-current-password', {
+                method: 'POST',
+                skipUnauthorizedRedirect: true,
+                body: JSON.stringify({ userId, currentPassword: emailFormData.currentPassword }),
+            });
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setIsEmailPasswordVerified(true);
+            } else {
+                setEmailError('Current password is incorrect.');
+            }
+        } catch {
+            setEmailError('Cannot connect to server to verify password.');
+        } finally {
+            setIsVerifyingEmailPassword(false);
+        }
+    };
+
     const handleRequestEmailChange = async (e) => {
         e.preventDefault();
         setEmailError('');
@@ -323,6 +361,9 @@ export default function MyProfile() {
         const emailFormatError = getEmailFormatError(emailFormData.newEmail);
         if (emailFormatError) {
             setEmailError(emailFormatError); return;
+        }
+        if (!isEmailPasswordVerified) {
+            setEmailError('Please verify your current password first.'); return;
         }
         setIsSubmittingEmail(true);
 
@@ -342,6 +383,7 @@ export default function MyProfile() {
                 setEmailSuccessMessage(data.message || 'Request link has been sent to your new email address.');
                 setShowEmailModal(false);
                 setEmailFormData({ newEmail: '', currentPassword: '' });
+                setIsEmailPasswordVerified(false);
                 setShowEmailSuccessModal(true);
             } else {
                 setEmailError(data.message || 'Failed to request email change.');
@@ -399,8 +441,15 @@ export default function MyProfile() {
     const roleTitle = roleMap[user?.role] || 'Staff Account';
     const fullName  = `${formData.firstName} ${formData.lastName}`.trim();
     const isEmailInputError = ['Email address is required.', 'Please enter a valid email address.', 'A valid email address is required.'].includes(emailError);
-    const isPasswordInputError = emailError.toLowerCase().includes('password');
+    const isPasswordInputError = passwordFieldErrors.includes(emailError);
     const generalEmailChangeError = emailError && !isEmailInputError && !isPasswordInputError;
+    const canRequestEmailChange = Boolean(
+        emailFormData.newEmail.trim()
+        && !getEmailFormatError(emailFormData.newEmail)
+        && isEmailPasswordVerified
+        && !isSubmittingEmail
+        && !isVerifyingEmailPassword
+    );
 
     return (
         <div className={styles.container}>
@@ -797,26 +846,38 @@ export default function MyProfile() {
                             </div>
                             <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
                                 <label>CURRENT PASSWORD</label>
-                                <input 
-                                    type="password"
-                                    className={`${styles.inputField} ${isPasswordInputError ? styles.errorBorder : ''}`}
-                                    value={emailFormData.currentPassword} 
-                                    onChange={(e) => {
-                                        setEmailFormData({...emailFormData, currentPassword: e.target.value});
-                                        if (isPasswordInputError || emailError === 'All fields are required.') setEmailError('');
-                                    }}
-                                    aria-invalid={isPasswordInputError}
-                                    disabled={isSubmittingEmail}
-                                />
+                                <div className={styles.emailRow}>
+                                    <input
+                                        type="password"
+                                        className={`${styles.inputField} ${isPasswordInputError ? styles.errorBorder : ''}`}
+                                        value={emailFormData.currentPassword}
+                                        onChange={(e) => {
+                                            setEmailFormData({...emailFormData, currentPassword: e.target.value});
+                                            setIsEmailPasswordVerified(false);
+                                            if (isPasswordInputError || emailError === 'All fields are required.') setEmailError('');
+                                        }}
+                                        aria-invalid={isPasswordInputError}
+                                        disabled={isSubmittingEmail || isVerifyingEmailPassword}
+                                    />
+                                    <button
+                                        type="button"
+                                        className={styles.changeEmailBtn}
+                                        onClick={handleVerifyEmailPassword}
+                                        disabled={isSubmittingEmail || isVerifyingEmailPassword || !emailFormData.currentPassword}
+                                    >
+                                        {isVerifyingEmailPassword ? 'VERIFYING...' : 'VERIFY'}
+                                    </button>
+                                </div>
                                 {isPasswordInputError && <span className={styles.errorText}>{emailError}</span>}
+                                {isEmailPasswordVerified && <span className={styles.errorText} style={{ color: '#16a34a' }}>Password verified.</span>}
                             </div>
 
                             {generalEmailChangeError && <div className={styles.errorText} style={{ textAlign: 'center', marginBottom: '15px' }}>{emailError}</div>}
 
-                            <button type="submit" className={styles.submitBtn} style={{ width: '100%', marginBottom: '10px' }} disabled={isSubmittingEmail}>
+                            <button type="submit" className={styles.submitBtn} style={{ width: '100%', marginBottom: '10px' }} disabled={!canRequestEmailChange}>
                                 {isSubmittingEmail ? 'REQUESTING...' : 'SEND VERIFICATION LINK'}
                             </button>
-                            <button type="button" className={styles.cancelBtn} style={{ width: '100%' }} onClick={() => { setShowEmailModal(false); setEmailError(''); setEmailFormData({newEmail: '', currentPassword: ''}); }} disabled={isSubmittingEmail}>
+                            <button type="button" className={styles.cancelBtn} style={{ width: '100%' }} onClick={() => { setShowEmailModal(false); setEmailError(''); setEmailFormData({newEmail: '', currentPassword: ''}); setIsEmailPasswordVerified(false); }} disabled={isSubmittingEmail}>
                                 CANCEL
                             </button>
                         </form>
