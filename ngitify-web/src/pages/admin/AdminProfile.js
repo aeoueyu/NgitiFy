@@ -11,6 +11,12 @@ import { useToast } from '../../context/ToastContext';
 import UserAvatar from '../../components/common/UserAvatar';
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
 
+const isValidEmail = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
+const getEmailFormatError = (email = '') => {
+    const trimmedEmail = String(email).trim();
+    return trimmedEmail && !isValidEmail(trimmedEmail) ? 'Please enter a valid email address.' : '';
+};
+
 export default function MyProfile() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
@@ -32,6 +38,8 @@ export default function MyProfile() {
     const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
     const [isVerifyingEmailPassword, setIsVerifyingEmailPassword] = useState(false);
     const [isEmailPasswordVerified, setIsEmailPasswordVerified] = useState(false);
+    const [isCheckingEmailDomain, setIsCheckingEmailDomain] = useState(false);
+    const [isEmailDomainValid, setIsEmailDomainValid] = useState(false);
     const [emailAddressError, setEmailAddressError] = useState('');
     const [emailPasswordError, setEmailPasswordError] = useState('');
     const [emailChangeError, setEmailChangeError] = useState('');
@@ -54,11 +62,61 @@ export default function MyProfile() {
     
     const [initialData, setInitialData] = useState(null);
 
-    const isValidEmail = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
-    const getEmailFormatError = (email = '') => {
-        const trimmedEmail = String(email).trim();
-        return trimmedEmail && !isValidEmail(trimmedEmail) ? 'Please enter a valid email address.' : '';
-    };
+    useEffect(() => {
+        if (!showEmailModal) return undefined;
+
+        const nextEmail = emailFormData.newEmail.trim();
+        setIsEmailDomainValid(false);
+
+        if (!nextEmail) {
+            setIsCheckingEmailDomain(false);
+            setEmailAddressError('');
+            return undefined;
+        }
+
+        const formatError = getEmailFormatError(nextEmail);
+        if (formatError) {
+            setIsCheckingEmailDomain(false);
+            setEmailAddressError(formatError);
+            return undefined;
+        }
+
+        let isActive = true;
+        setIsCheckingEmailDomain(true);
+        setEmailAddressError('');
+
+        const timer = window.setTimeout(async () => {
+            try {
+                const response = await authFetch('/validate-email-domain', {
+                    method: 'POST',
+                    skipUnauthorizedRedirect: true,
+                    body: JSON.stringify({ email: nextEmail }),
+                });
+                const data = await response.json();
+
+                if (!isActive) return;
+                if (response.ok && data.success) {
+                    setIsEmailDomainValid(true);
+                    setEmailAddressError('');
+                } else {
+                    setIsEmailDomainValid(false);
+                    setEmailAddressError(data.message || 'Please use a real email domain that can receive mail.');
+                }
+            } catch {
+                if (isActive) {
+                    setIsEmailDomainValid(false);
+                    setEmailAddressError('Cannot validate email domain right now.');
+                }
+            } finally {
+                if (isActive) setIsCheckingEmailDomain(false);
+            }
+        }, 500);
+
+        return () => {
+            isActive = false;
+            window.clearTimeout(timer);
+        };
+    }, [showEmailModal, emailFormData.newEmail]);
     // Exact derived properties
     const availableProvinces = formData.region ? provinces[formData.region] || [] : [];
     const availableCities = formData.province ? cities[formData.province] || [] : [];
@@ -360,6 +418,9 @@ export default function MyProfile() {
         if (emailFormatError) {
             setEmailAddressError(emailFormatError); return;
         }
+        if (!isEmailDomainValid) {
+            setEmailAddressError('Please use a real email domain that can receive mail.'); return;
+        }
         if (!isEmailPasswordVerified) {
             setEmailPasswordError('Please verify your current password first.'); return;
         }
@@ -382,6 +443,8 @@ export default function MyProfile() {
                 setShowEmailModal(false);
                 setEmailFormData({ newEmail: '', currentPassword: '' });
                 setIsEmailPasswordVerified(false);
+                setIsEmailDomainValid(false);
+                setIsCheckingEmailDomain(false);
                 setEmailAddressError('');
                 setEmailPasswordError('');
                 setEmailChangeError('');
@@ -453,9 +516,11 @@ export default function MyProfile() {
     const canRequestEmailChange = Boolean(
         emailFormData.newEmail.trim()
         && !getEmailFormatError(emailFormData.newEmail)
+        && isEmailDomainValid
         && isEmailPasswordVerified
         && !isSubmittingEmail
         && !isVerifyingEmailPassword
+        && !isCheckingEmailDomain
     );
 
     return (
@@ -845,12 +910,15 @@ export default function MyProfile() {
                                         const newEmail = e.target.value;
                                         setEmailFormData({...emailFormData, newEmail});
                                         setEmailAddressError(getEmailFormatError(newEmail));
+                                        setIsEmailDomainValid(false);
                                         setEmailChangeError('');
                                     }}
                                     aria-invalid={isEmailInputError}
                                     disabled={isSubmittingEmail}
                                 />
                                 {isEmailInputError && <span className={styles.errorText}>{emailAddressError}</span>}
+                                {isCheckingEmailDomain && !isEmailInputError && <span className={styles.errorText} style={{ color: '#64748b' }}>Checking email domain...</span>}
+                                {isEmailDomainValid && !isCheckingEmailDomain && !isEmailInputError && <span className={styles.errorText} style={{ color: '#16a34a' }}>Email domain verified.</span>}
                             </div>
                             <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
                                 <label>CURRENT PASSWORD</label>
@@ -886,7 +954,7 @@ export default function MyProfile() {
                             <button type="submit" className={styles.submitBtn} style={{ width: '100%', marginBottom: '10px' }} disabled={!canRequestEmailChange}>
                                 {isSubmittingEmail ? 'REQUESTING...' : 'SEND VERIFICATION LINK'}
                             </button>
-                            <button type="button" className={styles.cancelBtn} style={{ width: '100%' }} onClick={() => { setShowEmailModal(false); setEmailAddressError(''); setEmailPasswordError(''); setEmailChangeError(''); setEmailFormData({newEmail: '', currentPassword: ''}); setIsEmailPasswordVerified(false); }} disabled={isSubmittingEmail}>
+                            <button type="button" className={styles.cancelBtn} style={{ width: '100%' }} onClick={() => { setShowEmailModal(false); setEmailAddressError(''); setEmailPasswordError(''); setEmailChangeError(''); setEmailFormData({newEmail: '', currentPassword: ''}); setIsEmailPasswordVerified(false); setIsEmailDomainValid(false); setIsCheckingEmailDomain(false); }} disabled={isSubmittingEmail}>
                                 CANCEL
                             </button>
                         </form>

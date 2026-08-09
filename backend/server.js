@@ -16,6 +16,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const crypto = require('crypto');
+const dns = require('dns').promises;
 const { spawn } = require('child_process');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -4085,6 +4086,50 @@ const sendPasswordResetOtpEmail = async ({ email, code }) => {
 
 const normalizeEmail = (email = '') => email.trim().toLowerCase();
 const isValidEmailAddress = (email = '') => GUEST_EMAIL_REGEX.test(normalizeEmail(email));
+const emailDomainValidationCache = new Map();
+const EMAIL_DOMAIN_CACHE_TTL_MS = 15 * 60 * 1000;
+
+const getEmailDomain = (email = '') => {
+    const normalizedEmail = normalizeEmail(email);
+    const [, domain = ''] = normalizedEmail.split('@');
+    return domain.trim();
+};
+
+const hasValidEmailDomain = async (email = '') => {
+    const domain = getEmailDomain(email);
+    if (!domain || !domain.includes('.') || domain.startsWith('.') || domain.endsWith('.')) {
+        return false;
+    }
+
+    const cached = emailDomainValidationCache.get(domain);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.isValid;
+    }
+
+    let isValid = false;
+    try {
+        const mxRecords = await dns.resolveMx(domain);
+        isValid = Array.isArray(mxRecords) && mxRecords.some((record) => record.exchange);
+    } catch {
+        try {
+            const addresses = await dns.resolve4(domain);
+            isValid = Array.isArray(addresses) && addresses.length > 0;
+        } catch {
+            try {
+                const addresses = await dns.resolve6(domain);
+                isValid = Array.isArray(addresses) && addresses.length > 0;
+            } catch {
+                isValid = false;
+            }
+        }
+    }
+
+    emailDomainValidationCache.set(domain, {
+        isValid,
+        expiresAt: Date.now() + EMAIL_DOMAIN_CACHE_TTL_MS,
+    });
+    return isValid;
+};
 
 const normalizePhoneNumber = (phone = '') => {
     const digits = String(phone).replace(/\D/g, '');
@@ -4715,6 +4760,25 @@ app.post('/api/check-email', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error checking email" });
+    }
+});
+
+app.post('/api/validate-email-domain', verifyToken, async (req, res) => {
+    try {
+        const normalizedEmail = normalizeEmail(req.body?.email || '');
+        if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
+            return res.status(400).json({ message: 'Please enter a valid email address.' });
+        }
+
+        const isDomainValid = await hasValidEmailDomain(normalizedEmail);
+        if (!isDomainValid) {
+            return res.status(400).json({ message: 'Please use a real email domain that can receive mail.' });
+        }
+
+        res.json({ success: true, message: 'Email domain is valid.' });
+    } catch (error) {
+        console.error('Error validating email domain:', error);
+        res.status(500).json({ message: 'Server error validating email domain.' });
     }
 });
 
@@ -6373,6 +6437,9 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
         const normalizedNewEmail = normalizeEmail(newEmail || '');
         if (!normalizedNewEmail || !isValidEmailAddress(normalizedNewEmail)) {
             return res.status(400).json({ message: 'A valid email address is required.' });
+        }
+        if (!(await hasValidEmailDomain(normalizedNewEmail))) {
+            return res.status(400).json({ message: 'Please use a real email domain that can receive mail.' });
         }
 
         // Check new email is not already taken
