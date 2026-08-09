@@ -69,6 +69,7 @@ const fetchWithFallback = async (endpoint, config) => {
  */
 export const authFetch = async (endpoint, options = {}) => {
     const token = localStorage.getItem('token');
+    const { skipUnauthorizedRedirect = false, ...fetchOptions } = options;
     const hasBody = options.body !== undefined && !(options.body instanceof FormData);
 
     const defaultHeaders = {
@@ -78,10 +79,10 @@ export const authFetch = async (endpoint, options = {}) => {
 
     // Merge default headers with any custom headers passed in
     const config = {
-        ...options,
+        ...fetchOptions,
         headers: {
             ...defaultHeaders,
-            ...options.headers,
+            ...fetchOptions.headers,
         },
     };
 
@@ -91,7 +92,7 @@ export const authFetch = async (endpoint, options = {}) => {
     try {
         const response = await fetchWithFallback(formattedEndpoint, config);
 
-        if (response.status === 401) {
+        if (response.status === 401 && !skipUnauthorizedRedirect) {
             console.warn("Session expired. Redirecting to login.");
             localStorage.removeItem('token');
             localStorage.removeItem('ngitify_user');

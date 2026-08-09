@@ -49,6 +49,10 @@ export default function MyProfile() {
     const [initialData, setInitialData] = useState(null);
 
     const isValidEmail = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
+    const getEmailFormatError = (email = '') => {
+        const trimmedEmail = String(email).trim();
+        return trimmedEmail && !isValidEmail(trimmedEmail) ? 'Please enter a valid email address.' : '';
+    };
 
     // Exact derived properties
     const availableProvinces = formData.region ? provinces[formData.region] || [] : [];
@@ -311,16 +315,18 @@ export default function MyProfile() {
         if (!emailFormData.newEmail || !emailFormData.currentPassword) {
             setEmailError('All fields are required.'); return;
         }
-        if (!isValidEmail(emailFormData.newEmail)) {
-            setEmailError('Please enter a valid email address.'); return;
+        const emailFormatError = getEmailFormatError(emailFormData.newEmail);
+        if (emailFormatError) {
+            setEmailError(emailFormatError); return;
         }
         setIsSubmittingEmail(true);
 
         try {
             const response = await authFetch(`/user/request-email-change`, {
                 method: 'POST',
+                skipUnauthorizedRedirect: true,
                 body: JSON.stringify({
-                    newEmail: emailFormData.newEmail,
+                    newEmail: emailFormData.newEmail.trim(),
                     currentPassword: emailFormData.currentPassword
                 }),
             });
@@ -745,7 +751,11 @@ export default function MyProfile() {
                                     type="email"
                                     className={`${styles.inputField} ${emailError.toLowerCase().includes('valid email') ? styles.errorBorder : ''}`}
                                     value={emailFormData.newEmail} 
-                                    onChange={(e) => { setEmailError(''); setEmailFormData({...emailFormData, newEmail: e.target.value}); }}
+                                    onChange={(e) => {
+                                        const newEmail = e.target.value;
+                                        setEmailFormData({...emailFormData, newEmail});
+                                        setEmailError(getEmailFormatError(newEmail));
+                                    }}
                                     required
                                     disabled={isSubmittingEmail}
                                 />
