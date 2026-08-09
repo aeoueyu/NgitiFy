@@ -100,7 +100,7 @@ export default function MyProfile() {
                     setEmailAddressError('');
                 } else {
                     setIsEmailDomainValid(false);
-                    setEmailAddressError(data.message || 'Please use a real email domain that can receive mail.');
+                    setEmailAddressError(data.message || 'Please enter a valid email address.');
                 }
             } catch {
                 if (isActive) {
