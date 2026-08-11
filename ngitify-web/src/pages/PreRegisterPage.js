@@ -85,6 +85,8 @@ const initialMedicalHistory = {
 const REQUIRED_MARK = <span style={{ color: '#dc2626' }}> *</span>;
 
 const PRE_REGISTER_FIELD_ORDER = [
+    'appointment_guestBirthdate',
+    'appointment_guestGender',
     'profile_occupation',
     'profile_occupationOther',
     'home_region',
@@ -228,6 +230,7 @@ export default function PreRegisterPage() {
     const buildValidationErrors = (snapshot) => {
         const nextErrors = {};
         const {
+            appointmentInfo: nextAppointmentInfo,
             profile: nextProfile,
             homeAddress: nextHomeAddress,
             emergencyContact: nextEmergencyContact,
@@ -240,6 +243,10 @@ export default function PreRegisterPage() {
             isMinor: nextIsMinor,
             isPhoneCallPreRegistration: nextIsPhoneCallPreRegistration,
         } = snapshot;
+
+        if (!String(nextAppointmentInfo?.guestBirthdate || '').trim()) nextErrors.appointment_guestBirthdate = 'Required';
+        else if (isFutureDate(nextAppointmentInfo.guestBirthdate)) nextErrors.appointment_guestBirthdate = 'Birthdate cannot be in the future.';
+        if (!String(nextAppointmentInfo?.guestGender || '').trim()) nextErrors.appointment_guestGender = 'Required';
 
         ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
             if (!String(nextHomeAddress[field] || '').trim()) nextErrors[`home_${field}`] = 'Required';
@@ -312,6 +319,7 @@ export default function PreRegisterPage() {
     };
 
     const getSnapshot = (overrides = {}) => ({
+        appointmentInfo,
         profile,
         homeAddress,
         emergencyContact,
@@ -439,6 +447,25 @@ export default function PreRegisterPage() {
         }
         setHomeAddress(nextHomeAddress);
         syncErrors(getSnapshot({ homeAddress: nextHomeAddress }), ['home_region', 'home_province', 'home_city', 'home_barangay', 'home_street', 'home_houseNumber']);
+    };
+
+    const handleAppointmentInfoChange = (field, value) => {
+        const nextAppointmentInfo = { ...(appointmentInfo || {}), [field]: value };
+        const nextAge = getAge(nextAppointmentInfo.guestBirthdate);
+        const nextSignerRole = nextAge !== null && nextAge < 18 ? 'Parent' : 'Patient';
+
+        setAppointmentInfo(nextAppointmentInfo);
+        setConsentAcknowledgement((prev) => (
+            prev.signerRole === 'Patient' || prev.signerRole === 'Parent'
+                ? { ...prev, signerRole: nextSignerRole }
+                : prev
+        ));
+        setDataPrivacyConsent((prev) => (
+            prev.signerRole === 'Patient' || prev.signerRole === 'Parent'
+                ? { ...prev, signerRole: nextSignerRole }
+                : prev
+        ));
+        syncErrors(getSnapshot({ appointmentInfo: nextAppointmentInfo }), ['appointment_guestBirthdate', 'appointment_guestGender']);
     };
 
     const handleProfileChange = (field, value) => {
@@ -577,6 +604,8 @@ export default function PreRegisterPage() {
             const response = await publicFetch(`/pre-register/${token}`, {
                 method: 'POST',
                 body: JSON.stringify({
+                    guestBirthdate: appointmentInfo?.guestBirthdate || '',
+                    guestGender: appointmentInfo?.guestGender || '',
                     homeAddress,
                     guestProfile: {
                         ...profile,
@@ -711,13 +740,30 @@ export default function PreRegisterPage() {
                                     </div>
                                 )}
                                 <div className={styles.formGrid} style={{ marginTop: '16px' }}>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Birthdate</label>
-                                        <div className={styles.fieldInput}>{formatDate(appointmentInfo.guestBirthdate)}</div>
+                                    <div className={styles.fieldGroup} data-field-key="appointment_guestBirthdate">
+                                        <label className={styles.fieldLabel}>Birthdate{REQUIRED_MARK}</label>
+                                        <input
+                                            type="date"
+                                            className={`${styles.fieldInput} ${errors.appointment_guestBirthdate ? styles.errorBorder : ''}`}
+                                            value={formatDateInputValue(appointmentInfo.guestBirthdate)}
+                                            onChange={(e) => handleAppointmentInfoChange('guestBirthdate', e.target.value)}
+                                            max={getTodayDate()}
+                                        />
+                                        {errors.appointment_guestBirthdate && <span className={styles.errorText}>{errors.appointment_guestBirthdate}</span>}
                                     </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Gender</label>
-                                        <div className={styles.fieldInput}>{appointmentInfo.guestGender || 'Not provided'}</div>
+                                    <div className={styles.fieldGroup} data-field-key="appointment_guestGender">
+                                        <label className={styles.fieldLabel}>Gender{REQUIRED_MARK}</label>
+                                        <select
+                                            className={`${styles.fieldSelect} ${errors.appointment_guestGender ? styles.errorBorder : ''}`}
+                                            value={appointmentInfo.guestGender || ''}
+                                            onChange={(e) => handleAppointmentInfoChange('guestGender', e.target.value)}
+                                        >
+                                            <option value="">Select gender</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Prefer not to say">Prefer not to say</option>
+                                        </select>
+                                        {errors.appointment_guestGender && <span className={styles.errorText}>{errors.appointment_guestGender}</span>}
                                     </div>
                                 </div>
                             </>

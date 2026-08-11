@@ -881,6 +881,9 @@ app.get('/api/activate-account/:token', async (req, res) => {
         const account = await User.findOne({ activationToken: token });
 
         if (!account) return res.status(400).json({ message: "Invalid or expired activation link." });
+        if (account.activationTokenExpires && new Date(account.activationTokenExpires) < new Date()) {
+            return res.status(400).json({ message: "Invalid or expired activation link." });
+        }
 
         res.json({
             message: 'Activation link is valid.',
@@ -901,6 +904,9 @@ app.post('/api/activate-account', async (req, res) => {
         const account = await User.findOne({ activationToken: token });
 
         if (!account) return res.status(400).json({ message: "Invalid or expired activation link." });
+        if (account.activationTokenExpires && new Date(account.activationTokenExpires) < new Date()) {
+            return res.status(400).json({ message: "Invalid or expired activation link." });
+        }
 
         const requiresPasswordSetup = account.isPasswordChanged !== true;
         if (requiresPasswordSetup) {
@@ -936,6 +942,7 @@ app.post('/api/activate-account', async (req, res) => {
             account.assignedBranch = account.assignedBranches[0];
         }
         account.activationToken = undefined;
+        account.activationTokenExpires = null;
         await account.save();
 
         res.json({ 
@@ -952,6 +959,11 @@ app.post('/api/activate-account', async (req, res) => {
 
 const getFrontendBaseUrl = () => String(process.env.FRONTEND_URL || '').replace(/\/+$/, '');
 const getDentimeLogoUrl = () => `${getFrontendBaseUrl()}/logo.svg`;
+const PASSWORD_RESET_OTP_LIFETIME_MS = 60 * 60 * 1000;
+const PASSWORD_RESET_OTP_LIFETIME_LABEL = '1 hour';
+const PRE_REGISTRATION_TOKEN_LIFETIME_LABEL = '72 hours';
+const ACTIVATION_LINK_LIFETIME_MS = 72 * 60 * 60 * 1000;
+const ACTIVATION_LINK_LIFETIME_LABEL = '72 hours';
 const formatEmailDateLabel = (value) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return 'To be coordinated by the clinic';
@@ -1057,6 +1069,9 @@ const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, ac
     const intro = options?.intro || 'Please activate your account and create your password to continue.';
     const actionInstruction = options?.actionInstruction || 'Use the button below to verify your email address and set your own password.';
     const accountCreatedMessage = options?.accountCreatedMessage || `Your <strong>${role}</strong> account has been successfully created.`;
+    const expiryMessage = options?.expiryMessage === undefined
+        ? `This activation link will expire in ${ACTIVATION_LINK_LIFETIME_LABEL}.`
+        : options.expiryMessage;
 
     await resend.emails.send({
         from: 'NgitiFy Admin <noreply@ngitify.com>',
@@ -1072,6 +1087,7 @@ const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, ac
                 <p style="margin:0 0 14px 0;">${accountCreatedMessage}</p>
                 ${procedureSummary}
                 <p style="margin:0 0 14px 0;">${actionInstruction}</p>
+                ${expiryMessage ? `<p style="margin:0 0 14px 0;">${expiryMessage}</p>` : ''}
                 <p style="margin:0;">${closingMessage}</p>
             `,
             ctaLabel: 'Activate Account',
@@ -1111,6 +1127,7 @@ const issueActivationSetupForAccount = async (account) => {
     const activationToken = crypto.randomBytes(32).toString('hex');
     account.password = seededPassword;
     account.activationToken = activationToken;
+    account.activationTokenExpires = new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS);
     account.isVerified = false;
     account.status = 'inactive';
     account.isPasswordChanged = false;
@@ -4089,7 +4106,7 @@ const sendPasswordResetOtpEmail = async ({ email, code }) => {
                     <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#01538b;margin-bottom:10px;">One-Time Password</div>
                     <div style="font-size:28px;font-weight:800;letter-spacing:0.24em;color:#0f172a;">${code}</div>
                 </div>
-                <p style="margin:0;">This code will expire in 1 hour. If you did not request a password reset, you may safely ignore this email.</p>
+                <p style="margin:0;">This code will expire in ${PASSWORD_RESET_OTP_LIFETIME_LABEL}. If you did not request a password reset, you may safely ignore this email.</p>
             `,
         }),
     });
@@ -4348,6 +4365,15 @@ const withLegacyGuestAddressMirrors = (payload = {}, homeAddress) => {
 
 const normalizeGuestText = (value = '') => String(value || '').trim();
 
+const normalizeGuestDateOnly = (value = '') => {
+    const text = normalizeGuestText(value);
+    if (!text) return null;
+    const parsed = new Date(`${text}T12:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const normalizeGuestGender = (value = '') => normalizeGuestText(value);
+
 const normalizeGuestPhoneMaybe = (value = '') => {
     const trimmed = String(value || '').trim();
     if (!trimmed) return '';
@@ -4534,7 +4560,7 @@ const sendPreRegistrationEmail = async ({ email, name, branch, date, time, proce
                     <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
                 ${reminderCopy ? `<p style="margin:0 0 14px 0;">${reminderCopy}</p>` : ''}
-                <p style="margin:0 0 14px 0;">This secure link will expire in 72 hours.</p>
+                <p style="margin:0 0 14px 0;">This secure link will expire in ${PRE_REGISTRATION_TOKEN_LIFETIME_LABEL}.</p>
                 <p style="margin:0;">If you have questions, you may contact the clinic through the details below.</p>
             `,
             ctaLabel: 'Complete Your Registration',
@@ -4649,7 +4675,7 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
         if (user && !isMobileNonPatient) {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             user.resetPasswordOtp = code;
-            user.resetPasswordExpires = Date.now() + 3600000;
+            user.resetPasswordExpires = Date.now() + PASSWORD_RESET_OTP_LIFETIME_MS;
             await user.save();
 
             await sendPasswordResetOtpEmail({ email: user.email, code });
@@ -4678,7 +4704,7 @@ app.post('/api/mobile/forgot-password', otpLimiter, async (req, res) => {
         if (user && user.role === 'patient') {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             user.resetPasswordOtp = code;
-            user.resetPasswordExpires = Date.now() + 3600000;
+            user.resetPasswordExpires = Date.now() + PASSWORD_RESET_OTP_LIFETIME_MS;
             await user.save();
 
             await sendPasswordResetOtpEmail({ email: user.email, code });
@@ -4859,6 +4885,7 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
             isVerified: false,
             status: 'inactive',
             activationToken,
+            activationTokenExpires: new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS),
             temporaryPasswordExpires: null,
             isPasswordChanged: false,
         });
@@ -4931,6 +4958,7 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
             isVerified: false,
             status: 'inactive',
             activationToken,
+            activationTokenExpires: new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS),
             temporaryPasswordExpires: null,
             isPasswordChanged: false,
         });
@@ -5000,6 +5028,7 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
             isVerified: false, 
             status: 'inactive',
             activationToken,
+            activationTokenExpires: new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS),
             temporaryPasswordExpires: null,
             isPasswordChanged: false,
         });
@@ -5110,6 +5139,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             isVerified: false,
             status: 'inactive',
             activationToken,
+            activationTokenExpires: new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS),
             temporaryPasswordExpires: null,
             isPasswordChanged: false,
         });
@@ -5185,6 +5215,7 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
             isVerified: false,
             status: 'inactive',
             activationToken,
+            activationTokenExpires: new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS),
             temporaryPasswordExpires: null,
             isPasswordChanged: false,
         });
@@ -6264,16 +6295,16 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
                 const emailExists = await User.findOne({ email: normalizedEmail });
                 if (emailExists) return res.status(409).json({ field: 'email', message: "New email is already in use." });
 
-                const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
                 const activationToken = crypto.randomBytes(32).toString('hex');
 
                 normalizedUpdateData.email = normalizedEmail;
-                normalizedUpdateData.password = hashedPassword;
                 normalizedUpdateData.activationToken = activationToken;
+                normalizedUpdateData.activationTokenExpires = new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS);
                 normalizedUpdateData.isVerified = false;
                 normalizedUpdateData.status = 'inactive';
-                normalizedUpdateData.isPasswordChanged = false;
                 normalizedUpdateData.temporaryPasswordExpires = null;
+                normalizedUpdateData.resetPasswordOtp = undefined;
+                normalizedUpdateData.resetPasswordExpires = undefined;
 
                 const updatedUser = await User.findByIdAndUpdate(userId, normalizedUpdateData, { new: true });
                 if (currentUser.role === 'branch-manager') {
@@ -6282,7 +6313,17 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
 
                 const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
                 try {
-                    await sendActivationEmail(normalizedEmail, currentUser.role, activationLink);
+                    await sendActivationEmail(normalizedEmail, currentUser.role, activationLink, '', {
+                        intro: currentUser.isPasswordChanged
+                            ? 'Please verify the updated email address for this account.'
+                            : 'Please activate the updated email address for this account and create your password to continue.',
+                        actionInstruction: currentUser.isPasswordChanged
+                            ? 'Use the button below to verify the updated email address. The current password for this account will stay the same after activation.'
+                            : 'Use the button below to verify the updated email address and set your password.',
+                        closingMessage: currentUser.isPasswordChanged
+                            ? 'After activation, sign in using the same password that was already being used before the email change.'
+                            : 'After activation, the account owner can finish setting their password and sign in normally.',
+                    });
                 } catch (emailError) {
                     console.error('Activation email failed after user update:', emailError.message);
                     return res.status(207).json({ message: 'User updated, but activation email failed to send.' });
@@ -6295,7 +6336,12 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
                     details: `Changed email for user ID ${userId} to ${normalizedEmail}`
                 });
 
-                return res.json({ message: "User updated. Re-activation email sent.", user: updatedUser });
+                return res.json({
+                    message: currentUser.isPasswordChanged
+                        ? "User updated. Verification email sent to the new address. The current password will stay the same after activation."
+                        : "User updated. Re-activation email sent.",
+                    user: updatedUser,
+                });
             }
         }
 
@@ -6531,10 +6577,13 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
 
         user.email = normalizedNewEmail;
         user.activationToken = activationToken;
+        user.activationTokenExpires = new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS);
         user.isVerified = false;
         user.status = 'inactive';
         user.lastEmailChangeRequestedAt = new Date();
         user.temporaryPasswordExpires = null;
+        user.resetPasswordOtp = undefined;
+        user.resetPasswordExpires = undefined;
         await user.save();
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
@@ -7520,6 +7569,7 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             ...patientPayload,
             password: hashedPassword,
             activationToken,
+            activationTokenExpires: new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS),
             temporaryPasswordExpires: null,
             isPasswordChanged: false,
         });
@@ -8694,6 +8744,8 @@ app.post('/api/pre-register/:token', async (req, res) => {
             return res.status(410).json({ message: 'This link has expired.' });
         }
 
+        const guestBirthdate = normalizeGuestDateOnly(req.body.guestBirthdate);
+        const guestGender = normalizeGuestGender(req.body.guestGender);
         const homeAddress = pickCanonicalAddress(req.body.homeAddress, req.body.currentAddress, req.body.permanentAddress);
         const guestProfile = normalizeGuestProfile(req.body.guestProfile);
         const guestEmergencyContact = normalizeGuestEmergencyContact(req.body.guestEmergencyContact);
@@ -8712,6 +8764,17 @@ app.post('/api/pre-register/:token', async (req, res) => {
         ]);
         if (invalidPersonNameMessage) {
             return res.status(400).json({ message: invalidPersonNameMessage });
+        }
+        if (!guestBirthdate) {
+            return res.status(400).json({ message: 'Birthdate is required.' });
+        }
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        if (guestBirthdate > today) {
+            return res.status(400).json({ message: 'Birthdate cannot be in the future.' });
+        }
+        if (!guestGender) {
+            return res.status(400).json({ message: 'Gender is required.' });
         }
         if (!isAddressComplete(homeAddress)) {
             return res.status(400).json({ message: 'Home address is required.' });
@@ -8735,6 +8798,8 @@ app.post('/api/pre-register/:token', async (req, res) => {
             return res.status(400).json({ message: 'Please complete the consent and data privacy acknowledgements.' });
         }
 
+        surgery.guestBirthdate = guestBirthdate;
+        surgery.guestGender = guestGender;
         surgery.guestHomeAddress = homeAddress;
         surgery.guestCurrentAddress = homeAddress;
         surgery.guestPermanentAddress = homeAddress;

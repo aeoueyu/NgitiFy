@@ -234,6 +234,7 @@ const userSchema = new mongoose.Schema({
     // 9. SECURITY & VERIFICATION
     isVerified: { type: Boolean, default: false },
     activationToken: { type: String },
+    activationTokenExpires: { type: Date, default: null },
     lastEmailChangeRequestedAt: { type: Date, default: null },
     isPasswordChanged: { type: Boolean, default: false },
     temporaryPasswordExpires: { type: Date },
