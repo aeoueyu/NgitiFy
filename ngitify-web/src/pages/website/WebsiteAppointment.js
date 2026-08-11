@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WebsiteShell from '../../components/website/WebsiteShell';
 import WebsiteImage from '../../components/website/WebsiteImage';
+import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
 import styles from '../../styles/website/WebsitePages.module.css';
 import {
     privacyPolicySections,
@@ -108,6 +109,10 @@ const REQUIRED_FIELD_ORDER = [
     'turnstileToken',
 ];
 
+const dataPrivacyReviewGroups = [
+    { heading: `Data Privacy Notice ${privacyPolicyVersion} - Updated ${privacyPolicyUpdatedAt}`, sections: privacyPolicySections },
+];
+
 const REQUIRED_MARK = <span style={{ color: '#dc2626' }}> *</span>;
 export default function WebsiteAppointment() {
     const {
@@ -124,7 +129,6 @@ export default function WebsiteAppointment() {
     );
     const turnstileContainerRef = useRef(null);
     const turnstileWidgetIdRef = useRef(null);
-    const privacyModalBodyRef = useRef(null);
     const [formData, setFormData] = useState(() => buildInitialForm({ branchOptions, appointmentProcedureOptions }));
     const [errors, setErrors] = useState({});
     const [submittedMessage, setSubmittedMessage] = useState('');
@@ -141,7 +145,6 @@ export default function WebsiteAppointment() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [captchaReady, setCaptchaReady] = useState(false);
     const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
-    const [hasViewedPrivacyPolicy, setHasViewedPrivacyPolicy] = useState(false);
 
     const renderTurnstile = useCallback(() => {
         if (!TURNSTILE_SITE_KEY || !turnstileContainerRef.current || !window.turnstile) return;
@@ -199,28 +202,6 @@ export default function WebsiteAppointment() {
                 : (appointmentProcedureOptions[0] || ''),
         }));
     }, [appointmentProcedureOptions, branchOptions]);
-
-    useEffect(() => {
-        if (!isPrivacyModalOpen) return;
-        setHasViewedPrivacyPolicy(false);
-        const frame = requestAnimationFrame(() => {
-            if (!privacyModalBodyRef.current) return;
-            privacyModalBodyRef.current.scrollTop = 0;
-            const { clientHeight, scrollHeight } = privacyModalBodyRef.current;
-            if (scrollHeight <= clientHeight + 12) {
-                setHasViewedPrivacyPolicy(true);
-            }
-        });
-        return () => cancelAnimationFrame(frame);
-    }, [isPrivacyModalOpen]);
-
-    const handlePrivacyModalScroll = () => {
-        if (!privacyModalBodyRef.current || hasViewedPrivacyPolicy) return;
-        const { scrollTop, clientHeight, scrollHeight } = privacyModalBodyRef.current;
-        if (scrollTop + clientHeight >= scrollHeight - 12) {
-            setHasViewedPrivacyPolicy(true);
-        }
-    };
 
     const fetchBlockedDates = useCallback(async (branch, month) => {
         if (!branch) return;
@@ -397,14 +378,6 @@ export default function WebsiteAppointment() {
 
     const handleChange = (event) => {
         const { name, type, value, checked } = event.target;
-        if (name === 'privacyConsent' && type === 'checkbox') {
-            if (checked) {
-                setIsPrivacyModalOpen(true);
-            } else {
-                setFormData((prev) => ({ ...prev, privacyConsent: false }));
-            }
-            return;
-        }
         const nextValue = name === 'phone'
                 ? normalizePhone(value)
                 : ['firstName', 'lastName'].includes(name)
@@ -871,30 +844,26 @@ export default function WebsiteAppointment() {
                             </div>
 
                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="privacyConsent">
-                                <label
-                                    className={`${styles.consentCard} ${errors.privacyConsent ? styles.errorBorder : ''}`}
-                                    htmlFor="privacyConsent"
+                                <label className={styles.fieldLabel}>Data Privacy Consent{REQUIRED_MARK}</label>
+                                <p className={styles.helperText} style={{ marginTop: 0 }}>
+                                    Review the full data privacy notice first. The consent acknowledgement will only be saved after the full notice has been viewed.
+                                </p>
+                                <button
+                                    type="button"
+                                    className={styles.inlineLinkBtn}
+                                    onClick={() => {
+                                        if (formData.privacyConsent) {
+                                            handlePrivacyAcknowledged(false);
+                                        } else {
+                                            setIsPrivacyModalOpen(true);
+                                        }
+                                    }}
                                 >
-                                    <input
-                                        id="privacyConsent"
-                                        type="checkbox"
-                                        name="privacyConsent"
-                                        className={styles.consentCheckbox}
-                                        checked={formData.privacyConsent}
-                                        onChange={handleChange}
-                                        onBlur={handleBlur}
-                                        required
-                                    />
-                                    <span className={styles.consentText}>
-                                        I have read and agree to the Privacy Policy of Dentime Dental Clinic. By submitting this form,
-                                        I consent to the collection, use, and processing of my personal data for appointment scheduling,
-                                        patient care coordination, and related clinic communications, in accordance with Republic Act No. 10173,
-                                        or the Data Privacy Act of 2012.
-                                    </span>
-                                </label>
-                                <button type="button" className={styles.inlineLinkBtn} onClick={() => setIsPrivacyModalOpen(true)}>
-                                    View Privacy Policy
+                                    {formData.privacyConsent ? 'Undo privacy acknowledgement' : 'Review and acknowledge data privacy consent'}
                                 </button>
+                                <span className={styles.helperText} style={{ color: formData.privacyConsent ? '#166534' : '#64748b', fontWeight: 600 }}>
+                                    {formData.privacyConsent ? 'Data privacy consent acknowledged.' : 'Data privacy consent has not been acknowledged yet.'}
+                                </span>
                                 {errors.privacyConsent && <span className={styles.errorText}>{errors.privacyConsent}</span>}
                             </div>
 
@@ -953,49 +922,17 @@ export default function WebsiteAppointment() {
                 </div>
             </section>
 
-            {isPrivacyModalOpen && (
-                <div className={styles.privacyModalOverlay} role="dialog" aria-modal="true" aria-labelledby="privacy-policy-title">
-                    <div className={styles.privacyModal}>
-                        <div className={styles.privacyModalHeader}>
-                            <div>
-                                <p className={styles.eyebrow}>Privacy Policy</p>
-                                <h3 id="privacy-policy-title" className={styles.privacyModalTitle}>Dentime Dental Clinic Privacy Policy</h3>
-                                <p className={styles.bodyText}>Version {privacyPolicyVersion} • Last updated {privacyPolicyUpdatedAt}</p>
-                            </div>
-                            <button type="button" className={styles.inlineLinkBtn} onClick={() => setIsPrivacyModalOpen(false)}>
-                                Close
-                            </button>
-                        </div>
-                        <div className={styles.privacyModalBody} ref={privacyModalBodyRef} onScroll={handlePrivacyModalScroll}>
-                            {privacyPolicySections.map((section) => (
-                                <article key={section.heading} className={styles.privacyPolicyCard}>
-                                    <h4>{section.heading}</h4>
-                                    <p>{section.body}</p>
-                                </article>
-                            ))}
-                        </div>
-                        <div className={styles.privacyModalFooter}>
-                            {!hasViewedPrivacyPolicy ? (
-                                <p className={styles.helperText}>Scroll to the end of the privacy policy to enable consent.</p>
-                            ) : (
-                                <p className={styles.helperText}>Full privacy policy reviewed. You may now confirm consent.</p>
-                            )}
-                            <button
-                                type="button"
-                                className={styles.primaryBtn}
-                                onClick={() => {
-                                    if (!hasViewedPrivacyPolicy) return;
-                                    handlePrivacyAcknowledged(true);
-                                    setIsPrivacyModalOpen(false);
-                                }}
-                                disabled={!hasViewedPrivacyPolicy}
-                            >
-                                I Understand and Consent
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConsentReviewModal
+                isOpen={isPrivacyModalOpen}
+                onClose={() => setIsPrivacyModalOpen(false)}
+                onConfirm={handlePrivacyAcknowledged}
+                initiallyAcknowledged={formData.privacyConsent}
+                title="Data Privacy Consent Review"
+                subtitle="Please review the full data privacy notice. The acknowledgement checkbox will only be enabled after scrolling through the entire notice."
+                reviewGroups={dataPrivacyReviewGroups}
+                acknowledgementLabel="I acknowledge that I have reviewed the full data privacy notice and consent to the processing of my information for clinic services."
+                confirmLabel="Save Privacy Acknowledgement"
+            />
 
             {isSuccessModalOpen && successModalMessage && (
                 <div className={styles.bookingSuccessOverlay} role="dialog" aria-modal="true" aria-labelledby="booking-success-title">

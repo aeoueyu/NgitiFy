@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import WebsiteShell from '../components/website/WebsiteShell';
 import ConsentReviewModal from '../components/admin/ConsentReviewModal';
 import styles from '../styles/website/WebsitePages.module.css';
+import { privacyPolicySections, privacyPolicyUpdatedAt, privacyPolicyVersion } from '../data/consentDocument';
 import { publicFetch } from '../utils/api';
 import { regions, provinces, cities, barangays } from '../utils/addressData';
 import {
@@ -85,6 +86,9 @@ const initialMedicalHistory = {
 const REQUIRED_MARK = <span style={{ color: '#dc2626' }}> *</span>;
 
 const PRE_REGISTER_FIELD_ORDER = [
+    'appointment_guestFirstName',
+    'appointment_guestLastName',
+    'appointment_guestPhone',
     'appointment_guestBirthdate',
     'appointment_guestGender',
     'profile_occupation',
@@ -114,6 +118,84 @@ const PRE_REGISTER_FIELD_ORDER = [
     'consentAcknowledgement_signerName',
     'consentAcknowledgement_signedAt',
     'consentAcknowledgement_acknowledged',
+];
+
+const PRE_REGISTER_STEPS = [
+    { key: 'identity', label: 'Identity' },
+    { key: 'contacts', label: 'Contacts' },
+    { key: 'medical', label: 'Medical & Dental' },
+    { key: 'consent', label: 'Consent & Review' },
+];
+
+const PRE_REGISTER_SECTION_FIELDS = {
+    identity: [
+        'appointment_guestFirstName',
+        'appointment_guestLastName',
+        'appointment_guestPhone',
+        'appointment_guestBirthdate',
+        'appointment_guestGender',
+        'profile_occupation',
+        'profile_occupationOther',
+        'profile_nationalityOther',
+        'profile_religionOther',
+        'profile_homePhone',
+        'profile_workPhone',
+    ],
+    contacts: [
+        'home_region',
+        'home_province',
+        'home_city',
+        'home_barangay',
+        'home_street',
+        'home_houseNumber',
+        'emergencyContact_name',
+        'emergencyContact_relationship',
+        'emergencyContact_relationshipOther',
+        'emergencyContact_contactNumber',
+        'guardian_name',
+        'guardian_relationship',
+        'guardian_relationshipOther',
+        'guardian_contactNumber',
+        'guardian_occupation',
+        'guardian_occupationOther',
+    ],
+    medical: [
+        'profile_reasonForConsultation',
+        'dentalHistory_lastExamDate',
+        'dentalHistory_hadTreatmentReaction',
+        'dentalHistory_reactionDetails',
+        'dentalHistory_hasConfidentialInfo',
+        'medicalHistory_inGoodHealth',
+        'medicalHistory_underMedicalTreatment',
+        'medicalHistory_medicalTreatmentDetails',
+        'medicalHistory_hadSeriousIllnessOrSurgery',
+        'medicalHistory_seriousIllnessOrSurgeryDetails',
+        'medicalHistory_hadHospitalization',
+        'medicalHistory_hospitalizationDetails',
+        'medicalHistory_isTakingMedication',
+        'medicalHistory_medications',
+        'medicalHistory_usesTobacco',
+        'medicalHistory_usesAlcoholOrDrugs',
+        'medicalHistory_hasAllergies',
+        'medicalHistory_allergies',
+        'medicalHistory_isPregnant',
+        'medicalHistory_isNursing',
+        'medicalHistory_takingBirthControl',
+        'physician_specialtyOther',
+        'physician_officeNumber',
+    ],
+    consent: [
+        'dataPrivacyConsent_signerName',
+        'dataPrivacyConsent_signedAt',
+        'dataPrivacyConsent_acknowledged',
+        'consentAcknowledgement_signerName',
+        'consentAcknowledgement_signedAt',
+        'consentAcknowledgement_acknowledged',
+    ],
+};
+
+const dataPrivacyReviewGroups = [
+    { heading: `Data Privacy Notice ${privacyPolicyVersion} - Updated ${privacyPolicyUpdatedAt}`, sections: privacyPolicySections },
 ];
 
 const formatDateInputValue = (value) => normalizeDateInputValue(value);
@@ -215,6 +297,8 @@ export default function PreRegisterPage() {
     const [message, setMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
+    const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+    const [activeStepKey, setActiveStepKey] = useState('identity');
 
     const patientAge = useMemo(() => getAge(appointmentInfo?.guestBirthdate), [appointmentInfo?.guestBirthdate]);
     const isMinor = patientAge !== null && patientAge < 18;
@@ -225,6 +309,14 @@ export default function PreRegisterPage() {
     const isPhoneCallPreRegistration = useMemo(
         () => String(appointmentInfo?.source || '').trim() === 'Phone Call',
         [appointmentInfo?.source]
+    );
+    const activeSteps = useMemo(
+        () => (isPhoneCallPreRegistration ? PRE_REGISTER_STEPS.filter((step) => step.key !== 'medical' && step.key !== 'consent') : PRE_REGISTER_STEPS),
+        [isPhoneCallPreRegistration]
+    );
+    const activeStepIndex = useMemo(
+        () => Math.max(activeSteps.findIndex((step) => step.key === activeStepKey), 0),
+        [activeStepKey, activeSteps]
     );
 
     const buildValidationErrors = (snapshot) => {
@@ -244,6 +336,10 @@ export default function PreRegisterPage() {
             isPhoneCallPreRegistration: nextIsPhoneCallPreRegistration,
         } = snapshot;
 
+        if (!String(nextAppointmentInfo?.guestFirstName || '').trim()) nextErrors.appointment_guestFirstName = 'Required';
+        if (!String(nextAppointmentInfo?.guestLastName || '').trim()) nextErrors.appointment_guestLastName = 'Required';
+        if (!String(nextAppointmentInfo?.guestPhone || '').trim()) nextErrors.appointment_guestPhone = 'Required';
+        else if (!isValidMobileNumber(nextAppointmentInfo.guestPhone)) nextErrors.appointment_guestPhone = 'Use 9xxxxxxxxx format.';
         if (!String(nextAppointmentInfo?.guestBirthdate || '').trim()) nextErrors.appointment_guestBirthdate = 'Required';
         else if (isFutureDate(nextAppointmentInfo.guestBirthdate)) nextErrors.appointment_guestBirthdate = 'Birthdate cannot be in the future.';
         if (!String(nextAppointmentInfo?.guestGender || '').trim()) nextErrors.appointment_guestGender = 'Required';
@@ -349,6 +445,47 @@ export default function PreRegisterPage() {
         return nextErrors;
     };
 
+    const getStepErrors = (stepKey, snapshot = getSnapshot()) => {
+        const nextErrors = buildValidationErrors(snapshot);
+        const stepFields = PRE_REGISTER_SECTION_FIELDS[stepKey] || [];
+        return stepFields.filter((field) => nextErrors[field]).reduce((accumulator, field) => ({
+            ...accumulator,
+            [field]: nextErrors[field],
+        }), {});
+    };
+
+    const focusFirstStepError = (stepKey, snapshot = getSnapshot()) => {
+        const stepErrors = getStepErrors(stepKey, snapshot);
+        const firstField = (PRE_REGISTER_SECTION_FIELDS[stepKey] || []).find((field) => stepErrors[field]);
+        if (firstField) scrollToField(firstField);
+        return stepErrors;
+    };
+
+    const goToStep = (stepKey) => {
+        if (!activeSteps.some((step) => step.key === stepKey)) return;
+        setActiveStepKey(stepKey);
+        window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    };
+
+    const handleStepAdvance = () => {
+        const currentStepKey = activeSteps[activeStepIndex]?.key;
+        if (!currentStepKey) return;
+        const snapshot = getSnapshot();
+        const stepErrors = getStepErrors(currentStepKey, snapshot);
+        syncErrors(snapshot, PRE_REGISTER_SECTION_FIELDS[currentStepKey] || []);
+        if (Object.keys(stepErrors).length > 0) {
+            focusFirstStepError(currentStepKey, snapshot);
+            return;
+        }
+        const nextStep = activeSteps[activeStepIndex + 1];
+        if (nextStep) goToStep(nextStep.key);
+    };
+
+    const handleStepBack = () => {
+        const previousStep = activeSteps[activeStepIndex - 1];
+        if (previousStep) goToStep(previousStep.key);
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             if (!token) {
@@ -380,7 +517,13 @@ export default function PreRegisterPage() {
                 const guestProfile = data.guestProfile || {};
                 const guestGuardian = data.guestGuardian || {};
 
-                setAppointmentInfo(data);
+                setAppointmentInfo({
+                    ...data,
+                    guestFirstName: data.guestFirstName || '',
+                    guestLastName: data.guestLastName || '',
+                    guestPhone: stripMobilePrefix(data.guestPhone || ''),
+                    guestEmail: data.guestEmail || '',
+                });
                 setProfile({
                     ...initialProfileState,
                     ...guestProfile,
@@ -431,6 +574,10 @@ export default function PreRegisterPage() {
         fetchData();
     }, [token]);
 
+    useEffect(() => {
+        setActiveStepKey('identity');
+    }, [isPhoneCallPreRegistration, state]);
+
     const handleAddressChange = (field, value) => {
         const nextHomeAddress = { ...homeAddress, [field]: value };
         if (field === 'region') {
@@ -451,6 +598,13 @@ export default function PreRegisterPage() {
 
     const handleAppointmentInfoChange = (field, value) => {
         const nextAppointmentInfo = { ...(appointmentInfo || {}), [field]: value };
+        if (field === 'guestFirstName' || field === 'guestLastName') {
+            if (!isAllowedPersonNameInput(value)) return;
+            nextAppointmentInfo[field] = toTitleCaseName(value);
+        }
+        if (field === 'guestPhone') {
+            nextAppointmentInfo[field] = value.replace(/\D/g, '').slice(0, 10);
+        }
         const nextAge = getAge(nextAppointmentInfo.guestBirthdate);
         const nextSignerRole = nextAge !== null && nextAge < 18 ? 'Parent' : 'Patient';
 
@@ -465,7 +619,10 @@ export default function PreRegisterPage() {
                 ? { ...prev, signerRole: nextSignerRole }
                 : prev
         ));
-        syncErrors(getSnapshot({ appointmentInfo: nextAppointmentInfo }), ['appointment_guestBirthdate', 'appointment_guestGender']);
+        syncErrors(
+            getSnapshot({ appointmentInfo: nextAppointmentInfo }),
+            ['appointment_guestFirstName', 'appointment_guestLastName', 'appointment_guestPhone', 'appointment_guestBirthdate', 'appointment_guestGender']
+        );
     };
 
     const handleProfileChange = (field, value) => {
@@ -594,6 +751,8 @@ export default function PreRegisterPage() {
         const nextErrors = syncErrors(getSnapshot(), null);
         if (Object.keys(nextErrors).length > 0) {
             const firstErrorKey = PRE_REGISTER_FIELD_ORDER.find((field) => nextErrors[field]) || Object.keys(nextErrors)[0];
+            const targetStep = activeSteps.find((step) => (PRE_REGISTER_SECTION_FIELDS[step.key] || []).includes(firstErrorKey));
+            if (targetStep) setActiveStepKey(targetStep.key);
             scrollToField(firstErrorKey);
             return;
         }
@@ -604,6 +763,9 @@ export default function PreRegisterPage() {
             const response = await publicFetch(`/pre-register/${token}`, {
                 method: 'POST',
                 body: JSON.stringify({
+                    guestFirstName: appointmentInfo?.guestFirstName || '',
+                    guestLastName: appointmentInfo?.guestLastName || '',
+                    guestPhone: toMobilePayload(appointmentInfo?.guestPhone || ''),
                     guestBirthdate: appointmentInfo?.guestBirthdate || '',
                     guestGender: appointmentInfo?.guestGender || '',
                     homeAddress,
@@ -740,6 +902,59 @@ export default function PreRegisterPage() {
                                     </div>
                                 )}
                                 <div className={styles.formGrid} style={{ marginTop: '16px' }}>
+                                    <div className={styles.fieldGroup} data-field-key="appointment_guestFirstName">
+                                        <label className={styles.fieldLabel}>First Name{REQUIRED_MARK}</label>
+                                        <input
+                                            className={`${styles.fieldInput} ${errors.appointment_guestFirstName ? styles.errorBorder : ''}`}
+                                            value={appointmentInfo.guestFirstName || ''}
+                                            onChange={(e) => handleAppointmentInfoChange('guestFirstName', e.target.value)}
+                                            placeholder="Enter your first name"
+                                        />
+                                        {errors.appointment_guestFirstName && <span className={styles.errorText}>{errors.appointment_guestFirstName}</span>}
+                                    </div>
+                                    <div className={styles.fieldGroup} data-field-key="appointment_guestLastName">
+                                        <label className={styles.fieldLabel}>Last Name{REQUIRED_MARK}</label>
+                                        <input
+                                            className={`${styles.fieldInput} ${errors.appointment_guestLastName ? styles.errorBorder : ''}`}
+                                            value={appointmentInfo.guestLastName || ''}
+                                            onChange={(e) => handleAppointmentInfoChange('guestLastName', e.target.value)}
+                                            placeholder="Enter your last name"
+                                        />
+                                        {errors.appointment_guestLastName && <span className={styles.errorText}>{errors.appointment_guestLastName}</span>}
+                                    </div>
+                                    <div className={styles.fieldGroup} data-field-key="appointment_guestPhone">
+                                        <label className={styles.fieldLabel}>Phone{REQUIRED_MARK}</label>
+                                        <div className={`${styles.phoneInputGroup} ${errors.appointment_guestPhone ? styles.errorBorder : ''}`}>
+                                            <span className={styles.phonePrefix}>+63</span>
+                                            <input
+                                                className={styles.phoneField}
+                                                value={appointmentInfo.guestPhone || ''}
+                                                onChange={(e) => handleAppointmentInfoChange('guestPhone', e.target.value)}
+                                                maxLength={10}
+                                                placeholder="9xxxxxxxxx"
+                                            />
+                                        </div>
+                                        {errors.appointment_guestPhone && <span className={styles.errorText}>{errors.appointment_guestPhone}</span>}
+                                    </div>
+                                    <div className={styles.fieldGroup}>
+                                        <label className={styles.fieldLabel}>Email{REQUIRED_MARK}</label>
+                                        <input
+                                            type="email"
+                                            className={styles.fieldInput}
+                                            value={appointmentInfo.guestEmail || ''}
+                                            readOnly
+                                            disabled
+                                        />
+                                    </div>
+                                    <div className={styles.fieldGroup}>
+                                        <label className={styles.fieldLabel}>Branch{REQUIRED_MARK}</label>
+                                        <input
+                                            className={styles.fieldInput}
+                                            value={appointmentInfo.branch || ''}
+                                            readOnly
+                                            disabled
+                                        />
+                                    </div>
                                     <div className={styles.fieldGroup} data-field-key="appointment_guestBirthdate">
                                         <label className={styles.fieldLabel}>Birthdate{REQUIRED_MARK}</label>
                                         <input
@@ -775,9 +990,31 @@ export default function PreRegisterPage() {
                     {state === 'ready' && (
                         <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
                             {message && <div className={styles.errorBanner}>{message}</div>}
+                            <div className={styles.buttonRow} style={{ marginTop: 0, marginBottom: '20px' }}>
+                                {activeSteps.map((step, index) => (
+                                    <button
+                                        key={step.key}
+                                        type="button"
+                                        className={index === activeStepIndex ? styles.primaryBtn : styles.secondaryBtn}
+                                        onClick={() => {
+                                            if (index <= activeStepIndex) goToStep(step.key);
+                                        }}
+                                        disabled={index > activeStepIndex}
+                                        style={index > activeStepIndex ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
+                                    >
+                                        {index + 1}. {step.label}
+                                    </button>
+                                ))}
+                            </div>
 
+                            {activeStepKey === 'identity' && (
+                            <>
                             <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Patient Details</h3>
+                                <p className={styles.eyebrow} style={{ marginBottom: '8px' }}>Identity</p>
+                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Identity</h3>
+                                <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
+                                    Review your booking details and complete your personal information below.
+                                </p>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="profile_occupation">
                                         <label className={styles.fieldLabel}>Occupation{REQUIRED_MARK}</label>
@@ -853,18 +1090,25 @@ export default function PreRegisterPage() {
                                         <label className={styles.fieldLabel}>Referred By</label>
                                         <input className={styles.fieldInput} value={profile.referredBy} onChange={(e) => handleProfileChange('referredBy', e.target.value)} />
                                     </div>
-                                    {!isPhoneCallPreRegistration && (
-                                        <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="profile_reasonForConsultation">
-                                            <label className={styles.fieldLabel}>Reason for Consultation{REQUIRED_MARK}</label>
-                                            <textarea className={`${styles.fieldTextarea} ${errors.profile_reasonForConsultation ? styles.errorBorder : ''}`} value={profile.reasonForConsultation} onChange={(e) => handleProfileChange('reasonForConsultation', e.target.value)} />
-                                            {errors.profile_reasonForConsultation && <span className={styles.errorText}>{errors.profile_reasonForConsultation}</span>}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
+                            <div className={styles.buttonRow}>
+                                <button type="button" className={styles.primaryBtn} onClick={handleStepAdvance}>
+                                    Continue to Contacts
+                                </button>
+                            </div>
+                            </>
+                            )}
 
+                            {activeStepKey === 'contacts' && (
+                            <>
                             <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Home Address</h3>
+                                <p className={styles.eyebrow} style={{ marginBottom: '8px' }}>Contacts</p>
+                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Contacts</h3>
+                                <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
+                                    Add your address and the people the clinic can contact if needed.
+                                </p>
+                                <h4 className={styles.sectionTitle} style={{ fontSize: '1rem', marginTop: '18px' }}>Home Address</h4>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="home_region">
                                         <label className={styles.fieldLabel}>Region{REQUIRED_MARK}</label>
@@ -912,7 +1156,7 @@ export default function PreRegisterPage() {
                             </div>
 
                             <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Emergency Contact</h3>
+                                <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Emergency Contact</h3>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="emergencyContact_name">
                                         <label className={styles.fieldLabel}>Emergency Contact Name{REQUIRED_MARK}</label>
@@ -947,7 +1191,7 @@ export default function PreRegisterPage() {
 
                             {isMinor && (
                                 <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                    <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Guardian Details</h3>
+                                    <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Guardian Details</h3>
                                     <div className={styles.formGrid}>
                                         <div className={styles.fieldGroup} data-field-key="guardian_name">
                                             <label className={styles.fieldLabel}>Guardian Name{REQUIRED_MARK}</label>
@@ -995,12 +1239,40 @@ export default function PreRegisterPage() {
                                     </div>
                                 </div>
                             )}
+                            <div className={styles.buttonRow}>
+                                <button type="button" className={styles.secondaryBtn} onClick={handleStepBack}>
+                                    Back to Identity
+                                </button>
+                                {isPhoneCallPreRegistration ? (
+                                    <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
+                                        {isSubmitting ? 'Saving...' : 'Save Registration Details'}
+                                    </button>
+                                ) : (
+                                    <button type="button" className={styles.primaryBtn} onClick={handleStepAdvance}>
+                                        Continue to Medical & Dental
+                                    </button>
+                                )}
+                            </div>
+                            </>
+                            )}
 
-                            {!isPhoneCallPreRegistration && (
+                            {!isPhoneCallPreRegistration && activeStepKey === 'medical' && (
                                 <>
                                     <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
+                                        <p className={styles.eyebrow} style={{ marginBottom: '8px' }}>Medical & Dental</p>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Medical & Dental</h3>
+                                        <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
+                                            Complete your consultation reason, dental history, physician details, and medical background.
+                                        </p>
+                                        <div className={styles.formGrid} style={{ marginBottom: '20px' }}>
+                                            <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="profile_reasonForConsultation">
+                                                <label className={styles.fieldLabel}>Reason for Consultation{REQUIRED_MARK}</label>
+                                                <textarea className={`${styles.fieldTextarea} ${errors.profile_reasonForConsultation ? styles.errorBorder : ''}`} value={profile.reasonForConsultation} onChange={(e) => handleProfileChange('reasonForConsultation', e.target.value)} />
+                                                {errors.profile_reasonForConsultation && <span className={styles.errorText}>{errors.profile_reasonForConsultation}</span>}
+                                            </div>
+                                        </div>
                                         <div className={styles.intakeSection}>
-                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Dental History</h3>
+                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Dental History</h3>
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup} data-field-key="dentalHistory_lastExamDate">
                                                     <label className={styles.fieldLabel}>Last Dental Visit</label>
@@ -1033,7 +1305,7 @@ export default function PreRegisterPage() {
                                         <div className={styles.intakeDivider} />
 
                                         <div className={styles.intakeSection}>
-                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Attending Physician</h3>
+                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Attending Physician</h3>
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
                                                     <label className={styles.fieldLabel}>Physician Name</label>
@@ -1076,7 +1348,7 @@ export default function PreRegisterPage() {
                                         <div className={styles.intakeDivider} />
 
                                         <div className={styles.intakeSection}>
-                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Medical History</h3>
+                                            <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Medical History</h3>
                                             <div className={styles.intakeRow}>
                                                 {renderYesNoField('Are you in good health?', medicalHistory.inGoodHealth, (value) => handleMedicalChange('inGoodHealth', value), 'medicalHistory_inGoodHealth', 'medicalHistory_inGoodHealth')}
                                                 <div className={styles.intakeSpacer} />
@@ -1198,7 +1470,7 @@ export default function PreRegisterPage() {
                                     </div>
 
                                     <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Physician Information</h3>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Physician Information</h3>
                                         <div className={styles.formGrid}>
                                             <div className={styles.fieldGroup}>
                                                 <label className={styles.fieldLabel}>Physician Name</label>
@@ -1232,9 +1504,26 @@ export default function PreRegisterPage() {
                                             </div>
                                         </div>
                                     </div>
+                                    <div className={styles.buttonRow}>
+                                        <button type="button" className={styles.secondaryBtn} onClick={handleStepBack}>
+                                            Back to Contacts
+                                        </button>
+                                        <button type="button" className={styles.primaryBtn} onClick={handleStepAdvance}>
+                                            Continue to Consent & Review
+                                        </button>
+                                    </div>
+                                </>
+                            )}
 
+                            {!isPhoneCallPreRegistration && activeStepKey === 'consent' && (
+                                <>
                                     <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Data Privacy Act</h3>
+                                        <p className={styles.eyebrow} style={{ marginBottom: '8px' }}>Consent & Review</p>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Consent & Review</h3>
+                                        <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
+                                            Review the consent details carefully before submitting your pre-registration.
+                                        </p>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Data Privacy Act</h3>
                                         <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
                                             I authorize Dentime to collect, store, and process the patient&apos;s personal and health information for appointment handling, treatment documentation, follow-up care, and clinic operations in compliance with the Data Privacy Act of 2012.
                                         </p>
@@ -1259,17 +1548,30 @@ export default function PreRegisterPage() {
                                             </div>
                                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="dataPrivacyConsent_acknowledged">
                                                 <label className={styles.fieldLabel}>Data Privacy Acknowledgement{REQUIRED_MARK}</label>
-                                                <label className={`${styles.consentCard} ${errors.dataPrivacyConsent_acknowledged ? styles.errorBorder : ''}`}>
-                                                    <input type="checkbox" className={styles.consentCheckbox} checked={dataPrivacyConsent.acknowledged} onChange={(e) => handleConsentChange('privacy', 'acknowledged', e.target.checked)} />
-                                                    <span className={styles.consentText}>I acknowledge the data privacy consent.</span>
-                                                </label>
+                                                <button
+                                                    type="button"
+                                                    className={styles.secondaryBtn}
+                                                    onClick={() => {
+                                                        if (dataPrivacyConsent.acknowledged) {
+                                                            handleConsentChange('privacy', 'acknowledged', false);
+                                                        } else {
+                                                            setIsPrivacyModalOpen(true);
+                                                        }
+                                                    }}
+                                                    style={{ justifySelf: 'start' }}
+                                                >
+                                                    {dataPrivacyConsent.acknowledged ? 'Undo Privacy Acknowledgement' : 'Review Data Privacy Notice'}
+                                                </button>
+                                                <p className={styles.helperText} style={{ marginTop: '10px', color: dataPrivacyConsent.acknowledged ? '#166534' : undefined }}>
+                                                    {dataPrivacyConsent.acknowledged ? 'Data privacy consent acknowledged.' : 'Please review the full data privacy notice before submitting.'}
+                                                </p>
                                                 {errors.dataPrivacyConsent_acknowledged && <span className={styles.errorText}>{errors.dataPrivacyConsent_acknowledged}</span>}
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Digital Consent</h3>
+                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Digital Consent</h3>
                                         <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
                                             I confirm that the patient or authorized representative has reviewed the intake information, understands that treatment outcomes cannot be guaranteed, and accepts responsibility for the patient&apos;s dental treatment charges.
                                         </p>
@@ -1304,14 +1606,16 @@ export default function PreRegisterPage() {
                                             </div>
                                         </div>
                                     </div>
+                                    <div className={styles.buttonRow}>
+                                        <button type="button" className={styles.secondaryBtn} onClick={handleStepBack}>
+                                            Back to Medical & Dental
+                                        </button>
+                                        <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
+                                            {isSubmitting ? 'Saving...' : 'Save Registration Details'}
+                                        </button>
+                                    </div>
                                 </>
                             )}
-
-                            <div className={styles.buttonRow}>
-                                <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
-                                    {isSubmitting ? 'Saving...' : 'Save Registration Details'}
-                                </button>
-                            </div>
                         </form>
                     )}
 
@@ -1343,6 +1647,17 @@ export default function PreRegisterPage() {
                 onClose={() => setIsConsentModalOpen(false)}
                 onConfirm={() => handleConsentChange('consent', 'acknowledged', true)}
                 initiallyAcknowledged={consentAcknowledgement.acknowledged}
+            />
+            <ConsentReviewModal
+                isOpen={isPrivacyModalOpen}
+                onClose={() => setIsPrivacyModalOpen(false)}
+                onConfirm={() => handleConsentChange('privacy', 'acknowledged', true)}
+                initiallyAcknowledged={dataPrivacyConsent.acknowledged}
+                title="Data Privacy Consent Review"
+                subtitle="Please review the full data privacy notice. The acknowledgement checkbox will only be enabled after scrolling through the entire notice."
+                reviewGroups={dataPrivacyReviewGroups}
+                acknowledgementLabel="I acknowledge that the patient or authorized representative has reviewed the full data privacy notice."
+                confirmLabel="Save Privacy Acknowledgement"
             />
         </WebsiteShell>
     );

@@ -4373,6 +4373,12 @@ const normalizeGuestDateOnly = (value = '') => {
 };
 
 const normalizeGuestGender = (value = '') => normalizeGuestText(value);
+const normalizeGuestDisplayName = ({ firstName = '', lastName = '' } = {}) => (
+    [normalizePersonName(firstName), normalizePersonName(lastName)]
+        .filter(Boolean)
+        .join(' ')
+        .trim()
+);
 
 const normalizeGuestPhoneMaybe = (value = '') => {
     const trimmed = String(value || '').trim();
@@ -4584,12 +4590,12 @@ const splitGuestFullName = (fullName = '') => {
 const buildPatientPayload = ({ body = {}, fallbackGuest = null, assignedBranchOverride = '' }) => {
     const fallbackName = splitGuestFullName(fallbackGuest?.guestName || '');
     const email = normalizeEmail(body.email || fallbackGuest?.guestEmail || '');
-    const contactNumber = normalizePhoneNumber(body.contactNumber || body.phone || fallbackGuest?.guestPhone || '');
+    const contactNumber = normalizePhoneNumber(body.contactNumber || body.phone || body.guestPhone || fallbackGuest?.guestPhone || '');
 
     const name = {
-        first: normalizePersonName(body.name?.first || body.firstName || fallbackName.first),
+        first: normalizePersonName(body.name?.first || body.firstName || body.guestFirstName || fallbackName.first),
         middle: normalizePersonName(body.name?.middle || body.middleName || fallbackName.middle || ''),
-        last: normalizePersonName(body.name?.last || body.lastName || fallbackName.last),
+        last: normalizePersonName(body.name?.last || body.lastName || body.guestLastName || fallbackName.last),
     };
 
     const assignedBranch = assignedBranchOverride || body.assignedBranch || '';
@@ -8376,6 +8382,10 @@ app.get('/api/pre-register/:token', async (req, res) => {
 
         return res.json({
             guestName: surgery.guestName || 'Guest',
+            guestFirstName: splitGuestFullName(surgery.guestName || '').first,
+            guestLastName: splitGuestFullName(surgery.guestName || '').last,
+            guestPhone: surgery.guestPhone || '',
+            guestEmail: surgery.guestEmail || surgery.patient?.email || '',
             guestBirthdate: surgery.guestBirthdate || null,
             guestGender: surgery.guestGender || '',
             source: surgery.source || '',
@@ -8744,6 +8754,10 @@ app.post('/api/pre-register/:token', async (req, res) => {
             return res.status(410).json({ message: 'This link has expired.' });
         }
 
+        const guestFirstName = normalizePersonName(req.body.guestFirstName);
+        const guestLastName = normalizePersonName(req.body.guestLastName);
+        const guestName = normalizeGuestDisplayName({ firstName: guestFirstName, lastName: guestLastName });
+        const guestPhone = normalizeGuestPhoneMaybe(req.body.guestPhone);
         const guestBirthdate = normalizeGuestDateOnly(req.body.guestBirthdate);
         const guestGender = normalizeGuestGender(req.body.guestGender);
         const homeAddress = pickCanonicalAddress(req.body.homeAddress, req.body.currentAddress, req.body.permanentAddress);
@@ -8764,6 +8778,15 @@ app.post('/api/pre-register/:token', async (req, res) => {
         ]);
         if (invalidPersonNameMessage) {
             return res.status(400).json({ message: invalidPersonNameMessage });
+        }
+        if (!guestFirstName) {
+            return res.status(400).json({ message: 'First name is required.' });
+        }
+        if (!guestLastName) {
+            return res.status(400).json({ message: 'Last name is required.' });
+        }
+        if (!guestPhone) {
+            return res.status(400).json({ message: 'Phone is required.' });
         }
         if (!guestBirthdate) {
             return res.status(400).json({ message: 'Birthdate is required.' });
@@ -8798,6 +8821,8 @@ app.post('/api/pre-register/:token', async (req, res) => {
             return res.status(400).json({ message: 'Please complete the consent and data privacy acknowledgements.' });
         }
 
+        surgery.guestName = guestName;
+        surgery.guestPhone = guestPhone;
         surgery.guestBirthdate = guestBirthdate;
         surgery.guestGender = guestGender;
         surgery.guestHomeAddress = homeAddress;
