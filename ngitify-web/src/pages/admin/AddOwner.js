@@ -5,6 +5,7 @@ import successIcon from '../../assets/alert/success.svg';
 import BackIcon from '../../assets/icons/Back.svg';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import useRealtimeStaffEmailValidation from '../../hooks/useRealtimeStaffEmailValidation';
+import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import {
     addRequiredAddressErrors,
     getMaxDateForMinimumAge,
@@ -66,7 +67,7 @@ export default function AddOwner({ onClose, onSuccess }) {
     useRealtimeStaffEmailValidation({
         email: formData.email,
         setErrors,
-        enabled: !isLoading,
+        enabled: !isLoading && !showSuccessModal,
     });
 
     const handleChange = (e) => {
@@ -97,12 +98,20 @@ export default function AddOwner({ onClose, onSuccess }) {
         setFormData(prev => ({ ...prev, licenseNumber: sanitizeLicenseNumber(e.target.value) }));
     };
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onloadend = () => setProfileImage(reader.result);
-        reader.readAsDataURL(file);
+        if (isProfileImageTooLarge(file)) {
+            setErrors(prev => ({ ...prev, profileImage: PROFILE_IMAGE_SIZE_ERROR }));
+            e.target.value = '';
+            return;
+        }
+        try {
+            setErrors(prev => { const n = { ...prev }; delete n.profileImage; return n; });
+            setProfileImage(await readProfileImageAsDataUrl(file));
+        } catch {
+            setErrors(prev => ({ ...prev, profileImage: 'Failed to read the selected image.' }));
+        }
     };
 
     const triggerFileInput = () => fileInputRef.current?.click();
@@ -242,6 +251,7 @@ export default function AddOwner({ onClose, onSuccess }) {
                             {profileImage ? <img src={profileImage} alt="Profile" className={styles.previewImage} /> : <div className={styles.uploadPlaceholder}><span>Upload Photo</span></div>}
                         </div>
                         <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} disabled={isLoading} />
+                        {errors.profileImage && <span className={styles.errorText}>{errors.profileImage}</span>}
                     </div>
 
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>

@@ -15,7 +15,15 @@ export default function useRealtimeStaffEmailValidation({
     const latestRequestRef = useRef(0);
 
     useEffect(() => {
-        if (!enabled) return undefined;
+        if (!enabled) {
+            latestRequestRef.current += 1;
+            setErrors((prev) => (
+                hasDuplicateEmailError(prev.email)
+                    ? { ...prev, email: '' }
+                    : prev
+            ));
+            return undefined;
+        }
 
         const trimmedEmail = String(email || '').trim().toLowerCase();
 
@@ -45,6 +53,7 @@ export default function useRealtimeStaffEmailValidation({
 
                 if (response.status === 409) {
                     const data = await response.json();
+                    if (latestRequestRef.current !== requestId) return;
                     setErrors((prev) => ({ ...prev, email: data.message || DUPLICATE_EMAIL_MESSAGE }));
                     return;
                 }

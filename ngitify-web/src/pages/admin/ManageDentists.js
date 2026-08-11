@@ -123,6 +123,12 @@ export default function ManageDentists() {
         setPage((current) => Math.min(current, totalPages));
     }, [totalPages]);
 
+    const handleRowsPerPageChange = (event) => {
+        const nextValue = Number(event.target.value);
+        if (Number.isNaN(nextValue)) return;
+        setRowsPerPage(Math.max(1, nextValue));
+    };
+
     const handleToggleStatus = (dentist) => {
         if (dentist.isArchived) {
             addToast(`Restore Dr. ${dentist.name} from archive before changing activation status.`, 'error');
@@ -413,9 +419,16 @@ export default function ManageDentists() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
                         Rows per page
-                        <select value={rowsPerPage} onChange={(e) => setRowsPerPage(Number(e.target.value))} className={styles.filterSelect}>
-                            {[10, 20, 50, 100].map((value) => <option key={value} value={value}>{value}</option>)}
-                        </select>
+                        <input
+                            type="number"
+                            min="1"
+                            step="10"
+                            inputMode="numeric"
+                            value={rowsPerPage}
+                            onChange={handleRowsPerPageChange}
+                            className={styles.filterSelect}
+                            style={{ width: '90px' }}
+                        />
                     </label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#475569', fontSize: '14px' }}>
                         <span>Showing {(page - 1) * rowsPerPage + 1} to {Math.min(page * rowsPerPage, filteredDentists.length)} of {filteredDentists.length}</span>

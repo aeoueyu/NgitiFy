@@ -22,6 +22,7 @@ import {
 } from '../../utils/patientIntake';
 import { getFullName } from '../../utils/patientPortal';
 import styles from '../../styles/admin/AdminProfile.module.css';
+import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'];
 const CIVIL_STATUS_OPTIONS = ['Single', 'Married', 'Separated', 'Widowed', 'Prefer not to say'];
@@ -248,20 +249,23 @@ export default function PatientEditProfile() {
         });
     };
 
-    const handleImageUpload = (event) => {
+    const handleImageUpload = async (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const encoded = String(reader.result || '');
-            if (encoded.length > 1.5 * 1024 * 1024) {
-                setSaveError('Profile image must stay under 1.5MB.');
-                return;
-            }
+        if (isProfileImageTooLarge(file)) {
+            setSaveError(PROFILE_IMAGE_SIZE_ERROR);
+            event.target.value = '';
+            return;
+        }
+
+        try {
+            setSaveError('');
+            const encoded = await readProfileImageAsDataUrl(file);
             handleFieldChange('profileImage', encoded);
-        };
-        reader.readAsDataURL(file);
+        } catch {
+            setSaveError('Failed to read the selected image.');
+        }
     };
 
     const getRegionName = (code) => regions.find((entry) => entry.code === code)?.name || '';

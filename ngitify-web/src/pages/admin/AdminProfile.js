@@ -11,15 +11,13 @@ import { useToast } from '../../context/ToastContext';
 import UserAvatar from '../../components/common/UserAvatar';
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 
 const isValidEmail = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 const getEmailFormatError = (email = '') => {
     const trimmedEmail = String(email).trim();
     return trimmedEmail && !isValidEmail(trimmedEmail) ? 'Please enter a valid email address.' : '';
 };
-const MAX_PROFILE_IMAGE_SIZE_MB = 2;
-const MAX_PROFILE_IMAGE_SIZE_BYTES = MAX_PROFILE_IMAGE_SIZE_MB * 1024 * 1024;
-
 export default function MyProfile() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
@@ -278,19 +276,28 @@ export default function MyProfile() {
 
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            if (file.size > MAX_PROFILE_IMAGE_SIZE_BYTES) {
-                setShowImageSizeModal(true);
-                e.target.value = '';
-                return;
-            }
+        if (!file) return;
 
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, profileImage: reader.result }));
-            };
-            reader.readAsDataURL(file);
+        if (isProfileImageTooLarge(file)) {
+            setErrors((prev) => ({ ...prev, profileImage: PROFILE_IMAGE_SIZE_ERROR }));
+            setShowImageSizeModal(true);
+            e.target.value = '';
+            return;
         }
+
+        setErrors((prev) => {
+            const next = { ...prev };
+            delete next.profileImage;
+            return next;
+        });
+
+        readProfileImageAsDataUrl(file)
+            .then((profileImage) => {
+                setFormData((prev) => ({ ...prev, profileImage }));
+            })
+            .catch(() => {
+                setErrors((prev) => ({ ...prev, profileImage: 'Failed to read the selected image.' }));
+            });
     };
 
     const validateForm = () => {
@@ -577,6 +584,7 @@ export default function MyProfile() {
                             )}
                             <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageUpload} />
                         </div>
+                        {errors.profileImage ? <span className={styles.errorText}>{errors.profileImage}</span> : null}
                         <div className={styles.profileText}>
                             <h2>
                                 {user?.role === 'dentist' ? 'Dr. ' : ''}{formData.firstName || 'User'} {formData.middleName ? `${formData.middleName.charAt(0)}.` : ''} {formData.lastName || ''}

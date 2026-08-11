@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
 import { formatPatientDuplicateLine, getPatientDuplicateSections } from '../../utils/patientDuplicateWarnings';
+import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 
 export default function SecretaryAddPatient() {
     const navigate  = useNavigate();
@@ -88,12 +89,20 @@ export default function SecretaryAddPatient() {
         }
     };
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onloadend = () => setProfileImage(reader.result);
-        reader.readAsDataURL(file);
+        if (isProfileImageTooLarge(file)) {
+            setErrors(prev => ({ ...prev, profileImage: PROFILE_IMAGE_SIZE_ERROR }));
+            e.target.value = '';
+            return;
+        }
+        try {
+            setErrors(prev => { const n = { ...prev }; delete n.profileImage; return n; });
+            setProfileImage(await readProfileImageAsDataUrl(file));
+        } catch {
+            setErrors(prev => ({ ...prev, profileImage: 'Failed to read the selected image.' }));
+        }
     };
 
     const handleAddressChange = (field, value) => {
@@ -391,6 +400,7 @@ export default function SecretaryAddPatient() {
                             }
                         </div>
                         <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} />
+                        {errors.profileImage && <span className={styles.errorText}>{errors.profileImage}</span>}
                     </div>
 
                     {/* ── Personal Information ── */}

@@ -999,6 +999,10 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                     </div>
 
                     <h3 className={styles.mainSectionTitle}>Patient Details</h3>
+                    <p className={styles.sectionSubtitle} style={{ marginTop: 0 }}>
+                        Review the guest&apos;s identity first, then complete the remaining background, contact, and consent details in the sections below.
+                    </p>
+                    <h3 className={styles.sectionTitle}>Personal Information</h3>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>MIDDLE NAME</label><input className={styles.inputField} name="middleName" value={formData.middleName} onChange={handlePersonalChange} disabled={isLoading} /></div>
@@ -1024,6 +1028,8 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
 
                     {!isLinkMode && (
                         <>
+                    <hr className={styles.divider} style={{ marginTop: '10px' }} />
+                    <h3 className={styles.sectionTitle}>Contact and Background</h3>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>CIVIL STATUS</label><select className={styles.inputField} name="civilStatus" value={formData.civilStatus} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option><option value="Divorced">Divorced</option></select></div>
@@ -1069,16 +1075,9 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} disabled={isLoading} /></div>
                     </div>
 
-                    <div className={styles.row}>
-                        <div className={styles.formGroup}>
-                            <label>BLOOD TYPE</label>
-                            <select className={styles.inputField} name="bloodType" value={formData.bloodType} onChange={handlePersonalChange} disabled={isLoading}><option value="">Select Blood Type</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select>
-                        </div>
-                        <div className={styles.formGroup} />
-                    </div>
-
                     <hr className={styles.divider} style={{ marginTop: '10px' }} />
                     <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
+                    <p className={styles.sectionSubtitle}>Add the person the clinic can contact for urgent updates about this guest.</p>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>CONTACT NAME</label><input className={styles.inputField} name="emergencyContactName" value={formData.emergencyContactName} onChange={handlePersonalChange} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>RELATIONSHIP</label><input className={styles.inputField} name="emergencyContactRelationship" value={formData.emergencyContactRelationship} onChange={handlePersonalChange} disabled={isLoading} /></div>
@@ -1099,6 +1098,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
                         <>
                             <hr className={styles.divider} style={{ marginTop: '10px' }} />
                             <h3 className={styles.mainSectionTitle}>Guardian Information</h3>
+                            <p className={styles.sectionSubtitle}>Complete this section because the guest is still a minor.</p>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>GUARDIAN NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardianName ? styles.errorBorder : ''}`} name="guardianName" value={formData.guardianName} onChange={handlePersonalChange} disabled={isLoading} />{errors.guardianName && <span className={styles.errorText}>{errors.guardianName}</span>}</div>
                                 <div className={styles.formGroup}><label>RELATIONSHIP <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.guardianRelationship ? styles.errorBorder : ''}`} name="guardianRelationship" value={formData.guardianRelationship} onChange={handlePersonalChange} disabled={isLoading} />{errors.guardianRelationship && <span className={styles.errorText}>{errors.guardianRelationship}</span>}</div>
@@ -1147,6 +1147,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
 
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Dental History</h3>
+                    <p className={styles.sectionSubtitle}>Document any recent dental visit details and treatment reactions reported by the guest.</p>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={styles.inputField} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>REACTION OR COMPLICATION AFTER DENTAL TREATMENT?</label><select className={styles.inputField} value={formData.dentalHistory.hadTreatmentReaction} onChange={(e) => handleNestedChange('dentalHistory', 'hadTreatmentReaction', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
@@ -1158,6 +1159,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
 
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Medical History</h3>
+                    <p className={styles.sectionSubtitle}>Capture the guest&apos;s medical background so the clinic can review the case safely before treatment.</p>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>IN GOOD HEALTH?</label><select className={styles.inputField} value={formData.medicalHistory.inGoodHealth} onChange={(e) => handleNestedChange('medicalHistory', 'inGoodHealth', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
                         <div className={styles.formGroup}><label>UNDER MEDICAL TREATMENT NOW?</label><select className={styles.inputField} value={formData.medicalHistory.underMedicalTreatment} onChange={(e) => handleNestedChange('medicalHistory', 'underMedicalTreatment', e.target.value)} disabled={isLoading}><option value="">Select</option><option value="yes">Yes</option><option value="no">No</option></select></div>
@@ -1229,6 +1231,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
 
                     <hr className={styles.divider} />
                     <h3 className={styles.mainSectionTitle}>Attending Physician</h3>
+                    <p className={styles.sectionSubtitle}>Record the physician or clinic reference, if the guest provided one.</p>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>PHYSICIAN NAME</label><input className={styles.inputField} value={formData.physician.name} onChange={handleNestedNameChange('physician', 'name')} disabled={isLoading} /></div>
                         <div className={styles.formGroup}><label>SPECIALTY, IF APPLICABLE</label><select className={styles.inputField} value={formData.physician.specialty} onChange={(e) => handleNestedChange('physician', 'specialty', e.target.value)} disabled={isLoading}><option value="">Select Specialty</option>{PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>

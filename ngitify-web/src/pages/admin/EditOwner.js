@@ -6,6 +6,7 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
 import useRealtimeStaffEmailValidation from '../../hooks/useRealtimeStaffEmailValidation';
+import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import {
     addRequiredAddressErrors,
     getMaxDateForMinimumAge,
@@ -150,12 +151,20 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
         setFormData(prev => ({ ...prev, licenseNumber: sanitizeLicenseNumber(e.target.value) }));
     };
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onloadend = () => setProfileImage(reader.result);
-        reader.readAsDataURL(file);
+        if (isProfileImageTooLarge(file)) {
+            setErrors(prev => ({ ...prev, profileImage: PROFILE_IMAGE_SIZE_ERROR }));
+            e.target.value = '';
+            return;
+        }
+        try {
+            setErrors(prev => { const n = { ...prev }; delete n.profileImage; return n; });
+            setProfileImage(await readProfileImageAsDataUrl(file));
+        } catch {
+            setErrors(prev => ({ ...prev, profileImage: 'Failed to read the selected image.' }));
+        }
     };
 
     const triggerFileInput = () => fileInputRef.current?.click();
@@ -303,12 +312,13 @@ export default function EditOwner({ ownerId, onClose, onSuccess }) {
                 )}
 
                 <form onSubmit={handleSubmit} noValidate>
-                    <div className={styles.uploadSection}>
-                        <div className={styles.imageWrapper} onClick={triggerFileInput}>
-                            {profileImage ? <img src={profileImage} alt="Profile" className={styles.previewImage} /> : <div className={styles.uploadPlaceholder}><span>Upload Photo</span></div>}
-                        </div>
-                        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} disabled={isSaving} />
-                    </div>
+                            <div className={styles.uploadSection}>
+                                <div className={styles.imageWrapper} onClick={triggerFileInput}>
+                                    {profileImage ? <img src={profileImage} alt="Profile" className={styles.previewImage} /> : <div className={styles.uploadPlaceholder}><span>Upload Photo</span></div>}
+                                </div>
+                                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} disabled={isSaving} />
+                                {errors.profileImage && <span className={styles.errorText}>{errors.profileImage}</span>}
+                            </div>
 
                     <h3 className={styles.mainSectionTitle}>Personal Information</h3>
 

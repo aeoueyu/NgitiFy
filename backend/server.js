@@ -4776,6 +4776,18 @@ app.post('/api/check-email', async (req, res) => {
 
 const EMAIL_CHANGE_COOLDOWN_DAYS = 30;
 const EMAIL_CHANGE_COOLDOWN_MS = EMAIL_CHANGE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+const MAX_PROFILE_IMAGE_SIZE_MB = 2;
+const MAX_PROFILE_IMAGE_SIZE_BYTES = MAX_PROFILE_IMAGE_SIZE_MB * 1024 * 1024;
+const getImagePayloadSize = (image = '') => {
+    if (!image || !image.startsWith('data:image/')) return 0;
+    const base64Payload = image.includes(',') ? image.split(',').pop() : image;
+    return Buffer.byteLength(base64Payload, 'base64');
+};
+const isProfileImagePayloadTooLarge = (image = '') => getImagePayloadSize(image) > MAX_PROFILE_IMAGE_SIZE_BYTES;
+const sendProfileImageTooLargeResponse = (res) => res.status(413).json({
+    field: 'profileImage',
+    message: `Profile image must be under ${MAX_PROFILE_IMAGE_SIZE_MB}MB.`,
+});
 
 app.post('/api/validate-email-domain', verifyToken, async (req, res) => {
     try {
@@ -4833,6 +4845,9 @@ app.post('/api/add-dentist', verifyToken, async (req, res) => {
             { ...otherData },
             pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
         );
+        if (isProfileImagePayloadTooLarge(normalizedOtherData.profileImage)) {
+            return sendProfileImageTooLargeResponse(res);
+        }
 
         const newUser = new User({
             ...normalizedOtherData,
@@ -4903,6 +4918,9 @@ app.post('/api/add-secretary', verifyToken, async (req, res) => {
             { ...otherData },
             pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
         );
+        if (isProfileImagePayloadTooLarge(normalizedOtherData.profileImage)) {
+            return sendProfileImageTooLargeResponse(res);
+        }
 
         const newUser = new User({
             ...normalizedOtherData,
@@ -4968,6 +4986,9 @@ app.post('/api/add-branch-manager', verifyToken, async (req, res) => {
             { ...otherData },
             pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
         );
+        if (isProfileImagePayloadTooLarge(normalizedOtherData.profileImage)) {
+            return sendProfileImageTooLargeResponse(res);
+        }
 
         const newUser = new User({
             ...normalizedOtherData,
@@ -5062,6 +5083,9 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             { ...otherData },
             pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
         );
+        if (isProfileImagePayloadTooLarge(normalizedOtherData.profileImage)) {
+            return sendProfileImageTooLargeResponse(res);
+        }
         const invalidPersonNameMessage = getInvalidPersonNameMessage([
             ['Patient first name', normalizedOtherData.name?.first, true],
             ['Patient middle name', normalizedOtherData.name?.middle],
@@ -5148,6 +5172,9 @@ app.post('/api/add-owner', verifyToken, async (req, res) => {
             { ...otherData },
             pickCanonicalAddress(otherData.homeAddress, otherData.currentAddress, otherData.permanentAddress),
         );
+        if (isProfileImagePayloadTooLarge(normalizedOtherData.profileImage)) {
+            return sendProfileImageTooLargeResponse(res);
+        }
 
         const newUser = new User({
             ...normalizedOtherData,
@@ -5509,6 +5536,9 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
              consentAcknowledgement,
              dataPrivacyConsent
           }, resolvedHomeAddress);
+        if (profileImage !== undefined && isProfileImagePayloadTooLarge(profileImage)) {
+            return sendProfileImageTooLargeResponse(res);
+        }
         const invalidPersonNameMessage = getInvalidPersonNameMessage([
             ['Patient first name', updateData.name?.first],
             ['Patient middle name', updateData.name?.middle],
@@ -6182,6 +6212,9 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             updateData.permanentAddress,
         );
         const normalizedUpdateData = withLegacyAddressMirrors(updateData, resolvedHomeAddress);
+        if (normalizedUpdateData.profileImage !== undefined && isProfileImagePayloadTooLarge(normalizedUpdateData.profileImage)) {
+            return sendProfileImageTooLargeResponse(res);
+        }
 
         if (normalizedUpdateData.assignedBranch !== undefined) {
             normalizedUpdateData.assignedBranches = normalizedUpdateData.assignedBranch ? [normalizedUpdateData.assignedBranch] : [];
@@ -6283,14 +6316,6 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
 });
 
 app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
-    const MAX_PROFILE_IMAGE_SIZE_MB = 2;
-    const MAX_PROFILE_IMAGE_SIZE_BYTES = MAX_PROFILE_IMAGE_SIZE_MB * 1024 * 1024;
-    const getImagePayloadSize = (image = '') => {
-        if (!image || !image.startsWith('data:image/')) return 0;
-        const base64Payload = image.includes(',') ? image.split(',').pop() : image;
-        return Buffer.byteLength(base64Payload, 'base64');
-    };
-
     const isAdminTier = req.user.role === 'administrator';
     if (req.params.id !== req.user.id && !isAdminTier) {
         return res.status(403).json({ message: 'Access denied.' });
@@ -6363,8 +6388,8 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         if (specialization !== undefined) user.specialization = specialization;
         if (bio !== undefined) user.bio = bio;
         if (profileImage !== undefined) {
-            if (getImagePayloadSize(profileImage) > MAX_PROFILE_IMAGE_SIZE_BYTES) {
-                return res.status(413).json({ message: `Profile image must be under ${MAX_PROFILE_IMAGE_SIZE_MB}MB.` });
+            if (isProfileImagePayloadTooLarge(profileImage)) {
+                return sendProfileImageTooLargeResponse(res);
             }
             user.profileImage = profileImage;
         }

@@ -1212,7 +1212,8 @@ export default function PreRegisterPage() {
                                                 {errors.dataPrivacyConsent_signedAt && <span className={styles.errorText}>{errors.dataPrivacyConsent_signedAt}</span>}
                                             </div>
                                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="dataPrivacyConsent_acknowledged">
-                                                <label className={styles.consentCard}>
+                                                <label className={styles.fieldLabel}>Data Privacy Acknowledgement{REQUIRED_MARK}</label>
+                                                <label className={`${styles.consentCard} ${errors.dataPrivacyConsent_acknowledged ? styles.errorBorder : ''}`}>
                                                     <input type="checkbox" className={styles.consentCheckbox} checked={dataPrivacyConsent.acknowledged} onChange={(e) => handleConsentChange('privacy', 'acknowledged', e.target.checked)} />
                                                     <span className={styles.consentText}>I acknowledge the data privacy consent.</span>
                                                 </label>
@@ -1246,6 +1247,7 @@ export default function PreRegisterPage() {
                                                 {errors.consentAcknowledgement_signedAt && <span className={styles.errorText}>{errors.consentAcknowledgement_signedAt}</span>}
                                             </div>
                                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="consentAcknowledgement_acknowledged">
+                                                <label className={styles.fieldLabel}>Consent Review Acknowledgement{REQUIRED_MARK}</label>
                                                 <button type="button" className={styles.secondaryBtn} onClick={() => setIsConsentModalOpen(true)} style={{ justifySelf: 'start' }}>
                                                     {consentAcknowledgement.acknowledged ? 'Review Consent Again' : 'View Full Consent Form'}
                                                 </button>

@@ -5,6 +5,7 @@ import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
+import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 
 const initialAddress = {
     country: 'Philippines', region: '', province: '',
@@ -139,11 +140,20 @@ export default function SecretaryEditPatient() {
         }
     };
 
-    const handleImageChange = (e) => {
-        const file = e.target.files[0]; if (!file) return;
-        const r = new FileReader();
-        r.onloadend = () => setProfileImage(r.result);
-        r.readAsDataURL(file);
+    const handleImageChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (isProfileImageTooLarge(file)) {
+            setErrors(prev => ({ ...prev, profileImage: PROFILE_IMAGE_SIZE_ERROR }));
+            e.target.value = '';
+            return;
+        }
+        try {
+            setErrors(prev => { const n = { ...prev }; delete n.profileImage; return n; });
+            setProfileImage(await readProfileImageAsDataUrl(file));
+        } catch {
+            setErrors(prev => ({ ...prev, profileImage: 'Failed to read the selected image.' }));
+        }
     };
 
     const handleAddressChange = (field, value) => {
@@ -335,6 +345,7 @@ export default function SecretaryEditPatient() {
                             }
                         </div>
                         <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} />
+                        {errors.profileImage && <span className={styles.errorText}>{errors.profileImage}</span>}
                     </div>
 
                     {/* Personal Info */}
