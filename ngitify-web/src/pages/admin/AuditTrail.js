@@ -194,6 +194,7 @@ export default function AuditTrail() {
         const matchesSearch = !searchQuery.trim()
             || log.action.toLowerCase().includes(searchQuery.toLowerCase())
             || log.userName.toLowerCase().includes(searchQuery.toLowerCase())
+            || String(ROLE_LABELS[log.role] || log.role || '').toLowerCase().includes(searchQuery.toLowerCase())
             || String(log.details || '').toLowerCase().includes(searchQuery.toLowerCase());
 
         const matchesRole = roleFilter === 'All' || log.role === roleFilter.toLowerCase();
@@ -394,7 +395,7 @@ export default function AuditTrail() {
                         ) : (
                             <tr>
                                 <td colSpan="5" className={scheduleStyles.emptyStateBox}>
-                                    No audit logs match the current filters.
+                                    No results found.
                                 </td>
                             </tr>
                         )}

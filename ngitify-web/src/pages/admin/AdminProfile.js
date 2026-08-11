@@ -10,6 +10,7 @@ import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import UserAvatar from '../../components/common/UserAvatar';
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
+import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 
 const isValidEmail = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 const getEmailFormatError = (email = '') => {
@@ -48,6 +49,7 @@ export default function MyProfile() {
     const [emailChangeError, setEmailChangeError] = useState('');
     const [showEmailSuccessModal, setShowEmailSuccessModal] = useState(false);
     const [emailSuccessMessage, setEmailSuccessMessage] = useState('');
+    const [emailFieldErrors, setEmailFieldErrors] = useState({});
 
     // Main Form State - Unified for All Roles
     const [formData, setFormData] = useState({
@@ -65,6 +67,13 @@ export default function MyProfile() {
     
     const [initialData, setInitialData] = useState(null);
 
+    useRealtimeSystemEmailValidation({
+        email: showEmailModal ? emailFormData.newEmail : '',
+        excludeId: user?.userId || user?.id || user?._id,
+        enabled: showEmailModal && !isSubmittingEmail,
+        setErrors: setEmailFieldErrors,
+    });
+
     useEffect(() => {
         if (!showEmailModal) return undefined;
 
@@ -74,6 +83,12 @@ export default function MyProfile() {
         if (!nextEmail) {
             setIsCheckingEmailDomain(false);
             setEmailAddressError('');
+            return undefined;
+        }
+
+        if (String(nextEmail).toLowerCase() === String(formData.email || '').trim().toLowerCase()) {
+            setIsCheckingEmailDomain(false);
+            setEmailAddressError('New email must be different from the current email.');
             return undefined;
         }
 
@@ -100,7 +115,7 @@ export default function MyProfile() {
                 if (!isActive) return;
                 if (response.ok && data.success) {
                     setIsEmailDomainValid(true);
-                    setEmailAddressError('');
+                    setEmailAddressError(emailFieldErrors.email || '');
                 } else {
                     setIsEmailDomainValid(false);
                     setEmailAddressError(data.message || 'Please enter a valid email address.');
@@ -119,7 +134,7 @@ export default function MyProfile() {
             isActive = false;
             window.clearTimeout(timer);
         };
-    }, [showEmailModal, emailFormData.newEmail]);
+    }, [showEmailModal, emailFormData.newEmail, formData.email, emailFieldErrors.email]);
     // Exact derived properties
     const availableProvinces = formData.region ? provinces[formData.region] || [] : [];
     const availableCities = formData.province ? cities[formData.province] || [] : [];
@@ -525,7 +540,9 @@ export default function MyProfile() {
     const canRequestEmailChange = Boolean(
         emailFormData.newEmail.trim()
         && !getEmailFormatError(emailFormData.newEmail)
+        && String(emailFormData.newEmail.trim()).toLowerCase() !== String(formData.email || '').trim().toLowerCase()
         && isEmailDomainValid
+        && !emailFieldErrors.email
         && isEmailPasswordVerified
         && !isSubmittingEmail
         && !isVerifyingEmailPassword

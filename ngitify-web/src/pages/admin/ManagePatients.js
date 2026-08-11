@@ -58,6 +58,8 @@ export default function ManagePatients() {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState(user?.role === 'dentist' ? 'all' : 'active');
     const [branchFilter, setBranchFilter] = useState('All');
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [page, setPage] = useState(1);
 
     const [patientsList, setPatientsList] = useState([]);
     const [branchOptions, setBranchOptions] = useState([]);
@@ -184,6 +186,16 @@ export default function ManagePatients() {
         const matchesBranch = branchFilter === 'All' || patient.assignedBranch === branchFilter;
         return matchesSearch && matchesStatus && matchesBranch;
     });
+    const totalPages = Math.max(1, Math.ceil(filteredPatients.length / rowsPerPage));
+    const paginatedPatients = filteredPatients.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery, statusFilter, branchFilter, rowsPerPage]);
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, totalPages));
+    }, [totalPages]);
 
     const statusFilterLabel = {
         active: 'Active',
@@ -644,8 +656,8 @@ export default function ManagePatients() {
                     <tbody>
                         {isLoading ? (
                             <tr><td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
-                        ) : filteredPatients.length > 0 ? (
-                            filteredPatients.map((patient) => {
+                        ) : paginatedPatients.length > 0 ? (
+                            paginatedPatients.map((patient) => {
                                 const statusKey = getPatientLifecycleKey(patient);
                                 const computedStatus = getPatientLifecycleLabel(patient);
                                 const isArchivedRecord = statusKey === 'archived';
@@ -739,11 +751,27 @@ export default function ManagePatients() {
                             );
                             })
                         ) : (
-                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No patients found matching your filters.</td></tr>
+                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No results found.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {!isLoading && filteredPatients.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
+                        Rows per page
+                        <select value={rowsPerPage} onChange={(e) => setRowsPerPage(Number(e.target.value))} className={styles.filterSelect}>
+                            {[10, 20, 50, 100].map((value) => <option key={value} value={value}>{value}</option>)}
+                        </select>
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#475569', fontSize: '14px' }}>
+                        <span>Showing {(page - 1) * rowsPerPage + 1} to {Math.min(page * rowsPerPage, filteredPatients.length)} of {filteredPatients.length}</span>
+                        <button type="button" className={styles.addBtn} style={{ padding: '10px 14px' }} onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</button>
+                        <button type="button" className={styles.addBtn} style={{ padding: '10px 14px' }} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>Next</button>
+                    </div>
+                </div>
+            )}
 
             {isAddModalOpen && <AddPatient onClose={() => setIsAddModalOpen(false)} onSuccess={fetchPatients} />}
             {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}

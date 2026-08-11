@@ -331,7 +331,7 @@ export default function BranchManagerDashboard() {
                     <p className={`${styles['stat-desc']} ${styles.neutral}`}>Registered under your assigned branch</p>
                 </button>
 
-                <button type="button" className={`${styles['stat-card']} ${styles.clickable}`} onClick={() => navigate('/branch-manager/manage-users')}>
+                <button type="button" className={`${styles['stat-card']} ${styles.clickable}`} onClick={() => navigate('/branch-manager/manage-staffs')}>
                     <div className={styles['stat-header']}>
                         <p className={styles['stat-title']}>Branch Staff</p>
                         <div className={`${styles['stat-icon-wrapper']} ${styles['bg-pink']}`}>

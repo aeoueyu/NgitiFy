@@ -126,11 +126,11 @@ export default function Sidebar() {
     const inventoryPath = `${basePath}/inventory`;
     const profilePath = `${basePath}/profile`;
     const userManagementPath = isAdmin
-        ? '/admin/manage-users/secretaries'
+        ? '/admin/manage-staffs/secretaries'
         : isOwner
-            ? '/owner/manage-users/secretaries'
+            ? '/owner/manage-staffs/secretaries'
             : isBranchManager
-                ? '/branch-manager/manage-users/secretaries'
+                ? '/branch-manager/manage-staffs/secretaries'
                 : `${basePath}/patients`;
     const managePatientsPath = isAdmin
         ? '/admin/patients'
@@ -180,8 +180,11 @@ export default function Sidebar() {
 
     const isManageUsersActive = (
         (isAdmin && location.pathname.startsWith('/admin/manage-users'))
+        || (isAdmin && location.pathname.startsWith('/admin/manage-staffs'))
         || (isOwner && location.pathname.startsWith('/owner/manage-users'))
+        || (isOwner && location.pathname.startsWith('/owner/manage-staffs'))
         || (isBranchManager && location.pathname.startsWith('/branch-manager/manage-users'))
+        || (isBranchManager && location.pathname.startsWith('/branch-manager/manage-staffs'))
     );
 
     const getNavClass = (path) => {

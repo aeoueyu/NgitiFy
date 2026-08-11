@@ -5,16 +5,16 @@ import styles from '../../styles/admin/UserTabs.module.css';
 
 // Order: Patients → Secretaries → Dentists → Branch Managers → Owners
 const ADMIN_TABS = [
-    { key: 'secretaries',    label: 'Secretaries',     path: '/admin/manage-users/secretaries' },
-    { key: 'dentists',       label: 'Dentists',        path: '/admin/manage-users/dentists' },
-    { key: 'branchManagers', label: 'Branch Managers', path: '/admin/manage-users/branch-managers' },
-    { key: 'owners',         label: 'Owners',          path: '/admin/manage-users/owners', adminTierOnly: true },
+    { key: 'secretaries',    label: 'Secretaries',     path: '/admin/manage-staffs/secretaries' },
+    { key: 'dentists',       label: 'Dentists',        path: '/admin/manage-staffs/dentists' },
+    { key: 'branchManagers', label: 'Branch Managers', path: '/admin/manage-staffs/branch-managers' },
+    { key: 'owners',         label: 'Owners',          path: '/admin/manage-staffs/owners', adminTierOnly: true },
 ];
 
 const OWNER_TABS = [
-    { key: 'secretaries', label: 'Secretaries', path: '/owner/manage-users/secretaries' },
-    { key: 'dentists',    label: 'Dentists',    path: '/owner/manage-users/dentists' },
-    { key: 'branchManagers', label: 'Branch Managers', path: '/owner/manage-users/branch-managers' },
+    { key: 'secretaries', label: 'Secretaries', path: '/owner/manage-staffs/secretaries' },
+    { key: 'dentists',    label: 'Dentists',    path: '/owner/manage-staffs/dentists' },
+    { key: 'branchManagers', label: 'Branch Managers', path: '/owner/manage-staffs/branch-managers' },
 ];
 
 const UserTabs = ({ activeTab }) => {

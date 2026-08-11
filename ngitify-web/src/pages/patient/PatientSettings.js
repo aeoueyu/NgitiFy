@@ -70,6 +70,14 @@ export default function PatientSettings() {
     const allCriteriaMet = useMemo(() => Object.values(checklist).every(Boolean), [checklist]);
     const isSamePassword = newPassword && newPassword === currentPassword;
 
+    useEffect(() => {
+        if (confirmPassword && newPassword !== confirmPassword) {
+            setPasswordError('Passwords do not match.');
+            return;
+        }
+        setPasswordError((current) => (current === 'Passwords do not match.' ? '' : current));
+    }, [confirmPassword, newPassword]);
+
     const saveSetting = async (key, value) => {
         setSavingKey(key);
         setSettingsMessage('');

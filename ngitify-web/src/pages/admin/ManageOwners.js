@@ -26,6 +26,8 @@ export default function ManageOwners() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [page, setPage] = useState(1);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -89,6 +91,16 @@ export default function ManageOwners() {
         const matchesStatus = matchesAccountLifecycleFilter(o, statusFilter);
         return matchesSearch && matchesStatus;
     });
+    const totalPages = Math.max(1, Math.ceil(filteredOwners.length / rowsPerPage));
+    const paginatedOwners = filteredOwners.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery, statusFilter, rowsPerPage]);
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, totalPages));
+    }, [totalPages]);
 
     const handleToggleStatus = (owner) => {
         if (owner.isArchived) {
@@ -278,8 +290,8 @@ export default function ManageOwners() {
                     <tbody>
                         {isLoading ? (
                             <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
-                        ) : filteredOwners.length > 0 ? (
-                            filteredOwners.map((owner) => {
+                        ) : paginatedOwners.length > 0 ? (
+                            paginatedOwners.map((owner) => {
                                 const statusKey = getAccountLifecycleKey(owner);
                                 const computedStatus = getAccountLifecycleLabel(owner);
                                 const isArchivedRecord = statusKey === 'archived';
@@ -366,11 +378,27 @@ export default function ManageOwners() {
                             );
                             })
                         ) : (
-                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No owners found.</td></tr>
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No results found.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {!isLoading && filteredOwners.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
+                        Rows per page
+                        <select value={rowsPerPage} onChange={(e) => setRowsPerPage(Number(e.target.value))} className={styles.filterSelect}>
+                            {[10, 20, 50, 100].map((value) => <option key={value} value={value}>{value}</option>)}
+                        </select>
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#475569', fontSize: '14px' }}>
+                        <span>Showing {(page - 1) * rowsPerPage + 1} to {Math.min(page * rowsPerPage, filteredOwners.length)} of {filteredOwners.length}</span>
+                        <button type="button" className={styles.addBtn} style={{ padding: '10px 14px' }} onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</button>
+                        <button type="button" className={styles.addBtn} style={{ padding: '10px 14px' }} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>Next</button>
+                    </div>
+                </div>
+            )}
 
             {isAddModalOpen && <AddOwner onClose={() => setIsAddModalOpen(false)} onSuccess={fetchOwners} />}
             {isViewModalOpen && selectedOwnerId && (

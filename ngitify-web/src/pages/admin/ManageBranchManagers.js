@@ -27,6 +27,8 @@ const ManageBranchManagers = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [branchFilter, setBranchFilter] = useState('All');
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [page, setPage] = useState(1);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -88,6 +90,16 @@ const ManageBranchManagers = () => {
         const matchesBranch = branchFilter === 'All' || m.assignedBranch === branchFilter;
         return matchesSearch && matchesStatus && matchesBranch;
     });
+    const totalPages = Math.max(1, Math.ceil(filteredManagers.length / rowsPerPage));
+    const paginatedManagers = filteredManagers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery, statusFilter, branchFilter, rowsPerPage]);
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, totalPages));
+    }, [totalPages]);
 
     const openManagerModal = (id) => {
         setSelectedManagerId(id);
@@ -297,8 +309,8 @@ const ManageBranchManagers = () => {
                     <tbody>
                         {isLoading ? (
                             <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading records...</td></tr>
-                        ) : filteredManagers.length > 0 ? (
-                            filteredManagers.map((manager) => {
+                        ) : paginatedManagers.length > 0 ? (
+                            paginatedManagers.map((manager) => {
                                 const statusKey = getAccountLifecycleKey(manager);
                                 const computedStatus = getAccountLifecycleLabel(manager);
                                 const isArchivedRecord = statusKey === 'archived';
@@ -387,11 +399,27 @@ const ManageBranchManagers = () => {
                             );
                             })
                         ) : (
-                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No branch managers found matching filters.</td></tr>
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No results found.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {!isLoading && filteredManagers.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
+                        Rows per page
+                        <select value={rowsPerPage} onChange={(e) => setRowsPerPage(Number(e.target.value))} className={styles.filterSelect}>
+                            {[10, 20, 50, 100].map((value) => <option key={value} value={value}>{value}</option>)}
+                        </select>
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#475569', fontSize: '14px' }}>
+                        <span>Showing {(page - 1) * rowsPerPage + 1} to {Math.min(page * rowsPerPage, filteredManagers.length)} of {filteredManagers.length}</span>
+                        <button type="button" className={styles.addBtn} style={{ padding: '10px 14px' }} onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</button>
+                        <button type="button" className={styles.addBtn} style={{ padding: '10px 14px' }} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>Next</button>
+                    </div>
+                </div>
+            )}
 
             {isAddModalOpen && (
                 <AddBranchManager onClose={() => setIsAddModalOpen(false)} onSuccess={fetchManagers} />

@@ -18,6 +18,7 @@ export default function ActivateAccountPage() {
 
     const [status, setStatus] = useState('loading');
     const [accountEmail, setAccountEmail] = useState('');
+    const [requiresPasswordSetup, setRequiresPasswordSetup] = useState(true);
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showChecklist, setShowChecklist] = useState(false);
@@ -36,6 +37,7 @@ export default function ActivateAccountPage() {
                 }
 
                 setAccountEmail(data.email || '');
+                setRequiresPasswordSetup(data.requiresPasswordSetup !== false);
                 setStatus('ready');
             } catch (error) {
                 setErrorMessage(error.message || 'Invalid or expired activation link.');
@@ -53,17 +55,19 @@ export default function ActivateAccountPage() {
 
     const validations = useMemo(() => getPasswordChecks(password), [password]);
     const passwordsMatch = password && confirmPassword && password === confirmPassword;
-    const canSubmit = Object.values(validations).every(Boolean) && passwordsMatch && !isSubmitting;
+    const canSubmit = requiresPasswordSetup
+        ? Object.values(validations).every(Boolean) && passwordsMatch && !isSubmitting
+        : !isSubmitting;
 
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        if (!Object.values(validations).every(Boolean)) {
+        if (requiresPasswordSetup && !Object.values(validations).every(Boolean)) {
             setErrorMessage('Please complete all password requirements.');
             return;
         }
 
-        if (password !== confirmPassword) {
+        if (requiresPasswordSetup && password !== confirmPassword) {
             setErrorMessage('Passwords do not match.');
             return;
         }
@@ -77,7 +81,7 @@ export default function ActivateAccountPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     token,
-                    newPassword: password,
+                    ...(requiresPasswordSetup ? { newPassword: password } : {}),
                 }),
             });
 
@@ -121,63 +125,75 @@ export default function ActivateAccountPage() {
 
                 {status === 'ready' && (
                     <>
-                        <div className={styles['page-title']}><p className={styles['newpass-title']}>Set Your Password</p></div>
+                        <div className={styles['page-title']}>
+                            <p className={styles['newpass-title']}>{requiresPasswordSetup ? 'Set Your Password' : 'Verify Your New Email'}</p>
+                        </div>
                         <div className={styles['page-header']}>
                             <p>
-                                Activate your account by creating a password{accountEmail ? ` for ${accountEmail}` : ''}.
+                                {requiresPasswordSetup
+                                    ? `Activate your account by creating a password${accountEmail ? ` for ${accountEmail}` : ''}.`
+                                    : `Activate your account${accountEmail ? ` for ${accountEmail}` : ''}. Your existing password will stay the same.`}
                             </p>
                         </div>
 
-                        <div className={styles['label-container']}><p className={styles.label}>PASSWORD</p></div>
-                        <input
-                            type="password"
-                            className={styles['input-field']}
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
-                            onFocus={() => setShowChecklist(true)}
-                            onBlur={() => setShowChecklist(false)}
-                            disabled={isSubmitting}
-                            required
-                        />
+                        {requiresPasswordSetup ? (
+                            <>
+                                <div className={styles['label-container']}><p className={styles.label}>PASSWORD</p></div>
+                                <input
+                                    type="password"
+                                    className={styles['input-field']}
+                                    value={password}
+                                    onChange={(event) => setPassword(event.target.value)}
+                                    onFocus={() => setShowChecklist(true)}
+                                    onBlur={() => setShowChecklist(false)}
+                                    disabled={isSubmitting}
+                                    required
+                                />
 
-                        {showChecklist && (
-                            <div className={styles.checklistBox}>
-                                <p className={styles.checklistTitle}>Password must contain:</p>
-                                <div className={styles.ruleItem}>
-                                    <span className={validations.length ? styles.iconValid : styles.iconInvalid}>●</span>
-                                    <span className={validations.length ? styles.textValid : styles.textInvalid}>At least 8 characters</span>
-                                </div>
-                                <div className={styles.ruleItem}>
-                                    <span className={validations.upper ? styles.iconValid : styles.iconInvalid}>●</span>
-                                    <span className={validations.upper ? styles.textValid : styles.textInvalid}>Uppercase letter</span>
-                                </div>
-                                <div className={styles.ruleItem}>
-                                    <span className={validations.lower ? styles.iconValid : styles.iconInvalid}>●</span>
-                                    <span className={validations.lower ? styles.textValid : styles.textInvalid}>Lowercase letter</span>
-                                </div>
-                                <div className={styles.ruleItem}>
-                                    <span className={validations.number ? styles.iconValid : styles.iconInvalid}>●</span>
-                                    <span className={validations.number ? styles.textValid : styles.textInvalid}>Number</span>
-                                </div>
-                                <div className={styles.ruleItem}>
-                                    <span className={validations.special ? styles.iconValid : styles.iconInvalid}>●</span>
-                                    <span className={validations.special ? styles.textValid : styles.textInvalid}>Special character like `! @ # $ % ^ & *`</span>
-                                </div>
+                                {showChecklist && (
+                                    <div className={styles.checklistBox}>
+                                        <p className={styles.checklistTitle}>Password must contain:</p>
+                                        <div className={styles.ruleItem}>
+                                            <span className={validations.length ? styles.iconValid : styles.iconInvalid}>•</span>
+                                            <span className={validations.length ? styles.textValid : styles.textInvalid}>At least 8 characters</span>
+                                        </div>
+                                        <div className={styles.ruleItem}>
+                                            <span className={validations.upper ? styles.iconValid : styles.iconInvalid}>•</span>
+                                            <span className={validations.upper ? styles.textValid : styles.textInvalid}>Uppercase letter</span>
+                                        </div>
+                                        <div className={styles.ruleItem}>
+                                            <span className={validations.lower ? styles.iconValid : styles.iconInvalid}>•</span>
+                                            <span className={validations.lower ? styles.textValid : styles.textInvalid}>Lowercase letter</span>
+                                        </div>
+                                        <div className={styles.ruleItem}>
+                                            <span className={validations.number ? styles.iconValid : styles.iconInvalid}>•</span>
+                                            <span className={validations.number ? styles.textValid : styles.textInvalid}>Number</span>
+                                        </div>
+                                        <div className={styles.ruleItem}>
+                                            <span className={validations.special ? styles.iconValid : styles.iconInvalid}>•</span>
+                                            <span className={validations.special ? styles.textValid : styles.textInvalid}>Special character like `! @ # $ % ^ & *`</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className={styles['label-container']} style={{ marginTop: '15px' }}><p className={styles.label}>CONFIRM PASSWORD</p></div>
+                                <input
+                                    type="password"
+                                    className={styles['input-field']}
+                                    value={confirmPassword}
+                                    onChange={(event) => setConfirmPassword(event.target.value)}
+                                    disabled={isSubmitting}
+                                    required
+                                />
+                            </>
+                        ) : (
+                            <div className={styles['page-header']} style={{ marginTop: '16px' }}>
+                                <p>Select Activate Account below to verify this email and keep using your existing password.</p>
                             </div>
                         )}
 
-                        <div className={styles['label-container']} style={{ marginTop: '15px' }}><p className={styles.label}>CONFIRM PASSWORD</p></div>
-                        <input
-                            type="password"
-                            className={styles['input-field']}
-                            value={confirmPassword}
-                            onChange={(event) => setConfirmPassword(event.target.value)}
-                            disabled={isSubmitting}
-                            required
-                        />
-
                         <div className={styles.error}>
-                            {errorMessage || (!passwordsMatch && confirmPassword ? 'Passwords do not match.' : '')}
+                            {errorMessage || (requiresPasswordSetup && !passwordsMatch && confirmPassword ? 'Passwords do not match.' : '')}
                         </div>
 
                         <button

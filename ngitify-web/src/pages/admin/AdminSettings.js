@@ -84,15 +84,19 @@ export default function Settings() {
 
     const handlePassChange = (e) => {
         const { name, value } = e.target;
-        if (passErrors[name]) {
-            setPassErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[name];
-                return newErrors;
-            });
-        }
+        const nextPasswordData = { ...passwordData, [name]: value };
+        setPassErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[name];
+            if (nextPasswordData.confirmPassword && nextPasswordData.newPassword !== nextPasswordData.confirmPassword) {
+                newErrors.confirmPassword = 'Passwords do not match.';
+            } else {
+                delete newErrors.confirmPassword;
+            }
+            return newErrors;
+        });
         setApiError('');
-        setPasswordData(prev => ({ ...prev, [name]: value }));
+        setPasswordData(nextPasswordData);
     };
 
     // STEP 1: Verify Current Password

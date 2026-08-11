@@ -367,7 +367,7 @@ export default function AdminDashboard() {
                 )}
 
                 <div className={styles['stats-grid']}>
-                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/admin/manage-users/patients')}>
+                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/admin/patients')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Active Patients</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-cyan']}`}><img src={PatientIcon} className={styles['stat-icon']} alt="icon" /></div>
@@ -381,7 +381,7 @@ export default function AdminDashboard() {
                         <p className={styles['stat-desc']}>Verified active records</p>
                     </div>
                     
-                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/admin/manage-users/dentists')}>
+                    <div className={`${styles['stat-card']} ${styles['clickable']}`} onClick={() => navigate('/admin/manage-staffs/dentists')}>
                         <div className={styles['stat-header']}>
                             <p className={styles['stat-title']}>Total Staff</p>
                             <div className={`${styles['stat-icon-wrapper']} ${styles['bg-green']}`}><img src={StaffIcon} className={styles['stat-icon']} alt="icon" /></div>

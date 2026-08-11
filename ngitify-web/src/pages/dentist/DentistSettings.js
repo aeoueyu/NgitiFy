@@ -79,9 +79,19 @@ export default function DentistSettings() {
 
     const handlePassChange = (e) => {
         const { name, value } = e.target;
-        if (passErrors[name]) setPassErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
+        const nextPasswordData = { ...passwordData, [name]: value };
+        setPassErrors(prev => {
+            const n = { ...prev };
+            delete n[name];
+            if (nextPasswordData.confirmPassword && nextPasswordData.newPassword !== nextPasswordData.confirmPassword) {
+                n.confirmPassword = 'Passwords do not match.';
+            } else {
+                delete n.confirmPassword;
+            }
+            return n;
+        });
         setApiError('');
-        setPasswordData(prev => ({ ...prev, [name]: value }));
+        setPasswordData(nextPasswordData);
     };
 
     const handleVerifyCurrentPassword = async () => {

@@ -34,6 +34,7 @@ import {
     getTodayDateInManila,
     isFutureDateInManila,
 } from '../../utils/dateUtils';
+import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 
 const initialMedicalHistory = {
     inGoodHealth: '',
@@ -157,6 +158,12 @@ export default function AddPatient({ onClose, onSuccess }) {
             signedAt: getTodayDate(),
         },
         homeAddress: { ...initialAddressState },
+    });
+
+    useRealtimeSystemEmailValidation({
+        email: formData.email,
+        enabled: !isLoading,
+        setErrors,
     });
 
     const validateEmail = (email) => {
@@ -338,6 +345,7 @@ export default function AddPatient({ onClose, onSuccess }) {
         else if (!isValidMobileNumber(currentFormData.emergencyContactPhone)) { newErrors.emergencyContactPhone = 'Invalid format'; isValid = false; }
         if (currentFormData.physician.officeNumber && !isValidLandlineNumber(currentFormData.physician.officeNumber)) { newErrors.physician_officeNumber = 'Invalid landline format'; isValid = false; }
         if (currentFormData.email && !validateEmail(currentFormData.email)) { newErrors.email = 'Invalid email address.'; isValid = false; }
+        else if (errors.email) { newErrors.email = errors.email; isValid = false; }
         if (!currentFormData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = 'Required'; isValid = false; }
         if (!currentFormData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = 'Required'; isValid = false; }
         if (!currentFormData.dataPrivacyConsent.acknowledged) { newErrors.dataPrivacyConsent_acknowledged = 'Required'; isValid = false; }

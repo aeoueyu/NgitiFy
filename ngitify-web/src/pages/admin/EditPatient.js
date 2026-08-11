@@ -31,6 +31,7 @@ import {
     isFutureDateInManila,
     normalizeDateInputValue,
 } from '../../utils/dateUtils';
+import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 const initialEmergencyContact = { name: '', relationship: '', contactNumber: '' };
@@ -120,6 +121,13 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         dentalHistory: { ...initialDentalHistory },
         consentAcknowledgement: { acknowledged: false, signerName: '', signerRole: 'Patient', signedAt: getTodayDate() },
         dataPrivacyConsent: { acknowledged: false, signerName: '', signerRole: 'Patient', signedAt: getTodayDate() },
+    });
+
+    useRealtimeSystemEmailValidation({
+        email: formData.email,
+        excludeId: patientId,
+        enabled: !isLoading && !isSaving,
+        setErrors,
     });
 
     const validateEmail = (email) => {
@@ -463,6 +471,9 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         if (formData.email && !validateEmail(formData.email)) {
             nextErrors.email = 'Invalid email address.';
             isValid = false;
+        } else if (errors.email) {
+            nextErrors.email = errors.email;
+            isValid = false;
         }
 
         if (formData.homePhone && !isValidLandlineNumber(formData.homePhone)) {
@@ -701,8 +712,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             const data = await response.json();
             if (response.ok) {
                 setShowSuccessModal(true);
-            } else if (response.status === 409) {
-                setErrors((prev) => ({ ...prev, email: data.message || 'Email already exists.' }));
+            } else if (response.status === 409 || response.status === 400) {
+                setErrors((prev) => ({ ...prev, [data.field || 'email']: data.message || 'Email already exists.' }));
             } else {
                 alert(data.message || 'Failed to update patient');
             }

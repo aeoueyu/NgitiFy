@@ -886,6 +886,7 @@ app.get('/api/activate-account/:token', async (req, res) => {
             message: 'Activation link is valid.',
             email: account.email,
             role: account.role,
+            requiresPasswordSetup: account.isPasswordChanged !== true,
         });
     } catch (error) {
         console.error("Activation validation error:", error);
@@ -897,30 +898,34 @@ app.post('/api/activate-account', async (req, res) => {
     try {
         const { token, newPassword } = req.body;
         if (!token) return res.status(400).json({ message: "No token provided." });
-        if (!newPassword) return res.status(400).json({ message: "A new password is required." });
-
-        const passwordChecks = {
-            length: newPassword.length >= 8,
-            upper: /[A-Z]/.test(newPassword),
-            lower: /[a-z]/.test(newPassword),
-            number: /[0-9]/.test(newPassword),
-            special: /[!@#$%^&*(),.?\":{}|<>]/.test(newPassword),
-        };
-
-        if (!Object.values(passwordChecks).every(Boolean)) {
-            return res.status(400).json({
-                message: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
-            });
-        }
-
         const account = await User.findOne({ activationToken: token });
 
         if (!account) return res.status(400).json({ message: "Invalid or expired activation link." });
 
+        const requiresPasswordSetup = account.isPasswordChanged !== true;
+        if (requiresPasswordSetup) {
+            if (!newPassword) return res.status(400).json({ message: "A new password is required." });
+
+            const passwordChecks = {
+                length: newPassword.length >= 8,
+                upper: /[A-Z]/.test(newPassword),
+                lower: /[a-z]/.test(newPassword),
+                number: /[0-9]/.test(newPassword),
+                special: /[!@#$%^&*(),.?\":{}|<>]/.test(newPassword),
+            };
+
+            if (!Object.values(passwordChecks).every(Boolean)) {
+                return res.status(400).json({
+                    message: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+                });
+            }
+
+            account.password = await bcrypt.hash(newPassword, 10);
+            account.isPasswordChanged = true;
+        }
+
         account.isVerified = true;
         account.status = 'active';
-        account.password = await bcrypt.hash(newPassword, 10);
-        account.isPasswordChanged = true;
         account.temporaryPasswordExpires = null;
         account.resetPasswordOtp = undefined;
         account.resetPasswordExpires = undefined;
@@ -934,7 +939,9 @@ app.post('/api/activate-account', async (req, res) => {
         await account.save();
 
         res.json({ 
-            message: "Account activated successfully. Your password is now set.",
+            message: requiresPasswordSetup
+                ? "Account activated successfully. Your password is now set."
+                : "Account activated successfully. You can now sign in using your existing password.",
             role: account.role
         });
     } catch (error) {
@@ -1047,6 +1054,9 @@ const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, ac
         : '';
     const closingMessage = options?.closingMessage
         || 'If you have questions, you may contact the clinic through the details below.';
+    const intro = options?.intro || 'Please activate your account and create your password to continue.';
+    const actionInstruction = options?.actionInstruction || 'Use the button below to verify your email address and set your own password.';
+    const accountCreatedMessage = options?.accountCreatedMessage || `Your <strong>${role}</strong> account has been successfully created.`;
 
     await resend.emails.send({
         from: 'NgitiFy Admin <noreply@ngitify.com>',
@@ -1055,13 +1065,13 @@ const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, ac
         html: buildDentimeEmailTemplate({
             clinic,
             title: 'Welcome to NgitiFy',
-            intro: 'Please activate your account and create your password to continue.',
+            intro,
             bodyHtml: `
                 <p style="margin:0 0 14px 0;">Hello,</p>
                 ${activationCopy ? `<p style="margin:0 0 14px 0;">${activationCopy}</p>` : ''}
-                <p style="margin:0 0 14px 0;">Your <strong>${role}</strong> account has been successfully created.</p>
+                <p style="margin:0 0 14px 0;">${accountCreatedMessage}</p>
                 ${procedureSummary}
-                <p style="margin:0 0 14px 0;">Use the button below to verify your email address and set your own password.</p>
+                <p style="margin:0 0 14px 0;">${actionInstruction}</p>
                 <p style="margin:0;">${closingMessage}</p>
             `,
             ctaLabel: 'Activate Account',
@@ -1104,6 +1114,7 @@ const issueActivationSetupForAccount = async (account) => {
     account.isVerified = false;
     account.status = 'inactive';
     account.isPasswordChanged = false;
+    account.lastEmailChangeRequestedAt = account.lastEmailChangeRequestedAt || null;
     account.temporaryPasswordExpires = null;
     account.resetPasswordOtp = undefined;
     account.resetPasswordExpires = undefined;
@@ -4741,7 +4752,7 @@ app.post('/api/check-email', async (req, res) => {
     try {
         const { email, excludeId } = req.body;
         const normalizedEmail = normalizeEmail(email || '');
-        if (!normalizedEmail) {
+        if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
             return res.status(400).json({ message: "A valid email is required" });
         }
 
@@ -4762,6 +4773,9 @@ app.post('/api/check-email', async (req, res) => {
         res.status(500).json({ message: "Server error checking email" });
     }
 });
+
+const EMAIL_CHANGE_COOLDOWN_DAYS = 30;
+const EMAIL_CHANGE_COOLDOWN_MS = EMAIL_CHANGE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
 
 app.post('/api/validate-email-domain', verifyToken, async (req, res) => {
     try {
@@ -5006,6 +5020,9 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
 
         if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
             return res.status(400).json({ field: 'email', message: 'A valid email address is required before registering a patient.' });
+        }
+        if (!(await hasValidEmailDomain(normalizedEmail))) {
+            return res.status(400).json({ field: 'email', message: 'Please use a real email domain that can receive mail.' });
         }
 
         let normalizedAssignedBranch = assignedBranch;
@@ -5414,6 +5431,19 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
                 field: 'assignedBranch',
                 message: 'Patient branch reassignment must be done through the dedicated Transfer Branch action so upcoming appointments and branch ownership can be reviewed first.',
             });
+        }
+
+        if (normalizedRequestedEmail) {
+            if (!isValidEmailAddress(normalizedRequestedEmail)) {
+                return res.status(400).json({ field: 'email', message: 'Please enter a valid email address.' });
+            }
+            if (!(await hasValidEmailDomain(normalizedRequestedEmail))) {
+                return res.status(400).json({ field: 'email', message: 'Please use a real email domain that can receive mail.' });
+            }
+            const existingEmail = await User.findOne({ _id: { $ne: patientId }, email: normalizedRequestedEmail });
+            if (existingEmail) {
+                return res.status(409).json({ field: 'email', message: 'Email already exists.' });
+            }
         }
 
         // Phase 5: Secretary cannot escalate or modify sensitive user fields
@@ -6450,30 +6480,44 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Please use a real email domain that can receive mail.' });
         }
 
-        // Check new email is not already taken
         if (normalizedNewEmail === user.email) {
-            return res.status(400).json({ message: 'New email must be different from your current email.' });
-        }
-        const emailExists = await User.findOne({ email: normalizedNewEmail });
-        if (emailExists) {
-            return res.status(409).json({ message: 'This email address is already in use.' });
+            return res.status(400).json({ message: 'New email must be different from the current email.' });
         }
 
-        // Generate a fresh activation token and seeded password placeholder
-        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+        if (user.lastEmailChangeRequestedAt) {
+            const lastChangeTime = new Date(user.lastEmailChangeRequestedAt).getTime();
+            if (!Number.isNaN(lastChangeTime)) {
+                const elapsedMs = Date.now() - lastChangeTime;
+                if (elapsedMs < EMAIL_CHANGE_COOLDOWN_MS) {
+                    const nextAllowedDate = new Date(lastChangeTime + EMAIL_CHANGE_COOLDOWN_MS);
+                    return res.status(429).json({
+                        message: `You can only change your email once every 30 days. You may try again on ${nextAllowedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+                    });
+                }
+            }
+        }
+
+        const emailExists = await User.findOne({ email: normalizedNewEmail });
+        if (emailExists) {
+            return res.status(409).json({ message: 'Email already exists.' });
+        }
+
         const activationToken = crypto.randomBytes(32).toString('hex');
 
         user.email = normalizedNewEmail;
-        user.password = hashedPassword;
         user.activationToken = activationToken;
         user.isVerified = false;
         user.status = 'inactive';
-        user.isPasswordChanged = false;
+        user.lastEmailChangeRequestedAt = new Date();
         user.temporaryPasswordExpires = null;
         await user.save();
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(normalizedNewEmail, user.role, activationLink);
+        await sendActivationEmail(normalizedNewEmail, user.role, activationLink, '', {
+            intro: 'Please verify your new email address to continue using your account.',
+            actionInstruction: 'Use the button below to verify your new email address. Your current password will stay the same after activation.',
+            closingMessage: 'After you verify the new email, sign in again using the same password you were already using before this email change.',
+        });
 
         await AuditLog.create({
             action: 'EMAIL_CHANGE_REQUESTED',
@@ -6482,7 +6526,7 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
             details: `User requested email change. Activation link sent to ${normalizedNewEmail}.`
         });
 
-        res.json({ message: 'Verification email sent. Please check your new inbox to reactivate your account.' });
+        res.json({ message: 'Verification email sent. Please check your new inbox to activate your new email. Your current password will stay the same.' });
 
     } catch (error) {
         console.error('Error requesting email change:', error);

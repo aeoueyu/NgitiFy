@@ -43,7 +43,7 @@ const getModuleLabel = (pathname = '') => {
     if (pathname.includes('/activity-logs')) return 'Activity Logs';
     if (pathname.includes('/audit-trail') || pathname.includes('/audit-logs')) return 'Audit Logs';
     if (pathname.includes('/patients')) return 'Manage Patients';
-    if (pathname.includes('/manage-users')) return 'Manage Users';
+    if (pathname.includes('/manage-staffs') || pathname.includes('/manage-users')) return 'Manage Staffs';
     if (pathname.includes('/schedule')) return 'Schedule';
     if (pathname.includes('/inventory')) return 'Inventory';
     if (pathname.includes('/dashboard')) return 'Dashboard';

@@ -177,9 +177,11 @@ function App() {
                   <Route path="/branch-manager/dashboard"   element={<BranchManagerDashboard />} />
                   <Route path="/branch-manager/appointments" element={<Navigate to="/branch-manager/schedule" replace />} />
                   <Route path="/branch-manager/schedule"     element={<SchedulePage />} />
-                  <Route path="/branch-manager/manage-users" element={<Navigate to="/branch-manager/manage-users/secretaries" replace />} />
-                  <Route path="/branch-manager/manage-users/dentists" element={<ManageDentists />} />
-                  <Route path="/branch-manager/manage-users/secretaries" element={<ManageSecretaries />} />
+                  <Route path="/branch-manager/manage-users" element={<Navigate to="/branch-manager/manage-staffs/secretaries" replace />} />
+                  <Route path="/branch-manager/manage-users/*" element={<Navigate to="/branch-manager/manage-staffs/secretaries" replace />} />
+                  <Route path="/branch-manager/manage-staffs" element={<Navigate to="/branch-manager/manage-staffs/secretaries" replace />} />
+                  <Route path="/branch-manager/manage-staffs/dentists" element={<ManageDentists />} />
+                  <Route path="/branch-manager/manage-staffs/secretaries" element={<ManageSecretaries />} />
                   <Route path="/branch-manager/patients"     element={<ManagePatients />} />
                   <Route path="/branch-manager/queue"        element={<Navigate to="/branch-manager/schedule" replace />} />
                   <Route path="/branch-manager/branches"     element={<Navigate to="/branch-manager/dashboard" replace />} />
@@ -202,13 +204,15 @@ function App() {
                   <Route path="/owner/dashboard"                    element={<OwnerDashboard />} />
                   <Route path="/owner/appointments"                 element={<Navigate to="/owner/schedule" replace />} />
                   <Route path="/owner/schedule"                     element={<SchedulePage />} />
-                  <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-users/secretaries" replace />} />
-                  <Route path="/owner/manage-users/dentists"        element={<ManageDentists />} />
-                  <Route path="/owner/manage-users/secretaries"     element={<ManageSecretaries />} />
-                  <Route path="/owner/manage-users/patients"        element={<Navigate to="/owner/patients" replace />} />
+                  <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
+                  <Route path="/owner/manage-users/*"               element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
+                  <Route path="/owner/manage-staffs"                element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
+                  <Route path="/owner/manage-staffs/dentists"       element={<ManageDentists />} />
+                  <Route path="/owner/manage-staffs/secretaries"    element={<ManageSecretaries />} />
+                  <Route path="/owner/manage-staffs/patients"       element={<Navigate to="/owner/patients" replace />} />
                   <Route path="/owner/patients"                     element={<ManagePatients />} />
-                  <Route path="/owner/manage-users/branch-managers" element={<ManageBranchManagers />} />
-                  <Route path="/owner/manage-users/owners"          element={<Navigate to="/owner/manage-users/secretaries" replace />} />
+                  <Route path="/owner/manage-staffs/branch-managers" element={<ManageBranchManagers />} />
+                  <Route path="/owner/manage-staffs/owners"          element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
                   <Route path="/owner/patients/:patientId/emr"      element={<AdminPatientEMR />} />
                   <Route path="/owner/patient-emr"                  element={<PatientEMRPage />} />
                   <Route path="/owner/material-usage"               element={<DentistMaterialUsage />} />
@@ -257,13 +261,15 @@ function App() {
                   <Route path="/admin/inventory" element={<InventoryTracker />} />
 
                   {/* User Management */}
-                  <Route path="/admin/manage-users" element={<Navigate to="/admin/manage-users/secretaries" replace />} />
-                  <Route path="/admin/manage-users/dentists" element={<ManageDentists />} />
-                  <Route path="/admin/manage-users/secretaries" element={<ManageSecretaries />} />
-                  <Route path="/admin/manage-users/patients" element={<Navigate to="/admin/patients" replace />} />
+                  <Route path="/admin/manage-users" element={<Navigate to="/admin/manage-staffs/secretaries" replace />} />
+                  <Route path="/admin/manage-users/*" element={<Navigate to="/admin/manage-staffs/secretaries" replace />} />
+                  <Route path="/admin/manage-staffs" element={<Navigate to="/admin/manage-staffs/secretaries" replace />} />
+                  <Route path="/admin/manage-staffs/dentists" element={<ManageDentists />} />
+                  <Route path="/admin/manage-staffs/secretaries" element={<ManageSecretaries />} />
+                  <Route path="/admin/manage-staffs/patients" element={<Navigate to="/admin/patients" replace />} />
                   <Route path="/admin/patients" element={<ManagePatients />} />
-                  <Route path="/admin/manage-users/branch-managers" element={<ManageBranchManagers />} />
-                  <Route path="/admin/manage-users/owners" element={<ManageOwners />} />
+                  <Route path="/admin/manage-staffs/branch-managers" element={<ManageBranchManagers />} />
+                  <Route path="/admin/manage-staffs/owners" element={<ManageOwners />} />
 
                   {/* Add/Edit staff */}
                   <Route path="/admin/add-dentist" element={<AddDentist />} />
