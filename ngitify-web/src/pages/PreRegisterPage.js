@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import WebsiteShell from '../components/website/WebsiteShell';
 import ConsentReviewModal from '../components/admin/ConsentReviewModal';
+import {
+    PatientRegistrationSectionCard,
+    PatientRegistrationStepper,
+} from '../components/patient/PatientRegistrationFlow';
 import styles from '../styles/website/WebsitePages.module.css';
 import { privacyPolicySections, privacyPolicyUpdatedAt, privacyPolicyVersion } from '../data/consentDocument';
 import { publicFetch } from '../utils/api';
@@ -990,31 +994,24 @@ export default function PreRegisterPage() {
                     {state === 'ready' && (
                         <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
                             {message && <div className={styles.errorBanner}>{message}</div>}
-                            <div className={styles.buttonRow} style={{ marginTop: 0, marginBottom: '20px' }}>
-                                {activeSteps.map((step, index) => (
-                                    <button
-                                        key={step.key}
-                                        type="button"
-                                        className={index === activeStepIndex ? styles.primaryBtn : styles.secondaryBtn}
-                                        onClick={() => {
-                                            if (index <= activeStepIndex) goToStep(step.key);
-                                        }}
-                                        disabled={index > activeStepIndex}
-                                        style={index > activeStepIndex ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
-                                    >
-                                        {index + 1}. {step.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <PatientRegistrationStepper
+                                steps={activeSteps}
+                                currentIndex={activeStepIndex}
+                                onStepSelect={(index) => {
+                                    if (index <= activeStepIndex) {
+                                        goToStep(activeSteps[index].key);
+                                    }
+                                }}
+                                isStepLocked={(index) => index > activeStepIndex}
+                            />
 
                             {activeStepKey === 'identity' && (
                             <>
-                            <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <p className={styles.eyebrow} style={{ marginBottom: '8px' }}>Identity</p>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Identity</h3>
-                                <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
-                                    Review your booking details and complete your personal information below.
-                                </p>
+                            <PatientRegistrationSectionCard
+                                eyebrow="Identity"
+                                title="Identity"
+                                description="Review your booking details and complete your personal information below."
+                            >
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="profile_occupation">
                                         <label className={styles.fieldLabel}>Occupation{REQUIRED_MARK}</label>
@@ -1091,7 +1088,7 @@ export default function PreRegisterPage() {
                                         <input className={styles.fieldInput} value={profile.referredBy} onChange={(e) => handleProfileChange('referredBy', e.target.value)} />
                                     </div>
                                 </div>
-                            </div>
+                            </PatientRegistrationSectionCard>
                             <div className={styles.buttonRow}>
                                 <button type="button" className={styles.primaryBtn} onClick={handleStepAdvance}>
                                     Continue to Contacts
@@ -1102,12 +1099,11 @@ export default function PreRegisterPage() {
 
                             {activeStepKey === 'contacts' && (
                             <>
-                            <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <p className={styles.eyebrow} style={{ marginBottom: '8px' }}>Contacts</p>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Contacts</h3>
-                                <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
-                                    Add your address and the people the clinic can contact if needed.
-                                </p>
+                            <PatientRegistrationSectionCard
+                                eyebrow="Contacts"
+                                title="Contacts"
+                                description="Add your address and the people the clinic can contact if needed."
+                            >
                                 <h4 className={styles.sectionTitle} style={{ fontSize: '1rem', marginTop: '18px' }}>Home Address</h4>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="home_region">
@@ -1153,10 +1149,12 @@ export default function PreRegisterPage() {
                                         {errors.home_houseNumber && <span className={styles.errorText}>{errors.home_houseNumber}</span>}
                                     </div>
                                 </div>
-                            </div>
+                            </PatientRegistrationSectionCard>
 
-                            <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Emergency Contact</h3>
+                            <PatientRegistrationSectionCard
+                                title="Emergency Contact"
+                                description="Provide the person the clinic can contact if an urgent concern comes up."
+                            >
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="emergencyContact_name">
                                         <label className={styles.fieldLabel}>Emergency Contact Name{REQUIRED_MARK}</label>
@@ -1187,11 +1185,13 @@ export default function PreRegisterPage() {
                                         {errors.emergencyContact_contactNumber && <span className={styles.errorText}>{errors.emergencyContact_contactNumber}</span>}
                                     </div>
                                 </div>
-                            </div>
+                            </PatientRegistrationSectionCard>
 
                             {isMinor && (
-                                <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                    <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Guardian Details</h3>
+                                <PatientRegistrationSectionCard
+                                    title="Guardian Details"
+                                    description="Since the patient is a minor, guardian information is required before proceeding."
+                                >
                                     <div className={styles.formGrid}>
                                         <div className={styles.fieldGroup} data-field-key="guardian_name">
                                             <label className={styles.fieldLabel}>Guardian Name{REQUIRED_MARK}</label>
@@ -1237,7 +1237,7 @@ export default function PreRegisterPage() {
                                             {errors.guardian_contactNumber && <span className={styles.errorText}>{errors.guardian_contactNumber}</span>}
                                         </div>
                                     </div>
-                                </div>
+                                </PatientRegistrationSectionCard>
                             )}
                             <div className={styles.buttonRow}>
                                 <button type="button" className={styles.secondaryBtn} onClick={handleStepBack}>
@@ -1258,12 +1258,11 @@ export default function PreRegisterPage() {
 
                             {!isPhoneCallPreRegistration && activeStepKey === 'medical' && (
                                 <>
-                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                        <p className={styles.eyebrow} style={{ marginBottom: '8px' }}>Medical & Dental</p>
-                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Medical & Dental</h3>
-                                        <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
-                                            Complete your consultation reason, dental history, physician details, and medical background.
-                                        </p>
+                                    <PatientRegistrationSectionCard
+                                        eyebrow="Medical & Dental"
+                                        title="Medical & Dental"
+                                        description="Complete your consultation reason, dental history, physician details, and medical background."
+                                    >
                                         <div className={styles.formGrid} style={{ marginBottom: '20px' }}>
                                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="profile_reasonForConsultation">
                                                 <label className={styles.fieldLabel}>Reason for Consultation{REQUIRED_MARK}</label>
@@ -1467,10 +1466,12 @@ export default function PreRegisterPage() {
                                                 <div className={styles.intakeSpacer} />
                                             </div>
                                         </div>
-                                    </div>
+                                    </PatientRegistrationSectionCard>
 
-                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Physician Information</h3>
+                                    <PatientRegistrationSectionCard
+                                        title="Physician Information"
+                                        description="If applicable, add the patient's attending physician details."
+                                    >
                                         <div className={styles.formGrid}>
                                             <div className={styles.fieldGroup}>
                                                 <label className={styles.fieldLabel}>Physician Name</label>
@@ -1503,7 +1504,7 @@ export default function PreRegisterPage() {
                                                 {errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}
                                             </div>
                                         </div>
-                                    </div>
+                                    </PatientRegistrationSectionCard>
                                     <div className={styles.buttonRow}>
                                         <button type="button" className={styles.secondaryBtn} onClick={handleStepBack}>
                                             Back to Contacts
@@ -1517,12 +1518,11 @@ export default function PreRegisterPage() {
 
                             {!isPhoneCallPreRegistration && activeStepKey === 'consent' && (
                                 <>
-                                    <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
-                                        <p className={styles.eyebrow} style={{ marginBottom: '8px' }}>Consent & Review</p>
-                                        <h3 className={styles.sectionTitle} style={{ fontSize: '1.2rem' }}>Consent & Review</h3>
-                                        <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
-                                            Review the consent details carefully before submitting your pre-registration.
-                                        </p>
+                                    <PatientRegistrationSectionCard
+                                        eyebrow="Consent & Review"
+                                        title="Consent & Review"
+                                        description="Review the consent details carefully before submitting your pre-registration."
+                                    >
                                         <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Data Privacy Act</h3>
                                         <p className={styles.bodyText} style={{ marginTop: 0, fontSize: '0.95rem' }}>
                                             I authorize Dentime to collect, store, and process the patient&apos;s personal and health information for appointment handling, treatment documentation, follow-up care, and clinic operations in compliance with the Data Privacy Act of 2012.
@@ -1568,7 +1568,7 @@ export default function PreRegisterPage() {
                                                 {errors.dataPrivacyConsent_acknowledged && <span className={styles.errorText}>{errors.dataPrivacyConsent_acknowledged}</span>}
                                             </div>
                                         </div>
-                                    </div>
+                                    </PatientRegistrationSectionCard>
 
                                     <div className={styles.formCard} style={{ background: '#fff', border: '1px solid rgba(1, 83, 139, 0.08)' }}>
                                         <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Digital Consent</h3>

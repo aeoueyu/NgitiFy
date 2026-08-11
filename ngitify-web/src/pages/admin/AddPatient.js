@@ -7,6 +7,10 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
+import {
+    PatientRegistrationSectionCard,
+    PatientRegistrationStepper,
+} from '../../components/patient/PatientRegistrationFlow';
 import { privacyPolicySections, privacyPolicyUpdatedAt, privacyPolicyVersion } from '../../data/consentDocument';
 import {
     formatPatientDuplicateLine,
@@ -107,9 +111,76 @@ const INTAKE_STEPS = [
         description: 'Final consent review before creating the patient account.',
     },
 ];
+
+const INTAKE_SECTION_FIELDS = {
+    0: [
+        'firstName',
+        'lastName',
+        'birthdate',
+        'gender',
+        'email',
+        'phone',
+        'homePhone',
+        'workPhone',
+        'religionOther',
+        'occupationOther',
+        'home_region',
+        'home_province',
+        'home_city',
+        'home_barangay',
+        'home_street',
+        'home_houseNumber',
+    ],
+    1: [
+        'emergencyContactName',
+        'emergencyContactRelationship',
+        'emergencyContactPhone',
+        'guardianName',
+        'guardianRelationship',
+        'guardianOccupation',
+        'guardianOccupationOther',
+        'guardianContact',
+        'assignedBranch',
+    ],
+    2: [
+        'bloodType',
+        'dentalHistory_lastExamDate',
+        'dentalHistory_hadTreatmentReaction',
+        'dentalHistory_reactionDetails',
+        'dentalHistory_hasConfidentialInfo',
+        'medicalHistory_inGoodHealth',
+        'medicalHistory_underMedicalTreatment',
+        'medicalHistory_medicalTreatmentDetails',
+        'medicalHistory_hadSeriousIllnessOrSurgery',
+        'medicalHistory_seriousIllnessOrSurgeryDetails',
+        'medicalHistory_hadHospitalization',
+        'medicalHistory_hospitalizationDetails',
+        'medicalHistory_isTakingMedication',
+        'medicalHistory_medications',
+        'medicalHistory_usesTobacco',
+        'medicalHistory_usesAlcoholOrDrugs',
+        'medicalHistory_hasAllergies',
+        'medicalHistory_allergies',
+        'medicalHistory_isPregnant',
+        'medicalHistory_isNursing',
+        'medicalHistory_takingBirthControl',
+        'physician_specialtyOther',
+        'physician_officeNumber',
+    ],
+    3: [
+        'dataPrivacyConsent_signerName',
+        'dataPrivacyConsent_signedAt',
+        'dataPrivacyConsent_acknowledged',
+        'consentAcknowledgement_signerName',
+        'consentAcknowledgement_signedAt',
+        'consentAcknowledgement_acknowledged',
+    ],
+};
 const dataPrivacyReviewGroups = [
     { heading: `Data Privacy Notice ${privacyPolicyVersion} - Updated ${privacyPolicyUpdatedAt}`, sections: privacyPolicySections },
 ];
+
+const NON_VALIDATION_ERROR_KEYS = ['profileImage', 'duplicateCheck'];
 
 export default function AddPatient({ onClose, onSuccess }) {
     const { user } = useAuth();
@@ -125,7 +196,6 @@ export default function AddPatient({ onClose, onSuccess }) {
     const [errors, setErrors] = useState({});
     const [duplicateSummary, setDuplicateSummary] = useState(null);
     const [softDuplicateConfirmed, setSoftDuplicateConfirmed] = useState(false);
-    const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
     const [currentStep, setCurrentStep] = useState(0);
@@ -399,11 +469,21 @@ export default function AddPatient({ onClose, onSuccess }) {
         return newErrors;
     };
 
+    const syncFormErrors = (currentFormData = formData) => {
+        const validationErrors = getValidationErrors(currentFormData);
+        setErrors((prev) => {
+            const preservedEntries = Object.entries(prev).filter(([key]) => NON_VALIDATION_ERROR_KEYS.includes(key));
+            return {
+                ...Object.fromEntries(preservedEntries),
+                ...validationErrors,
+            };
+        });
+        return validationErrors;
+    };
+
     useEffect(() => {
-        if (hasTriedSubmit) {
-            setErrors(getValidationErrors(formData));
-        }
-    }, [formData, hasTriedSubmit]); // eslint-disable-line react-hooks/exhaustive-deps
+        syncFormErrors(formData);
+    }, [formData]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         setDuplicateSummary(null);
@@ -417,8 +497,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     }, [formData.firstName, formData.lastName, formData.birthdate, formData.email, formData.phone]);
 
     const validateForm = () => {
-        const newErrors = getValidationErrors(formData);
-        setErrors(newErrors);
+        const newErrors = syncFormErrors(formData);
         const isValid = Object.keys(newErrors).length === 0;
         if (!isValid) {
             const firstErrorField = Object.keys(newErrors)[0];
@@ -455,6 +534,65 @@ export default function AddPatient({ onClose, onSuccess }) {
             }, 0);
         }
         return isValid;
+    };
+
+    const focusFirstStepError = (stepIndex, stepErrors) => {
+        const firstStepError = stepErrors[0];
+        if (!firstStepError) return;
+
+        window.setTimeout(() => {
+            const byName = document.getElementsByName(firstStepError)[0];
+            if (byName) {
+                byName.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                byName.focus();
+                return;
+            }
+
+            const fallbackField = document.querySelector('input, select, textarea');
+            if (fallbackField) {
+                fallbackField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 0);
+    };
+
+    const handleStepAdvance = async (targetStep = currentStep + 1) => {
+        const nextErrors = getValidationErrors(formData);
+        const currentStepFields = INTAKE_SECTION_FIELDS[currentStep] || [];
+        const currentStepErrors = Object.keys(nextErrors).filter((key) => currentStepFields.includes(key));
+
+        syncFormErrors(formData);
+
+        if (currentStepErrors.length > 0) {
+            focusFirstStepError(currentStep, currentStepErrors);
+            return;
+        }
+
+        if (currentStep === 0 && targetStep > 0) {
+            setIsLoading(true);
+            try {
+                const duplicateResult = await runDuplicateCheck({ enforceIdentity: true, allowSoftContinue: softDuplicateConfirmed });
+                if (duplicateResult?.blocked) {
+                    return;
+                }
+            } catch (error) {
+                console.error('Error checking patient duplicates:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        setCurrentStep(targetStep);
+    };
+
+    const handleStepSelect = (targetStep) => {
+        if (targetStep <= currentStep) {
+            setCurrentStep(targetStep);
+            return;
+        }
+
+        if (targetStep === currentStep + 1) {
+            handleStepAdvance(targetStep);
+        }
     };
 
     const hasFormErrors = Object.keys(getValidationErrors(formData)).length > 0;
@@ -548,7 +686,6 @@ export default function AddPatient({ onClose, onSuccess }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setHasTriedSubmit(true);
         if (!validateForm()) return;
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
@@ -750,35 +887,12 @@ export default function AddPatient({ onClose, onSuccess }) {
                         {errors.profileImage && <span className={styles.errorText}>{errors.profileImage}</span>}
                     </div>
 
-                    <div className={styles.flowSteps}>
-                        {INTAKE_STEPS.map((step, index) => {
-                            const isActive = currentStep === index;
-                            const isComplete = currentStep > index;
-                            return (
-                                <button
-                                    key={step.key}
-                                    type="button"
-                                    className={`${styles.flowStep} ${isActive ? styles.flowStepActive : ''} ${isComplete ? styles.flowStepComplete : ''}`.trim()}
-                                    onClick={() => setCurrentStep(index)}
-                                    disabled={isLoading}
-                                >
-                                    <span className={styles.flowStepCount}>{index + 1}</span>
-                                    <span className={styles.flowStepText}>
-                                        <strong>{step.label}</strong>
-                                        <span>{step.description}</span>
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <div className={styles.flowSummaryCard}>
-                        <div>
-                            <span className={styles.flowSummaryEyebrow}>Step {currentStep + 1} of {INTAKE_STEPS.length}</span>
-                            <strong className={styles.flowSummaryTitle}>{INTAKE_STEPS[currentStep].label}</strong>
-                            <span className={styles.flowSummaryText}>{INTAKE_STEPS[currentStep].description}</span>
-                        </div>
-                        {currentStep === 0 && (
+                    <PatientRegistrationStepper
+                        steps={INTAKE_STEPS}
+                        currentIndex={currentStep}
+                        onStepSelect={handleStepSelect}
+                        isStepLocked={(index) => isLoading || index > currentStep + 1}
+                        summaryAction={currentStep === 0 ? (
                             <button
                                 type="button"
                                 className={styles.flowSecondaryButton}
@@ -787,12 +901,16 @@ export default function AddPatient({ onClose, onSuccess }) {
                             >
                                 Check Existing Patient Records
                             </button>
-                        )}
-                    </div>
+                        ) : null}
+                    />
 
                     {currentStep === 0 && (
                         <>
-                    <h3 className={styles.mainSectionTitle}>Patient Details</h3>
+                    <PatientRegistrationSectionCard
+                        eyebrow="Identity"
+                        title="Patient Details"
+                        description="Complete the patient's identity, address, and primary contact details before moving to the next section."
+                    >
                     {duplicateSections.length > 0 && (
                         <div style={{ marginBottom: '18px', padding: '16px 18px', borderRadius: '16px', border: '1px solid #f8d7a8', background: '#fff8e8' }}>
                             <strong style={{ display: 'block', color: '#8a5b00', marginBottom: '6px' }}>
@@ -975,15 +1093,19 @@ export default function AddPatient({ onClose, onSuccess }) {
                     )}
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>Cancel</button>
-                        <button type="button" className={styles.submitBtn} onClick={() => setCurrentStep(1)} disabled={isLoading}>Continue to Contacts</button>
+                        <button type="button" className={styles.submitBtn} onClick={() => handleStepAdvance(1)} disabled={isLoading}>Continue to Contacts</button>
                     </div>
+                    </PatientRegistrationSectionCard>
                     </>
                     )}
 
                     {currentStep === 1 && (
                         <>
-                    <hr className={styles.divider} style={{ marginTop: '10px' }} />
-                    <h3 className={styles.mainSectionTitle}>Emergency Contact</h3>
+                    <PatientRegistrationSectionCard
+                        eyebrow="Contacts & Branch"
+                        title="Emergency Contact"
+                        description="Add the patient's emergency details, minor guardian information when needed, and branch assignment."
+                    >
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>EMERGENCY CONTACT NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.emergencyContactName ? styles.errorBorder : ''}`} name="emergencyContactName" value={formData.emergencyContactName} onChange={handlePersonalChange} maxLength={70} disabled={isLoading} />{errors.emergencyContactName && <span className={styles.errorText}>{errors.emergencyContactName}</span>}</div>
                         <div className={styles.formGroup}>
@@ -1081,14 +1203,19 @@ export default function AddPatient({ onClose, onSuccess }) {
                     )}
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(0)} disabled={isLoading}>Back to Identity</button>
-                        <button type="button" className={styles.submitBtn} onClick={() => setCurrentStep(2)} disabled={isLoading}>Continue to Medical</button>
+                        <button type="button" className={styles.submitBtn} onClick={() => handleStepAdvance(2)} disabled={isLoading}>Continue to Medical</button>
                     </div>
+                    </PatientRegistrationSectionCard>
                     </>
                     )}
 
                     {currentStep === 2 && (
                         <>
-                    <hr className={styles.divider} />
+                    <PatientRegistrationSectionCard
+                        eyebrow="Medical & Dental"
+                        title="Dental and Medical History"
+                        description="Capture the patient's dental background, physician details, and medical questionnaire before consent review."
+                    >
                     <h3 className={styles.mainSectionTitle}>Dental History</h3>
                     <div className={styles.row}>
                         <div className={styles.formGroup}><label>LAST DENTAL VISIT</label><input type="date" className={`${styles.inputField} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={formData.dentalHistory.lastExamDate} onChange={(e) => handleNestedChange('dentalHistory', 'lastExamDate', e.target.value)} max={getTodayDate()} disabled={isLoading} />{errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}</div>
@@ -1198,13 +1325,19 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
                     <div className={styles.buttonGroup}>
                         <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(1)} disabled={isLoading}>Back to Contacts</button>
-                        <button type="button" className={styles.submitBtn} onClick={() => setCurrentStep(3)} disabled={isLoading}>Continue to Consent</button>
+                        <button type="button" className={styles.submitBtn} onClick={() => handleStepAdvance(3)} disabled={isLoading}>Continue to Consent</button>
                     </div>
+                    </PatientRegistrationSectionCard>
                     </>
                     )}
 
                     {currentStep === 3 && (
                         <>
+                    <PatientRegistrationSectionCard
+                        eyebrow="Consent & Review"
+                        title="Consent and Final Review"
+                        description="Review the registration summary, then complete the privacy and consent acknowledgements before saving the patient record."
+                    >
                     <div className={styles.reviewPanel}>
                         <strong className={styles.reviewPanelTitle}>Quick Review</strong>
                         <div className={styles.reviewGrid}>
@@ -1333,6 +1466,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                         <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isLoading}>Cancel</button>
                         <button type="submit" className={styles.submitBtn} disabled={isLoading || hasFormErrors}>{isLoading ? 'ADDING PATIENT...' : 'ADD PATIENT'}</button>
                     </div>
+                    </PatientRegistrationSectionCard>
                     </>
                     )}
                 </form>
