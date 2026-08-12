@@ -217,7 +217,7 @@ export default function AddPatient({ onClose, onSuccess }) {
         birthdate: '', gender: '',
         email: '', phone: '',
         homePhone: '', occupation: '', occupationOther: '', civilStatus: '', bloodType: '',
-        nationality: 'Filipino', religion: '', religionOther: '',
+        nationality: '', religion: '', religionOther: '',
         workPhone: '', referredBy: '',
         reasonForConsultation: '',
         emergencyContactName: '', emergencyContactRelationship: '', emergencyContactPhone: '',
@@ -285,7 +285,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
-        if ((name === 'occupation' || name === 'guardianOccupation') && value !== 'Other') {
+        if ((name === 'occupation' || name === 'guardianOccupation' || name === 'nationality' || name === 'religion') && value !== 'Other') {
             setErrors(prev => {
                 const next = { ...prev };
                 delete next[`${name}Other`];
@@ -461,6 +461,10 @@ export default function AddPatient({ onClose, onSuccess }) {
         if (currentFormData.medicalHistory.hadHospitalization === 'yes' && !currentFormData.medicalHistory.hospitalizationDetails.trim()) { newErrors.medicalHistory_hospitalizationDetails = REQUIRED_WHEN_YES_MESSAGE; isValid = false; }
         if (currentFormData.medicalHistory.isTakingMedication === 'yes' && !currentFormData.medicalHistory.medications.trim()) { newErrors.medicalHistory_medications = REQUIRED_WHEN_YES_MESSAGE; isValid = false; }
         if (currentFormData.medicalHistory.hasAllergies === 'yes' && currentFormData.medicalHistory.allergies.length === 0 && !currentFormData.medicalHistory.allergyOther.trim()) { newErrors.medicalHistory_allergies = ALLERGY_SELECTION_REQUIRED_MESSAGE; isValid = false; }
+        if (!currentFormData.civilStatus) { newErrors.civilStatus = REQUIRED_MESSAGE; isValid = false; }
+        if (!currentFormData.nationality) { newErrors.nationality = REQUIRED_MESSAGE; isValid = false; }
+        if (!currentFormData.religion) { newErrors.religion = REQUIRED_MESSAGE; isValid = false; }
+        if (currentFormData.nationality === 'Other' && !String(currentFormData.nationalityOther || '').trim()) { newErrors.nationalityOther = REQUIRED_MESSAGE; isValid = false; }
         if (currentFormData.religion === 'Other' && !currentFormData.religionOther.trim()) { newErrors.religionOther = REQUIRED_MESSAGE; isValid = false; }
         if (currentFormData.occupation === 'Other' && !currentFormData.occupationOther.trim()) { newErrors.occupationOther = REQUIRED_MESSAGE; isValid = false; }
         if (currentFormData.guardianOccupation === 'Other' && !currentFormData.guardianOccupationOther.trim()) { newErrors.guardianOccupationOther = REQUIRED_MESSAGE; isValid = false; }
@@ -705,7 +709,7 @@ export default function AddPatient({ onClose, onSuccess }) {
             occupation: (formData.occupation === 'Other' ? formData.occupationOther.trim() : formData.occupation) || undefined,
             civilStatus: formData.civilStatus || undefined,
             bloodType: formData.bloodType || undefined,
-            nationality: formData.nationality || undefined,
+            nationality: (formData.nationality === 'Other' ? formData.nationalityOther?.trim() : formData.nationality) || undefined,
             religion: (formData.religion === 'Other' ? formData.religionOther.trim() : formData.religion) || undefined,
             workPhone: toLandlinePayload(formData.workPhone),
             referredBy: formData.referredBy || undefined,
@@ -1034,21 +1038,40 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
 
                     <div className={styles.row}>
-                        <div className={styles.formGroup}><label>NATIONALITY</label><select className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isLoading}>{NATIONALITY_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}</select></div>
                         <div className={styles.formGroup}>
-                            <label>RELIGION</label>
-                            <select className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isLoading}>
+                            <label>CIVIL STATUS <span style={{ color: 'red' }}>*</span></label>
+                            <select className={`${styles.inputField} ${errors.civilStatus ? styles.errorBorder : ''}`} name="civilStatus" value={formData.civilStatus} onChange={handlePersonalChange} disabled={isLoading}>
+                                <option value="">Select status</option>
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                                <option value="Widowed">Widowed</option>
+                                <option value="Separated">Separated</option>
+                                <option value="Divorced">Divorced</option>
+                            </select>
+                            {errors.civilStatus && <span className={styles.errorText}>{errors.civilStatus}</span>}
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>NATIONALITY <span style={{ color: 'red' }}>*</span></label>
+                            <select className={`${styles.inputField} ${errors.nationality || errors.nationalityOther ? styles.errorBorder : ''}`} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isLoading}>
+                                <option value="">Select Nationality</option>
+                                {NATIONALITY_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+                            </select>
+                            {(errors.nationality || errors.nationalityOther) && <span className={styles.errorText}>{errors.nationality || errors.nationalityOther}</span>}
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>RELIGION <span style={{ color: 'red' }}>*</span></label>
+                            <select className={`${styles.inputField} ${errors.religion || errors.religionOther ? styles.errorBorder : ''}`} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isLoading}>
                                 <option value="">Select Religion</option>
                                 {RELIGION_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
                             </select>
-                            {errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}
+                            {(errors.religion || errors.religionOther) && <span className={styles.errorText}>{errors.religion || errors.religionOther}</span>}
                         </div>
                     </div>
 
-                    {formData.religion === 'Other' && (
+                    {(formData.nationality === 'Other' || formData.religion === 'Other') && (
                         <div className={styles.row}>
-                            <div className={styles.formGroup}><label>RELIGION, IF OTHER</label><input className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religionOther" value={formData.religionOther} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} /></div>
-                            <div className={styles.formGroup} />
+                            {formData.nationality === 'Other' ? <div className={styles.formGroup}><label>NATIONALITY, IF OTHER <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.nationalityOther ? styles.errorBorder : ''}`} name="nationalityOther" value={formData.nationalityOther || ''} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} />{errors.nationalityOther && <span className={styles.errorText}>{errors.nationalityOther}</span>}</div> : <div className={styles.formGroup} />}
+                            {formData.religion === 'Other' ? <div className={styles.formGroup}><label>RELIGION, IF OTHER <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religionOther" value={formData.religionOther} onChange={handlePersonalChange} maxLength={50} disabled={isLoading} />{errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}</div> : <div className={styles.formGroup} />}
                         </div>
                     )}
 

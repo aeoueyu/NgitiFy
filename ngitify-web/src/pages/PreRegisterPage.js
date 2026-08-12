@@ -53,7 +53,7 @@ const initialProfileState = {
     occupationOther: '',
     civilStatus: '',
     bloodType: '',
-    nationality: 'Filipino',
+    nationality: '',
     nationalityOther: '',
     religion: '',
     religionOther: '',
@@ -148,7 +148,10 @@ const PRE_REGISTER_SECTION_FIELDS = {
         'appointment_guestGender',
         'profile_occupation',
         'profile_occupationOther',
+        'profile_civilStatus',
+        'profile_nationality',
         'profile_nationalityOther',
+        'profile_religion',
         'profile_religionOther',
         'profile_homePhone',
         'profile_workPhone',
@@ -362,6 +365,9 @@ export default function PreRegisterPage() {
 
         if (!nextProfile.occupation) nextErrors.profile_occupation = REQUIRED_MESSAGE;
         if (nextProfile.occupation === 'Other' && !nextProfile.occupationOther.trim()) nextErrors.profile_occupationOther = REQUIRED_MESSAGE;
+        if (!nextProfile.civilStatus) nextErrors.profile_civilStatus = REQUIRED_MESSAGE;
+        if (!nextProfile.nationality) nextErrors.profile_nationality = REQUIRED_MESSAGE;
+        if (!nextProfile.religion) nextErrors.profile_religion = REQUIRED_MESSAGE;
         if (nextProfile.nationality === 'Other' && !nextProfile.nationalityOther.trim()) nextErrors.profile_nationalityOther = REQUIRED_MESSAGE;
         if (nextProfile.religion === 'Other' && !nextProfile.religionOther.trim()) nextErrors.profile_religionOther = REQUIRED_MESSAGE;
         if (nextProfile.homePhone && !isValidLandlineNumber(nextProfile.homePhone)) nextErrors.profile_homePhone = INVALID_LANDLINE_FORMAT_MESSAGE;
@@ -1036,9 +1042,9 @@ export default function PreRegisterPage() {
                                             {errors.profile_occupationOther && <span className={styles.errorText}>{errors.profile_occupationOther}</span>}
                                         </div>
                                     )}
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Civil Status</label>
-                                        <select className={styles.fieldSelect} value={profile.civilStatus} onChange={(e) => handleProfileChange('civilStatus', e.target.value)}>
+                                    <div className={styles.fieldGroup} data-field-key="profile_civilStatus">
+                                        <label className={styles.fieldLabel}>Civil Status{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.profile_civilStatus ? styles.errorBorder : ''}`} value={profile.civilStatus} onChange={(e) => handleProfileChange('civilStatus', e.target.value)}>
                                             <option value="">Select status</option>
                                             <option value="Single">Single</option>
                                             <option value="Married">Married</option>
@@ -1046,13 +1052,15 @@ export default function PreRegisterPage() {
                                             <option value="Separated">Separated</option>
                                             <option value="Divorced">Divorced</option>
                                         </select>
+                                        {errors.profile_civilStatus && <span className={styles.errorText}>{errors.profile_civilStatus}</span>}
                                     </div>
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Nationality</label>
-                                        <select className={styles.fieldSelect} value={profile.nationality} onChange={(e) => handleProfileChange('nationality', e.target.value)}>
+                                    <div className={styles.fieldGroup} data-field-key="profile_nationality">
+                                        <label className={styles.fieldLabel}>Nationality{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.profile_nationality || errors.profile_nationalityOther ? styles.errorBorder : ''}`} value={profile.nationality} onChange={(e) => handleProfileChange('nationality', e.target.value)}>
                                             <option value="">Select nationality</option>
                                             {NATIONALITY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                         </select>
+                                        {(errors.profile_nationality || errors.profile_nationalityOther) && <span className={styles.errorText}>{errors.profile_nationality || errors.profile_nationalityOther}</span>}
                                     </div>
                                     {profile.nationality === 'Other' && (
                                         <div className={styles.fieldGroup} data-field-key="profile_nationalityOther">
@@ -1061,12 +1069,13 @@ export default function PreRegisterPage() {
                                             {errors.profile_nationalityOther && <span className={styles.errorText}>{errors.profile_nationalityOther}</span>}
                                         </div>
                                     )}
-                                    <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Religion</label>
-                                        <select className={styles.fieldSelect} value={profile.religion} onChange={(e) => handleProfileChange('religion', e.target.value)}>
+                                    <div className={styles.fieldGroup} data-field-key="profile_religion">
+                                        <label className={styles.fieldLabel}>Religion{REQUIRED_MARK}</label>
+                                        <select className={`${styles.fieldSelect} ${errors.profile_religion || errors.profile_religionOther ? styles.errorBorder : ''}`} value={profile.religion} onChange={(e) => handleProfileChange('religion', e.target.value)}>
                                             <option value="">Select religion</option>
                                             {RELIGION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                         </select>
+                                        {(errors.profile_religion || errors.profile_religionOther) && <span className={styles.errorText}>{errors.profile_religion || errors.profile_religionOther}</span>}
                                     </div>
                                     {profile.religion === 'Other' && (
                                         <div className={styles.fieldGroup} data-field-key="profile_religionOther">

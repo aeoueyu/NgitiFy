@@ -111,7 +111,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         email: '',
         phone: '',
         assignedBranch: '',
-        nationality: 'Filipino',
+        nationality: '',
+        nationalityOther: '',
         religion: '',
         religionOther: '',
         homePhone: '',
@@ -178,7 +179,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                     email: data.email || '',
                     phone: stripMobilePrefix(data.contactNumber || ''),
                     assignedBranch: data.assignedBranch || data.assignedBranches?.[0] || '',
-                    nationality: data.nationality || 'Filipino',
+                    nationality: getSelectValueWithOther(data.nationality || '', NATIONALITY_OPTIONS),
+                    nationalityOther: getOtherTextValue(data.nationality || '', NATIONALITY_OPTIONS),
                     religion: getSelectValueWithOther(data.religion || '', RELIGION_OPTIONS),
                     religionOther: getOtherTextValue(data.religion || '', RELIGION_OPTIONS),
                     homePhone: stripLandlinePrefix(data.homePhone || ''),
@@ -333,7 +335,12 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             }
             return;
         }
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+            ...(name === 'nationality' && value !== 'Other' ? { nationalityOther: '' } : {}),
+            ...(name === 'religion' && value !== 'Other' ? { religionOther: '' } : {}),
+        }));
     };
 
     const handlePhoneChange = (name) => (e) => {
@@ -552,6 +559,22 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             nextErrors.physician_officeNumber = INVALID_LANDLINE_FORMAT_MESSAGE;
             isValid = false;
         }
+        if (!formData.civilStatus) {
+            nextErrors.civilStatus = REQUIRED_MESSAGE;
+            isValid = false;
+        }
+        if (!formData.nationality) {
+            nextErrors.nationality = REQUIRED_MESSAGE;
+            isValid = false;
+        }
+        if (!formData.religion) {
+            nextErrors.religion = REQUIRED_MESSAGE;
+            isValid = false;
+        }
+        if (formData.nationality === 'Other' && !String(formData.nationalityOther || '').trim()) {
+            nextErrors.nationalityOther = REQUIRED_MESSAGE;
+            isValid = false;
+        }
         if (formData.religion === 'Other' && !formData.religionOther.trim()) {
             nextErrors.religionOther = REQUIRED_MESSAGE;
             isValid = false;
@@ -654,7 +677,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             birthdate: formData.birthdate,
             gender: formData.gender,
             profileImage,
-            nationality: formData.nationality || undefined,
+            nationality: (formData.nationality === 'Other' ? formData.nationalityOther?.trim() : formData.nationality) || undefined,
             religion: (formData.religion === 'Other' ? formData.religionOther.trim() : formData.religion) || undefined,
             homePhone: toLandlinePayload(formData.homePhone),
             occupation: formData.occupation || undefined,
@@ -843,12 +866,13 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 <div className={styles.formGroup}><label>GENDER <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.gender ? styles.errorBorder : ''}`} name="gender" value={formData.gender} onChange={handlePersonalChange} disabled={isSaving}><option value="" hidden>Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select>{errors.gender && <span className={styles.errorText}>{errors.gender}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                <div className={styles.formGroup}><label>NATIONALITY</label><select className={styles.inputField} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Nationality</option>{NATIONALITY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
-                                <div className={styles.formGroup}><label>RELIGION</label><select className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Religion</option>{RELIGION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}</div>
+                                <div className={styles.formGroup}><label>CIVIL STATUS <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.civilStatus ? styles.errorBorder : ''}`} name="civilStatus" value={formData.civilStatus} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option><option value="Divorced">Divorced</option></select>{errors.civilStatus && <span className={styles.errorText}>{errors.civilStatus}</span>}</div>
+                                <div className={styles.formGroup}><label>NATIONALITY <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.nationality || errors.nationalityOther ? styles.errorBorder : ''}`} name="nationality" value={formData.nationality} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Nationality</option>{NATIONALITY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{(errors.nationality || errors.nationalityOther) && <span className={styles.errorText}>{errors.nationality || errors.nationalityOther}</span>}</div>
+                                <div className={styles.formGroup}><label>RELIGION <span style={{ color: 'red' }}>*</span></label><select className={`${styles.inputField} ${errors.religion || errors.religionOther ? styles.errorBorder : ''}`} name="religion" value={formData.religion} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select Religion</option>{RELIGION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select>{(errors.religion || errors.religionOther) && <span className={styles.errorText}>{errors.religion || errors.religionOther}</span>}</div>
                             </div>
                             <div className={styles.row}>
-                                {formData.religion === 'Other' ? <div className={styles.formGroup}><label>RELIGION, IF OTHER</label><input className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religionOther" value={formData.religionOther} onChange={handlePersonalChange} disabled={isSaving} />{errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}</div> : <div className={styles.formGroup} />}
-                                <div className={styles.formGroup} />
+                                {formData.nationality === 'Other' ? <div className={styles.formGroup}><label>NATIONALITY, IF OTHER <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.nationalityOther ? styles.errorBorder : ''}`} name="nationalityOther" value={formData.nationalityOther || ''} onChange={handlePersonalChange} disabled={isSaving} />{errors.nationalityOther && <span className={styles.errorText}>{errors.nationalityOther}</span>}</div> : <div className={styles.formGroup} />}
+                                {formData.religion === 'Other' ? <div className={styles.formGroup}><label>RELIGION, IF OTHER <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.religionOther ? styles.errorBorder : ''}`} name="religionOther" value={formData.religionOther} onChange={handlePersonalChange} disabled={isSaving} />{errors.religionOther && <span className={styles.errorText}>{errors.religionOther}</span>}</div> : <div className={styles.formGroup} />}
                             </div>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>HOME PHONE</label><div className={`${styles.phoneInputGroup} ${errors.homePhone ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span><input className={styles.phoneField} name="homePhone" value={formData.homePhone} onChange={handleLandlineChange('homePhone')} onBlur={handleBlur} maxLength={8} placeholder="1234567" disabled={isSaving} /></div>{errors.homePhone && <span className={styles.errorText}>{errors.homePhone}</span>}</div>
