@@ -505,6 +505,7 @@ export default function SchedulePage() {
 
     const [formState, setFormState] = useState(buildInitialForm({ assignedBranch, currentUserId, role }));
     const [formErrors, setFormErrors] = useState({});
+    const [formTouched, setFormTouched] = useState({});
     const [editingEntry, setEditingEntry] = useState(null);
     const [editMode, setEditMode] = useState('full');
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -560,6 +561,7 @@ export default function SchedulePage() {
     const resetFormState = useCallback(() => {
         setFormState(buildInitialForm({ assignedBranch, currentUserId, role }));
         setFormErrors({});
+        setFormTouched({});
         setAllowedSlots([]);
         setTakenSlots([]);
         setSlotError('');
@@ -854,7 +856,10 @@ export default function SchedulePage() {
 
     useRealtimeSystemEmailValidation({
         email: formState.guestEmail,
-        enabled: formState.source === 'phonecall' && !formState.patientId && !isSubmitting,
+        enabled: formState.source === 'phonecall'
+            && !formState.patientId
+            && !isSubmitting
+            && (formTouched.guestEmail || Boolean(formErrors.guestEmail)),
         setErrors: setFormErrors,
         fieldName: 'guestEmail',
         validateDuplicates: false,
@@ -1111,6 +1116,7 @@ export default function SchedulePage() {
         };
         setFormState(nextState);
         setFormErrors({});
+        setFormTouched({});
         setEditingEntry(entry);
         setEditMode(mode);
         setIsFormOpen(true);
@@ -1264,7 +1270,7 @@ export default function SchedulePage() {
             ]);
 
             touchedKeys.forEach((key) => {
-                if (validationErrors[key]) nextErrors[key] = validationErrors[key];
+                if (validationErrors[key] && (formTouched[key] || prev[key])) nextErrors[key] = validationErrors[key];
                 else delete nextErrors[key];
             });
 
@@ -1335,8 +1341,44 @@ export default function SchedulePage() {
 
     const validateForm = () => {
         const nextErrors = getScheduleValidationErrors();
+        setFormTouched((prev) => ({
+            ...prev,
+            ...Object.keys(nextErrors).reduce((nextTouched, key) => {
+                nextTouched[key] = true;
+                return nextTouched;
+            }, {}),
+        }));
         setFormErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
+    };
+
+    const handleFormBlur = (event) => {
+        const fieldName = event.target.name;
+        if (!fieldName) return;
+
+        const relatedFields = new Set([fieldName]);
+        if (fieldName === 'patientName' || fieldName === 'patientId') {
+            relatedFields.add('patientName');
+            relatedFields.add('patientId');
+        }
+
+        setFormTouched((prev) => {
+            const next = { ...prev };
+            relatedFields.forEach((key) => {
+                next[key] = true;
+            });
+            return next;
+        });
+
+        const validationErrors = getScheduleValidationErrors(formState);
+        setFormErrors((prev) => {
+            const next = { ...prev };
+            relatedFields.forEach((key) => {
+                if (validationErrors[key]) next[key] = validationErrors[key];
+                else delete next[key];
+            });
+            return next;
+        });
     };
 
     const submitScheduleForm = async () => {
@@ -1634,7 +1676,7 @@ export default function SchedulePage() {
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmitForm} className={styles.modalBody}>
+                    <form onSubmit={handleSubmitForm} onBlurCapture={handleFormBlur} className={styles.modalBody} noValidate>
                         {editingEntry && isTaskEditMode && (
                             <div className={styles.taskEditBanner}>
                                 <div className={styles.taskEditPill}>
@@ -1661,7 +1703,7 @@ export default function SchedulePage() {
                                 <label className={styles.formLabel}>Source <span className={styles.requiredMark}>*</span></label>
                                 <select
                                     name="source"
-                                    className={styles.formControl}
+                                    className={`${styles.formControl} ${formErrors.source ? styles.errorBorder : ''}`}
                                     value={formState.source}
                                     onChange={handleFormFieldChange}
                                     disabled={!!editingEntry}
@@ -1679,7 +1721,7 @@ export default function SchedulePage() {
                                     <label className={styles.formLabel}>Branch <span className={styles.requiredMark}>*</span></label>
                                     <select
                                         name="branch"
-                                        className={styles.formControl}
+                                        className={`${styles.formControl} ${formErrors.branch ? styles.errorBorder : ''}`}
                                         value={formState.branch}
                                         onChange={handleFormFieldChange}
                                         disabled={!!editingEntry}
@@ -1704,7 +1746,7 @@ export default function SchedulePage() {
                                             list="schedule-patient-search"
                                             type="text"
                                             name="patientName"
-                                            className={styles.formControl}
+                                            className={`${styles.formControl} ${(formErrors.patientId || formErrors.patientName) ? styles.errorBorder : ''}`}
                                             value={showWalkInFields || isPhoneCallGuest
                                                 ? formState.patientName
                                                 : (formState.patientId ? `${formState.patientName}${patientOptions.find((entry) => entry.id === formState.patientId)?.email ? ` (${patientOptions.find((entry) => entry.id === formState.patientId)?.email})` : ''}` : formState.patientName)}
@@ -1783,7 +1825,7 @@ export default function SchedulePage() {
                                     <label className={styles.formLabel}>Dentist <span className={styles.requiredMark}>*</span></label>
                                     <select
                                         name="dentistId"
-                                        className={styles.formControl}
+                                        className={`${styles.formControl} ${formErrors.dentistId ? styles.errorBorder : ''}`}
                                         value={formState.dentistId}
                                         onChange={handleFormFieldChange}
                                         disabled={false}
@@ -1846,7 +1888,7 @@ export default function SchedulePage() {
                                     <input
                                         type="date"
                                         name="date"
-                                        className={styles.formControl}
+                                        className={`${styles.formControl} ${formErrors.date ? styles.errorBorder : ''}`}
                                         value={formState.date}
                                         onChange={handleFormFieldChange}
                                         min={minBookableDate}
@@ -1895,7 +1937,7 @@ export default function SchedulePage() {
                                     <input
                                         type="email"
                                         name="guestEmail"
-                                        className={styles.formControl}
+                                        className={`${styles.formControl} ${formErrors.guestEmail ? styles.errorBorder : ''}`}
                                         value={formState.guestEmail}
                                         onChange={handleFormFieldChange}
                                         placeholder="name@example.com"
@@ -1911,7 +1953,7 @@ export default function SchedulePage() {
                                 </label>
                                 <select
                                     name="procedure"
-                                    className={styles.formControl}
+                                    className={`${styles.formControl} ${formErrors.procedure ? styles.errorBorder : ''}`}
                                     value={formState.procedure}
                                     onChange={handleFormFieldChange}
                                 >
@@ -1938,7 +1980,7 @@ export default function SchedulePage() {
                                     ) : (
                                         <select
                                             name="time"
-                                            className={styles.formControl}
+                                            className={`${styles.formControl} ${formErrors.time ? styles.errorBorder : ''}`}
                                             value={formState.time}
                                             onChange={handleFormFieldChange}
                                         >
