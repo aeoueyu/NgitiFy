@@ -10,7 +10,8 @@ import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
 import wideTable from '../../styles/wideTable.module.css';
 
 const EMPTY_ADDRESS = { region: '', province: '', city: '', barangay: '', street: '', houseNumber: '' };
-const EMPTY_FORM = { name: '', phone: '', addressDetails: { ...EMPTY_ADDRESS } };
+const EMPTY_FORM = { name: '', phone: '', branchManagerId: '', addressDetails: { ...EMPTY_ADDRESS } };
+const REQUIRED_MESSAGE = 'Required';
 
 const toTitleCase = (value) => value
     .toLowerCase()
@@ -38,11 +39,17 @@ const formatBranchAddress = (addressDetails, fallback = '') => {
 const normalizeBranchForEdit = (branch) => ({
     name: branch?.name || '',
     phone: (branch?.contactNumber || '').replace(/^\+63/, ''),
+    branchManagerId: Array.isArray(branch?.managerIds) ? String(branch.managerIds[0] || '') : '',
     addressDetails: {
         ...EMPTY_ADDRESS,
         ...(branch?.addressDetails || {}),
     },
 });
+
+const getManagerLabel = (manager = {}) => {
+    const fullName = `${manager.name?.first || ''} ${manager.name?.last || ''}`.trim();
+    return fullName || manager.email || 'Unnamed Manager';
+};
 
 const getStatusClassName = (isActive) => (
     isActive ? wideTable.statusGreen : wideTable.statusGray
@@ -64,6 +71,8 @@ export default function BranchManagement() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState({});
+    const [touched, setTouched] = useState({});
+    const [successMessage, setSuccessMessage] = useState('');
     const [confirmTarget, setConfirmTarget] = useState(null);
     const [analyticsTarget, setAnalyticsTarget] = useState(null);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -126,6 +135,7 @@ export default function BranchManagement() {
         setEditTarget(null);
         setForm(EMPTY_FORM);
         setErrors({});
+        setTouched({});
         setShowModal(true);
     };
 
@@ -133,6 +143,7 @@ export default function BranchManagement() {
         setEditTarget(branch);
         setForm(normalizeBranchForEdit(branch));
         setErrors({});
+        setTouched({});
         setShowModal(true);
     };
 
@@ -142,53 +153,102 @@ export default function BranchManagement() {
         setEditTarget(null);
         setForm(EMPTY_FORM);
         setErrors({});
+        setTouched({});
     };
 
+    const getValidationErrors = useCallback((nextForm = form) => {
+        const nextErrors = {};
+
+        if (!nextForm.name.trim()) nextErrors.name = REQUIRED_MESSAGE;
+        if (!nextForm.phone) nextErrors.phone = REQUIRED_MESSAGE;
+        else if (nextForm.phone.length !== 10 || nextForm.phone[0] !== '9') nextErrors.phone = 'Invalid contact number';
+
+        ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
+            if (!nextForm.addressDetails[field]) {
+                nextErrors[field] = REQUIRED_MESSAGE;
+            }
+        });
+
+        return nextErrors;
+    }, [form]);
+
+    const syncErrors = useCallback((nextForm, nextTouched = touched) => {
+        const nextValidationErrors = getValidationErrors(nextForm);
+        setErrors(() => {
+            const preserved = {};
+            Object.keys(nextValidationErrors).forEach((field) => {
+                if (nextTouched[field]) preserved[field] = nextValidationErrors[field];
+            });
+            return preserved;
+        });
+    }, [getValidationErrors, touched]);
+
+    const touchField = (field) => {
+        setTouched((prev) => {
+            const nextTouched = { ...prev, [field]: true };
+            syncErrors(form, nextTouched);
+            return nextTouched;
+        });
+    };
+
+    const shouldShowError = (field) => touched[field] && errors[field];
+
     const handleNameChange = (value) => {
-        setForm((prev) => ({ ...prev, name: toTitleCase(value) }));
-        if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+        const nextForm = { ...form, name: toTitleCase(value) };
+        setForm(nextForm);
+        syncErrors(nextForm);
     };
 
     const handlePhoneChange = (value) => {
         const next = value.replace(/\D/g, '').slice(0, 10);
-        setForm((prev) => ({ ...prev, phone: next }));
-        if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+        const nextForm = { ...form, phone: next };
+        setForm(nextForm);
+        syncErrors(nextForm);
     };
 
     const handleAddressChange = (field, value) => {
-        setForm((prev) => {
-            const nextAddress = { ...prev.addressDetails, [field]: value };
-            if (field === 'region') {
-                nextAddress.province = '';
-                nextAddress.city = '';
-                nextAddress.barangay = '';
-            }
-            if (field === 'province') {
-                nextAddress.city = '';
-                nextAddress.barangay = '';
-            }
-            if (field === 'city') {
-                nextAddress.barangay = '';
-            }
-            return { ...prev, addressDetails: nextAddress };
-        });
+        const nextAddress = { ...form.addressDetails, [field]: value };
+        const nextTouched = { ...touched };
+        if (field === 'region') {
+            nextAddress.province = '';
+            nextAddress.city = '';
+            nextAddress.barangay = '';
+            delete nextTouched.province;
+            delete nextTouched.city;
+            delete nextTouched.barangay;
+        }
+        if (field === 'province') {
+            nextAddress.city = '';
+            nextAddress.barangay = '';
+            delete nextTouched.city;
+            delete nextTouched.barangay;
+        }
+        if (field === 'city') {
+            nextAddress.barangay = '';
+            delete nextTouched.barangay;
+        }
+        const nextForm = { ...form, addressDetails: nextAddress };
+        setForm(nextForm);
+        setTouched(nextTouched);
+        syncErrors(nextForm, nextTouched);
+    };
 
-        if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
+    const handleManagerChange = (value) => {
+        setForm((prev) => ({ ...prev, branchManagerId: value }));
     };
 
     const validateForm = () => {
-        const nextErrors = {};
-
-        if (!form.name.trim()) nextErrors.name = 'Branch name is required.';
-        if (!form.phone) nextErrors.phone = 'Contact number is required.';
-        else if (form.phone.length !== 10 || form.phone[0] !== '9') nextErrors.phone = 'Use the format 9xxxxxxxxx.';
-
-        ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
-            if (!form.addressDetails[field]) {
-                nextErrors[field] = 'Required';
-            }
+        const nextErrors = getValidationErrors(form);
+        setTouched({
+            name: true,
+            phone: true,
+            region: true,
+            province: true,
+            city: true,
+            barangay: true,
+            street: true,
+            houseNumber: true,
         });
-
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
     };
@@ -202,6 +262,7 @@ export default function BranchManagement() {
             contactNumber: `+63${form.phone}`,
             addressDetails: form.addressDetails,
             address: formatBranchAddress(form.addressDetails),
+            branchManagerId: form.branchManagerId || '',
             isActive: editTarget ? editTarget.isActive : true,
         };
 
@@ -221,7 +282,7 @@ export default function BranchManagement() {
                 return;
             }
 
-            addToast(`Branch ${editTarget ? 'updated' : 'created'} successfully.`, 'success');
+            setSuccessMessage(`Branch ${editTarget ? 'updated' : 'created'} successfully.`);
             closeModal();
             fetchBranches();
         } catch (error) {
@@ -406,57 +467,84 @@ export default function BranchManagement() {
             {!isBranchManager && showModal && (
                 <div className={styles.overlay}>
                     <div className={`${styles.modal} ${styles.largeModal}`}>
-                        <h2 className={styles.modalTitle}>{editTarget ? 'Edit Branch' : 'Add New Branch'}</h2>
-
-                        {errors.form && <p className={styles.formError}>{errors.form}</p>}
-
-                        <div className={styles.formGroup}>
-                            <label className={styles.label}>Branch Name <span className={styles.required}>*</span></label>
-                            <input
-                                className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
-                                value={form.name}
-                                onChange={(event) => handleNameChange(event.target.value)}
-                                placeholder="e.g. Main Branch - Makati"
-                            />
-                            {errors.name && <span className={styles.errorText}>{errors.name}</span>}
+                        <div className={styles.modalHeader}>
+                            <h2 className={styles.modalTitle}>{editTarget ? 'Edit Branch' : 'Add New Branch'}</h2>
                         </div>
 
-                        <div className={styles.formGroup}>
-                            <label className={styles.label}>Contact Number <span className={styles.required}>*</span></label>
-                            <div className={styles.phoneInputWrap}>
-                                <span className={styles.phonePrefix}>+63</span>
-                                <input
-                                    className={`${styles.input} ${errors.phone ? styles.inputError : ''}`}
-                                    value={form.phone}
-                                    onChange={(event) => handlePhoneChange(event.target.value)}
-                                    placeholder="9xxxxxxxxx"
-                                />
+                        <div className={styles.modalBody}>
+                            {errors.form && <p className={styles.formError}>{errors.form}</p>}
+
+                            <div className={styles.addressGrid}>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.label}>Branch Name <span className={styles.required}>*</span></label>
+                                    <input
+                                        className={`${styles.input} ${shouldShowError('name') ? styles.inputError : ''}`}
+                                        value={form.name}
+                                        onChange={(event) => handleNameChange(event.target.value)}
+                                        onBlur={() => touchField('name')}
+                                        placeholder="e.g. Main Branch - Makati"
+                                    />
+                                    {shouldShowError('name') && <span className={styles.errorText}>{errors.name}</span>}
+                                </div>
+
+                                <div className={styles.formGroup}>
+                                    <label className={styles.label}>Contact Number <span className={styles.required}>*</span></label>
+                                    <div className={`${styles.phoneInputWrap} ${shouldShowError('phone') ? styles.inputError : ''}`}>
+                                        <span className={styles.phonePrefix}>+63</span>
+                                        <input
+                                            className={styles.input}
+                                            value={form.phone}
+                                            onChange={(event) => handlePhoneChange(event.target.value)}
+                                            onBlur={() => touchField('phone')}
+                                            placeholder="9xxxxxxxxx"
+                                        />
+                                    </div>
+                                    {shouldShowError('phone') && <span className={styles.errorText}>{errors.phone}</span>}
+                                </div>
+
+                                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                                    <label className={styles.label}>Branch Manager</label>
+                                    <select
+                                        className={styles.input}
+                                        value={form.branchManagerId}
+                                        onChange={(event) => handleManagerChange(event.target.value)}
+                                    >
+                                        <option value="">No branch manager assigned</option>
+                                        {managers.map((manager) => (
+                                            <option key={manager._id} value={manager._id}>
+                                                {getManagerLabel(manager)}
+                                                {manager.assignedBranch ? ` - ${manager.assignedBranch}` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <span className={styles.helperText}>Optional. You can create a branch first and assign a manager later.</span>
+                                </div>
                             </div>
-                            {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
-                        </div>
 
-                        <div className={styles.addressGrid}>
+                            <div className={styles.addressGrid}>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Region <span className={styles.required}>*</span></label>
                                 <select
-                                    className={`${styles.input} ${errors.region ? styles.inputError : ''}`}
+                                    className={`${styles.input} ${shouldShowError('region') ? styles.inputError : ''}`}
                                     value={form.addressDetails.region}
                                     onChange={(event) => handleAddressChange('region', event.target.value)}
+                                    onBlur={() => touchField('region')}
                                 >
                                     <option value="">Select Region</option>
                                     {regions.map((region) => (
                                         <option key={region.code} value={region.code}>{region.name}</option>
                                     ))}
                                 </select>
-                                {errors.region && <span className={styles.errorText}>{errors.region}</span>}
+                                {shouldShowError('region') && <span className={styles.errorText}>{errors.region}</span>}
                             </div>
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Province <span className={styles.required}>*</span></label>
                                 <select
-                                    className={`${styles.input} ${errors.province ? styles.inputError : ''}`}
+                                    className={`${styles.input} ${shouldShowError('province') ? styles.inputError : ''}`}
                                     value={form.addressDetails.province}
                                     onChange={(event) => handleAddressChange('province', event.target.value)}
+                                    onBlur={() => touchField('province')}
                                     disabled={!form.addressDetails.region}
                                 >
                                     <option value="">Select Province</option>
@@ -464,15 +552,16 @@ export default function BranchManagement() {
                                         <option key={province.code} value={province.code}>{province.name}</option>
                                     ))}
                                 </select>
-                                {errors.province && <span className={styles.errorText}>{errors.province}</span>}
+                                {shouldShowError('province') && <span className={styles.errorText}>{errors.province}</span>}
                             </div>
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>City / Municipality <span className={styles.required}>*</span></label>
                                 <select
-                                    className={`${styles.input} ${errors.city ? styles.inputError : ''}`}
+                                    className={`${styles.input} ${shouldShowError('city') ? styles.inputError : ''}`}
                                     value={form.addressDetails.city}
                                     onChange={(event) => handleAddressChange('city', event.target.value)}
+                                    onBlur={() => touchField('city')}
                                     disabled={!form.addressDetails.province}
                                 >
                                     <option value="">Select City</option>
@@ -480,15 +569,16 @@ export default function BranchManagement() {
                                         <option key={city.code} value={city.code}>{city.name}</option>
                                     ))}
                                 </select>
-                                {errors.city && <span className={styles.errorText}>{errors.city}</span>}
+                                {shouldShowError('city') && <span className={styles.errorText}>{errors.city}</span>}
                             </div>
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Barangay <span className={styles.required}>*</span></label>
                                 <select
-                                    className={`${styles.input} ${errors.barangay ? styles.inputError : ''}`}
+                                    className={`${styles.input} ${shouldShowError('barangay') ? styles.inputError : ''}`}
                                     value={form.addressDetails.barangay}
                                     onChange={(event) => handleAddressChange('barangay', event.target.value)}
+                                    onBlur={() => touchField('barangay')}
                                     disabled={!form.addressDetails.city}
                                 >
                                     <option value="">Select Barangay</option>
@@ -496,40 +586,56 @@ export default function BranchManagement() {
                                         <option key={barangay} value={barangay}>{barangay}</option>
                                     ))}
                                 </select>
-                                {errors.barangay && <span className={styles.errorText}>{errors.barangay}</span>}
+                                {shouldShowError('barangay') && <span className={styles.errorText}>{errors.barangay}</span>}
                             </div>
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Street <span className={styles.required}>*</span></label>
                                 <input
-                                    className={`${styles.input} ${errors.street ? styles.inputError : ''}`}
+                                    className={`${styles.input} ${shouldShowError('street') ? styles.inputError : ''}`}
                                     value={form.addressDetails.street}
                                     onChange={(event) => handleAddressChange('street', event.target.value)}
+                                    onBlur={() => touchField('street')}
                                     placeholder="e.g. Mabini St."
                                 />
-                                {errors.street && <span className={styles.errorText}>{errors.street}</span>}
+                                {shouldShowError('street') && <span className={styles.errorText}>{errors.street}</span>}
                             </div>
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>House No. <span className={styles.required}>*</span></label>
                                 <input
-                                    className={`${styles.input} ${errors.houseNumber ? styles.inputError : ''}`}
+                                    className={`${styles.input} ${shouldShowError('houseNumber') ? styles.inputError : ''}`}
                                     value={form.addressDetails.houseNumber}
                                     onChange={(event) => handleAddressChange('houseNumber', event.target.value)}
+                                    onBlur={() => touchField('houseNumber')}
                                     placeholder="e.g. Unit 12"
                                 />
-                                {errors.houseNumber && <span className={styles.errorText}>{errors.houseNumber}</span>}
+                                {shouldShowError('houseNumber') && <span className={styles.errorText}>{errors.houseNumber}</span>}
+                            </div>
+                            </div>
+
+                            <div className={styles.modalActions}>
+                                <button className={styles.cancelBtn} onClick={closeModal} disabled={submitting} type="button">
+                                    Cancel
+                                </button>
+                                <button className={styles.submitBtn} onClick={handleSubmit} disabled={submitting} type="button">
+                                    {submitting ? 'Saving...' : (editTarget ? 'Save Changes' : 'Add Branch')}
+                                </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
 
-                        <div className={styles.modalActions}>
-                            <button className={styles.cancelBtn} onClick={closeModal} disabled={submitting} type="button">
-                                Cancel
-                            </button>
-                            <button className={styles.submitBtn} onClick={handleSubmit} disabled={submitting} type="button">
-                                {submitting ? 'Saving...' : (editTarget ? 'Save Changes' : 'Add Branch')}
-                            </button>
-                        </div>
+            {successMessage && (
+                <div className={styles.overlay}>
+                    <div className={styles.successModalCard}>
+                        <div className={styles.successIcon} />
+                        <h2 className={styles.successTitle}>Success!</h2>
+                        <p className={styles.successMessage}>{successMessage}</p>
+                        <button className={styles.submitBtn} type="button" onClick={() => setSuccessMessage('')}>
+                            DONE
+                        </button>
                     </div>
                 </div>
             )}

@@ -460,6 +460,49 @@ const syncBranchManagerAssignments = async (managerId, branchName = '') => {
     );
 };
 
+const findBranchManagerForAssignment = async (managerId = '') => {
+    const normalizedManagerId = String(managerId || '').trim();
+    if (!normalizedManagerId) return null;
+    if (!mongoose.Types.ObjectId.isValid(normalizedManagerId)) {
+        const error = new Error('Invalid branch manager selected.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const manager = await User.findOne({ _id: normalizedManagerId, role: 'branch-manager' });
+    if (!manager) {
+        const error = new Error('Branch manager not found.');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return manager;
+};
+
+const assignBranchManagerToBranch = async (managerId = '', branchName = '') => {
+    const normalizedBranchName = String(branchName || '').trim();
+    const manager = await findBranchManagerForAssignment(managerId);
+    if (!manager) return null;
+
+    manager.assignedBranch = normalizedBranchName;
+    manager.assignedBranches = normalizedBranchName ? [normalizedBranchName] : [];
+    await manager.save();
+    await syncBranchManagerAssignments(manager._id, normalizedBranchName);
+    return manager;
+};
+
+const clearBranchManagersFromBranch = async (branch) => {
+    if (!branch) return;
+    const managerIds = Array.isArray(branch.managerIds) ? branch.managerIds : [];
+    if (managerIds.length > 0) {
+        await User.updateMany(
+            { _id: { $in: managerIds }, role: 'branch-manager' },
+            { $set: { assignedBranch: '', assignedBranches: [] } }
+        );
+    }
+    await Branch.findByIdAndUpdate(branch._id, { $set: { managerIds: [] } });
+};
+
 const computeBatchStatus = (batch) => {
     if ((batch.quantityRemaining || 0) <= 0) return 'Depleted';
     if (batch.expirationDate && new Date(batch.expirationDate) < new Date()) return 'Expired';
@@ -10993,7 +11036,7 @@ app.post('/api/branches', verifyToken, async (req, res) => {
         if (!['administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
-        const { name, address, addressDetails, contactNumber } = req.body;
+        const { name, address, addressDetails, contactNumber, branchManagerId = '' } = req.body;
         if (!name) return res.status(400).json({ message: 'Branch name is required.' });
         if (contactNumber && !/^\+639\d{9}$/.test(String(contactNumber).trim())) {
             return res.status(400).json({ message: 'Invalid contact number format.' });
@@ -11001,6 +11044,7 @@ app.post('/api/branches', verifyToken, async (req, res) => {
  
         const existing = await Branch.findOne({ name: name.trim() });
         if (existing) return res.status(409).json({ message: 'A branch with this name already exists.' });
+        await findBranchManagerForAssignment(branchManagerId);
  
         const newBranch = new Branch({
             name: name.trim(),
@@ -11009,6 +11053,7 @@ app.post('/api/branches', verifyToken, async (req, res) => {
             contactNumber: contactNumber?.trim() || '',
         });
         await newBranch.save();
+        await assignBranchManagerToBranch(branchManagerId, newBranch.name);
  
         await AuditLog.create({
             action: 'BRANCH_ADDED',
@@ -11020,7 +11065,7 @@ app.post('/api/branches', verifyToken, async (req, res) => {
         res.status(201).json(newBranch);
     } catch (error) {
         console.error('Error creating branch:', error);
-        res.status(500).json({ message: 'Server error creating branch.' });
+        res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server error creating branch.' });
     }
 });
  
@@ -11029,7 +11074,7 @@ app.put('/api/branches/:id', verifyToken, async (req, res) => {
         if (!['administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
-        const { name, address, addressDetails, contactNumber, isActive } = req.body;
+        const { name, address, addressDetails, contactNumber, isActive, branchManagerId } = req.body;
         if (!name) return res.status(400).json({ message: 'Branch name is required.' });
         if (contactNumber && !/^\+639\d{9}$/.test(String(contactNumber).trim())) {
             return res.status(400).json({ message: 'Invalid contact number format.' });
@@ -11046,6 +11091,10 @@ app.put('/api/branches/:id', verifyToken, async (req, res) => {
             { new: true }
         );
         if (!updatedBranch) return res.status(404).json({ message: 'Branch not found.' });
+        if (branchManagerId !== undefined) {
+            await clearBranchManagersFromBranch(updatedBranch);
+            await assignBranchManagerToBranch(branchManagerId, updatedBranch.name);
+        }
  
         await AuditLog.create({
             action: 'BRANCH_UPDATED',
@@ -11057,7 +11106,7 @@ app.put('/api/branches/:id', verifyToken, async (req, res) => {
         res.json(updatedBranch);
     } catch (error) {
         console.error('Error updating branch:', error);
-        res.status(500).json({ message: 'Server error updating branch.' });
+        res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server error updating branch.' });
     }
 });
  

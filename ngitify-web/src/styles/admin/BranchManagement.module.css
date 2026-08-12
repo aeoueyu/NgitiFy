@@ -203,40 +203,53 @@
 .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 24px;
     z-index: 9999;
+    box-sizing: border-box;
 }
 
 .modal {
-    width: min(100%, 560px);
+    width: min(560px, 92vw);
     background: #fff;
-    border-radius: 22px;
-    padding: 28px;
-    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.18);
     display: flex;
     flex-direction: column;
-    gap: 16px;
     max-height: 90vh;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .largeModal {
-    width: min(100%, 820px);
+    width: min(1000px, 90vw);
 }
 
 .analyticsModal {
-    width: min(100%, 760px);
+    width: min(760px, 92vw);
+    padding: 28px;
+    gap: 16px;
+    overflow: auto;
+}
+
+.modalHeader {
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid #e9eff5;
 }
 
 .modalTitle {
     margin: 0;
-    color: #133348;
-    font-size: 22px;
+    color: #01538b;
+    font-size: 24px;
     font-weight: 800;
+}
+
+.modalBody {
+    padding: 24px 28px 28px;
+    overflow-y: auto;
 }
 
 .analyticsHeader {
@@ -265,13 +278,17 @@
 .formGroup {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    min-width: 0;
 }
 
 .label {
-    color: #334155;
-    font-size: 13px;
-    font-weight: 700;
+    color: #01538b;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-left: 10px;
 }
 
 .required {
@@ -280,74 +297,116 @@
 
 .input {
     width: 100%;
+    min-height: 46px;
     box-sizing: border-box;
-    border: 1.5px solid #d7e2ec;
-    border-radius: 14px;
-    padding: 12px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 50px;
+    padding: 0 20px;
     font-size: 14px;
-    color: #133348;
-    background: #fff;
+    color: #1f384d;
+    background: #fcfcfc;
+    font-family: 'Lexend Deca', sans-serif;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.input:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
+    background: #ffffff;
 }
 
 .input:disabled {
-    background: #f8fafc;
+    background: #f0f0f0;
     color: #94a3b8;
+    cursor: not-allowed;
+}
+
+select.input {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2301538b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 18px center;
+    background-size: 16px;
+    padding-right: 46px;
+    cursor: pointer;
 }
 
 .inputError {
-    border-color: #dc2626;
+    border-color: #dc3545 !important;
+    background-color: #ffe6e6 !important;
 }
 
 .errorText {
-    color: #dc2626;
-    font-size: 12px;
+    color: #dc3545;
+    font-size: 11px;
     font-weight: 600;
+    margin-left: 10px;
 }
 
 .phoneInputWrap {
+    position: relative;
     display: flex;
     align-items: center;
-    border: 1.5px solid #d7e2ec;
-    border-radius: 14px;
-    overflow: hidden;
 }
 
 .phonePrefix {
-    padding: 12px 14px;
-    background: #f8fafc;
-    color: #475569;
+    position: absolute;
+    left: 20px;
+    color: #334155;
     font-size: 14px;
-    font-weight: 700;
-    border-right: 1px solid #d7e2ec;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 1;
 }
 
 .phoneInputWrap .input {
-    border: none;
-    border-radius: 0;
+    padding-left: 56px;
+}
+
+.phoneInputWrap.inputError .input {
+    border-color: #dc3545 !important;
+    background-color: #ffe6e6 !important;
 }
 
 .addressGrid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 18px 20px;
+    margin-bottom: 20px;
+}
+
+.fullWidth {
+    grid-column: 1 / -1;
+}
+
+.helperText {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 10px;
 }
 
 .modalActions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 4px;
+    gap: 15px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid #eef4f8;
 }
 
 .cancelBtn {
-    border: 1px solid #d7e2ec;
+    border: none;
     background: #fff;
-    color: #475569;
+    color: #666;
     border-radius: 999px;
-    padding: 11px 18px;
+    padding: 12px 30px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
 }
 
 .submitBtn {
@@ -355,10 +414,71 @@
     background: #01538b;
     color: #fff;
     border-radius: 999px;
-    padding: 11px 18px;
+    padding: 12px 30px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
+    transition: all 0.2s ease;
+}
+
+.cancelBtn:hover,
+.submitBtn:hover {
+    transform: translateY(-1px);
+}
+
+.submitBtn:disabled,
+.cancelBtn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.successModalCard {
+    width: min(400px, 92vw);
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    padding: 40px 50px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.successIcon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #dcfce7;
+    margin-bottom: 25px;
+    position: relative;
+}
+
+.successIcon::before {
+    content: '';
+    position: absolute;
+    left: 29px;
+    top: 18px;
+    width: 18px;
+    height: 36px;
+    border-right: 7px solid #16a34a;
+    border-bottom: 7px solid #16a34a;
+    transform: rotate(45deg);
+}
+
+.successTitle {
+    color: #01538b;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 10px;
+}
+
+.successMessage {
+    color: #666;
+    font-size: 14px;
+    margin: 0 0 30px;
+    line-height: 1.5;
 }
 
 .analyticsStats {
