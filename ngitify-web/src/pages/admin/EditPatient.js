@@ -46,6 +46,7 @@ import {
     normalizeDateInputValue,
 } from '../../utils/dateUtils';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import { getEmailDomainValidationError } from '../../utils/emailDomainValidation';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 const initialEmergencyContact = { name: '', relationship: '', contactNumber: '' };
@@ -374,6 +375,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     );
 
     const clearError = (key) => {
+        if (key === 'email') return;
         if (!errors[key]) return;
         setErrors((prev) => {
             const next = { ...prev };
@@ -754,6 +756,18 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
+
+        const emailDomainError = await getEmailDomainValidationError(formData.email);
+        if (emailDomainError) {
+            setErrors((prev) => ({ ...prev, email: emailDomainError }));
+            const emailInput = document.getElementsByName('email')[0];
+            if (emailInput) {
+                emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                emailInput.focus();
+            }
+            return;
+        }
+
         setIsSaving(true);
 
         const finalData = {

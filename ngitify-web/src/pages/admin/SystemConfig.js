@@ -193,8 +193,8 @@ const SystemConfig = () => {
         if (name === 'clinicEmail') {
             setConfigErrors((prev) => {
                 const next = { ...prev };
-                if (!value || isValidEmailFormat(value)) delete next.clinicEmail;
-                else next.clinicEmail = INVALID_EMAIL_ADDRESS_MESSAGE;
+                if (!value) delete next.clinicEmail;
+                else if (!isValidEmailFormat(value)) next.clinicEmail = INVALID_EMAIL_ADDRESS_MESSAGE;
                 return next;
             });
         }

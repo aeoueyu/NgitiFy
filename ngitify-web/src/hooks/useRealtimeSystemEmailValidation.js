@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { authFetch, publicFetch } from '../utils/api';
-import { isValidEmailFormat } from '../utils/patientIntake';
+import {
+    INVALID_EMAIL_ADDRESS_MESSAGE,
+    isValidEmailFormat,
+} from '../utils/patientIntake';
 
 const isManagedEmailError = (message = '') => {
     const normalized = String(message || '').toLowerCase();
@@ -20,22 +23,32 @@ export default function useRealtimeSystemEmailValidation({
     usePublicEndpoint = false,
 }) {
     const latestRequestRef = useRef(0);
+    const lastResultRef = useRef({ email: '', error: '' });
 
     useEffect(() => {
         if (!enabled) return undefined;
 
         const trimmedEmail = String(email || '').trim().toLowerCase();
         if (!trimmedEmail) {
+            latestRequestRef.current += 1;
+            lastResultRef.current = { email: '', error: '' };
             setErrors((prev) => (isManagedEmailError(prev[fieldName]) ? { ...prev, [fieldName]: '' } : prev));
             return undefined;
         }
 
         if (!isValidEmailFormat(trimmedEmail)) {
+            latestRequestRef.current += 1;
+            lastResultRef.current = { email: trimmedEmail, error: INVALID_EMAIL_ADDRESS_MESSAGE };
+            setErrors((prev) => ({ ...prev, [fieldName]: INVALID_EMAIL_ADDRESS_MESSAGE }));
             return undefined;
         }
 
         const requestId = latestRequestRef.current + 1;
         latestRequestRef.current = requestId;
+
+        if (lastResultRef.current.error && lastResultRef.current.email !== trimmedEmail) {
+            setErrors((prev) => ({ ...prev, [fieldName]: lastResultRef.current.error }));
+        }
 
         const timeoutId = window.setTimeout(async () => {
             try {
@@ -48,11 +61,14 @@ export default function useRealtimeSystemEmailValidation({
 
                 if (latestRequestRef.current !== requestId) return;
                 if (!domainResponse.ok) {
-                    setErrors((prev) => ({ ...prev, [fieldName]: domainData.message || 'Invalid email domain' }));
+                    const nextError = domainData.message || 'Invalid email domain';
+                    lastResultRef.current = { email: trimmedEmail, error: nextError };
+                    setErrors((prev) => ({ ...prev, [fieldName]: nextError }));
                     return;
                 }
 
                 if (!validateDuplicates) {
+                    lastResultRef.current = { email: trimmedEmail, error: '' };
                     setErrors((prev) => (isManagedEmailError(prev[fieldName]) ? { ...prev, [fieldName]: '' } : prev));
                     return;
                 }
@@ -65,10 +81,13 @@ export default function useRealtimeSystemEmailValidation({
 
                 if (latestRequestRef.current !== requestId) return;
                 if (duplicateResponse.status === 409) {
-                    setErrors((prev) => ({ ...prev, [fieldName]: duplicateData.message || 'Email already exists.' }));
+                    const nextError = duplicateData.message || 'Email already exists.';
+                    lastResultRef.current = { email: trimmedEmail, error: nextError };
+                    setErrors((prev) => ({ ...prev, [fieldName]: nextError }));
                     return;
                 }
 
+                lastResultRef.current = { email: trimmedEmail, error: '' };
                 setErrors((prev) => (isManagedEmailError(prev[fieldName]) ? { ...prev, [fieldName]: '' } : prev));
             } catch {
                 if (latestRequestRef.current !== requestId) return;

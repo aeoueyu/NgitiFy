@@ -226,53 +226,133 @@ export default function MyProfile() {
 
     const hasChanges = initialData ? JSON.stringify(formData) !== JSON.stringify(initialData) : false;
 
+    const isDentistProfile = user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist);
+
+    const getFieldError = (name, value, data = formData) => {
+        const textValue = String(value || '');
+
+        switch (name) {
+        case 'firstName':
+        case 'lastName':
+        case 'birthdate':
+        case 'gender':
+        case 'region':
+        case 'province':
+        case 'city':
+        case 'barangay':
+        case 'houseNumber':
+        case 'street':
+            return textValue.trim() ? '' : 'Required';
+        case 'phone': {
+            const phoneValue = String(value || '');
+            if (!phoneValue) return 'Required';
+            return phoneValue.length === 10 && phoneValue[0] === '9'
+                ? ''
+                : 'Invalid format (e.g. 9xxxxxxxxx)';
+        }
+        case 'prcLicenseNumber':
+            return isDentistProfile && !textValue.trim() ? 'Required' : '';
+        case 'specialization':
+            return isDentistProfile && !value ? 'Required' : '';
+        case 'yearsOfPractice':
+            if (!isDentistProfile) return '';
+            if (value === '' || value === null || value === undefined) return 'Required';
+            return Number(value) < 0 ? 'Invalid value' : '';
+        default:
+            return '';
+        }
+    };
+
+    const getValidationErrors = (data = formData) => {
+        const fields = [
+            'firstName',
+            'lastName',
+            'birthdate',
+            'gender',
+            'phone',
+            'region',
+            'province',
+            'city',
+            'barangay',
+            'houseNumber',
+            'street',
+        ];
+
+        if (isDentistProfile) {
+            fields.push('prcLicenseNumber', 'specialization', 'yearsOfPractice');
+        }
+
+        return fields.reduce((nextErrors, field) => {
+            const error = getFieldError(field, data[field], data);
+            if (error) nextErrors[field] = error;
+            return nextErrors;
+        }, {});
+    };
+
+    const syncFieldErrors = (nextData, fieldNames = []) => {
+        if (!fieldNames.length) return;
+
+        setErrors((prev) => {
+            const next = { ...prev };
+            fieldNames.forEach((fieldName) => {
+                const error = getFieldError(fieldName, nextData[fieldName], nextData);
+                if (error) next[fieldName] = error;
+                else delete next[fieldName];
+            });
+            return next;
+        });
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if (errors[name]) setErrors(prev => { const n = {...prev}; delete n[name]; return n; });
-        
+        let nextValue = value;
+
         if (name === 'phone') {
-            const val = value ? String(value).replace(/[^0-9]/g, '') : '';
-            if (val.length > 10) return;
-            setFormData({ ...formData, phone: val });
-        } else {
-            setFormData({ ...formData, [name]: value });
+            nextValue = value ? String(value).replace(/[^0-9]/g, '') : '';
+            if (nextValue.length > 10) return;
         }
+
+        const nextData = { ...formData, [name]: nextValue };
+        setFormData(nextData);
+        syncFieldErrors(nextData, [name]);
     };
 
     // --- CASCADING ADDRESS HANDLERS ---
     const handleRegionChange = (e) => {
         const code = e.target.value;
         const name = e.target.options[e.target.selectedIndex].text;
-        setFormData(prev => ({
-            ...prev, region: code, regionName: name,
+        const nextData = {
+            ...formData, region: code, regionName: name,
             province: '', provinceName: '', city: '', cityName: '', barangay: ''
-        }));
-        if (errors.region) setErrors(prev => { const n = {...prev}; delete n.region; return n; });
+        };
+        setFormData(nextData);
+        syncFieldErrors(nextData, ['region', 'province', 'city', 'barangay']);
     };
 
     const handleProvinceChange = (e) => {
         const code = e.target.value;
         const name = e.target.options[e.target.selectedIndex].text;
-        setFormData(prev => ({
-            ...prev, province: code, provinceName: name,
+        const nextData = {
+            ...formData, province: code, provinceName: name,
             city: '', cityName: '', barangay: ''
-        }));
-        if (errors.province) setErrors(prev => { const n = {...prev}; delete n.province; return n; });
+        };
+        setFormData(nextData);
+        syncFieldErrors(nextData, ['province', 'city', 'barangay']);
     };
 
     const handleCityChange = (e) => {
         const code = e.target.value;
         const name = e.target.options[e.target.selectedIndex].text;
-        setFormData(prev => ({
-            ...prev, city: code, cityName: name, barangay: ''
-        }));
-        if (errors.city) setErrors(prev => { const n = {...prev}; delete n.city; return n; });
+        const nextData = { ...formData, city: code, cityName: name, barangay: '' };
+        setFormData(nextData);
+        syncFieldErrors(nextData, ['city', 'barangay']);
     };
 
     const handleBarangayChange = (e) => {
         const name = e.target.value;
-        setFormData(prev => ({ ...prev, barangay: name }));
-        if (errors.barangay) setErrors(prev => { const n = {...prev}; delete n.barangay; return n; });
+        const nextData = { ...formData, barangay: name };
+        setFormData(nextData);
+        syncFieldErrors(nextData, ['barangay']);
     };
 
     const handleImageUpload = (e) => {
@@ -302,34 +382,12 @@ export default function MyProfile() {
     };
 
     const validateForm = () => {
-        let newErrors = {}; 
-        let isValid = true;
-
-        if (!formData.firstName.trim()) { newErrors.firstName = "Required"; isValid = false; }
-        if (!formData.lastName.trim()) { newErrors.lastName = "Required"; isValid = false; }
-        if (!formData.birthdate) { newErrors.birthdate = "Required"; isValid = false; }
-        if (!formData.gender) { newErrors.gender = "Required"; isValid = false; }
-        
-        if (!formData.phone) { 
-            newErrors.phone = "Required"; isValid = false; 
-        } else if (formData.phone.length !== 10 || formData.phone[0] !== '9') { 
-            newErrors.phone = "Invalid format (e.g. 9xxxxxxxxx)"; isValid = false; 
-        }
-
-        // Dynamic Validation for Dentist Role
-        if (user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist)) {
-            if (!formData.prcLicenseNumber.trim()) { newErrors.prcLicenseNumber = "Required"; isValid = false; }
-            if (!formData.specialization) { newErrors.specialization = "Required"; isValid = false; }
-        }
-
-        if (!formData.region) { newErrors.region = "Required"; isValid = false; }
-        if (!formData.province) { newErrors.province = "Required"; isValid = false; }
-        if (!formData.city) { newErrors.city = "Required"; isValid = false; }
-        if (!formData.barangay) { newErrors.barangay = "Required"; isValid = false; }
-        if (!formData.houseNumber.trim()) { newErrors.houseNumber = "Required"; isValid = false; }
-        if (!formData.street.trim()) { newErrors.street = "Required"; isValid = false; }
-        
-        setErrors(newErrors);
+        const newErrors = getValidationErrors(formData);
+        const isValid = Object.keys(newErrors).length === 0;
+        setErrors((prev) => ({
+            ...(prev.profileImage ? { profileImage: prev.profileImage } : {}),
+            ...newErrors,
+        }));
         return isValid;
     };
 
@@ -957,7 +1015,12 @@ export default function MyProfile() {
                                     onChange={(e) => {
                                         const newEmail = e.target.value;
                                         setEmailFormData({...emailFormData, newEmail});
-                                        setEmailAddressError(getEmailFormatError(newEmail));
+                                        const formatError = getEmailFormatError(newEmail);
+                                        setEmailAddressError((prev) => {
+                                            if (formatError) return formatError;
+                                            if (prev === 'Invalid email domain') return prev;
+                                            return '';
+                                        });
                                         setIsEmailDomainValid(false);
                                         setEmailChangeError('');
                                     }}

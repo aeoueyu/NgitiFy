@@ -11,6 +11,7 @@ import {
 } from '../../components/patient/PatientRegistrationFlow';
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import { getEmailDomainValidationError } from '../../utils/emailDomainValidation';
 import {
     INVALID_EMAIL_ADDRESS_MESSAGE,
     INVALID_MOBILE_FORMAT_MESSAGE,
@@ -361,6 +362,14 @@ export default function SecretaryEditPatient() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
+        const emailDomainError = await getEmailDomainValidationError(formData.email);
+        if (emailDomainError) {
+            setErrors((prev) => ({ ...prev, email: emailDomainError }));
+            const emailInput = document.getElementsByName('email')[0];
+            emailInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            emailInput?.focus?.();
+            return;
+        }
         setIsSaving(true);
 
         const payload = {

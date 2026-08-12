@@ -425,7 +425,7 @@ export default function WebsiteAppointment() {
             }, { live: true });
 
             if (liveError) nextErrors[name] = liveError;
-            else delete nextErrors[name];
+            else if (name !== 'email') delete nextErrors[name];
 
             if (name === 'branch' || name === 'preferredDate') {
                 delete nextErrors.preferredDate;
@@ -455,7 +455,7 @@ export default function WebsiteAppointment() {
             const nextErrors = { ...prev };
             const fieldError = getFieldError(name, formData, { live: true });
             if (fieldError) nextErrors[name] = fieldError;
-            else delete nextErrors[name];
+            else if (name !== 'email') delete nextErrors[name];
             return nextErrors;
         });
     };

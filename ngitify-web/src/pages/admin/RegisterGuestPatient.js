@@ -39,6 +39,7 @@ import {
     normalizeDateInputValue,
 } from '../../utils/dateUtils';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import { getEmailDomainValidationError } from '../../utils/emailDomainValidation';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 const dataPrivacyReviewGroups = [
@@ -368,7 +369,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         if (selectedExistingPatientId && ['firstName', 'middleName', 'lastName', 'birthdate', 'email'].includes(name)) {
             setSelectedExistingPatientId('');
         }
-        if (errors[name]) {
+        if (errors[name] && name !== 'email') {
             setErrors((prev) => {
                 const next = { ...prev };
                 delete next[name];
@@ -668,6 +669,14 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
+        const emailDomainError = await getEmailDomainValidationError(formData.email);
+        if (emailDomainError) {
+            setErrors((prev) => ({ ...prev, email: emailDomainError }));
+            const emailInput = document.getElementsByName('email')[0];
+            emailInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            emailInput?.focus?.();
+            return;
+        }
 
         const payload = {
             name: {

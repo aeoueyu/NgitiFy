@@ -13,6 +13,7 @@ import {
 import { formatPatientDuplicateLine, getPatientDuplicateSections } from '../../utils/patientDuplicateWarnings';
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import { getEmailDomainValidationError } from '../../utils/emailDomainValidation';
 import {
     DUPLICATE_EMAIL_MESSAGE,
     INVALID_EMAIL_ADDRESS_MESSAGE,
@@ -323,6 +324,14 @@ export default function SecretaryAddPatient() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
+        const emailDomainError = await getEmailDomainValidationError(formData.email);
+        if (emailDomainError) {
+            setErrors((prev) => ({ ...prev, email: emailDomainError }));
+            const emailInput = document.getElementsByName('email')[0];
+            emailInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            emailInput?.focus?.();
+            return;
+        }
 
         const payload = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },

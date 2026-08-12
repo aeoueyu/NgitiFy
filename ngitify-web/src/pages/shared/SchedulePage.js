@@ -1244,7 +1244,7 @@ export default function SchedulePage() {
             }
             return next;
         });
-        if (formErrors[name]) {
+        if (formErrors[name] && name !== 'guestEmail') {
             setFormErrors((prev) => ({ ...prev, [name]: '' }));
         }
         if (['patientId', 'patientName', 'contactNumber', 'guestEmail'].includes(name) && formErrors.patientId) {

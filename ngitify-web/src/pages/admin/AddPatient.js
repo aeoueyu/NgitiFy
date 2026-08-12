@@ -50,6 +50,7 @@ import {
     isFutureDateInManila,
 } from '../../utils/dateUtils';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import { getEmailDomainValidationError } from '../../utils/emailDomainValidation';
 
 const initialMedicalHistory = {
     inGoodHealth: '',
@@ -743,6 +744,14 @@ export default function AddPatient({ onClose, onSuccess }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
+        const emailDomainError = await getEmailDomainValidationError(formData.email);
+        if (emailDomainError) {
+            setErrors((prev) => ({ ...prev, email: emailDomainError }));
+            const emailInput = document.getElementsByName('email')[0];
+            emailInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            emailInput?.focus?.();
+            return;
+        }
         const finalData = {
             name: { first: formData.firstName, middle: formData.middleName, last: formData.lastName },
             email: formData.email, contactNumber: toMobilePayload(formData.phone),
