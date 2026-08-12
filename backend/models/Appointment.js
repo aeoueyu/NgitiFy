@@ -59,7 +59,7 @@ const guestDentalHistorySchema = new mongoose.Schema({
     notes: { type: String, trim: true, default: '' },
     hadTreatmentReaction: { type: Boolean, default: undefined },
     reactionDetails: { type: String, trim: true, default: '' },
-    hasConfidentialInfo: { type: Boolean, default: false },
+    hasConfidentialInfo: { type: Boolean, default: undefined },
 }, { _id: false });
 
 const guestConsentSchema = new mongoose.Schema({

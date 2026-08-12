@@ -4486,7 +4486,7 @@ const normalizeGuestDentalHistory = (history = {}) => {
         notes: normalizeGuestText(history.notes),
         hadTreatmentReaction: normalizeGuestBoolean(history.hadTreatmentReaction),
         reactionDetails: normalizeGuestText(history.reactionDetails),
-        hasConfidentialInfo: Boolean(history.hasConfidentialInfo),
+        hasConfidentialInfo: normalizeGuestBoolean(history.hasConfidentialInfo),
     };
 };
 

@@ -186,7 +186,7 @@ const userSchema = new mongoose.Schema({
         notes: { type: String },
         hadTreatmentReaction: { type: Boolean },
         reactionDetails: { type: String },
-        hasConfidentialInfo: { type: Boolean, default: false }
+        hasConfidentialInfo: { type: Boolean, default: undefined }
     },
 
     physician: {
