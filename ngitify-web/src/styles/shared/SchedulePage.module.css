@@ -614,25 +614,30 @@
 .modalOverlay {
     position: fixed;
     inset: 0;
-    background-color: rgba(15, 23, 42, 0.6);
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 2200;
-    padding: 18px;
+    padding: 24px;
     box-sizing: border-box;
 }
 
 .wideModal,
 .viewerModal {
     background-color: white;
-    border-radius: 18px;
-    box-shadow: 0 22px 48px rgba(15, 23, 42, 0.22);
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.18);
     width: min(1200px, 92vw);
     max-height: 92vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.wideModal {
+    width: min(1000px, 90vw);
 }
 
 .viewerModal {
@@ -644,15 +649,15 @@
     justify-content: space-between;
     align-items: center;
     gap: 16px;
-    padding: 20px 24px;
+    padding: 24px 28px 18px;
     border-bottom: 1px solid #e9eff5;
 }
 
 .modalTitle {
     margin: 0;
-    font-size: 20px;
-    color: #1e293b;
-    font-weight: 700;
+    font-size: 24px;
+    color: #01538b;
+    font-weight: 800;
 }
 
 .modalSubtitle {
@@ -669,12 +674,18 @@
     justify-content: center;
     background: #f1f5f9;
     color: #475569;
-    border-radius: 10px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+    background: #e2e8f0;
+    color: #01538b;
 }
 
 .modalBody,
 .viewerBody {
-    padding: 24px;
+    padding: 24px 28px 28px;
     overflow-y: auto;
 }
 
@@ -687,7 +698,7 @@
 .formGrid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
+    gap: 20px;
 }
 
 .formGroup {
@@ -701,11 +712,12 @@
 }
 
 .formLabel {
-    color: #64748b;
+    color: #01538b;
     font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
+    margin-left: 10px;
 }
 
 .requiredMark {
@@ -713,17 +725,32 @@
 }
 
 .formControl {
-    padding: 0 14px;
-    border-radius: 12px;
+    min-height: 46px;
+    padding: 0 20px;
+    border-radius: 50px;
+    border: 1.5px solid #ddd;
+    background-color: #fcfcfc;
+    transition: all 0.3s ease;
+}
+
+select.formControl {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2301538b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 20px center;
+    background-size: 16px;
+    padding-right: 45px;
+    cursor: pointer;
 }
 
 .phoneInputGroup {
     display: flex;
     align-items: center;
     border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
-    background: #fff;
+    border-radius: 50px;
+    background: #fcfcfc;
     overflow: hidden;
+    transition: all 0.3s ease;
 }
 
 .phoneInputGroup:focus-within {
@@ -736,18 +763,18 @@
     align-items: center;
     padding: 0 12px;
     min-height: 44px;
-    background: #f8fbfd;
-    color: #475569;
-    font-size: 13px;
-    font-weight: 700;
-    border-right: 1px solid #e2e8f0;
+    background: transparent;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    border-right: none;
 }
 
 .phoneField {
     flex: 1;
     min-width: 0;
     min-height: 44px;
-    padding: 0 14px;
+    padding: 0 18px 0 4px;
     border: none;
     outline: none;
     font: inherit;
@@ -757,9 +784,11 @@
 
 .textareaControl {
     min-height: 120px;
-    padding: 14px;
-    border-radius: 12px;
+    padding: 14px 20px;
+    border-radius: 20px;
     resize: vertical;
+    border: 1.5px solid #ddd;
+    background-color: #fcfcfc;
 }
 
 .slotList {
@@ -788,7 +817,9 @@
 .helperError,
 .errorText,
 .inlineNote {
-    font-size: 13px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 10px;
 }
 
 .helperText,
@@ -804,8 +835,10 @@
 .modalActions {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    margin-top: 24px;
+    gap: 15px;
+    margin-top: 35px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
 }
 
 .taskEditBanner {
