@@ -511,6 +511,7 @@ export default function SchedulePage() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isConfirmingSave, setIsConfirmingSave] = useState(false);
+    const [scheduleSuccessMessage, setScheduleSuccessMessage] = useState('');
     const [pendingStatusTarget, setPendingStatusTarget] = useState(null);
     const [completeTarget, setCompleteTarget] = useState(null);
     const [guestRegistrationTarget, setGuestRegistrationTarget] = useState(null);
@@ -1432,11 +1433,10 @@ export default function SchedulePage() {
                     }
                     throw new Error(data.message || 'Failed to save the appointment.');
                 }
-                addToast(
+                setScheduleSuccessMessage(
                     editingEntry?.type === 'appointment'
                         ? 'Appointment updated successfully.'
-                        : 'Appointment created successfully.',
-                    'success'
+                        : 'Appointment created successfully.'
                 );
             } else {
                 const currentStamp = getCurrentScheduleStamp();
@@ -1486,11 +1486,10 @@ export default function SchedulePage() {
                 if (!response.ok) {
                     throw new Error(data.message || 'Failed to save the walk-in appointment.');
                 }
-                addToast(
+                setScheduleSuccessMessage(
                     walkInAppointmentId || isLegacyQueueEdit
                         ? 'Walk-in appointment updated successfully.'
-                        : 'Walk-in appointment added successfully.',
-                    'success'
+                        : 'Walk-in appointment added successfully.'
                 );
             }
 
@@ -2584,6 +2583,24 @@ export default function SchedulePage() {
 
             {renderFormModal()}
             {renderViewModal()}
+            {scheduleSuccessMessage && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.successModalCard}>
+                        <div className={styles.successIcon}>
+                            <FaCheck />
+                        </div>
+                        <h3 className={styles.successModalTitle}>Success!</h3>
+                        <p className={styles.successModalMessage}>{scheduleSuccessMessage}</p>
+                        <button
+                            type="button"
+                            className={styles.successModalButton}
+                            onClick={() => setScheduleSuccessMessage('')}
+                        >
+                            DONE
+                        </button>
+                    </div>
+                </div>
+            )}
             {guestRegistrationTarget && (
                 <RegisterGuestPatient
                     appointment={guestRegistrationTarget}
