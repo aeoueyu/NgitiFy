@@ -541,6 +541,7 @@ export default function PreRegisterPage() {
                     guestLastName: data.guestLastName || '',
                     guestPhone: stripMobilePrefix(data.guestPhone || ''),
                     guestEmail: data.guestEmail || '',
+                    guestBirthdate: formatDateInputValue(data.guestBirthdate),
                 });
                 setProfile({
                     ...initialProfileState,
@@ -784,7 +785,7 @@ export default function PreRegisterPage() {
                     guestFirstName: appointmentInfo?.guestFirstName || '',
                     guestLastName: appointmentInfo?.guestLastName || '',
                     guestPhone: toMobilePayload(appointmentInfo?.guestPhone || ''),
-                    guestBirthdate: appointmentInfo?.guestBirthdate || '',
+                    guestBirthdate: formatDateInputValue(appointmentInfo?.guestBirthdate),
                     guestGender: appointmentInfo?.guestGender || '',
                     homeAddress,
                     guestProfile: {
