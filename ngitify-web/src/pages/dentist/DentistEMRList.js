@@ -121,7 +121,7 @@ export default function DentistEMRList() {
             ) : filtered.length === 0 ? (
                 <div className={styles.emptyState}>
                     <FaUserInjured style={{ fontSize: '40px', color: '#cbd5e1', marginBottom: '12px' }} />
-                    <p>{patients.length === 0 ? 'No patients found in the system.' : 'No patients match your search.'}</p>
+                    <p>{patients.length === 0 ? 'No patients found in the system.' : 'No results found'}</p>
                 </div>
             ) : (
                 <div className={styles.patientGrid}>

@@ -383,7 +383,7 @@ export default function ArchiveReview() {
                         ) : (
                             <tr>
                                 <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
-                                    No archived records matched the current filters.
+                                    No results found
                                 </td>
                             </tr>
                         )}

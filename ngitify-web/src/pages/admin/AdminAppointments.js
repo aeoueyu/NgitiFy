@@ -1080,7 +1080,7 @@ export default function AdminAppointments() {
                         ))
                     ) : (
                         <div className={styles.emptyState}>
-                            No appointments match your current filters.
+                            No results found
                         </div>
                     )}
                 </div>

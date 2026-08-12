@@ -109,7 +109,7 @@ export default function DentistOdontogramPage() {
                     ) : filtered.length === 0 ? (
                         <div className={styles.selectorEmpty}>
                             <FaUserInjured style={{ fontSize: '32px', color: '#cbd5e1', marginBottom: '10px' }} />
-                            <p>{patients.length === 0 ? 'No patients found.' : 'No patients match your search.'}</p>
+                            <p>{patients.length === 0 ? 'No patients found.' : 'No results found'}</p>
                         </div>
                     ) : (
                         <div className={styles.selectorList}>

@@ -514,7 +514,7 @@ export default function DentistAppointments() {
                                 ))
                             ) : (
                                 <div className={styles['empty-state']}>
-                                    <p>No appointments match your current filters.</p>
+                                    <p>No results found</p>
                                 </div>
                             )}
                         </div>

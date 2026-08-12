@@ -1914,7 +1914,7 @@ export default function PatientEMR({
                     </tbody>
                 </table>
                 {filteredLogs.length === 0 && (
-                    <div className={scheduleStyles.emptyStateBox}>No treatment logs match the current filters.</div>
+                    <div className={scheduleStyles.emptyStateBox}>No results found</div>
                 )}
             </div>
 

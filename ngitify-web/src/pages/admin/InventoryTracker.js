@@ -206,6 +206,7 @@ export default function InventoryTracker() {
             return matchesSearch && matchesCategory && matchesBranch;
         });
     }, [summaryInventory, searchQuery, categoryFilter, branchFilter]);
+    const hasActiveInventoryFilters = !!searchQuery.trim() || categoryFilter !== 'All' || branchFilter !== 'All';
 
     const inventoryStats = useMemo(() => {
         let lowStock = 0;
@@ -571,7 +572,7 @@ export default function InventoryTracker() {
                                 );
                             })
                         ) : (
-                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No items found in inventory.</td></tr>
+                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>{hasActiveInventoryFilters ? 'No results found' : 'No items found in inventory.'}</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -261,7 +261,7 @@ export default function RolesPermissions() {
 
                     <div className={styles.userList}>
                         {filteredUsers.length === 0 ? (
-                            <p className={styles.emptyState}>No staff members found.</p>
+                            <p className={styles.emptyState}>{userSearch.trim() ? 'No results found' : 'No staff members found.'}</p>
                         ) : (
                             filteredUsers.map((entry) => (
                                 <div key={entry._id} className={styles.userRow}>

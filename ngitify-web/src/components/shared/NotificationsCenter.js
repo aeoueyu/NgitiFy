@@ -345,7 +345,7 @@ export default function NotificationsCenter() {
                                 </tr>
                             ) : filteredNotifications.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className={scheduleStyles.emptyStateBox}>No notifications found for the current filters.</td>
+                                    <td colSpan="5" className={scheduleStyles.emptyStateBox}>No results found</td>
                                 </tr>
                             ) : (
                                 pagedNotifications.map((notification) => {

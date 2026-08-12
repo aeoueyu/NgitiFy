@@ -395,7 +395,7 @@ export default function AuditTrail() {
                         ) : (
                             <tr>
                                 <td colSpan="5" className={scheduleStyles.emptyStateBox}>
-                                    No results found.
+                                    No results found
                                 </td>
                             </tr>
                         )}

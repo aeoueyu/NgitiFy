@@ -620,7 +620,7 @@ function MaterialUsagePage() {
                 ) : filteredLogs.length === 0 ? (
                     <div className={styles.emptyState}>
                         <FaClipboardList style={{ fontSize: '36px', color: '#cbd5e1', marginBottom: '12px' }} />
-                        <p>{logs.length === 0 ? 'No material usage logs recorded yet.' : 'No results match the current filters.'}</p>
+                        <p>{logs.length === 0 ? 'No material usage logs recorded yet.' : 'No results found'}</p>
                     </div>
                 ) : (
                     <div className={tblStyles.tableWrapper}>

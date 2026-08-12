@@ -2572,7 +2572,7 @@ export default function SchedulePage() {
                             ) : (
                                 <tr>
                                     <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                                        No schedule entries found for the selected filters.
+                                        No results found
                                     </td>
                                 </tr>
                             )}

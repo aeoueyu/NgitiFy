@@ -324,7 +324,7 @@ export default function SharedActivityLogs() {
                         ) : (
                             <tr>
                                 <td colSpan="4" className={scheduleStyles.emptyStateBox}>
-                                    No activity logs match the current filters.
+                                    No results found
                                 </td>
                             </tr>
                         )}

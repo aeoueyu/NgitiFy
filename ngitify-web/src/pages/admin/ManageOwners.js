@@ -384,7 +384,7 @@ export default function ManageOwners() {
                             );
                             })
                         ) : (
-                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No results found.</td></tr>
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No results found</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -245,7 +245,7 @@ export default function PatientEMRPage() {
                                     <td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
                                         <div className={styles.emptyState}>
                                             <FaFileMedical className={styles.emptyIcon} />
-                                            No patient EMR records found for the selected filters.
+                                            No results found
                                         </div>
                                     </td>
                                 </tr>
