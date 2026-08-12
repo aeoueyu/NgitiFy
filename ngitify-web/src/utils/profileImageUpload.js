@@ -1,6 +1,6 @@
 export const MAX_PROFILE_IMAGE_SIZE_MB = 2;
 export const MAX_PROFILE_IMAGE_SIZE_BYTES = MAX_PROFILE_IMAGE_SIZE_MB * 1024 * 1024;
-export const PROFILE_IMAGE_SIZE_ERROR = `Profile image must be ${MAX_PROFILE_IMAGE_SIZE_MB}MB or smaller.`;
+export const PROFILE_IMAGE_SIZE_ERROR = `Upload Failed. File exceeds the recommended ${MAX_PROFILE_IMAGE_SIZE_MB}mb size`;
 
 export const isProfileImageTooLarge = (file) => Boolean(file && file.size > MAX_PROFILE_IMAGE_SIZE_BYTES);
 
