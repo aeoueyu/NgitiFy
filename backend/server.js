@@ -4114,6 +4114,7 @@ const sendPasswordResetOtpEmail = async ({ email, code }) => {
 
 const normalizeEmail = (email = '') => email.trim().toLowerCase();
 const isValidEmailAddress = (email = '') => GUEST_EMAIL_REGEX.test(normalizeEmail(email));
+const ALLOWED_EMAIL_DOMAINS = new Set(['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com']);
 const emailDomainValidationCache = new Map();
 const EMAIL_DOMAIN_CACHE_TTL_MS = 15 * 60 * 1000;
 
@@ -4126,6 +4127,9 @@ const getEmailDomain = (email = '') => {
 const hasValidEmailDomain = async (email = '') => {
     const domain = getEmailDomain(email);
     if (!domain || !domain.includes('.') || domain.startsWith('.') || domain.endsWith('.')) {
+        return false;
+    }
+    if (!ALLOWED_EMAIL_DOMAINS.has(domain)) {
         return false;
     }
 

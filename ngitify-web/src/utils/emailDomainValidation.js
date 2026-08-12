@@ -2,6 +2,7 @@ import { authFetch, publicFetch } from './api';
 import {
     INVALID_EMAIL_ADDRESS_MESSAGE,
     INVALID_EMAIL_DOMAIN_MESSAGE,
+    isAllowedEmailDomain,
     isValidEmailFormat,
 } from './patientIntake';
 
@@ -9,6 +10,7 @@ export const getEmailDomainValidationError = async (email = '', { usePublicEndpo
     const trimmedEmail = String(email || '').trim();
     if (!trimmedEmail) return '';
     if (!isValidEmailFormat(trimmedEmail)) return INVALID_EMAIL_ADDRESS_MESSAGE;
+    if (!isAllowedEmailDomain(trimmedEmail)) return INVALID_EMAIL_DOMAIN_MESSAGE;
 
     try {
         const fetcher = usePublicEndpoint ? publicFetch : authFetch;

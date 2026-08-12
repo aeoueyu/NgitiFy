@@ -158,8 +158,11 @@ export const REQUIRED_WHEN_YES_MESSAGE = 'Required when answer is Yes.';
 export const ALLERGY_SELECTION_REQUIRED_MESSAGE = 'Select or enter at least one allergy.';
 
 const EMAIL_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const ALLOWED_EMAIL_DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com'];
 
 export const isValidEmailFormat = (email = '') => EMAIL_FORMAT_REGEX.test(String(email || '').trim());
+export const getEmailDomain = (email = '') => String(email || '').trim().toLowerCase().split('@')[1] || '';
+export const isAllowedEmailDomain = (email = '') => ALLOWED_EMAIL_DOMAINS.includes(getEmailDomain(email));
 
 export const isValidMobileNumber = (value = '') => /^[0-9]{10}$/.test(value) && value.startsWith('9');
 export const isValidLandlineNumber = (value = '') => /^[0-9]{7,8}$/.test(value);

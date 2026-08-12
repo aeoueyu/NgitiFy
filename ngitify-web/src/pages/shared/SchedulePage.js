@@ -17,6 +17,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import {
+    INVALID_EMAIL_ADDRESS_MESSAGE,
+    INVALID_EMAIL_DOMAIN_MESSAGE,
+    isAllowedEmailDomain,
+    isValidEmailFormat,
+} from '../../utils/patientIntake';
 import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
 import PatientEMR from '../admin/PatientEMR';
 import RegisterGuestPatient from '../admin/RegisterGuestPatient';
@@ -1162,140 +1168,156 @@ export default function SchedulePage() {
 
     const handleFormFieldChange = (event) => {
         const { name, value } = event.target;
-        setFormState((prev) => {
-            const nextValue = name === 'contactNumber'
-                ? normalizeSchedulePhoneInput(value)
-                : (name === 'guestEmail' ? String(value || '').trim().toLowerCase() : value);
-            const next = { ...prev, [name]: nextValue };
-            const applyMatchedPatient = (matchedPatient) => {
-                next.patientId = matchedPatient.id;
-                next.patientName = matchedPatient.name;
-                next.contactNumber = normalizeSchedulePhoneInput(matchedPatient.contactNumber);
+        const previousState = formState;
+        const nextValue = name === 'contactNumber'
+            ? normalizeSchedulePhoneInput(value)
+            : (name === 'guestEmail' ? String(value || '').trim().toLowerCase() : value);
+        const next = { ...previousState, [name]: nextValue };
+        const applyMatchedPatient = (matchedPatient) => {
+            next.patientId = matchedPatient.id;
+            next.patientName = matchedPatient.name;
+            next.contactNumber = normalizeSchedulePhoneInput(matchedPatient.contactNumber);
+            next.guestEmail = '';
+
+            if (matchedPatient.branch && matchedPatient.branch !== next.branch) {
+                next.branch = matchedPatient.branch;
+                next.time = '';
+                next.dentistId = '';
+                next.assignedDentist = '';
+            }
+        };
+        const matchPatientByIdentity = ({ email = '', phone = '' }) => patientOptions.find((entry) => (
+            (email && String(entry.email || '').trim().toLowerCase() === String(email).trim().toLowerCase())
+            || (phone && normalizePhoneDigits(entry.contactNumber) === normalizePhoneDigits(phone))
+        )) || null;
+
+        if (name === 'source') {
+            const nextType = value === 'walkin' ? 'walkin' : 'appointment';
+            next.formType = nextType;
+            if (value === 'walkin') {
+                next.status = 'in-clinic';
+            } else if (value === 'phonecall') {
+                next.status = 'confirmed';
+                next.contactNumber = '';
+            } else {
+                next.status = 'pending';
                 next.guestEmail = '';
+            }
+            next.date = nextType === 'walkin' ? todayString : previousState.date || todayString;
+            next.time = '';
+            if (nextType === 'walkin') {
+                next.dentistId = '';
+            }
+        }
+        if (name === 'patientId') {
+            const matchedPatient = patientOptions.find((entry) => entry.id === value);
+            if (matchedPatient) {
+                applyMatchedPatient(matchedPatient);
+            }
+        }
+        if (name === 'patientName') {
+            const matchedPatient = patientOptions.find((entry) => (
+                nextValue === entry.name
+                || nextValue === entry.email
+                || nextValue === `${entry.name}${entry.email ? ` (${entry.email})` : ''}`
+            ));
+            if (matchedPatient) {
+                applyMatchedPatient(matchedPatient);
+            } else if (previousState.formType === 'walkin' || previousState.source === 'phonecall') {
+                next.patientId = '';
+            }
+        }
+        if (previousState.source === 'phonecall' && !previousState.patientId && (name === 'guestEmail' || name === 'contactNumber')) {
+            const matchedPatient = matchPatientByIdentity({
+                email: name === 'guestEmail' ? nextValue : next.guestEmail,
+                phone: name === 'contactNumber' ? nextValue : next.contactNumber,
+            });
+            if (matchedPatient) {
+                applyMatchedPatient(matchedPatient);
+            }
+        }
+        if (name === 'dentistId') {
+            const matchedDentist = dentistOptions.find((entry) => entry.id === value);
+            next.assignedDentist = matchedDentist?.name || '';
+        }
+        if (name === 'status' && value === 'in-clinic' && next.formType === 'appointment') {
+            const currentStamp = getCurrentScheduleStamp();
+            next.date = currentStamp.date;
+            next.time = currentStamp.time;
+        }
+        if (name === 'date' || name === 'branch') {
+            next.time = '';
+        }
 
-                if (matchedPatient.branch && matchedPatient.branch !== next.branch) {
-                    next.branch = matchedPatient.branch;
-                    next.time = '';
-                    next.dentistId = '';
-                    next.assignedDentist = '';
-                }
-            };
-            const matchPatientByIdentity = ({ email = '', phone = '' }) => patientOptions.find((entry) => (
-                (email && String(entry.email || '').trim().toLowerCase() === String(email).trim().toLowerCase())
-                || (phone && normalizePhoneDigits(entry.contactNumber) === normalizePhoneDigits(phone))
-            )) || null;
+        setFormState(next);
+        const validationErrors = getScheduleValidationErrors(next);
+        setFormErrors((prev) => {
+            const nextErrors = { ...prev };
+            const touchedKeys = new Set([
+                name,
+                ...Object.keys(prev),
+                ...(name === 'source' ? ['patientId', 'patientName', 'contactNumber', 'guestEmail', 'date', 'time', 'dentistId', 'procedure'] : []),
+                ...(name === 'branch' ? ['branch', 'date', 'time', 'dentistId'] : []),
+                ...(name === 'date' ? ['date', 'time'] : []),
+                ...(name === 'patientName' || name === 'patientId' ? ['patientId', 'patientName', 'contactNumber', 'guestEmail'] : []),
+                ...(name === 'contactNumber' || name === 'guestEmail' ? ['contactNumber', 'guestEmail', 'patientId'] : []),
+            ]);
 
-            if (name === 'source') {
-                const nextType = value === 'walkin' ? 'walkin' : 'appointment';
-                next.formType = nextType;
-                if (value === 'walkin') {
-                    next.status = 'in-clinic';
-                } else if (value === 'phonecall') {
-                    next.status = 'confirmed';
-                    next.contactNumber = '';
-                } else {
-                    next.status = 'pending';
-                    next.guestEmail = '';
-                }
-                next.date = nextType === 'walkin' ? todayString : prev.date || todayString;
-                next.time = '';
-                if (nextType === 'walkin') {
-                    next.dentistId = '';
-                }
-            }
-            if (name === 'patientId') {
-                const matchedPatient = patientOptions.find((entry) => entry.id === value);
-                if (matchedPatient) {
-                    applyMatchedPatient(matchedPatient);
-                }
-            }
-            if (name === 'patientName') {
-                const matchedPatient = patientOptions.find((entry) => (
-                    nextValue === entry.name
-                    || nextValue === entry.email
-                    || nextValue === `${entry.name}${entry.email ? ` (${entry.email})` : ''}`
-                ));
-                if (matchedPatient) {
-                    applyMatchedPatient(matchedPatient);
-                } else if (prev.formType === 'walkin' || prev.source === 'phonecall') {
-                    next.patientId = '';
-                }
-            }
-            if (prev.source === 'phonecall' && !prev.patientId && (name === 'guestEmail' || name === 'contactNumber')) {
-                const matchedPatient = matchPatientByIdentity({
-                    email: name === 'guestEmail' ? nextValue : next.guestEmail,
-                    phone: name === 'contactNumber' ? nextValue : next.contactNumber,
-                });
-                if (matchedPatient) {
-                    applyMatchedPatient(matchedPatient);
-                }
-            }
-            if (name === 'dentistId') {
-                const matchedDentist = dentistOptions.find((entry) => entry.id === value);
-                next.assignedDentist = matchedDentist?.name || '';
-            }
-            if (name === 'status' && value === 'in-clinic' && next.formType === 'appointment') {
-                const currentStamp = getCurrentScheduleStamp();
-                next.date = currentStamp.date;
-                next.time = currentStamp.time;
-            }
-            if (name === 'date' || name === 'branch') {
-                next.time = '';
-            }
-            return next;
+            touchedKeys.forEach((key) => {
+                if (validationErrors[key]) nextErrors[key] = validationErrors[key];
+                else delete nextErrors[key];
+            });
+
+            return nextErrors;
         });
-        if (formErrors[name] && name !== 'guestEmail') {
-            setFormErrors((prev) => ({ ...prev, [name]: '' }));
-        }
-        if (['patientId', 'patientName', 'contactNumber', 'guestEmail'].includes(name) && formErrors.patientId) {
-            setFormErrors((prev) => ({ ...prev, patientId: '' }));
-        }
     };
 
-    const validateForm = () => {
+    const getScheduleValidationErrors = (state = formState, existingErrors = formErrors) => {
         const nextErrors = {};
-        const activeBranch = formState.branch || assignedBranch;
+        const activeBranch = state.branch || assignedBranch;
         const isGuestAppointment = isGuestAppointmentEntry(editingEntry);
-        const isPhoneCallGuest = formState.source === 'phonecall' && !formState.patientId;
+        const isPhoneCallGuest = state.source === 'phonecall' && !state.patientId;
         const activeEditMode = editingEntry ? editMode : 'full';
         const requiresIdentityFields = !editingEntry || activeEditMode === 'full';
         const requiresDentistField = !editingEntry || ['full', 'reassign'].includes(activeEditMode);
-        const requiresDateFields = formState.formType !== 'walkin' && (!editingEntry || ['full', 'reschedule'].includes(activeEditMode));
+        const requiresDateFields = state.formType !== 'walkin' && (!editingEntry || ['full', 'reschedule'].includes(activeEditMode));
         const requiresProcedureField = !editingEntry || activeEditMode === 'full';
         const shouldCheckPhoneCallDuplicates = isPhoneCallGuest && requiresIdentityFields;
 
         if (!activeBranch) nextErrors.branch = 'Select a branch.';
-        if ((!editingEntry || activeEditMode === 'full') && !formState.source) nextErrors.source = 'Select a source.';
-        if (formState.formType === 'appointment') {
-            if (requiresIdentityFields && !formState.patientId && !isGuestAppointment && !isPhoneCallGuest) nextErrors.patientId = 'Select a patient.';
-            if (requiresIdentityFields && isPhoneCallGuest && !formState.patientName.trim()) nextErrors.patientName = 'Enter the caller or patient name.';
-            if (requiresDentistField && !formState.dentistId && canChooseDentist) nextErrors.dentistId = 'Select a dentist.';
-            if (requiresDateFields && !formState.date) nextErrors.date = 'Choose an appointment date.';
-            if (requiresDateFields && formState.date && blockedDates.includes(formState.date)) {
-                nextErrors.date = formState.date === todayString
+        if ((!editingEntry || activeEditMode === 'full') && !state.source) nextErrors.source = 'Select a source.';
+        if (state.formType === 'appointment') {
+            if (requiresIdentityFields && !state.patientId && !isGuestAppointment && !isPhoneCallGuest) nextErrors.patientId = 'Select a patient.';
+            if (requiresIdentityFields && isPhoneCallGuest && !state.patientName.trim()) nextErrors.patientName = 'Enter the caller or patient name.';
+            if (requiresDentistField && !state.dentistId && canChooseDentist) nextErrors.dentistId = 'Select a dentist.';
+            if (requiresDateFields && !state.date) nextErrors.date = 'Choose an appointment date.';
+            if (requiresDateFields && state.date && blockedDates.includes(state.date)) {
+                nextErrors.date = state.date === todayString
                     ? 'Same-day booking is no longer available for today. Please choose another date.'
                     : 'That appointment date is no longer available. Please choose another date.';
             }
-            if (requiresDateFields && formState.date && formState.date < minBookableDate) {
+            if (requiresDateFields && state.date && state.date < minBookableDate) {
                 nextErrors.date = 'Choose the next available appointment date.';
             }
-            if (requiresDateFields && !formState.time) nextErrors.time = 'Choose an appointment time.';
-            if (requiresDateFields && formState.status !== 'in-clinic' && formState.time && !availableSlots.includes(formState.time)) {
+            if (requiresDateFields && !state.time) nextErrors.time = 'Choose an appointment time.';
+            if (requiresDateFields && state.status !== 'in-clinic' && state.time && !availableSlots.includes(state.time)) {
                 nextErrors.time = 'Choose one of the available time slots.';
             }
-            if (requiresProcedureField && !formState.procedure) nextErrors.procedure = 'Select a procedure.';
+            if (requiresProcedureField && !state.procedure) nextErrors.procedure = 'Select a procedure.';
             if (requiresIdentityFields && isPhoneCallGuest) {
-                if (!formState.contactNumber.trim()) {
+                if (!state.contactNumber.trim()) {
                     nextErrors.contactNumber = 'Enter the caller contact number.';
-                } else if (!/^9\d{9}$/.test(formState.contactNumber.trim())) {
+                } else if (!/^9\d{9}$/.test(state.contactNumber.trim())) {
                     nextErrors.contactNumber = 'Use the 9xxxxxxxxx mobile format.';
                 }
-                if (!formState.guestEmail.trim()) {
+                if (!state.guestEmail.trim()) {
                     nextErrors.guestEmail = 'Enter the caller email address.';
-                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.guestEmail.trim())) {
-                    nextErrors.guestEmail = 'Enter a valid email address.';
-                } else if (formErrors.guestEmail === 'Invalid email domain') {
-                    nextErrors.guestEmail = formErrors.guestEmail;
+                } else if (!isValidEmailFormat(state.guestEmail)) {
+                    nextErrors.guestEmail = INVALID_EMAIL_ADDRESS_MESSAGE;
+                } else if (!isAllowedEmailDomain(state.guestEmail)) {
+                    nextErrors.guestEmail = INVALID_EMAIL_DOMAIN_MESSAGE;
+                } else if (existingErrors.guestEmail === INVALID_EMAIL_DOMAIN_MESSAGE) {
+                    nextErrors.guestEmail = existingErrors.guestEmail;
                 }
                 if (shouldCheckPhoneCallDuplicates && phoneCallDuplicateMatches.length > 0) {
                     nextErrors.patientId = phoneCallDuplicateMatches.length > 1
@@ -1304,10 +1326,15 @@ export default function SchedulePage() {
                 }
             }
         } else {
-            if (!formState.patientName.trim()) nextErrors.patientName = 'Enter the walk-in patient name.';
-            if (requiresProcedureField && !formState.procedure.trim()) nextErrors.procedure = 'Select a procedure.';
+            if (!state.patientName.trim()) nextErrors.patientName = 'Enter the walk-in patient name.';
+            if (requiresProcedureField && !state.procedure.trim()) nextErrors.procedure = 'Select a procedure.';
         }
 
+        return nextErrors;
+    };
+
+    const validateForm = () => {
+        const nextErrors = getScheduleValidationErrors();
         setFormErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
     };

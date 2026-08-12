@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { authFetch, publicFetch } from '../utils/api';
 import {
     INVALID_EMAIL_ADDRESS_MESSAGE,
+    INVALID_EMAIL_DOMAIN_MESSAGE,
+    isAllowedEmailDomain,
     isValidEmailFormat,
 } from '../utils/patientIntake';
 
@@ -40,6 +42,13 @@ export default function useRealtimeSystemEmailValidation({
             latestRequestRef.current += 1;
             lastResultRef.current = { email: trimmedEmail, error: INVALID_EMAIL_ADDRESS_MESSAGE };
             setErrors((prev) => ({ ...prev, [fieldName]: INVALID_EMAIL_ADDRESS_MESSAGE }));
+            return undefined;
+        }
+
+        if (!isAllowedEmailDomain(trimmedEmail)) {
+            latestRequestRef.current += 1;
+            lastResultRef.current = { email: trimmedEmail, error: INVALID_EMAIL_DOMAIN_MESSAGE };
+            setErrors((prev) => ({ ...prev, [fieldName]: INVALID_EMAIL_DOMAIN_MESSAGE }));
             return undefined;
         }
 

@@ -13,6 +13,7 @@ import PasswordField from '../../components/common/PasswordField';
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
+import { isAllowedEmailDomain } from '../../utils/patientIntake';
 
 const isValidEmail = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 const getEmailFormatError = (email = '') => {
@@ -95,6 +96,12 @@ export default function MyProfile() {
         if (formatError) {
             setIsCheckingEmailDomain(false);
             setEmailAddressError(formatError);
+            return undefined;
+        }
+
+        if (!isAllowedEmailDomain(nextEmail)) {
+            setIsCheckingEmailDomain(false);
+            setEmailAddressError('Invalid email domain');
             return undefined;
         }
 
@@ -1018,6 +1025,7 @@ export default function MyProfile() {
                                         const formatError = getEmailFormatError(newEmail);
                                         setEmailAddressError((prev) => {
                                             if (formatError) return formatError;
+                                            if (newEmail && !isAllowedEmailDomain(newEmail)) return 'Invalid email domain';
                                             if (prev === 'Invalid email domain') return prev;
                                             return '';
                                         });
