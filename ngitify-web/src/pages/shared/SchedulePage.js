@@ -18,7 +18,6 @@ import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 import {
-    INVALID_EMAIL_ADDRESS_MESSAGE,
     INVALID_EMAIL_DOMAIN_MESSAGE,
     isAllowedEmailDomain,
     isValidEmailFormat,
@@ -78,6 +77,7 @@ const NEEDS_ACTION_STATUS_VALUES = ['pending', 'confirmed', 'in-clinic'];
 const ACTIVE_BOOKING_STATUS_VALUES = ['pending', 'confirmed'];
 const HISTORY_STATUS_VALUES = ['completed', 'cancelled'];
 const LOCKED_SCHEDULE_STATUSES = new Set(['completed', 'cancelled']);
+const SCHEDULE_REQUIRED_MESSAGE = 'Required';
 
 const WORKFLOW_FILTER_OPTIONS = [
     { value: 'needs-action', label: 'Needs Action', statuses: NEEDS_ACTION_STATUS_VALUES },
@@ -860,7 +860,15 @@ export default function SchedulePage() {
             && !formState.patientId
             && !isSubmitting
             && (formTouched.guestEmail || Boolean(formErrors.guestEmail)),
-        setErrors: setFormErrors,
+        setErrors: (updater) => {
+            setFormErrors((prev) => {
+                const next = typeof updater === 'function' ? updater(prev) : updater;
+                if (next?.guestEmail) {
+                    return { ...next, guestEmail: SCHEDULE_REQUIRED_MESSAGE };
+                }
+                return next;
+            });
+        },
         fieldName: 'guestEmail',
         validateDuplicates: false,
     });
@@ -1290,40 +1298,38 @@ export default function SchedulePage() {
         const requiresProcedureField = !editingEntry || activeEditMode === 'full';
         const shouldCheckPhoneCallDuplicates = isPhoneCallGuest && requiresIdentityFields;
 
-        if (!activeBranch) nextErrors.branch = 'Select a branch.';
-        if ((!editingEntry || activeEditMode === 'full') && !state.source) nextErrors.source = 'Select a source.';
+        if (!activeBranch) nextErrors.branch = SCHEDULE_REQUIRED_MESSAGE;
+        if ((!editingEntry || activeEditMode === 'full') && !state.source) nextErrors.source = SCHEDULE_REQUIRED_MESSAGE;
         if (state.formType === 'appointment') {
-            if (requiresIdentityFields && !state.patientId && !isGuestAppointment && !isPhoneCallGuest) nextErrors.patientId = 'Select a patient.';
-            if (requiresIdentityFields && isPhoneCallGuest && !state.patientName.trim()) nextErrors.patientName = 'Enter the caller or patient name.';
-            if (requiresDentistField && !state.dentistId && canChooseDentist) nextErrors.dentistId = 'Select a dentist.';
-            if (requiresDateFields && !state.date) nextErrors.date = 'Choose an appointment date.';
+            if (requiresIdentityFields && !state.patientId && !isGuestAppointment && !isPhoneCallGuest) nextErrors.patientId = SCHEDULE_REQUIRED_MESSAGE;
+            if (requiresIdentityFields && isPhoneCallGuest && !state.patientName.trim()) nextErrors.patientName = SCHEDULE_REQUIRED_MESSAGE;
+            if (requiresDentistField && !state.dentistId && canChooseDentist) nextErrors.dentistId = SCHEDULE_REQUIRED_MESSAGE;
+            if (requiresDateFields && !state.date) nextErrors.date = SCHEDULE_REQUIRED_MESSAGE;
             if (requiresDateFields && state.date && blockedDates.includes(state.date)) {
-                nextErrors.date = state.date === todayString
-                    ? 'Same-day booking is no longer available for today. Please choose another date.'
-                    : 'That appointment date is no longer available. Please choose another date.';
+                nextErrors.date = SCHEDULE_REQUIRED_MESSAGE;
             }
             if (requiresDateFields && state.date && state.date < minBookableDate) {
-                nextErrors.date = 'Choose the next available appointment date.';
+                nextErrors.date = SCHEDULE_REQUIRED_MESSAGE;
             }
-            if (requiresDateFields && !state.time) nextErrors.time = 'Choose an appointment time.';
+            if (requiresDateFields && !state.time) nextErrors.time = SCHEDULE_REQUIRED_MESSAGE;
             if (requiresDateFields && state.status !== 'in-clinic' && state.time && !availableSlots.includes(state.time)) {
-                nextErrors.time = 'Choose one of the available time slots.';
+                nextErrors.time = SCHEDULE_REQUIRED_MESSAGE;
             }
-            if (requiresProcedureField && !state.procedure) nextErrors.procedure = 'Select a procedure.';
+            if (requiresProcedureField && !state.procedure) nextErrors.procedure = SCHEDULE_REQUIRED_MESSAGE;
             if (requiresIdentityFields && isPhoneCallGuest) {
                 if (!state.contactNumber.trim()) {
-                    nextErrors.contactNumber = 'Enter the caller contact number.';
+                    nextErrors.contactNumber = SCHEDULE_REQUIRED_MESSAGE;
                 } else if (!/^9\d{9}$/.test(state.contactNumber.trim())) {
-                    nextErrors.contactNumber = 'Use the 9xxxxxxxxx mobile format.';
+                    nextErrors.contactNumber = SCHEDULE_REQUIRED_MESSAGE;
                 }
                 if (!state.guestEmail.trim()) {
-                    nextErrors.guestEmail = 'Enter the caller email address.';
+                    nextErrors.guestEmail = SCHEDULE_REQUIRED_MESSAGE;
                 } else if (!isValidEmailFormat(state.guestEmail)) {
-                    nextErrors.guestEmail = INVALID_EMAIL_ADDRESS_MESSAGE;
+                    nextErrors.guestEmail = SCHEDULE_REQUIRED_MESSAGE;
                 } else if (!isAllowedEmailDomain(state.guestEmail)) {
-                    nextErrors.guestEmail = INVALID_EMAIL_DOMAIN_MESSAGE;
+                    nextErrors.guestEmail = SCHEDULE_REQUIRED_MESSAGE;
                 } else if (existingErrors.guestEmail === INVALID_EMAIL_DOMAIN_MESSAGE) {
-                    nextErrors.guestEmail = existingErrors.guestEmail;
+                    nextErrors.guestEmail = SCHEDULE_REQUIRED_MESSAGE;
                 }
                 if (shouldCheckPhoneCallDuplicates && phoneCallDuplicateMatches.length > 0) {
                     nextErrors.patientId = phoneCallDuplicateMatches.length > 1
@@ -1332,8 +1338,8 @@ export default function SchedulePage() {
                 }
             }
         } else {
-            if (!state.patientName.trim()) nextErrors.patientName = 'Enter the walk-in patient name.';
-            if (requiresProcedureField && !state.procedure.trim()) nextErrors.procedure = 'Select a procedure.';
+            if (!state.patientName.trim()) nextErrors.patientName = SCHEDULE_REQUIRED_MESSAGE;
+            if (requiresProcedureField && !state.procedure.trim()) nextErrors.procedure = SCHEDULE_REQUIRED_MESSAGE;
         }
 
         return nextErrors;
@@ -1422,7 +1428,7 @@ export default function SchedulePage() {
                 if (!response.ok) {
                     if (data.field) {
                         const nextField = data.field === 'patient' ? 'patientId' : data.field;
-                        setFormErrors((prev) => ({ ...prev, [nextField]: data.message || 'Please review this field.' }));
+                        setFormErrors((prev) => ({ ...prev, [nextField]: SCHEDULE_REQUIRED_MESSAGE }));
                     }
                     throw new Error(data.message || 'Failed to save the appointment.');
                 }
