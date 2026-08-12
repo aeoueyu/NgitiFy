@@ -20,11 +20,21 @@ import {
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import {
     ALLERGY_OPTIONS,
+    ALLERGY_SELECTION_REQUIRED_MESSAGE,
+    BIRTHDATE_FUTURE_MESSAGE,
     BLOOD_TYPE_OPTIONS,
+    DUPLICATE_EMAIL_MESSAGE,
+    INVALID_EMAIL_ADDRESS_MESSAGE,
+    INVALID_LANDLINE_FORMAT_MESSAGE,
+    INVALID_MOBILE_FORMAT_MESSAGE,
+    INVALID_SIGNED_DATE_MESSAGE,
     MEDICAL_CONDITION_OPTIONS,
     NATIONALITY_OPTIONS,
     OCCUPATION_OPTIONS,
     RELIGION_OPTIONS,
+    REQUIRED_MESSAGE,
+    REQUIRED_WHEN_YES_MESSAGE,
+    LAST_DENTAL_VISIT_FUTURE_MESSAGE,
     PHYSICIAN_SPECIALTY_OPTIONS,
     RELATIONSHIP_OPTIONS,
     LANDLINE_PREFIX,
@@ -250,8 +260,8 @@ export default function AddPatient({ onClose, onSuccess }) {
     const handleBlur = (e) => {
         const { name, value } = e.target;
         let newError = '';
-        if (name === 'email') { if (!value) newError = 'Required'; else if (!validateEmail(value)) newError = 'Enter a valid email address.'; }
-        else if (name === 'phone' || name === 'guardianContact') { if (!value) newError = 'Required'; else if (!isValidMobileNumber(value)) newError = 'Invalid format (9xxxxxxxxx)'; }
+        if (name === 'email') { if (!value) newError = REQUIRED_MESSAGE; else if (!validateEmail(value)) newError = INVALID_EMAIL_ADDRESS_MESSAGE; }
+        else if (name === 'phone' || name === 'guardianContact') { if (!value) newError = REQUIRED_MESSAGE; else if (!isValidMobileNumber(value)) newError = INVALID_MOBILE_FORMAT_MESSAGE; }
         setErrors(prev => ({ ...prev, [name]: newError }));
     };
 
@@ -416,50 +426,50 @@ export default function AddPatient({ onClose, onSuccess }) {
         const computedIsMinor = currentFormData.birthdate && getAge(currentFormData.birthdate) < 18;
         if (computedIsMinor) {
             required.push('guardianName', 'guardianRelationship', 'guardianOccupation');
-            if (!currentFormData.guardianContact) { newErrors.guardianContact = 'Required'; isValid = false; }
-            else if (currentFormData.guardianContact.length !== 10 || currentFormData.guardianContact[0] !== '9') { newErrors.guardianContact = 'Invalid format'; isValid = false; }
+            if (!currentFormData.guardianContact) { newErrors.guardianContact = REQUIRED_MESSAGE; isValid = false; }
+            else if (currentFormData.guardianContact.length !== 10 || currentFormData.guardianContact[0] !== '9') { newErrors.guardianContact = INVALID_MOBILE_FORMAT_MESSAGE; isValid = false; }
         }
-        required.forEach(f => { if (!currentFormData[f]) { newErrors[f] = 'Required'; isValid = false; } });
-        if (!currentFormData.phone) { newErrors.phone = 'Required'; isValid = false; }
-        else if (currentFormData.phone.length !== 10 || currentFormData.phone[0] !== '9') { newErrors.phone = 'Invalid format'; isValid = false; }
-        if (currentFormData.homePhone && !isValidLandlineNumber(currentFormData.homePhone)) { newErrors.homePhone = 'Invalid landline format'; isValid = false; }
-        if (currentFormData.workPhone && !isValidLandlineNumber(currentFormData.workPhone)) { newErrors.workPhone = 'Invalid landline format'; isValid = false; }
-        if (!currentFormData.emergencyContactName.trim()) { newErrors.emergencyContactName = 'Required'; isValid = false; }
-        if (!currentFormData.emergencyContactRelationship.trim()) { newErrors.emergencyContactRelationship = 'Required'; isValid = false; }
-        if (!currentFormData.emergencyContactPhone) { newErrors.emergencyContactPhone = 'Required'; isValid = false; }
-        else if (!isValidMobileNumber(currentFormData.emergencyContactPhone)) { newErrors.emergencyContactPhone = 'Invalid format'; isValid = false; }
-        if (currentFormData.physician.officeNumber && !isValidLandlineNumber(currentFormData.physician.officeNumber)) { newErrors.physician_officeNumber = 'Invalid landline format'; isValid = false; }
-        if (currentFormData.email && !validateEmail(currentFormData.email)) { newErrors.email = 'Invalid email address.'; isValid = false; }
+        required.forEach(f => { if (!currentFormData[f]) { newErrors[f] = REQUIRED_MESSAGE; isValid = false; } });
+        if (!currentFormData.phone) { newErrors.phone = REQUIRED_MESSAGE; isValid = false; }
+        else if (currentFormData.phone.length !== 10 || currentFormData.phone[0] !== '9') { newErrors.phone = INVALID_MOBILE_FORMAT_MESSAGE; isValid = false; }
+        if (currentFormData.homePhone && !isValidLandlineNumber(currentFormData.homePhone)) { newErrors.homePhone = INVALID_LANDLINE_FORMAT_MESSAGE; isValid = false; }
+        if (currentFormData.workPhone && !isValidLandlineNumber(currentFormData.workPhone)) { newErrors.workPhone = INVALID_LANDLINE_FORMAT_MESSAGE; isValid = false; }
+        if (!currentFormData.emergencyContactName.trim()) { newErrors.emergencyContactName = REQUIRED_MESSAGE; isValid = false; }
+        if (!currentFormData.emergencyContactRelationship.trim()) { newErrors.emergencyContactRelationship = REQUIRED_MESSAGE; isValid = false; }
+        if (!currentFormData.emergencyContactPhone) { newErrors.emergencyContactPhone = REQUIRED_MESSAGE; isValid = false; }
+        else if (!isValidMobileNumber(currentFormData.emergencyContactPhone)) { newErrors.emergencyContactPhone = INVALID_MOBILE_FORMAT_MESSAGE; isValid = false; }
+        if (currentFormData.physician.officeNumber && !isValidLandlineNumber(currentFormData.physician.officeNumber)) { newErrors.physician_officeNumber = INVALID_LANDLINE_FORMAT_MESSAGE; isValid = false; }
+        if (currentFormData.email && !validateEmail(currentFormData.email)) { newErrors.email = INVALID_EMAIL_ADDRESS_MESSAGE; isValid = false; }
         else if (errors.email) { newErrors.email = errors.email; isValid = false; }
-        if (!currentFormData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = 'Required'; isValid = false; }
-        if (!currentFormData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = 'Required'; isValid = false; }
-        if (!currentFormData.dataPrivacyConsent.acknowledged) { newErrors.dataPrivacyConsent_acknowledged = 'Required'; isValid = false; }
-        if (!currentFormData.dataPrivacyConsent.signerName.trim()) { newErrors.dataPrivacyConsent_signerName = 'Required'; isValid = false; }
-        if (currentFormData.birthdate && isFutureDateInManila(currentFormData.birthdate)) { newErrors.birthdate = 'Birthdate cannot be in the future'; isValid = false; }
-        if (currentFormData.dentalHistory.lastExamDate && isFutureDateInManila(currentFormData.dentalHistory.lastExamDate)) { newErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future'; isValid = false; }
-        if (currentFormData.consentAcknowledgement.signedAt && isFutureDateInManila(currentFormData.consentAcknowledgement.signedAt)) { newErrors.consentAcknowledgement_signedAt = 'Invalid signed date'; isValid = false; }
-        if (currentFormData.dataPrivacyConsent.signedAt && isFutureDateInManila(currentFormData.dataPrivacyConsent.signedAt)) { newErrors.dataPrivacyConsent_signedAt = 'Invalid signed date'; isValid = false; }
+        if (!currentFormData.consentAcknowledgement.acknowledged) { newErrors.consentAcknowledgement_acknowledged = REQUIRED_MESSAGE; isValid = false; }
+        if (!currentFormData.consentAcknowledgement.signerName.trim()) { newErrors.consentAcknowledgement_signerName = REQUIRED_MESSAGE; isValid = false; }
+        if (!currentFormData.dataPrivacyConsent.acknowledged) { newErrors.dataPrivacyConsent_acknowledged = REQUIRED_MESSAGE; isValid = false; }
+        if (!currentFormData.dataPrivacyConsent.signerName.trim()) { newErrors.dataPrivacyConsent_signerName = REQUIRED_MESSAGE; isValid = false; }
+        if (currentFormData.birthdate && isFutureDateInManila(currentFormData.birthdate)) { newErrors.birthdate = BIRTHDATE_FUTURE_MESSAGE; isValid = false; }
+        if (currentFormData.dentalHistory.lastExamDate && isFutureDateInManila(currentFormData.dentalHistory.lastExamDate)) { newErrors.dentalHistory_lastExamDate = LAST_DENTAL_VISIT_FUTURE_MESSAGE; isValid = false; }
+        if (currentFormData.consentAcknowledgement.signedAt && isFutureDateInManila(currentFormData.consentAcknowledgement.signedAt)) { newErrors.consentAcknowledgement_signedAt = INVALID_SIGNED_DATE_MESSAGE; isValid = false; }
+        if (currentFormData.dataPrivacyConsent.signedAt && isFutureDateInManila(currentFormData.dataPrivacyConsent.signedAt)) { newErrors.dataPrivacyConsent_signedAt = INVALID_SIGNED_DATE_MESSAGE; isValid = false; }
         requiredYesNoFields.forEach(([section, field]) => {
             if (!currentFormData[section][field]) {
-                newErrors[`${section}_${field}`] = 'Required';
+                newErrors[`${section}_${field}`] = REQUIRED_MESSAGE;
                 isValid = false;
             }
         });
-        if (currentFormData.dentalHistory.hadTreatmentReaction === 'yes' && !currentFormData.dentalHistory.reactionDetails.trim()) { newErrors.dentalHistory_reactionDetails = 'Required when answer is Yes'; isValid = false; }
-        if (currentFormData.medicalHistory.underMedicalTreatment === 'yes' && !currentFormData.medicalHistory.medicalTreatmentDetails.trim()) { newErrors.medicalHistory_medicalTreatmentDetails = 'Required when answer is Yes'; isValid = false; }
-        if (currentFormData.medicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !currentFormData.medicalHistory.seriousIllnessOrSurgeryDetails.trim()) { newErrors.medicalHistory_seriousIllnessOrSurgeryDetails = 'Required when answer is Yes'; isValid = false; }
-        if (currentFormData.medicalHistory.hadHospitalization === 'yes' && !currentFormData.medicalHistory.hospitalizationDetails.trim()) { newErrors.medicalHistory_hospitalizationDetails = 'Required when answer is Yes'; isValid = false; }
-        if (currentFormData.medicalHistory.isTakingMedication === 'yes' && !currentFormData.medicalHistory.medications.trim()) { newErrors.medicalHistory_medications = 'Required when answer is Yes'; isValid = false; }
-        if (currentFormData.medicalHistory.hasAllergies === 'yes' && currentFormData.medicalHistory.allergies.length === 0 && !currentFormData.medicalHistory.allergyOther.trim()) { newErrors.medicalHistory_allergies = 'Select or enter at least one allergy'; isValid = false; }
-        if (currentFormData.religion === 'Other' && !currentFormData.religionOther.trim()) { newErrors.religionOther = 'Required'; isValid = false; }
-        if (currentFormData.occupation === 'Other' && !currentFormData.occupationOther.trim()) { newErrors.occupationOther = 'Required'; isValid = false; }
-        if (currentFormData.guardianOccupation === 'Other' && !currentFormData.guardianOccupationOther.trim()) { newErrors.guardianOccupationOther = 'Required'; isValid = false; }
-        if (currentFormData.physician.specialty === 'Other' && !currentFormData.physician.specialtyOther.trim()) { newErrors.physician_specialtyOther = 'Required'; isValid = false; }
+        if (currentFormData.dentalHistory.hadTreatmentReaction === 'yes' && !currentFormData.dentalHistory.reactionDetails.trim()) { newErrors.dentalHistory_reactionDetails = REQUIRED_WHEN_YES_MESSAGE; isValid = false; }
+        if (currentFormData.medicalHistory.underMedicalTreatment === 'yes' && !currentFormData.medicalHistory.medicalTreatmentDetails.trim()) { newErrors.medicalHistory_medicalTreatmentDetails = REQUIRED_WHEN_YES_MESSAGE; isValid = false; }
+        if (currentFormData.medicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !currentFormData.medicalHistory.seriousIllnessOrSurgeryDetails.trim()) { newErrors.medicalHistory_seriousIllnessOrSurgeryDetails = REQUIRED_WHEN_YES_MESSAGE; isValid = false; }
+        if (currentFormData.medicalHistory.hadHospitalization === 'yes' && !currentFormData.medicalHistory.hospitalizationDetails.trim()) { newErrors.medicalHistory_hospitalizationDetails = REQUIRED_WHEN_YES_MESSAGE; isValid = false; }
+        if (currentFormData.medicalHistory.isTakingMedication === 'yes' && !currentFormData.medicalHistory.medications.trim()) { newErrors.medicalHistory_medications = REQUIRED_WHEN_YES_MESSAGE; isValid = false; }
+        if (currentFormData.medicalHistory.hasAllergies === 'yes' && currentFormData.medicalHistory.allergies.length === 0 && !currentFormData.medicalHistory.allergyOther.trim()) { newErrors.medicalHistory_allergies = ALLERGY_SELECTION_REQUIRED_MESSAGE; isValid = false; }
+        if (currentFormData.religion === 'Other' && !currentFormData.religionOther.trim()) { newErrors.religionOther = REQUIRED_MESSAGE; isValid = false; }
+        if (currentFormData.occupation === 'Other' && !currentFormData.occupationOther.trim()) { newErrors.occupationOther = REQUIRED_MESSAGE; isValid = false; }
+        if (currentFormData.guardianOccupation === 'Other' && !currentFormData.guardianOccupationOther.trim()) { newErrors.guardianOccupationOther = REQUIRED_MESSAGE; isValid = false; }
+        if (currentFormData.physician.specialty === 'Other' && !currentFormData.physician.specialtyOther.trim()) { newErrors.physician_specialtyOther = REQUIRED_MESSAGE; isValid = false; }
         // Branch is required unless branch manager (auto-assigned)
-        if (!isBranchScopedStaff && !currentFormData.assignedBranch) { newErrors.assignedBranch = 'Required'; isValid = false; }
+        if (!isBranchScopedStaff && !currentFormData.assignedBranch) { newErrors.assignedBranch = REQUIRED_MESSAGE; isValid = false; }
         const validateAddr = (addr, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach(f => {
-                if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
+                if (!addr[f]) { newErrors[`${prefix}_${f}`] = REQUIRED_MESSAGE; isValid = false; }
             });
         };
         validateAddr(currentFormData.homeAddress, 'home');
@@ -779,7 +789,7 @@ export default function AddPatient({ onClose, onSuccess }) {
             else if (response.status === 409) {
                 if (data.duplicateSummary) setDuplicateSummary(data.duplicateSummary);
                 const nextField = data.field || 'duplicateCheck';
-                setErrors(prev => ({ ...prev, [nextField]: data.message }));
+                setErrors(prev => ({ ...prev, [nextField]: data.message || DUPLICATE_EMAIL_MESSAGE }));
                 if (nextField === 'duplicateCheck') setCurrentStep(0);
                 window.setTimeout(() => {
                     const el = document.getElementsByName(nextField)[0];

@@ -12,12 +12,20 @@ import { publicFetch } from '../utils/api';
 import { regions, provinces, cities, barangays } from '../utils/addressData';
 import {
     ALLERGY_OPTIONS,
+    ALLERGY_SELECTION_REQUIRED_MESSAGE,
+    BIRTHDATE_FUTURE_MESSAGE,
     BLOOD_TYPE_OPTIONS,
+    INVALID_LANDLINE_FORMAT_MESSAGE,
+    INVALID_MOBILE_FORMAT_MESSAGE,
+    INVALID_SIGNED_DATE_MESSAGE,
+    LAST_DENTAL_VISIT_FUTURE_MESSAGE,
     LANDLINE_PREFIX,
     MEDICAL_CONDITION_OPTIONS,
     NATIONALITY_OPTIONS,
     OCCUPATION_OPTIONS,
     PHYSICIAN_SPECIALTY_OPTIONS,
+    REQUIRED_MESSAGE,
+    REQUIRED_WHEN_YES_MESSAGE,
     RELATIONSHIP_OPTIONS,
     RELIGION_OPTIONS,
     getOtherTextValue,
@@ -340,79 +348,79 @@ export default function PreRegisterPage() {
             isPhoneCallPreRegistration: nextIsPhoneCallPreRegistration,
         } = snapshot;
 
-        if (!String(nextAppointmentInfo?.guestFirstName || '').trim()) nextErrors.appointment_guestFirstName = 'Required';
-        if (!String(nextAppointmentInfo?.guestLastName || '').trim()) nextErrors.appointment_guestLastName = 'Required';
-        if (!String(nextAppointmentInfo?.guestPhone || '').trim()) nextErrors.appointment_guestPhone = 'Required';
-        else if (!isValidMobileNumber(nextAppointmentInfo.guestPhone)) nextErrors.appointment_guestPhone = 'Use 9xxxxxxxxx format.';
-        if (!String(nextAppointmentInfo?.guestBirthdate || '').trim()) nextErrors.appointment_guestBirthdate = 'Required';
-        else if (isFutureDate(nextAppointmentInfo.guestBirthdate)) nextErrors.appointment_guestBirthdate = 'Birthdate cannot be in the future.';
-        if (!String(nextAppointmentInfo?.guestGender || '').trim()) nextErrors.appointment_guestGender = 'Required';
+        if (!String(nextAppointmentInfo?.guestFirstName || '').trim()) nextErrors.appointment_guestFirstName = REQUIRED_MESSAGE;
+        if (!String(nextAppointmentInfo?.guestLastName || '').trim()) nextErrors.appointment_guestLastName = REQUIRED_MESSAGE;
+        if (!String(nextAppointmentInfo?.guestPhone || '').trim()) nextErrors.appointment_guestPhone = REQUIRED_MESSAGE;
+        else if (!isValidMobileNumber(nextAppointmentInfo.guestPhone)) nextErrors.appointment_guestPhone = INVALID_MOBILE_FORMAT_MESSAGE;
+        if (!String(nextAppointmentInfo?.guestBirthdate || '').trim()) nextErrors.appointment_guestBirthdate = REQUIRED_MESSAGE;
+        else if (isFutureDate(nextAppointmentInfo.guestBirthdate)) nextErrors.appointment_guestBirthdate = BIRTHDATE_FUTURE_MESSAGE;
+        if (!String(nextAppointmentInfo?.guestGender || '').trim()) nextErrors.appointment_guestGender = REQUIRED_MESSAGE;
 
         ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
-            if (!String(nextHomeAddress[field] || '').trim()) nextErrors[`home_${field}`] = 'Required';
+            if (!String(nextHomeAddress[field] || '').trim()) nextErrors[`home_${field}`] = REQUIRED_MESSAGE;
         });
 
-        if (!nextProfile.occupation) nextErrors.profile_occupation = 'Required';
-        if (nextProfile.occupation === 'Other' && !nextProfile.occupationOther.trim()) nextErrors.profile_occupationOther = 'Required';
-        if (nextProfile.nationality === 'Other' && !nextProfile.nationalityOther.trim()) nextErrors.profile_nationalityOther = 'Required';
-        if (nextProfile.religion === 'Other' && !nextProfile.religionOther.trim()) nextErrors.profile_religionOther = 'Required';
-        if (nextProfile.homePhone && !isValidLandlineNumber(nextProfile.homePhone)) nextErrors.profile_homePhone = 'Use a valid 7 to 8 digit landline number.';
-        if (nextProfile.workPhone && !isValidLandlineNumber(nextProfile.workPhone)) nextErrors.profile_workPhone = 'Use a valid 7 to 8 digit landline number.';
-        if (!nextIsPhoneCallPreRegistration && !nextProfile.reasonForConsultation.trim()) nextErrors.profile_reasonForConsultation = 'Required';
+        if (!nextProfile.occupation) nextErrors.profile_occupation = REQUIRED_MESSAGE;
+        if (nextProfile.occupation === 'Other' && !nextProfile.occupationOther.trim()) nextErrors.profile_occupationOther = REQUIRED_MESSAGE;
+        if (nextProfile.nationality === 'Other' && !nextProfile.nationalityOther.trim()) nextErrors.profile_nationalityOther = REQUIRED_MESSAGE;
+        if (nextProfile.religion === 'Other' && !nextProfile.religionOther.trim()) nextErrors.profile_religionOther = REQUIRED_MESSAGE;
+        if (nextProfile.homePhone && !isValidLandlineNumber(nextProfile.homePhone)) nextErrors.profile_homePhone = INVALID_LANDLINE_FORMAT_MESSAGE;
+        if (nextProfile.workPhone && !isValidLandlineNumber(nextProfile.workPhone)) nextErrors.profile_workPhone = INVALID_LANDLINE_FORMAT_MESSAGE;
+        if (!nextIsPhoneCallPreRegistration && !nextProfile.reasonForConsultation.trim()) nextErrors.profile_reasonForConsultation = REQUIRED_MESSAGE;
 
-        if (!nextEmergencyContact.name.trim()) nextErrors.emergencyContact_name = 'Required';
-        if (!nextEmergencyContact.relationship.trim()) nextErrors.emergencyContact_relationship = 'Required';
-        if (nextEmergencyContact.relationship === 'Other' && !nextEmergencyContact.relationshipOther.trim()) nextErrors.emergencyContact_relationshipOther = 'Required';
-        if (!nextEmergencyContact.contactNumber.trim()) nextErrors.emergencyContact_contactNumber = 'Required';
-        else if (!isValidMobileNumber(nextEmergencyContact.contactNumber)) nextErrors.emergencyContact_contactNumber = 'Use 9xxxxxxxxx format.';
+        if (!nextEmergencyContact.name.trim()) nextErrors.emergencyContact_name = REQUIRED_MESSAGE;
+        if (!nextEmergencyContact.relationship.trim()) nextErrors.emergencyContact_relationship = REQUIRED_MESSAGE;
+        if (nextEmergencyContact.relationship === 'Other' && !nextEmergencyContact.relationshipOther.trim()) nextErrors.emergencyContact_relationshipOther = REQUIRED_MESSAGE;
+        if (!nextEmergencyContact.contactNumber.trim()) nextErrors.emergencyContact_contactNumber = REQUIRED_MESSAGE;
+        else if (!isValidMobileNumber(nextEmergencyContact.contactNumber)) nextErrors.emergencyContact_contactNumber = INVALID_MOBILE_FORMAT_MESSAGE;
 
         if (nextIsMinor) {
-            if (!nextGuardian.name.trim()) nextErrors.guardian_name = 'Required';
-            if (!nextGuardian.relationship.trim()) nextErrors.guardian_relationship = 'Required';
-            if (nextGuardian.relationship === 'Other' && !nextGuardian.relationshipOther.trim()) nextErrors.guardian_relationshipOther = 'Required';
-            if (!nextGuardian.contactNumber.trim()) nextErrors.guardian_contactNumber = 'Required';
-            else if (!isValidMobileNumber(nextGuardian.contactNumber)) nextErrors.guardian_contactNumber = 'Use 9xxxxxxxxx format.';
-            if (!nextGuardian.occupation.trim()) nextErrors.guardian_occupation = 'Required';
-            if (nextGuardian.occupation === 'Other' && !nextGuardian.occupationOther.trim()) nextErrors.guardian_occupationOther = 'Required';
+            if (!nextGuardian.name.trim()) nextErrors.guardian_name = REQUIRED_MESSAGE;
+            if (!nextGuardian.relationship.trim()) nextErrors.guardian_relationship = REQUIRED_MESSAGE;
+            if (nextGuardian.relationship === 'Other' && !nextGuardian.relationshipOther.trim()) nextErrors.guardian_relationshipOther = REQUIRED_MESSAGE;
+            if (!nextGuardian.contactNumber.trim()) nextErrors.guardian_contactNumber = REQUIRED_MESSAGE;
+            else if (!isValidMobileNumber(nextGuardian.contactNumber)) nextErrors.guardian_contactNumber = INVALID_MOBILE_FORMAT_MESSAGE;
+            if (!nextGuardian.occupation.trim()) nextErrors.guardian_occupation = REQUIRED_MESSAGE;
+            if (nextGuardian.occupation === 'Other' && !nextGuardian.occupationOther.trim()) nextErrors.guardian_occupationOther = REQUIRED_MESSAGE;
         }
 
         if (!nextIsPhoneCallPreRegistration) {
-            if (nextDentalHistory.lastExamDate && isFutureDate(nextDentalHistory.lastExamDate)) nextErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future.';
-            if (!nextDentalHistory.hadTreatmentReaction) nextErrors.dentalHistory_hadTreatmentReaction = 'Required';
-            if (nextDentalHistory.hadTreatmentReaction === 'yes' && !nextDentalHistory.reactionDetails.trim()) nextErrors.dentalHistory_reactionDetails = 'Required when answer is Yes.';
-            if (!nextDentalHistory.hasConfidentialInfo) nextErrors.dentalHistory_hasConfidentialInfo = 'Required';
+            if (nextDentalHistory.lastExamDate && isFutureDate(nextDentalHistory.lastExamDate)) nextErrors.dentalHistory_lastExamDate = LAST_DENTAL_VISIT_FUTURE_MESSAGE;
+            if (!nextDentalHistory.hadTreatmentReaction) nextErrors.dentalHistory_hadTreatmentReaction = REQUIRED_MESSAGE;
+            if (nextDentalHistory.hadTreatmentReaction === 'yes' && !nextDentalHistory.reactionDetails.trim()) nextErrors.dentalHistory_reactionDetails = REQUIRED_WHEN_YES_MESSAGE;
+            if (!nextDentalHistory.hasConfidentialInfo) nextErrors.dentalHistory_hasConfidentialInfo = REQUIRED_MESSAGE;
 
-            if (!nextMedicalHistory.inGoodHealth) nextErrors.medicalHistory_inGoodHealth = 'Required';
-            if (!nextMedicalHistory.underMedicalTreatment) nextErrors.medicalHistory_underMedicalTreatment = 'Required';
-            if (nextMedicalHistory.underMedicalTreatment === 'yes' && !nextMedicalHistory.medicalTreatmentDetails.trim()) nextErrors.medicalHistory_medicalTreatmentDetails = 'Required when answer is Yes.';
-            if (!nextMedicalHistory.hadSeriousIllnessOrSurgery) nextErrors.medicalHistory_hadSeriousIllnessOrSurgery = 'Required';
-            if (nextMedicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !nextMedicalHistory.seriousIllnessOrSurgeryDetails.trim()) nextErrors.medicalHistory_seriousIllnessOrSurgeryDetails = 'Required when answer is Yes.';
-            if (!nextMedicalHistory.hadHospitalization) nextErrors.medicalHistory_hadHospitalization = 'Required';
-            if (nextMedicalHistory.hadHospitalization === 'yes' && !nextMedicalHistory.hospitalizationDetails.trim()) nextErrors.medicalHistory_hospitalizationDetails = 'Required when answer is Yes.';
-            if (!nextMedicalHistory.isTakingMedication) nextErrors.medicalHistory_isTakingMedication = 'Required';
-            if (nextMedicalHistory.isTakingMedication === 'yes' && !nextMedicalHistory.medications.trim()) nextErrors.medicalHistory_medications = 'Required when answer is Yes.';
-            if (!nextMedicalHistory.usesTobacco) nextErrors.medicalHistory_usesTobacco = 'Required';
-            if (!nextMedicalHistory.usesAlcoholOrDrugs) nextErrors.medicalHistory_usesAlcoholOrDrugs = 'Required';
-            if (!nextMedicalHistory.hasAllergies) nextErrors.medicalHistory_hasAllergies = 'Required';
+            if (!nextMedicalHistory.inGoodHealth) nextErrors.medicalHistory_inGoodHealth = REQUIRED_MESSAGE;
+            if (!nextMedicalHistory.underMedicalTreatment) nextErrors.medicalHistory_underMedicalTreatment = REQUIRED_MESSAGE;
+            if (nextMedicalHistory.underMedicalTreatment === 'yes' && !nextMedicalHistory.medicalTreatmentDetails.trim()) nextErrors.medicalHistory_medicalTreatmentDetails = REQUIRED_WHEN_YES_MESSAGE;
+            if (!nextMedicalHistory.hadSeriousIllnessOrSurgery) nextErrors.medicalHistory_hadSeriousIllnessOrSurgery = REQUIRED_MESSAGE;
+            if (nextMedicalHistory.hadSeriousIllnessOrSurgery === 'yes' && !nextMedicalHistory.seriousIllnessOrSurgeryDetails.trim()) nextErrors.medicalHistory_seriousIllnessOrSurgeryDetails = REQUIRED_WHEN_YES_MESSAGE;
+            if (!nextMedicalHistory.hadHospitalization) nextErrors.medicalHistory_hadHospitalization = REQUIRED_MESSAGE;
+            if (nextMedicalHistory.hadHospitalization === 'yes' && !nextMedicalHistory.hospitalizationDetails.trim()) nextErrors.medicalHistory_hospitalizationDetails = REQUIRED_WHEN_YES_MESSAGE;
+            if (!nextMedicalHistory.isTakingMedication) nextErrors.medicalHistory_isTakingMedication = REQUIRED_MESSAGE;
+            if (nextMedicalHistory.isTakingMedication === 'yes' && !nextMedicalHistory.medications.trim()) nextErrors.medicalHistory_medications = REQUIRED_WHEN_YES_MESSAGE;
+            if (!nextMedicalHistory.usesTobacco) nextErrors.medicalHistory_usesTobacco = REQUIRED_MESSAGE;
+            if (!nextMedicalHistory.usesAlcoholOrDrugs) nextErrors.medicalHistory_usesAlcoholOrDrugs = REQUIRED_MESSAGE;
+            if (!nextMedicalHistory.hasAllergies) nextErrors.medicalHistory_hasAllergies = REQUIRED_MESSAGE;
             if (nextMedicalHistory.hasAllergies === 'yes' && nextMedicalHistory.allergies.length === 0 && !nextMedicalHistory.allergyOther.trim()) {
-                nextErrors.medicalHistory_allergies = 'Select or enter at least one allergy.';
+                nextErrors.medicalHistory_allergies = ALLERGY_SELECTION_REQUIRED_MESSAGE;
             }
             if (snapshot.isFemalePatient) {
-                if (!nextMedicalHistory.isPregnant) nextErrors.medicalHistory_isPregnant = 'Required';
-                if (!nextMedicalHistory.isNursing) nextErrors.medicalHistory_isNursing = 'Required';
-                if (!nextMedicalHistory.takingBirthControl) nextErrors.medicalHistory_takingBirthControl = 'Required';
+                if (!nextMedicalHistory.isPregnant) nextErrors.medicalHistory_isPregnant = REQUIRED_MESSAGE;
+                if (!nextMedicalHistory.isNursing) nextErrors.medicalHistory_isNursing = REQUIRED_MESSAGE;
+                if (!nextMedicalHistory.takingBirthControl) nextErrors.medicalHistory_takingBirthControl = REQUIRED_MESSAGE;
             }
 
-            if (nextPhysician.specialty === 'Other' && !nextPhysician.specialtyOther.trim()) nextErrors.physician_specialtyOther = 'Required';
-            if (nextPhysician.officeNumber && !isValidLandlineNumber(nextPhysician.officeNumber)) nextErrors.physician_officeNumber = 'Use a valid 7 to 8 digit landline number.';
+            if (nextPhysician.specialty === 'Other' && !nextPhysician.specialtyOther.trim()) nextErrors.physician_specialtyOther = REQUIRED_MESSAGE;
+            if (nextPhysician.officeNumber && !isValidLandlineNumber(nextPhysician.officeNumber)) nextErrors.physician_officeNumber = INVALID_LANDLINE_FORMAT_MESSAGE;
 
-            if (!nextDataPrivacyConsent.signerName.trim()) nextErrors.dataPrivacyConsent_signerName = 'Required';
-            if (isFutureDate(nextDataPrivacyConsent.signedAt)) nextErrors.dataPrivacyConsent_signedAt = 'Signed date cannot be in the future.';
-            if (!nextDataPrivacyConsent.acknowledged) nextErrors.dataPrivacyConsent_acknowledged = 'Required';
+            if (!nextDataPrivacyConsent.signerName.trim()) nextErrors.dataPrivacyConsent_signerName = REQUIRED_MESSAGE;
+            if (isFutureDate(nextDataPrivacyConsent.signedAt)) nextErrors.dataPrivacyConsent_signedAt = INVALID_SIGNED_DATE_MESSAGE;
+            if (!nextDataPrivacyConsent.acknowledged) nextErrors.dataPrivacyConsent_acknowledged = REQUIRED_MESSAGE;
 
-            if (!nextConsentAcknowledgement.signerName.trim()) nextErrors.consentAcknowledgement_signerName = 'Required';
-            if (isFutureDate(nextConsentAcknowledgement.signedAt)) nextErrors.consentAcknowledgement_signedAt = 'Signed date cannot be in the future.';
-            if (!nextConsentAcknowledgement.acknowledged) nextErrors.consentAcknowledgement_acknowledged = 'Required';
+            if (!nextConsentAcknowledgement.signerName.trim()) nextErrors.consentAcknowledgement_signerName = REQUIRED_MESSAGE;
+            if (isFutureDate(nextConsentAcknowledgement.signedAt)) nextErrors.consentAcknowledgement_signedAt = INVALID_SIGNED_DATE_MESSAGE;
+            if (!nextConsentAcknowledgement.acknowledged) nextErrors.consentAcknowledgement_acknowledged = REQUIRED_MESSAGE;
         }
 
         return nextErrors;

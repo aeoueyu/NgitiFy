@@ -10,8 +10,16 @@ import { privacyPolicySections, privacyPolicyUpdatedAt, privacyPolicyVersion } f
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import {
     ALLERGY_OPTIONS,
+    BIRTHDATE_FUTURE_MESSAGE,
+    DUPLICATE_EMAIL_MESSAGE,
+    INVALID_EMAIL_ADDRESS_MESSAGE,
+    INVALID_LANDLINE_FORMAT_MESSAGE,
+    INVALID_MOBILE_FORMAT_MESSAGE,
+    INVALID_SIGNED_DATE_MESSAGE,
+    LAST_DENTAL_VISIT_FUTURE_MESSAGE,
     MEDICAL_CONDITION_OPTIONS,
     NATIONALITY_OPTIONS,
+    REQUIRED_MESSAGE,
     RELIGION_OPTIONS,
     PHYSICIAN_SPECIALTY_OPTIONS,
     RELATIONSHIP_OPTIONS,
@@ -88,7 +96,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
     const [errors, setErrors] = useState({});
-    const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [branchOptions, setBranchOptions] = useState([]);
@@ -276,10 +283,10 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     }, []);
 
     useEffect(() => {
-        if (hasTriedSubmit && !isLoading) {
+        if (!isLoading) {
             validateForm({ scrollToError: false });
         }
-    }, [formData, hasTriedSubmit, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [formData, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const hasChanges = useMemo(
         () => (initialData ? JSON.stringify(formData) !== JSON.stringify(initialData) : false) || profileImage !== initialProfileImage,
@@ -437,12 +444,12 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         const { name, value } = e.target;
         let newError = '';
         if (name === 'email') {
-            if (!value) newError = 'Required';
-            else if (!validateEmail(value)) newError = 'Enter a valid email address.';
+            if (!value) newError = REQUIRED_MESSAGE;
+            else if (!validateEmail(value)) newError = INVALID_EMAIL_ADDRESS_MESSAGE;
         } else if (name === 'phone' && value && !isValidMobileNumber(value)) {
-            newError = 'Invalid format (9xxxxxxxxx)';
+            newError = INVALID_MOBILE_FORMAT_MESSAGE;
         } else if (['homePhone', 'workPhone'].includes(name) && value && !isValidLandlineNumber(value)) {
-            newError = 'Invalid landline format';
+            newError = INVALID_LANDLINE_FORMAT_MESSAGE;
         }
         setErrors((prev) => ({ ...prev, [name]: newError }));
     };
@@ -468,21 +475,21 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
         ['firstName', 'lastName', 'birthdate', 'gender', 'email'].forEach((field) => {
             if (!formData[field]) {
-                nextErrors[field] = 'Required';
+                nextErrors[field] = REQUIRED_MESSAGE;
                 isValid = false;
             }
         });
 
         if (!formData.phone) {
-            nextErrors.phone = 'Required';
+            nextErrors.phone = REQUIRED_MESSAGE;
             isValid = false;
         } else if (formData.phone.length !== 10 || formData.phone[0] !== '9') {
-            nextErrors.phone = 'Invalid format';
+            nextErrors.phone = INVALID_MOBILE_FORMAT_MESSAGE;
             isValid = false;
         }
 
         if (formData.email && !validateEmail(formData.email)) {
-            nextErrors.email = 'Invalid email address.';
+            nextErrors.email = INVALID_EMAIL_ADDRESS_MESSAGE;
             isValid = false;
         } else if (errors.email) {
             nextErrors.email = errors.email;
@@ -490,19 +497,19 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         }
 
         if (formData.homePhone && !isValidLandlineNumber(formData.homePhone)) {
-            nextErrors.homePhone = 'Invalid landline format';
+            nextErrors.homePhone = INVALID_LANDLINE_FORMAT_MESSAGE;
             isValid = false;
         }
 
         if (formData.workPhone && !isValidLandlineNumber(formData.workPhone)) {
-            nextErrors.workPhone = 'Invalid landline format';
+            nextErrors.workPhone = INVALID_LANDLINE_FORMAT_MESSAGE;
             isValid = false;
         }
 
         const validateAddr = (address, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
                 if (!address[field]) {
-                    nextErrors[`${prefix}_${field}`] = 'Required';
+                    nextErrors[`${prefix}_${field}`] = REQUIRED_MESSAGE;
                     isValid = false;
                 }
             });
@@ -510,89 +517,92 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         validateAddr(formData.homeAddress, 'home');
 
         if (!formData.emergencyContact.name?.trim()) {
-            nextErrors.emergencyContact_name = 'Required';
+            nextErrors.emergencyContact_name = REQUIRED_MESSAGE;
             isValid = false;
         }
         if (!formData.emergencyContact.relationship?.trim()) {
-            nextErrors.emergencyContact_relationship = 'Required';
+            nextErrors.emergencyContact_relationship = REQUIRED_MESSAGE;
             isValid = false;
         }
         if (!formData.emergencyContact.contactNumber) {
-            nextErrors.emergencyContact_contactNumber = 'Required';
+            nextErrors.emergencyContact_contactNumber = REQUIRED_MESSAGE;
             isValid = false;
         } else if (!isValidMobileNumber(formData.emergencyContact.contactNumber)) {
-            nextErrors.emergencyContact_contactNumber = 'Invalid format';
+            nextErrors.emergencyContact_contactNumber = INVALID_MOBILE_FORMAT_MESSAGE;
             isValid = false;
         }
 
         if (isMinor) {
             ['name', 'relationship', 'occupation'].forEach((field) => {
                 if (!formData.guardian[field]) {
-                    nextErrors[`guardian_${field}`] = 'Required';
+                    nextErrors[`guardian_${field}`] = REQUIRED_MESSAGE;
                     isValid = false;
                 }
             });
             if (!formData.guardian.contactNumber) {
-                nextErrors.guardian_contactNumber = 'Required';
+                nextErrors.guardian_contactNumber = REQUIRED_MESSAGE;
                 isValid = false;
             } else if (!isValidMobileNumber(formData.guardian.contactNumber)) {
-                nextErrors.guardian_contactNumber = 'Invalid format';
+                nextErrors.guardian_contactNumber = INVALID_MOBILE_FORMAT_MESSAGE;
                 isValid = false;
             }
         }
 
         if (formData.physician.officeNumber && !isValidLandlineNumber(formData.physician.officeNumber)) {
-            nextErrors.physician_officeNumber = 'Invalid landline format';
+            nextErrors.physician_officeNumber = INVALID_LANDLINE_FORMAT_MESSAGE;
             isValid = false;
         }
         if (formData.religion === 'Other' && !formData.religionOther.trim()) {
-            nextErrors.religionOther = 'Required';
+            nextErrors.religionOther = REQUIRED_MESSAGE;
             isValid = false;
         }
         if (formData.physician.specialty === 'Other' && !formData.physician.specialtyOther.trim()) {
-            nextErrors.physician_specialtyOther = 'Required';
+            nextErrors.physician_specialtyOther = REQUIRED_MESSAGE;
             isValid = false;
         }
         if (!formData.consentAcknowledgement.acknowledged) {
-            nextErrors.consentAcknowledgement_acknowledged = 'Required';
+            nextErrors.consentAcknowledgement_acknowledged = REQUIRED_MESSAGE;
             isValid = false;
         }
         if (!formData.consentAcknowledgement.signerName.trim()) {
-            nextErrors.consentAcknowledgement_signerName = 'Required';
+            nextErrors.consentAcknowledgement_signerName = REQUIRED_MESSAGE;
             isValid = false;
         }
         if (!formData.dataPrivacyConsent.acknowledged) {
-            nextErrors.dataPrivacyConsent_acknowledged = 'Required';
+            nextErrors.dataPrivacyConsent_acknowledged = REQUIRED_MESSAGE;
             isValid = false;
         }
         if (!formData.dataPrivacyConsent.signerName.trim()) {
-            nextErrors.dataPrivacyConsent_signerName = 'Required';
+            nextErrors.dataPrivacyConsent_signerName = REQUIRED_MESSAGE;
             isValid = false;
         }
         if (formData.birthdate && isFutureDateInManila(formData.birthdate)) {
-            nextErrors.birthdate = 'Birthdate cannot be in the future';
+            nextErrors.birthdate = BIRTHDATE_FUTURE_MESSAGE;
             isValid = false;
         }
         if (formData.dentalHistory.lastExamDate && isFutureDateInManila(formData.dentalHistory.lastExamDate)) {
-            nextErrors.dentalHistory_lastExamDate = 'Last dental visit cannot be in the future';
+            nextErrors.dentalHistory_lastExamDate = LAST_DENTAL_VISIT_FUTURE_MESSAGE;
             isValid = false;
         }
         if (formData.consentAcknowledgement.signedAt && isFutureDateInManila(formData.consentAcknowledgement.signedAt)) {
-            nextErrors.consentAcknowledgement_signedAt = 'Invalid signed date';
+            nextErrors.consentAcknowledgement_signedAt = INVALID_SIGNED_DATE_MESSAGE;
             isValid = false;
         }
         if (formData.dataPrivacyConsent.signedAt && isFutureDateInManila(formData.dataPrivacyConsent.signedAt)) {
-            nextErrors.dataPrivacyConsent_signedAt = 'Invalid signed date';
+            nextErrors.dataPrivacyConsent_signedAt = INVALID_SIGNED_DATE_MESSAGE;
             isValid = false;
         }
         requiredYesNoFields.forEach(([section, field]) => {
             if (!formData[section][field]) {
-                nextErrors[`${section}_${field}`] = 'Required';
+                nextErrors[`${section}_${field}`] = REQUIRED_MESSAGE;
                 isValid = false;
             }
         });
 
-        setErrors(nextErrors);
+        setErrors((prev) => ({
+            ...(prev.profileImage ? { profileImage: prev.profileImage } : {}),
+            ...nextErrors,
+        }));
         if (!isValid && scrollToError) {
             const firstErroredKey = Object.keys(nextErrors)[0];
             const el = document.getElementsByName(firstErroredKey)[0];
@@ -634,7 +644,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setHasTriedSubmit(true);
         if (!validateForm()) return;
         setIsSaving(true);
 
@@ -726,7 +735,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             if (response.ok) {
                 setShowSuccessModal(true);
             } else if (response.status === 409 || response.status === 400) {
-                setErrors((prev) => ({ ...prev, [data.field || 'email']: data.message || 'Email already exists.' }));
+                setErrors((prev) => ({ ...prev, [data.field || 'email']: data.message || DUPLICATE_EMAIL_MESSAGE }));
             } else {
                 alert(data.message || 'Failed to update patient');
             }

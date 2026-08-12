@@ -145,6 +145,17 @@ export const MOBILE_PREFIX = '+63';
 export const LANDLINE_PREFIX = '+632';
 export const PERSON_NAME_INPUT_REGEX = /^[A-Za-z\s.'-]+$/;
 
+export const REQUIRED_MESSAGE = 'Required';
+export const INVALID_EMAIL_ADDRESS_MESSAGE = 'Enter a valid email address.';
+export const INVALID_MOBILE_FORMAT_MESSAGE = 'Invalid format (9xxxxxxxxx)';
+export const INVALID_LANDLINE_FORMAT_MESSAGE = 'Invalid landline format';
+export const DUPLICATE_EMAIL_MESSAGE = 'Email already exists.';
+export const BIRTHDATE_FUTURE_MESSAGE = 'Birthdate cannot be in the future.';
+export const LAST_DENTAL_VISIT_FUTURE_MESSAGE = 'Last dental visit cannot be in the future.';
+export const INVALID_SIGNED_DATE_MESSAGE = 'Invalid signed date.';
+export const REQUIRED_WHEN_YES_MESSAGE = 'Required when answer is Yes.';
+export const ALLERGY_SELECTION_REQUIRED_MESSAGE = 'Select or enter at least one allergy.';
+
 export const isValidMobileNumber = (value = '') => /^[0-9]{10}$/.test(value) && value.startsWith('9');
 export const isValidLandlineNumber = (value = '') => /^[0-9]{7,8}$/.test(value);
 export const isAllowedPersonNameInput = (value = '') => value === '' || PERSON_NAME_INPUT_REGEX.test(value);

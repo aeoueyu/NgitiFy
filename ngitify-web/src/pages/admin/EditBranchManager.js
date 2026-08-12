@@ -13,14 +13,20 @@ import {
     getMaxDateForMinimumAge,
     getStaffFieldError,
     hasDuplicateEmailError,
+    INVALID_EMAIL_MESSAGE,
+    INVALID_PHONE_MESSAGE,
     isAllowedPersonNameInput,
     isValidStaffEmail,
     isValidStaffPhone,
     meetsMinimumAge,
+    MIN_AGE_18_MESSAGE,
+    REQUIRED_MESSAGE,
     sanitizeStaffPhone,
     scrollToFirstInvalidField,
     toTitleCaseName,
 } from '../../utils/staffAccountFormUtils';
+
+const NON_VALIDATION_ERROR_KEYS = ['profileImage'];
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 
@@ -167,23 +173,39 @@ export default function EditBranchManager({ managerId, onClose, onSuccess }) {
         });
     };
 
-    const validateForm = () => {
+    const getValidationErrors = () => {
         const newErrors = {};
-        if (!formData.firstName.trim()) newErrors.firstName = 'Required';
-        if (!formData.lastName.trim()) newErrors.lastName = 'Required';
-        if (!formData.email) newErrors.email = 'Required';
-        else if (!isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
+        if (!formData.firstName.trim()) newErrors.firstName = REQUIRED_MESSAGE;
+        if (!formData.lastName.trim()) newErrors.lastName = REQUIRED_MESSAGE;
+        if (!formData.email) newErrors.email = REQUIRED_MESSAGE;
+        else if (!isValidStaffEmail(formData.email)) newErrors.email = INVALID_EMAIL_MESSAGE;
         else if (hasDuplicateEmailError(errors.email)) newErrors.email = errors.email;
-        if (!formData.phone) newErrors.phone = 'Required';
-        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
-        if (!formData.gender) newErrors.gender = 'Required';
-        if (!formData.birthday) newErrors.birthday = 'Required';
-        else if (!meetsMinimumAge(formData.birthday, 18)) newErrors.birthday = 'Min age 18';
-        if (!formData.assignedBranch) newErrors.assignedBranch = 'Required';
+        if (!formData.phone) newErrors.phone = REQUIRED_MESSAGE;
+        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = INVALID_PHONE_MESSAGE;
+        if (!formData.gender) newErrors.gender = REQUIRED_MESSAGE;
+        if (!formData.birthday) newErrors.birthday = REQUIRED_MESSAGE;
+        else if (!meetsMinimumAge(formData.birthday, 18)) newErrors.birthday = MIN_AGE_18_MESSAGE;
+        if (!formData.assignedBranch) newErrors.assignedBranch = REQUIRED_MESSAGE;
 
         addRequiredAddressErrors(newErrors, formData.homeAddress, 'home');
+        return newErrors;
+    };
 
-        setErrors(newErrors);
+    const syncFormErrors = () => {
+        const newErrors = getValidationErrors();
+        setErrors((prev) => ({
+            ...Object.fromEntries(Object.entries(prev).filter(([key]) => NON_VALIDATION_ERROR_KEYS.includes(key))),
+            ...newErrors,
+        }));
+        return newErrors;
+    };
+
+    useEffect(() => {
+        if (!isLoading) syncFormErrors();
+    }, [formData, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const validateForm = () => {
+        const newErrors = syncFormErrors();
         if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
         return Object.keys(newErrors).length === 0;
     };

@@ -6,6 +6,14 @@ import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
+import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import {
+    INVALID_EMAIL_ADDRESS_MESSAGE,
+    INVALID_MOBILE_FORMAT_MESSAGE,
+    REQUIRED_MESSAGE,
+} from '../../utils/patientIntake';
+
+const NON_VALIDATION_ERROR_KEYS = ['profileImage'];
 
 const initialAddress = {
     country: 'Philippines', region: '', province: '',
@@ -31,6 +39,13 @@ export default function SecretaryEditPatient() {
         birthdate: '', gender: '', email: '', phone: '',
         guardianName: '', guardianRelationship: '', guardianContact: '',
         homeAddress: { ...initialAddress },
+    });
+
+    useRealtimeSystemEmailValidation({
+        email: formData.email,
+        excludeId: patientId,
+        enabled: !isLoading && !isSaving,
+        setErrors,
     });
 
     // ── Load patient data ─────────────────────────────────────────────────────
@@ -130,13 +145,13 @@ export default function SecretaryEditPatient() {
     const handleBlur = (e) => {
         const { name, value } = e.target;
         if (name === 'email') {
-            if (!value) setErrors(p => ({ ...p, email: 'Required' }));
-            else if (!validateEmail(value)) setErrors(p => ({ ...p, email: 'Enter a valid email address.' }));
+            if (!value) setErrors(p => ({ ...p, email: REQUIRED_MESSAGE }));
+            else if (!validateEmail(value)) setErrors(p => ({ ...p, email: INVALID_EMAIL_ADDRESS_MESSAGE }));
         }
         if (name === 'phone' || name === 'guardianContact') {
-            if (!value) setErrors(p => ({ ...p, [name]: 'Required' }));
+            if (!value) setErrors(p => ({ ...p, [name]: REQUIRED_MESSAGE }));
             else if (value.length !== 10 || value[0] !== '9')
-                setErrors(p => ({ ...p, [name]: 'Invalid format (9xxxxxxxxx)' }));
+                setErrors(p => ({ ...p, [name]: INVALID_MOBILE_FORMAT_MESSAGE }));
         }
     };
 
@@ -168,30 +183,47 @@ export default function SecretaryEditPatient() {
     };
 
     // ── Validation ────────────────────────────────────────────────────────────
-    const validateForm = () => {
-        const newErrors = {}; let isValid = true;
+    const getValidationErrors = () => {
+        const newErrors = {};
         const required = ['firstName','lastName','birthdate','email'];
         if (isMinor) {
             required.push('guardianName','guardianRelationship');
-            if (!formData.guardianContact) { newErrors.guardianContact = 'Required'; isValid = false; }
+            if (!formData.guardianContact) { newErrors.guardianContact = REQUIRED_MESSAGE; }
             else if (formData.guardianContact.length !== 10 || formData.guardianContact[0] !== '9')
-                { newErrors.guardianContact = 'Invalid format'; isValid = false; }
+                { newErrors.guardianContact = INVALID_MOBILE_FORMAT_MESSAGE; }
         }
-        required.forEach(f => { if (!formData[f]) { newErrors[f] = 'Required'; isValid = false; } });
-        if (!formData.phone) { newErrors.phone = 'Required'; isValid = false; }
+        required.forEach(f => { if (!formData[f]) { newErrors[f] = REQUIRED_MESSAGE; } });
+        if (!formData.phone) { newErrors.phone = REQUIRED_MESSAGE; }
         else if (formData.phone.length !== 10 || formData.phone[0] !== '9')
-            { newErrors.phone = 'Invalid format'; isValid = false; }
+            { newErrors.phone = INVALID_MOBILE_FORMAT_MESSAGE; }
         if (formData.email && !validateEmail(formData.email))
-            { newErrors.email = 'Invalid email address.'; isValid = false; }
+            { newErrors.email = INVALID_EMAIL_ADDRESS_MESSAGE; }
 
         const validateAddr = (addr, prefix) => {
             ['region','province','city','barangay','street','houseNumber'].forEach(f => {
-                if (!addr[f]) { newErrors[`${prefix}_${f}`] = 'Required'; isValid = false; }
+                if (!addr[f]) { newErrors[`${prefix}_${f}`] = REQUIRED_MESSAGE; }
             });
         };
         validateAddr(formData.homeAddress, 'home');
+        return newErrors;
+    };
 
-        setErrors(newErrors);
+    const syncFormErrors = () => {
+        const newErrors = getValidationErrors();
+        setErrors((prev) => ({
+            ...Object.fromEntries(Object.entries(prev).filter(([key]) => NON_VALIDATION_ERROR_KEYS.includes(key))),
+            ...newErrors,
+        }));
+        return newErrors;
+    };
+
+    useEffect(() => {
+        if (!isLoading) syncFormErrors();
+    }, [formData, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const validateForm = () => {
+        const newErrors = syncFormErrors();
+        const isValid = Object.keys(newErrors).length === 0;
         if (!isValid) {
             const el = document.getElementsByName(Object.keys(newErrors)[0])[0];
             if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }

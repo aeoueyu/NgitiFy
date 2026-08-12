@@ -9,19 +9,27 @@ import useRealtimeStaffEmailValidation from '../../hooks/useRealtimeStaffEmailVa
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import {
     addRequiredAddressErrors,
+    DUPLICATE_EMAIL_MESSAGE,
     getMaxDateForMinimumAge,
     getStaffFieldError,
     hasDuplicateEmailError,
+    INVALID_EMAIL_MESSAGE,
+    INVALID_LICENSE_MESSAGE,
+    INVALID_PHONE_MESSAGE,
     isAllowedPersonNameInput,
     isValidStaffEmail,
     isValidStaffLicenseNumber,
     isValidStaffPhone,
     meetsMinimumAge,
+    MIN_AGE_21_MESSAGE,
+    REQUIRED_MESSAGE,
     sanitizeLicenseNumber,
     sanitizeStaffPhone,
     scrollToFirstInvalidField,
     toTitleCaseName,
 } from '../../utils/staffAccountFormUtils';
+
+const NON_VALIDATION_ERROR_KEYS = ['profileImage'];
 
 const specializationOptions = [ "General Dentist", "Orthodontist", "Pediatric Dentist (Pedodontist)", "Periodontist", "Endodontist", "Oral & Maxillofacial Surgeon", "Prosthodontist", "Cosmetic Dentist" ];
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
@@ -190,25 +198,41 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
         });
     };
 
-    const validateForm = () => {
+    const getValidationErrors = () => {
         const newErrors = {};
         const required = ['firstName', 'lastName', 'birthdate', 'gender', 'licenseNumber', 'specialization', 'email', 'assignedBranch'];
 
         required.forEach((field) => {
-            if (!formData[field]) newErrors[field] = 'Required';
+            if (!formData[field]) newErrors[field] = REQUIRED_MESSAGE;
         });
 
-        if (!formData.phone) newErrors.phone = 'Required';
-        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
+        if (!formData.phone) newErrors.phone = REQUIRED_MESSAGE;
+        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = INVALID_PHONE_MESSAGE;
 
-        if (formData.email && !isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
+        if (formData.email && !isValidStaffEmail(formData.email)) newErrors.email = INVALID_EMAIL_MESSAGE;
         else if (hasDuplicateEmailError(errors.email)) newErrors.email = errors.email;
-        if (formData.birthdate && !meetsMinimumAge(formData.birthdate, 21)) newErrors.birthdate = 'Min age 21';
-        if (formData.licenseNumber && !isValidStaffLicenseNumber(formData.licenseNumber)) newErrors.licenseNumber = 'Must be 7 digits';
+        if (formData.birthdate && !meetsMinimumAge(formData.birthdate, 21)) newErrors.birthdate = MIN_AGE_21_MESSAGE;
+        if (formData.licenseNumber && !isValidStaffLicenseNumber(formData.licenseNumber)) newErrors.licenseNumber = INVALID_LICENSE_MESSAGE;
 
         addRequiredAddressErrors(newErrors, formData.homeAddress, 'home');
+        return newErrors;
+    };
 
-        setErrors(newErrors);
+    const syncFormErrors = () => {
+        const newErrors = getValidationErrors();
+        setErrors((prev) => ({
+            ...Object.fromEntries(Object.entries(prev).filter(([key]) => NON_VALIDATION_ERROR_KEYS.includes(key))),
+            ...newErrors,
+        }));
+        return newErrors;
+    };
+
+    useEffect(() => {
+        if (!isLoading) syncFormErrors();
+    }, [formData, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const validateForm = () => {
+        const newErrors = syncFormErrors();
         if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -240,7 +264,7 @@ export default function EditDentist({ dentistId, onClose, onSuccess }) {
             if (response.ok) { setShowSuccessModal(true); } 
             else {
                 if (response.status === 409) {
-                    setErrors(prev => ({ ...prev, [data.field]: data.message }));
+                    setErrors(prev => ({ ...prev, [data.field]: data.message || DUPLICATE_EMAIL_MESSAGE }));
                     const el = document.getElementsByName(data.field)[0];
                     if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
                 } else alert(data.message || "Failed to update dentist");

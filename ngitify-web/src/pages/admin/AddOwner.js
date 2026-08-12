@@ -8,19 +8,27 @@ import useRealtimeStaffEmailValidation from '../../hooks/useRealtimeStaffEmailVa
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import {
     addRequiredAddressErrors,
+    DUPLICATE_EMAIL_MESSAGE,
     getMaxDateForMinimumAge,
     getStaffFieldError,
     hasDuplicateEmailError,
+    INVALID_EMAIL_MESSAGE,
+    INVALID_LICENSE_MESSAGE,
+    INVALID_PHONE_MESSAGE,
     isAllowedPersonNameInput,
     isValidStaffEmail,
     isValidStaffLicenseNumber,
     isValidStaffPhone,
     meetsMinimumAge,
+    MIN_AGE_18_MESSAGE,
+    REQUIRED_MESSAGE,
     sanitizeLicenseNumber,
     sanitizeStaffPhone,
     scrollToFirstInvalidField,
     toTitleCaseName,
 } from '../../utils/staffAccountFormUtils';
+
+const NON_VALIDATION_ERROR_KEYS = ['profileImage'];
 
 export default function AddOwner({ onClose, onSuccess }) {
     const fileInputRef = useRef(null);
@@ -128,28 +136,44 @@ export default function AddOwner({ onClose, onSuccess }) {
         });
     };
 
-    const validateForm = () => {
+    const getValidationErrors = () => {
         const newErrors = {};
-        if (!formData.firstName.trim()) newErrors.firstName = 'Required';
-        if (!formData.lastName.trim())  newErrors.lastName  = 'Required';
-        if (!formData.birthday)         newErrors.birthday  = 'Required';
-        else if (!meetsMinimumAge(formData.birthday, 18)) newErrors.birthday = 'Min age 18';
-        if (!formData.gender)           newErrors.gender    = 'Required';
-        if (!formData.email)            newErrors.email     = 'Required';
-        else if (!isValidStaffEmail(formData.email)) newErrors.email = 'Invalid domain';
+        if (!formData.firstName.trim()) newErrors.firstName = REQUIRED_MESSAGE;
+        if (!formData.lastName.trim())  newErrors.lastName  = REQUIRED_MESSAGE;
+        if (!formData.birthday)         newErrors.birthday  = REQUIRED_MESSAGE;
+        else if (!meetsMinimumAge(formData.birthday, 18)) newErrors.birthday = MIN_AGE_18_MESSAGE;
+        if (!formData.gender)           newErrors.gender    = REQUIRED_MESSAGE;
+        if (!formData.email)            newErrors.email     = REQUIRED_MESSAGE;
+        else if (!isValidStaffEmail(formData.email)) newErrors.email = INVALID_EMAIL_MESSAGE;
         else if (hasDuplicateEmailError(errors.email)) newErrors.email = errors.email;
-        if (!formData.phone)            newErrors.phone     = 'Required';
-        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = 'Invalid format';
+        if (!formData.phone)            newErrors.phone     = REQUIRED_MESSAGE;
+        else if (!isValidStaffPhone(formData.phone)) newErrors.phone = INVALID_PHONE_MESSAGE;
         if (formData.isDentist) {
-            if (!formData.licenseNumber) newErrors.licenseNumber = 'Required';
-            else if (!isValidStaffLicenseNumber(formData.licenseNumber)) newErrors.licenseNumber = 'Must be 7 digits';
-            if (!formData.specialization) newErrors.specialization = 'Required';
-            if (!formData.assignedBranch) newErrors.assignedBranch = 'Required';
+            if (!formData.licenseNumber) newErrors.licenseNumber = REQUIRED_MESSAGE;
+            else if (!isValidStaffLicenseNumber(formData.licenseNumber)) newErrors.licenseNumber = INVALID_LICENSE_MESSAGE;
+            if (!formData.specialization) newErrors.specialization = REQUIRED_MESSAGE;
+            if (!formData.assignedBranch) newErrors.assignedBranch = REQUIRED_MESSAGE;
         }
 
         addRequiredAddressErrors(newErrors, formData.homeAddress, 'home');
+        return newErrors;
+    };
 
-        setErrors(newErrors);
+    const syncFormErrors = () => {
+        const newErrors = getValidationErrors();
+        setErrors((prev) => ({
+            ...Object.fromEntries(Object.entries(prev).filter(([key]) => NON_VALIDATION_ERROR_KEYS.includes(key))),
+            ...newErrors,
+        }));
+        return newErrors;
+    };
+
+    useEffect(() => {
+        syncFormErrors();
+    }, [formData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const validateForm = () => {
+        const newErrors = syncFormErrors();
         if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -183,7 +207,7 @@ export default function AddOwner({ onClose, onSuccess }) {
             if (res.ok || res.status === 207) {
                 setShowSuccessModal(true);
             } else if (res.status === 409) {
-                setErrors(prev => ({ ...prev, email: data.message }));
+                setErrors(prev => ({ ...prev, email: data.message || DUPLICATE_EMAIL_MESSAGE }));
             } else {
                 setErrors(prev => ({ ...prev, submit: data.message || 'Failed to add owner.' }));
             }
