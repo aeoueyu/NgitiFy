@@ -197,6 +197,8 @@ export default function SecretaryEditPatient() {
 
         if (formData.email && !validateEmail(formData.email)) {
             newErrors.email = INVALID_EMAIL_ADDRESS_MESSAGE;
+        } else if (errors.email) {
+            newErrors.email = errors.email;
         }
 
         ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {

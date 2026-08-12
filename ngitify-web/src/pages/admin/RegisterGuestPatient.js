@@ -30,11 +30,15 @@ import {
     toMobilePayload,
     getSelectValueWithOther,
     getOtherTextValue,
+    INVALID_EMAIL_ADDRESS_MESSAGE,
+    INVALID_EMAIL_DOMAIN_MESSAGE,
+    isValidEmailFormat,
 } from '../../utils/patientIntake';
 import {
     getTodayDateInManila,
     normalizeDateInputValue,
 } from '../../utils/dateUtils';
+import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 
 const initialAddressState = { country: 'Philippines', region: '', province: '', city: '', barangay: '', houseNumber: '', street: '' };
 const dataPrivacyReviewGroups = [
@@ -271,9 +275,7 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         fetchBranches();
     }, []);
 
-    const validateEmail = (email) => {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
-    };
+    const validateEmail = isValidEmailFormat;
 
     const getAge = (d) => { const today = new Date(); const birth = new Date(d); let age = today.getFullYear() - birth.getFullYear(); const m = today.getMonth() - birth.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--; return age; };
     const getMaxDate = () => getTodayDate();
@@ -300,12 +302,19 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
     );
     const hasSoftDuplicateWarning = Boolean(duplicateSummary?.hasAnyMatch && !duplicateSummary?.hasStrongMatch);
 
+    useRealtimeSystemEmailValidation({
+        email: formData.email,
+        enabled: !isLoading && !showSuccessModal,
+        setErrors,
+    });
+
     const handleBlur = (e) => {
         const { name, value } = e.target;
         let newError = '';
         if (name === 'email') {
             if (!value) newError = 'Required';
-            else if (!validateEmail(value)) newError = 'Enter a valid email address.';
+            else if (!validateEmail(value)) newError = INVALID_EMAIL_ADDRESS_MESSAGE;
+            else if (errors.email === INVALID_EMAIL_DOMAIN_MESSAGE) newError = errors.email;
         } else if (name === 'phone' || name === 'guardianContact') {
             if (!value) newError = 'Required';
             else if (!isValidMobileNumber(value)) newError = 'Invalid format (9xxxxxxxxx)';
@@ -522,7 +531,10 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
 
         if (isLinkMode) {
             if (formData.email && !validateEmail(formData.email)) {
-                nextErrors.email = 'Invalid email address.';
+                nextErrors.email = INVALID_EMAIL_ADDRESS_MESSAGE;
+                isValid = false;
+            } else if (errors.email === INVALID_EMAIL_DOMAIN_MESSAGE) {
+                nextErrors.email = errors.email;
                 isValid = false;
             }
             if (duplicateSummary?.requiresManualSelection && !selectedExistingPatientId) {
@@ -558,7 +570,10 @@ export default function RegisterGuestPatient({ appointment, onClose, onSuccess }
         }
 
         if (formData.email && !validateEmail(formData.email)) {
-            nextErrors.email = 'Invalid email address.';
+            nextErrors.email = INVALID_EMAIL_ADDRESS_MESSAGE;
+            isValid = false;
+        } else if (errors.email === INVALID_EMAIL_DOMAIN_MESSAGE) {
+            nextErrors.email = errors.email;
             isValid = false;
         }
         if (!formData.consentAcknowledgement.acknowledged) {

@@ -16,6 +16,7 @@ import { downloadCsvFile } from '../../utils/exportHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
+import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
 import PatientEMR from '../admin/PatientEMR';
 import RegisterGuestPatient from '../admin/RegisterGuestPatient';
@@ -845,6 +846,14 @@ export default function SchedulePage() {
     }, [formState.contactNumber, formState.guestEmail, formState.patientId, formState.source, patientOptions]);
     const phoneCallExistingPatientMatch = phoneCallDuplicateMatches?.[0] || null;
 
+    useRealtimeSystemEmailValidation({
+        email: formState.guestEmail,
+        enabled: formState.source === 'phonecall' && !formState.patientId && !isSubmitting,
+        setErrors: setFormErrors,
+        fieldName: 'guestEmail',
+        validateDuplicates: false,
+    });
+
     const branchOptions = useMemo(() => {
         if (canChooseBranch) {
             return [...new Set(branches.map((entry) => entry.name).filter(Boolean))].sort();
@@ -1285,6 +1294,8 @@ export default function SchedulePage() {
                     nextErrors.guestEmail = 'Enter the caller email address.';
                 } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.guestEmail.trim())) {
                     nextErrors.guestEmail = 'Enter a valid email address.';
+                } else if (formErrors.guestEmail === 'Invalid email domain') {
+                    nextErrors.guestEmail = formErrors.guestEmail;
                 }
                 if (shouldCheckPhoneCallDuplicates && phoneCallDuplicateMatches.length > 0) {
                     nextErrors.patientId = phoneCallDuplicateMatches.length > 1

@@ -4821,7 +4821,7 @@ const sendProfileImageTooLargeResponse = (res) => res.status(413).json({
     message: `Profile image must be under ${MAX_PROFILE_IMAGE_SIZE_MB}MB.`,
 });
 
-app.post('/api/validate-email-domain', verifyToken, async (req, res) => {
+app.post('/api/validate-email-domain', async (req, res) => {
     try {
         const normalizedEmail = normalizeEmail(req.body?.email || '');
         if (!normalizedEmail || !isValidEmailAddress(normalizedEmail)) {
@@ -7210,6 +7210,9 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
             if (!guestEmail || !GUEST_EMAIL_REGEX.test(guestEmail)) {
                 return res.status(400).json({ message: 'A valid guest email is required for a phone call booking without a linked patient.' });
             }
+            if (!(await hasValidEmailDomain(guestEmail))) {
+                return res.status(400).json({ field: 'guestEmail', message: 'Invalid email domain' });
+            }
             if (!guestPhone || !/^(63\d{10}|9\d{9})$/.test(guestPhoneDigits)) {
                 return res.status(400).json({ message: 'A valid guest contact number is required for a phone call booking without a linked patient.' });
             }
@@ -7542,6 +7545,9 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
         if (!isValidEmailAddress(patientPayload.email)) {
             return res.status(400).json({ message: 'A valid patient email address is required.' });
         }
+        if (!(await hasValidEmailDomain(patientPayload.email))) {
+            return res.status(400).json({ field: 'email', message: 'Invalid email domain' });
+        }
         if (!patientPayload.contactNumber) {
             return res.status(400).json({ message: 'Patient contact number is required.' });
         }
@@ -7771,6 +7777,9 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             }
             if (!nextGuestEmail || !GUEST_EMAIL_REGEX.test(nextGuestEmail)) {
                 return res.status(400).json({ message: 'A valid guest email is required for an unlinked guest appointment.' });
+            }
+            if (!(await hasValidEmailDomain(nextGuestEmail))) {
+                return res.status(400).json({ field: 'guestEmail', message: 'Invalid email domain' });
             }
             if (!nextGuestPhone || !/^(63\d{10}|9\d{9})$/.test(nextGuestPhoneDigits)) {
                 return res.status(400).json({ message: 'A valid guest contact number is required for an unlinked guest appointment.' });
@@ -9123,6 +9132,9 @@ app.post('/api/public/appointments/request', async (req, res) => {
 
         if (!GUEST_EMAIL_REGEX.test(normalizedEmail)) {
             return res.status(400).json({ message: 'Please enter a valid email address.' });
+        }
+        if (!(await hasValidEmailDomain(normalizedEmail))) {
+            return res.status(400).json({ message: 'Invalid email domain' });
         }
 
         if (!(await isOnlineBookingProcedureAllowed(normalizedProcedure))) {

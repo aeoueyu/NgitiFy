@@ -11,6 +11,7 @@ import {
 import { publicFetch } from '../../utils/api';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 import { websiteMediaDefaults } from '../../data/websiteMediaDefaults';
+import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 
 const buildInitialForm = ({ branchOptions = [], appointmentProcedureOptions = [] } = {}) => ({
     firstName: '',
@@ -376,6 +377,14 @@ export default function WebsiteAppointment() {
         return nextErrors;
     }, [getFieldError]);
 
+    useRealtimeSystemEmailValidation({
+        email: formData.email,
+        enabled: !isSubmitting,
+        setErrors,
+        validateDuplicates: false,
+        usePublicEndpoint: true,
+    });
+
     const handleChange = (event) => {
         const { name, type, value, checked } = event.target;
         const nextValue = name === 'phone'
@@ -496,6 +505,9 @@ export default function WebsiteAppointment() {
     const handleSubmit = async (event) => {
         event.preventDefault();
         const nextErrors = validate(formData);
+        if (!nextErrors.email && errors.email === 'Invalid email domain') {
+            nextErrors.email = errors.email;
+        }
         setErrors(nextErrors);
 
         if (Object.keys(nextErrors).length > 0) {

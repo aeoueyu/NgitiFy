@@ -147,6 +147,7 @@ export const PERSON_NAME_INPUT_REGEX = /^[A-Za-z\s.'-]+$/;
 
 export const REQUIRED_MESSAGE = 'Required';
 export const INVALID_EMAIL_ADDRESS_MESSAGE = 'Enter a valid email address.';
+export const INVALID_EMAIL_DOMAIN_MESSAGE = 'Invalid email domain';
 export const INVALID_MOBILE_FORMAT_MESSAGE = 'Invalid format (9xxxxxxxxx)';
 export const INVALID_LANDLINE_FORMAT_MESSAGE = 'Invalid landline format';
 export const DUPLICATE_EMAIL_MESSAGE = 'Email already exists.';
@@ -155,6 +156,10 @@ export const LAST_DENTAL_VISIT_FUTURE_MESSAGE = 'Last dental visit cannot be in 
 export const INVALID_SIGNED_DATE_MESSAGE = 'Invalid signed date.';
 export const REQUIRED_WHEN_YES_MESSAGE = 'Required when answer is Yes.';
 export const ALLERGY_SELECTION_REQUIRED_MESSAGE = 'Select or enter at least one allergy.';
+
+const EMAIL_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const isValidEmailFormat = (email = '') => EMAIL_FORMAT_REGEX.test(String(email || '').trim());
 
 export const isValidMobileNumber = (value = '') => /^[0-9]{10}$/.test(value) && value.startsWith('9');
 export const isValidLandlineNumber = (value = '') => /^[0-9]{7,8}$/.test(value);

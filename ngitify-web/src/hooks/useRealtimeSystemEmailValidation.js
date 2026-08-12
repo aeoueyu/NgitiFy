@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { authFetch } from '../utils/api';
-
-const isPlainFormatValid = (email = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+import { authFetch, publicFetch } from '../utils/api';
+import { isValidEmailFormat } from '../utils/patientIntake';
 
 const isManagedEmailError = (message = '') => {
     const normalized = String(message || '').toLowerCase();
@@ -16,6 +15,9 @@ export default function useRealtimeSystemEmailValidation({
     excludeId,
     enabled = true,
     setErrors,
+    fieldName = 'email',
+    validateDuplicates = true,
+    usePublicEndpoint = false,
 }) {
     const latestRequestRef = useRef(0);
 
@@ -24,11 +26,11 @@ export default function useRealtimeSystemEmailValidation({
 
         const trimmedEmail = String(email || '').trim().toLowerCase();
         if (!trimmedEmail) {
-            setErrors((prev) => (isManagedEmailError(prev.email) ? { ...prev, email: '' } : prev));
+            setErrors((prev) => (isManagedEmailError(prev[fieldName]) ? { ...prev, [fieldName]: '' } : prev));
             return undefined;
         }
 
-        if (!isPlainFormatValid(trimmedEmail)) {
+        if (!isValidEmailFormat(trimmedEmail)) {
             return undefined;
         }
 
@@ -37,7 +39,8 @@ export default function useRealtimeSystemEmailValidation({
 
         const timeoutId = window.setTimeout(async () => {
             try {
-                const domainResponse = await authFetch('/validate-email-domain', {
+                const fetcher = usePublicEndpoint ? publicFetch : authFetch;
+                const domainResponse = await fetcher('/validate-email-domain', {
                     method: 'POST',
                     body: JSON.stringify({ email: trimmedEmail }),
                 });
@@ -45,7 +48,12 @@ export default function useRealtimeSystemEmailValidation({
 
                 if (latestRequestRef.current !== requestId) return;
                 if (!domainResponse.ok) {
-                    setErrors((prev) => ({ ...prev, email: domainData.message || 'Invalid email domain' }));
+                    setErrors((prev) => ({ ...prev, [fieldName]: domainData.message || 'Invalid email domain' }));
+                    return;
+                }
+
+                if (!validateDuplicates) {
+                    setErrors((prev) => (isManagedEmailError(prev[fieldName]) ? { ...prev, [fieldName]: '' } : prev));
                     return;
                 }
 
@@ -57,16 +65,16 @@ export default function useRealtimeSystemEmailValidation({
 
                 if (latestRequestRef.current !== requestId) return;
                 if (duplicateResponse.status === 409) {
-                    setErrors((prev) => ({ ...prev, email: duplicateData.message || 'Email already exists.' }));
+                    setErrors((prev) => ({ ...prev, [fieldName]: duplicateData.message || 'Email already exists.' }));
                     return;
                 }
 
-                setErrors((prev) => (isManagedEmailError(prev.email) ? { ...prev, email: '' } : prev));
+                setErrors((prev) => (isManagedEmailError(prev[fieldName]) ? { ...prev, [fieldName]: '' } : prev));
             } catch {
                 if (latestRequestRef.current !== requestId) return;
             }
         }, 400);
 
         return () => window.clearTimeout(timeoutId);
-    }, [email, enabled, excludeId, setErrors]);
+    }, [email, enabled, excludeId, fieldName, setErrors, usePublicEndpoint, validateDuplicates]);
 }

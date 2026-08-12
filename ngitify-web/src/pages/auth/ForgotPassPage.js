@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styles from '../../styles/auth/ForgotPassPage.module.css';
 import logo from '../../assets/images/logo-dentime.svg';
 import { useNavigate } from 'react-router-dom';
-import { BASE_URL } from '../../utils/api';
+import { BASE_URL, publicFetch } from '../../utils/api';
 
 export default function ForgotPassPage() {
     const [email, setEmail] = useState('');
@@ -24,6 +24,21 @@ export default function ForgotPassPage() {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(trimmedEmail)) {
             setErrorMessage('Please enter a valid email address.');
+            return;
+        }
+
+        try {
+            const domainResponse = await publicFetch('/validate-email-domain', {
+                method: 'POST',
+                body: JSON.stringify({ email: trimmedEmail }),
+            });
+            if (!domainResponse.ok) {
+                const data = await domainResponse.json().catch(() => ({}));
+                setErrorMessage(data.message || 'Invalid email domain');
+                return;
+            }
+        } catch {
+            setErrorMessage('Cannot validate email domain right now.');
             return;
         }
         

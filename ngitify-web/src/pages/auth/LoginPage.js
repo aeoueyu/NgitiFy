@@ -4,7 +4,7 @@ import logo from '../../assets/icons/logo-dentime.svg';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from 'react-icons/fa';
-import { BASE_URL } from '../../utils/api';
+import { BASE_URL, publicFetch } from '../../utils/api';
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -16,11 +16,25 @@ export default function LoginPage() {
     const [fieldErrors, setFieldErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
 
-    const validateFields = () => {
+    const validateFields = async () => {
         const errors = {};
         if (!email.trim()) errors.email = 'Email address is required.';
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Please enter a valid email address.';
         if (!password) errors.password = 'Password is required.';
+        if (!errors.email) {
+            try {
+                const response = await publicFetch('/validate-email-domain', {
+                    method: 'POST',
+                    body: JSON.stringify({ email: email.trim() }),
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    errors.email = data.message || 'Invalid email domain';
+                }
+            } catch {
+                errors.email = 'Cannot validate email domain right now.';
+            }
+        }
         setFieldErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -28,7 +42,7 @@ export default function LoginPage() {
     const handleLogin = async (e) => {
         e.preventDefault();
         setErrorMessage('');
-        if (!validateFields()) return;
+        if (!(await validateFields())) return;
         setIsLoading(true);
 
         try {

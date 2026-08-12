@@ -5,6 +5,8 @@ import { invalidateSystemConfigCache, SYSTEM_CONFIG_UPDATED_EVENT, useSystemConf
 import { invalidatePublicClinicConfigCache } from '../../hooks/usePublicClinicConfig';
 import { cloneWebsiteContentDefaults } from '../../data/websiteContent';
 import { getDefaultServiceImage, websiteMediaDefaults } from '../../data/websiteMediaDefaults';
+import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import { INVALID_EMAIL_ADDRESS_MESSAGE, INVALID_EMAIL_DOMAIN_MESSAGE, isValidEmailFormat } from '../../utils/patientIntake';
 
 const DEFAULT_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 const DEFAULT_ONLINE_BOOKING_PROCEDURES = [
@@ -167,6 +169,7 @@ const SystemConfig = () => {
     const [activeSection, setActiveSection] = useState('clinic');
     const [activeWebsiteTab, setActiveWebsiteTab] = useState('branding');
     const [feedbackModal, setFeedbackModal] = useState(null);
+    const [configErrors, setConfigErrors] = useState({});
     const [config, setConfig] = useState(() => mergeSystemConfigState(loadedConfig));
 
     useEffect(() => {
@@ -187,7 +190,23 @@ const SystemConfig = () => {
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         updateConfig((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        if (name === 'clinicEmail') {
+            setConfigErrors((prev) => {
+                const next = { ...prev };
+                if (!value || isValidEmailFormat(value)) delete next.clinicEmail;
+                else next.clinicEmail = INVALID_EMAIL_ADDRESS_MESSAGE;
+                return next;
+            });
+        }
     };
+
+    useRealtimeSystemEmailValidation({
+        email: config.clinicEmail,
+        enabled: Boolean(config.clinicEmail) && !isSaving,
+        setErrors: setConfigErrors,
+        fieldName: 'clinicEmail',
+        validateDuplicates: false,
+    });
 
     const handleTemplateChange = (e) => {
         const { name, value } = e.target;
@@ -403,6 +422,15 @@ const SystemConfig = () => {
     };
 
     const handleSave = async () => {
+        if (config.clinicEmail && !isValidEmailFormat(config.clinicEmail)) {
+            setConfigErrors((prev) => ({ ...prev, clinicEmail: INVALID_EMAIL_ADDRESS_MESSAGE }));
+            showErrorModal(INVALID_EMAIL_ADDRESS_MESSAGE, 'Invalid clinic email');
+            return;
+        }
+        if (configErrors.clinicEmail === INVALID_EMAIL_DOMAIN_MESSAGE) {
+            showErrorModal(INVALID_EMAIL_DOMAIN_MESSAGE, 'Invalid clinic email');
+            return;
+        }
         setIsSaving(true);
         setWebsiteActionMessage('Saving website changes...');
 
@@ -982,7 +1010,8 @@ const SystemConfig = () => {
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Email Address</label>
-                                <input type="email" name="clinicEmail" value={config.clinicEmail} onChange={handleChange} className={styles.input} />
+                                <input type="email" name="clinicEmail" value={config.clinicEmail} onChange={handleChange} className={`${styles.input} ${configErrors.clinicEmail ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicEmail)} />
+                                {configErrors.clinicEmail && <span className={styles.errorText}>{configErrors.clinicEmail}</span>}
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Address</label>
