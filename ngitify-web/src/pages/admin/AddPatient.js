@@ -304,6 +304,11 @@ export default function AddPatient({ onClose, onSuccess }) {
         syncFormErrors(formData, { keys: [fieldKey] });
     };
 
+    const revalidateFields = (nextFormData, fieldKeys = []) => {
+        if (!fieldKeys.length) return;
+        syncFormErrors(nextFormData, { keys: fieldKeys });
+    };
+
     const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -323,55 +328,62 @@ export default function AddPatient({ onClose, onSuccess }) {
 
     const handlePersonalChange = (e) => {
         const { name, value } = e.target;
-        if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
-        if ((name === 'occupation' || name === 'guardianOccupation' || name === 'nationality' || name === 'religion') && value !== 'Other') {
-            setErrors(prev => {
-                const next = { ...prev };
-                delete next[`${name}Other`];
-                return next;
-            });
-        }
+        let nextValue = value;
         if (['firstName', 'middleName', 'lastName', 'guardianName', 'emergencyContactName'].includes(name)) {
-            if (isAllowedPersonNameInput(value)) setFormData({ ...formData, [name]: toTitleCaseName(value) });
-            return;
+            if (!isAllowedPersonNameInput(value)) return;
+            nextValue = toTitleCaseName(value);
         }
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-            ...(name === 'occupation' && value !== 'Other' ? { occupationOther: '' } : {}),
-            ...(name === 'guardianOccupation' && value !== 'Other' ? { guardianOccupationOther: '' } : {}),
-        }));
+        const nextFormData = {
+            ...formData,
+            [name]: nextValue,
+            ...(name === 'occupation' && nextValue !== 'Other' ? { occupationOther: '' } : {}),
+            ...(name === 'guardianOccupation' && nextValue !== 'Other' ? { guardianOccupationOther: '' } : {}),
+        };
+        setFormData(nextFormData);
+
+        const fieldsToRevalidate = [name];
+        if (name === 'occupation') fieldsToRevalidate.push('occupationOther');
+        if (name === 'guardianOccupation') fieldsToRevalidate.push('guardianOccupationOther');
+        if (name === 'nationality') fieldsToRevalidate.push('nationalityOther');
+        if (name === 'religion') fieldsToRevalidate.push('religionOther');
+
+        revalidateFields(nextFormData, fieldsToRevalidate);
     };
 
     const handlePhoneChange = (fieldName = 'phone') => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
-        if (errors[fieldName]) setErrors(prev => { const n = { ...prev }; delete n[fieldName]; return n; });
-        setFormData({ ...formData, [fieldName]: value });
+        const nextFormData = { ...formData, [fieldName]: value };
+        setFormData(nextFormData);
+        revalidateFields(nextFormData, [fieldName]);
     };
 
     const handleLandlineChange = (fieldName) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 8) return;
-        if (errors[fieldName]) setErrors(prev => { const n = { ...prev }; delete n[fieldName]; return n; });
-        setFormData({ ...formData, [fieldName]: value });
+        const nextFormData = { ...formData, [fieldName]: value };
+        setFormData(nextFormData);
+        revalidateFields(nextFormData, [fieldName]);
     };
 
     const handleGuardianContactChange = (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 10) return;
-        if (errors.guardianContact) setErrors(prev => { const n = { ...prev }; delete n.guardianContact; return n; });
-        setFormData({ ...formData, guardianContact: value });
+        const nextFormData = { ...formData, guardianContact: value };
+        setFormData(nextFormData);
+        revalidateFields(nextFormData, ['guardianContact']);
     };
 
     const handleNestedChange = (section, field, value, formatter) => {
-        setFormData(prev => ({
-            ...prev,
+        const nextFormData = {
+            ...formData,
             [section]: {
-                ...prev[section],
+                ...formData[section],
                 [field]: formatter ? formatter(value) : value
             }
-        }));
+        };
+        setFormData(nextFormData);
+        revalidateFields(nextFormData, [`${section}_${field}`]);
     };
 
     const handleNestedNameChange = (section, field) => (e) => {
@@ -381,67 +393,72 @@ export default function AddPatient({ onClose, onSuccess }) {
     };
 
     const handleConsentAcknowledged = (acknowledged) => {
-        setFormData((prev) => ({
-            ...prev,
+        const nextFormData = {
+            ...formData,
             consentAcknowledgement: {
-                ...prev.consentAcknowledgement,
+                ...formData.consentAcknowledgement,
                 acknowledged,
             }
-        }));
-        setErrors((prev) => {
-            const next = { ...prev };
-            delete next.consentAcknowledgement_acknowledged;
-            return next;
-        });
+        };
+        setFormData(nextFormData);
+        revalidateFields(nextFormData, ['consentAcknowledgement_acknowledged']);
     };
 
     const handlePrivacyAcknowledged = (acknowledged) => {
-        setFormData((prev) => ({
-            ...prev,
+        const nextFormData = {
+            ...formData,
             dataPrivacyConsent: {
-                ...prev.dataPrivacyConsent,
+                ...formData.dataPrivacyConsent,
                 acknowledged,
             }
-        }));
-        setErrors((prev) => {
-            const next = { ...prev };
-            delete next.dataPrivacyConsent_acknowledged;
-            return next;
-        });
+        };
+        setFormData(nextFormData);
+        revalidateFields(nextFormData, ['dataPrivacyConsent_acknowledged']);
     };
 
     const handleNestedPhoneChange = (section, field) => (e) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
         if (value.length > 8) return;
-        const errorKey = `${section}_${field}`;
-        if (errors[errorKey]) setErrors(prev => { const n = { ...prev }; delete n[errorKey]; return n; });
-        handleNestedChange(section, field, value);
+        const nextFormData = {
+            ...formData,
+            [section]: {
+                ...formData[section],
+                [field]: value,
+            }
+        };
+        setFormData(nextFormData);
+        revalidateFields(nextFormData, [`${section}_${field}`]);
     };
 
     const handleNestedArrayToggle = (section, field, item) => {
-        setFormData(prev => {
-            const currentValues = prev[section][field] || [];
-            const exists = currentValues.includes(item);
-            return {
-                ...prev,
-                [section]: {
-                    ...prev[section],
-                    [field]: exists ? currentValues.filter(value => value !== item) : [...currentValues, item]
-                }
-            };
-        });
+        const currentValues = formData[section][field] || [];
+        const exists = currentValues.includes(item);
+        const nextFormData = {
+            ...formData,
+            [section]: {
+                ...formData[section],
+                [field]: exists ? currentValues.filter(value => value !== item) : [...currentValues, item]
+            }
+        };
+        setFormData(nextFormData);
+        revalidateFields(nextFormData, [`${section}_${field}`]);
     };
 
     const handleAddressChange = (field, value) => {
-        const errorKey = `home_${field}`;
-        if (errors[errorKey]) setErrors(prev => { const n = { ...prev }; delete n[errorKey]; return n; });
-        setFormData(prev => {
-            const updated = { ...prev.homeAddress, [field]: value };
-            if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
-            else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
-            else if (field === 'city') { updated.barangay = ''; }
-            return { ...prev, homeAddress: updated };
-        });
+        const updated = { ...formData.homeAddress, [field]: value };
+        if (field === 'region') { updated.province = ''; updated.city = ''; updated.barangay = ''; }
+        else if (field === 'province') { updated.city = ''; updated.barangay = ''; }
+        else if (field === 'city') { updated.barangay = ''; }
+
+        const nextFormData = { ...formData, homeAddress: updated };
+        setFormData(nextFormData);
+
+        const addressFieldsToRevalidate = [`home_${field}`];
+        if (field === 'region') addressFieldsToRevalidate.push('home_province', 'home_city', 'home_barangay');
+        if (field === 'province') addressFieldsToRevalidate.push('home_city', 'home_barangay');
+        if (field === 'city') addressFieldsToRevalidate.push('home_barangay');
+
+        revalidateFields(nextFormData, addressFieldsToRevalidate);
     };
 
     const getValidationErrors = (currentFormData = formData) => {
