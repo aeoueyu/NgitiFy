@@ -6,6 +6,10 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import ConsentReviewModal from '../../components/admin/ConsentReviewModal';
+import {
+    PatientRegistrationSectionCard,
+    PatientRegistrationStepper,
+} from '../../components/patient/PatientRegistrationFlow';
 import { privacyPolicySections, privacyPolicyUpdatedAt, privacyPolicyVersion } from '../../data/consentDocument';
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
 import {
@@ -19,6 +23,7 @@ import {
     LAST_DENTAL_VISIT_FUTURE_MESSAGE,
     MEDICAL_CONDITION_OPTIONS,
     NATIONALITY_OPTIONS,
+    OCCUPATION_OPTIONS,
     REQUIRED_MESSAGE,
     RELIGION_OPTIONS,
     PHYSICIAN_SPECIALTY_OPTIONS,
@@ -86,6 +91,78 @@ const dataPrivacyReviewGroups = [
     { heading: `Data Privacy Notice ${privacyPolicyVersion} - Updated ${privacyPolicyUpdatedAt}`, sections: privacyPolicySections },
 ];
 
+const EDIT_PATIENT_STEPS = [
+    { key: 'identity', label: 'Identity' },
+    { key: 'contacts', label: 'Contacts & Branch' },
+    { key: 'medical', label: 'Medical & Dental' },
+    { key: 'consent', label: 'Consent & Review' },
+];
+
+const EDIT_PATIENT_SECTION_FIELDS = {
+    0: [
+        'firstName',
+        'lastName',
+        'birthdate',
+        'gender',
+        'email',
+        'phone',
+        'homePhone',
+        'workPhone',
+        'civilStatus',
+        'nationality',
+        'nationalityOther',
+        'religion',
+        'religionOther',
+        'occupationOther',
+        'home_region',
+        'home_province',
+        'home_city',
+        'home_barangay',
+        'home_street',
+        'home_houseNumber',
+    ],
+    1: [
+        'emergencyContact_name',
+        'emergencyContact_relationship',
+        'emergencyContact_contactNumber',
+        'guardian_name',
+        'guardian_relationship',
+        'guardian_contactNumber',
+    ],
+    2: [
+        'dentalHistory_lastExamDate',
+        'dentalHistory_hadTreatmentReaction',
+        'dentalHistory_reactionDetails',
+        'dentalHistory_hasConfidentialInfo',
+        'medicalHistory_inGoodHealth',
+        'medicalHistory_underMedicalTreatment',
+        'medicalHistory_medicalTreatmentDetails',
+        'medicalHistory_hadSeriousIllnessOrSurgery',
+        'medicalHistory_seriousIllnessOrSurgeryDetails',
+        'medicalHistory_hadHospitalization',
+        'medicalHistory_hospitalizationDetails',
+        'medicalHistory_isTakingMedication',
+        'medicalHistory_medications',
+        'medicalHistory_usesTobacco',
+        'medicalHistory_usesAlcoholOrDrugs',
+        'medicalHistory_hasAllergies',
+        'medicalHistory_allergies',
+        'medicalHistory_isPregnant',
+        'medicalHistory_isNursing',
+        'medicalHistory_takingBirthControl',
+        'physician_specialtyOther',
+        'physician_officeNumber',
+    ],
+    3: [
+        'dataPrivacyConsent_signerName',
+        'dataPrivacyConsent_signedAt',
+        'dataPrivacyConsent_acknowledged',
+        'consentAcknowledgement_signerName',
+        'consentAcknowledgement_signedAt',
+        'consentAcknowledgement_acknowledged',
+    ],
+};
+
 export default function EditPatient({ patientId, onClose, onSuccess }) {
     const fileInputRef = useRef(null);
     const { user } = useAuth();
@@ -101,6 +178,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
     const [branchOptions, setBranchOptions] = useState([]);
     const [initialData, setInitialData] = useState(null);
     const [initialProfileImage, setInitialProfileImage] = useState(null);
+    const [currentStep, setCurrentStep] = useState(0);
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -267,7 +345,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         };
 
         if (patientId) fetchPatientData();
-    }, [patientId, onClose]);
+    }, [patientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const fetchBranches = async () => {
@@ -461,9 +539,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         setErrors((prev) => ({ ...prev, [name]: newError }));
     };
 
-    const validateForm = ({ scrollToError = true } = {}) => {
+    const getValidationErrors = () => {
         const nextErrors = {};
-        let isValid = true;
         const requiredYesNoFields = [
             ['dentalHistory', 'hadTreatmentReaction'],
             ['dentalHistory', 'hasConfidentialInfo'],
@@ -483,41 +560,33 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         ['firstName', 'lastName', 'birthdate', 'gender', 'email'].forEach((field) => {
             if (!formData[field]) {
                 nextErrors[field] = REQUIRED_MESSAGE;
-                isValid = false;
             }
         });
 
         if (!formData.phone) {
             nextErrors.phone = REQUIRED_MESSAGE;
-            isValid = false;
         } else if (formData.phone.length !== 10 || formData.phone[0] !== '9') {
             nextErrors.phone = INVALID_MOBILE_FORMAT_MESSAGE;
-            isValid = false;
         }
 
         if (formData.email && !validateEmail(formData.email)) {
             nextErrors.email = INVALID_EMAIL_ADDRESS_MESSAGE;
-            isValid = false;
         } else if (errors.email) {
             nextErrors.email = errors.email;
-            isValid = false;
         }
 
         if (formData.homePhone && !isValidLandlineNumber(formData.homePhone)) {
             nextErrors.homePhone = INVALID_LANDLINE_FORMAT_MESSAGE;
-            isValid = false;
         }
 
         if (formData.workPhone && !isValidLandlineNumber(formData.workPhone)) {
             nextErrors.workPhone = INVALID_LANDLINE_FORMAT_MESSAGE;
-            isValid = false;
         }
 
         const validateAddr = (address, prefix) => {
             ['region', 'province', 'city', 'barangay', 'street', 'houseNumber'].forEach((field) => {
                 if (!address[field]) {
                     nextErrors[`${prefix}_${field}`] = REQUIRED_MESSAGE;
-                    isValid = false;
                 }
             });
         };
@@ -525,103 +594,85 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
         if (!formData.emergencyContact.name?.trim()) {
             nextErrors.emergencyContact_name = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (!formData.emergencyContact.relationship?.trim()) {
             nextErrors.emergencyContact_relationship = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (!formData.emergencyContact.contactNumber) {
             nextErrors.emergencyContact_contactNumber = REQUIRED_MESSAGE;
-            isValid = false;
         } else if (!isValidMobileNumber(formData.emergencyContact.contactNumber)) {
             nextErrors.emergencyContact_contactNumber = INVALID_MOBILE_FORMAT_MESSAGE;
-            isValid = false;
         }
 
         if (isMinor) {
             ['name', 'relationship', 'occupation'].forEach((field) => {
                 if (!formData.guardian[field]) {
                     nextErrors[`guardian_${field}`] = REQUIRED_MESSAGE;
-                    isValid = false;
                 }
             });
             if (!formData.guardian.contactNumber) {
                 nextErrors.guardian_contactNumber = REQUIRED_MESSAGE;
-                isValid = false;
             } else if (!isValidMobileNumber(formData.guardian.contactNumber)) {
                 nextErrors.guardian_contactNumber = INVALID_MOBILE_FORMAT_MESSAGE;
-                isValid = false;
             }
         }
 
         if (formData.physician.officeNumber && !isValidLandlineNumber(formData.physician.officeNumber)) {
             nextErrors.physician_officeNumber = INVALID_LANDLINE_FORMAT_MESSAGE;
-            isValid = false;
         }
         if (!formData.civilStatus) {
             nextErrors.civilStatus = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (!formData.nationality) {
             nextErrors.nationality = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (!formData.religion) {
             nextErrors.religion = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (formData.nationality === 'Other' && !String(formData.nationalityOther || '').trim()) {
             nextErrors.nationalityOther = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (formData.religion === 'Other' && !formData.religionOther.trim()) {
             nextErrors.religionOther = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (formData.physician.specialty === 'Other' && !formData.physician.specialtyOther.trim()) {
             nextErrors.physician_specialtyOther = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (!formData.consentAcknowledgement.acknowledged) {
             nextErrors.consentAcknowledgement_acknowledged = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (!formData.consentAcknowledgement.signerName.trim()) {
             nextErrors.consentAcknowledgement_signerName = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (!formData.dataPrivacyConsent.acknowledged) {
             nextErrors.dataPrivacyConsent_acknowledged = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (!formData.dataPrivacyConsent.signerName.trim()) {
             nextErrors.dataPrivacyConsent_signerName = REQUIRED_MESSAGE;
-            isValid = false;
         }
         if (formData.birthdate && isFutureDateInManila(formData.birthdate)) {
             nextErrors.birthdate = BIRTHDATE_FUTURE_MESSAGE;
-            isValid = false;
         }
         if (formData.dentalHistory.lastExamDate && isFutureDateInManila(formData.dentalHistory.lastExamDate)) {
             nextErrors.dentalHistory_lastExamDate = LAST_DENTAL_VISIT_FUTURE_MESSAGE;
-            isValid = false;
         }
         if (formData.consentAcknowledgement.signedAt && isFutureDateInManila(formData.consentAcknowledgement.signedAt)) {
             nextErrors.consentAcknowledgement_signedAt = INVALID_SIGNED_DATE_MESSAGE;
-            isValid = false;
         }
         if (formData.dataPrivacyConsent.signedAt && isFutureDateInManila(formData.dataPrivacyConsent.signedAt)) {
             nextErrors.dataPrivacyConsent_signedAt = INVALID_SIGNED_DATE_MESSAGE;
-            isValid = false;
         }
         requiredYesNoFields.forEach(([section, field]) => {
             if (!formData[section][field]) {
                 nextErrors[`${section}_${field}`] = REQUIRED_MESSAGE;
-                isValid = false;
             }
         });
+        return nextErrors;
+    };
 
+    const validateForm = ({ scrollToError = true } = {}) => {
+        const nextErrors = getValidationErrors();
+        const isValid = Object.keys(nextErrors).length === 0;
         setErrors((prev) => ({
             ...(prev.profileImage ? { profileImage: prev.profileImage } : {}),
             ...nextErrors,
@@ -635,6 +686,41 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             }
         }
         return isValid;
+    };
+
+    const focusFirstErrorField = (fieldKeys) => {
+        const nextErrors = getValidationErrors();
+        const firstErroredKey = fieldKeys.find((fieldKey) => nextErrors[fieldKey]);
+        if (!firstErroredKey) return false;
+
+        setErrors((prev) => ({
+            ...(prev.profileImage ? { profileImage: prev.profileImage } : {}),
+            ...nextErrors,
+        }));
+
+        const el = document.getElementsByName(firstErroredKey)[0];
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.focus();
+        }
+        return true;
+    };
+
+    const handleStepAdvance = (targetStep) => {
+        const sectionFields = EDIT_PATIENT_SECTION_FIELDS[currentStep] || [];
+        if (focusFirstErrorField(sectionFields)) return;
+        setCurrentStep(targetStep);
+    };
+
+    const handleStepSelect = (targetStep) => {
+        if (targetStep <= currentStep) {
+            setCurrentStep(targetStep);
+            return;
+        }
+
+        if (targetStep === currentStep + 1) {
+            handleStepAdvance(targetStep);
+        }
     };
 
     const renderAddressFields = (title, disabled = false) => {
@@ -852,6 +938,19 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 {errors.profileImage && <span className={styles.errorText}>{errors.profileImage}</span>}
                             </div>
 
+                            <PatientRegistrationStepper
+                                steps={EDIT_PATIENT_STEPS}
+                                currentIndex={currentStep}
+                                onStepSelect={handleStepSelect}
+                                isStepLocked={(index) => index > currentStep + 1}
+                            />
+
+                            {currentStep === 0 && (
+                                <PatientRegistrationSectionCard
+                                    eyebrow="Identity"
+                                    title="Patient Details"
+                                    description="Update the patient's identity, address, and primary contact details."
+                                >
                             <h3 className={styles.mainSectionTitle}>Patient Details</h3>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>FIRST NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.firstName ? styles.errorBorder : ''}`} name="firstName" value={formData.firstName} onChange={handlePersonalChange} disabled={isSaving} />{errors.firstName && <span className={styles.errorText}>{errors.firstName}</span>}</div>
@@ -881,9 +980,29 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             </div>
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>EMAIL ADDRESS <span style={{ color: 'red' }}>*</span></label><input type="email" className={`${styles.inputField} ${errors.email ? styles.errorBorder : ''}`} name="email" value={formData.email} onChange={handlePersonalChange} onBlur={handleBlur} disabled={isSaving} />{errors.email && <span className={styles.errorText}>{errors.email}</span>}</div>
-                                <div className={styles.formGroup}><label>OCCUPATION</label><input className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                <div className={styles.formGroup}><label>OCCUPATION</label><select className={styles.inputField} name="occupation" value={formData.occupation} onChange={handlePersonalChange} disabled={isSaving}><option value="">Select occupation</option>{OCCUPATION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
                                 <div className={styles.formGroup} />
                             </div>
+                            {formData.occupation === 'Other' && (
+                                <div className={styles.row}>
+                                    <div className={styles.formGroup}><label>OCCUPATION, IF OTHER</label><input className={styles.inputField} name="occupationOther" value={formData.occupationOther || ''} onChange={handlePersonalChange} disabled={isSaving} /></div>
+                                    <div className={styles.formGroup} />
+                                    <div className={styles.formGroup} />
+                                </div>
+                            )}
+                            <div className={styles.buttonGroup}>
+                                <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>Cancel</button>
+                                <button type="button" className={styles.submitBtn} onClick={() => handleStepAdvance(1)} disabled={isSaving}>Continue to Contacts</button>
+                            </div>
+                                </PatientRegistrationSectionCard>
+                            )}
+
+                            {currentStep === 1 && (
+                                <PatientRegistrationSectionCard
+                                    eyebrow="Contacts & Branch"
+                                    title="Contacts and Branch"
+                                    description="Update the emergency contact, guardian details, and branch information."
+                                >
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>EMERGENCY CONTACT NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} name="emergencyContact_name" value={formData.emergencyContact.name} onChange={handleNestedNameChange('emergencyContact', 'name')} disabled={isSaving} />{errors.emergencyContact_name && <span className={styles.errorText}>{errors.emergencyContact_name}</span>}</div>
                                 <div className={styles.formGroup}><label>MOBILE <span style={{ color: 'red' }}>*</span></label><div className={`${styles.phoneInputGroup} ${errors.emergencyContact_contactNumber ? styles.errorBorder : ''}`}><span className={styles.phonePrefix}>+63</span><input className={styles.phoneField} value={formData.emergencyContact.contactNumber} onChange={handleNestedPhoneChange('emergencyContact', 'contactNumber')} maxLength={10} placeholder="9xxxxxxxxx" disabled={isSaving} /></div>{errors.emergencyContact_contactNumber && <span className={styles.errorText}>{errors.emergencyContact_contactNumber}</span>}</div>
@@ -924,7 +1043,19 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                     </div>
                                 </>
                             )}
+                            <div className={styles.buttonGroup}>
+                                <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(0)} disabled={isSaving}>Back to Identity</button>
+                                <button type="button" className={styles.submitBtn} onClick={() => handleStepAdvance(2)} disabled={isSaving}>Continue to Medical</button>
+                            </div>
+                                </PatientRegistrationSectionCard>
+                            )}
 
+                            {currentStep === 2 && (
+                                <PatientRegistrationSectionCard
+                                    eyebrow="Medical & Dental"
+                                    title="Medical and Dental"
+                                    description="Update the patient's dental history, physician details, and medical questionnaire."
+                                >
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Dental History</h3>
                             <div className={styles.row}>
@@ -1039,7 +1170,19 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             <div className={styles.row}>
                                 {renderTextArea('MEDICAL NOTES', formData.medicalHistory.notes, (e) => handleNestedChange('medicalHistory', 'notes', e.target.value), 'Hospitalization, illness history, medical remarks, etc.', 'medicalNotes')}
                             </div>
+                            <div className={styles.buttonGroup}>
+                                <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(1)} disabled={isSaving}>Back to Contacts</button>
+                                <button type="button" className={styles.submitBtn} onClick={() => handleStepAdvance(3)} disabled={isSaving}>Continue to Consent</button>
+                            </div>
+                                </PatientRegistrationSectionCard>
+                            )}
 
+                            {currentStep === 3 && (
+                                <PatientRegistrationSectionCard
+                                    eyebrow="Consent & Review"
+                                    title="Consent and Final Review"
+                                    description="Review the updated patient details, then complete the privacy and consent acknowledgements."
+                                >
                             <hr className={styles.divider} />
                             <h3 className={styles.mainSectionTitle}>Data Privacy Act</h3>
                             <div className={styles.addressSection}>
@@ -1131,9 +1274,12 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             </div>
 
                             <div className={styles.buttonGroup}>
+                                <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(2)} disabled={isSaving}>Back to Medical</button>
                                 <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>CANCEL</button>
                                 <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>{isSaving ? 'SAVING CHANGES...' : 'UPDATE PATIENT'}</button>
                             </div>
+                                </PatientRegistrationSectionCard>
+                            )}
                         </form>
                     </>
                 )}
