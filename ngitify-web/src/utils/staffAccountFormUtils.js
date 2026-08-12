@@ -3,7 +3,7 @@ const ALLOWED_EMAIL_DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook
 const NAME_INPUT_REGEX = /^[a-zA-Z\s.-]+$/;
 
 export const REQUIRED_MESSAGE = 'Required';
-export const INVALID_EMAIL_MESSAGE = 'Invalid email domain (e.g. gmail.com)';
+export const INVALID_EMAIL_MESSAGE = 'Invalid email domain';
 export const INVALID_PHONE_MESSAGE = 'Invalid format (9xxxxxxxxx)';
 export const INVALID_LICENSE_MESSAGE = 'Must be 7 digits';
 export const DUPLICATE_EMAIL_MESSAGE = 'Email already exists.';

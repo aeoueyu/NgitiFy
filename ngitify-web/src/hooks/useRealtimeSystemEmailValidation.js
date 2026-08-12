@@ -7,6 +7,7 @@ const isManagedEmailError = (message = '') => {
     const normalized = String(message || '').toLowerCase();
     return normalized.includes('email already exists')
         || normalized.includes('real email domain')
+        || normalized.includes('invalid email domain')
         || normalized.includes('valid email address');
 };
 
@@ -44,7 +45,7 @@ export default function useRealtimeSystemEmailValidation({
 
                 if (latestRequestRef.current !== requestId) return;
                 if (!domainResponse.ok) {
-                    setErrors((prev) => ({ ...prev, email: domainData.message || 'Please use a real email domain that can receive mail.' }));
+                    setErrors((prev) => ({ ...prev, email: domainData.message || 'Invalid email domain' }));
                     return;
                 }
 

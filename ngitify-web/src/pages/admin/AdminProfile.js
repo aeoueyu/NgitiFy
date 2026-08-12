@@ -117,7 +117,7 @@ export default function MyProfile() {
                     setEmailAddressError(emailFieldErrors.email || '');
                 } else {
                     setIsEmailDomainValid(false);
-                    setEmailAddressError(data.message || 'Please enter a valid email address.');
+                    setEmailAddressError(data.message || 'Invalid email domain');
                 }
             } catch {
                 if (isActive) {
@@ -451,7 +451,7 @@ export default function MyProfile() {
             setEmailAddressError(emailFormatError); return;
         }
         if (!isEmailDomainValid) {
-            setEmailAddressError('Please use a real email domain that can receive mail.'); return;
+            setEmailAddressError('Invalid email domain'); return;
         }
         if (!isEmailPasswordVerified) {
             setEmailPasswordError('Please verify your current password first.'); return;

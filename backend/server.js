@@ -4830,7 +4830,7 @@ app.post('/api/validate-email-domain', verifyToken, async (req, res) => {
 
         const isDomainValid = await hasValidEmailDomain(normalizedEmail);
         if (!isDomainValid) {
-            return res.status(400).json({ message: 'Please use a real email domain that can receive mail.' });
+            return res.status(400).json({ message: 'Invalid email domain' });
         }
 
         res.json({ success: true, message: 'Email domain is valid.' });
@@ -5078,7 +5078,7 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             return res.status(400).json({ field: 'email', message: 'A valid email address is required before registering a patient.' });
         }
         if (!(await hasValidEmailDomain(normalizedEmail))) {
-            return res.status(400).json({ field: 'email', message: 'Please use a real email domain that can receive mail.' });
+            return res.status(400).json({ field: 'email', message: 'Invalid email domain' });
         }
 
         let normalizedAssignedBranch = assignedBranch;
@@ -5502,7 +5502,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
                 return res.status(400).json({ field: 'email', message: 'Please enter a valid email address.' });
             }
             if (!(await hasValidEmailDomain(normalizedRequestedEmail))) {
-                return res.status(400).json({ field: 'email', message: 'Please use a real email domain that can receive mail.' });
+                return res.status(400).json({ field: 'email', message: 'Invalid email domain' });
             }
             const existingEmail = await User.findOne({ _id: { $ne: patientId }, email: normalizedRequestedEmail });
             if (existingEmail) {
@@ -6554,7 +6554,7 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'A valid email address is required.' });
         }
         if (!(await hasValidEmailDomain(normalizedNewEmail))) {
-            return res.status(400).json({ message: 'Please use a real email domain that can receive mail.' });
+            return res.status(400).json({ message: 'Invalid email domain' });
         }
 
         if (normalizedNewEmail === user.email) {
