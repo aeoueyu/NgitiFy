@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import WebsiteShell from '../components/website/WebsiteShell';
 import ConsentReviewModal from '../components/admin/ConsentReviewModal';
@@ -308,6 +308,7 @@ export default function PreRegisterPage() {
     const [consentAcknowledgement, setConsentAcknowledgement] = useState(createConsentState('Patient', null, 'Dentime Patient Form v6.1'));
     const [dataPrivacyConsent, setDataPrivacyConsent] = useState(createConsentState('Patient', null, 'Data Privacy Act of 2012'));
     const [errors, setErrors] = useState({});
+    const touchedFieldsRef = useRef({});
     const [state, setState] = useState('loading');
     const [message, setMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -449,18 +450,53 @@ export default function PreRegisterPage() {
         ...overrides,
     });
 
-    const syncErrors = (snapshot, keys = null) => {
+    const markFieldsTouched = (fieldKeys = []) => {
+        const nextTouched = { ...touchedFieldsRef.current };
+        let hasChanges = false;
+
+        fieldKeys.forEach((fieldKey) => {
+            if (!fieldKey || nextTouched[fieldKey]) return;
+            nextTouched[fieldKey] = true;
+            hasChanges = true;
+        });
+
+        if (hasChanges) {
+            touchedFieldsRef.current = nextTouched;
+        }
+    };
+
+    const syncErrors = (snapshot, keys = null, { reveal = false } = {}) => {
         const nextErrors = buildValidationErrors(snapshot);
         setErrors((prev) => {
-            if (!keys) return nextErrors;
-            const merged = { ...prev };
-            keys.forEach((key) => {
+            const merged = keys ? { ...prev } : {};
+            const targetKeys = keys
+                ? [...new Set(keys)]
+                : [...new Set([
+                    ...Object.keys(nextErrors),
+                    ...Object.keys(prev),
+                ])];
+
+            targetKeys.forEach((key) => {
+                const shouldDisplay = reveal || touchedFieldsRef.current[key] || Boolean(prev[key]);
+                if (!shouldDisplay) {
+                    if (keys) delete merged[key];
+                    return;
+                }
+
                 if (nextErrors[key]) merged[key] = nextErrors[key];
                 else delete merged[key];
             });
             return merged;
         });
         return nextErrors;
+    };
+
+    const handleFieldBlur = (event) => {
+        const fieldContainer = event.target.closest?.('[data-field-key]');
+        const fieldKey = fieldContainer?.getAttribute('data-field-key') || event.target.name;
+        if (!fieldKey) return;
+        markFieldsTouched([fieldKey]);
+        syncErrors(getSnapshot(), [fieldKey]);
     };
 
     const getStepErrors = (stepKey, snapshot = getSnapshot()) => {
@@ -490,7 +526,9 @@ export default function PreRegisterPage() {
         if (!currentStepKey) return;
         const snapshot = getSnapshot();
         const stepErrors = getStepErrors(currentStepKey, snapshot);
-        syncErrors(snapshot, PRE_REGISTER_SECTION_FIELDS[currentStepKey] || []);
+        const stepFields = PRE_REGISTER_SECTION_FIELDS[currentStepKey] || [];
+        markFieldsTouched(stepFields);
+        syncErrors(snapshot, stepFields, { reveal: true });
         if (Object.keys(stepErrors).length > 0) {
             focusFirstStepError(currentStepKey, snapshot);
             return;
@@ -767,7 +805,8 @@ export default function PreRegisterPage() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        const nextErrors = syncErrors(getSnapshot(), null);
+        markFieldsTouched(PRE_REGISTER_FIELD_ORDER);
+        const nextErrors = syncErrors(getSnapshot(), null, { reveal: true });
         if (Object.keys(nextErrors).length > 0) {
             const firstErrorKey = PRE_REGISTER_FIELD_ORDER.find((field) => nextErrors[field]) || Object.keys(nextErrors)[0];
             const targetStep = activeSteps.find((step) => (PRE_REGISTER_SECTION_FIELDS[step.key] || []).includes(firstErrorKey));
@@ -1007,7 +1046,7 @@ export default function PreRegisterPage() {
                     </article>
 
                     {state === 'ready' && (
-                        <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
+                        <form className={styles.formCard} onSubmit={handleSubmit} onBlurCapture={handleFieldBlur} noValidate>
                             {message && <div className={styles.errorBanner}>{message}</div>}
                             <PatientRegistrationStepper
                                 steps={activeSteps}

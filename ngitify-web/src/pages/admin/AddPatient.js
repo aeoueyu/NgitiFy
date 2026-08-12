@@ -204,6 +204,7 @@ export default function AddPatient({ onClose, onSuccess }) {
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
     const [errors, setErrors] = useState({});
+    const touchedFieldsRef = useRef({});
     const [duplicateSummary, setDuplicateSummary] = useState(null);
     const [softDuplicateConfirmed, setSoftDuplicateConfirmed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -257,12 +258,50 @@ export default function AddPatient({ onClose, onSuccess }) {
     const duplicateSections = getPatientDuplicateSections(duplicateSummary);
     const duplicateCandidatePatients = getPatientDuplicateCandidates(duplicateSummary);
 
+    const markFieldsTouched = (fieldKeys = []) => {
+        const nextTouched = { ...touchedFieldsRef.current };
+        let hasChanges = false;
+
+        fieldKeys.forEach((fieldKey) => {
+            if (!fieldKey || nextTouched[fieldKey]) return;
+            nextTouched[fieldKey] = true;
+            hasChanges = true;
+        });
+
+        if (hasChanges) {
+            touchedFieldsRef.current = nextTouched;
+        }
+    };
+
+    const syncFormErrors = (currentFormData = formData, { keys = null, reveal = false } = {}) => {
+        const validationErrors = getValidationErrors(currentFormData);
+        setErrors((prev) => {
+            const preservedEntries = Object.entries(prev).filter(([key]) => NON_VALIDATION_ERROR_KEYS.includes(key));
+            const next = Object.fromEntries(preservedEntries);
+            const candidateKeys = keys
+                ? [...new Set(keys)]
+                : [...new Set([
+                    ...Object.keys(validationErrors),
+                    ...Object.keys(prev).filter((key) => !NON_VALIDATION_ERROR_KEYS.includes(key)),
+                ])];
+
+            candidateKeys.forEach((key) => {
+                const shouldDisplay = reveal || touchedFieldsRef.current[key] || Boolean(prev[key]);
+                if (!shouldDisplay) return;
+                if (validationErrors[key]) next[key] = validationErrors[key];
+            });
+
+            return next;
+        });
+
+        return validationErrors;
+    };
+
     const handleBlur = (e) => {
-        const { name, value } = e.target;
-        let newError = '';
-        if (name === 'email') { if (!value) newError = REQUIRED_MESSAGE; else if (!validateEmail(value)) newError = INVALID_EMAIL_ADDRESS_MESSAGE; }
-        else if (name === 'phone' || name === 'guardianContact') { if (!value) newError = REQUIRED_MESSAGE; else if (!isValidMobileNumber(value)) newError = INVALID_MOBILE_FORMAT_MESSAGE; }
-        setErrors(prev => ({ ...prev, [name]: newError }));
+        const fieldKey = e.target.name;
+        if (!fieldKey) return;
+        markFieldsTouched([fieldKey]);
+        syncFormErrors(formData, { keys: [fieldKey] });
     };
 
     const handleImageChange = async (e) => {
@@ -483,22 +522,6 @@ export default function AddPatient({ onClose, onSuccess }) {
         return newErrors;
     };
 
-    const syncFormErrors = (currentFormData = formData) => {
-        const validationErrors = getValidationErrors(currentFormData);
-        setErrors((prev) => {
-            const preservedEntries = Object.entries(prev).filter(([key]) => NON_VALIDATION_ERROR_KEYS.includes(key));
-            return {
-                ...Object.fromEntries(preservedEntries),
-                ...validationErrors,
-            };
-        });
-        return validationErrors;
-    };
-
-    useEffect(() => {
-        syncFormErrors(formData);
-    }, [formData]); // eslint-disable-line react-hooks/exhaustive-deps
-
     useEffect(() => {
         setDuplicateSummary(null);
         setSoftDuplicateConfirmed(false);
@@ -511,7 +534,8 @@ export default function AddPatient({ onClose, onSuccess }) {
     }, [formData.firstName, formData.lastName, formData.birthdate, formData.email, formData.phone]);
 
     const validateForm = () => {
-        const newErrors = syncFormErrors(formData);
+        markFieldsTouched(Object.keys(getValidationErrors(formData)));
+        const newErrors = syncFormErrors(formData, { reveal: true });
         const isValid = Object.keys(newErrors).length === 0;
         if (!isValid) {
             const firstErrorField = Object.keys(newErrors)[0];
@@ -574,7 +598,8 @@ export default function AddPatient({ onClose, onSuccess }) {
         const currentStepFields = INTAKE_SECTION_FIELDS[currentStep] || [];
         const currentStepErrors = Object.keys(nextErrors).filter((key) => currentStepFields.includes(key));
 
-        syncFormErrors(formData);
+        markFieldsTouched(currentStepFields);
+        syncFormErrors(formData, { keys: currentStepFields, reveal: true });
 
         if (currentStepErrors.length > 0) {
             focusFirstStepError(currentStep, currentStepErrors);
@@ -892,7 +917,7 @@ export default function AddPatient({ onClose, onSuccess }) {
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} noValidate>
+                <form onSubmit={handleSubmit} onBlurCapture={handleBlur} noValidate>
                     <div className={styles.uploadSection}>
                         <div className={styles.imageWrapper} onClick={triggerFileInput}>
                             {profileImage ? <img src={profileImage} alt="Profile" className={styles.previewImage} /> : <div className={styles.uploadPlaceholder}><span>Upload Photo</span></div>}

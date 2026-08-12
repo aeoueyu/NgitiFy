@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import styles from '../../styles/auth/NewPasswordPage.module.css';
 import logo from '../../assets/images/logo-dentime.svg';
 import { BASE_URL } from '../../utils/api';
+import PasswordField from '../../components/common/PasswordField';
 
 const getPasswordChecks = (password = '') => ({
     length: password.length >= 8,
@@ -139,8 +140,7 @@ export default function ActivateAccountPage() {
                         {requiresPasswordSetup ? (
                             <>
                                 <div className={styles['label-container']}><p className={styles.label}>PASSWORD</p></div>
-                                <input
-                                    type="password"
+                                <PasswordField
                                     className={styles['input-field']}
                                     value={password}
                                     onChange={(event) => setPassword(event.target.value)}
@@ -177,8 +177,7 @@ export default function ActivateAccountPage() {
                                 )}
 
                                 <div className={styles['label-container']} style={{ marginTop: '15px' }}><p className={styles.label}>CONFIRM PASSWORD</p></div>
-                                <input
-                                    type="password"
+                                <PasswordField
                                     className={styles['input-field']}
                                     value={confirmPassword}
                                     onChange={(event) => setConfirmPassword(event.target.value)}

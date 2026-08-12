@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AdminSettings.module.css';
+import PasswordField from '../../components/common/PasswordField';
 
 const getPasswordChecklist = (value) => ({
     length: value.length >= 8,
@@ -181,8 +182,7 @@ export default function PatientSettings() {
                     <div className={styles.formGroup}>
                         <label>CURRENT PASSWORD <span style={{ color: 'red' }}>*</span></label>
                         <div className={styles.inputRow}>
-                            <input
-                                type="password"
+                            <PasswordField
                                 className={styles.inputField}
                                 value={currentPassword}
                                 onChange={(event) => setCurrentPassword(event.target.value)}
@@ -209,8 +209,7 @@ export default function PatientSettings() {
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>NEW PASSWORD <span style={{ color: 'red' }}>*</span></label>
-                            <input
-                                type="password"
+                            <PasswordField
                                 className={`${styles.inputField} ${isSamePassword ? styles.errorBorder : ''}`}
                                 value={newPassword}
                                 onChange={(event) => setNewPassword(event.target.value)}
@@ -231,8 +230,7 @@ export default function PatientSettings() {
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>CONFIRM NEW PASSWORD <span style={{ color: 'red' }}>*</span></label>
-                            <input
-                                type="password"
+                            <PasswordField
                                 className={styles.inputField}
                                 value={confirmPassword}
                                 onChange={(event) => setConfirmPassword(event.target.value)}

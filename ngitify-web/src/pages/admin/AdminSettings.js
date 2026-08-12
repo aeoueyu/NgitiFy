@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AdminSettings.module.css';
+import PasswordField from '../../components/common/PasswordField';
 
 export default function Settings() {
     const { user, logout } = useAuth();
@@ -234,8 +235,7 @@ export default function Settings() {
                     <div className={styles.formGroup}>
                         <label>CURRENT PASSWORD <span style={{color: 'red'}}>*</span></label>
                         <div className={styles.inputRow}>
-                            <input 
-                                type="password"
+                            <PasswordField
                                 className={`${styles.inputField} ${passErrors.currentPassword ? styles.errorBorder : ''}`} 
                                 name="currentPassword" 
                                 value={passwordData.currentPassword} 
@@ -264,8 +264,7 @@ export default function Settings() {
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>NEW PASSWORD <span style={{color: 'red'}}>*</span></label>
-                            <input 
-                                type="password"
+                            <PasswordField
                                 className={`${styles.inputField} ${passErrors.newPassword || isSamePassword ? styles.errorBorder : ''}`} 
                                 name="newPassword" 
                                 value={passwordData.newPassword} 
@@ -294,8 +293,7 @@ export default function Settings() {
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>CONFIRM NEW PASSWORD <span style={{color: 'red'}}>*</span></label>
-                            <input 
-                                type="password"
+                            <PasswordField
                                 className={`${styles.inputField} ${passErrors.confirmPassword ? styles.errorBorder : ''}`} 
                                 name="confirmPassword" 
                                 value={passwordData.confirmPassword} 

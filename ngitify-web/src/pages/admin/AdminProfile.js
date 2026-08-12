@@ -9,6 +9,7 @@ import { regions, provinces, cities, barangays } from '../../utils/addressData';
 import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import UserAvatar from '../../components/common/UserAvatar';
+import PasswordField from '../../components/common/PasswordField';
 import { normalizeAddressForForm } from '../../utils/addressHelpers';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooLarge } from '../../utils/profileImageUpload';
@@ -970,8 +971,7 @@ export default function MyProfile() {
                             <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
                                 <label>CURRENT PASSWORD</label>
                                 <div className={styles.emailRow}>
-                                    <input
-                                        type="password"
+                                    <PasswordField
                                         className={`${styles.inputField} ${isPasswordInputError ? styles.errorBorder : ''}`}
                                         value={emailFormData.currentPassword}
                                         onChange={(e) => {

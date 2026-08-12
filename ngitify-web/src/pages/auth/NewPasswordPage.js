@@ -3,6 +3,7 @@ import styles from '../../styles/auth/NewPasswordPage.module.css';
 import logo from '../../assets/images/logo-dentime.svg';
 import { useNavigate, useLocation } from "react-router-dom";
 import { BASE_URL } from '../../utils/api';
+import PasswordField from '../../components/common/PasswordField';
 
 export default function NewPasswordPage() {
     const navigate = useNavigate();
@@ -96,8 +97,7 @@ export default function NewPasswordPage() {
                 
                 <div className={styles['label-container']}><p className={styles.label}>PASSWORD</p></div>
                 
-                <input 
-                    type='password' 
+                <PasswordField
                     className={styles['input-field']} 
                     value={newPassword} 
                     onChange={(e)=>setNewPassword(e.target.value)} 
@@ -135,8 +135,7 @@ export default function NewPasswordPage() {
                 )}
 
                 <div className={styles['label-container']} style={{marginTop: '15px'}}><p className={styles.label}>CONFIRM PASSWORD</p></div>
-                <input 
-                    type='password' 
+                <PasswordField
                     className={styles['input-field']} 
                     value={confirmNewPassword} 
                     onChange={(e)=>setConfirmNewPassword(e.target.value)} 
