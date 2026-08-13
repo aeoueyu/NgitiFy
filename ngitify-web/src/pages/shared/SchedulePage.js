@@ -541,7 +541,7 @@ export default function SchedulePage() {
         amountPaid: '',
         nextAppointment: '',
     });
-    const [completionError, setCompletionError] = useState('');
+    const [completionErrors, setCompletionErrors] = useState({});
     const [allowedSlots, setAllowedSlots] = useState([]);
     const [takenSlots, setTakenSlots] = useState([]);
     const [blockedDates, setBlockedDates] = useState([]);
@@ -1179,10 +1179,56 @@ export default function SchedulePage() {
         resetFormState();
     };
 
+    const getCompletionValidationErrors = (data = completionForm) => {
+        const nextErrors = {};
+
+        if (!String(data.performedProcedure || '').trim()) {
+            nextErrors.performedProcedure = SCHEDULE_REQUIRED_MESSAGE;
+        }
+        if (!String(data.category || '').trim()) {
+            nextErrors.category = SCHEDULE_REQUIRED_MESSAGE;
+        }
+
+        ['amountCharged', 'amountPaid'].forEach((field) => {
+            const value = data[field];
+            const label = field === 'amountCharged' ? 'Amount charged' : 'Amount paid';
+            if (value === '' || value === null || value === undefined) {
+                nextErrors[field] = SCHEDULE_REQUIRED_MESSAGE;
+                return;
+            }
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue) || numericValue < 0) {
+                nextErrors[field] = `${label} must be a valid amount.`;
+            }
+        });
+
+        return nextErrors;
+    };
+
+    const syncCompletionErrors = (data = completionForm) => {
+        const nextErrors = getCompletionValidationErrors(data);
+        setCompletionErrors(nextErrors);
+        return nextErrors;
+    };
+
+    const updateCompletionField = (field, value) => {
+        setCompletionForm((prev) => {
+            const next = { ...prev, [field]: value };
+            syncCompletionErrors(next);
+            return next;
+        });
+    };
+
+    const closeCompleteModal = () => {
+        if (isCompleting) return;
+        setCompleteTarget(null);
+        setCompletionErrors({});
+    };
+
     const openCompleteModal = (entry) => {
         setCompleteTarget(entry);
         const performedProcedure = entry.procedure || '';
-        setCompletionForm({
+        const nextForm = {
             performedProcedure,
             category: inferTreatmentCategory(performedProcedure),
             tooth: '',
@@ -1190,8 +1236,9 @@ export default function SchedulePage() {
             amountPaid: '',
             nextAppointment: '',
             notes: '',
-        });
-        setCompletionError('');
+        };
+        setCompletionForm(nextForm);
+        setCompletionErrors(getCompletionValidationErrors(nextForm));
     };
 
     const selectExistingPhoneCallPatient = useCallback((matchedPatient) => {
@@ -1566,8 +1613,14 @@ export default function SchedulePage() {
             setCompleteTarget(null);
             return;
         }
-        if (!completionForm.performedProcedure || !completionForm.category || completionForm.amountCharged === '' || completionForm.amountPaid === '') {
-            setCompletionError('Please complete the treatment details before marking this schedule as complete.');
+        const nextErrors = syncCompletionErrors();
+        if (Object.keys(nextErrors).length > 0) {
+            const firstInvalidField = Object.keys(nextErrors)[0];
+            const firstInvalidElement = document.getElementsByName(firstInvalidField)[0];
+            if (firstInvalidElement) {
+                firstInvalidElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalidElement.focus();
+            }
             return;
         }
 
@@ -1604,7 +1657,7 @@ export default function SchedulePage() {
                 amountPaid: '',
                 nextAppointment: '',
             });
-            setCompletionError('');
+            setCompletionErrors({});
             await fetchPageData();
         } catch (error) {
             addToast(error.message || 'Failed to mark this schedule as complete.', 'error');
@@ -2719,11 +2772,7 @@ export default function SchedulePage() {
                             <button
                                 type="button"
                                 className={styles.closeButton}
-                                onClick={() => {
-                                    if (isCompleting) return;
-                                    setCompleteTarget(null);
-                                    setCompletionError('');
-                                }}
+                                onClick={closeCompleteModal}
                             >
                                 <FaTimes />
                             </button>
@@ -2737,16 +2786,20 @@ export default function SchedulePage() {
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Procedure Performed <span className={styles.requiredMark}>*</span></label>
                                     <select
-                                        className={styles.formControl}
+                                        name="performedProcedure"
+                                        className={`${styles.formControl} ${completionErrors.performedProcedure ? styles.errorBorder : ''}`}
                                         value={completionForm.performedProcedure}
                                         onChange={(event) => {
                                             const value = event.target.value;
-                                            setCompletionForm((prev) => ({
-                                                ...prev,
-                                                performedProcedure: value,
-                                                category: prev.category === 'Other' || !prev.category ? inferTreatmentCategory(value) : prev.category,
-                                            }));
-                                            setCompletionError('');
+                                            setCompletionForm((prev) => {
+                                                const next = {
+                                                    ...prev,
+                                                    performedProcedure: value,
+                                                    category: prev.category === 'Other' || !prev.category ? inferTreatmentCategory(value) : prev.category,
+                                                };
+                                                syncCompletionErrors(next);
+                                                return next;
+                                            });
                                         }}
                                     >
                                         <option value="">Select the procedure performed</option>
@@ -2754,29 +2807,30 @@ export default function SchedulePage() {
                                             <option key={procedure} value={procedure}>{procedure}</option>
                                         ))}
                                     </select>
+                                    {completionErrors.performedProcedure && <span className={styles.errorText}>{completionErrors.performedProcedure}</span>}
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Treatment Category <span className={styles.requiredMark}>*</span></label>
                                     <select
-                                        className={styles.formControl}
+                                        name="category"
+                                        className={`${styles.formControl} ${completionErrors.category ? styles.errorBorder : ''}`}
                                         value={completionForm.category}
-                                        onChange={(event) => {
-                                            setCompletionForm((prev) => ({ ...prev, category: event.target.value }));
-                                            setCompletionError('');
-                                        }}
+                                        onChange={(event) => updateCompletionField('category', event.target.value)}
                                     >
                                         {TREATMENT_CATEGORY_OPTIONS.map((option) => (
                                             <option key={option} value={option}>{option}</option>
                                         ))}
                                     </select>
+                                    {completionErrors.category && <span className={styles.errorText}>{completionErrors.category}</span>}
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Tooth Number/s</label>
                                     <input
                                         type="text"
+                                        name="tooth"
                                         className={styles.formControl}
                                         value={completionForm.tooth}
-                                        onChange={(event) => setCompletionForm((prev) => ({ ...prev, tooth: event.target.value }))}
+                                        onChange={(event) => updateCompletionField('tooth', event.target.value)}
                                         placeholder="e.g. 11, 12 or All"
                                     />
                                 </div>
@@ -2784,31 +2838,29 @@ export default function SchedulePage() {
                                     <label className={styles.formLabel}>Amount Charged <span className={styles.requiredMark}>*</span></label>
                                     <input
                                         type="number"
+                                        name="amountCharged"
                                         min="0"
                                         step="0.01"
-                                        className={styles.formControl}
+                                        className={`${styles.formControl} ${completionErrors.amountCharged ? styles.errorBorder : ''}`}
                                         value={completionForm.amountCharged}
-                                        onChange={(event) => {
-                                            setCompletionForm((prev) => ({ ...prev, amountCharged: event.target.value }));
-                                            setCompletionError('');
-                                        }}
+                                        onChange={(event) => updateCompletionField('amountCharged', event.target.value)}
                                         placeholder="0.00"
                                     />
+                                    {completionErrors.amountCharged && <span className={styles.errorText}>{completionErrors.amountCharged}</span>}
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Amount Paid <span className={styles.requiredMark}>*</span></label>
                                     <input
                                         type="number"
+                                        name="amountPaid"
                                         min="0"
                                         step="0.01"
-                                        className={styles.formControl}
+                                        className={`${styles.formControl} ${completionErrors.amountPaid ? styles.errorBorder : ''}`}
                                         value={completionForm.amountPaid}
-                                        onChange={(event) => {
-                                            setCompletionForm((prev) => ({ ...prev, amountPaid: event.target.value }));
-                                            setCompletionError('');
-                                        }}
+                                        onChange={(event) => updateCompletionField('amountPaid', event.target.value)}
                                         placeholder="0.00"
                                     />
+                                    {completionErrors.amountPaid && <span className={styles.errorText}>{completionErrors.amountPaid}</span>}
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Balance</label>
@@ -2823,22 +2875,18 @@ export default function SchedulePage() {
                                     <label className={styles.formLabel}>Next Appointment</label>
                                     <input
                                         type="date"
+                                        name="nextAppointment"
                                         className={styles.formControl}
                                         value={completionForm.nextAppointment}
-                                        onChange={(event) => setCompletionForm((prev) => ({ ...prev, nextAppointment: event.target.value }))}
+                                        onChange={(event) => updateCompletionField('nextAppointment', event.target.value)}
                                     />
                                 </div>
                             </div>
-                            {completionError && <div className={styles.errorText}>{completionError}</div>}
                             <div className={styles.modalActions}>
                                 <button
                                     type="button"
                                     className={styles.secondaryButton}
-                                    onClick={() => {
-                                        if (isCompleting) return;
-                                        setCompleteTarget(null);
-                                        setCompletionError('');
-                                    }}
+                                    onClick={closeCompleteModal}
                                 >
                                     Cancel
                                 </button>
