@@ -14,7 +14,9 @@ import { regions, provinces, cities } from '../../utils/addressData';
 import UserAvatar from '../../components/common/UserAvatar';
 import {
     ALLERGY_OPTIONS,
+    BLOOD_TYPE_OPTIONS,
     MEDICAL_CONDITION_OPTIONS,
+    PHYSICIAN_SPECIALTY_OPTIONS,
 } from '../../utils/patientIntake';
 
 import { 
@@ -1265,293 +1267,6 @@ export default function PatientEMR({
         setIsEditingMedical(false);
     };
 
-    const renderTags = (csvString, isWarning = false) => {
-        if (!csvString || csvString.trim() === '') return <p className={styles.infoValue}>None reported.</p>;
-        const items = csvString.split(',').map(i => i.trim()).filter(i => i !== '');
-        return (
-            <div className={styles.tagList}>
-                {items.map((item, idx) => (
-                    <span key={idx} className={`${styles.tag} ${isWarning ? styles.warning : ''}`}>{item}</span>
-                ))}
-            </div>
-        );
-    };
-
-    const renderList = (csvString) => {
-        if (!csvString || csvString.trim() === '') return <p className={styles.infoValue}>None reported.</p>;
-        const items = csvString.split(',').map(i => i.trim()).filter(i => i !== '');
-        return (
-            <ul style={{ margin: '5px 0 0 15px', color: '#334155', fontWeight: '600', fontSize: '14px' }}>
-                {items.map((item, idx) => <li key={idx} style={{marginBottom: '5px'}}>{item}</li>)}
-            </ul>
-        );
-    };
-
-    const renderMedicalHistory = () => (
-        <div className={styles.contentCard}>
-            <div className={styles.sectionHeaderRow}>
-                <h3 className={styles.sectionTitle}>Medical & Dental History</h3>
-                {canEditMedical && !isEditingMedical && (
-                    <button className={styles.actionBtn} onClick={() => setIsEditingMedical(true)}>
-                        Edit Medical History
-                    </button>
-                )}
-            </div>
-
-            {isEditingMedical ? (
-                <form onSubmit={handleSaveMedical}>
-                    <div className={styles.infoGrid} style={{ marginBottom: '20px' }}>
-                        <div className={styles.formGroup}>
-                            <label>Physician's Name</label>
-                            <input type="text" name="physicianName" value={medicalForm.physicianName} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Specialty, If Applicable</label>
-                            <input type="text" name="physicianSpecialty" value={medicalForm.physicianSpecialty} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Office Address</label>
-                            <input type="text" name="physicianOfficeAddress" value={medicalForm.physicianOfficeAddress} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Office Number</label>
-                            <input type="text" name="physicianOfficeNumber" value={medicalForm.physicianOfficeNumber} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Reason for Consultation</label>
-                            <input type="text" name="reasonForConsultation" value={medicalForm.reasonForConsultation} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Last Dental Visit</label>
-                            <input type="date" name="lastExam" value={medicalForm.lastExam} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        {renderYesNoEditor('Reaction or Complication After Dental Treatment?', 'hadTreatmentReaction')}
-                        <div className={styles.formGroup}>
-                            <label>If Yes, Please Detail</label>
-                            <input type="text" name="reactionDetails" value={medicalForm.reactionDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        {renderYesNoEditor('Private or Confidential Information to Discuss in Private?', 'hasConfidentialInfo')}
-                        {renderYesNoEditor('Are You in Good Health?', 'inGoodHealth')}
-                        {renderYesNoEditor('Under Medical Treatment Now?', 'underMedicalTreatment')}
-                        <div className={styles.formGroup}>
-                            <label>Condition Treated</label>
-                            <input type="text" name="medicalTreatmentDetails" value={medicalForm.medicalTreatmentDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        {renderYesNoEditor('Serious Illness or Surgical Operation?', 'hadSeriousIllnessOrSurgery')}
-                        <div className={styles.formGroup}>
-                            <label>Illness or Operation Details</label>
-                            <input type="text" name="seriousIllnessOrSurgeryDetails" value={medicalForm.seriousIllnessOrSurgeryDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        {renderYesNoEditor('Ever Been Hospitalized?', 'hadHospitalization')}
-                        <div className={styles.formGroup}>
-                            <label>Hospitalization Details</label>
-                            <input type="text" name="hospitalizationDetails" value={medicalForm.hospitalizationDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                        {renderYesNoEditor('Taking Prescription / Non-Prescription Medication?', 'isTakingMedication')}
-                        <div className={styles.formGroup}>
-                            <label>Medications</label>
-                            <input type="text" name="medications" value={medicalForm.medications} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="Comma-separated medications" />
-                        </div>
-                        {renderYesNoEditor('Use Tobacco Products?', 'usesTobacco')}
-                        {renderYesNoEditor('Use Alcohol, Cocaine, or Other Dangerous Drugs?', 'usesAlcoholOrDrugs')}
-                        {renderYesNoEditor('Has Allergies?', 'hasAllergies')}
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <label>Allergy Checklist</label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-                            {ALLERGY_OPTIONS.map((option) => (
-                                <label key={option} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <input type="checkbox" checked={getCsvValues(medicalForm.allergies).includes(option)} onChange={() => handleMedicalCheckboxToggle('allergies', option)} />
-                                    <span>{option}</span>
-                                </label>
-                            ))}
-                        </div>
-                        <input type="text" name="allergyOther" value={medicalForm.allergyOther} onChange={handleMedicalFormChange} className={styles.inputField} style={{ marginTop: '12px' }} placeholder="Other allergy" />
-                    </div>
-
-                    <div className={styles.infoGrid} style={{ marginBottom: '20px' }}>
-                        <div className={styles.formGroup}>
-                            <label>Bleeding Time</label>
-                            <input type="text" name="bleedingTime" value={medicalForm.bleedingTime} onChange={handleMedicalFormChange} className={styles.inputField} />
-                        </div>
-                    </div>
-
-                    <div className={styles.infoGrid} style={{ marginBottom: '20px' }}>
-                        <div style={{ gridColumn: '1 / -1' }}><p style={{ fontWeight: '700', fontSize: '13px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>For Women Only</p></div>
-                        {renderYesNoEditor('Are You Pregnant?', 'isPregnant')}
-                        {renderYesNoEditor('Are You Nursing?', 'isNursing')}
-                        {renderYesNoEditor('Are You Taking Birth Control Pills?', 'takingBirthControl')}
-                        <div className={styles.formGroup}>
-                            <label>Blood Type</label>
-                            <select name="bloodType" value={medicalForm.bloodType} onChange={handleMedicalFormChange} className={styles.inputField}>
-                                <option value="">Select</option>
-                                <option value="A+">A+</option><option value="A-">A-</option>
-                                <option value="B+">B+</option><option value="B-">B-</option>
-                                <option value="AB+">AB+</option><option value="AB-">AB-</option>
-                                <option value="O+">O+</option><option value="O-">O-</option>
-                            </select>
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Blood Pressure</label>
-                            <input type="text" name="bloodPressure" value={medicalForm.bloodPressure} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="e.g., 120/80" />
-                        </div>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <label>Medical Conditions Checklist</label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-                            {MEDICAL_CONDITION_OPTIONS.map((option) => (
-                                <label key={option} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <input type="checkbox" checked={getCsvValues(medicalForm.conditions).includes(option)} onChange={() => handleMedicalCheckboxToggle('conditions', option)} />
-                                    <span>{option}</span>
-                                </label>
-                            ))}
-                        </div>
-                        <input type="text" name="conditionOther" value={medicalForm.conditionOther} onChange={handleMedicalFormChange} className={styles.inputField} style={{ marginTop: '12px' }} placeholder="Other condition" />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <label>Clinical Notes & Remarks</label>
-                        <textarea name="notes" value={medicalForm.notes} onChange={handleMedicalFormChange} className={styles.textareaField} placeholder="Add any special instructions or warnings here..." />
-                    </div>
-                    
-                    <div className={styles.formActions}>
-                        <button type="button" className={styles.cancelBtn} onClick={handleCancelMedical} disabled={isSavingMedical}>Cancel</button>
-                        <button type="submit" className={styles.saveBtn} disabled={isSavingMedical}>
-                            {isSavingMedical ? 'Saving...' : 'Save Updates'}
-                        </button>
-                    </div>
-                </form>
-            ) : (
-                <>
-                    <div className={styles.infoGrid}>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel} style={{ color: '#ef4444' }}><FaSyringe style={{marginRight: '6px'}}/> Allergies (Red Flags)</span>
-                            {renderTags(medicalHistory.allergies, true)}
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}><FaNotesMedical style={{marginRight: '6px'}}/> Pre-existing Conditions</span>
-                            {renderTags(medicalHistory.conditions)}
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Current Medications</span>
-                            {renderList(medicalHistory.medications)}
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Blood Type</span>
-                            <p className={styles.infoValue}>{medicalHistory.bloodType || 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Last Exam</span>
-                            <p className={styles.infoValue}>{medicalHistory.lastExam ? formatDateLong(medicalHistory.lastExam) : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Blood Pressure</span>
-                            <p className={styles.infoValue}>{medicalHistory.bloodPressure || 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Bleeding Time</span>
-                            <p className={styles.infoValue}>{medicalHistory.bleedingTime || 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>In Good Health?</span>
-                            <p className={styles.infoValue}>{medicalHistory.inGoodHealth === 'yes' ? 'Yes' : medicalHistory.inGoodHealth === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Under Medical Treatment?</span>
-                            <p className={styles.infoValue}>{medicalHistory.underMedicalTreatment === 'yes' ? 'Yes' : medicalHistory.underMedicalTreatment === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Condition Treated</span>
-                            <p className={styles.infoValue}>{medicalHistory.medicalTreatmentDetails || 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Serious Illness / Surgery?</span>
-                            <p className={styles.infoValue}>{medicalHistory.hadSeriousIllnessOrSurgery === 'yes' ? 'Yes' : medicalHistory.hadSeriousIllnessOrSurgery === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Illness / Surgery Details</span>
-                            <p className={styles.infoValue}>{medicalHistory.seriousIllnessOrSurgeryDetails || 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Ever Been Hospitalized?</span>
-                            <p className={styles.infoValue}>{medicalHistory.hadHospitalization === 'yes' ? 'Yes' : medicalHistory.hadHospitalization === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Hospitalization Details</span>
-                            <p className={styles.infoValue}>{medicalHistory.hospitalizationDetails || 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Taking Medication?</span>
-                            <p className={styles.infoValue}>{medicalHistory.isTakingMedication === 'yes' ? 'Yes' : medicalHistory.isTakingMedication === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Has Allergies?</span>
-                            <p className={styles.infoValue}>{medicalHistory.hasAllergies === 'yes' ? 'Yes' : medicalHistory.hasAllergies === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Uses Tobacco?</span>
-                            <p className={styles.infoValue}>{medicalHistory.usesTobacco === 'yes' ? 'Yes' : medicalHistory.usesTobacco === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Uses Alcohol / Drugs?</span>
-                            <p className={styles.infoValue}>{medicalHistory.usesAlcoholOrDrugs === 'yes' ? 'Yes' : medicalHistory.usesAlcoholOrDrugs === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Pregnant?</span>
-                            <p className={styles.infoValue}>{medicalHistory.isPregnant === 'yes' ? 'Yes' : medicalHistory.isPregnant === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Nursing?</span>
-                            <p className={styles.infoValue}>{medicalHistory.isNursing === 'yes' ? 'Yes' : medicalHistory.isNursing === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Taking Birth Control Pills?</span>
-                            <p className={styles.infoValue}>{medicalHistory.takingBirthControl === 'yes' ? 'Yes' : medicalHistory.takingBirthControl === 'no' ? 'No' : 'Not specified'}</p>
-                        </div>
-                    </div>
-                    {medicalHistory.notes && (
-                        <div className={styles.infoBlock} style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '25px' }}>
-                            <span className={styles.infoLabel}>Clinical Notes & Remarks</span>
-                            <p className={styles.infoValue} style={{ color: '#475569', fontStyle: 'italic' }}>"{medicalHistory.notes}"</p>
-                        </div>
-                    )}
-                    <div className={styles.infoGrid} style={{ marginTop: '28px' }}>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Reason for Consultation</span>
-                            <p className={styles.infoValue}>{patient?.reasonForConsultation || medicalHistory.chiefComplaint || 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Last Dental Visit</span>
-                            <p className={styles.infoValue}>{medicalHistory.lastExam ? formatDateLong(medicalHistory.lastExam) : 'Not specified'}</p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Treatment Reaction</span>
-                            <p className={styles.infoValue}>
-                                {medicalHistory.hadTreatmentReaction === 'yes' ? 'Yes' : medicalHistory.hadTreatmentReaction === 'no' ? 'No' : 'Not specified'}
-                            </p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Confidential Information</span>
-                            <p className={styles.infoValue}>
-                                {medicalHistory.hasConfidentialInfo === 'yes'
-                                    ? 'Patient requested a private discussion.'
-                                    : medicalHistory.hasConfidentialInfo === 'no'
-                                        ? 'No confidential flag recorded.'
-                                        : 'Not specified'}
-                            </p>
-                        </div>
-                        <div className={styles.infoBlock}>
-                            <span className={styles.infoLabel}>Reaction Details</span>
-                            <p className={styles.infoValue}>{medicalHistory.reactionDetails || 'Not specified'}</p>
-                        </div>
-                    </div>
-                </>
-            )}
-        </div>
-    );
-
     const renderMedicalHistoryAligned = () => {
         const allergySelections = medicalHistory.allergies
             ? medicalHistory.allergies.split(',').map((item) => item.trim()).filter(Boolean)
@@ -1575,6 +1290,12 @@ export default function PatientEMR({
                 })}
             </div>
         );
+        const renderHistorySectionTitle = (title, showDivider = true) => (
+            <>
+                {showDivider && <hr className={styles.historyDivider} />}
+                <h4 className={styles.historySectionTitle}>{title}</h4>
+            </>
+        );
 
         return (
             <div className={styles.contentCard}>
@@ -1587,24 +1308,164 @@ export default function PatientEMR({
                     )}
                 </div>
 
-                {isEditingMedical ? renderMedicalHistory() : (
+                {isEditingMedical ? (
+                    <form onSubmit={handleSaveMedical}>
+                        {renderHistorySectionTitle('Dental History', false)}
+                        <div className={styles.infoGrid}>
+                            <div className={styles.formGroup}>
+                                <label>Reason for Consultation</label>
+                                <input type="text" name="reasonForConsultation" value={medicalForm.reasonForConsultation} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Last Dental Visit</label>
+                                <input type="date" name="lastExam" value={medicalForm.lastExam} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                            {renderYesNoEditor('Reaction or Complication After Dental Treatment?', 'hadTreatmentReaction')}
+                            <div className={styles.formGroup}>
+                                <label>If Yes, Please Detail</label>
+                                <textarea name="reactionDetails" value={medicalForm.reactionDetails} onChange={handleMedicalFormChange} className={styles.textareaField} rows={3} />
+                            </div>
+                            {renderYesNoEditor('Private or Confidential Information to Discuss in Private?', 'hasConfidentialInfo')}
+                        </div>
+
+                        {renderHistorySectionTitle('Attending Physician')}
+                        <div className={styles.infoGrid}>
+                            <div className={styles.formGroup}>
+                                <label>Physician Name</label>
+                                <input type="text" name="physicianName" value={medicalForm.physicianName} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Specialty, If Applicable</label>
+                                <select name="physicianSpecialty" value={medicalForm.physicianSpecialty} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                    <option value="">Select Specialty</option>
+                                    {PHYSICIAN_SPECIALTY_OPTIONS.map((option) => (
+                                        <option key={option} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Office Address</label>
+                                <input type="text" name="physicianOfficeAddress" value={medicalForm.physicianOfficeAddress} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Office Number</label>
+                                <input type="text" name="physicianOfficeNumber" value={medicalForm.physicianOfficeNumber} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                        </div>
+
+                        {renderHistorySectionTitle('Medical History')}
+                        <div className={styles.infoGrid}>
+                            {renderYesNoEditor('Are You in Good Health?', 'inGoodHealth')}
+                            <div />
+                            {renderYesNoEditor('Are You Under Medical Treatment Now?', 'underMedicalTreatment')}
+                            <div className={styles.formGroup}>
+                                <label>If So, What Is the Condition Treated?</label>
+                                <input type="text" name="medicalTreatmentDetails" value={medicalForm.medicalTreatmentDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                            {renderYesNoEditor('Have You Ever Had Serious Illness or Surgical Operation?', 'hadSeriousIllnessOrSurgery')}
+                            <div className={styles.formGroup}>
+                                <label>If So, What Is the Illness or Operation?</label>
+                                <input type="text" name="seriousIllnessOrSurgeryDetails" value={medicalForm.seriousIllnessOrSurgeryDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                            {renderYesNoEditor('Have You Ever Been Hospitalized?', 'hadHospitalization')}
+                            <div className={styles.formGroup}>
+                                <label>If So, When and Why?</label>
+                                <input type="text" name="hospitalizationDetails" value={medicalForm.hospitalizationDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                            {renderYesNoEditor('Are You Taking Any Prescription/Non-Prescription Medication?', 'isTakingMedication')}
+                            <div className={styles.formGroup}>
+                                <label>If So, Please Specify</label>
+                                <input type="text" name="medications" value={medicalForm.medications} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="Comma-separated medications" />
+                            </div>
+                            {renderYesNoEditor('Do You Use Tobacco Products?', 'usesTobacco')}
+                            {renderYesNoEditor('Do You Use Alcohol, Cocaine, or Other Dangerous Drugs?', 'usesAlcoholOrDrugs')}
+                            {renderYesNoEditor('Are You Allergic to Any of the Following?', 'hasAllergies')}
+                        </div>
+
+                        <div className={styles.historyChecklistPanel}>
+                            <label className={styles.historyChecklistLabel}>Allergies</label>
+                            <div className={styles.checklistGrid}>
+                                {ALLERGY_OPTIONS.map((option) => (
+                                    <label key={option} className={styles.checklistOption}>
+                                        <input type="checkbox" checked={getCsvValues(medicalForm.allergies).includes(option)} onChange={() => handleMedicalCheckboxToggle('allergies', option)} />
+                                        <span>{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <input type="text" name="allergyOther" value={medicalForm.allergyOther} onChange={handleMedicalFormChange} className={styles.inputField} style={{ marginTop: '12px' }} placeholder="Other allergy" />
+                        </div>
+
+                        <div className={styles.infoGrid}>
+                            <div className={styles.formGroup}>
+                                <label>Bleeding Time</label>
+                                <input type="text" name="bleedingTime" value={medicalForm.bleedingTime} onChange={handleMedicalFormChange} className={styles.inputField} />
+                            </div>
+                            <div />
+                            {renderYesNoEditor('Are You Pregnant?', 'isPregnant')}
+                            {renderYesNoEditor('Are You Nursing?', 'isNursing')}
+                            {renderYesNoEditor('Are You Taking Birth Control Pills?', 'takingBirthControl')}
+                            <div />
+                            <div className={styles.formGroup}>
+                                <label>Blood Type</label>
+                                <select name="bloodType" value={medicalForm.bloodType} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                    <option value="">Select Blood Type</option>
+                                    {BLOOD_TYPE_OPTIONS.map((option) => (
+                                        <option key={option} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Blood Pressure</label>
+                                <input type="text" name="bloodPressure" value={medicalForm.bloodPressure} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="e.g. 120/80" />
+                            </div>
+                        </div>
+
+                        <div className={styles.historyChecklistPanel}>
+                            <label className={styles.historyChecklistLabel}>Medical Conditions</label>
+                            <div className={styles.checklistGrid}>
+                                {MEDICAL_CONDITION_OPTIONS.map((option) => (
+                                    <label key={option} className={styles.checklistOption}>
+                                        <input type="checkbox" checked={getCsvValues(medicalForm.conditions).includes(option)} onChange={() => handleMedicalCheckboxToggle('conditions', option)} />
+                                        <span>{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <input type="text" name="conditionOther" value={medicalForm.conditionOther} onChange={handleMedicalFormChange} className={styles.inputField} style={{ marginTop: '12px' }} placeholder="Other condition" />
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label>Medical Notes</label>
+                            <textarea name="notes" value={medicalForm.notes} onChange={handleMedicalFormChange} className={styles.textareaField} rows={3} />
+                        </div>
+
+                        <div className={styles.formActions}>
+                            <button type="button" className={styles.cancelBtn} onClick={handleCancelMedical} disabled={isSavingMedical}>Cancel</button>
+                            <button type="submit" className={styles.saveBtn} disabled={isSavingMedical}>
+                                {isSavingMedical ? 'Saving...' : 'Save Updates'}
+                            </button>
+                        </div>
+                    </form>
+                ) : (
                     <>
+                        {renderHistorySectionTitle('Dental History', false)}
+                        <div className={styles.infoGrid}>
+                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Reason for Consultation</span><p className={styles.infoValue}>{patient?.reasonForConsultation || medicalHistory.chiefComplaint || 'Not specified'}</p></div>
+                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Last Dental Visit</span><p className={styles.infoValue}>{medicalHistory.lastExam ? formatDateLong(medicalHistory.lastExam) : 'Not specified'}</p></div>
+                            {renderInfoBlock(styles, 'Reaction or Complication After Dental Treatment?', yesNoDisplay(medicalHistory.hadTreatmentReaction))}
+                            {renderInfoBlock(styles, 'If Yes, Please Detail', textDisplay(medicalHistory.reactionDetails))}
+                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Private or Confidential Information to Discuss in Private?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.hasConfidentialInfo)}</p></div>
+                        </div>
+
+                        {renderHistorySectionTitle('Attending Physician')}
                         <div className={styles.infoGrid}>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Physician's Name</span><p className={styles.infoValue}>{textDisplay(patient?.physician?.name)}</p></div>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Specialty, If Applicable</span><p className={styles.infoValue}>{textDisplay(patient?.physician?.specialty)}</p></div>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Office Address</span><p className={styles.infoValue}>{textDisplay(patient?.physician?.officeAddress)}</p></div>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Office Number</span><p className={styles.infoValue}>{textDisplay(patient?.physician?.officeNumber)}</p></div>
-                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Reason for Consultation</span><p className={styles.infoValue}>{patient?.reasonForConsultation || medicalHistory.chiefComplaint || 'Not specified'}</p></div>
-                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Last Dental Visit</span><p className={styles.infoValue}>{medicalHistory.lastExam ? formatDateLong(medicalHistory.lastExam) : 'Not specified'}</p></div>
                         </div>
 
-                        <div className={`${styles.infoGrid} ${styles.pairedInfoGrid}`}>
-                            {renderInfoBlock(styles, 'Reaction or Complication After Dental Treatment?', yesNoDisplay(medicalHistory.hadTreatmentReaction))}
-                            {renderInfoBlock(styles, 'If Yes, Please Detail', textDisplay(medicalHistory.reactionDetails))}
-                        </div>
-
+                        {renderHistorySectionTitle('Medical History')}
                         <div className={styles.infoGrid}>
-                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Private or Confidential Information to Discuss in Private?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.hasConfidentialInfo)}</p></div>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You in Good Health?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.inGoodHealth)}</p></div>
                         </div>
 
@@ -1645,7 +1506,6 @@ export default function PatientEMR({
                         </div>
 
                         <div className={styles.infoGrid}>
-                            <div style={{ gridColumn: '1 / -1' }}><p style={{ fontWeight: '700', fontSize: '13px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>For Women Only</p></div>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Pregnant?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.isPregnant)}</p></div>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Nursing?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.isNursing)}</p></div>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Taking Birth Control Pills?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.takingBirthControl)}</p></div>
