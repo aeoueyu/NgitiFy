@@ -9594,26 +9594,16 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
-    // Phase 5: Secretary has read-only access to EMR — block write
-    if (req.user.role === 'secretary') {
-        return res.status(403).json({ message: 'Access denied. Secretaries have read-only access to treatment logs.' });
+    if (req.user.role !== 'dentist') {
+        return res.status(403).json({ message: 'Access denied. Only dentists can add treatment logs.' });
     }
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
-        if (isBranchScopedStaff(req.user.role)) {
-            const scopedBranch = getScopedBranchForUser(req.user);
-            if (!patientBelongsToBranch(patient, scopedBranch)) {
-                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
-            }
-        }
-
-        if (req.user.role === 'dentist') {
-            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
-            if (!canAccess) {
-                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
-            }
+        const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+        if (!canAccess) {
+            return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
         }
 
         const { date, procedure, tooth, category, branch, notes, amountCharged, amountPaid, nextAppointment } = req.body;
@@ -9643,10 +9633,11 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 
         const normalizedBalance = Number(Math.max(normalizedAmountCharged - normalizedAmountPaid, 0).toFixed(2));
 
-        const dentist = await User.findById(req.user.id).select('name');
-        const dentistName = dentist
-            ? `Dr. ${dentist.name.first} ${dentist.name.last}`
-            : 'Unknown Dentist';
+        const actor = await User.findById(req.user.id).select('name');
+        const actorFullName = actor
+            ? `${actor.name?.first || ''} ${actor.name?.last || ''}`.trim()
+            : '';
+        const treatmentProviderName = `Dr. ${actorFullName || req.user?.email || 'Dentist'}`;
 
         const newLog = {
             date: new Date(date),
@@ -9655,7 +9646,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             category: normalizeTreatmentCategory(category),
             notes: notes || '',
             dentistId: req.user.id,
-            dentistName,
+            dentistName: treatmentProviderName,
             branch: branch,
             amountCharged: normalizedAmountCharged,
             amountPaid: normalizedAmountPaid,
@@ -9665,7 +9656,7 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 
         patient.treatmentLogs.push(newLog);
         patient.assignedDentistId = req.user.id;
-        patient.assignedDentistName = dentistName;
+        patient.assignedDentistName = treatmentProviderName;
         await patient.save();
 
         await AuditLog.create({

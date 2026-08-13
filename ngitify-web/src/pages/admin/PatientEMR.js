@@ -376,7 +376,7 @@ export default function PatientEMR({
     const radiographUploadsEnabled = systemConfig?.featureToggles?.radiographUploads !== false;
     const canEditMedical = !isReadOnly;
     const canManageTreatmentLog = ['administrator', 'owner', 'branch-manager', 'dentist'].includes(effectiveRole);
-    const canAddTreatmentLog = canManageTreatmentLog;
+    const canAddTreatmentLog = effectiveRole === 'dentist';
     const canUploadRadiograph = !isReadOnly && radiographUploadsEnabled;
     const canEnhanceRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;
     const clinicProcedureOptions = Array.from(new Set(
