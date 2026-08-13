@@ -112,48 +112,7 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
     },
   ];
   const storedGroups = Array.isArray(oralHealth?.logGroups) ? oralHealth.logGroups : null;
-  const defaultEducationArticles = [
-    {
-      id: 'gum-bleeding',
-      title: 'Bleeding gums are a signal, not a brushing failure',
-      category: 'Gum Health',
-      summary: 'Gentle cleaning, consistent flossing, and a timely check-up help the clinic spot inflammation early.',
-      action: 'Mention any repeated bleeding at your next visit.',
-      relatedLogIds: ['bleeding-gums'],
-    },
-    {
-      id: 'sensitivity-triggers',
-      title: 'Track sensitivity by trigger',
-      category: 'Tooth Sensitivity',
-      summary: 'Cold, sweet, brushing, and biting sensitivity can point to different clinical causes.',
-      action: 'Log the trigger and which tooth area you notice.',
-      relatedLogIds: ['sensitivity'],
-    },
-    {
-      id: 'brushing-routine',
-      title: 'Make brushing easier to repeat',
-      category: 'Home Care',
-      summary: 'A consistent morning and evening brushing routine helps remove daily plaque before it hardens.',
-      action: 'Use the daily log to notice which brushing time is easiest to miss.',
-      relatedLogIds: ['brushed-am', 'brushed-pm', 'missed-brushing'],
-    },
-    {
-      id: 'interdental-cleaning',
-      title: 'Interdental cleaning supports the spaces brushing misses',
-      category: 'Home Care',
-      summary: 'Floss or another interdental cleaner can help clean tight spaces between teeth where a toothbrush may not reach.',
-      action: 'Ask the clinic which interdental tool fits your teeth and gums best.',
-      relatedLogIds: ['flossed', 'bleeding-gums'],
-    },
-    {
-      id: 'preventive-window',
-      title: 'Preventive windows work better than exact prediction dates',
-      category: 'Preventive Care',
-      summary: 'A visit window combines treatment history, symptoms, and habits without pretending to diagnose at home.',
-      action: 'Book within the recommended window when possible.',
-      relatedLogIds: ['toothache', 'swelling', 'jaw-pain', 'mouth-sore'],
-    },
-  ];
+  const defaultEducationArticles = [];
 
   return {
     windowStart,
@@ -251,9 +210,13 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
     education: {
       title: 'Dental Health Education',
       body: oralHealth?.education?.[0]?.summary
-        || 'Dental care is more helpful as a visit window plus watch signals and habit coaching, not as a precise disease prediction date.',
-      articles: oralHealth?.education || defaultEducationArticles,
-      contextualArticles: oralHealth?.contextualEducation || [],
+        || 'Browse approved Dental Health Education related to everyday oral care, symptoms, preventive care, habits, and dental visits.',
+      articles: Array.isArray(oralHealth?.education)
+        ? oralHealth.education
+        : defaultEducationArticles,
+      contextualArticles: Array.isArray(oralHealth?.contextualEducation)
+        ? oralHealth.contextualEducation
+        : [],
     },
   };
 };
