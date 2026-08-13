@@ -361,7 +361,7 @@ export default function SettingsScreen({ navigation }) {
                 ) : (
                     <View style={styles.card}>
                         {renderToggleRow(
-                            'Personalized Dental Education',
+                            'Personalized Dental Health Education',
                             'Allow NgitiFy to use your treatment history to personalize tips',
                             educationConsent,
                             (v) => handleToggle('educationConsent', v, setEducationConsent),

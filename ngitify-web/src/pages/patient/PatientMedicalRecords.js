@@ -201,7 +201,7 @@ export default function PatientMedicalRecords() {
             title="My EMR"
             subtitle="A read-only patient EMR view of your own odontogram, x-rays, medical history, and recent treatment timeline."
         >
-            <div className={styles.tabs}>
+            <div className={styles.tabs} role="tablist" aria-label="Medical records sections">
                 {[
                     { key: 'odontogram', label: 'Odontogram' },
                     { key: 'radiographs', label: 'X-Rays' },
@@ -210,6 +210,8 @@ export default function PatientMedicalRecords() {
                     <button
                         key={tab.key}
                         type="button"
+                        role="tab"
+                        aria-selected={activeTab === tab.key}
                         className={`${styles.tabButton} ${activeTab === tab.key ? styles.tabButtonActive : ''}`}
                         onClick={() => setActiveTab(tab.key)}
                     >
@@ -382,16 +384,22 @@ export default function PatientMedicalRecords() {
 
             {selectedRadiograph ? (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
+                    <div
+                        className={styles.modalCard}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="radiograph-viewer-title"
+                        aria-describedby="radiograph-viewer-description"
+                    >
                         <div className={styles.modalHeader}>
                             <div>
-                                <h3 className={styles.modalTitle}>{selectedRadiograph.label || 'Radiograph'}</h3>
-                                <p className={styles.modalSubtitle}>
+                                <h3 id="radiograph-viewer-title" className={styles.modalTitle}>{selectedRadiograph.label || 'Radiograph'}</h3>
+                                <p id="radiograph-viewer-description" className={styles.modalSubtitle}>
                                     {selectedRadiograph.date ? `Taken on ${formatDateDisplay(selectedRadiograph.date)}` : 'No radiograph date recorded.'}
                                     {selectedRadiograph.radiographNumber ? ` • Radiograph No. ${selectedRadiograph.radiographNumber}` : ''}
                                 </p>
                             </div>
-                            <button type="button" className={styles.modalClose} onClick={() => setSelectedRadiograph(null)}>×</button>
+                            <button type="button" className={styles.modalClose} onClick={() => setSelectedRadiograph(null)} aria-label="Close radiograph viewer">×</button>
                         </div>
                         {(selectedRadiograph.enhancedUrl || selectedRadiograph.url) ? (
                             <div
@@ -408,7 +416,7 @@ export default function PatientMedicalRecords() {
                             >
                                 <img
                                     src={selectedRadiograph.enhancedUrl || selectedRadiograph.url}
-                                    alt={selectedRadiograph.label || 'Radiograph'}
+                                    alt={`${selectedRadiograph.label || 'Radiograph'}${selectedRadiograph.date ? ` taken on ${formatDateDisplay(selectedRadiograph.date)}` : ''}`}
                                     style={{ width: '100%', maxHeight: '65vh', objectFit: 'contain' }}
                                 />
                             </div>

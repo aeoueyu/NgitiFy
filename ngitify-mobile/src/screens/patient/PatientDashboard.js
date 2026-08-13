@@ -269,6 +269,7 @@ export default function PatientDashboard({ navigation }) {
   const [upcomingAppt, setUpcomingAppt] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [visitPrediction, setVisitPrediction] = useState(null);
+  const [oralHealth, setOralHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [apptError, setApptError] = useState(false);
@@ -280,10 +281,11 @@ export default function PatientDashboard({ navigation }) {
 
     try {
       const authHeader = { Authorization: `Bearer ${userToken}` };
-      const [apptRes, notifRes, predictionRes] = await Promise.allSettled([
+      const [apptRes, notifRes, predictionRes, oralHealthRes] = await Promise.allSettled([
         fetch(`${API_BASE_URL}/api/appointments?patientId=${userId}`, { headers: authHeader }),
         fetch(`${API_BASE_URL}/api/notifications`, { headers: authHeader }),
         fetch(`${API_BASE_URL}/api/my/visit-prediction`, { headers: authHeader }),
+        fetch(`${API_BASE_URL}/api/my/oral-health`, { headers: authHeader }),
       ]);
 
       if (apptRes.status === 'fulfilled' && apptRes.value.ok) {
@@ -306,6 +308,11 @@ export default function PatientDashboard({ navigation }) {
       if (predictionRes.status === 'fulfilled' && predictionRes.value.ok) {
         const data = await predictionRes.value.json();
         setVisitPrediction(data?.prediction || null);
+      }
+
+      if (oralHealthRes.status === 'fulfilled' && oralHealthRes.value.ok) {
+        const data = await oralHealthRes.value.json();
+        setOralHealth(data || null);
       }
     } catch (error) {
       console.warn('Dashboard fetch error:', error);
@@ -346,7 +353,7 @@ export default function PatientDashboard({ navigation }) {
   const firstName = userInfo?.firstName || 'Patient';
   const initials = [userInfo?.firstName?.[0], userInfo?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'P';
   const dentistName = getAppointmentDentistLabel(upcomingAppt);
-  const oralCarePreview = getStaticOralCarePreview(visitPrediction);
+  const oralCarePreview = getStaticOralCarePreview(visitPrediction, oralHealth);
   const predictiveWindow = buildStaticPredictiveWindow(visitPrediction, oralCarePreview);
 
   return (
@@ -477,7 +484,7 @@ export default function PatientDashboard({ navigation }) {
             )}
           </SurfaceCard>
 
-          <SectionLabel title="Preventive Care Window" style={styles.sectionHeading} />
+          <SectionLabel title="Oral Health Management" style={styles.sectionHeading} />
           <SurfaceCard style={styles.predictiveSectionCard}>
             {predictiveWindow ? (
               <TouchableOpacity
@@ -485,12 +492,13 @@ export default function PatientDashboard({ navigation }) {
                 onPress={() =>
                   navigation.navigate('OralCareInsights', {
                     visitPrediction,
+                    oralHealth,
                   })
                 }
               >
                 <View style={styles.predictiveSectionTop}>
                   <View style={{ flex: 1, paddingRight: 10 }}>
-                    <Text style={styles.predictiveSectionEyebrow}>Oral Care Preview</Text>
+                    <Text style={styles.predictiveSectionEyebrow}>Recommended Visit Window</Text>
                     <Text style={styles.predictiveSectionTitle}>{predictiveWindow.rangeText}</Text>
                   </View>
                   <View style={styles.predictiveSectionBadge}>
@@ -511,7 +519,7 @@ export default function PatientDashboard({ navigation }) {
                       key={day.key}
                       activeOpacity={0.84}
                       style={[styles.predictiveMiniCard, day.inWindow && styles.predictiveMiniCardActive]}
-                      onPress={() => navigation.navigate('OralCareInsights', { visitPrediction })}
+                      onPress={() => navigation.navigate('OralCareInsights', { visitPrediction, oralHealth })}
                     >
                       <Text style={[styles.predictiveMiniWeek, day.inWindow && styles.predictiveMiniWeekActive]}>
                         {day.weekday}
@@ -567,9 +575,9 @@ export default function PatientDashboard({ navigation }) {
             />
             <QuickAction
               icon="sparkles-outline"
-              label="Oral Care"
-              sublabel="Preview care window"
-              onPress={() => navigation.navigate('OralCareInsights', { visitPrediction })}
+              label="Oral Health Management"
+              sublabel="Today, trends, and visit window"
+              onPress={() => navigation.navigate('OralCareInsights', { visitPrediction, oralHealth })}
               tone="secondary"
             />
             <QuickAction

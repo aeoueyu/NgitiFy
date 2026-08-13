@@ -1,9 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
+  ActivityIndicator,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -17,6 +20,7 @@ import {
   SurfaceCard,
 } from '../../components/mobile/MobileUI';
 import { mobileTheme } from '../../theme/mobileTheme';
+import { AuthContext } from '../../context/AuthContext';
 import { getStaticOralCarePreview } from '../../utils/oralCarePreview';
 
 const tonePalette = {
@@ -94,16 +98,59 @@ function SheetHeader({ title, subtitle, onClose }) {
   );
 }
 
+const toDateKey = (value = new Date()) => {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function OralCareInsightsScreen({ navigation, route }) {
+  const { userToken, API_BASE_URL } = useContext(AuthContext);
+  const [oralHealth, setOralHealth] = useState(route?.params?.oralHealth || null);
+  const [loading, setLoading] = useState(!route?.params?.oralHealth);
+  const [saving, setSaving] = useState(false);
+
   const preview = useMemo(
-    () => getStaticOralCarePreview(route?.params?.visitPrediction || null),
-    [route?.params?.visitPrediction],
+    () => getStaticOralCarePreview(route?.params?.visitPrediction || null, oralHealth),
+    [oralHealth, route?.params?.visitPrediction],
   );
 
   const [factors, setFactors] = useState(preview.factors);
   const [logGroups, setLogGroups] = useState(preview.logGroups);
+  const [logNotes, setLogNotes] = useState('');
   const [factorsVisible, setFactorsVisible] = useState(false);
   const [logVisible, setLogVisible] = useState(false);
+
+  const fetchOralHealth = useCallback(async () => {
+    if (!userToken) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/my/oral-health`, {
+        headers: { Authorization: `Bearer ${userToken}` },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || 'Could not load oral health data.');
+      setOralHealth(payload);
+    } catch (error) {
+      Alert.alert('Oral Health Management', error.message || 'Unable to connect to the oral health service.');
+    } finally {
+      setLoading(false);
+    }
+  }, [API_BASE_URL, userToken]);
+
+  useEffect(() => {
+    if (!route?.params?.oralHealth) {
+      fetchOralHealth();
+    }
+  }, [fetchOralHealth, route?.params?.oralHealth]);
+
+  useEffect(() => {
+    setFactors(preview.factors);
+    setLogGroups(preview.logGroups);
+    setLogNotes(oralHealth?.logs?.[0]?.logDateKey === toDateKey() ? oralHealth.logs[0]?.notes || '' : '');
+  }, [oralHealth, preview]);
 
   const activeFactors = factors.filter((item) => item.active && item.id !== 'none');
   const selectedLogItems = logGroups.flatMap((group) => group.items.filter((item) => item.selected));
@@ -146,11 +193,60 @@ export default function OralCareInsightsScreen({ navigation, route }) {
     }));
   };
 
+  const saveFactors = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/my/oral-health/factors`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ factors: factors.filter((item) => item.active).map((item) => item.id) }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || 'Failed to save oral health factors.');
+      setOralHealth(payload);
+      setFactorsVisible(false);
+      Alert.alert('Oral Health Management', payload.message || 'Oral health factors saved.');
+    } catch (error) {
+      Alert.alert('Oral Health Management', error.message || 'Failed to save oral health factors.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveDailyLog = async () => {
+    const symptoms = logGroups.find((group) => group.id === 'symptoms')?.items.filter((item) => item.selected).map((item) => item.id) || [];
+    const dailyCare = logGroups.find((group) => group.id === 'dailyCare')?.items.filter((item) => item.selected).map((item) => item.id) || [];
+
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/my/oral-health/logs`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ logDate: toDateKey(), symptoms, dailyCare, notes: logNotes }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || 'Failed to save daily oral health log.');
+      setOralHealth(payload);
+      setLogVisible(false);
+      Alert.alert('Oral Health Management', payload.message || 'Daily oral health log saved.');
+    } catch (error) {
+      Alert.alert('Oral Health Management', error.message || 'Failed to save daily oral health log.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Screen>
       <Header
-        title="Oral Care Window"
-        subtitle="Front-end preview"
+        title="Oral Health Management"
+        subtitle="Today, trends, recommended visit windows, and Dental Health Education"
         onBack={() => {
           if (navigation.canGoBack()) {
             navigation.goBack();
@@ -166,6 +262,13 @@ export default function OralCareInsightsScreen({ navigation, route }) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {loading ? (
+          <SurfaceCard style={styles.loadingCard}>
+            <ActivityIndicator color={mobileTheme.colors.primaryDark} />
+            <Text style={styles.loadingText}>Loading saved oral health data...</Text>
+          </SurfaceCard>
+        ) : null}
+
         <SurfaceCard style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <Text style={styles.heroEyebrow}>{preview.hero.eyebrow}</Text>
@@ -215,7 +318,7 @@ export default function OralCareInsightsScreen({ navigation, route }) {
         ))}
 
         <SectionLabel
-          eyebrow="Oral Health Factors"
+          eyebrow="Oral Health Management"
           title="Current Factors"
           actionLabel="Open"
           onActionPress={() => setFactorsVisible(true)}
@@ -229,7 +332,7 @@ export default function OralCareInsightsScreen({ navigation, route }) {
             </Text>
           </View>
           <Text style={styles.summaryBody}>
-            This replaces the cycle-factor radio list with dental-specific toggles that can be combined.
+            Saved factors help personalize watch signals without changing your clinical record.
           </Text>
           <View style={styles.factorChipRow}>
             {(activeFactors.length > 0 ? activeFactors : factors.filter((item) => item.id === 'none')).map((item) => (
@@ -253,7 +356,7 @@ export default function OralCareInsightsScreen({ navigation, route }) {
             <Text style={styles.summaryCount}>{selectedLogItems.length} selected</Text>
           </View>
           <Text style={styles.summaryBody}>
-            The final version can save daily symptoms and habits. For now, this preview lets you test the interaction pattern.
+            Today's one-tap symptoms and care habits are saved to your patient account.
           </Text>
           <View style={styles.selectedLogWrap}>
             {selectedLogItems.slice(0, 6).map((item) => (
@@ -281,7 +384,7 @@ export default function OralCareInsightsScreen({ navigation, route }) {
           ))}
         </SurfaceCard>
 
-        <SectionLabel eyebrow="Education" title={preview.education.title} style={styles.sectionSpacing} />
+        <SectionLabel eyebrow="Dental Health Education" title={preview.education.title} style={styles.sectionSpacing} />
         <SurfaceCard style={styles.educationCard}>
           <MaterialCommunityIcons
             name="tooth-outline"
@@ -297,8 +400,8 @@ export default function OralCareInsightsScreen({ navigation, route }) {
         <View style={styles.modalOverlay}>
           <View style={styles.sheetCard}>
             <SheetHeader
-              title="Oral Health Factors"
-              subtitle="Choose all that apply. These should be toggles or chips, not single-choice radio buttons."
+              title="Oral Health Management Factors"
+              subtitle="Choose all that apply. These factors help personalize your oral-care screen."
               onClose={() => setFactorsVisible(false)}
             />
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -307,8 +410,8 @@ export default function OralCareInsightsScreen({ navigation, route }) {
               ))}
             </ScrollView>
             <PrimaryButton
-              label="Done"
-              onPress={() => setFactorsVisible(false)}
+              label={saving ? 'Saving...' : 'Save Factors'}
+              onPress={saveFactors}
               style={{ marginTop: 16 }}
             />
           </View>
@@ -320,7 +423,7 @@ export default function OralCareInsightsScreen({ navigation, route }) {
           <View style={styles.sheetCard}>
             <SheetHeader
               title="Quick Log"
-              subtitle="Preview how patients could log symptoms and oral care with one-tap chips."
+              subtitle="Save today's symptoms and home-care habits."
               onClose={() => setLogVisible(false)}
             />
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -338,10 +441,20 @@ export default function OralCareInsightsScreen({ navigation, route }) {
                   </View>
                 </View>
               ))}
+              <Text style={styles.notesLabel}>Notes</Text>
+              <TextInput
+                value={logNotes}
+                onChangeText={setLogNotes}
+                multiline
+                maxLength={500}
+                placeholder="Optional note for yourself before your next visit."
+                placeholderTextColor={mobileTheme.colors.textSoft}
+                style={styles.notesInput}
+              />
             </ScrollView>
             <PrimaryButton
-              label="Done"
-              onPress={() => setLogVisible(false)}
+              label={saving ? 'Saving...' : 'Save Daily Log'}
+              onPress={saveDailyLog}
               style={{ marginTop: 16 }}
             />
           </View>
@@ -358,6 +471,16 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingBottom: 152,
+  },
+  loadingCard: {
+    marginTop: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: mobileTheme.colors.textMuted,
   },
   heroCard: {
     marginTop: 8,
@@ -703,5 +826,24 @@ const styles = StyleSheet.create({
   },
   logChipTextSelected: {
     color: mobileTheme.colors.primaryDark,
+  },
+  notesLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: mobileTheme.colors.text,
+    marginBottom: 8,
+  },
+  notesInput: {
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.border,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: mobileTheme.colors.text,
+    backgroundColor: '#ffffff',
+    textAlignVertical: 'top',
+    fontSize: 13,
+    lineHeight: 19,
   },
 });

@@ -541,6 +541,8 @@ export default function PatientBooking() {
                                                         type="button"
                                                         onClick={() => !item.disabled && setSelectedTime(item.slot)}
                                                         disabled={item.disabled}
+                                                        aria-pressed={Boolean(item.selected)}
+                                                        aria-label={`${formatTime24(item.slot)}, ${item.taken ? 'already taken' : item.past ? 'past for today' : item.selected ? 'selected available time slot' : 'available time slot'}`}
                                                         style={{
                                                             borderRadius: '18px',
                                                             border: item.selected ? '1px solid #01538b' : '1px solid rgba(1, 83, 139, 0.12)',
@@ -599,6 +601,8 @@ export default function PatientBooking() {
                                                     key={procedure}
                                                     type="button"
                                                     onClick={() => setSelectedProcedure(procedure)}
+                                                    aria-pressed={selected}
+                                                    aria-label={`${procedure}, ${selected ? 'selected procedure' : 'not selected'}`}
                                                     style={{
                                                         display: 'flex',
                                                         alignItems: 'center',
@@ -664,6 +668,8 @@ export default function PatientBooking() {
                                     <button
                                         type="button"
                                         onClick={() => setPrivacyAccepted((current) => !current)}
+                                        aria-pressed={privacyAccepted}
+                                        aria-label={`${privacyAccepted ? 'Accepted' : 'Not accepted'} privacy policy consent for booking use`}
                                         style={{
                                             width: '100%',
                                             display: 'flex',
@@ -785,13 +791,19 @@ export default function PatientBooking() {
 
             {privacyModalOpen ? (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
+                    <div
+                        className={styles.modalCard}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="privacy-summary-title"
+                        aria-describedby="privacy-summary-version"
+                    >
                         <div className={styles.modalHeader}>
                             <div>
-                                <h3 className={styles.modalTitle}>NgitiFy Privacy Policy Summary</h3>
-                                <p className={styles.modalSubtitle}>Version v1.0 • Updated May 3, 2026</p>
+                                <h3 id="privacy-summary-title" className={styles.modalTitle}>NgitiFy Privacy Policy Summary</h3>
+                                <p id="privacy-summary-version" className={styles.modalSubtitle}>Version v1.0 • Updated May 3, 2026</p>
                             </div>
-                            <button type="button" className={styles.modalClose} onClick={() => setPrivacyModalOpen(false)}>×</button>
+                            <button type="button" className={styles.modalClose} onClick={() => setPrivacyModalOpen(false)} aria-label="Close privacy policy summary dialog">×</button>
                         </div>
                         <div className={styles.timeline}>
                             <p className={styles.infoValue}>
@@ -810,13 +822,19 @@ export default function PatientBooking() {
 
             {successModal ? (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
+                    <div
+                        className={styles.modalCard}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="booking-submitted-title"
+                        aria-describedby="booking-submitted-summary"
+                    >
                         <div className={styles.modalHeader}>
                             <div>
-                                <h3 className={styles.modalTitle} style={{ color: '#15803d' }}>Booking Submitted</h3>
-                                <p className={styles.modalSubtitle}>Your request is now waiting for clinic confirmation.</p>
+                                <h3 id="booking-submitted-title" className={styles.modalTitle} style={{ color: '#15803d' }}>Booking Submitted</h3>
+                                <p id="booking-submitted-summary" className={styles.modalSubtitle}>Your request is now waiting for clinic confirmation.</p>
                             </div>
-                            <button type="button" className={styles.modalClose} onClick={() => setSuccessModal(false)}>×</button>
+                            <button type="button" className={styles.modalClose} onClick={() => setSuccessModal(false)} aria-label="Close booking submitted dialog">×</button>
                         </div>
                         <div className={styles.timeline}>
                             <div className={styles.noticeBox} style={{ background: '#f0fdf4', color: '#166534', borderColor: 'rgba(34, 197, 94, 0.14)' }}>
@@ -842,3 +860,4 @@ export default function PatientBooking() {
         </PatientPageFrame>
     );
 }
+

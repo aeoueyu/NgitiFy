@@ -16,6 +16,16 @@
     margin-bottom: 30px;
 }
 
+.container :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus {
+    outline: none;
+}
+
+.container :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
+    outline: 3px solid #2dccf6;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 4px rgba(45, 204, 246, 0.24);
+}
+
 .header { display: flex; flex-direction: column; }
 .title { color: #01538b; font-size: 26px; font-weight: 800; margin: 0 0 5px 0; }
 .subtitle { color: #888; margin: 0; font-size: 13px; font-weight: 500; }
@@ -47,6 +57,9 @@
 }
 
 .tabItem {
+    width: 100%;
+    border: none;
+    background: transparent;
     padding: 14px 20px;
     margin-bottom: 5px;
     border-radius: 10px;

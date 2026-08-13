@@ -89,6 +89,7 @@ export default function PatientDashboard() {
     const [notifications, setNotifications] = useState([]);
     const [activityLogs, setActivityLogs] = useState([]);
     const [visitPrediction, setVisitPrediction] = useState(null);
+    const [oralHealth, setOralHealth] = useState(null);
     const [loading, setLoading] = useState(true);
     const [appointmentError, setAppointmentError] = useState('');
 
@@ -102,11 +103,12 @@ export default function PatientDashboard() {
         if (!patientId) return;
 
         try {
-            const [appointmentResponse, notificationResponse, predictionResponse, activityResponse] = await Promise.allSettled([
+            const [appointmentResponse, notificationResponse, predictionResponse, activityResponse, oralHealthResponse] = await Promise.allSettled([
                 authFetch(`/appointments?patientId=${patientId}`),
                 authFetch('/notifications'),
                 authFetch('/my/visit-prediction'),
                 authFetch('/activity-logs/patient'),
+                authFetch('/my/oral-health'),
             ]);
 
             if (appointmentResponse.status === 'fulfilled' && appointmentResponse.value.ok) {
@@ -147,6 +149,11 @@ export default function PatientDashboard() {
             } else {
                 setActivityLogs([]);
             }
+
+            if (oralHealthResponse.status === 'fulfilled' && oralHealthResponse.value.ok) {
+                const payload = await oralHealthResponse.value.json();
+                setOralHealth(payload || null);
+            }
         } catch {
             setAppointments([]);
             setNotifications([]);
@@ -180,7 +187,7 @@ export default function PatientDashboard() {
     const assignedBranch = user?.assignedBranch || 'Assigned branch pending';
     const patientName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Patient';
     const unreadCount = notifications.filter((item) => !item.isRead).length;
-    const oralCarePreview = useMemo(() => getStaticOralCarePreview(visitPrediction), [visitPrediction]);
+    const oralCarePreview = useMemo(() => getStaticOralCarePreview(visitPrediction, oralHealth), [visitPrediction, oralHealth]);
 
     const activeSchedules = useMemo(() => appointments
         .filter((item) => ACTIVE_SCHEDULE_STATUSES.includes(String(item.status || '').toLowerCase())), [appointments]);
@@ -294,10 +301,10 @@ export default function PatientDashboard() {
             action: () => navigate('/patient/ai-companion'),
         },
         {
-            title: 'Oral Care',
+            title: 'Oral Health Management',
             description: 'Review your preventive care window and track signs you should not ignore.',
             value: oralCarePreview.hero.statusLabel,
-            actionLabel: 'Open Care',
+            actionLabel: 'Open Management',
             icon: <FaTooth className={adminStyles['widget-icon']} />,
             action: () => navigate('/patient/oral-care'),
         },
@@ -638,7 +645,7 @@ export default function PatientDashboard() {
                     <section className={adminStyles['widget-card']}>
                         <div className={adminStyles['widget-header']}>
                             <FaTooth className={adminStyles['widget-icon']} />
-                            <h2 className={adminStyles['widget-title']}>Care Window</h2>
+                            <h2 className={adminStyles['widget-title']}>Recommended Visit Window</h2>
                         </div>
                         <div className={adminStyles['summary-slab']}>
                             <article className={adminStyles['slab-item']}>

@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "node scripts/install_python_deps.js",
     "install:python-ai": "node scripts/install_python_ai_deps.js",
-    "test": "echo \"Error: no test specified\\\" && exit 1",
+    "test": "node --test",
     "start": "node server.js"
   },
   "keywords": [],

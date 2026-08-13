@@ -4,6 +4,7 @@ import { toDateKey } from '../../utils/patientPortal';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
 const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const FULL_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const buildCalendarCells = (currentMonth, selectedDate, marks, disableSundays) => {
     const year = currentMonth.getFullYear();
@@ -69,33 +70,39 @@ export default function PatientMonthCalendar({
         [currentMonth, marks, selectedDate, disableSundays]
     );
 
+    const monthLabel = currentMonth.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+
     return (
-        <div className={styles.calendarShell}>
+        <div className={styles.calendarShell} aria-label={`${monthLabel} calendar`}>
             <div className={styles.calendarHeader}>
                 <h3 className={styles.calendarMonth}>
-                    {currentMonth.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })}
+                    {monthLabel}
                 </h3>
                 <div className={styles.calendarNav}>
                     <button
                         type="button"
                         className={styles.calendarNavButton}
                         onClick={() => onChangeMonth(-1)}
+                        aria-label={`Show previous month before ${monthLabel}`}
                     >
-                        <FaChevronLeft />
+                        <FaChevronLeft aria-hidden="true" focusable="false" />
                     </button>
                     <button
                         type="button"
                         className={styles.calendarNavButton}
                         onClick={() => onChangeMonth(1)}
+                        aria-label={`Show next month after ${monthLabel}`}
                     >
-                        <FaChevronRight />
+                        <FaChevronRight aria-hidden="true" focusable="false" />
                     </button>
                 </div>
             </div>
 
-            <div className={styles.calendarGrid}>
-                {DAY_NAMES.map((dayName) => (
-                    <div key={dayName} className={styles.dayName}>{dayName}</div>
+            <div className={styles.calendarGrid} role="grid" aria-label={monthLabel}>
+                {DAY_NAMES.map((dayName, index) => (
+                    <div key={dayName} className={styles.dayName} role="columnheader" aria-label={FULL_DAY_NAMES[index]}>
+                        {dayName}
+                    </div>
                 ))}
                 {cells.map((cell) => {
                     const classNames = [
@@ -107,6 +114,20 @@ export default function PatientMonthCalendar({
                         cell.highlight ? styles.dateCellHighlight : '',
                     ].filter(Boolean).join(' ');
 
+                    const readableDate = cell.date.toLocaleDateString('en-PH', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                    });
+                    const stateLabels = [
+                        cell.selected ? 'selected' : '',
+                        cell.highlight ? 'in recommended window' : '',
+                        cell.accent ? 'important' : '',
+                        cell.disabled ? 'unavailable' : '',
+                        cell.metaLabel || '',
+                    ].filter(Boolean);
+
                     return (
                         <button
                             key={cell.key}
@@ -114,15 +135,20 @@ export default function PatientMonthCalendar({
                             className={classNames}
                             onClick={() => onSelectDate(cell.key, cell)}
                             disabled={cell.disabled}
+                            role="gridcell"
+                            aria-selected={Boolean(cell.selected)}
+                            aria-label={`${readableDate}${stateLabels.length ? `, ${stateLabels.join(', ')}` : ''}`}
                         >
                             <span className={styles.dateNumber}>{cell.label}</span>
                             {cell.dotColor ? (
                                 <span
                                     className={styles.dateMarker}
                                     style={{ backgroundColor: cell.selected ? '#ffffff' : cell.dotColor }}
+                                    aria-hidden="true"
                                 />
                             ) : null}
                             {cell.metaLabel ? <small className={styles.dateMeta}>{cell.metaLabel}</small> : null}
+                            {stateLabels.length ? <span className={styles.srOnly}>{stateLabels.join(', ')}</span> : null}
                         </button>
                     );
                 })}
@@ -130,4 +156,3 @@ export default function PatientMonthCalendar({
         </div>
     );
 }
-

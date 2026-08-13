@@ -65,6 +65,11 @@ const SystemConfig = require('./models/SystemConfig');
 const RolePermission = require('./models/RolePermission');
 const backupRoutes = require('./routes/backup');
 const integrityRoutes = require('./routes/integrity');
+const {
+    buildOralHealthPayloadFromPatient,
+    normalizeDailyOralHealthLogInput,
+    normalizeOralHealthFactors,
+} = require('./utils/oralHealth');
 // ADD this line with the other model imports (after the AuditLog import)
 const MaterialUsageLog = require('./models/MaterialUsageLog');
 const RADIOGRAPH_ENHANCER_SCRIPT = path.join(__dirname, 'python', 'radiograph_enhance.py');
@@ -10413,6 +10418,109 @@ app.get('/api/my/radiographs', verifyToken, async (req, res) => {
 });
 
 // ─── PATIENT MOBILE: Patient settings (notification prefs + privacy consent) ───
+
+app.get('/api/my/oral-health', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const patient = await User.findById(req.user.id).select(
+            'oralHealthFactors oralHealthLogs educationConsent notifHealthTips'
+        );
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        res.json({
+            ...buildOralHealthPayloadFromPatient(patient),
+            educationConsent: patient.educationConsent ?? false,
+            notifHealthTips: patient.notifHealthTips ?? true,
+        });
+    } catch (error) {
+        console.error('Error fetching oral health management data:', error);
+        res.status(500).json({ message: 'Server error fetching oral health data.' });
+    }
+});
+
+app.patch('/api/my/oral-health/factors', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const patient = await User.findById(req.user.id).select('oralHealthFactors oralHealthLogs');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        patient.oralHealthFactors = normalizeOralHealthFactors(req.body.factors || [], patient.oralHealthFactors || []);
+        await patient.save();
+
+        await AuditLog.create({
+            action: 'UPDATE_ORAL_HEALTH_FACTORS',
+            user: req.user.email,
+            role: req.user.role,
+            details: 'Patient updated oral health factors.',
+            actorId: req.user.id,
+        });
+
+        res.json({
+            message: 'Oral health factors saved.',
+            ...buildOralHealthPayloadFromPatient(patient),
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        console.error('Error saving oral health factors:', error);
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error saving oral health factors.' : error.message });
+    }
+});
+
+app.post('/api/my/oral-health/logs', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const normalizedLog = normalizeDailyOralHealthLogInput(req.body || {});
+        const patient = await User.findById(req.user.id).select('oralHealthFactors oralHealthLogs');
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const existingLog = (patient.oralHealthLogs || []).find(
+            (log) => log.logDateKey === normalizedLog.logDateKey
+        );
+
+        if (existingLog) {
+            existingLog.symptoms = normalizedLog.symptoms;
+            existingLog.dailyCare = normalizedLog.dailyCare;
+            existingLog.notes = normalizedLog.notes;
+            existingLog.logDate = normalizedLog.logDate;
+        } else {
+            patient.oralHealthLogs.push(normalizedLog);
+        }
+
+        if (patient.oralHealthLogs.length > 90) {
+            patient.oralHealthLogs = [...patient.oralHealthLogs]
+                .sort((left, right) => String(right.logDateKey || '').localeCompare(String(left.logDateKey || '')))
+                .slice(0, 90);
+        }
+
+        await patient.save();
+
+        await AuditLog.create({
+            action: 'SAVE_ORAL_HEALTH_LOG',
+            user: req.user.email,
+            role: req.user.role,
+            details: `Patient saved oral health log for ${normalizedLog.logDateKey}.`,
+            actorId: req.user.id,
+        });
+
+        res.status(existingLog ? 200 : 201).json({
+            message: existingLog ? 'Daily oral health log updated.' : 'Daily oral health log saved.',
+            ...buildOralHealthPayloadFromPatient(patient),
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        console.error('Error saving daily oral health log:', error);
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error saving daily oral health log.' : error.message });
+    }
+});
 
 // GET /api/my/settings — return patient's current preferences
 app.get('/api/my/settings', verifyToken, async (req, res) => {

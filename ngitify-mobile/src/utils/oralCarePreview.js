@@ -23,7 +23,7 @@ const resolveDateFromPrediction = (dateKey, isoValue, fallback) => {
   return fallback;
 };
 
-export const getStaticOralCarePreview = (prediction = null) => {
+export const getStaticOralCarePreview = (prediction = null, oralHealth = null) => {
   const today = new Date();
   const fallbackStart = addDays(today, 10);
   const fallbackEnd = addDays(today, 24);
@@ -55,14 +55,44 @@ export const getStaticOralCarePreview = (prediction = null) => {
     ? 'Book your next preventive visit this week and mention any gum bleeding or sensitivity.'
     : 'Plan a cleaning or check-up within this window and keep tracking daily care habits.';
 
+  const latestLog = oralHealth?.logs?.[0] || null;
+  const summary = oralHealth?.summary || {};
+  const selectedSymptoms = latestLog?.symptoms || [];
+  const selectedCare = latestLog?.dailyCare || [];
+  const defaultLogGroups = [
+    {
+      id: 'symptoms',
+      title: 'Symptoms',
+      items: [
+        { id: 'bleeding-gums', label: 'Bleeding Gums', selected: true },
+        { id: 'sensitivity', label: 'Sensitivity', selected: true },
+        { id: 'jaw-pain', label: 'Jaw Pain', selected: false },
+        { id: 'mouth-sores', label: 'Mouth Sores', selected: false },
+        { id: 'bad-breath', label: 'Bad Breath', selected: true },
+      ],
+    },
+    {
+      id: 'dailyCare',
+      title: 'Daily Care',
+      items: [
+        { id: 'brushing', label: 'Brushing', selected: true },
+        { id: 'flossing', label: 'Flossing', selected: false },
+        { id: 'mouthwash', label: 'Mouthwash', selected: true },
+        { id: 'sugar-intake', label: 'Sugar Intake', selected: true },
+        { id: 'smoking-vaping', label: 'Smoking / Vaping', selected: false },
+      ],
+    },
+  ];
+  const storedGroups = Array.isArray(oralHealth?.logGroups) ? oralHealth.logGroups : null;
+
   return {
     windowStart,
     windowEnd,
     recommendedDate,
-    isPreviewOnly: !prediction,
+    isPreviewOnly: !prediction && !oralHealth,
     hero: {
       eyebrow: prediction ? 'Live Window + Preview UI' : 'Preview Mode',
-      title: 'Preventive Care Window',
+      title: 'Recommended Visit Window',
       headline: prediction
         ? `Your next recommended clinic window is ${windowLabel}.`
         : `Your next cleaning window opens ${windowLabel}.`,
@@ -71,12 +101,14 @@ export const getStaticOralCarePreview = (prediction = null) => {
       whyThisShowing,
       suggestedNextAction,
       recommendedDateLabel: formatShortDate(recommendedDate),
-      previewHint: 'This screen is a front-end preview using static watch signals, factors, and logs.',
+      previewHint: oralHealth
+        ? 'Your quick logs and factors are saved to your patient account.'
+        : 'This screen is a front-end preview using static watch signals, factors, and logs.',
     },
     summaryChips: [
       prediction?.lastProcedure || 'Last cleaning 5 months ago',
-      'Sensitivity watch active',
-      'Flossing 3 of 7 days',
+      summary.sensitivityDays ? `Sensitivity ${summary.sensitivityDays} of 7 days` : 'Sensitivity watch active',
+      Number.isFinite(summary.flossingDays) ? `Flossing ${summary.flossingDays} of 7 days` : 'Flossing 3 of 7 days',
     ],
     watchSignals: [
       {
@@ -85,7 +117,9 @@ export const getStaticOralCarePreview = (prediction = null) => {
         iconColor: '#01538b',
         tone: 'info',
         title: 'Gum Health Watch',
-        summary: 'Bleeding gums were logged several times this week.',
+        summary: summary.bleedingDays
+          ? `Bleeding gums were logged ${summary.bleedingDays} time${summary.bleedingDays === 1 ? '' : 's'} recently.`
+          : 'Bleeding gums were logged several times this week.',
         action: 'Use gentle brushing and floss carefully, then mention it during your next cleaning.',
       },
       {
@@ -94,7 +128,9 @@ export const getStaticOralCarePreview = (prediction = null) => {
         iconColor: '#149fc5',
         tone: 'secondary',
         title: 'Sensitivity Trend',
-        summary: 'Cold sensitivity appears to be rising compared with your recent logs.',
+        summary: summary.sensitivityDays
+          ? `Sensitivity appears in ${summary.sensitivityDays} recent log${summary.sensitivityDays === 1 ? '' : 's'}.`
+          : 'Cold sensitivity appears to be rising compared with your recent logs.',
         action: 'Track hot and cold triggers so the clinic can review the pattern with you.',
       },
       {
@@ -103,11 +139,13 @@ export const getStaticOralCarePreview = (prediction = null) => {
         iconColor: '#01538b',
         tone: 'primary',
         title: 'At-Home Care Focus',
-        summary: 'Floss consistency looks low for this week.',
+        summary: Number.isFinite(summary.flossingDays)
+          ? `Flossing is recorded ${summary.flossingDays} of the last 7 logged days.`
+          : 'Floss consistency looks low for this week.',
         action: 'Aim for five flossing days before the end of the week.',
       },
     ],
-    factors: [
+    factors: oralHealth?.factors || [
       { id: 'braces', label: 'Braces / Aligners', active: true },
       { id: 'smoking', label: 'Smoking / Vaping', active: false },
       { id: 'dry-mouth', label: 'Dry Mouth', active: true },
@@ -117,30 +155,15 @@ export const getStaticOralCarePreview = (prediction = null) => {
       { id: 'recent-extraction', label: 'Recent Extraction', active: false },
       { id: 'none', label: 'None of These', active: false },
     ],
-    logGroups: [
-      {
-        id: 'symptoms',
-        title: 'Symptoms',
-        items: [
-          { id: 'bleeding-gums', label: 'Bleeding Gums', selected: true },
-          { id: 'sensitivity', label: 'Sensitivity', selected: true },
-          { id: 'jaw-pain', label: 'Jaw Pain', selected: false },
-          { id: 'mouth-sores', label: 'Mouth Sores', selected: false },
-          { id: 'bad-breath', label: 'Bad Breath', selected: true },
-        ],
-      },
-      {
-        id: 'daily-care',
-        title: 'Daily Care',
-        items: [
-          { id: 'brushing', label: 'Brushing', selected: true },
-          { id: 'flossing', label: 'Flossing', selected: false },
-          { id: 'mouthwash', label: 'Mouthwash', selected: true },
-          { id: 'sugar-intake', label: 'Sugar Intake', selected: true },
-          { id: 'smoking-vaping', label: 'Smoking / Vaping', selected: false },
-        ],
-      },
-    ],
+    logGroups: (storedGroups || defaultLogGroups).map((group) => ({
+      ...group,
+      items: (group.items || []).map((item) => ({
+        ...item,
+        selected: group.id === 'symptoms'
+          ? selectedSymptoms.includes(item.id)
+          : selectedCare.includes(item.id),
+      })),
+    })),
     carePlan: {
       title: 'Suggested Next Action',
       body: suggestedNextAction,
@@ -151,8 +174,10 @@ export const getStaticOralCarePreview = (prediction = null) => {
       ],
     },
     education: {
-      title: 'Why this works better for dental care',
-      body: 'Dental care is more helpful as a visit window plus watch signals and habit coaching, not as a precise disease prediction date.',
+      title: 'Dental Health Education',
+      body: oralHealth?.education?.[0]?.summary
+        || 'Dental care is more helpful as a visit window plus watch signals and habit coaching, not as a precise disease prediction date.',
+      articles: oralHealth?.education || [],
     },
   };
 };

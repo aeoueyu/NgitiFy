@@ -807,10 +807,16 @@ export default function PatientEditProfile() {
 
             {showConfirmModal ? (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
-                        <h3 className={styles.modalTitle}>Update Profile?</h3>
-                        <p className={styles.modalMessage}>Are you sure you want to update your profile details?</p>
-                        <button className={styles.modalButton} onClick={handleConfirmSave} disabled={saving}>
+                    <div
+                        className={styles.modalCard}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="update-profile-title"
+                        aria-describedby="update-profile-message"
+                    >
+                        <h3 id="update-profile-title" className={styles.modalTitle}>Update Profile?</h3>
+                        <p id="update-profile-message" className={styles.modalMessage}>Are you sure you want to update your profile details?</p>
+                        <button type="button" className={styles.modalButton} onClick={handleConfirmSave} disabled={saving}>
                             {saving ? 'SAVING...' : 'YES'}
                         </button>
                         <button

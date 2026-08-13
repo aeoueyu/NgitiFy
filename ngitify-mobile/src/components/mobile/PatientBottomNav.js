@@ -5,7 +5,7 @@ import { mobileTheme } from '../../theme/mobileTheme';
 
 const NAV_ITEMS = [
   { key: 'home', label: 'Home', icon: 'home', route: 'PatientDashboardMain' },
-  { key: 'window', label: 'Window', icon: 'sparkles-outline', route: 'OralCareInsights' },
+  { key: 'window', label: 'Health', icon: 'sparkles-outline', route: 'OralCareInsights' },
   { key: 'visits', label: 'Visits', icon: 'calendar-outline', route: 'MyAppointments' },
   { key: 'records', label: 'Records', icon: 'document-text-outline', route: 'MedicalRecords' },
   { key: 'profile', label: 'Profile', icon: 'person-outline', route: 'MyProfile' },

@@ -1,15 +1,16 @@
 import React from 'react';
+import adminStyles from '../../styles/admin/AdminDashboard.module.css';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
 export function PatientPageFrame({ title, subtitle, actions, children }) {
     return (
-        <main className={styles.page}>
-            <header className={styles.header}>
-                <div className={styles.headerCopy}>
-                    <h1 className={styles.title}>{title}</h1>
-                    {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
+        <main className={`${adminStyles['main-content']} ${styles.page}`}>
+            <header className={`${adminStyles.header} ${styles.header}`}>
+                <div className={`${adminStyles['header-left']} ${styles.headerCopy}`}>
+                    <h1 className={`${adminStyles.title} ${styles.title}`}>{title}</h1>
+                    {subtitle ? <p className={`${adminStyles.subtitle} ${styles.subtitle}`}>{subtitle}</p> : null}
                 </div>
-                {actions ? <div className={styles.headerActions}>{actions}</div> : null}
+                {actions ? <div className={`${adminStyles['header-right']} ${styles.headerActions}`}>{actions}</div> : null}
             </header>
             {children}
         </main>
@@ -40,7 +41,7 @@ export function PatientStatusBadge({ status, label }) {
     }[normalizedStatus] || styles.statusDefault;
 
     return (
-        <span className={`${styles.statusBadge} ${statusClassName}`}>
+        <span className={`${styles.statusBadge} ${statusClassName}`} aria-label={`Status: ${label || status || 'Status'}`}>
             {label || (normalizedStatus === 'in-clinic' ? 'In Clinic' : status || 'Status')}
         </span>
     );
@@ -48,7 +49,7 @@ export function PatientStatusBadge({ status, label }) {
 
 export function PatientEmptyState({ icon, title, message, action }) {
     return (
-        <div className={styles.emptyState}>
+        <div className={styles.emptyState} role="status" aria-live="polite">
             {icon ? <div className={styles.emptyIcon}>{icon}</div> : null}
             <h3 className={styles.emptyTitle}>{title}</h3>
             <p className={styles.emptyText}>{message}</p>

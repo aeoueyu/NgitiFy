@@ -17,8 +17,8 @@ import styles from '../../styles/patient/PatientPortal.module.css';
 
 const SECTIONS = [
     { key: 'overview', label: 'Overview' },
-    { key: 'education', label: 'Education' },
-    { key: 'oral-health', label: 'Oral Health' },
+    { key: 'education', label: 'Dental Health Education' },
+    { key: 'oral-health', label: 'Oral Health Management' },
     { key: 'visit-window', label: 'Visit Window' },
 ];
 
@@ -125,7 +125,7 @@ export default function PatientAiCompanion() {
             <div className={styles.heroGrid}>
                 <section className={`${styles.heroCard} ${styles.heroCardDark}`}>
                     <span className={styles.heroTag}>AI Care Companion</span>
-                    <h2 className={styles.heroTitle}>Education and care reminders</h2>
+                    <h2 className={styles.heroTitle}>Dental Health Education and Oral Health Management</h2>
                     <p className={styles.heroText}>
                         Review approved dental education, oral health guidance, and your next care window based on clinic-recorded treatment history.
                     </p>
@@ -157,8 +157,8 @@ export default function PatientAiCompanion() {
 
             <div className={styles.toolGrid}>
                 {[
-                    { title: 'Dental Education', text: 'Read patient-friendly articles and oral health reminders.', icon: <FaBook />, action: () => updateSection('education') },
-                    { title: 'Oral Health', text: 'Review daily care reminders and watch signals.', icon: <FaTooth />, action: () => updateSection('oral-health') },
+                    { title: 'Dental Health Education', text: 'Read patient-friendly articles and oral health reminders.', icon: <FaBook />, action: () => updateSection('education') },
+                    { title: 'Oral Health Management', text: 'Review daily care reminders and watch signals.', icon: <FaTooth />, action: () => updateSection('oral-health') },
                     { title: 'Visit Window', text: 'Review your preventive window and the recent treatment data behind it.', icon: <FaCalendarAlt />, action: () => updateSection('visit-window') },
                 ].map((item) => (
                     <button
@@ -180,8 +180,8 @@ export default function PatientAiCompanion() {
     const renderEducation = () => (
         <section className={styles.tabPanel}>
             <PatientSectionHeader
-                eyebrow="Learning"
-                title="Dental education library"
+                eyebrow="Dental Health Education"
+                title="Dental health education library"
                 description="Approved patient-friendly guidance carried over from the mobile companion."
             />
             <div className={styles.toolGrid}>
@@ -207,8 +207,8 @@ export default function PatientAiCompanion() {
     const renderOralHealth = () => (
         <section className={styles.tabPanel}>
             <PatientSectionHeader
-                eyebrow="Daily Care"
-                title="Oral health reminders"
+                eyebrow="Oral Health Management"
+                title="Daily care reminders"
                 description="Routine tips that complement your preventive care window."
             />
             <div className={styles.toolGrid}>
@@ -321,13 +321,16 @@ export default function PatientAiCompanion() {
     return (
         <PatientPageFrame
             title="AI Care Companion"
-            subtitle="The patient-side hub for education, oral health guidance, and predictive visit windows."
+            subtitle="The patient-side hub for Dental Health Education, Oral Health Management, and predictive visit windows."
         >
-            <div className={styles.tabs}>
+            <div className={styles.tabs} role="tablist" aria-label="AI Care Companion sections">
                 {SECTIONS.map((section) => (
                     <button
                         key={section.key}
                         type="button"
+                        role="tab"
+                        aria-selected={activeSection === section.key}
+                        aria-controls={`patient-ai-section-${section.key}`}
                         className={`${styles.tabButton} ${activeSection === section.key ? styles.tabButtonActive : ''}`}
                         onClick={() => updateSection(section.key)}
                     >
@@ -336,20 +339,28 @@ export default function PatientAiCompanion() {
                 ))}
             </div>
 
-            {activeSection === 'overview' ? renderOverview() : null}
-            {activeSection === 'education' ? renderEducation() : null}
-            {activeSection === 'oral-health' ? renderOralHealth() : null}
-            {activeSection === 'visit-window' ? renderVisitWindow() : null}
+            <div id={`patient-ai-section-${activeSection}`} role="tabpanel">
+                {activeSection === 'overview' ? renderOverview() : null}
+                {activeSection === 'education' ? renderEducation() : null}
+                {activeSection === 'oral-health' ? renderOralHealth() : null}
+                {activeSection === 'visit-window' ? renderVisitWindow() : null}
+            </div>
 
             {selectedArticle ? (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalCard}>
+                    <div
+                        className={styles.modalCard}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="patient-education-article-title"
+                        aria-describedby="patient-education-article-summary"
+                    >
                         <div className={styles.modalHeader}>
                             <div>
-                                <h3 className={styles.modalTitle}>{selectedArticle.title}</h3>
-                                <p className={styles.modalSubtitle}>{selectedArticle.summary}</p>
+                                <h3 id="patient-education-article-title" className={styles.modalTitle}>{selectedArticle.title}</h3>
+                                <p id="patient-education-article-summary" className={styles.modalSubtitle}>{selectedArticle.summary}</p>
                             </div>
-                            <button type="button" className={styles.modalClose} onClick={() => setSelectedArticle(null)}>×</button>
+                            <button type="button" className={styles.modalClose} onClick={() => setSelectedArticle(null)} aria-label="Close education article dialog">×</button>
                         </div>
                         <p className={styles.infoValue}>{selectedArticle.body}</p>
                     </div>

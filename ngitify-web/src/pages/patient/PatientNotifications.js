@@ -18,6 +18,7 @@ function NotificationRow({ item, onClick }) {
             type="button"
             className={styles.listCard}
             onClick={() => onClick(item)}
+            aria-label={`${item.isRead ? 'Read' : 'Unread'} ${meta.label}: ${item.title || meta.label}. ${item.message}`}
             style={{
                 textAlign: 'left',
                 width: '100%',
@@ -27,7 +28,7 @@ function NotificationRow({ item, onClick }) {
         >
             <div className={styles.listHeader}>
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                    <span className={styles.toolIcon} style={{ color: meta.color }}>
+                    <span className={styles.toolIcon} style={{ color: meta.color }} aria-hidden="true">
                         <PatientIcon name={meta.icon} color={meta.color} />
                     </span>
                     <div>
@@ -35,7 +36,7 @@ function NotificationRow({ item, onClick }) {
                         <p className={styles.listMeta}>{formatRelativeTimestamp(item.createdAt)} • {meta.label}</p>
                     </div>
                 </div>
-                {!item.isRead ? <span className={styles.statusBadge} style={{ background: '#dceeff', color: '#1565c0' }}>Unread</span> : null}
+                {!item.isRead ? <span className={styles.statusBadge} style={{ background: '#dceeff', color: '#0b4f93' }}>Unread</span> : null}
             </div>
             <p className={styles.toolText}>{item.message}</p>
         </button>
@@ -172,4 +173,3 @@ export default function PatientNotifications() {
         </PatientPageFrame>
     );
 }
-

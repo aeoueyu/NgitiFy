@@ -7,6 +7,8 @@ import {
     PatientRegistrationStepper,
 } from '../components/patient/PatientRegistrationFlow';
 import styles from '../styles/website/WebsitePages.module.css';
+import authStyles from '../styles/auth/NewPasswordPage.module.css';
+import logo from '../assets/images/logo-dentime.svg';
 import { privacyPolicySections, privacyPolicyUpdatedAt, privacyPolicyVersion } from '../data/consentDocument';
 import { publicFetch } from '../utils/api';
 import { regions, provinces, cities, barangays } from '../utils/addressData';
@@ -909,6 +911,25 @@ export default function PreRegisterPage() {
     const availableProvinces = homeAddress.region ? provinces[homeAddress.region] || [] : [];
     const availableCities = homeAddress.province ? cities[homeAddress.province] || [] : [];
     const availableBarangays = homeAddress.city ? barangays[homeAddress.city] || [] : [];
+
+    if (state === 'invalid') {
+        return (
+            <div className={authStyles['main-container']}>
+                <div className={authStyles.container}>
+                    <img src={logo} alt="Dentime" className={authStyles.logo} />
+                    <div className={authStyles['page-title']}>
+                        <p className={authStyles['newpass-title']}>Registration Unavailable</p>
+                    </div>
+                    <div className={authStyles['page-header']}>
+                        <p>{message || 'Invalid or expired registration link.'}</p>
+                    </div>
+                    <div className={authStyles['back-container']}>
+                        <span onClick={() => navigate('/login')}>Back to Login</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const renderYesNoField = (label, value, onChange, errorKey, fieldKey) => (
         <div className={styles.fieldGroup} data-field-key={fieldKey}>

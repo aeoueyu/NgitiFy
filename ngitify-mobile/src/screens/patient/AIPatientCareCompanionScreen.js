@@ -200,7 +200,7 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
                         onPress={() => setActiveSection('education')}
                     >
                         <Ionicons name="book-outline" size={28} color="white" style={styles.featureIcon} />
-                        <Text style={styles.featureCardTitle}>Dental Education</Text>
+                        <Text style={styles.featureCardTitle}>Dental Health Education</Text>
                         <Text style={styles.featureCardSub}>Learn about oral care</Text>
                     </TouchableOpacity>
 
@@ -209,7 +209,7 @@ export default function AiPatientCareCompanionScreen({ navigation, route }) {
                         onPress={() => setActiveSection('oralHealth')}
                     >
                         <MaterialCommunityIcons name="tooth-outline" size={28} color="white" style={styles.featureIcon} />
-                        <Text style={styles.featureCardTitle}>Oral Health</Text>
+                        <Text style={styles.featureCardTitle}>Oral Health Management</Text>
                         <Text style={styles.featureCardSub}>Daily care reminders & tips</Text>
                     </TouchableOpacity>
                 </View>

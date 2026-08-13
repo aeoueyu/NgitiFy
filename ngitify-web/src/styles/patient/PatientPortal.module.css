@@ -4,32 +4,56 @@
     --patient-bg: #f4f7fa;
     --patient-surface: #ffffff;
     --patient-surface-muted: #f8fafc;
-    --patient-border: #e2e8f0;
+    --patient-border: rgba(1, 83, 139, 0.05);
     --patient-border-strong: #e2e8f0;
-    --patient-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    --patient-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    --patient-shadow-hover: 0 8px 25px rgba(1, 83, 139, 0.08);
     --patient-text: #17364a;
     --patient-text-muted: #64748b;
-    --patient-text-subtle: #7b8794;
+    --patient-text-subtle: #888888;
     --patient-primary: #01538b;
     --patient-primary-dark: #013f6b;
     --patient-accent: #2dccf6;
+    --patient-radius-card: 16px;
+    --patient-radius-control: 8px;
+    --patient-focus-ring: 0 0 0 4px rgba(45, 204, 246, 0.24);
+}
+
+.page :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus {
+    outline: none;
+}
+
+.page :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
+    outline: 3px solid var(--patient-accent);
+    outline-offset: 3px;
+    box-shadow: var(--patient-focus-ring);
+}
+
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .page {
-    min-height: 100vh;
-    padding: 30px;
-    background: var(--patient-bg);
-    font-family: 'Lexend Deca', sans-serif;
+    width: 100%;
+    box-sizing: border-box;
     color: var(--patient-text);
-    overflow-y: auto;
 }
 
 .header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 20px;
-    margin-bottom: 24px;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-shrink: 0;
 }
 
 .headerCopy {
@@ -39,12 +63,13 @@
 .headerActions {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 15px;
+    align-items: center;
     justify-content: flex-end;
 }
 
 .title {
-    margin: 0 0 8px;
+    margin: 0 0 5px;
     color: var(--patient-primary);
     font-size: 24px;
     font-weight: 800;
@@ -53,9 +78,10 @@
 
 .subtitle {
     margin: 0;
-    color: var(--patient-text-subtle);
+    color: #888888;
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.5;
+    font-weight: 500;
 }
 
 .buttonPrimary,
@@ -63,7 +89,7 @@
 .buttonGhost,
 .calendarNavButton {
     border: none;
-    border-radius: 8px;
+    border-radius: var(--patient-radius-control);
     cursor: pointer;
     font-family: 'Lexend Deca', sans-serif;
     font-weight: 700;
@@ -74,7 +100,7 @@
     background: var(--patient-primary);
     color: #ffffff;
     padding: 8px 16px;
-    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.12);
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.2);
 }
 
 .buttonPrimary:hover,
@@ -92,7 +118,7 @@
     background: var(--patient-surface);
     color: var(--patient-primary);
     padding: 8px 16px;
-    border: 1.5px solid #cbd5e1;
+    border: 1px solid var(--patient-border-strong);
     box-shadow: none;
 }
 
@@ -109,6 +135,16 @@
 
 .buttonGhost:hover {
     background: rgba(1, 83, 139, 0.1);
+}
+
+.buttonPrimary:disabled,
+.buttonSecondary:disabled,
+.buttonGhost:disabled,
+.calendarNavButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.62;
+    transform: none;
+    box-shadow: none;
 }
 
 .heroGrid,
@@ -138,7 +174,7 @@
 .modalCard {
     background: var(--patient-surface);
     border: 1px solid var(--patient-border);
-    border-radius: 8px;
+    border-radius: var(--patient-radius-card);
     box-shadow: var(--patient-shadow);
 }
 
@@ -151,9 +187,9 @@
 }
 
 .heroCardDark {
-    background: var(--patient-primary);
-    color: #ffffff;
-    border-color: transparent;
+    background: var(--patient-surface);
+    color: var(--patient-text);
+    border-color: var(--patient-border);
 }
 
 .heroCardDark::before {
@@ -167,7 +203,8 @@
     margin-bottom: 14px;
     padding: 8px 12px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(1, 83, 139, 0.06);
+    color: var(--patient-primary);
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -187,6 +224,7 @@
 
 .heroTitle {
     margin: 0 0 12px;
+    color: var(--patient-primary);
     font-size: 26px;
     line-height: 1.2;
     font-weight: 800;
@@ -197,8 +235,7 @@
     max-width: 58ch;
     font-size: 14px;
     line-height: 1.7;
-    color: inherit;
-    opacity: 0.92;
+    color: var(--patient-text-muted);
 }
 
 .heroActions {
@@ -224,7 +261,7 @@
 .dashboardWidget {
     background: var(--patient-surface);
     border: 1px solid var(--patient-border);
-    border-radius: 8px;
+    border-radius: var(--patient-radius-card);
     box-shadow: var(--patient-shadow);
 }
 
@@ -330,7 +367,7 @@
     grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
     gap: 16px;
     padding: 18px;
-    border-radius: 8px;
+    border-radius: var(--patient-radius-control);
     background: var(--patient-surface-muted);
     border: 1px solid var(--patient-border-strong);
 }
@@ -394,7 +431,7 @@
 
 .dashboardSummaryPanel {
     padding: 18px;
-    border-radius: 8px;
+    border-radius: var(--patient-radius-control);
     background: var(--patient-surface-muted);
     border: 1px solid var(--patient-border-strong);
 }
@@ -422,7 +459,7 @@
     flex-direction: column;
     gap: 6px;
     padding: 14px 16px;
-    border-radius: 8px;
+    border-radius: var(--patient-radius-control);
     background: var(--patient-surface-muted);
     border: 1px solid var(--patient-border-strong);
 }
@@ -522,10 +559,18 @@
     gap: 14px;
 }
 
+button.toolCard {
+    text-align: left;
+}
+
+button.toolCard:focus-visible {
+    border-color: rgba(1, 83, 139, 0.32);
+}
+
 .toolIcon {
     width: 44px;
     height: 44px;
-    border-radius: 8px;
+    border-radius: 10px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -599,10 +644,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 28px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-size: 11px;
+    min-height: auto;
+    padding: 3px 8px;
+    border-radius: 50px;
+    font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -610,22 +655,22 @@
 
 .statusPending {
     background: #fff4de;
-    color: #a16207;
+    color: #7a4a00;
 }
 
 .statusConfirmed {
     background: #dceeff;
-    color: #1565c0;
+    color: #0b4f93;
 }
 
 .statusInClinic {
     background: #f3e8ff;
-    color: #7e22ce;
+    color: #6b21a8;
 }
 
 .statusCompleted {
     background: #dcfce7;
-    color: #15803d;
+    color: #166534;
 }
 
 .statusCancelled {
@@ -643,8 +688,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 34px 24px;
-    border-radius: 8px;
+    min-height: 150px;
+    padding: 20px;
+    border-radius: var(--patient-radius-control);
     border: none;
     background: transparent;
     text-align: center;
@@ -658,8 +704,8 @@
 
 .emptyTitle {
     margin: 0 0 8px;
-    font-size: 18px;
-    font-weight: 800;
+    font-size: 15px;
+    font-weight: 700;
     color: #64748b;
 }
 
@@ -684,10 +730,10 @@
 
 .tabButton {
     padding: 8px 16px;
-    border: 1.5px solid #cbd5e1;
+    border: 1px solid var(--patient-border-strong);
     background: var(--patient-surface);
     color: #527086;
-    border-radius: 8px;
+    border-radius: var(--patient-radius-control);
     font-family: 'Lexend Deca', sans-serif;
     font-size: 12px;
     font-weight: 700;
@@ -867,7 +913,7 @@
     justify-content: center;
     gap: 5px;
     padding: 6px;
-    border-radius: 8px;
+    border-radius: var(--patient-radius-control);
     border: 1px solid var(--patient-border-strong);
     background: var(--patient-surface);
     cursor: pointer;
@@ -899,14 +945,26 @@
     box-shadow: 0 4px 10px rgba(1, 83, 139, 0.14);
 }
 
+.dateCellSelected .dateMeta::before {
+    content: 'Selected, ';
+}
+
 .dateCellAccent {
     background: #fff4de;
     border-color: #fcd34d;
 }
 
+.dateCellAccent .dateMeta::before {
+    content: 'Important, ';
+}
+
 .dateCellHighlight {
     background: #eef9fd;
     border-color: var(--patient-accent);
+}
+
+.dateCellHighlight .dateMeta::before {
+    content: 'In window, ';
 }
 
 .dateNumber {
@@ -933,8 +991,7 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: rgba(15, 23, 42, 0.38);
-    backdrop-filter: blur(3px);
+    background: rgba(15, 23, 42, 0.45);
     z-index: 1200;
 }
 
@@ -972,8 +1029,8 @@
 .modalClose {
     width: 40px;
     height: 40px;
-    border-radius: 8px;
-    border: 1.5px solid #cbd5e1;
+    border-radius: var(--patient-radius-control);
+    border: 1px solid var(--patient-border-strong);
     background: var(--patient-surface);
     color: var(--patient-primary);
     font-size: 16px;
@@ -1013,8 +1070,8 @@
 .select {
     width: 100%;
     padding: 13px 14px;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 8px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
     background: var(--patient-surface);
     color: var(--patient-text);
     font-family: 'Lexend Deca', sans-serif;
@@ -1052,7 +1109,7 @@
 
 .noticeBox {
     padding: 14px 16px;
-    border-radius: 12px;
+    border-radius: var(--patient-radius-control);
     background: var(--patient-surface-muted);
     color: var(--patient-text-muted);
     font-size: 13px;
@@ -1070,8 +1127,24 @@
     font-size: 14px;
 }
 
+.loaderBox::before {
+    content: '';
+    width: 34px;
+    height: 34px;
+    border: 3px solid rgba(1, 83, 139, 0.12);
+    border-top-color: var(--patient-primary);
+    border-radius: 50%;
+    animation: patientSpin 0.8s linear infinite;
+}
+
 .loaderText {
     margin-top: 12px;
+}
+
+@keyframes patientSpin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .patientOdontogramChart {
@@ -1232,7 +1305,18 @@
     line-height: 1;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1024px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .headerActions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
     .dashboardGrid,
     .dashboardStatGrid,
     .dashboardAppointmentPanel,

@@ -174,8 +174,8 @@ export default function PatientSettings() {
             <h3 className={styles.mainSectionTitle}>Account Security</h3>
             <p className={styles.sectionDescription}>Verify your current password before setting a new password for your patient account.</p>
 
-            {passwordError && <div className={styles.apiErrorMessage}>{passwordError}</div>}
-            {passwordSuccess && <div className={styles.successMessage}>{passwordSuccess}</div>}
+            {passwordError && <div className={styles.apiErrorMessage} role="alert">{passwordError}</div>}
+            {passwordSuccess && <div className={styles.successMessage} role="status" aria-live="polite">{passwordSuccess}</div>}
 
             <form onSubmit={changePassword} noValidate>
                 <div className={styles.row}>
@@ -199,7 +199,7 @@ export default function PatientSettings() {
                                     {verifyingPassword ? 'VERIFYING...' : 'VERIFY'}
                                 </button>
                             ) : (
-                                <div className={styles.verifiedBadge}>Verified</div>
+                                <div className={styles.verifiedBadge} role="status">Verified</div>
                             )}
                         </div>
                     </div>
@@ -259,7 +259,7 @@ export default function PatientSettings() {
             <h3 className={styles.mainSectionTitle}>Notification Settings</h3>
             <p className={styles.sectionDescription}>Choose which patient alerts should be active for your account.</p>
             {settingsMessage && (
-                <div className={settingsMessage.includes('success') ? styles.successMessage : styles.apiErrorMessage}>
+                <div className={settingsMessage.includes('success') ? styles.successMessage : styles.apiErrorMessage} role={settingsMessage.includes('success') ? 'status' : 'alert'} aria-live="polite">
                     {settingsMessage}
                 </div>
             )}
@@ -267,7 +267,7 @@ export default function PatientSettings() {
             {[
                 ['notifAppointments', 'Appointment Alerts', 'Receive confirmations, declines, reminders, and appointment updates.'],
                 ['notifVisitWindow', 'Visit Window Reminders', 'Receive reminders when your next preventive visit is due.'],
-                ['notifHealthTips', 'Weekly Dental Health Tips', 'Receive educational reminders about oral health and preventive care.'],
+                ['notifHealthTips', 'Weekly Dental Health Tips', 'Receive Dental Health Education reminders about oral health and preventive care.'],
             ].map(([key, label, description]) => (
                 <div key={key} className={styles.toggleRow}>
                     <div className={styles.toggleLabel}>
@@ -280,6 +280,7 @@ export default function PatientSettings() {
                             checked={settings[key]}
                             onChange={(event) => saveSetting(key, event.target.checked)}
                             disabled={savingKey === key}
+                            aria-label={label}
                         />
                         <span className={styles.slider}></span>
                     </label>
@@ -293,14 +294,14 @@ export default function PatientSettings() {
             <h3 className={styles.mainSectionTitle}>Privacy and Data Preferences</h3>
             <p className={styles.sectionDescription}>Manage consent settings related to patient education and personalized guidance.</p>
             {settingsMessage && (
-                <div className={settingsMessage.includes('success') ? styles.successMessage : styles.apiErrorMessage}>
+                <div className={settingsMessage.includes('success') ? styles.successMessage : styles.apiErrorMessage} role={settingsMessage.includes('success') ? 'status' : 'alert'} aria-live="polite">
                     {settingsMessage}
                 </div>
             )}
 
             <div className={styles.toggleRow}>
                 <div className={styles.toggleLabel}>
-                    <span className={styles.toggleTitle}>Personalized Dental Education</span>
+                    <span className={styles.toggleTitle}>Personalized Dental Health Education</span>
                     <span className={styles.toggleDesc}>Allow Dentime to use your treatment history to personalize educational guidance.</span>
                 </div>
                 <label className={styles.switch}>
@@ -309,6 +310,7 @@ export default function PatientSettings() {
                         checked={settings.educationConsent}
                         onChange={(event) => saveSetting('educationConsent', event.target.checked)}
                         disabled={savingKey === 'educationConsent'}
+                        aria-label="Personalized Dental Health Education"
                     />
                     <span className={styles.slider}></span>
                 </label>
@@ -358,35 +360,30 @@ export default function PatientSettings() {
             ) : (
                 <div className={styles.settingsLayout}>
                     <div className={styles.sidebar}>
-                        <ul className={styles.tabList}>
-                            <li
-                                className={`${styles.tabItem} ${activeTab === 'security' ? styles.activeTab : ''}`}
-                                onClick={() => setActiveTab('security')}
-                            >
-                                Account Security
-                            </li>
-                            <li
-                                className={`${styles.tabItem} ${activeTab === 'notifications' ? styles.activeTab : ''}`}
-                                onClick={() => setActiveTab('notifications')}
-                            >
-                                Notifications
-                            </li>
-                            <li
-                                className={`${styles.tabItem} ${activeTab === 'privacy' ? styles.activeTab : ''}`}
-                                onClick={() => setActiveTab('privacy')}
-                            >
-                                Privacy and Data
-                            </li>
-                            <li
-                                className={`${styles.tabItem} ${activeTab === 'account' ? styles.activeTab : ''}`}
-                                onClick={() => setActiveTab('account')}
-                            >
-                                Account Actions
-                            </li>
+                        <ul className={styles.tabList} role="tablist" aria-label="Patient settings sections">
+                            {[
+                                ['security', 'Account Security'],
+                                ['notifications', 'Notifications'],
+                                ['privacy', 'Privacy and Data'],
+                                ['account', 'Account Actions'],
+                            ].map(([key, label]) => (
+                                <li key={key}>
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={activeTab === key}
+                                        aria-controls={`patient-settings-${key}`}
+                                        className={`${styles.tabItem} ${activeTab === key ? styles.activeTab : ''}`}
+                                        onClick={() => setActiveTab(key)}
+                                    >
+                                        {label}
+                                    </button>
+                                </li>
+                            ))}
                         </ul>
                     </div>
 
-                    <div className={styles.contentArea}>
+                    <div className={styles.contentArea} id={`patient-settings-${activeTab}`} role="tabpanel">
                         {activeTab === 'security' && renderSecuritySection()}
                         {activeTab === 'notifications' && renderNotificationsSection()}
                         {activeTab === 'privacy' && renderPrivacySection()}

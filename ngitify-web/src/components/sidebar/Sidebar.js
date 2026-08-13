@@ -311,7 +311,7 @@ export default function Sidebar() {
                             {navItem('/patient/book', FaCalendarPlus, 'Book Appointment')}
                             {sectionLabel('Care')}
                             {navItem('/patient/records', FaNotesMedical, 'Medical Records')}
-                            {navItem('/patient/oral-care', FaTooth, 'Oral Care')}
+                            {navItem('/patient/oral-care', FaTooth, 'Oral Health Management')}
                             {sectionLabel('Updates')}
                             {navItem('/patient/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/patient/activity-logs', FaHistory, 'Activity Logs')}

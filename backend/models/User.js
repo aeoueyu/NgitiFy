@@ -83,6 +83,21 @@ const odontogramLogSchema = new mongoose.Schema({
     updatedByRole: { type: String, default: '' },
 }, { timestamps: true });
 
+const oralHealthFactorSchema = new mongoose.Schema({
+    id: { type: String, required: true },
+    label: { type: String, required: true },
+    active: { type: Boolean, default: false },
+    recordedAt: { type: Date, default: null },
+}, { _id: false });
+
+const oralHealthLogSchema = new mongoose.Schema({
+    logDate: { type: Date, required: true },
+    logDateKey: { type: String, required: true },
+    symptoms: [{ type: String }],
+    dailyCare: [{ type: String }],
+    notes: { type: String, default: '' },
+}, { timestamps: true });
+
 const userSchema = new mongoose.Schema({
     // 1. NESTED NAME OBJECT
     name: {
@@ -230,6 +245,9 @@ const userSchema = new mongoose.Schema({
 
     // ✅ PHASE 2: Radiograph images embedded in patient document
     radiographs: [radiographSchema],
+
+    oralHealthFactors: [oralHealthFactorSchema],
+    oralHealthLogs: [oralHealthLogSchema],
 
     // 9. SECURITY & VERIFICATION
     isVerified: { type: Boolean, default: false },
