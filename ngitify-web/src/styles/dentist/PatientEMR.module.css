@@ -231,6 +231,9 @@
 .checklistOption input {
     accent-color: #01538b;
 }
+.requiredMark {
+    color: #dc2626;
+}
 
 /* Edit Form Styles */
 .formGroup { display: flex; flex-direction: column; margin-bottom: 20px; }

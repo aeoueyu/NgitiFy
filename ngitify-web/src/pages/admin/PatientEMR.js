@@ -1135,12 +1135,14 @@ export default function PatientEMR({
         });
     };
 
-    const renderYesNoEditor = (label, name) => (
+    const renderRequiredMark = () => <span className={styles.requiredMark}>*</span>;
+
+    const renderYesNoEditor = (label, name, required = false) => (
         <div className={styles.formGroup}>
-            <label>{label}</label>
+            <label>{label} {required && renderRequiredMark()}</label>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', minHeight: '44px' }}>
                 <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <input type="radio" name={name} value="yes" checked={medicalForm[name] === 'yes'} onChange={handleMedicalFormChange} />
+                    <input type="radio" name={name} value="yes" checked={medicalForm[name] === 'yes'} onChange={handleMedicalFormChange} required={required} />
                     <span>Yes</span>
                 </label>
                 <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -1320,12 +1322,12 @@ export default function PatientEMR({
                                 <label>Last Dental Visit</label>
                                 <input type="date" name="lastExam" value={medicalForm.lastExam} onChange={handleMedicalFormChange} className={styles.inputField} />
                             </div>
-                            {renderYesNoEditor('Reaction or Complication After Dental Treatment?', 'hadTreatmentReaction')}
+                            {renderYesNoEditor('Reaction or Complication After Dental Treatment?', 'hadTreatmentReaction', true)}
                             <div className={styles.formGroup}>
-                                <label>If Yes, Please Detail</label>
+                                <label>If Yes, Please Detail {medicalForm.hadTreatmentReaction === 'yes' && renderRequiredMark()}</label>
                                 <textarea name="reactionDetails" value={medicalForm.reactionDetails} onChange={handleMedicalFormChange} className={styles.textareaField} rows={3} />
                             </div>
-                            {renderYesNoEditor('Private or Confidential Information to Discuss in Private?', 'hasConfidentialInfo')}
+                            {renderYesNoEditor('Private or Confidential Information to Discuss in Private?', 'hasConfidentialInfo', true)}
                         </div>
 
                         {renderHistorySectionTitle('Attending Physician')}
@@ -1355,35 +1357,49 @@ export default function PatientEMR({
 
                         {renderHistorySectionTitle('Medical History')}
                         <div className={styles.infoGrid}>
-                            {renderYesNoEditor('Are You in Good Health?', 'inGoodHealth')}
-                            <div />
-                            {renderYesNoEditor('Are You Under Medical Treatment Now?', 'underMedicalTreatment')}
+                            {renderYesNoEditor('Are You in Good Health?', 'inGoodHealth', true)}
+                        </div>
+
+                        <div className={`${styles.infoGrid} ${styles.pairedInfoGrid}`}>
+                            {renderYesNoEditor('Are You Under Medical Treatment Now?', 'underMedicalTreatment', true)}
                             <div className={styles.formGroup}>
-                                <label>If So, What Is the Condition Treated?</label>
+                                <label>If So, What Is the Condition Treated? {medicalForm.underMedicalTreatment === 'yes' && renderRequiredMark()}</label>
                                 <input type="text" name="medicalTreatmentDetails" value={medicalForm.medicalTreatmentDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
                             </div>
-                            {renderYesNoEditor('Have You Ever Had Serious Illness or Surgical Operation?', 'hadSeriousIllnessOrSurgery')}
+                        </div>
+
+                        <div className={`${styles.infoGrid} ${styles.pairedInfoGrid}`}>
+                            {renderYesNoEditor('Have You Ever Had Serious Illness or Surgical Operation?', 'hadSeriousIllnessOrSurgery', true)}
                             <div className={styles.formGroup}>
-                                <label>If So, What Is the Illness or Operation?</label>
+                                <label>If So, What Is the Illness or Operation? {medicalForm.hadSeriousIllnessOrSurgery === 'yes' && renderRequiredMark()}</label>
                                 <input type="text" name="seriousIllnessOrSurgeryDetails" value={medicalForm.seriousIllnessOrSurgeryDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
                             </div>
-                            {renderYesNoEditor('Have You Ever Been Hospitalized?', 'hadHospitalization')}
+                        </div>
+
+                        <div className={`${styles.infoGrid} ${styles.pairedInfoGrid}`}>
+                            {renderYesNoEditor('Have You Ever Been Hospitalized?', 'hadHospitalization', true)}
                             <div className={styles.formGroup}>
-                                <label>If So, When and Why?</label>
+                                <label>If So, When and Why? {medicalForm.hadHospitalization === 'yes' && renderRequiredMark()}</label>
                                 <input type="text" name="hospitalizationDetails" value={medicalForm.hospitalizationDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
                             </div>
-                            {renderYesNoEditor('Are You Taking Any Prescription/Non-Prescription Medication?', 'isTakingMedication')}
+                        </div>
+
+                        <div className={`${styles.infoGrid} ${styles.pairedInfoGrid}`}>
+                            {renderYesNoEditor('Are You Taking Any Prescription/Non-Prescription Medication?', 'isTakingMedication', true)}
                             <div className={styles.formGroup}>
-                                <label>If So, Please Specify</label>
+                                <label>If So, Please Specify {medicalForm.isTakingMedication === 'yes' && renderRequiredMark()}</label>
                                 <input type="text" name="medications" value={medicalForm.medications} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="Comma-separated medications" />
                             </div>
-                            {renderYesNoEditor('Do You Use Tobacco Products?', 'usesTobacco')}
-                            {renderYesNoEditor('Do You Use Alcohol, Cocaine, or Other Dangerous Drugs?', 'usesAlcoholOrDrugs')}
-                            {renderYesNoEditor('Are You Allergic to Any of the Following?', 'hasAllergies')}
+                        </div>
+
+                        <div className={styles.infoGrid}>
+                            {renderYesNoEditor('Do You Use Tobacco Products?', 'usesTobacco', true)}
+                            {renderYesNoEditor('Do You Use Alcohol, Cocaine, or Other Dangerous Drugs?', 'usesAlcoholOrDrugs', true)}
+                            {renderYesNoEditor('Are You Allergic to Any of the Following?', 'hasAllergies', true)}
                         </div>
 
                         <div className={styles.historyChecklistPanel}>
-                            <label className={styles.historyChecklistLabel}>Allergies</label>
+                            <label className={styles.historyChecklistLabel}>Allergies {medicalForm.hasAllergies === 'yes' && renderRequiredMark()}</label>
                             <div className={styles.checklistGrid}>
                                 {ALLERGY_OPTIONS.map((option) => (
                                     <label key={option} className={styles.checklistOption}>
@@ -1401,9 +1417,9 @@ export default function PatientEMR({
                                 <input type="text" name="bleedingTime" value={medicalForm.bleedingTime} onChange={handleMedicalFormChange} className={styles.inputField} />
                             </div>
                             <div />
-                            {renderYesNoEditor('Are You Pregnant?', 'isPregnant')}
-                            {renderYesNoEditor('Are You Nursing?', 'isNursing')}
-                            {renderYesNoEditor('Are You Taking Birth Control Pills?', 'takingBirthControl')}
+                            {renderYesNoEditor('Are You Pregnant?', 'isPregnant', true)}
+                            {renderYesNoEditor('Are You Nursing?', 'isNursing', true)}
+                            {renderYesNoEditor('Are You Taking Birth Control Pills?', 'takingBirthControl', true)}
                             <div />
                             <div className={styles.formGroup}>
                                 <label>Blood Type</label>
