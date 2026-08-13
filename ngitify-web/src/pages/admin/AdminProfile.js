@@ -597,6 +597,7 @@ export default function MyProfile() {
         'branch-manager':   'Branch Manager',
         'dentist':          'Dentist',
         'secretary':        'Front Desk Personnel',
+        'patient':          'Patient Account',
         'owner':            'Clinic Owner',              // ✅ Owner role label
     };
     
