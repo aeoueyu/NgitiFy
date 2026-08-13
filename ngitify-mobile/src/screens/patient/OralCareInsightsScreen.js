@@ -125,9 +125,6 @@ export default function OralCareInsightsScreen({ navigation, route }) {
   const [educationQuery, setEducationQuery] = useState('');
   const [educationCategory, setEducationCategory] = useState('all');
   const [selectedEducationArticle, setSelectedEducationArticle] = useState(null);
-  const [educationQuery, setEducationQuery] = useState('');
-  const [educationCategory, setEducationCategory] = useState('all');
-  const [selectedEducationArticle, setSelectedEducationArticle] = useState(null);
 
   const fetchOralHealth = useCallback(async () => {
     if (!userToken) return;
