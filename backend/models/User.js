@@ -95,6 +95,15 @@ const oralHealthLogSchema = new mongoose.Schema({
     logDateKey: { type: String, required: true },
     symptoms: [{ type: String }],
     dailyCare: [{ type: String }],
+    riskFactors: [{ type: String }],
+    symptomDetails: {
+        type: Map,
+        of: new mongoose.Schema({
+            severity: { type: String, default: '' },
+            duration: { type: String, default: '' },
+        }, { _id: false }),
+        default: {},
+    },
     notes: { type: String, default: '' },
 }, { timestamps: true });
 

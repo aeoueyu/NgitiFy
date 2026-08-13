@@ -35,23 +35,77 @@ const ORAL_HEALTH_LOG_GROUPS = Object.freeze([
         id: 'symptoms',
         title: 'Symptoms',
         items: [
+            { id: 'no-symptoms', label: 'No Symptoms' },
+            { id: 'toothache', label: 'Toothache', detailFields: ['severity', 'duration'] },
             { id: 'bleeding-gums', label: 'Bleeding Gums' },
-            { id: 'sensitivity', label: 'Sensitivity' },
-            { id: 'jaw-pain', label: 'Jaw Pain' },
-            { id: 'mouth-sores', label: 'Mouth Sores' },
+            { id: 'swelling', label: 'Swelling', detailFields: ['severity', 'duration'] },
             { id: 'bad-breath', label: 'Bad Breath' },
+            { id: 'sensitivity', label: 'Sensitivity' },
+            { id: 'jaw-pain', label: 'Jaw Pain', detailFields: ['severity', 'duration'] },
+            { id: 'mouth-sore', label: 'Mouth Sore', detailFields: ['severity', 'duration'] },
         ],
     },
     {
         id: 'dailyCare',
-        title: 'Daily Care',
+        title: 'Oral Care Habits',
         items: [
-            { id: 'brushing', label: 'Brushing' },
-            { id: 'flossing', label: 'Flossing' },
+            { id: 'brushed-am', label: 'Brushed AM' },
+            { id: 'brushed-pm', label: 'Brushed PM' },
+            { id: 'flossed', label: 'Flossed' },
             { id: 'mouthwash', label: 'Mouthwash' },
-            { id: 'sugar-intake', label: 'Sugar Intake' },
-            { id: 'smoking-vaping', label: 'Smoking / Vaping' },
         ],
+    },
+    {
+        id: 'riskFactors',
+        title: 'Other / Risk Factors',
+        items: [
+            { id: 'smoked', label: 'Smoked' },
+            { id: 'vaped', label: 'Vaped' },
+            { id: 'sugary-drinks', label: 'Sugary Drinks' },
+            { id: 'missed-brushing', label: 'Missed Brushing' },
+        ],
+    },
+]);
+
+const ORAL_HEALTH_SYMPTOM_DETAIL_CONFIG = Object.freeze({
+    severity: {
+        label: 'Severity',
+        options: [
+            { id: 'mild', label: 'Mild' },
+            { id: 'moderate', label: 'Moderate' },
+            { id: 'severe', label: 'Severe' },
+        ],
+    },
+    duration: {
+        label: 'Duration',
+        maxLength: 80,
+    },
+});
+
+const LEGACY_LOG_ID_ALIASES = Object.freeze({
+    'mouth-sores': 'mouth-sore',
+    brushing: 'brushed-am',
+    flossing: 'flossed',
+    'sugar-intake': 'sugary-drinks',
+    'smoking-vaping': 'smoked',
+});
+
+const APPROVED_VISIT_WINDOW_ESCALATION_RULES = Object.freeze([
+    {
+        id: 'latest-log-swelling',
+        label: 'Approved Safety Rule',
+        sourceLabel: 'Recent Oral Health Management Logs',
+        symptomIds: ['swelling'],
+        explanation: 'The latest Patient Log includes swelling.',
+        action: 'Contact the clinic sooner and mention the logged swelling.',
+    },
+    {
+        id: 'latest-log-severe-context',
+        label: 'Approved Safety Rule',
+        sourceLabel: 'Recent Oral Health Management Logs',
+        detailSeverity: 'severe',
+        explanation: 'The latest Patient Log includes a symptom marked severe by the patient.',
+        action: 'Contact the clinic sooner and share the symptom details with the clinic.',
     },
 ]);
 
@@ -62,6 +116,7 @@ const EDUCATION_LIBRARY = Object.freeze([
         category: 'Gum Health',
         summary: 'Gentle cleaning, consistent flossing, and a timely check-up help the clinic spot inflammation early.',
         action: 'Mention any repeated bleeding at your next visit.',
+        relatedLogIds: ['bleeding-gums'],
     },
     {
         id: 'sensitivity-triggers',
@@ -69,6 +124,7 @@ const EDUCATION_LIBRARY = Object.freeze([
         category: 'Tooth Sensitivity',
         summary: 'Cold, sweet, brushing, and biting sensitivity can point to different clinical causes.',
         action: 'Log the trigger and which tooth area you notice.',
+        relatedLogIds: ['sensitivity'],
     },
     {
         id: 'preventive-window',
@@ -76,6 +132,23 @@ const EDUCATION_LIBRARY = Object.freeze([
         category: 'Preventive Care',
         summary: 'A visit window combines treatment history, symptoms, and habits without pretending to diagnose at home.',
         action: 'Book within the recommended window when possible.',
+        relatedLogIds: ['toothache', 'swelling', 'jaw-pain', 'mouth-sore'],
+    },
+    {
+        id: 'brushing-routine',
+        title: 'Make brushing easier to repeat',
+        category: 'Home Care',
+        summary: 'A consistent morning and evening brushing routine helps remove daily plaque before it hardens.',
+        action: 'Use the daily log to notice which brushing time is easiest to miss.',
+        relatedLogIds: ['brushed-am', 'brushed-pm', 'missed-brushing'],
+    },
+    {
+        id: 'interdental-cleaning',
+        title: 'Interdental cleaning supports the spaces brushing misses',
+        category: 'Home Care',
+        summary: 'Floss or another interdental cleaner can help clean tight spaces between teeth where a toothbrush may not reach.',
+        action: 'Ask the clinic which interdental tool fits your teeth and gums best.',
+        relatedLogIds: ['flossed', 'bleeding-gums'],
     },
 ]);
 
@@ -99,6 +172,16 @@ const uniqueAllowedIds = (values, allowedIds, fieldName) => {
     });
     return normalized;
 };
+
+const normalizeAllowedIds = (values, allowedIds, fieldName) => (
+    uniqueAllowedIds(
+        Array.isArray(values)
+            ? values.map((value) => LEGACY_LOG_ID_ALIASES[String(value || '').trim()] || value)
+            : values,
+        allowedIds,
+        fieldName
+    )
+);
 
 const normalizeOralHealthFactors = (input = [], existing = []) => {
     const activeIds = Array.isArray(input)
@@ -140,27 +223,229 @@ const normalizeDailyOralHealthLogInput = (body = {}) => {
 
     const symptomIds = new Set(ORAL_HEALTH_LOG_GROUPS.find((group) => group.id === 'symptoms').items.map((item) => item.id));
     const careIds = new Set(ORAL_HEALTH_LOG_GROUPS.find((group) => group.id === 'dailyCare').items.map((item) => item.id));
-    const symptoms = uniqueAllowedIds(body.symptoms || [], symptomIds, 'symptom');
-    const dailyCare = uniqueAllowedIds(body.dailyCare || body.care || [], careIds, 'daily care');
+    const riskIds = new Set(ORAL_HEALTH_LOG_GROUPS.find((group) => group.id === 'riskFactors').items.map((item) => item.id));
+    const symptoms = normalizeAllowedIds(body.symptoms || [], symptomIds, 'symptom');
+    const dailyCare = normalizeAllowedIds(body.dailyCare || body.care || [], careIds, 'daily care');
+    const riskFactors = normalizeAllowedIds(body.riskFactors || [], riskIds, 'risk factor');
     const notes = String(body.notes || '').trim().slice(0, 500);
 
-    if (!symptoms.length && !dailyCare.length && !notes) {
-        const error = new Error('Select at least one symptom, care item, or note before saving.');
+    if (symptoms.includes('no-symptoms') && symptoms.length > 1) {
+        const error = new Error('No Symptoms cannot be combined with other symptom selections.');
         error.statusCode = 400;
         throw error;
     }
+
+    if (!symptoms.length && !dailyCare.length && !riskFactors.length && !notes) {
+        const error = new Error('Select at least one symptom, care item, risk factor, or note before saving.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const symptomDetails = {};
+    const incomingDetails = body.symptomDetails && typeof body.symptomDetails === 'object' ? body.symptomDetails : {};
+    const detailAllowedSymptoms = new Map(
+        ORAL_HEALTH_LOG_GROUPS
+            .find((group) => group.id === 'symptoms')
+            .items
+            .filter((item) => Array.isArray(item.detailFields) && item.detailFields.length)
+            .map((item) => [item.id, item.detailFields])
+    );
+
+    symptoms.forEach((symptomId) => {
+        const detailFields = detailAllowedSymptoms.get(symptomId);
+        if (!detailFields) return;
+
+        const incoming = incomingDetails[symptomId] || {};
+        const normalizedDetails = {};
+
+        if (detailFields.includes('severity') && incoming.severity) {
+            const allowedSeverity = new Set(ORAL_HEALTH_SYMPTOM_DETAIL_CONFIG.severity.options.map((item) => item.id));
+            const severity = String(incoming.severity || '').trim();
+            if (!allowedSeverity.has(severity)) {
+                const error = new Error(`Invalid symptom severity value for ${symptomId}.`);
+                error.statusCode = 400;
+                throw error;
+            }
+            normalizedDetails.severity = severity;
+        }
+
+        if (detailFields.includes('duration') && incoming.duration) {
+            normalizedDetails.duration = String(incoming.duration || '')
+                .trim()
+                .slice(0, ORAL_HEALTH_SYMPTOM_DETAIL_CONFIG.duration.maxLength);
+        }
+
+        if (normalizedDetails.severity || normalizedDetails.duration) {
+            symptomDetails[symptomId] = normalizedDetails;
+        }
+    });
 
     return {
         logDate,
         logDateKey: toDateKey(logDate),
         symptoms,
         dailyCare,
+        riskFactors,
+        symptomDetails,
         notes,
     };
 };
 
+const normalizeSavedLogForPayload = (log = {}) => {
+    const symptomIds = new Set(ORAL_HEALTH_LOG_GROUPS.find((group) => group.id === 'symptoms').items.map((item) => item.id));
+    const careIds = new Set(ORAL_HEALTH_LOG_GROUPS.find((group) => group.id === 'dailyCare').items.map((item) => item.id));
+    const riskIds = new Set(ORAL_HEALTH_LOG_GROUPS.find((group) => group.id === 'riskFactors').items.map((item) => item.id));
+    const rawDailyCare = Array.isArray(log.dailyCare) ? log.dailyCare : [];
+    const rawRiskFactors = Array.isArray(log.riskFactors) ? log.riskFactors : [];
+
+    const symptoms = (Array.isArray(log.symptoms) ? log.symptoms : [])
+        .map((id) => LEGACY_LOG_ID_ALIASES[String(id || '').trim()] || String(id || '').trim())
+        .filter((id, index, list) => symptomIds.has(id) && list.indexOf(id) === index);
+
+    const dailyCare = rawDailyCare
+        .map((id) => LEGACY_LOG_ID_ALIASES[String(id || '').trim()] || String(id || '').trim())
+        .filter((id, index, list) => careIds.has(id) && list.indexOf(id) === index);
+
+    const riskFactorsFromDailyCare = rawDailyCare
+        .map((id) => LEGACY_LOG_ID_ALIASES[String(id || '').trim()] || String(id || '').trim())
+        .filter((id) => riskIds.has(id));
+    const riskFactors = [...rawRiskFactors, ...riskFactorsFromDailyCare]
+        .map((id) => LEGACY_LOG_ID_ALIASES[String(id || '').trim()] || String(id || '').trim())
+        .filter((id, index, list) => riskIds.has(id) && list.indexOf(id) === index);
+
+    const symptomDetails = log.symptomDetails instanceof Map
+        ? Object.fromEntries(log.symptomDetails)
+        : (log.symptomDetails || {});
+
+    return {
+        ...(typeof log.toObject === 'function' ? log.toObject() : log),
+        symptoms,
+        dailyCare,
+        riskFactors,
+        symptomDetails,
+    };
+};
+
+const getLogItemLabelMap = () => {
+    const map = new Map();
+    ORAL_HEALTH_LOG_GROUPS.forEach((group) => {
+        group.items.forEach((item) => map.set(item.id, item.label));
+    });
+    return map;
+};
+
+const summarizeLogSelections = (log = {}) => {
+    const labelMap = getLogItemLabelMap();
+    const labels = [
+        ...(log.symptoms || []).filter((id) => id !== 'no-symptoms'),
+        ...(log.dailyCare || []),
+        ...(log.riskFactors || []),
+    ].map((id) => labelMap.get(id) || id);
+    return labels.length ? labels.join(', ') : 'No symptoms selected';
+};
+
+const getLatestOralHealthLog = (logs = []) => [...(Array.isArray(logs) ? logs.map(normalizeSavedLogForPayload) : [])]
+    .filter((log) => log?.logDateKey)
+    .sort((left, right) => String(right.logDateKey).localeCompare(String(left.logDateKey)))[0] || null;
+
+const evaluateApprovedVisitWindowEscalation = (logs = []) => {
+    const latestLog = getLatestOralHealthLog(logs);
+    if (!latestLog) return null;
+
+    const symptoms = new Set(latestLog.symptoms || []);
+    const details = latestLog.symptomDetails || {};
+    const matchedRule = APPROVED_VISIT_WINDOW_ESCALATION_RULES.find((rule) => {
+        if (rule.symptomIds?.some((id) => symptoms.has(id))) return true;
+        if (rule.detailSeverity) {
+            return Object.values(details).some((detail) => detail?.severity === rule.detailSeverity);
+        }
+        return false;
+    });
+
+    if (!matchedRule) return null;
+
+    return {
+        ruleId: matchedRule.id,
+        label: matchedRule.label,
+        sourceLabel: matchedRule.sourceLabel,
+        action: matchedRule.action,
+        explanation: `${matchedRule.explanation} Recorded on ${latestLog.logDateKey}: ${summarizeLogSelections(latestLog)}.`,
+        latestLogDateKey: latestLog.logDateKey,
+    };
+};
+
+const buildExplainableVisitRecommendation = ({ basePrediction = null, oralHealthLogs = [] } = {}) => {
+    const escalation = evaluateApprovedVisitWindowEscalation(oralHealthLogs);
+
+    if (!basePrediction) {
+        return {
+            label: escalation ? 'Contact Clinic' : 'Insufficient Data',
+            color: escalation ? '#01538b' : '#64748b',
+            bg: escalation ? '#dceffc' : '#f8fafc',
+            recommendationBasis: escalation ? 'approved-safety-rule' : 'insufficient-data',
+            recommendationReason: escalation
+                ? `${escalation.explanation} No planned visit window is available because there is not enough clinic-recorded visit history. This does not diagnose dental disease.`
+                : 'No dentist-suggested next visit or supported clinic treatment history is available, so NgitiFy cannot calculate a visit window yet.',
+            sourceLabels: escalation ? [escalation.label, escalation.sourceLabel] : ['Insufficient Data'],
+            explanationItems: escalation
+                ? [escalation.explanation, 'No planned-care interval was generated from insufficient clinic history.', 'This does not diagnose dental disease.']
+                : ['No dentist-suggested next visit is recorded.', 'No supported clinic treatment history is available for routine timing.', 'No visit interval was invented.'],
+            contactClinicSooner: Boolean(escalation),
+            contactClinicReason: escalation?.action || '',
+            escalationRuleId: escalation?.ruleId || '',
+            hasVisitWindow: false,
+        };
+    }
+
+    const sourceLabels = [];
+    const explanationItems = [];
+
+    if (escalation) {
+        sourceLabels.push(escalation.label, escalation.sourceLabel);
+        explanationItems.push(escalation.explanation);
+    }
+
+    if (basePrediction.isFollowUpRecommendation) {
+        sourceLabels.push('Dentist Recommendation');
+        explanationItems.push(`Dentist-suggested next visit recorded after the latest treatment: ${basePrediction.recommendedDateLabel}.`);
+    } else {
+        sourceLabels.push('Clinic Record', 'Routine / Default Information');
+        explanationItems.push(`Most recent clinic treatment: ${basePrediction.lastProcedure || 'Treatment recorded'} on ${basePrediction.lastVisitDate}.`);
+        explanationItems.push(`Routine timing source: ${basePrediction.intervalLabel}.`);
+    }
+
+    if (!escalation) {
+        const latestLog = getLatestOralHealthLog(oralHealthLogs);
+        if (latestLog) {
+            sourceLabels.push('Recent Oral Health Management Logs');
+            explanationItems.push(`Latest Patient Log on ${latestLog.logDateKey}: ${summarizeLogSelections(latestLog)}.`);
+            explanationItems.push('No approved safety escalation rule changed the planned visit window.');
+        }
+    }
+
+    explanationItems.push('Patient self-logs do not diagnose disease and do not postpone a dentist-recommended visit.');
+
+    return {
+        ...basePrediction,
+        label: escalation ? 'Contact Clinic' : basePrediction.label,
+        color: escalation ? '#01538b' : basePrediction.color,
+        bg: escalation ? '#dceffc' : basePrediction.bg,
+        recommendationBasis: escalation ? 'approved-safety-rule' : basePrediction.recommendationBasis,
+        recommendationReason: escalation
+            ? `${escalation.explanation} Keep the planned visit window unless the clinic advises otherwise.`
+            : basePrediction.recommendationReason,
+        sourceLabels: [...new Set(sourceLabels)],
+        explanationItems,
+        contactClinicSooner: Boolean(escalation),
+        contactClinicReason: escalation?.action || '',
+        escalationRuleId: escalation?.ruleId || '',
+        hasVisitWindow: true,
+        plannedCareSource: basePrediction.isFollowUpRecommendation ? 'Dentist Recommendation' : 'Routine / Default Information',
+    };
+};
+
 const buildOralHealthSummary = (logs = []) => {
-    const sorted = [...(Array.isArray(logs) ? logs : [])]
+    const sorted = [...(Array.isArray(logs) ? logs.map(normalizeSavedLogForPayload) : [])]
         .filter((log) => log?.logDateKey)
         .sort((left, right) => String(right.logDateKey).localeCompare(String(left.logDateKey)));
     const recent = sorted.slice(0, 7);
@@ -170,16 +455,34 @@ const buildOralHealthSummary = (logs = []) => {
     recent.forEach((log) => {
         (log.symptoms || []).forEach((id) => symptomCounts.set(id, (symptomCounts.get(id) || 0) + 1));
         (log.dailyCare || []).forEach((id) => careCounts.set(id, (careCounts.get(id) || 0) + 1));
+        (log.riskFactors || []).forEach((id) => careCounts.set(id, (careCounts.get(id) || 0) + 1));
     });
 
     return {
         recentLogCount: recent.length,
         lastLogDateKey: sorted[0]?.logDateKey || '',
-        flossingDays: careCounts.get('flossing') || 0,
-        brushingDays: careCounts.get('brushing') || 0,
+        flossingDays: careCounts.get('flossed') || 0,
+        brushingDays: Math.max(careCounts.get('brushed-am') || 0, careCounts.get('brushed-pm') || 0),
         bleedingDays: symptomCounts.get('bleeding-gums') || 0,
         sensitivityDays: symptomCounts.get('sensitivity') || 0,
     };
+};
+
+const buildContextualDentalHealthEducation = (logs = [], limit = 3) => {
+    const recentSelections = new Set();
+    [...(Array.isArray(logs) ? logs.map(normalizeSavedLogForPayload) : [])]
+        .filter((log) => log?.logDateKey)
+        .sort((left, right) => String(right.logDateKey).localeCompare(String(left.logDateKey)))
+        .slice(0, 7)
+        .forEach((log) => {
+            [...(log.symptoms || []), ...(log.dailyCare || []), ...(log.riskFactors || [])]
+                .filter((id) => id && id !== 'no-symptoms')
+                .forEach((id) => recentSelections.add(id));
+        });
+
+    return EDUCATION_LIBRARY
+        .filter((article) => (article.relatedLogIds || []).some((id) => recentSelections.has(id)))
+        .slice(0, limit);
 };
 
 const buildOralHealthPayloadFromPatient = (patient = {}) => {
@@ -188,27 +491,36 @@ const buildOralHealthPayloadFromPatient = (patient = {}) => {
         patient.oralHealthFactors || []
     );
     const logs = [...(patient.oralHealthLogs || [])]
+        .map(normalizeSavedLogForPayload)
         .sort((left, right) => String(right.logDateKey || '').localeCompare(String(left.logDateKey || '')))
         .slice(0, 30);
 
     return {
         factors,
         logGroups: ORAL_HEALTH_LOG_GROUPS,
+        symptomDetailConfig: ORAL_HEALTH_SYMPTOM_DETAIL_CONFIG,
         logs,
         summary: buildOralHealthSummary(logs),
         education: EDUCATION_LIBRARY,
+        contextualEducation: buildContextualDentalHealthEducation(logs),
     };
 };
 
 module.exports = {
     EDUCATION_LIBRARY,
+    APPROVED_VISIT_WINDOW_ESCALATION_RULES,
     ORAL_HEALTH_FACTOR_OPTIONS,
     ORAL_HEALTH_LOG_GROUPS,
+    ORAL_HEALTH_SYMPTOM_DETAIL_CONFIG,
     addDays,
+    buildExplainableVisitRecommendation,
+    buildContextualDentalHealthEducation,
     buildOralHealthPayloadFromPatient,
     buildOralHealthSummary,
+    evaluateApprovedVisitWindowEscalation,
     normalizeDailyOralHealthLogInput,
     normalizeOralHealthFactors,
+    normalizeSavedLogForPayload,
     parseDateKey,
     toDateKey,
 };

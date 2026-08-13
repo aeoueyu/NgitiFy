@@ -270,6 +270,17 @@
     font-weight: 700;
     margin-top: 6px;
 }
+.fileInputField {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 999px;
+    background-color: #f8fafc;
+    color: #334155;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    transition: all 0.2s;
+}
 .historyChecklistPanelError .checklistGrid,
 .historyChecklistPanelError .checklistOption {
     border-color: #dc2626;
@@ -518,6 +529,14 @@
 }
 .aiEnhanceBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(45, 204, 246, 0.4); }
 .aiEnhanceBtn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+.dangerActionBtn {
+    background: #dc2626;
+    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.22);
+}
+.dangerActionBtn:hover:not(:disabled) {
+    background: #b91c1c;
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.32);
+}
 
 /* --- AI ANALYSIS PANEL --- */
 .aiAnalysisPanel {

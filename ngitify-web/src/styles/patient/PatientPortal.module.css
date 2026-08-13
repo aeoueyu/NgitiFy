@@ -1032,6 +1032,488 @@ button.toolCard:focus-visible {
     line-height: 1.6;
 }
 
+.ohmHero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+    gap: 20px;
+    align-items: stretch;
+    margin-bottom: 20px;
+    padding: 24px;
+    border: 1px solid var(--patient-border);
+    border-radius: var(--patient-radius-card);
+    background: var(--patient-surface);
+    box-shadow: var(--patient-shadow);
+}
+
+.ohmRecommendationCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+}
+
+.ohmRecommendationCard strong {
+    color: var(--patient-primary);
+    font-size: 22px;
+    line-height: 1.25;
+}
+
+.ohmRecommendationCard p {
+    margin: 0;
+    color: var(--patient-text-muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.ohmContentGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: 20px;
+}
+
+.ohmDatePanel,
+.ohmSelectedDateGrid {
+    margin-bottom: 20px;
+}
+
+.ohmDatePanel {
+    padding: 20px;
+    border: 1px solid var(--patient-border);
+    border-radius: var(--patient-radius-card);
+    background: var(--patient-surface);
+    box-shadow: var(--patient-shadow);
+}
+
+.ohmSelectedDateGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.ohmDateStrip {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.ohmDateButton {
+    min-width: 0;
+    min-height: 90px;
+    padding: 10px 6px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface);
+    color: var(--patient-text);
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    text-align: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.ohmDateButton:hover {
+    background: var(--patient-surface-muted);
+    border-color: rgba(1, 83, 139, 0.14);
+    transform: translateY(-1px);
+}
+
+.ohmDateButton span,
+.ohmDateButton small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ohmDateButton span {
+    color: var(--patient-text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.ohmDateButton strong {
+    display: block;
+    margin: 4px 0;
+    color: var(--patient-primary);
+    font-size: 21px;
+    font-weight: 800;
+}
+
+.ohmDateButton small {
+    color: var(--patient-text-subtle);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.ohmDateButtonActive {
+    border-color: var(--patient-primary);
+    background: #eef8fd;
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.1);
+}
+
+.ohmDateMarkers {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 8px;
+    margin-top: 7px;
+}
+
+.ohmDateMarkers b,
+.ohmLegend i {
+    display: inline-block;
+}
+
+.ohmDateMarkers b {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.ohmMarkerLog,
+.ohmLegendLogged {
+    background: #01538b;
+}
+
+.ohmMarkerSymptom,
+.ohmLegendSymptom {
+    background: #6b8394;
+}
+
+.ohmMarkerClinic,
+.ohmLegendClinic {
+    background: #7c6f55;
+}
+
+.ohmMarkerRecommendation,
+.ohmLegendWindow {
+    background: #149fc5;
+}
+
+.ohmExpandedCalendar {
+    margin-top: 16px;
+}
+
+.ohmSourceList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ohmSourceItem {
+    display: grid;
+    grid-template-columns: minmax(126px, 0.28fr) minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+}
+
+.ohmSourceBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: start;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: var(--patient-primary);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ohmSourceItem h3 {
+    margin: 0 0 6px;
+    color: var(--patient-text);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.ohmSourceItem p {
+    margin: 0;
+    color: var(--patient-text-muted);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.ohmCalendarGrid {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.ohmCalendarGrid > :last-child {
+    grid-column: 1 / -1;
+}
+
+.ohmTrackerCard {
+    padding: 20px;
+    border: 1px solid var(--patient-border);
+    border-radius: var(--patient-radius-card);
+    background: var(--patient-surface);
+    box-shadow: var(--patient-shadow);
+}
+
+.ohmTrackerHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.ohmTrackerTitle {
+    margin: 0;
+    color: var(--patient-primary);
+    font-size: 20px;
+    line-height: 1.25;
+    font-weight: 800;
+}
+
+.ohmLoggedBadge,
+.ohmOpenBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ohmLoggedBadge {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.ohmOpenBadge {
+    background: #eef2f7;
+    color: var(--patient-text-muted);
+}
+
+.ohmChoiceGroup {
+    margin-bottom: 18px;
+}
+
+.ohmChoiceGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.ohmChoiceWrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ohmChoiceButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 999px;
+    background: var(--patient-surface);
+    color: var(--patient-primary);
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.ohmChoiceButton:hover {
+    background: var(--patient-surface-muted);
+    transform: translateY(-1px);
+}
+
+.ohmChoiceButtonActive {
+    border-color: var(--patient-primary);
+    background: #eef8fd;
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.08);
+}
+
+.ohmDetailButton {
+    min-height: 30px;
+    padding: 6px 10px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 999px;
+    background: var(--patient-surface-muted);
+    color: var(--patient-text-muted);
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.ohmDetailButton:hover {
+    color: var(--patient-primary);
+    border-color: rgba(1, 83, 139, 0.18);
+}
+
+.ohmHistoryList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ohmHistoryItem {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.25fr) minmax(0, 1fr);
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+    color: var(--patient-text);
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    text-align: left;
+}
+
+.ohmHistoryItem:hover {
+    border-color: rgba(1, 83, 139, 0.16);
+    background: #ffffff;
+}
+
+.ohmHistoryDate {
+    color: var(--patient-primary);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.ohmHistorySummary {
+    color: var(--patient-text-muted);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.ohmLegend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+    color: var(--patient-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ohmLegend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.ohmLegend i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.ohmWeekTrend {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.ohmWeekTrendDay {
+    min-width: 0;
+    min-height: 82px;
+    padding: 10px 6px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface);
+    color: var(--patient-text);
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    text-align: center;
+}
+
+.ohmWeekTrendDayLogged {
+    border-color: rgba(1, 83, 139, 0.24);
+    background: #eef8fd;
+}
+
+.ohmWeekTrendDay span,
+.ohmWeekTrendDay small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ohmWeekTrendDay span {
+    color: var(--patient-text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.ohmWeekTrendDay strong {
+    display: block;
+    margin: 5px 0;
+    color: var(--patient-primary);
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.ohmWeekTrendDay small {
+    color: var(--patient-text-subtle);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.ohmTrendColumns {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.ohmTrendRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+}
+
+.ohmTrendRow span {
+    color: var(--patient-text-muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.ohmTrendRow strong {
+    color: var(--patient-primary);
+    font-size: 15px;
+}
+
 .calendarShell {
     padding: 20px;
 }
@@ -1502,6 +1984,11 @@ button.toolCard:focus-visible {
     .dashboardFocusGrid,
     .dashboardStatGrid,
     .dashboardAppointmentPanel,
+    .ohmHero,
+    .ohmContentGrid,
+    .ohmSelectedDateGrid,
+    .ohmCalendarGrid,
+    .ohmTrendColumns,
     .heroGrid,
     .splitGrid,
     .metricGrid,
@@ -1521,6 +2008,10 @@ button.toolCard:focus-visible {
     .dashboardScheduleItem {
         grid-template-columns: 1fr;
         align-items: stretch;
+    }
+
+    .ohmCalendarGrid > :last-child {
+        grid-column: auto;
     }
 }
 
@@ -1564,6 +2055,52 @@ button.toolCard:focus-visible {
     .dashboardAiButton {
         right: 18px;
         bottom: 18px;
+    }
+
+    .ohmHero,
+    .ohmTrackerCard,
+    .summaryCard {
+        padding: 16px;
+    }
+
+    .ohmTrackerHeader,
+    .ohmHistoryItem,
+    .ohmSourceItem {
+        grid-template-columns: 1fr;
+    }
+
+    .ohmTrackerHeader {
+        flex-direction: column;
+    }
+
+    .ohmWeekTrend {
+        grid-template-columns: repeat(7, minmax(42px, 1fr));
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .ohmDateStrip {
+        grid-template-columns: repeat(7, minmax(54px, 1fr));
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .ohmDateButton {
+        min-width: 54px;
+        min-height: 78px;
+    }
+
+    .ohmDateButton strong {
+        font-size: 18px;
+    }
+
+    .ohmWeekTrendDay {
+        min-width: 42px;
+        min-height: 70px;
+    }
+
+    .ohmWeekTrendDay strong {
+        font-size: 17px;
     }
 
     .patientOdontogramArch {

@@ -28,6 +28,13 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
   const fallbackStart = addDays(today, 10);
   const fallbackEnd = addDays(today, 24);
   const fallbackRecommended = addDays(today, 17);
+  const hasVisitWindow = prediction?.hasVisitWindow !== false && Boolean(
+    prediction?.windowLabel
+    || prediction?.windowStartKey
+    || prediction?.windowStart
+    || prediction?.recommendedDateKey
+    || prediction?.recommendedDate,
+  );
 
   const windowStart = resolveDateFromPrediction(
     prediction?.windowStartKey,
@@ -45,45 +52,108 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
     fallbackRecommended,
   );
 
-  const windowLabel = prediction?.windowLabel || buildWindowLabel(windowStart, windowEnd);
+  const windowLabel = hasVisitWindow
+    ? (prediction?.windowLabel || buildWindowLabel(windowStart, windowEnd))
+    : 'Insufficient clinic history';
   const statusLabel = prediction?.label === 'Window Open'
     ? 'Window Open Now'
-    : prediction?.label || 'Window Opens Soon';
+    : prediction?.label || (hasVisitWindow ? 'Window Opens Soon' : 'Insufficient Data');
   const whyThisShowing = prediction?.recommendationReason
-    || 'Preview data based on preventive timing, mild sensitivity activity, and at-home care consistency.';
-  const suggestedNextAction = prediction?.label === 'Overdue'
+    || (hasVisitWindow
+      ? 'Preview data based on preventive timing, mild sensitivity activity, and at-home care consistency.'
+      : 'No dentist-suggested next visit or supported clinic treatment history is available, so NgitiFy cannot calculate a visit window yet.');
+  const suggestedNextAction = prediction?.contactClinicSooner
+    ? prediction.contactClinicReason
+    : prediction?.label === 'Overdue'
     ? 'Book your next preventive visit this week and mention any gum bleeding or sensitivity.'
-    : 'Plan a cleaning or check-up within this window and keep tracking daily care habits.';
+    : hasVisitWindow
+      ? 'Plan a cleaning or check-up within this window and keep tracking daily care habits.'
+      : 'Ask the clinic to confirm your next recommended visit timing.';
 
   const latestLog = oralHealth?.logs?.[0] || null;
   const summary = oralHealth?.summary || {};
   const selectedSymptoms = latestLog?.symptoms || [];
   const selectedCare = latestLog?.dailyCare || [];
+  const selectedRiskFactors = latestLog?.riskFactors || [];
   const defaultLogGroups = [
     {
       id: 'symptoms',
       title: 'Symptoms',
       items: [
+        { id: 'no-symptoms', label: 'No Symptoms', selected: false },
+        { id: 'toothache', label: 'Toothache', selected: false, detailFields: ['severity', 'duration'] },
         { id: 'bleeding-gums', label: 'Bleeding Gums', selected: true },
-        { id: 'sensitivity', label: 'Sensitivity', selected: true },
-        { id: 'jaw-pain', label: 'Jaw Pain', selected: false },
-        { id: 'mouth-sores', label: 'Mouth Sores', selected: false },
+        { id: 'swelling', label: 'Swelling', selected: false, detailFields: ['severity', 'duration'] },
         { id: 'bad-breath', label: 'Bad Breath', selected: true },
+        { id: 'sensitivity', label: 'Sensitivity', selected: true },
+        { id: 'jaw-pain', label: 'Jaw Pain', selected: false, detailFields: ['severity', 'duration'] },
+        { id: 'mouth-sore', label: 'Mouth Sore', selected: false, detailFields: ['severity', 'duration'] },
       ],
     },
     {
       id: 'dailyCare',
-      title: 'Daily Care',
+      title: 'Oral Care Habits',
       items: [
-        { id: 'brushing', label: 'Brushing', selected: true },
-        { id: 'flossing', label: 'Flossing', selected: false },
+        { id: 'brushed-am', label: 'Brushed AM', selected: true },
+        { id: 'brushed-pm', label: 'Brushed PM', selected: false },
+        { id: 'flossed', label: 'Flossed', selected: false },
         { id: 'mouthwash', label: 'Mouthwash', selected: true },
-        { id: 'sugar-intake', label: 'Sugar Intake', selected: true },
-        { id: 'smoking-vaping', label: 'Smoking / Vaping', selected: false },
+      ],
+    },
+    {
+      id: 'riskFactors',
+      title: 'Other / Risk Factors',
+      items: [
+        { id: 'smoked', label: 'Smoked', selected: false },
+        { id: 'vaped', label: 'Vaped', selected: false },
+        { id: 'sugary-drinks', label: 'Sugary Drinks', selected: true },
+        { id: 'missed-brushing', label: 'Missed Brushing', selected: false },
       ],
     },
   ];
   const storedGroups = Array.isArray(oralHealth?.logGroups) ? oralHealth.logGroups : null;
+  const defaultEducationArticles = [
+    {
+      id: 'gum-bleeding',
+      title: 'Bleeding gums are a signal, not a brushing failure',
+      category: 'Gum Health',
+      summary: 'Gentle cleaning, consistent flossing, and a timely check-up help the clinic spot inflammation early.',
+      action: 'Mention any repeated bleeding at your next visit.',
+      relatedLogIds: ['bleeding-gums'],
+    },
+    {
+      id: 'sensitivity-triggers',
+      title: 'Track sensitivity by trigger',
+      category: 'Tooth Sensitivity',
+      summary: 'Cold, sweet, brushing, and biting sensitivity can point to different clinical causes.',
+      action: 'Log the trigger and which tooth area you notice.',
+      relatedLogIds: ['sensitivity'],
+    },
+    {
+      id: 'brushing-routine',
+      title: 'Make brushing easier to repeat',
+      category: 'Home Care',
+      summary: 'A consistent morning and evening brushing routine helps remove daily plaque before it hardens.',
+      action: 'Use the daily log to notice which brushing time is easiest to miss.',
+      relatedLogIds: ['brushed-am', 'brushed-pm', 'missed-brushing'],
+    },
+    {
+      id: 'interdental-cleaning',
+      title: 'Interdental cleaning supports the spaces brushing misses',
+      category: 'Home Care',
+      summary: 'Floss or another interdental cleaner can help clean tight spaces between teeth where a toothbrush may not reach.',
+      action: 'Ask the clinic which interdental tool fits your teeth and gums best.',
+      relatedLogIds: ['flossed', 'bleeding-gums'],
+    },
+    {
+      id: 'preventive-window',
+      title: 'Preventive windows work better than exact prediction dates',
+      category: 'Preventive Care',
+      summary: 'A visit window combines treatment history, symptoms, and habits without pretending to diagnose at home.',
+      action: 'Book within the recommended window when possible.',
+      relatedLogIds: ['toothache', 'swelling', 'jaw-pain', 'mouth-sore'],
+    },
+  ];
 
   return {
     windowStart,
@@ -93,14 +163,17 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
     hero: {
       eyebrow: prediction ? 'Live Window + Preview UI' : 'Preview Mode',
       title: 'Recommended Visit Window',
-      headline: prediction
+      headline: hasVisitWindow
         ? `Your next recommended clinic window is ${windowLabel}.`
-        : `Your next cleaning window opens ${windowLabel}.`,
+        : 'No visit window is available yet.',
       statusLabel,
       windowLabel,
       whyThisShowing,
       suggestedNextAction,
-      recommendedDateLabel: formatShortDate(recommendedDate),
+      recommendedDateLabel: hasVisitWindow ? formatShortDate(recommendedDate) : 'Not available',
+      sourceLabels: prediction?.sourceLabels || (hasVisitWindow ? ['Preview Mode'] : ['Insufficient Data']),
+      explanationItems: prediction?.explanationItems || [whyThisShowing],
+      contactClinicSooner: Boolean(prediction?.contactClinicSooner),
       previewHint: oralHealth
         ? 'Your quick logs and factors are saved to your patient account.'
         : 'This screen is a front-end preview using static watch signals, factors, and logs.',
@@ -161,7 +234,9 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
         ...item,
         selected: group.id === 'symptoms'
           ? selectedSymptoms.includes(item.id)
-          : selectedCare.includes(item.id),
+          : group.id === 'riskFactors'
+            ? selectedRiskFactors.includes(item.id)
+            : selectedCare.includes(item.id),
       })),
     })),
     carePlan: {
@@ -177,7 +252,8 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
       title: 'Dental Health Education',
       body: oralHealth?.education?.[0]?.summary
         || 'Dental care is more helpful as a visit window plus watch signals and habit coaching, not as a precise disease prediction date.',
-      articles: oralHealth?.education || [],
+      articles: oralHealth?.education || defaultEducationArticles,
+      contextualArticles: oralHealth?.contextualEducation || [],
     },
   };
 };

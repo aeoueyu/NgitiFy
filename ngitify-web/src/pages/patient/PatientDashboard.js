@@ -235,10 +235,12 @@ export default function PatientDashboard() {
         const labelMap = getLabelMap(oralHealth?.logGroups || oralCarePreview.logGroups);
         const symptoms = (todayLog.symptoms || []).map((id) => labelMap.get(id) || id);
         const dailyCare = (todayLog.dailyCare || []).map((id) => labelMap.get(id) || id);
+        const riskFactors = (todayLog.riskFactors || []).map((id) => labelMap.get(id) || id);
         const parts = [];
 
         if (dailyCare.length) parts.push(`Care: ${dailyCare.join(', ')}`);
         if (symptoms.length) parts.push(`Notes to watch: ${symptoms.join(', ')}`);
+        if (riskFactors.length) parts.push(`Other: ${riskFactors.join(', ')}`);
         if (todayLog.notes) parts.push(`Note: ${todayLog.notes}`);
 
         return parts.length ? parts.join('. ') : 'Today has a saved entry, with no specific symptoms or notes selected.';
@@ -251,6 +253,10 @@ export default function PatientDashboard() {
     const systemRecommendation = visitPrediction
         ? `${visitPrediction.windowLabel || oralCarePreview.hero.windowLabel} (${visitPrediction.label || oralCarePreview.hero.statusLabel})`
         : oralCarePreview.hero.windowLabel;
+    const recommendationSources = visitPrediction?.sourceLabels || oralCarePreview.hero.sourceLabels || [];
+    const recommendationExplanationItems = visitPrediction?.explanationItems || oralCarePreview.hero.explanationItems || [
+        visitPrediction?.recommendationReason || oralCarePreview.hero.whyThisShowing,
+    ];
 
     const handleMonthChange = (delta) => {
         setCurrentMonthView((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
@@ -366,6 +372,16 @@ export default function PatientDashboard() {
                                 <span className={patientStyles.dashboardMiniLabel}>Current System Recommendation</span>
                                 <strong className={patientStyles.dashboardMiniValue}>{systemRecommendation}</strong>
                             </div>
+                            {recommendationSources.length ? (
+                                <div className={patientStyles.dashboardMiniRow}>
+                                    <span className={patientStyles.dashboardMiniLabel}>Based on</span>
+                                    <span className={patientStyles.detailPills}>
+                                        {recommendationSources.map((source) => (
+                                            <span key={source} className={patientStyles.detailPill}>{source}</span>
+                                        ))}
+                                    </span>
+                                </div>
+                            ) : null}
                             <div className={patientStyles.dashboardMiniRow}>
                                 <span className={patientStyles.dashboardMiniLabel}>Source / Reason</span>
                                 <span className={patientStyles.dashboardMiniValue}>
@@ -489,7 +505,7 @@ export default function PatientDashboard() {
                             <div>
                                 <h3 id="visit-reason-title" className={patientStyles.modalTitle}>Why am I seeing this?</h3>
                                 <p id="visit-reason-description" className={patientStyles.modalSubtitle}>
-                                    Recommended Visit Window uses clinic-recorded treatment history, dentist follow-up dates when present, and a preventive timing rule.
+                                    Recommended Visit Window uses backend recommendation rules so web and mobile show the same source and explanation.
                                 </p>
                             </div>
                             <button
@@ -502,6 +518,16 @@ export default function PatientDashboard() {
                             </button>
                         </div>
                         <div className={patientStyles.dashboardMiniList}>
+                            {recommendationSources.length ? (
+                                <div className={patientStyles.dashboardMiniRow}>
+                                    <span className={patientStyles.dashboardMiniLabel}>Based on</span>
+                                    <span className={patientStyles.detailPills}>
+                                        {recommendationSources.map((source) => (
+                                            <span key={source} className={patientStyles.detailPill}>{source}</span>
+                                        ))}
+                                    </span>
+                                </div>
+                            ) : null}
                             <div className={patientStyles.dashboardMiniRow}>
                                 <span className={patientStyles.dashboardMiniLabel}>Dentist Source</span>
                                 <span className={patientStyles.dashboardMiniValue}>{dentistSuggestedVisit}</span>
@@ -511,9 +537,9 @@ export default function PatientDashboard() {
                                 <span className={patientStyles.dashboardMiniValue}>{visitPrediction?.intervalLabel || 'Preventive timing preview'}</span>
                             </div>
                             <div className={patientStyles.dashboardMiniRow}>
-                                <span className={patientStyles.dashboardMiniLabel}>Reason</span>
+                                <span className={patientStyles.dashboardMiniLabel}>Explanation</span>
                                 <span className={patientStyles.dashboardMiniValue}>
-                                    {visitPrediction?.recommendationReason || oralCarePreview.hero.whyThisShowing}
+                                    {recommendationExplanationItems.join(' ')}
                                 </span>
                             </div>
                             {visitPrediction?.lastProcedure ? (

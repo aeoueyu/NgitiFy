@@ -186,9 +186,22 @@ export default function OralCareInsightsScreen({ navigation, route }) {
       if (group.id !== groupId) return group;
       return {
         ...group,
-        items: group.items.map((item) => (
-          item.id === itemId ? { ...item, selected: !item.selected } : item
-        )),
+        items: group.items.map((item) => {
+          if (groupId === 'symptoms' && itemId === 'no-symptoms') {
+            return { ...item, selected: item.id === 'no-symptoms' ? !item.selected : false };
+          }
+          if (groupId === 'symptoms' && itemId !== 'no-symptoms') {
+            return {
+              ...item,
+              selected: item.id === 'no-symptoms'
+                ? false
+                : item.id === itemId
+                  ? !item.selected
+                  : item.selected,
+            };
+          }
+          return item.id === itemId ? { ...item, selected: !item.selected } : item;
+        }),
       };
     }));
   };
@@ -219,6 +232,7 @@ export default function OralCareInsightsScreen({ navigation, route }) {
   const saveDailyLog = async () => {
     const symptoms = logGroups.find((group) => group.id === 'symptoms')?.items.filter((item) => item.selected).map((item) => item.id) || [];
     const dailyCare = logGroups.find((group) => group.id === 'dailyCare')?.items.filter((item) => item.selected).map((item) => item.id) || [];
+    const riskFactors = logGroups.find((group) => group.id === 'riskFactors')?.items.filter((item) => item.selected).map((item) => item.id) || [];
 
     setSaving(true);
     try {
@@ -228,7 +242,7 @@ export default function OralCareInsightsScreen({ navigation, route }) {
           Authorization: `Bearer ${userToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ logDate: toDateKey(), symptoms, dailyCare, notes: logNotes }),
+        body: JSON.stringify({ logDate: toDateKey(), symptoms, dailyCare, riskFactors, notes: logNotes }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.message || 'Failed to save daily oral health log.');
@@ -284,6 +298,15 @@ export default function OralCareInsightsScreen({ navigation, route }) {
           <View style={styles.heroStatusPill}>
             <Ionicons name="sparkles-outline" size={14} color={mobileTheme.colors.primaryDark} />
             <Text style={styles.heroStatusText}>{preview.hero.statusLabel}</Text>
+          </View>
+
+          <Text style={styles.previewHint}>Based on</Text>
+          <View style={styles.summaryChipRow}>
+            {(preview.hero.sourceLabels || []).map((source) => (
+              <View key={source} style={styles.summaryChip}>
+                <Text style={styles.summaryChipText}>{source}</Text>
+              </View>
+            ))}
           </View>
 
           <View style={styles.summaryChipRow}>
@@ -384,7 +407,32 @@ export default function OralCareInsightsScreen({ navigation, route }) {
           ))}
         </SurfaceCard>
 
-        <SectionLabel eyebrow="Dental Health Education" title={preview.education.title} style={styles.sectionSpacing} />
+        <SectionLabel eyebrow="Contextual Dental Health Education" title="Related to recent logs" style={styles.sectionSpacing} />
+        {(preview.education.contextualArticles || []).length ? (
+          preview.education.contextualArticles.map((article) => (
+            <SurfaceCard key={article.id} style={styles.educationCard}>
+              <Text style={styles.summaryCount}>{article.category || 'Dental Health Education'}</Text>
+              <Text style={styles.summaryTitle}>{article.title}</Text>
+              <Text style={styles.educationBody}>{article.summary}</Text>
+              {article.action ? <Text style={styles.previewHint}>{article.action}</Text> : null}
+            </SurfaceCard>
+          ))
+        ) : (
+          <SurfaceCard style={styles.educationCard}>
+            <MaterialCommunityIcons
+              name="book-open-page-variant-outline"
+              size={30}
+              color={mobileTheme.colors.primaryDark}
+              style={{ marginBottom: 10 }}
+            />
+            <Text style={styles.summaryTitle}>No matching topic yet</Text>
+            <Text style={styles.educationBody}>
+              Save symptoms or care habits such as sensitivity, bleeding gums, flossing, or missed brushing to see related Dental Health Education.
+            </Text>
+          </SurfaceCard>
+        )}
+
+        <SectionLabel eyebrow="Dental Health Education" title="Approved Topic Library" style={styles.sectionSpacing} />
         <SurfaceCard style={styles.educationCard}>
           <MaterialCommunityIcons
             name="tooth-outline"
@@ -394,6 +442,14 @@ export default function OralCareInsightsScreen({ navigation, route }) {
           />
           <Text style={styles.educationBody}>{preview.education.body}</Text>
         </SurfaceCard>
+        {(preview.education.articles || []).map((article) => (
+          <SurfaceCard key={article.id} style={styles.educationCard}>
+            <Text style={styles.summaryCount}>{article.category || 'Dental Health Education'}</Text>
+            <Text style={styles.summaryTitle}>{article.title}</Text>
+            <Text style={styles.educationBody}>{article.summary}</Text>
+            {article.action ? <Text style={styles.previewHint}>{article.action}</Text> : null}
+          </SurfaceCard>
+        ))}
       </ScrollView>
 
       <Modal visible={factorsVisible} transparent animationType="slide" onRequestClose={() => setFactorsVisible(false)}>

@@ -52,6 +52,7 @@ const verifyToken = require('./middleware/auth');
 // Import Model
 const User = require('./models/User'); 
 const AuditLog = require('./models/AuditLog'); 
+const OralHealthLog = require('./models/OralHealthLog');
 // Patient model removed — patients use the User model (role: 'patient')
 const Appointment = require('./models/Appointment');
 const Surgery = Appointment;
@@ -66,9 +67,11 @@ const RolePermission = require('./models/RolePermission');
 const backupRoutes = require('./routes/backup');
 const integrityRoutes = require('./routes/integrity');
 const {
+    buildExplainableVisitRecommendation,
     buildOralHealthPayloadFromPatient,
     normalizeDailyOralHealthLogInput,
     normalizeOralHealthFactors,
+    normalizeSavedLogForPayload,
 } = require('./utils/oralHealth');
 // ADD this line with the other model imports (after the AuditLog import)
 const MaterialUsageLog = require('./models/MaterialUsageLog');
@@ -847,6 +850,7 @@ console.log('✅ Resend email client initialized');
 mongoose.connection.once('open', async () => {
     await ensureInventoryBatchIndexes();
     await ensureInventoryStockInNumbers();
+    await OralHealthLog.createIndexes();
 });
 
 // ================= PUBLIC ROUTES ================= //
@@ -10099,6 +10103,13 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
+
         if (req.user.role === 'dentist') {
             const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
             if (!canAccess) {
@@ -10286,8 +10297,9 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
 
 app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, res) => {
     // Phase 5: Secretary has read-only access to EMR — block delete
-    if (req.user.role === 'secretary') {
-        return res.status(403).json({ message: 'Access denied. Secretaries cannot delete radiographs.' });
+    const allowedRoles = ['administrator', 'branch-manager', 'dentist', 'owner'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
     }
     if (!(await assertSystemFeatureEnabled(res, 'radiographUploads'))) {
         return;
@@ -10295,6 +10307,13 @@ app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, re
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
 
         if (req.user.role === 'dentist') {
             const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
@@ -10359,10 +10378,29 @@ app.get('/api/my/visit-prediction', verifyToken, async (req, res) => {
 
         await reconcilePatientTreatmentLogsFromCompletedAppointments(req.user.id);
 
-        const patient = await User.findById(req.user.id).select('treatmentLogs notifVisitWindow');
+        const patient = await User.findById(req.user.id).select('treatmentLogs notifVisitWindow oralHealthLogs');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
-        const prediction = getPredictiveVisitWindowFromTreatmentHistory(patient.treatmentLogs || []);
+        const storedOralHealthLogs = await OralHealthLog.find({ patient: patient._id })
+            .sort({ logDateKey: -1 })
+            .limit(90)
+            .lean();
+        const oralHealthLogsByDate = new Map();
+        storedOralHealthLogs.forEach((log) => {
+            oralHealthLogsByDate.set(log.logDateKey, normalizeSavedLogForPayload(log));
+        });
+        (patient.oralHealthLogs || []).forEach((legacyLog) => {
+            const normalized = normalizeSavedLogForPayload(legacyLog);
+            if (normalized.logDateKey && !oralHealthLogsByDate.has(normalized.logDateKey)) {
+                oralHealthLogsByDate.set(normalized.logDateKey, normalized);
+            }
+        });
+
+        const basePrediction = getPredictiveVisitWindowFromTreatmentHistory(patient.treatmentLogs || []);
+        const prediction = buildExplainableVisitRecommendation({
+            basePrediction,
+            oralHealthLogs: [...oralHealthLogsByDate.values()],
+        });
 
         return res.json({
             prediction,
@@ -10428,6 +10466,34 @@ app.get('/api/my/radiographs', verifyToken, async (req, res) => {
 
 // ─── PATIENT MOBILE: Patient settings (notification prefs + privacy consent) ───
 
+const getOralHealthPayloadForPatient = async (patient) => {
+    const storedLogs = await OralHealthLog.find({ patient: patient._id })
+        .sort({ logDateKey: -1 })
+        .limit(90)
+        .lean();
+    const mergedLogsByDate = new Map();
+
+    storedLogs.forEach((log) => {
+        mergedLogsByDate.set(log.logDateKey, normalizeSavedLogForPayload(log));
+    });
+
+    (patient.oralHealthLogs || []).forEach((legacyLog) => {
+        const normalized = normalizeSavedLogForPayload(legacyLog);
+        if (normalized.logDateKey && !mergedLogsByDate.has(normalized.logDateKey)) {
+            mergedLogsByDate.set(normalized.logDateKey, normalized);
+        }
+    });
+
+    const oralHealthLogs = [...mergedLogsByDate.values()]
+        .sort((left, right) => String(right.logDateKey || '').localeCompare(String(left.logDateKey || '')))
+        .slice(0, 90);
+
+    return buildOralHealthPayloadFromPatient({
+        oralHealthFactors: patient.oralHealthFactors || [],
+        oralHealthLogs,
+    });
+};
+
 app.get('/api/my/oral-health', verifyToken, async (req, res) => {
     try {
         if (req.user.role !== 'patient') {
@@ -10440,7 +10506,7 @@ app.get('/api/my/oral-health', verifyToken, async (req, res) => {
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
         res.json({
-            ...buildOralHealthPayloadFromPatient(patient),
+            ...await getOralHealthPayloadForPatient(patient),
             educationConsent: patient.educationConsent ?? false,
             notifHealthTips: patient.notifHealthTips ?? true,
         });
@@ -10472,7 +10538,7 @@ app.patch('/api/my/oral-health/factors', verifyToken, async (req, res) => {
 
         res.json({
             message: 'Oral health factors saved.',
-            ...buildOralHealthPayloadFromPatient(patient),
+            ...await getOralHealthPayloadForPatient(patient),
         });
     } catch (error) {
         const statusCode = error.statusCode || 500;
@@ -10491,26 +10557,57 @@ app.post('/api/my/oral-health/logs', verifyToken, async (req, res) => {
         const patient = await User.findById(req.user.id).select('oralHealthFactors oralHealthLogs');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
-        const existingLog = (patient.oralHealthLogs || []).find(
-            (log) => log.logDateKey === normalizedLog.logDateKey
-        );
+        const legacyExistingLog = (patient.oralHealthLogs || []).some((log) => log.logDateKey === normalizedLog.logDateKey);
+        let existingLog = await OralHealthLog.exists({
+            patient: patient._id,
+            logDateKey: normalizedLog.logDateKey,
+        }) || legacyExistingLog;
 
-        if (existingLog) {
-            existingLog.symptoms = normalizedLog.symptoms;
-            existingLog.dailyCare = normalizedLog.dailyCare;
-            existingLog.notes = normalizedLog.notes;
-            existingLog.logDate = normalizedLog.logDate;
-        } else {
-            patient.oralHealthLogs.push(normalizedLog);
+        try {
+            await OralHealthLog.findOneAndUpdate(
+                { patient: patient._id, logDateKey: normalizedLog.logDateKey },
+                {
+                    $set: {
+                        patient: patient._id,
+                        logDate: normalizedLog.logDate,
+                        logDateKey: normalizedLog.logDateKey,
+                        symptoms: normalizedLog.symptoms,
+                        dailyCare: normalizedLog.dailyCare,
+                        riskFactors: normalizedLog.riskFactors,
+                        symptomDetails: normalizedLog.symptomDetails,
+                        notes: normalizedLog.notes,
+                    },
+                },
+                {
+                    new: true,
+                    upsert: true,
+                    setDefaultsOnInsert: true,
+                    runValidators: true,
+                }
+            );
+        } catch (writeError) {
+            if (writeError?.code !== 11000) throw writeError;
+            await OralHealthLog.findOneAndUpdate(
+                { patient: patient._id, logDateKey: normalizedLog.logDateKey },
+                {
+                    $set: {
+                        logDate: normalizedLog.logDate,
+                        symptoms: normalizedLog.symptoms,
+                        dailyCare: normalizedLog.dailyCare,
+                        riskFactors: normalizedLog.riskFactors,
+                        symptomDetails: normalizedLog.symptomDetails,
+                        notes: normalizedLog.notes,
+                    },
+                },
+                { new: true, runValidators: true }
+            );
+            existingLog = true;
         }
 
-        if (patient.oralHealthLogs.length > 90) {
-            patient.oralHealthLogs = [...patient.oralHealthLogs]
-                .sort((left, right) => String(right.logDateKey || '').localeCompare(String(left.logDateKey || '')))
-                .slice(0, 90);
+        if (legacyExistingLog) {
+            patient.oralHealthLogs = (patient.oralHealthLogs || []).filter((log) => log.logDateKey !== normalizedLog.logDateKey);
+            await patient.save();
         }
-
-        await patient.save();
 
         await AuditLog.create({
             action: 'SAVE_ORAL_HEALTH_LOG',
@@ -10522,7 +10619,7 @@ app.post('/api/my/oral-health/logs', verifyToken, async (req, res) => {
 
         res.status(existingLog ? 200 : 201).json({
             message: existingLog ? 'Daily oral health log updated.' : 'Daily oral health log saved.',
-            ...buildOralHealthPayloadFromPatient(patient),
+            ...await getOralHealthPayloadForPatient(patient),
         });
     } catch (error) {
         const statusCode = error.statusCode || 500;
