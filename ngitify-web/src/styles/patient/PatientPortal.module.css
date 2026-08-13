@@ -2507,3 +2507,684 @@ button.toolCard:focus-visible {
         font-size: 20px;
     }
 }
+/* Patient AI Assistant */
+.patientAiPageGrid {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.55fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.patientAiContextColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+.patientAiContextCard,
+.patientAiChatCard {
+    border: 1px solid var(--patient-border);
+    border-radius: var(--patient-radius-card);
+    background: var(--patient-surface);
+    box-shadow: var(--patient-shadow);
+}
+
+.patientAiContextCard {
+    padding: 20px;
+}
+
+.patientAiContextHeading {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.patientAiContextIcon,
+.patientAiRobotAvatar,
+.patientAiMessageAvatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    background: rgba(1, 83, 139, 0.08);
+    color: var(--patient-primary);
+}
+
+.patientAiContextIcon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 17px;
+}
+
+.patientAiContextEyebrow,
+.patientAiChatEyebrow,
+.patientAiQuickPromptLabel {
+    display: block;
+    color: var(--patient-accent);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.patientAiContextEyebrow {
+    margin-bottom: 5px;
+}
+
+.patientAiContextTitle {
+    margin: 0;
+    color: var(--patient-text);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+.patientAiContextText {
+    margin: 12px 0 0;
+    color: var(--patient-text-muted);
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+.patientAiContextLoading {
+    padding: 14px;
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+    color: var(--patient-text-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.patientAiContextError {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 13px;
+    border: 1px solid #fecaca;
+    border-radius: var(--patient-radius-control);
+    background: #fff7f7;
+    color: #991b1b;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.patientAiContextError svg {
+    flex: 0 0 auto;
+    margin-top: 2px;
+}
+
+.patientAiRecommendationStatus {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 11px;
+    border-radius: 999px;
+    background: rgba(1, 83, 139, 0.08);
+    color: var(--patient-primary);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.patientAiRecommendationWindow {
+    margin: 12px 0 0;
+    color: var(--patient-text);
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+.patientAiContactNotice {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 14px;
+    padding: 13px;
+    border: 1px solid #fed7aa;
+    border-radius: var(--patient-radius-control);
+    background: #fffaf3;
+}
+
+.patientAiContactNotice strong {
+    color: #9a3412;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.patientAiContactNotice span {
+    color: #9a3412;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.patientAiAuthorityNotice {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+}
+
+.patientAiAuthorityNotice strong {
+    color: var(--patient-primary);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.patientAiAuthorityNotice span {
+    color: var(--patient-text-muted);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.patientAiMiniStats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.patientAiMiniStat {
+    padding: 12px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+}
+
+.patientAiMiniStat strong {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--patient-primary);
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.patientAiMiniStat span {
+    color: var(--patient-text-muted);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.patientAiEducationList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.patientAiEducationItem {
+    padding: 11px 12px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+}
+
+.patientAiEducationItem span {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--patient-text-subtle);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.patientAiEducationItem strong {
+    display: block;
+    color: var(--patient-text);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+.patientAiChatCard {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 720px;
+    overflow: hidden;
+}
+
+.patientAiChatHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px;
+    border-bottom: 1px solid var(--patient-border-strong);
+}
+
+.patientAiChatIdentity {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+}
+
+.patientAiRobotAvatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    font-size: 20px;
+}
+
+.patientAiChatEyebrow {
+    margin-bottom: 4px;
+}
+
+.patientAiChatTitle {
+    margin: 0;
+    color: var(--patient-text);
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.patientAiChatSubtitle {
+    margin: 5px 0 0;
+    color: var(--patient-text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.patientAiClearButton {
+    align-self: flex-start;
+    min-height: 38px;
+    padding: 8px 13px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface);
+    color: var(--patient-text-muted);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.patientAiClearButton:hover:not(:disabled) {
+    background: var(--patient-surface-muted);
+    color: var(--patient-primary);
+}
+
+.patientAiClearButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.patientAiQuickPromptSection {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--patient-border-strong);
+    background: var(--patient-surface-muted);
+}
+
+.patientAiQuickPromptLabel {
+    margin-bottom: 10px;
+}
+
+.patientAiPromptGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.patientAiPromptButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 8px 11px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 999px;
+    background: var(--patient-surface);
+    color: var(--patient-text-muted);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.patientAiPromptButton:hover:not(:disabled) {
+    border-color: rgba(1, 83, 139, 0.22);
+    background: rgba(1, 83, 139, 0.05);
+    color: var(--patient-primary);
+    transform: translateY(-1px);
+}
+
+.patientAiPromptButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.patientAiPromptButton svg {
+    flex: 0 0 auto;
+}
+
+.patientAiMessages {
+    flex: 1;
+    min-height: 360px;
+    max-height: 570px;
+    overflow-y: auto;
+    padding: 20px;
+    background: #fbfcfd;
+}
+
+.patientAiMessageRowAssistant,
+.patientAiMessageRowUser {
+    display: flex;
+    align-items: flex-end;
+    gap: 9px;
+    margin-bottom: 14px;
+}
+
+.patientAiMessageRowAssistant {
+    justify-content: flex-start;
+}
+
+.patientAiMessageRowUser {
+    justify-content: flex-end;
+}
+
+.patientAiMessageAvatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.patientAiAssistantBubble,
+.patientAiUserBubble {
+    max-width: min(78%, 620px);
+    padding: 12px 14px;
+    border-radius: 15px;
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.patientAiAssistantBubble {
+    border: 1px solid var(--patient-border-strong);
+    border-bottom-left-radius: 5px;
+    background: var(--patient-surface);
+    color: var(--patient-text);
+}
+
+.patientAiUserBubble {
+    border-bottom-right-radius: 5px;
+    background: var(--patient-primary);
+    color: #ffffff;
+}
+
+.patientAiAssistantBubble p,
+.patientAiUserBubble p {
+    margin: 0 0 8px;
+}
+
+.patientAiAssistantBubble p:last-child,
+.patientAiUserBubble p:last-child {
+    margin-bottom: 0;
+}
+
+.patientAiTyping {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 18px;
+}
+
+.patientAiTyping span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--patient-text-subtle);
+    animation: patientAiTypingPulse 1.2s infinite ease-in-out;
+}
+
+.patientAiTyping span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.patientAiTyping span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes patientAiTypingPulse {
+    0%,
+    80%,
+    100% {
+        opacity: 0.35;
+        transform: translateY(0);
+    }
+
+    40% {
+        opacity: 1;
+        transform: translateY(-2px);
+    }
+}
+
+.patientAiChatError {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 20px 14px;
+    padding: 13px;
+    border: 1px solid #fecaca;
+    border-radius: var(--patient-radius-control);
+    background: #fff7f7;
+    color: #991b1b;
+}
+
+.patientAiChatError > svg {
+    margin-top: 2px;
+}
+
+.patientAiChatError strong {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.patientAiChatError p {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.patientAiRetryButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid #fecaca;
+    border-radius: var(--patient-radius-control);
+    background: #ffffff;
+    color: #991b1b;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.patientAiComposer {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--patient-border-strong);
+    background: var(--patient-surface);
+}
+
+.patientAiTextarea {
+    flex: 1;
+    min-height: 52px;
+    max-height: 140px;
+    resize: vertical;
+    padding: 12px 14px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 12px;
+    background: var(--patient-surface);
+    color: var(--patient-text);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.patientAiTextarea::placeholder {
+    color: var(--patient-text-subtle);
+}
+
+.patientAiTextarea:focus {
+    border-color: var(--patient-accent);
+    box-shadow: 0 0 0 4px rgba(45, 204, 246, 0.12);
+}
+
+.patientAiTextarea:disabled {
+    background: var(--patient-surface-muted);
+}
+
+.patientAiSendButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 13px;
+    background: var(--patient-primary);
+    color: #ffffff;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(1, 83, 139, 0.2);
+}
+
+.patientAiSendButton:hover:not(:disabled) {
+    background: var(--patient-primary-dark);
+}
+
+.patientAiSendButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+    box-shadow: none;
+}
+
+.patientAiDisclaimer {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 12px 20px 16px;
+    color: var(--patient-text-muted);
+    background: var(--patient-surface);
+}
+
+.patientAiDisclaimer svg {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: var(--patient-primary);
+    font-size: 12px;
+}
+
+.patientAiDisclaimer p {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.55;
+}
+
+@media (max-width: 1100px) {
+    .patientAiPageGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .patientAiContextColumn {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .patientAiChatCard {
+        min-height: 680px;
+    }
+}
+
+@media (max-width: 820px) {
+    .patientAiContextColumn {
+        grid-template-columns: 1fr;
+    }
+
+    .patientAiChatHeader {
+        flex-direction: column;
+    }
+
+    .patientAiClearButton {
+        align-self: flex-start;
+    }
+
+    .patientAiMessages {
+        min-height: 330px;
+        max-height: 520px;
+    }
+
+    .patientAiAssistantBubble,
+    .patientAiUserBubble {
+        max-width: 88%;
+    }
+}
+
+@media (max-width: 600px) {
+    .patientAiContextCard {
+        padding: 16px;
+    }
+
+    .patientAiChatHeader,
+    .patientAiQuickPromptSection,
+    .patientAiMessages,
+    .patientAiComposer {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .patientAiPromptGrid {
+        flex-direction: column;
+    }
+
+    .patientAiPromptButton {
+        width: 100%;
+        border-radius: var(--patient-radius-control);
+    }
+
+    .patientAiMessages {
+        min-height: 310px;
+    }
+
+    .patientAiAssistantBubble,
+    .patientAiUserBubble {
+        max-width: 92%;
+    }
+
+    .patientAiChatError {
+        grid-template-columns: auto minmax(0, 1fr);
+        margin-left: 14px;
+        margin-right: 14px;
+    }
+
+    .patientAiRetryButton {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .patientAiTextarea {
+        min-height: 48px;
+    }
+
+    .patientAiSendButton {
+        width: 48px;
+        height: 48px;
+    }
+}

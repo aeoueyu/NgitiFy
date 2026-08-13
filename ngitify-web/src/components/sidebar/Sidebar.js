@@ -481,22 +481,31 @@ export default function Sidebar() {
                 </div>
             </aside>
 
-            {isPatient && location.pathname !== '/patient/dashboard' && (
-                <button
-                    type="button"
-                    className={styles.patientAiFloatingButton}
-                    onClick={() => {
-                        setIsChatOpen((prev) => !prev);
-                        setIsExpanded(false);
-                    }}
-                    aria-label={isChatOpen ? 'Close AI assistant' : 'Open AI assistant'}
-                >
-                    <FaRobot />
-                    <span>AI</span>
-                </button>
-            )}
+            {isPatient
+                && location.pathname !== '/patient/dashboard'
+                && location.pathname !== '/patient/ai-companion'
+                ? (
+                    <button
+                        type="button"
+                        className={styles.patientAiFloatingButton}
+                        onClick={() => {
+                            navigate('/patient/ai-companion');
+                            setIsExpanded(false);
+                        }}
+                        aria-label="Open Patient AI Assistant"
+                    >
+                        <FaRobot />
+                        <span>AI</span>
+                    </button>
+                )
+                : null}
 
-            <AIChatAssistant isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+            {!isPatient ? (
+                <AIChatAssistant
+                    isOpen={isChatOpen}
+                    onClose={() => setIsChatOpen(false)}
+                />
+            ) : null}
 
             <ConfirmModal
                 isOpen={showLogoutModal}

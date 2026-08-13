@@ -1,691 +1,1669 @@
-import React, { useContext, useEffect, useRef, useState, useCallback } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
-    View, Text, TouchableOpacity, StyleSheet, ScrollView,
-    Animated, Modal, ActivityIndicator,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Calendar } from 'react-native-calendars';
-import { Ionicons } from '@expo/vector-icons';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+} from '@expo/vector-icons';
+
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
+import { mobileTheme } from '../../theme/mobileTheme';
 
-const EDUCATION_ARTICLES = [
-    {
-        id: '1',
-        iconName: 'toothbrush',
-        iconLib: 'MaterialCommunityIcons',
-        iconColor: '#01538b',
-        title: 'Proper Brushing Technique',
-        summary: 'Brush for 2 minutes, twice a day using circular motions at a 45 degree angle.',
-        body: "Use a soft-bristled toothbrush and fluoride toothpaste. Hold the brush at a 45 degree angle to your gums. Use short, gentle circular strokes, never scrub. Brush outer surfaces, inner surfaces, and chewing surfaces of all teeth. Don't forget to brush your tongue to remove bacteria and freshen breath. Replace your toothbrush every 3 to 4 months.",
-    },
-    {
-        id: '2',
-        iconName: 'tooth-outline',
-        iconLib: 'MaterialCommunityIcons',
-        iconColor: '#00897b',
-        title: 'Why Flossing Matters',
-        summary: 'Flossing removes plaque from areas your toothbrush cannot reach.',
-        body: 'Floss at least once a day, ideally before bed. Break off about 45 cm of floss and wind it around your middle fingers. Gently slide it between teeth in a C-shape motion, going just below the gumline. Using floss picks or a water flosser are equally effective alternatives. Skipping flossing leaves 40% of tooth surfaces uncleaned.',
-    },
-    {
-        id: '3',
-        iconName: 'nutrition-outline',
-        iconLib: 'Ionicons',
-        iconColor: '#2e7d32',
-        title: 'Foods That Protect Your Teeth',
-        summary: 'Cheese, leafy greens, and crunchy vegetables naturally strengthen enamel.',
-        body: 'Dairy products provide calcium and phosphates that remineralize enamel. Crunchy fruits and vegetables like apples and carrots increase saliva production, washing away bacteria. Leafy greens are rich in calcium and folic acid. Green and black teas contain polyphenols that suppress bacteria. Drink plenty of water throughout the day.',
-    },
-    {
-        id: '4',
-        iconName: 'cafe-outline',
-        iconLib: 'Ionicons',
-        iconColor: '#c62828',
-        title: 'Habits That Harm Your Teeth',
-        summary: 'Coffee, soda, and tobacco significantly accelerate dental decay.',
-        body: 'Sugary and acidic drinks erode enamel over time. Sipping throughout the day is worse than drinking in one sitting. Tobacco use causes gum disease, tooth loss, and oral cancer. Grinding your teeth damages enamel and causes jaw pain, so ask your dentist about a night guard. Using your teeth to open packaging or bottles can cause chips or fractures.',
-    },
+const QUICK_PROMPTS = [
+  {
+    id: 'visit-recommendation',
+    icon: 'calendar-outline',
+    label: 'Explain my current visit recommendation',
+  },
+  {
+    id: 'oral-health-trend',
+    icon: 'analytics-outline',
+    label: 'Explain my recent Oral Health Management trend',
+  },
+  {
+    id: 'education',
+    icon: 'book-outline',
+    label: 'Give me Dental Health Education related to my recent log',
+  },
+  {
+    id: 'appointment',
+    icon: 'time-outline',
+    label: 'Help me understand my upcoming appointment',
+  },
+  {
+    id: 'home-care',
+    icon: 'sparkles-outline',
+    label: 'Give me brushing and flossing guidance',
+  },
 ];
 
-const ORAL_HEALTH_TIPS = [
-    { id: '1', iconName: 'sunny-outline', iconLib: 'Ionicons', iconColor: '#f57f17', title: 'Morning Routine', tip: 'Brush and rinse before breakfast to remove overnight bacteria buildup.' },
-    { id: '2', iconName: 'moon-outline', iconLib: 'Ionicons', iconColor: '#5c6bc0', title: 'Night Routine', tip: 'Brush and floss before bed. This is the most important brushing session.' },
-    { id: '3', iconName: 'water-outline', iconLib: 'Ionicons', iconColor: '#0288d1', title: 'Stay Hydrated', tip: 'Drink water after meals to rinse away food particles and acid.' },
-    { id: '4', iconName: 'flask-outline', iconLib: 'Ionicons', iconColor: '#00897b', title: 'Mouthwash', tip: 'Use fluoride or antibacterial mouthwash to reach areas brushing misses.' },
-    { id: '5', iconName: 'calendar-outline', iconLib: 'Ionicons', iconColor: '#01538b', title: 'Regular Check-ups', tip: 'Visit your dentist every 6 months for cleaning and early detection.' },
-    { id: '6', iconName: 'toothbrush', iconLib: 'MaterialCommunityIcons', iconColor: '#6a1b9a', title: 'Change Your Brush', tip: 'Replace your toothbrush every 3 months or after any illness.' },
-];
-
-const SECTIONS = ['overview', 'education', 'oralHealth', 'visitWindow'];
-const SECTION_LABELS = {
-    overview: 'Overview',
-    education: 'Education',
-    oralHealth: 'Oral Health',
-    visitWindow: 'Visit Window',
+const WELCOME_MESSAGE = {
+  id: 'welcome',
+  role: 'assistant',
+  content:
+    'Hello! I can explain your existing NgitiFy care information, Oral Health Management records, Dental Health Education, appointments, and System Recommendation. I provide educational explanations and do not diagnose conditions or create my own medical recommendations.',
 };
 
-const fmtDate = (iso) => {
-    if (!iso) return '-';
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+const formatDateKey = (value) => {
+  if (!value) return '';
+
+  const normalized = String(value).trim();
+  const match = normalized.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/,
+  );
+
+  if (match) {
+    const [, year, month, day] = match;
+
+    const date = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+    );
+
+    return date.toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return normalized;
+  }
+
+  return date.toLocaleDateString('en-PH', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 };
 
-const toDateKey = (value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
+const getChatErrorMessage = (status, payload) => {
+  if (status === 429) {
+    return 'The AI request limit has been reached for now. Your System Recommendation and other core NgitiFy features are still available.';
+  }
+
+  if (status === 503) {
+    return 'The AI explanation service is temporarily unavailable. Your System Recommendation, Oral Health Management, and Dental Health Education are still available.';
+  }
+
+  return (
+    payload?.message
+    || 'The AI explanation could not be loaded. Please try again.'
+  );
 };
 
-const parseDateKey = (value) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim())) return null;
-    const date = new Date(`${value}T12:00:00`);
-    return Number.isNaN(date.getTime()) ? null : date;
-};
+export default function AiPatientCareCompanionScreen({
+  navigation,
+}) {
+  const {
+    userToken,
+    API_BASE_URL,
+  } = useContext(AuthContext);
 
-const buildVisitWindowMarkedDates = (visitInfo, selectedDate) => {
-    if ((!visitInfo?.windowStart && !visitInfo?.windowStartKey)
-        || (!visitInfo?.windowEnd && !visitInfo?.windowEndKey)) return {};
+  const [visitInfo, setVisitInfo] = useState(null);
+  const [oralHealth, setOralHealth] = useState(null);
+  const [careLoading, setCareLoading] = useState(true);
+  const [careError, setCareError] = useState('');
 
-    const windowStart = parseDateKey(visitInfo.windowStartKey) || new Date(visitInfo.windowStart);
-    const windowEnd = parseDateKey(visitInfo.windowEndKey) || new Date(visitInfo.windowEnd);
-    if (Number.isNaN(windowStart.getTime()) || Number.isNaN(windowEnd.getTime())) return {};
+  const [messages, setMessages] = useState([
+    WELCOME_MESSAGE,
+  ]);
 
-    const markedDates = {};
-    const cursor = new Date(windowStart);
-    const selectedKey = selectedDate || visitInfo.recommendedDateKey || toDateKey(windowStart);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const [
+    lastFailedPrompt,
+    setLastFailedPrompt,
+  ] = useState('');
 
-    while (cursor <= windowEnd) {
-        const key = toDateKey(cursor);
-        const isSelected = key === selectedKey;
-        markedDates[key] = {
-            selected: true,
-            selectedColor: isSelected ? '#01538b' : '#bfeffc',
-            selectedTextColor: isSelected ? '#ffffff' : '#01538b',
-        };
-        cursor.setDate(cursor.getDate() + 1);
+  const scrollRef = useRef(null);
+
+  const authHeaders = {
+    Authorization: `Bearer ${userToken}`,
+  };
+
+  const fetchCareSnapshot = useCallback(async () => {
+    if (!userToken || !API_BASE_URL) {
+      setCareLoading(false);
+      setCareError(
+        'Your patient session is unavailable.',
+      );
+      return;
     }
 
-    if (selectedKey && !markedDates[selectedKey]) {
-        markedDates[selectedKey] = {
-            selected: true,
-            selectedColor: '#01538b',
-            selectedTextColor: '#ffffff',
-        };
-    }
+    setCareLoading(true);
+    setCareError('');
 
-    return markedDates;
-};
+    try {
+      const [
+        predictionResponse,
+        oralHealthResponse,
+      ] = await Promise.all([
+        fetch(
+          `${API_BASE_URL}/api/my/visit-prediction`,
+          {
+            headers: authHeaders,
+          },
+        ),
+        fetch(
+          `${API_BASE_URL}/api/my/oral-health`,
+          {
+            headers: authHeaders,
+          },
+        ),
+      ]);
 
-function DynamicIcon({ iconName, iconLib, iconColor, size }) {
-    if (iconLib === 'MaterialCommunityIcons') {
-        return <MaterialCommunityIcons name={iconName} size={size} color={iconColor} />;
-    }
-    return <Ionicons name={iconName} size={size} color={iconColor} />;
-}
-
-export default function AiPatientCareCompanionScreen({ navigation, route }) {
-    const { userToken, API_BASE_URL } = useContext(AuthContext);
-
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const [activeSection, setActiveSection] = useState('overview');
-    const [selectedVisitDate, setSelectedVisitDate] = useState(route?.params?.focusDate || '');
-    const [visitInfo, setVisitInfo] = useState(null);
-    const [treatmentHistory, setTreatmentHistory] = useState([]);
-    const [loadingVisit, setLoadingVisit] = useState(true);
-    const [selectedArticle, setSelectedArticle] = useState(null);
-
-    const authHeader = { Authorization: `Bearer ${userToken}` };
-
-    useEffect(() => {
-        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-    }, [fadeAnim]);
-
-    const fetchLastVisit = useCallback(async () => {
-        setLoadingVisit(true);
-        try {
-            const [logsRes, predictionRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers: authHeader }),
-                fetch(`${API_BASE_URL}/api/my/visit-prediction`, { headers: authHeader }),
-            ]);
-
-            if (!logsRes.ok || !predictionRes.ok) throw new Error();
-
-            const logs = await logsRes.json();
-            const predictionPayload = await predictionRes.json();
-            setTreatmentHistory(Array.isArray(logs) ? logs : []);
-            setVisitInfo(predictionPayload?.prediction || null);
-        } catch {
-            setTreatmentHistory([]);
-            setVisitInfo(null);
-        } finally {
-            setLoadingVisit(false);
-        }
-    }, [userToken, API_BASE_URL]);
-
-    useEffect(() => {
-        fetchLastVisit();
-    }, [fetchLastVisit]);
-
-    useEffect(() => {
-        if (route?.params?.initialSection && SECTIONS.includes(route.params.initialSection)) {
-            setActiveSection(route.params.initialSection);
-        }
-        if (route?.params?.focusDate) {
-            setSelectedVisitDate(route.params.focusDate);
-        }
-    }, [route?.params?.focusDate, route?.params?.initialSection]);
-
-    // ─── RENDERS ─────────────────────────────────────────────────────────────
-
-    const renderOverview = () => {
-        const isLoadingBanner = loadingVisit;
-        const hasPrediction   = !!visitInfo;
-
-        return (
-            <View>
-                <Text style={styles.welcomeText}>
-                    Your personal AI-powered companion for dental care, education, and visit guidance.
-                </Text>
-
-                <View style={styles.featureGrid}>
-
-                    <TouchableOpacity
-                        style={[styles.featureCard, { backgroundColor: '#1565c0' }]}
-                        onPress={() => setActiveSection('education')}
-                    >
-                        <Ionicons name="book-outline" size={28} color="white" style={styles.featureIcon} />
-                        <Text style={styles.featureCardTitle}>Dental Health Education</Text>
-                        <Text style={styles.featureCardSub}>Learn about oral care</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.featureCard, { backgroundColor: '#00695c' }]}
-                        onPress={() => setActiveSection('oralHealth')}
-                    >
-                        <MaterialCommunityIcons name="tooth-outline" size={28} color="white" style={styles.featureIcon} />
-                        <Text style={styles.featureCardTitle}>Oral Health Management</Text>
-                        <Text style={styles.featureCardSub}>Daily care reminders & tips</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Predictive Visit Window summary card */}
-                {isLoadingBanner ? (
-                    <View style={styles.visitBannerLoading}>
-                        <ActivityIndicator size="small" color="#01538b" />
-                        <Text style={styles.visitBannerLoadingText}>Loading visit prediction…</Text>
-                    </View>
-                ) : hasPrediction ? (
-                    <TouchableOpacity
-                        style={[styles.visitBanner, { backgroundColor: visitInfo.bg, borderColor: visitInfo.color }]}
-                        onPress={() => setActiveSection('visitWindow')}
-                        activeOpacity={0.8}
-                    >
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.visitBannerLabel, { color: visitInfo.color }]}>Next Visit Prediction</Text>
-                            <Text style={styles.visitBannerDate}>{visitInfo.windowLabel || visitInfo.nextDate}</Text>
-                        </View>
-                        <View style={[styles.visitTag, { backgroundColor: visitInfo.color }]}>
-                            <Text style={styles.visitTagText}>{visitInfo.label}</Text>
-                        </View>
-                    </TouchableOpacity>
-                ) : (
-                    <TouchableOpacity
-                        style={[styles.visitBanner, { backgroundColor: '#f5f5f5', borderColor: '#e0e0e0' }]}
-                        onPress={() => setActiveSection('visitWindow')}
-                        activeOpacity={0.8}
-                    >
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.visitBannerLabel, { color: '#aaa' }]}>Visit Prediction</Text>
-                            <Text style={[styles.visitBannerDate, { color: '#bbb', fontSize: 14 }]}>
-                                No treatment history yet
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                )}
-            </View>
+      if (!predictionResponse.ok) {
+        throw new Error(
+          'Recommended Visit Window could not be loaded.',
         );
-    };
-
-    const renderEducation = () => (
-        <View>
-            <Text style={styles.sectionHeader}>Dental Health Education</Text>
-            <Text style={styles.sectionSub}>Evidence-based tips to keep your smile healthy every day.</Text>
+      }
 
-            {EDUCATION_ARTICLES.map(article => (
-                <TouchableOpacity
-                    key={article.id}
-                    style={styles.articleCard}
-                    onPress={() => setSelectedArticle(article)}
-                    activeOpacity={0.8}
-                >
-                    <View style={[styles.articleIconCircle, { backgroundColor: article.iconColor + '20' }]}>
-                        <DynamicIcon
-                            iconName={article.iconName}
-                            iconLib={article.iconLib}
-                            iconColor={article.iconColor}
-                            size={26}
-                        />
-                    </View>
-                    <View style={styles.articleInfo}>
-                        <Text style={styles.articleTitle}>{article.title}</Text>
-                        <Text style={styles.articleSummary}>{article.summary}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#01538b" />
-                </TouchableOpacity>
-            ))}
-        </View>
+      if (!oralHealthResponse.ok) {
+        throw new Error(
+          'Oral Health Management could not be loaded.',
+        );
+      }
+
+      const predictionPayload =
+        await predictionResponse.json();
+
+      const oralHealthPayload =
+        await oralHealthResponse.json();
+
+      setVisitInfo(
+        predictionPayload?.prediction || null,
+      );
+
+      setOralHealth(
+        oralHealthPayload
+        && typeof oralHealthPayload === 'object'
+          ? oralHealthPayload
+          : null,
+      );
+    } catch (error) {
+      setCareError(
+        error.message
+        || 'Your current care information could not be loaded.',
+      );
+    } finally {
+      setCareLoading(false);
+    }
+  }, [
+    API_BASE_URL,
+    userToken,
+  ]);
+
+  useEffect(() => {
+    fetchCareSnapshot();
+  }, [fetchCareSnapshot]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({
+        animated: true,
+      });
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [
+    messages,
+    sending,
+    chatError,
+  ]);
+
+  const oralHealthSummary =
+    oralHealth?.summary
+    && typeof oralHealth.summary === 'object'
+      ? oralHealth.summary
+      : {};
+
+  const recentLogs =
+    Array.isArray(oralHealth?.logs)
+      ? oralHealth.logs
+      : [];
+
+  const contextualEducation =
+    Array.isArray(
+      oralHealth?.contextualEducation,
+    )
+      ? oralHealth.contextualEducation
+      : [];
+
+  const latestLogDate =
+    oralHealthSummary.lastLogDateKey
+    || recentLogs[0]?.logDateKey
+    || '';
+
+  const recommendationLabel =
+    visitInfo?.label
+    || (
+      careLoading
+        ? 'Loading...'
+        : 'Insufficient Data'
     );
 
-    const renderOralHealth = () => (
-        <View>
-            <Text style={styles.sectionHeader}>Oral Health Management</Text>
-            <Text style={styles.sectionSub}>Build daily habits that protect your teeth and gums long-term.</Text>
+  const recommendationWindow =
+    visitInfo?.windowLabel
+    || visitInfo?.recommendedDateLabel
+    || '';
 
-            <View style={styles.tipGrid}>
-                {ORAL_HEALTH_TIPS.map(tip => (
-                    <View key={tip.id} style={styles.tipCard}>
-                        <DynamicIcon
-                            iconName={tip.iconName}
-                            iconLib={tip.iconLib}
-                            iconColor={tip.iconColor}
-                            size={24}
-                        />
-                        <Text style={styles.tipTitle}>{tip.title}</Text>
-                        <Text style={styles.tipText}>{tip.tip}</Text>
-                    </View>
-                ))}
-            </View>
-
-            <View style={styles.highlightCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <Ionicons name="trophy-outline" size={16} color="#f57f17" style={{ marginRight: 6 }} />
-                    <Text style={styles.highlightTitle}>Did You Know?</Text>
-                </View>
-                <Text style={styles.highlightText}>
-                    Poor oral health is linked to heart disease, diabetes, and respiratory infections.
-                    Brushing twice daily reduces your risk of systemic disease by up to 30%.
-                </Text>
-            </View>
-
-            {/* Persistent Visit CTA */}
-            <TouchableOpacity
-                style={styles.bookVisitBtn}
-                onPress={() => navigation.navigate('AppointmentBooking')}
-                activeOpacity={0.8}
-            >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="calendar-outline" size={16} color="white" style={{ marginRight: 8 }} />
-                    <Text style={styles.bookVisitBtnText}>Book Your Next Visit</Text>
-                </View>
-            </TouchableOpacity>
-        </View>
+  const recommendationReason =
+    visitInfo?.recommendationReason
+    || (
+      visitInfo
+        ? 'NgitiFy is using the current System Recommendation.'
+        : 'NgitiFy does not currently have enough supported clinic information to create a visit window.'
     );
 
-    const renderVisitWindow = () => {
-        const markedDates = buildVisitWindowMarkedDates(visitInfo, selectedVisitDate);
-        const calendarFocusDate = selectedVisitDate || visitInfo?.recommendedDateKey || visitInfo?.windowStartKey;
+  const sendMessage = useCallback(
+    async (promptText) => {
+      const text = String(
+        promptText !== undefined
+          ? promptText
+          : input,
+      ).trim();
 
-        if (loadingVisit) {
-            return (
-                <View style={styles.visitLoadingBox}>
-                    <ActivityIndicator size="large" color="#01538b" />
-                    <Text style={styles.visitLoadingText}>Loading your visit data…</Text>
-                </View>
-            );
+      if (
+        !text
+        || sending
+        || !userToken
+        || !API_BASE_URL
+      ) {
+        return;
+      }
+
+      const userMessage = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: text,
+      };
+
+      const previousMessages = messages
+        .filter(
+          (message) =>
+            message.id !== 'welcome'
+            && message.content,
+        )
+        .map((message) => ({
+          role: message.role,
+          content: message.content,
+        }));
+
+      const requestMessages = [
+        ...previousMessages,
+        {
+          role: 'user',
+          content: text,
+        },
+      ];
+
+      setMessages((current) => [
+        ...current,
+        userMessage,
+      ]);
+
+      setInput('');
+      setSending(true);
+      setChatError('');
+      setLastFailedPrompt('');
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/ai/chat`,
+          {
+            method: 'POST',
+            headers: {
+              ...authHeaders,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messages: requestMessages,
+              assistantContext: {
+                clientUiState: {
+                  source: 'patient-mobile',
+                  currentModule:
+                    'Patient AI Assistant',
+                  requestedAt:
+                    new Date().toISOString(),
+                },
+              },
+            }),
+          },
+        );
+
+        const payload = await response
+          .json()
+          .catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(
+            getChatErrorMessage(
+              response.status,
+              payload,
+            ),
+          );
         }
 
-        if (!visitInfo) {
-            return (
-                <View>
-                    <Text style={styles.sectionHeader}>Predictive Visit Window</Text>
-                    <View style={styles.visitEmptyCard}>
-                        <MaterialCommunityIcons name="tooth-outline" size={48} color="#bbb" style={{ marginBottom: 12 }} />
-                        <Text style={styles.visitEmptyTitle}>No Visit History Yet</Text>
-                        <Text style={styles.visitEmptySub}>
-                            Your predicted next visit will appear here after your first recorded treatment.
-                        </Text>
-                    </View>
-                    <TouchableOpacity
-                        style={styles.bookVisitBtn}
-                        onPress={() => navigation.navigate('AppointmentBooking')}
-                        activeOpacity={0.8}
-                    >
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="calendar-outline" size={16} color="white" style={{ marginRight: 8 }} />
-                            <Text style={styles.bookVisitBtnText}>Book Your First Visit</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-            );
+        const reply = String(
+          payload?.reply || '',
+        ).trim();
+
+        if (!reply) {
+          throw new Error(
+            'The AI explanation returned an empty response.',
+          );
         }
 
-        return (
-            <View>
-                <Text style={styles.sectionHeader}>Predictive Visit Window</Text>
-                <Text style={styles.sectionSub}>
-                    Based on your treatment history, here is when we recommend your next clinic visit.
-                </Text>
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content: reply,
+          },
+        ]);
+      } catch (error) {
+        setChatError(
+          error.message
+          || 'The AI explanation could not be loaded.',
+        );
 
-                <View style={[styles.visitMainCard, { backgroundColor: visitInfo.bg, borderColor: visitInfo.color }]}>
-                    <Text style={[styles.visitStatus, { color: visitInfo.color }]}>{visitInfo.label}</Text>
-                    <Text style={styles.visitNextDate}>{visitInfo.windowLabel || visitInfo.nextDate}</Text>
-                    {visitInfo.label === 'Overdue' ? (
-                        <Text style={[styles.visitDaysText, { color: '#d32f2f' }]}>
-                            {visitInfo.daysPastWindow || visitInfo.days} day(s) past the recommended window
-                        </Text>
-                    ) : visitInfo.label === 'Window Open' ? (
-                        <Text style={styles.visitDaysText}>Your recommended visit window is open now</Text>
-                    ) : (
-                        <Text style={styles.visitDaysText}>
-                            {visitInfo.daysUntilWindowStart} day(s) until the recommended window starts
-                        </Text>
-                    )}
-                </View>
+        setLastFailedPrompt(text);
+      } finally {
+        setSending(false);
+      }
+    },
+    [
+      API_BASE_URL,
+      input,
+      messages,
+      sending,
+      userToken,
+    ],
+  );
 
-                <Calendar
-                    current={calendarFocusDate || undefined}
-                    markedDates={markedDates}
-                    onDayPress={(day) => setSelectedVisitDate(day.dateString)}
-                    theme={{
-                        selectedDayBackgroundColor: '#01538b',
-                        todayTextColor: '#01538b',
-                        arrowColor: '#01538b',
-                        textDayFontWeight: '600',
-                        textMonthFontWeight: '700',
-                        textDayHeaderFontWeight: '700',
-                        calendarBackground: 'white',
-                        textSectionTitleColor: '#01538b',
-                        monthTextColor: '#234051',
-                    }}
-                    style={styles.visitCalendar}
+  const clearConversation = () => {
+    if (sending) return;
+
+    setMessages([
+      WELCOME_MESSAGE,
+    ]);
+
+    setInput('');
+    setChatError('');
+    setLastFailedPrompt('');
+  };
+
+  const renderCareContext = () => (
+    <View style={styles.contextSection}>
+      <View style={styles.sectionHeadingRow}>
+        <View>
+          <Text style={styles.sectionEyebrow}>
+            YOUR CARE CONTEXT
+          </Text>
+
+          <Text style={styles.sectionTitle}>
+            What NgitiFy already knows
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={fetchCareSnapshot}
+          disabled={careLoading}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh care context"
+        >
+          {careLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={mobileTheme.colors.primaryDark}
+            />
+          ) : (
+            <Ionicons
+              name="refresh-outline"
+              size={19}
+              color={mobileTheme.colors.primaryDark}
+            />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {careError ? (
+        <View style={styles.careErrorCard}>
+          <Ionicons
+            name="warning-outline"
+            size={21}
+            color={mobileTheme.colors.primaryDark}
+          />
+
+          <Text style={styles.careErrorText}>
+            {careError}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={styles.contextCard}>
+        <View style={styles.contextCardHeader}>
+          <View style={styles.contextIcon}>
+            <Ionicons
+              name="calendar-outline"
+              size={21}
+              color={mobileTheme.colors.primaryDark}
+            />
+          </View>
+
+          <View style={styles.contextHeaderText}>
+            <Text style={styles.contextEyebrow}>
+              SYSTEM RECOMMENDATION
+            </Text>
+
+            <Text style={styles.contextTitle}>
+              Recommended Visit Window
+            </Text>
+          </View>
+        </View>
+
+        {careLoading ? (
+          <View style={styles.contextLoadingRow}>
+            <ActivityIndicator
+              size="small"
+              color={mobileTheme.colors.primaryDark}
+            />
+
+            <Text style={styles.contextLoadingText}>
+              Loading recommendation...
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusBadgeText}>
+                {recommendationLabel}
+              </Text>
+            </View>
+
+            {recommendationWindow ? (
+              <Text style={styles.recommendationWindow}>
+                {recommendationWindow}
+              </Text>
+            ) : null}
+
+            <Text style={styles.contextBody}>
+              {recommendationReason}
+            </Text>
+
+            {visitInfo?.contactClinicSooner ? (
+              <View style={styles.contactNotice}>
+                <Ionicons
+                  name="call-outline"
+                  size={18}
+                  color={mobileTheme.colors.primaryDark}
                 />
 
-                <View style={styles.visitLegendRow}>
-                    <View style={styles.visitLegendItem}>
-                        <View style={[styles.visitLegendDot, { backgroundColor: '#01538b' }]} />
-                        <Text style={styles.visitLegendText}>Selected day</Text>
-                    </View>
-                    <View style={styles.visitLegendItem}>
-                        <View style={[styles.visitLegendDot, { backgroundColor: '#bfeffc' }]} />
-                        <Text style={styles.visitLegendText}>Predicted window</Text>
-                    </View>
+                <View style={styles.contactNoticeText}>
+                  <Text style={styles.contactNoticeTitle}>
+                    Contact clinic guidance
+                  </Text>
+
+                  <Text style={styles.contactNoticeBody}>
+                    {visitInfo.contactClinicReason
+                    || 'The deterministic NgitiFy recommendation suggests contacting the clinic sooner.'}
+                  </Text>
                 </View>
+              </View>
+            ) : null}
+          </>
+        )}
 
-                <View style={styles.visitDetailsCard}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                        <Ionicons name="clipboard-outline" size={16} color="#333" style={{ marginRight: 6 }} />
-                        <Text style={styles.visitDetailTitle}>Based On</Text>
-                    </View>
-                    <View style={styles.visitDetailRow}>
-                        <Text style={styles.visitDetailLabel}>Last Visit:</Text>
-                        <Text style={styles.visitDetailValue}>{fmtDate(visitInfo.lastVisitDate)}</Text>
-                    </View>
-                    {visitInfo.lastProcedure ? (
-                        <View style={styles.visitDetailRow}>
-                            <Text style={styles.visitDetailLabel}>Last Procedure:</Text>
-                            <Text style={styles.visitDetailValue}>{visitInfo.lastProcedure}</Text>
-                        </View>
-                    ) : null}
-                    <View style={styles.visitDetailRow}>
-                        <Text style={styles.visitDetailLabel}>Recommended Window:</Text>
-                        <Text style={styles.visitDetailValue}>{visitInfo.windowLabel}</Text>
-                    </View>
-                    <View style={styles.visitDetailRow}>
-                        <Text style={styles.visitDetailLabel}>Recommended Visit:</Text>
-                        <Text style={styles.visitDetailValue}>{visitInfo.recommendedDateLabel || visitInfo.nextDate}</Text>
-                    </View>
-                    <View style={styles.visitDetailRow}>
-                        <Text style={styles.visitDetailLabel}>Treatment Records Used:</Text>
-                        <Text style={styles.visitDetailValue}>{visitInfo.historyCount}</Text>
-                    </View>
-                    <View style={styles.visitDetailRow}>
-                        <Text style={styles.visitDetailLabel}>Recommended Interval:</Text>
-                        <Text style={styles.visitDetailValue}>{visitInfo.intervalLabel || 'Every 6 months'}</Text>
-                    </View>
-                    <View style={styles.visitDetailRow}>
-                        <Text style={styles.visitDetailLabel}>Recommendation Basis:</Text>
-                        <Text style={styles.visitDetailValue}>{visitInfo.recommendationReason}</Text>
-                    </View>
-                </View>
+        <View style={styles.authorityBox}>
+          <Text style={styles.authorityTitle}>
+            System Recommendation
+          </Text>
 
-                <View style={styles.visitDetailsCard}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                        <Ionicons name="time-outline" size={16} color="#333" style={{ marginRight: 6 }} />
-                        <Text style={styles.visitDetailTitle}>Recent Treatment History</Text>
-                    </View>
-                    {treatmentHistory.slice(0, 5).map((log, index) => (
-                        <View key={log._id || `${log.date}-${index}`} style={styles.historyRow}>
-                            <View style={styles.historyDot} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.historyProcedure}>{log.procedure || 'Treatment recorded'}</Text>
-                                <Text style={styles.historyDate}>{fmtDate(log.date)}</Text>
-                            </View>
-                        </View>
-                    ))}
-                </View>
-
-                <View style={styles.visitTipCard}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                        <Ionicons name="bulb-outline" size={16} color="#2e7d32" style={{ marginRight: 6 }} />
-                        <Text style={styles.visitTipTitle}>Why Regular Visits Matter</Text>
-                    </View>
-                    <Text style={styles.visitTipText}>
-                        Routine check-ups allow your dentist to catch cavities, gum disease, and other issues
-                        before they become serious. Early detection saves you pain, time, and cost.
-                    </Text>
-                </View>
-
-                <TouchableOpacity
-                    style={styles.bookVisitBtn}
-                    onPress={() => navigation.navigate('AppointmentBooking')}
-                    activeOpacity={0.8}
-                >
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="calendar-outline" size={16} color="white" style={{ marginRight: 8 }} />
-                        <Text style={styles.bookVisitBtnText}>Book Your Next Visit</Text>
-                    </View>
-                </TouchableOpacity>
-            </View>
-        );
-    };
-
-    // ─── Root render ─────────────────────────────────────────────────────────
-    return (
-        <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={[styles.backBtn, { flexDirection: 'row', alignItems: 'center' }]}
-                >
-                    <BackIcon width={16} height={16} fill="#01538b" style={{ marginRight: 5 }} />
-                    <Text style={styles.backText}>Back</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>AI Care Companion</Text>
-                <View style={{ width: 60 }} />
-            </View>
-
-            {/* Tab Bar */}
-            <View style={styles.tabBar}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.tabScroll}
-                >
-                    {SECTIONS.map(sec => (
-                        <TouchableOpacity
-                            key={sec}
-                            style={[styles.tab, activeSection === sec && styles.tabActive]}
-                            onPress={() => setActiveSection(sec)}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={[styles.tabText, activeSection === sec && styles.tabTextActive]}>
-                                {SECTION_LABELS[sec]}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
-
-            {/* Content */}
-            <Animated.ScrollView
-                style={{ flex: 1, opacity: fadeAnim }}
-                contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
-            >
-                {activeSection === 'overview'    && renderOverview()}
-                {activeSection === 'education'   && renderEducation()}
-                {activeSection === 'oralHealth'  && renderOralHealth()}
-                {activeSection === 'visitWindow' && renderVisitWindow()}
-            </Animated.ScrollView>
-
-
-            {/* Article Detail Modal */}
-            <Modal
-                visible={!!selectedArticle}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setSelectedArticle(null)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
-                        {selectedArticle && (
-                            <View style={styles.modalIconCircle}>
-                                <DynamicIcon
-                                    iconName={selectedArticle.iconName}
-                                    iconLib={selectedArticle.iconLib}
-                                    iconColor={selectedArticle.iconColor}
-                                    size={36}
-                                />
-                            </View>
-                        )}
-                        <Text style={styles.modalTitle}>{selectedArticle?.title}</Text>
-                        <ScrollView showsVerticalScrollIndicator={false}>
-                            <Text style={styles.modalBody}>{selectedArticle?.body}</Text>
-                        </ScrollView>
-                        <TouchableOpacity
-                            style={styles.modalCloseBtn}
-                            onPress={() => setSelectedArticle(null)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.modalCloseBtnText}>Close</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+          <Text style={styles.authorityText}>
+            This recommendation comes from NgitiFy&apos;s deterministic backend rules. AI may explain it but does not calculate, postpone, or override it.
+          </Text>
         </View>
-    );
+      </View>
+
+      <View style={styles.contextCard}>
+        <View style={styles.contextCardHeader}>
+          <View style={styles.contextIcon}>
+            <MaterialCommunityIcons
+              name="tooth-outline"
+              size={22}
+              color={mobileTheme.colors.primaryDark}
+            />
+          </View>
+
+          <View style={styles.contextHeaderText}>
+            <Text style={styles.contextEyebrow}>
+              ORAL HEALTH MANAGEMENT
+            </Text>
+
+            <Text style={styles.contextTitle}>
+              Recent recorded context
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.miniStatRow}>
+          <View style={styles.miniStat}>
+            <Text style={styles.miniStatValue}>
+              {oralHealthSummary.recentLogCount
+              ?? recentLogs.length}
+            </Text>
+
+            <Text style={styles.miniStatLabel}>
+              Recent logs
+            </Text>
+          </View>
+
+          <View style={styles.miniStat}>
+            <Text style={styles.miniStatValue}>
+              {contextualEducation.length}
+            </Text>
+
+            <Text style={styles.miniStatLabel}>
+              Related topics
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.contextBody}>
+          {latestLogDate
+            ? `Latest saved log: ${formatDateKey(latestLogDate)}.`
+            : 'No recent Daily Oral Health Log is available yet.'}
+        </Text>
+
+        <View style={styles.authorityBox}>
+          <Text style={styles.authorityTitle}>
+            Recorded context only
+          </Text>
+
+          <Text style={styles.authorityText}>
+            Oral Health Management entries help the AI explain your existing records. They do not become a diagnosis.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.contextCard}>
+        <View style={styles.contextCardHeader}>
+          <View style={styles.contextIcon}>
+            <Ionicons
+              name="book-outline"
+              size={21}
+              color={mobileTheme.colors.primaryDark}
+            />
+          </View>
+
+          <View style={styles.contextHeaderText}>
+            <Text style={styles.contextEyebrow}>
+              DENTAL HEALTH EDUCATION
+            </Text>
+
+            <Text style={styles.contextTitle}>
+              Approved education
+            </Text>
+          </View>
+        </View>
+
+        {contextualEducation.length ? (
+          contextualEducation
+            .slice(0, 3)
+            .map((article) => (
+              <View
+                key={article.id}
+                style={styles.educationItem}
+              >
+                <Text style={styles.educationCategory}>
+                  {article.category
+                  || 'Dental Health Education'}
+                </Text>
+
+                <Text style={styles.educationTitle}>
+                  {article.title}
+                </Text>
+              </View>
+            ))
+        ) : (
+          <Text style={styles.contextBody}>
+            No contextual Dental Health Education topics are currently matched to your recent logs.
+          </Text>
+        )}
+
+        <View style={styles.authorityBox}>
+          <Text style={styles.authorityTitle}>
+            Education, not diagnosis
+          </Text>
+
+          <Text style={styles.authorityText}>
+            Critical education continues to come from NgitiFy&apos;s approved Dental Health Education library rather than depending on AI generation.
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderQuickPrompts = () => (
+    <View style={styles.quickPromptSection}>
+      <Text style={styles.sectionEyebrow}>
+        SUGGESTED PROMPTS
+      </Text>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.promptScroll}
+        contentContainerStyle={styles.promptContent}
+      >
+        {QUICK_PROMPTS.map((prompt) => (
+          <TouchableOpacity
+            key={prompt.id}
+            style={styles.promptChip}
+            onPress={() =>
+              sendMessage(prompt.label)
+            }
+            disabled={sending}
+            activeOpacity={0.84}
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name={prompt.icon}
+              size={17}
+              color={mobileTheme.colors.primaryDark}
+            />
+
+            <Text style={styles.promptChipText}>
+              {prompt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderConversation = () => (
+    <View style={styles.conversationCard}>
+      <View style={styles.conversationHeader}>
+        <View style={styles.aiAvatar}>
+          <Ionicons
+            name="sparkles"
+            size={21}
+            color={mobileTheme.colors.primaryDark}
+          />
+        </View>
+
+        <View style={styles.conversationHeaderText}>
+          <Text style={styles.contextEyebrow}>
+            AI EXPLANATION
+          </Text>
+
+          <Text style={styles.conversationTitle}>
+            Ask NgitiFy
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.clearButton}
+          onPress={clearConversation}
+          disabled={
+            sending
+            || messages.length <= 1
+          }
+          activeOpacity={0.8}
+          accessibilityRole="button"
+        >
+          <Text style={styles.clearButtonText}>
+            Clear
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {messages.map((message) => {
+        const isUser =
+          message.role === 'user';
+
+        return (
+          <View
+            key={message.id}
+            style={[
+              styles.messageRow,
+              isUser
+                ? styles.messageRowUser
+                : styles.messageRowAssistant,
+            ]}
+          >
+            {!isUser ? (
+              <View style={styles.messageAvatar}>
+                <Ionicons
+                  name="sparkles"
+                  size={14}
+                  color={mobileTheme.colors.primaryDark}
+                />
+              </View>
+            ) : null}
+
+            <View
+              style={[
+                styles.messageBubble,
+                isUser
+                  ? styles.userBubble
+                  : styles.assistantBubble,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.messageText,
+                  isUser
+                    && styles.userMessageText,
+                ]}
+              >
+                {message.content}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+
+      {sending ? (
+        <View
+          style={[
+            styles.messageRow,
+            styles.messageRowAssistant,
+          ]}
+        >
+          <View style={styles.messageAvatar}>
+            <Ionicons
+              name="sparkles"
+              size={14}
+              color={mobileTheme.colors.primaryDark}
+            />
+          </View>
+
+          <View
+            style={[
+              styles.messageBubble,
+              styles.assistantBubble,
+            ]}
+          >
+            <View style={styles.typingRow}>
+              <ActivityIndicator
+                size="small"
+                color={mobileTheme.colors.primaryDark}
+              />
+
+              <Text style={styles.typingText}>
+                Preparing an explanation...
+              </Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      {chatError ? (
+        <View
+          style={styles.chatErrorCard}
+          accessibilityRole="alert"
+        >
+          <Ionicons
+            name="warning-outline"
+            size={21}
+            color={mobileTheme.colors.primaryDark}
+          />
+
+          <View style={styles.chatErrorContent}>
+            <Text style={styles.chatErrorTitle}>
+              AI explanation unavailable
+            </Text>
+
+            <Text style={styles.chatErrorText}>
+              {chatError}
+            </Text>
+
+            {lastFailedPrompt ? (
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={() =>
+                  sendMessage(
+                    lastFailedPrompt,
+                  )
+                }
+                disabled={sending}
+                activeOpacity={0.84}
+                accessibilityRole="button"
+              >
+                <Ionicons
+                  name="refresh-outline"
+                  size={16}
+                  color={mobileTheme.colors.primaryDark}
+                />
+
+                <Text style={styles.retryButtonText}>
+                  Retry
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={
+        Platform.OS === 'ios'
+          ? 'padding'
+          : undefined
+      }
+    >
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <BackIcon
+            width={16}
+            height={16}
+            fill={mobileTheme.colors.primary}
+          />
+
+          <Text style={styles.backText}>
+            Back
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>
+            AI Care Companion
+          </Text>
+
+          <Text style={styles.headerSubtitle}>
+            Explanation and education
+          </Text>
+        </View>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.heroCard}>
+          <View style={styles.heroIcon}>
+            <Ionicons
+              name="sparkles"
+              size={27}
+              color={mobileTheme.colors.primaryDark}
+            />
+          </View>
+
+          <Text style={styles.heroEyebrow}>
+            PATIENT AI ASSISTANT
+          </Text>
+
+          <Text style={styles.heroTitle}>
+            Understand your existing NgitiFy care information
+          </Text>
+
+          <Text style={styles.heroText}>
+            Ask for explanations of your System Recommendation, Oral Health Management records, Dental Health Education, or appointments.
+          </Text>
+
+          <View style={styles.heroDisclaimer}>
+            <Ionicons
+              name="information-circle-outline"
+              size={19}
+              color={mobileTheme.colors.primaryDark}
+            />
+
+            <Text style={styles.heroDisclaimerText}>
+              AI information is educational and explanatory, not a diagnosis. The AI does not independently calculate medical urgency or replace your dentist&apos;s recommendation.
+            </Text>
+          </View>
+        </View>
+
+        {renderCareContext()}
+
+        {renderQuickPrompts()}
+
+        {renderConversation()}
+
+        <View style={styles.bottomDisclaimer}>
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={18}
+            color={mobileTheme.colors.primaryDark}
+          />
+
+          <Text style={styles.bottomDisclaimerText}>
+            Your System Recommendation remains separate from AI Explanation. Contact the clinic if symptoms persist, worsen, or concern you.
+          </Text>
+        </View>
+      </ScrollView>
+
+      <View style={styles.composer}>
+        <TextInput
+          style={styles.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Ask about your care information..."
+          placeholderTextColor={
+            mobileTheme.colors.textSoft
+          }
+          multiline
+          maxLength={1500}
+          editable={!sending}
+          returnKeyType="default"
+          accessibilityLabel="Ask the Patient AI Assistant"
+        />
+
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            (
+              sending
+              || !input.trim()
+            )
+              && styles.sendButtonDisabled,
+          ]}
+          onPress={() => sendMessage()}
+          disabled={
+            sending
+            || !input.trim()
+          }
+          activeOpacity={0.84}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+        >
+          {sending ? (
+            <ActivityIndicator
+              size="small"
+              color="#ffffff"
+            />
+          ) : (
+            <Ionicons
+              name="send"
+              size={19}
+              color="#ffffff"
+            />
+          )}
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f3f7f9' },
+  container: {
+    flex: 1,
+    backgroundColor:
+      mobileTheme.colors.background,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal:
+      mobileTheme.spacing.md,
+    paddingTop: mobileTheme.spacing.md,
+    paddingBottom: 26,
+  },
 
-    // Header
-    header: {
-        backgroundColor: 'white', padding: 20, paddingTop: mobilePageTopInset,
-        flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'space-between', elevation: 3, zIndex: 10,
-    },
-    backBtn:     { padding: 5, width: 60 },
-    backText:    { color: '#01538b', fontWeight: 'bold', fontSize: 16 },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#01538b' },
+  header: {
+    minHeight: 76,
+    paddingTop: mobilePageTopInset,
+    paddingHorizontal: mobileTheme.spacing.md,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: mobileTheme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor:
+      mobileTheme.colors.border,
+  },
+  backButton: {
+    width: 72,
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backText: {
+    marginLeft: 6,
+    color: mobileTheme.colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: mobileTheme.colors.text,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  headerSubtitle: {
+    marginTop: 2,
+    color: mobileTheme.colors.textSoft,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  headerSpacer: {
+    width: 72,
+  },
 
-    // Tabs
-    tabBar:        { backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#eee', elevation: 1 },
-    tabScroll:     { paddingHorizontal: 10 },
-    tab:           { paddingVertical: 12, paddingHorizontal: 14, marginRight: 2 },
-    tabActive:     { borderBottomWidth: 3, borderBottomColor: '#01538b' },
-    tabText:       { fontSize: 13, color: '#888', fontWeight: '600' },
-    tabTextActive: { color: '#01538b' },
+  heroCard: {
+    padding: mobileTheme.spacing.lg,
+    borderRadius: mobileTheme.radii.lg,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surface,
+    ...mobileTheme.shadows.card,
+  },
+  heroIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    backgroundColor:
+      mobileTheme.colors.primarySoft,
+  },
+  heroEyebrow: {
+    marginBottom: 6,
+    color:
+      mobileTheme.colors.secondaryDark,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    color: mobileTheme.colors.text,
+    fontSize: 22,
+    lineHeight: 29,
+    fontWeight: '800',
+  },
+  heroText: {
+    marginTop: 9,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  heroDisclaimer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 16,
+    padding: 13,
+    borderRadius:
+      mobileTheme.radii.md,
+    backgroundColor:
+      mobileTheme.colors.backgroundMuted,
+  },
+  heroDisclaimerText: {
+    flex: 1,
+    marginLeft: 9,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
+  },
 
-    // Content
-    content:     { padding: 20, paddingBottom: 48 },
-    welcomeText: { fontSize: 14, color: '#666', lineHeight: 20, marginBottom: 20 },
+  contextSection: {
+    marginTop: 26,
+  },
+  sectionHeadingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 12,
+  },
+  sectionEyebrow: {
+    color:
+      mobileTheme.colors.secondaryDark,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
+  sectionTitle: {
+    marginTop: 4,
+    color: mobileTheme.colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  refreshButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surface,
+  },
 
-    // Feature grid
-    featureGrid:      { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-    featureCard:      { width: '48%', padding: 18, borderRadius: 15, marginBottom: 12, elevation: 2 },
-    featureCardTitle: { color: 'white', fontWeight: 'bold', fontSize: 14, marginBottom: 3 },
-    featureCardSub:   { color: 'rgba(255,255,255,0.75)', fontSize: 11, lineHeight: 15 },
+  careErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    padding: 14,
+    borderRadius:
+      mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.borderStrong,
+    backgroundColor:
+      mobileTheme.colors.backgroundMuted,
+  },
+  careErrorText: {
+    flex: 1,
+    marginLeft: 9,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
 
-    // Visit banner (overview)
-    visitBanner:            { flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 15, borderWidth: 1.5, elevation: 1 },
-    visitBannerLabel:       { fontWeight: 'bold', fontSize: 12, marginBottom: 3 },
-    visitBannerDate:        { fontSize: 15, fontWeight: 'bold', color: '#333' },
-    visitTag:               { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-    visitTagText:           { color: 'white', fontWeight: 'bold', fontSize: 12 },
-    visitBannerLoading:     { flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 15, backgroundColor: '#f5f5f5', borderWidth: 1.5, borderColor: '#e0e0e0' },
-    visitBannerLoadingText: { marginLeft: 10, fontSize: 13, color: '#aaa' },
+  contextCard: {
+    marginBottom: 12,
+    padding: 17,
+    borderRadius:
+      mobileTheme.radii.lg,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surface,
+    ...mobileTheme.shadows.soft,
+  },
+  contextCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  contextIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+    marginRight: 11,
+    backgroundColor:
+      mobileTheme.colors.primarySoft,
+  },
+  contextHeaderText: {
+    flex: 1,
+  },
+  contextEyebrow: {
+    color:
+      mobileTheme.colors.secondaryDark,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  contextTitle: {
+    marginTop: 3,
+    color: mobileTheme.colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '800',
+  },
+  contextLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  contextLoadingText: {
+    marginLeft: 9,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 12,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius:
+      mobileTheme.radii.pill,
+    backgroundColor:
+      mobileTheme.colors.primarySoft,
+  },
+  statusBadgeText: {
+    color:
+      mobileTheme.colors.primaryDark,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  recommendationWindow: {
+    marginTop: 11,
+    color: mobileTheme.colors.text,
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '800',
+  },
+  contextBody: {
+    marginTop: 10,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 12,
+    lineHeight: 19,
+  },
+  authorityBox: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius:
+      mobileTheme.radii.md,
+    backgroundColor:
+      mobileTheme.colors.backgroundMuted,
+  },
+  authorityTitle: {
+    marginBottom: 4,
+    color:
+      mobileTheme.colors.primaryDark,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  authorityText: {
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 10,
+    lineHeight: 16,
+  },
 
-    // Section headers
-    sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#01538b', marginBottom: 6 },
-    sectionSub:    { fontSize: 13, color: '#888', lineHeight: 18, marginBottom: 20 },
+  contactNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 13,
+    padding: 12,
+    borderRadius:
+      mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.borderStrong,
+    backgroundColor:
+      mobileTheme.colors.primarySoft,
+  },
+  contactNoticeText: {
+    flex: 1,
+    marginLeft: 9,
+  },
+  contactNoticeTitle: {
+    color:
+      mobileTheme.colors.primaryDark,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  contactNoticeBody: {
+    marginTop: 3,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
+  },
 
-    // Inquiry
-    fieldLabel:             { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 8 },
-    categoryRow:            { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18 },
+  miniStatRow: {
+    flexDirection: 'row',
+    marginHorizontal: -4,
+  },
+  miniStat: {
+    flex: 1,
+    marginHorizontal: 4,
+    padding: 12,
+    borderRadius:
+      mobileTheme.radii.md,
+    backgroundColor:
+      mobileTheme.colors.backgroundMuted,
+  },
+  miniStatValue: {
+    color:
+      mobileTheme.colors.primaryDark,
+    fontSize: 19,
+    fontWeight: '800',
+  },
+  miniStatLabel: {
+    marginTop: 2,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+  },
 
-    // Education
-    articleCard:    { backgroundColor: 'white', padding: 15, borderRadius: 15, marginBottom: 12, flexDirection: 'row', alignItems: 'center', elevation: 2 },
-    articleInfo:    { flex: 1 },
-    articleTitle:   { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 3 },
-    articleSummary: { fontSize: 12, color: '#888', lineHeight: 17 },
+  educationItem: {
+    marginBottom: 8,
+    padding: 11,
+    borderRadius:
+      mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surfaceAlt,
+  },
+  educationCategory: {
+    color:
+      mobileTheme.colors.secondaryDark,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  educationTitle: {
+    marginTop: 4,
+    color: mobileTheme.colors.text,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
 
-    // Oral health tips
-    tipGrid:       { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 15 },
-    tipCard:       { width: '48%', backgroundColor: 'white', padding: 15, borderRadius: 15, marginBottom: 12, elevation: 2 },
-    tipTitle:      { fontWeight: 'bold', fontSize: 13, color: '#01538b', marginBottom: 4 },
-    tipText:       { fontSize: 12, color: '#666', lineHeight: 16 },
-    highlightCard: { backgroundColor: '#fff8e1', padding: 18, borderRadius: 15, borderLeftWidth: 4, borderLeftColor: '#f9a825', marginBottom: 16 },
-    highlightText: { fontSize: 13, color: '#555', lineHeight: 20 },
+  quickPromptSection: {
+    marginTop: 16,
+  },
+  promptScroll: {
+    marginHorizontal:
+      -mobileTheme.spacing.md,
+    marginTop: 10,
+  },
+  promptContent: {
+    paddingHorizontal:
+      mobileTheme.spacing.md,
+    paddingBottom: 4,
+  },
+  promptChip: {
+    width: 232,
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginRight: 10,
+    padding: 14,
+    borderRadius:
+      mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surface,
+  },
+  promptChipText: {
+    flex: 1,
+    marginLeft: 8,
+    color: mobileTheme.colors.text,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
 
-    // Visit window
-    visitLoadingBox:    { alignItems: 'center', paddingVertical: 60 },
-    visitLoadingText:   { color: '#888', marginTop: 12, fontSize: 14 },
-    visitEmptyCard:     { backgroundColor: 'white', borderRadius: 15, padding: 30, alignItems: 'center', elevation: 2, marginBottom: 16 },
-    visitEmptyTitle:    { fontSize: 16, fontWeight: 'bold', color: '#555', marginBottom: 8 },
-    visitEmptySub:      { fontSize: 13, color: '#aaa', textAlign: 'center', lineHeight: 19 },
-    visitMainCard:      { padding: 25, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', marginBottom: 15, elevation: 1 },
-    visitStatus:        { fontWeight: 'bold', fontSize: 14, marginBottom: 5 },
-    visitNextDate:      { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 3 },
-    visitDaysText:      { fontSize: 13, color: '#888' },
-    visitCalendar:      { borderWidth: 1, borderColor: '#dfeef6', borderRadius: 16, overflow: 'hidden', marginBottom: 12 },
-    visitLegendRow:     { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 15 },
-    visitLegendItem:    { flexDirection: 'row', alignItems: 'center', marginRight: 18, marginBottom: 8 },
-    visitLegendDot:     { width: 10, height: 10, borderRadius: 5, marginRight: 7 },
-    visitLegendText:    { fontSize: 12, color: '#6f8593' },
-    visitDetailsCard:   { backgroundColor: 'white', padding: 18, borderRadius: 15, marginBottom: 15, elevation: 2 },
-    visitDetailRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-    visitDetailLabel:   { fontSize: 13, color: '#888', flex: 1 },
-    visitDetailValue:   { fontSize: 13, color: '#333', fontWeight: '600', flex: 1.2, textAlign: 'right' },
-    historyRow:         { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#eef4f8' },
-    historyDot:         { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2dccf6', marginTop: 5, marginRight: 10 },
-    historyProcedure:   { fontSize: 13, fontWeight: '700', color: '#01538b', marginBottom: 3 },
-    historyDate:        { fontSize: 12, color: '#6b7c87' },
-    visitTipCard:       { backgroundColor: '#e8f5e9', padding: 18, borderRadius: 15, marginBottom: 15, borderLeftWidth: 4, borderLeftColor: '#4caf50' },
-    visitTipText:       { fontSize: 13, color: '#555', lineHeight: 20 },
-    bookVisitBtn:       { backgroundColor: '#01538b', paddingVertical: 16, borderRadius: 12, alignItems: 'center', elevation: 2, marginTop: 4 },
-    bookVisitBtnText:   { color: 'white', fontWeight: 'bold', fontSize: 15 },
+  conversationCard: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius:
+      mobileTheme.radii.lg,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surface,
+    ...mobileTheme.shadows.card,
+  },
+  conversationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 14,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor:
+      mobileTheme.colors.border,
+  },
+  aiAvatar: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    marginRight: 10,
+    backgroundColor:
+      mobileTheme.colors.primarySoft,
+  },
+  conversationHeaderText: {
+    flex: 1,
+  },
+  conversationTitle: {
+    marginTop: 2,
+    color: mobileTheme.colors.text,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  clearButton: {
+    minHeight: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius:
+      mobileTheme.radii.pill,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+  },
+  clearButtonText: {
+    color:
+      mobileTheme.colors.primaryDark,
+    fontSize: 11,
+    fontWeight: '800',
+  },
 
-    // Article modal
-    modalOverlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalCard:         { backgroundColor: 'white', padding: 25, borderTopLeftRadius: 25, borderTopRightRadius: 25, maxHeight: '75%' },
-    modalTitle:        { fontSize: 20, fontWeight: 'bold', color: '#01538b', textAlign: 'center', marginBottom: 15 },
-    modalBody:         { fontSize: 14, color: '#555', lineHeight: 22, marginBottom: 20 },
-    modalCloseBtn:     { backgroundColor: '#01538b', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-    modalCloseBtnText: { color: 'white', fontWeight: 'bold', fontSize: 15 },
+  messageRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 12,
+  },
+  messageRowUser: {
+    justifyContent: 'flex-end',
+  },
+  messageRowAssistant: {
+    justifyContent: 'flex-start',
+  },
+  messageAvatar: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 15,
+    marginRight: 7,
+    backgroundColor:
+      mobileTheme.colors.primarySoft,
+  },
+  messageBubble: {
+    maxWidth: '82%',
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+  },
+  assistantBubble: {
+    borderRadius: 16,
+    borderBottomLeftRadius: 5,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surfaceAlt,
+  },
+  userBubble: {
+    borderRadius: 16,
+    borderBottomRightRadius: 5,
+    backgroundColor:
+      mobileTheme.colors.primary,
+  },
+  messageText: {
+    color: mobileTheme.colors.text,
+    fontSize: 12,
+    lineHeight: 19,
+  },
+  userMessageText: {
+    color: '#ffffff',
+  },
+  typingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  typingText: {
+    marginLeft: 8,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 11,
+  },
 
-    featureIcon:      { marginBottom: 8 },
-    articleIconCircle:{ width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
-    modalIconCircle:  { width: 70, height: 70, borderRadius: 35, backgroundColor: '#f3f7f9', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 14 },
-    highlightTitle:   { fontWeight: 'bold', fontSize: 14, color: '#f57f17' },
-    visitDetailTitle: { fontWeight: 'bold', fontSize: 14, color: '#333' },
-    visitTipTitle:    { fontWeight: 'bold', fontSize: 14, color: '#2e7d32' },
+  chatErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 5,
+    padding: 13,
+    borderRadius:
+      mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.borderStrong,
+    backgroundColor:
+      mobileTheme.colors.backgroundMuted,
+  },
+  chatErrorContent: {
+    flex: 1,
+    marginLeft: 9,
+  },
+  chatErrorTitle: {
+    color:
+      mobileTheme.colors.primaryDark,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  chatErrorText: {
+    marginTop: 3,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
+  },
+  retryButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius:
+      mobileTheme.radii.pill,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.borderStrong,
+    backgroundColor:
+      mobileTheme.colors.surface,
+  },
+  retryButtonText: {
+    marginLeft: 5,
+    color:
+      mobileTheme.colors.primaryDark,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  bottomDisclaimer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 18,
+    padding: 14,
+    borderRadius:
+      mobileTheme.radii.md,
+    backgroundColor:
+      mobileTheme.colors.backgroundMuted,
+  },
+  bottomDisclaimerText: {
+    flex: 1,
+    marginLeft: 9,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 10,
+    lineHeight: 16,
+  },
+
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal:
+      mobileTheme.spacing.md,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surface,
+  },
+  input: {
+    flex: 1,
+    minHeight: 48,
+    maxHeight: 120,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius:
+      mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surfaceAlt,
+    color: mobileTheme.colors.text,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlignVertical: 'top',
+  },
+  sendButton: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 9,
+    borderRadius: 24,
+    backgroundColor:
+      mobileTheme.colors.primary,
+    ...mobileTheme.shadows.soft,
+  },
+  sendButtonDisabled: {
+    opacity: 0.45,
+  },
 });

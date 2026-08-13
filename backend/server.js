@@ -73,6 +73,10 @@ const {
     normalizeOralHealthFactors,
     normalizeSavedLogForPayload,
 } = require('./utils/oralHealth');
+const {
+    buildPatientAiCareContext,
+    mergePatientAiLiveContext,
+} = require('./utils/patientAi');
 // ADD this line with the other model imports (after the AuditLog import)
 const MaterialUsageLog = require('./models/MaterialUsageLog');
 const RADIOGRAPH_ENHANCER_SCRIPT = path.join(__dirname, 'python', 'radiograph_enhance.py');
@@ -2817,84 +2821,227 @@ const buildPatientAiAvailabilitySnapshot = async ({ queryText, branch }) => {
     };
 };
 
-const buildPatientAiLiveContext = async ({ userId, messages, assistantContext }) => {
-    const queryText = String(messages?.at(-1)?.content || '').trim();
+const buildPatientAiLiveContext = async ({
+    userId,
+    messages,
+    assistantContext,
+}) => {
+    const queryText = String(
+        messages?.at(-1)?.content || ''
+    ).trim();
+
     const patient = await User.findById(userId)
-        .select('name email assignedBranch assignedBranches')
+        .select(
+            [
+                'name',
+                'email',
+                'assignedBranch',
+                'assignedBranches',
+                'treatmentLogs',
+                'oralHealthFactors',
+                'oralHealthLogs',
+            ].join(' ')
+        )
         .lean();
 
-    const assignedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || '';
-    const [branch, activeAppointment, recentAppointments] = await Promise.all([
+    if (!patient) {
+        throw Object.assign(
+            new Error('Patient not found.'),
+            { statusCode: 404 }
+        );
+    }
+
+    const assignedBranch =
+        patient.assignedBranch
+        || patient.assignedBranches?.[0]
+        || '';
+
+    const [
+        branch,
+        activeAppointment,
+        recentAppointments,
+        storedOralHealthLogs,
+    ] = await Promise.all([
         assignedBranch
-            ? Branch.findOne({ name: assignedBranch }).select('name address addressDetails contactNumber isActive').lean()
+            ? Branch.findOne({ name: assignedBranch })
+                .select(
+                    'name address addressDetails contactNumber isActive'
+                )
+                .lean()
             : Promise.resolve(null),
+
         Surgery.findOne({
             patient: userId,
-            status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+            status: {
+                $in: [
+                    'pending',
+                    'confirmed',
+                    'in-clinic',
+                ],
+            },
             isArchived: false,
         })
-            .select('date time procedure status branch')
+            .select(
+                'date time procedure status branch'
+            )
             .sort({ date: 1 })
             .lean(),
+
         Surgery.find({
             patient: userId,
             isArchived: false,
         })
-            .select('date time procedure status branch')
+            .select(
+                'date time procedure status branch'
+            )
             .sort({ date: -1 })
             .limit(5)
             .lean(),
+
+        OralHealthLog.find({
+            patient: userId,
+        })
+            .sort({ logDateKey: -1 })
+            .limit(30)
+            .lean(),
     ]);
+
+    const oralHealthLogsByDate = new Map();
+
+    storedOralHealthLogs.forEach((log) => {
+        const normalized =
+            normalizeSavedLogForPayload(log);
+
+        if (normalized.logDateKey) {
+            oralHealthLogsByDate.set(
+                normalized.logDateKey,
+                normalized
+            );
+        }
+    });
+
+    (patient.oralHealthLogs || []).forEach(
+        (legacyLog) => {
+            const normalized =
+                normalizeSavedLogForPayload(
+                    legacyLog
+                );
+
+            if (
+                normalized.logDateKey
+                && !oralHealthLogsByDate.has(
+                    normalized.logDateKey
+                )
+            ) {
+                oralHealthLogsByDate.set(
+                    normalized.logDateKey,
+                    normalized
+                );
+            }
+        }
+    );
+
+    const mergedOralHealthLogs =
+        [...oralHealthLogsByDate.values()]
+            .sort(
+                (left, right) =>
+                    String(
+                        right.logDateKey || ''
+                    ).localeCompare(
+                        String(
+                            left.logDateKey || ''
+                        )
+                    )
+            );
+
+    const oralHealthPayload =
+        buildOralHealthPayloadFromPatient({
+            ...patient,
+            oralHealthLogs: mergedOralHealthLogs,
+        });
+
+    const basePrediction =
+        getPredictiveVisitWindowFromTreatmentHistory(
+            patient.treatmentLogs || []
+        );
+
+    const systemRecommendation =
+        buildExplainableVisitRecommendation({
+            basePrediction,
+            oralHealthLogs:
+                mergedOralHealthLogs,
+        });
 
     const liveContext = {
         patientSession: {
             requestedAt: new Date().toISOString(),
-            todayDate: getManilaDateKey(new Date()),
-            patientName: patient?.name
-                ? `${patient.name.first || ''} ${patient.name.last || ''}`.trim()
+            todayDate:
+                getManilaDateKey(new Date()),
+            patientName: patient.name
+                ? `${
+                    patient.name.first || ''
+                } ${
+                    patient.name.last || ''
+                }`.trim()
                 : '',
             assignedBranch,
         },
+
         branchInfo: branch
             ? {
                 name: branch.name || '',
-                contactNumber: branch.contactNumber || '',
-                address: branch.address || '',
-                addressDetails: branch.addressDetails || {},
-                isActive: branch.isActive !== false,
+                contactNumber:
+                    branch.contactNumber || '',
+                address:
+                    branch.address || '',
+                addressDetails:
+                    branch.addressDetails || {},
+                isActive:
+                    branch.isActive !== false,
             }
             : {
                 name: assignedBranch,
                 isActive: false,
             },
+
         appointmentsSnapshot: {
-            activeAppointment: formatPatientAiAppointment(activeAppointment),
-            recentAppointments: recentAppointments.map(formatPatientAiAppointment).filter(Boolean),
+            activeAppointment:
+                formatPatientAiAppointment(
+                    activeAppointment
+                ),
+            recentAppointments:
+                recentAppointments
+                    .map(
+                        formatPatientAiAppointment
+                    )
+                    .filter(Boolean),
         },
+
+        careContext:
+            buildPatientAiCareContext({
+                prediction:
+                    systemRecommendation,
+                oralHealthPayload,
+            }),
     };
 
-    if (includesKeyword(queryText, PATIENT_AI_SCHEDULING_KEYWORDS)) {
-        liveContext.appointmentAvailability = await buildPatientAiAvailabilitySnapshot({
+    if (
+        includesKeyword(
             queryText,
-            branch: assignedBranch,
-        });
+            PATIENT_AI_SCHEDULING_KEYWORDS
+        )
+    ) {
+        liveContext.appointmentAvailability =
+            await buildPatientAiAvailabilitySnapshot({
+                queryText,
+                branch: assignedBranch,
+            });
     }
 
-    if (!assistantContext) {
-        return liveContext;
-    }
-
-    if (typeof assistantContext !== 'object' || Array.isArray(assistantContext)) {
-        return {
-            ...liveContext,
-            clientSuppliedContext: assistantContext,
-        };
-    }
-
-    return {
-        ...liveContext,
-        ...assistantContext,
-    };
+    return mergePatientAiLiveContext({
+        liveContext,
+        assistantContext,
+    });
 };
 
 const dentistCanAccessPatient = async (dentistId, patientId) => {

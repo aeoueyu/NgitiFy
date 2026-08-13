@@ -1,372 +1,833 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FaBook, FaCalendarAlt, FaTooth } from 'react-icons/fa';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
+import {
+    FaBook,
+    FaCalendarAlt,
+    FaExclamationTriangle,
+    FaPaperPlane,
+    FaRedoAlt,
+    FaRobot,
+    FaTooth,
+} from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
-import PatientMonthCalendar from '../../components/patient/PatientMonthCalendar';
-import PatientIcon from '../../components/patient/PatientIcon';
-import { PatientPageFrame, PatientSectionHeader } from '../../components/patient/PatientFrame';
 import {
-    EDUCATION_ARTICLES,
-    ORAL_HEALTH_TIPS,
-    formatDateDisplay,
-    parseDateKey,
-    toDateKey,
-} from '../../utils/patientPortal';
+    PatientPageFrame,
+} from '../../components/patient/PatientFrame';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
-const SECTIONS = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'education', label: 'Dental Health Education' },
-    { key: 'oral-health', label: 'Oral Health Management' },
-    { key: 'visit-window', label: 'Visit Window' },
+const QUICK_PROMPTS = [
+    {
+        id: 'visit-recommendation',
+        icon: FaCalendarAlt,
+        label: 'Explain my current visit recommendation',
+    },
+    {
+        id: 'oral-health-trend',
+        icon: FaTooth,
+        label: 'Explain my recent Oral Health Management trend',
+    },
+    {
+        id: 'education',
+        icon: FaBook,
+        label: 'Give me Dental Health Education related to my recent log',
+    },
+    {
+        id: 'appointment',
+        icon: FaCalendarAlt,
+        label: 'Help me understand my upcoming appointment',
+    },
+    {
+        id: 'home-care',
+        icon: FaTooth,
+        label: 'Give me brushing and flossing guidance',
+    },
 ];
 
-const buildVisitWindowMarks = (visitInfo, selectedDate) => {
-    if ((!visitInfo?.windowStart && !visitInfo?.windowStartKey) || (!visitInfo?.windowEnd && !visitInfo?.windowEndKey)) {
-        return {};
-    }
-
-    const windowStart = parseDateKey(visitInfo.windowStartKey) || new Date(visitInfo.windowStart);
-    const windowEnd = parseDateKey(visitInfo.windowEndKey) || new Date(visitInfo.windowEnd);
-    if (Number.isNaN(windowStart.getTime()) || Number.isNaN(windowEnd.getTime())) {
-        return {};
-    }
-
-    const marks = {};
-    const cursor = new Date(windowStart);
-    const selectedKey = selectedDate || visitInfo.recommendedDateKey || toDateKey(windowStart);
-    while (cursor <= windowEnd) {
-        const key = toDateKey(cursor);
-        marks[key] = {
-            selected: key === selectedKey,
-            highlight: key !== selectedKey,
-            dotColor: '#2dccf6',
-        };
-        cursor.setDate(cursor.getDate() + 1);
-    }
-    if (selectedKey && !marks[selectedKey]) {
-        marks[selectedKey] = { selected: true, dotColor: '#01538b' };
-    }
-    return marks;
+const WELCOME_MESSAGE = {
+    id: 'welcome',
+    role: 'assistant',
+    content:
+        'Hello! I can explain your existing NgitiFy care information, Dental Health Education, appointments, and Oral Health Management records. I can help you understand what the system already shows, but I do not diagnose conditions or create my own medical recommendations.',
 };
 
-export default function PatientAiCompanion() {
-    const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const { user } = useAuth();
-    const [activeSection, setActiveSection] = useState(searchParams.get('tab') || 'overview');
-    const [visitInfo, setVisitInfo] = useState(null);
-    const [treatmentHistory, setTreatmentHistory] = useState([]);
-    const [loadingVisit, setLoadingVisit] = useState(true);
-    const [selectedArticle, setSelectedArticle] = useState(null);
-    const [selectedVisitDate, setSelectedVisitDate] = useState('');
-    const [calendarMonth, setCalendarMonth] = useState(new Date());
+const formatDateKey = (value) => {
+    if (!value) return '';
 
-    const fetchVisitData = useCallback(async () => {
+    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (!match) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+
+        return date.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+    }
+
+    const [, year, month, day] = match;
+    const date = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day)
+    );
+
+    return date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+};
+
+const getErrorMessage = (status, payload) => {
+    if (status === 429) {
+        return 'The AI request limit has been reached for now. Your Oral Health Management, Recommended Visit Window, Dental Health Education, appointments, and records are still available.';
+    }
+
+    if (status === 503) {
+        return 'The AI explanation service is temporarily unavailable. Your System Recommendation and other core NgitiFy care features are still available.';
+    }
+
+    return (
+        payload?.message
+        || 'The AI explanation could not be loaded. Please try again.'
+    );
+};
+
+const PatientAiCompanion = () => {
+    const { user } = useAuth();
+
+    const [visitInfo, setVisitInfo] = useState(null);
+    const [oralHealth, setOralHealth] = useState(null);
+    const [careLoading, setCareLoading] = useState(true);
+    const [careError, setCareError] = useState('');
+
+    const [messages, setMessages] = useState([
+        WELCOME_MESSAGE,
+    ]);
+    const [input, setInput] = useState('');
+    const [sending, setSending] = useState(false);
+    const [chatError, setChatError] = useState('');
+    const [lastFailedPrompt, setLastFailedPrompt] = useState('');
+
+    const messagesEndRef = useRef(null);
+    const textareaRef = useRef(null);
+
+    const fetchCareSnapshot = useCallback(async () => {
+        setCareLoading(true);
+        setCareError('');
+
         try {
-            const [logsResponse, predictionResponse] = await Promise.all([
-                authFetch('/my/treatment-logs'),
+            const [
+                predictionResponse,
+                oralHealthResponse,
+            ] = await Promise.all([
                 authFetch('/my/visit-prediction'),
+                authFetch('/my/oral-health'),
             ]);
 
-            if (logsResponse.ok) {
-                const logsPayload = await logsResponse.json();
-                setTreatmentHistory(Array.isArray(logsPayload) ? logsPayload : []);
+            if (!predictionResponse.ok) {
+                throw new Error(
+                    'Recommended Visit Window could not be loaded.'
+                );
             }
 
-            if (predictionResponse.ok) {
-                const predictionPayload = await predictionResponse.json();
-                const prediction = predictionPayload?.prediction || null;
-                setVisitInfo(prediction);
-                if (prediction?.recommendedDateKey) {
-                    setSelectedVisitDate(prediction.recommendedDateKey);
-                    const monthDate = parseDateKey(prediction.recommendedDateKey);
-                    if (monthDate) {
-                        setCalendarMonth(monthDate);
-                    }
-                }
+            if (!oralHealthResponse.ok) {
+                throw new Error(
+                    'Oral Health Management could not be loaded.'
+                );
             }
-        } catch {
-            setTreatmentHistory([]);
-            setVisitInfo(null);
+
+            const predictionPayload =
+                await predictionResponse.json();
+
+            const oralHealthPayload =
+                await oralHealthResponse.json();
+
+            setVisitInfo(
+                predictionPayload?.prediction || null
+            );
+
+            setOralHealth(
+                oralHealthPayload
+                && typeof oralHealthPayload === 'object'
+                    ? oralHealthPayload
+                    : null
+            );
+        } catch (error) {
+            setCareError(
+                error.message
+                || 'Your current care information could not be loaded.'
+            );
         } finally {
-            setLoadingVisit(false);
+            setCareLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchVisitData();
-    }, [fetchVisitData]);
+        fetchCareSnapshot();
+    }, [fetchCareSnapshot]);
 
     useEffect(() => {
-        const next = searchParams.get('tab') || 'overview';
-        if (SECTIONS.some((item) => item.key === next)) {
-            setActiveSection(next);
-        }
-    }, [searchParams]);
+        messagesEndRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'end',
+        });
+    }, [messages, sending]);
 
-    const updateSection = (sectionKey) => {
-        setActiveSection(sectionKey);
-        setSearchParams((current) => {
-            const next = new URLSearchParams(current);
-            next.set('tab', sectionKey);
-            return next;
-        }, { replace: true });
+    const oralHealthSummary = useMemo(
+        () => (
+            oralHealth?.summary
+            && typeof oralHealth.summary === 'object'
+                ? oralHealth.summary
+                : {}
+        ),
+        [oralHealth]
+    );
+
+    const recentLogs = useMemo(
+        () => (
+            Array.isArray(oralHealth?.logs)
+                ? oralHealth.logs
+                : []
+        ),
+        [oralHealth]
+    );
+
+    const contextualEducation = useMemo(
+        () => (
+            Array.isArray(oralHealth?.contextualEducation)
+                ? oralHealth.contextualEducation
+                : []
+        ),
+        [oralHealth]
+    );
+
+    const recommendationLabel =
+        visitInfo?.label
+        || (
+            careLoading
+                ? 'Loading...'
+                : 'Insufficient Data'
+        );
+
+    const recommendationWindow =
+        visitInfo?.windowLabel
+        || visitInfo?.recommendedDateLabel
+        || '';
+
+    const recommendationReason =
+        visitInfo?.recommendationReason
+        || (
+            visitInfo
+                ? 'NgitiFy is using the current system recommendation.'
+                : 'NgitiFy does not currently have enough supported clinic information to create a visit window.'
+        );
+
+    const latestLogDate =
+        oralHealthSummary.lastLogDateKey
+        || recentLogs[0]?.logDateKey
+        || '';
+
+    const sendMessage = useCallback(async (promptText) => {
+        const text = String(
+            promptText !== undefined
+                ? promptText
+                : input
+        ).trim();
+
+        if (!text || sending) {
+            return;
+        }
+
+        const userMessage = {
+            id: `user-${Date.now()}`,
+            role: 'user',
+            content: text,
+        };
+
+        const existingConversation = messages
+            .filter(
+                (message) =>
+                    message.id !== 'welcome'
+                    && message.content
+            )
+            .map((message) => ({
+                role: message.role,
+                content: message.content,
+            }));
+
+        const apiMessages = [
+            ...existingConversation,
+            {
+                role: 'user',
+                content: text,
+            },
+        ];
+
+        setInput('');
+        setChatError('');
+        setLastFailedPrompt('');
+        setSending(true);
+
+        setMessages((current) => [
+            ...current,
+            userMessage,
+        ]);
+
+        try {
+            const response = await authFetch('/ai/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: apiMessages,
+                    assistantContext: {
+                        clientUiState: {
+                            source: 'patient-web',
+                            currentModule:
+                                'Patient AI Assistant',
+                            requestedAt:
+                                new Date().toISOString(),
+                        },
+                    },
+                }),
+            });
+
+            const payload = await response
+                .json()
+                .catch(() => ({}));
+
+            if (!response.ok) {
+                throw Object.assign(
+                    new Error(
+                        getErrorMessage(
+                            response.status,
+                            payload
+                        )
+                    ),
+                    {
+                        status: response.status,
+                    }
+                );
+            }
+
+            const reply = String(
+                payload?.reply || ''
+            ).trim();
+
+            if (!reply) {
+                throw new Error(
+                    'The AI explanation returned an empty response.'
+                );
+            }
+
+            setMessages((current) => [
+                ...current,
+                {
+                    id: `assistant-${Date.now()}`,
+                    role: 'assistant',
+                    content: reply,
+                },
+            ]);
+        } catch (error) {
+            setChatError(
+                error.message
+                || 'The AI explanation could not be loaded.'
+            );
+
+            setLastFailedPrompt(text);
+        } finally {
+            setSending(false);
+
+            window.setTimeout(() => {
+                textareaRef.current?.focus();
+            }, 0);
+        }
+    }, [
+        input,
+        messages,
+        sending,
+    ]);
+
+    const handleSubmit = (event) => {
+        event.preventDefault();
+        sendMessage();
     };
 
-    const visitWindowMarks = useMemo(
-        () => buildVisitWindowMarks(visitInfo, selectedVisitDate),
-        [selectedVisitDate, visitInfo]
-    );
+    const handleKeyDown = (event) => {
+        if (
+            event.key === 'Enter'
+            && !event.shiftKey
+        ) {
+            event.preventDefault();
+            sendMessage();
+        }
+    };
 
-    const renderOverview = () => (
-        <>
-            <div className={styles.heroGrid}>
-                <section className={`${styles.heroCard} ${styles.heroCardDark}`}>
-                    <span className={styles.heroTag}>AI Care Companion</span>
-                    <h2 className={styles.heroTitle}>Dental Health Education and Oral Health Management</h2>
-                    <p className={styles.heroText}>
-                        Review approved dental education, oral health guidance, and your next care window based on clinic-recorded treatment history.
-                    </p>
-                    <div className={styles.heroActions}>
-                        <button type="button" className={styles.buttonGhost} onClick={() => navigate('/patient/appointments?mode=book')}>
-                            Book Appointment
-                        </button>
-                    </div>
-                </section>
+    const clearConversation = () => {
+        if (sending) return;
 
-                <section className={styles.metricGrid} style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 0 }}>
-                    <article className={styles.metricCard}>
-                        <span className={styles.metricLabel}>Visit Prediction</span>
-                        <h3 className={styles.metricValue} style={{ fontSize: '22px' }}>{visitInfo?.label || 'Preview Mode'}</h3>
-                        <p className={styles.metricSub}>{visitInfo?.windowLabel || 'Preventive window will appear after treatment history is recorded.'}</p>
-                    </article>
-                    <article className={styles.metricCard}>
-                        <span className={styles.metricLabel}>Treatment Records Used</span>
-                        <h3 className={styles.metricValue}>{visitInfo?.historyCount || treatmentHistory.length}</h3>
-                        <p className={styles.metricSub}>Used to explain the visit window, not invent one.</p>
-                    </article>
-                    <article className={styles.metricCard}>
-                        <span className={styles.metricLabel}>Assigned Branch</span>
-                        <h3 className={styles.metricValue} style={{ fontSize: '22px' }}>{user?.assignedBranch || 'Pending'}</h3>
-                        <p className={styles.metricSub}>Where your booking slots and clinic schedule are sourced.</p>
-                    </article>
-                </section>
-            </div>
+        setMessages([
+            WELCOME_MESSAGE,
+        ]);
 
-            <div className={styles.toolGrid}>
-                {[
-                    { title: 'Dental Health Education', text: 'Read patient-friendly articles and oral health reminders.', icon: <FaBook />, action: () => updateSection('education') },
-                    { title: 'Oral Health Management', text: 'Review daily care reminders and watch signals.', icon: <FaTooth />, action: () => updateSection('oral-health') },
-                    { title: 'Visit Window', text: 'Review your preventive window and the recent treatment data behind it.', icon: <FaCalendarAlt />, action: () => updateSection('visit-window') },
-                ].map((item) => (
-                    <button
-                        key={item.title}
-                        type="button"
-                        className={styles.toolCard}
-                        onClick={item.action}
-                        style={{ textAlign: 'left', border: 'none', cursor: 'pointer' }}
-                    >
-                        <span className={styles.toolIcon}>{item.icon}</span>
-                        <h3 className={styles.toolTitle}>{item.title}</h3>
-                        <p className={styles.toolText}>{item.text}</p>
-                    </button>
-                ))}
-            </div>
-        </>
-    );
-
-    const renderEducation = () => (
-        <section className={styles.tabPanel}>
-            <PatientSectionHeader
-                eyebrow="Dental Health Education"
-                title="Dental health education library"
-                description="Approved patient-friendly guidance carried over from the mobile companion."
-            />
-            <div className={styles.toolGrid}>
-                {EDUCATION_ARTICLES.map((article) => (
-                    <button
-                        key={article.id}
-                        type="button"
-                        className={styles.toolCard}
-                        onClick={() => setSelectedArticle(article)}
-                        style={{ textAlign: 'left', border: 'none', cursor: 'pointer' }}
-                    >
-                        <span className={styles.toolIcon}>
-                            <PatientIcon name={article.iconName} color={article.iconColor} />
-                        </span>
-                        <h3 className={styles.toolTitle}>{article.title}</h3>
-                        <p className={styles.toolText}>{article.summary}</p>
-                    </button>
-                ))}
-            </div>
-        </section>
-    );
-
-    const renderOralHealth = () => (
-        <section className={styles.tabPanel}>
-            <PatientSectionHeader
-                eyebrow="Oral Health Management"
-                title="Daily care reminders"
-                description="Routine tips that complement your preventive care window."
-            />
-            <div className={styles.toolGrid}>
-                {ORAL_HEALTH_TIPS.map((tip) => (
-                    <article key={tip.id} className={styles.toolCard}>
-                        <span className={styles.toolIcon}>
-                            <PatientIcon name={tip.iconName} color={tip.iconColor} />
-                        </span>
-                        <h3 className={styles.toolTitle}>{tip.title}</h3>
-                        <p className={styles.toolText}>{tip.tip}</p>
-                    </article>
-                ))}
-            </div>
-            <div className={styles.alertCard}>
-                <span className={styles.toolIcon}><FaTooth /></span>
-                <div>
-                    <h3 className={styles.alertTitle}>Reminder</h3>
-                    <p className={styles.alertText}>
-                        AI can provide routine education and clinic workflow guidance, but it should never replace a dentist&apos;s judgment for diagnosis or treatment decisions.
-                    </p>
-                </div>
-            </div>
-        </section>
-    );
-
-    const renderVisitWindow = () => (
-        <section className={styles.tabPanel}>
-            <PatientSectionHeader
-                eyebrow="Prediction"
-                title="Your next recommended visit window"
-                description="This view explains the existing Dentime prediction using your treatment history. It does not invent its own interval."
-            />
-            {loadingVisit ? (
-                <div className={styles.loaderBox}>
-                    <span className={styles.loaderText}>Loading visit prediction...</span>
-                </div>
-            ) : visitInfo ? (
-                <>
-                    <div className={styles.metricGrid}>
-                        <article className={styles.metricCard}>
-                            <span className={styles.metricLabel}>Status</span>
-                            <h3 className={styles.metricValue} style={{ fontSize: '22px' }}>{visitInfo.label}</h3>
-                            <p className={styles.metricSub}>{visitInfo.recommendationReason}</p>
-                        </article>
-                        <article className={styles.metricCard}>
-                            <span className={styles.metricLabel}>Window</span>
-                            <h3 className={styles.metricValue} style={{ fontSize: '22px' }}>{visitInfo.windowLabel}</h3>
-                            <p className={styles.metricSub}>Recommended date: {visitInfo.recommendedDateLabel || visitInfo.nextDate}</p>
-                        </article>
-                        <article className={styles.metricCard}>
-                            <span className={styles.metricLabel}>Last Procedure</span>
-                            <h3 className={styles.metricValue} style={{ fontSize: '22px' }}>{visitInfo.lastProcedure || 'Not available'}</h3>
-                            <p className={styles.metricSub}>Last visit: {formatDateDisplay(visitInfo.lastVisitDate)}</p>
-                        </article>
-                    </div>
-
-                    <PatientMonthCalendar
-                        currentMonth={calendarMonth}
-                        selectedDate={selectedVisitDate}
-                        marks={visitWindowMarks}
-                        onChangeMonth={(direction) => {
-                            setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
-                        }}
-                        onSelectDate={(dateKey) => setSelectedVisitDate(dateKey)}
-                    />
-
-                    <div className={styles.cardGrid} style={{ marginTop: '18px' }}>
-                        <article className={styles.summaryCard}>
-                            <span className={styles.infoLabel}>Recommendation Basis</span>
-                            <p className={styles.infoValue}>{visitInfo.recommendationReason}</p>
-                            <div className={styles.timeline} style={{ marginTop: '16px' }}>
-                                {treatmentHistory.slice(0, 5).map((log) => (
-                                    <div key={log._id} className={styles.timelineItem}>
-                                        <span className={styles.timelineDot} />
-                                        <div>
-                                            <h4 className={styles.timelineTitle}>{log.procedure || 'Treatment recorded'}</h4>
-                                            <p className={styles.timelineMeta}>{formatDateDisplay(log.date)} • {log.branch || 'Clinic record'}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </article>
-                        <article className={styles.summaryCard}>
-                            <span className={styles.infoLabel}>Next Step</span>
-                            <p className={styles.infoValue}>
-                                Book a preventive check-up within the recommended window and mention any sensitivity, gum bleeding, or other watch signals you&apos;ve noticed.
-                            </p>
-                            <div className={styles.heroActions}>
-                                <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/appointments?mode=book')}>
-                                    Book Your Next Visit
-                                </button>
-                            </div>
-                        </article>
-                    </div>
-                </>
-            ) : (
-                <div className={styles.alertCard}>
-                    <span className={styles.toolIcon}><FaCalendarAlt /></span>
-                    <div>
-                        <h3 className={styles.alertTitle}>No prediction yet</h3>
-                        <p className={styles.alertText}>
-                            Once the clinic records treatment history in your file, Dentime will highlight a preventive visit window here.
-                        </p>
-                    </div>
-                </div>
-            )}
-        </section>
-    );
+        setInput('');
+        setChatError('');
+        setLastFailedPrompt('');
+    };
 
     return (
         <PatientPageFrame
             title="AI Care Companion"
-            subtitle="The patient-side hub for Dental Health Education, Oral Health Management, and predictive visit windows."
+            subtitle="AI explanations for your existing NgitiFy care information, with the System Recommendation kept separate and authoritative."
         >
-            <div className={styles.tabs} role="tablist" aria-label="AI Care Companion sections">
-                {SECTIONS.map((section) => (
-                    <button
-                        key={section.key}
-                        type="button"
-                        role="tab"
-                        aria-selected={activeSection === section.key}
-                        aria-controls={`patient-ai-section-${section.key}`}
-                        className={`${styles.tabButton} ${activeSection === section.key ? styles.tabButtonActive : ''}`}
-                        onClick={() => updateSection(section.key)}
-                    >
-                        {section.label}
-                    </button>
-                ))}
-            </div>
-
-            <div id={`patient-ai-section-${activeSection}`} role="tabpanel">
-                {activeSection === 'overview' ? renderOverview() : null}
-                {activeSection === 'education' ? renderEducation() : null}
-                {activeSection === 'oral-health' ? renderOralHealth() : null}
-                {activeSection === 'visit-window' ? renderVisitWindow() : null}
-            </div>
-
-            {selectedArticle ? (
-                <div className={styles.modalOverlay}>
-                    <div
-                        className={styles.modalCard}
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="patient-education-article-title"
-                        aria-describedby="patient-education-article-summary"
-                    >
-                        <div className={styles.modalHeader}>
-                            <div>
-                                <h3 id="patient-education-article-title" className={styles.modalTitle}>{selectedArticle.title}</h3>
-                                <p id="patient-education-article-summary" className={styles.modalSubtitle}>{selectedArticle.summary}</p>
+            <div className={styles.patientAiPageGrid}>
+                <aside className={styles.patientAiContextColumn}>
+                    <section className={styles.patientAiContextCard}>
+                        <div className={styles.patientAiContextHeading}>
+                            <div className={styles.patientAiContextIcon}>
+                                <FaCalendarAlt
+                                    aria-hidden="true"
+                                    focusable="false"
+                                />
                             </div>
-                            <button type="button" className={styles.modalClose} onClick={() => setSelectedArticle(null)} aria-label="Close education article dialog">×</button>
+
+                            <div>
+                                <span className={styles.patientAiContextEyebrow}>
+                                    System Recommendation
+                                </span>
+
+                                <h2 className={styles.patientAiContextTitle}>
+                                    Recommended Visit Window
+                                </h2>
+                            </div>
                         </div>
-                        <p className={styles.infoValue}>{selectedArticle.body}</p>
+
+                        {careLoading ? (
+                            <div className={styles.patientAiContextLoading}>
+                                Loading your current recommendation...
+                            </div>
+                        ) : careError ? (
+                            <div className={styles.patientAiContextError}>
+                                <FaExclamationTriangle
+                                    aria-hidden="true"
+                                    focusable="false"
+                                />
+
+                                <span>{careError}</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className={styles.patientAiRecommendationStatus}>
+                                    {recommendationLabel}
+                                </div>
+
+                                {recommendationWindow ? (
+                                    <p className={styles.patientAiRecommendationWindow}>
+                                        {recommendationWindow}
+                                    </p>
+                                ) : null}
+
+                                <p className={styles.patientAiContextText}>
+                                    {recommendationReason}
+                                </p>
+
+                                {visitInfo?.contactClinicSooner ? (
+                                    <div className={styles.patientAiContactNotice}>
+                                        <strong>
+                                            Contact clinic guidance
+                                        </strong>
+
+                                        <span>
+                                            {visitInfo.contactClinicReason
+                                            || 'The deterministic NgitiFy recommendation suggests contacting the clinic sooner.'}
+                                        </span>
+                                    </div>
+                                ) : null}
+                            </>
+                        )}
+
+                        <div className={styles.patientAiAuthorityNotice}>
+                            <strong>
+                                System Recommendation
+                            </strong>
+
+                            <span>
+                                This is produced by NgitiFy&apos;s deterministic backend rules. The AI may explain it but does not calculate, postpone, or override it.
+                            </span>
+                        </div>
+                    </section>
+
+                    <section className={styles.patientAiContextCard}>
+                        <div className={styles.patientAiContextHeading}>
+                            <div className={styles.patientAiContextIcon}>
+                                <FaTooth
+                                    aria-hidden="true"
+                                    focusable="false"
+                                />
+                            </div>
+
+                            <div>
+                                <span className={styles.patientAiContextEyebrow}>
+                                    Oral Health Management
+                                </span>
+
+                                <h2 className={styles.patientAiContextTitle}>
+                                    Recent context
+                                </h2>
+                            </div>
+                        </div>
+
+                        <div className={styles.patientAiMiniStats}>
+                            <div className={styles.patientAiMiniStat}>
+                                <strong>
+                                    {oralHealthSummary.recentLogCount
+                                    ?? recentLogs.length}
+                                </strong>
+
+                                <span>Recent logs</span>
+                            </div>
+
+                            <div className={styles.patientAiMiniStat}>
+                                <strong>
+                                    {contextualEducation.length}
+                                </strong>
+
+                                <span>Related topics</span>
+                            </div>
+                        </div>
+
+                        <p className={styles.patientAiContextText}>
+                            {latestLogDate
+                                ? `Latest saved log: ${formatDateKey(latestLogDate)}.`
+                                : 'No recent Daily Oral Health Log is available yet.'}
+                        </p>
+
+                        <div className={styles.patientAiAuthorityNotice}>
+                            <strong>
+                                Recorded context only
+                            </strong>
+
+                            <span>
+                                Oral Health Management information helps the AI explain your existing records. It does not become a diagnosis.
+                            </span>
+                        </div>
+                    </section>
+
+                    <section className={styles.patientAiContextCard}>
+                        <div className={styles.patientAiContextHeading}>
+                            <div className={styles.patientAiContextIcon}>
+                                <FaBook
+                                    aria-hidden="true"
+                                    focusable="false"
+                                />
+                            </div>
+
+                            <div>
+                                <span className={styles.patientAiContextEyebrow}>
+                                    Dental Health Education
+                                </span>
+
+                                <h2 className={styles.patientAiContextTitle}>
+                                    Approved education
+                                </h2>
+                            </div>
+                        </div>
+
+                        {contextualEducation.length ? (
+                            <div className={styles.patientAiEducationList}>
+                                {contextualEducation
+                                    .slice(0, 3)
+                                    .map((article) => (
+                                        <div
+                                            key={article.id}
+                                            className={styles.patientAiEducationItem}
+                                        >
+                                            <span>
+                                                {article.category
+                                                || 'Dental Health Education'}
+                                            </span>
+
+                                            <strong>
+                                                {article.title}
+                                            </strong>
+                                        </div>
+                                    ))}
+                            </div>
+                        ) : (
+                            <p className={styles.patientAiContextText}>
+                                No contextual Dental Health Education topics are currently matched to your recent logs.
+                            </p>
+                        )}
+
+                        <div className={styles.patientAiAuthorityNotice}>
+                            <strong>
+                                Education, not diagnosis
+                            </strong>
+
+                            <span>
+                                Critical education continues to come from NgitiFy&apos;s approved Dental Health Education library rather than depending on AI generation.
+                            </span>
+                        </div>
+                    </section>
+                </aside>
+
+                <section className={styles.patientAiChatCard}>
+                    <div className={styles.patientAiChatHeader}>
+                        <div className={styles.patientAiChatIdentity}>
+                            <div className={styles.patientAiRobotAvatar}>
+                                <FaRobot
+                                    aria-hidden="true"
+                                    focusable="false"
+                                />
+                            </div>
+
+                            <div>
+                                <span className={styles.patientAiChatEyebrow}>
+                                    AI Explanation
+                                </span>
+
+                                <h2 className={styles.patientAiChatTitle}>
+                                    Ask NgitiFy
+                                </h2>
+
+                                <p className={styles.patientAiChatSubtitle}>
+                                    {user?.firstName
+                                        ? `Ask questions about your existing care information, ${user.firstName}.`
+                                        : 'Ask questions about your existing care information.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            className={styles.patientAiClearButton}
+                            onClick={clearConversation}
+                            disabled={
+                                sending
+                                || messages.length <= 1
+                            }
+                        >
+                            Clear
+                        </button>
                     </div>
-                </div>
-            ) : null}
+
+                    <div className={styles.patientAiQuickPromptSection}>
+                        <span className={styles.patientAiQuickPromptLabel}>
+                            Suggested prompts
+                        </span>
+
+                        <div className={styles.patientAiPromptGrid}>
+                            {QUICK_PROMPTS.map((prompt) => {
+                                const PromptIcon = prompt.icon;
+
+                                return (
+                                    <button
+                                        key={prompt.id}
+                                        type="button"
+                                        className={styles.patientAiPromptButton}
+                                        onClick={() =>
+                                            sendMessage(
+                                                prompt.label
+                                            )
+                                        }
+                                        disabled={sending}
+                                    >
+                                        <PromptIcon
+                                            aria-hidden="true"
+                                            focusable="false"
+                                        />
+
+                                        <span>
+                                            {prompt.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div
+                        className={styles.patientAiMessages}
+                        aria-live="polite"
+                    >
+                        {messages.map((message) => (
+                            <div
+                                key={message.id}
+                                className={
+                                    message.role === 'user'
+                                        ? styles.patientAiMessageRowUser
+                                        : styles.patientAiMessageRowAssistant
+                                }
+                            >
+                                {message.role === 'assistant' ? (
+                                    <div className={styles.patientAiMessageAvatar}>
+                                        <FaRobot
+                                            aria-hidden="true"
+                                            focusable="false"
+                                        />
+                                    </div>
+                                ) : null}
+
+                                <div
+                                    className={
+                                        message.role === 'user'
+                                            ? styles.patientAiUserBubble
+                                            : styles.patientAiAssistantBubble
+                                    }
+                                >
+                                    {String(
+                                        message.content || ''
+                                    )
+                                        .split('\n')
+                                        .map((line, index) => (
+                                            line.trim() ? (
+                                                <p
+                                                    key={`${message.id}-${index}`}
+                                                >
+                                                    {line}
+                                                </p>
+                                            ) : (
+                                                <br
+                                                    key={`${message.id}-${index}`}
+                                                />
+                                            )
+                                        ))}
+                                </div>
+                            </div>
+                        ))}
+
+                        {sending ? (
+                            <div className={styles.patientAiMessageRowAssistant}>
+                                <div className={styles.patientAiMessageAvatar}>
+                                    <FaRobot
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    />
+                                </div>
+
+                                <div className={styles.patientAiAssistantBubble}>
+                                    <div
+                                        className={styles.patientAiTyping}
+                                        aria-label="AI is preparing an explanation"
+                                    >
+                                        <span />
+                                        <span />
+                                        <span />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        <div ref={messagesEndRef} />
+                    </div>
+
+                    {chatError ? (
+                        <div
+                            className={styles.patientAiChatError}
+                            role="alert"
+                        >
+                            <FaExclamationTriangle
+                                aria-hidden="true"
+                                focusable="false"
+                            />
+
+                            <div>
+                                <strong>
+                                    AI explanation unavailable
+                                </strong>
+
+                                <p>{chatError}</p>
+                            </div>
+
+                            {lastFailedPrompt ? (
+                                <button
+                                    type="button"
+                                    className={styles.patientAiRetryButton}
+                                    onClick={() =>
+                                        sendMessage(
+                                            lastFailedPrompt
+                                        )
+                                    }
+                                    disabled={sending}
+                                >
+                                    <FaRedoAlt
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    />
+                                    Retry
+                                </button>
+                            ) : null}
+                        </div>
+                    ) : null}
+
+                    <form
+                        className={styles.patientAiComposer}
+                        onSubmit={handleSubmit}
+                    >
+                        <label
+                            htmlFor="patient-ai-message"
+                            className={styles.srOnly}
+                        >
+                            Ask the Patient AI Assistant
+                        </label>
+
+                        <textarea
+                            ref={textareaRef}
+                            id="patient-ai-message"
+                            className={styles.patientAiTextarea}
+                            value={input}
+                            onChange={(event) =>
+                                setInput(
+                                    event.target.value
+                                )
+                            }
+                            onKeyDown={handleKeyDown}
+                            placeholder="Ask about your visit recommendation, recent trend, appointment, or Dental Health Education..."
+                            rows={2}
+                            maxLength={1500}
+                            disabled={sending}
+                        />
+
+                        <button
+                            type="submit"
+                            className={styles.patientAiSendButton}
+                            disabled={
+                                sending
+                                || !input.trim()
+                            }
+                            aria-label="Send message"
+                        >
+                            <FaPaperPlane
+                                aria-hidden="true"
+                                focusable="false"
+                            />
+                        </button>
+                    </form>
+
+                    <div className={styles.patientAiDisclaimer}>
+                        <FaExclamationTriangle
+                            aria-hidden="true"
+                            focusable="false"
+                        />
+
+                        <p>
+                            AI information is educational and explanatory, not a diagnosis. The AI does not independently calculate medical urgency or replace your dentist&apos;s recommendation. Contact the clinic if symptoms persist, worsen, or concern you.
+                        </p>
+                    </div>
+                </section>
+            </div>
         </PatientPageFrame>
     );
-}
+};
 
+export default PatientAiCompanion;
