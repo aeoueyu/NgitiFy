@@ -9622,6 +9622,10 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Date and procedure are required.' });
         }
 
+        if (!(await isClinicProcedureAllowed(procedure))) {
+            return res.status(400).json({ message: 'Please select a valid clinic procedure.' });
+        }
+
         if (!branch) {
             return res.status(400).json({ message: 'Branch is required.' });
         }

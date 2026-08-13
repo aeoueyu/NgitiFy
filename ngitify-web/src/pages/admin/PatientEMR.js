@@ -379,6 +379,11 @@ export default function PatientEMR({
     const canAddTreatmentLog = canManageTreatmentLog;
     const canUploadRadiograph = !isReadOnly && radiographUploadsEnabled;
     const canEnhanceRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;
+    const clinicProcedureOptions = Array.from(new Set(
+        (systemConfig?.clinicProcedures || [])
+            .map((procedure) => String(procedure || '').trim())
+            .filter(Boolean)
+    ));
     
     // Core States
     const [activeTab, setActiveTab] = useState('overview');
@@ -416,6 +421,7 @@ export default function PatientEMR({
         branchId: '',
         notes: '',
     });
+    const [newLogFormErrors, setNewLogFormErrors] = useState({});
     const [expandedLogRows, setExpandedLogRows] = useState({});
     const [odontogramLogs, setOdontogramLogs] = useState([]);
     const [expandedOdontogramLogRows, setExpandedOdontogramLogRows] = useState({});
@@ -1634,8 +1640,44 @@ export default function PatientEMR({
     };
 
     // ─── TREATMENT LOGS TAB ────────────────────────────────────────────────────
+    const validateNewLogForm = () => {
+        const errors = {};
+        const requiredFields = ['date', 'procedure', 'category', 'branchId', 'amountCharged', 'amountPaid'];
+
+        requiredFields.forEach((field) => {
+            if (!String(newLogForm[field] ?? '').trim()) {
+                errors[field] = 'Required';
+            }
+        });
+
+        return errors;
+    };
+
+    const updateNewLogField = (field, value) => {
+        setNewLogForm((prev) => ({ ...prev, [field]: value }));
+        setNewLogFormErrors((prev) => {
+            if (!prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const getNewLogFieldClass = (field) => `${styles.inputField} ${newLogFormErrors[field] ? styles.errorBorder : ''}`;
+    const getNewLogTextareaClass = (field) => `${styles.textareaField} ${newLogFormErrors[field] ? styles.errorBorder : ''}`;
+    const renderNewLogError = (field) => (
+        newLogFormErrors[field] ? <span className={styles.errorText}>{newLogFormErrors[field]}</span> : null
+    );
+
     const handleAddLogSubmit = async (e) => {
         e.preventDefault();
+
+        const errors = validateNewLogForm();
+        setNewLogFormErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            return;
+        }
+
         setIsSubmittingLog(true);
         try {
             const { authFetch } = await import('../../utils/api');
@@ -1673,6 +1715,7 @@ export default function PatientEMR({
                 branchId: '',
                 notes: '',
             });
+            setNewLogFormErrors({});
             addToast("Treatment log added successfully.", "success");
         } catch (err) {
             console.error('Add log error:', err);
@@ -1760,7 +1803,13 @@ export default function PatientEMR({
                 <div className={styles.sectionHeaderRow} style={{ marginBottom: '20px' }}>
                     <h3 className={styles.sectionTitle}>Treatment Logs</h3>
                     {canAddTreatmentLog && (
-                        <button className={styles.actionBtn} onClick={() => setIsAddLogOpen(true)}>
+                        <button
+                            className={styles.actionBtn}
+                            onClick={() => {
+                                setNewLogFormErrors({});
+                                setIsAddLogOpen(true);
+                            }}
+                        >
                             <FaPlus /> Add Log
                         </button>
                     )}
@@ -1944,16 +1993,37 @@ export default function PatientEMR({
                         <form onSubmit={handleAddLogSubmit} style={{ textAlign: 'left' }}>
                             <div className={styles.formGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '15px' }}>
                                 <div className={styles.formGroup}>
-                                    <label>Date of Procedure <span style={{color:'red'}}>*</span></label>
-                                    <input type="date" required max={getTodayString()} className={styles.inputField} value={newLogForm.date} onChange={(e) => setNewLogForm({...newLogForm, date: e.target.value})} />
+                                    <label>Date of Procedure {renderRequiredMark()}</label>
+                                    <input
+                                        type="date"
+                                        max={getTodayString()}
+                                        className={getNewLogFieldClass('date')}
+                                        value={newLogForm.date}
+                                        onChange={(e) => updateNewLogField('date', e.target.value)}
+                                    />
+                                    {renderNewLogError('date')}
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label>Procedure Name <span style={{color:'red'}}>*</span></label>
-                                    <input type="text" required className={styles.inputField} value={newLogForm.procedure} onChange={(e) => setNewLogForm({...newLogForm, procedure: e.target.value})} placeholder="e.g. Extraction" />
+                                    <label>Procedure Name {renderRequiredMark()}</label>
+                                    <select
+                                        className={getNewLogFieldClass('procedure')}
+                                        value={newLogForm.procedure}
+                                        onChange={(e) => updateNewLogField('procedure', e.target.value)}
+                                    >
+                                        <option value="" disabled hidden>Select Procedure</option>
+                                        {clinicProcedureOptions.map((procedure) => (
+                                            <option key={procedure} value={procedure}>{procedure}</option>
+                                        ))}
+                                    </select>
+                                    {renderNewLogError('procedure')}
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label>Category <span style={{color:'red'}}>*</span></label>
-                                    <select required className={styles.inputField} value={newLogForm.category} onChange={(e) => setNewLogForm({...newLogForm, category: e.target.value})}>
+                                    <label>Category {renderRequiredMark()}</label>
+                                    <select
+                                        className={getNewLogFieldClass('category')}
+                                        value={newLogForm.category}
+                                        onChange={(e) => updateNewLogField('category', e.target.value)}
+                                    >
                                         <option value="General">General</option>
                                         <option value="Prophylaxis">Prophylaxis</option>
                                         <option value="Restoration">Restoration</option>
@@ -1962,32 +2032,51 @@ export default function PatientEMR({
                                         <option value="Consultation">Consultation</option>
                                         <option value="Other">Other</option>
                                     </select>
+                                    {renderNewLogError('category')}
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label>Branch <span style={{color:'red'}}>*</span></label>
+                                    <label>Branch {renderRequiredMark()}</label>
                                     <select
-                                        required
-                                        className={styles.inputField}
+                                        className={getNewLogFieldClass('branchId')}
                                         value={newLogForm.branchId}
-                                        onChange={(e) => setNewLogForm({...newLogForm, branchId: e.target.value})}
+                                        onChange={(e) => updateNewLogField('branchId', e.target.value)}
                                     >
                                         <option value="" disabled hidden>Select Branch</option>
                                         {branches.map(b => (
                                             <option key={b._id} value={b.name}>{b.name}</option>
                                         ))}
                                     </select>
+                                    {renderNewLogError('branchId')}
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label>Tooth Number(s)</label>
-                                    <input type="text" className={styles.inputField} value={newLogForm.tooth} onChange={(e) => setNewLogForm({...newLogForm, tooth: e.target.value})} placeholder="e.g. 45, 46 or All" />
+                                    <input type="text" className={styles.inputField} value={newLogForm.tooth} onChange={(e) => updateNewLogField('tooth', e.target.value)} placeholder="e.g. 45, 46 or All" />
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label>Amount Charged <span style={{color:'red'}}>*</span></label>
-                                    <input type="number" min="0" step="0.01" required className={styles.inputField} value={newLogForm.amountCharged} onChange={(e) => setNewLogForm({...newLogForm, amountCharged: e.target.value})} placeholder="0.00" />
+                                    <label>Amount Charged {renderRequiredMark()}</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className={getNewLogFieldClass('amountCharged')}
+                                        value={newLogForm.amountCharged}
+                                        onChange={(e) => updateNewLogField('amountCharged', e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                    {renderNewLogError('amountCharged')}
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label>Amount Paid <span style={{color:'red'}}>*</span></label>
-                                    <input type="number" min="0" step="0.01" required className={styles.inputField} value={newLogForm.amountPaid} onChange={(e) => setNewLogForm({...newLogForm, amountPaid: e.target.value})} placeholder="0.00" />
+                                    <label>Amount Paid {renderRequiredMark()}</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className={getNewLogFieldClass('amountPaid')}
+                                        value={newLogForm.amountPaid}
+                                        onChange={(e) => updateNewLogField('amountPaid', e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                    {renderNewLogError('amountPaid')}
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label>Balance</label>
@@ -2000,20 +2089,30 @@ export default function PatientEMR({
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label>Next Appointment</label>
-                                    <input type="date" className={styles.inputField} value={newLogForm.nextAppointment} onChange={(e) => setNewLogForm({...newLogForm, nextAppointment: e.target.value})} />
+                                    <input type="date" className={styles.inputField} value={newLogForm.nextAppointment} onChange={(e) => updateNewLogField('nextAppointment', e.target.value)} />
                                 </div>
                                 <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
                                     <label>Notes</label>
                                     <textarea
-                                        className={styles.textareaField}
+                                        className={getNewLogTextareaClass('notes')}
                                         value={newLogForm.notes}
-                                        onChange={(e) => setNewLogForm({...newLogForm, notes: e.target.value})}
+                                        onChange={(e) => updateNewLogField('notes', e.target.value)}
                                         placeholder="Clinical notes, remarks, or follow-up instructions"
                                     />
                                 </div>
                             </div>
                             <div className={styles.modalButtonGroup}>
-                                <button type="button" className={styles.cancelBtn} onClick={() => setIsAddLogOpen(false)} disabled={isSubmittingLog}>Cancel</button>
+                                <button
+                                    type="button"
+                                    className={styles.cancelBtn}
+                                    onClick={() => {
+                                        setNewLogFormErrors({});
+                                        setIsAddLogOpen(false);
+                                    }}
+                                    disabled={isSubmittingLog}
+                                >
+                                    Cancel
+                                </button>
                                 <button type="submit" className={styles.saveBtn} disabled={isSubmittingLog}>
                                     {isSubmittingLog ? 'Saving...' : 'Save Log'}
                                 </button>
