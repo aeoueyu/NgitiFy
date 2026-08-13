@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FaCalendarAlt, FaClinicMedical, FaNotesMedical, FaRegClock } from 'react-icons/fa';
+import { FaCalendarAlt, FaClinicMedical, FaInfoCircle, FaNotesMedical, FaRegClock } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import {
@@ -24,9 +24,29 @@ const getDentistLabel = (appointment) => {
     return 'To be assigned';
 };
 
-function AppointmentCard({ appointment }) {
+const getAppointmentId = (appointment) => appointment?._id || appointment?.id || `${appointment?.date}-${appointment?.time}-${appointment?.procedure}`;
+
+function DetailRow({ label, value }) {
     return (
-        <article className={styles.listCard}>
+        <div className={styles.timelineItem}>
+            <span className={styles.timelineDot} />
+            <div>
+                <h4 className={styles.timelineTitle}>{label}</h4>
+                <p className={styles.timelineText}>{value || 'Not specified'}</p>
+            </div>
+        </div>
+    );
+}
+
+function AppointmentCard({ appointment, onSelect }) {
+    return (
+        <button
+            type="button"
+            className={styles.listCard}
+            onClick={() => onSelect(appointment)}
+            style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
+            aria-label={`View details for ${appointment.procedure || 'appointment'} on ${formatDateDisplay(appointment.date, { weekday: 'short' })} at ${formatTime24(appointment.time)}`}
+        >
             <div className={styles.listHeader}>
                 <div>
                     <h3 className={styles.listTitle}>{appointment.procedure || 'Appointment'}</h3>
@@ -47,7 +67,7 @@ function AppointmentCard({ appointment }) {
                     {appointment.notes}
                 </div>
             ) : null}
-        </article>
+        </button>
     );
 }
 
@@ -57,6 +77,7 @@ export default function PatientAppointments() {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [selectedAppointment, setSelectedAppointment] = useState(null);
 
     const fetchAppointments = useCallback(async () => {
         if (!user?.id) return;
@@ -85,23 +106,60 @@ export default function PatientAppointments() {
 
     const { upcoming, past } = useMemo(() => {
         const nextItems = appointments
-            .filter((item) => ['pending', 'confirmed', 'in-clinic'].includes(item.status))
+            .filter((item) => ['pending', 'confirmed', 'in-clinic'].includes(String(item.status || '').toLowerCase()))
             .sort((left, right) => new Date(left.date) - new Date(right.date));
         const historyItems = appointments
-            .filter((item) => ['completed', 'cancelled'].includes(item.status))
+            .filter((item) => ['completed', 'cancelled'].includes(String(item.status || '').toLowerCase()))
             .sort((left, right) => new Date(right.date) - new Date(left.date));
         return { upcoming: nextItems, past: historyItems };
     }, [appointments]);
     const isBookingMode = searchParams.get('mode') === 'book';
+    const activeTab = isBookingMode ? 'book' : (searchParams.get('tab') === 'history' ? 'history' : 'upcoming');
+
+    const setHubTab = (tab) => {
+        if (tab === 'book') {
+            setSearchParams({ mode: 'book' });
+            return;
+        }
+        setSearchParams(tab === 'history' ? { tab: 'history' } : {});
+    };
+    const renderHubTabs = () => (
+        <div className={styles.tabs} role="tablist" aria-label="Appointment hub sections">
+            {[
+                ['upcoming', `Upcoming (${upcoming.length})`],
+                ['history', `History (${past.length})`],
+                ['book', 'Book Appointment'],
+            ].map(([key, label]) => (
+                <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === key}
+                    className={`${styles.tabButton} ${activeTab === key ? styles.tabButtonActive : ''}`}
+                    onClick={() => setHubTab(key)}
+                >
+                    {label}
+                </button>
+            ))}
+        </div>
+    );
 
     if (isBookingMode) {
-        return <PatientBooking onExit={() => setSearchParams({}, { replace: true })} />;
+        return (
+            <PatientBooking
+                onExit={() => {
+                    fetchAppointments();
+                    setSearchParams({}, { replace: true });
+                }}
+                hubNav={renderHubTabs()}
+            />
+        );
     }
 
     return (
         <PatientPageFrame
-            title="Visits"
-            subtitle="Appointments and visit history from your patient mobile experience, rebuilt for the web dashboard."
+            title="My Appointments"
+            subtitle="Your complete appointment hub for upcoming visits, history, details, and booking."
             actions={(
                 <button type="button" className={styles.buttonPrimary} onClick={() => setSearchParams({ mode: 'book' })}>
                     Book New Appointment
@@ -135,6 +193,8 @@ export default function PatientAppointments() {
                 </section>
             </div>
 
+            {renderHubTabs()}
+
             {loading ? (
                 <div className={styles.loaderBox}>
                     <span className={styles.loaderText}>Loading your appointments...</span>
@@ -152,36 +212,46 @@ export default function PatientAppointments() {
                 />
             ) : (
                 <>
-                    <section style={{ marginBottom: '24px' }}>
+                    {activeTab === 'upcoming' ? (
+                    <section style={{ marginBottom: '24px' }} role="tabpanel">
                         <PatientSectionHeader
                             eyebrow="Scheduled"
-                            title="Upcoming Visits"
-                            description="Your pending, confirmed, and in-clinic appointments."
+                            title="Upcoming"
+                            description="Your pending, confirmed, and in-clinic appointments. Select a card to view details."
                         />
                         {upcoming.length ? upcoming.map((appointment) => (
                             <AppointmentCard
-                                key={appointment._id || `${appointment.date}-${appointment.time}-${appointment.procedure}`}
+                                key={getAppointmentId(appointment)}
                                 appointment={appointment}
+                                onSelect={setSelectedAppointment}
                             />
                         )) : (
                             <PatientEmptyState
                                 icon={<FaCalendarAlt />}
                                 title="No upcoming appointment"
                                 message="Your next mobile or web appointment request will appear here after it is submitted."
+                                action={(
+                                    <button type="button" className={styles.buttonPrimary} onClick={() => setHubTab('book')}>
+                                        Book Appointment
+                                    </button>
+                                )}
                             />
                         )}
                     </section>
+                    ) : null}
 
-                    <section>
+                    {activeTab === 'history' ? (
+                    <section role="tabpanel">
                         <PatientSectionHeader
                             eyebrow="History"
-                            title="Past Visits"
-                            description="Completed and cancelled appointments across your patient record."
+                            title="Appointment History"
+                            description="Completed and cancelled appointments across your patient record. Select a card to view details."
                         />
                         {past.length ? past.map((appointment) => (
                             <AppointmentCard
-                                key={appointment._id || `${appointment.date}-${appointment.time}-${appointment.procedure}`}
+                                key={getAppointmentId(appointment)}
                                 appointment={appointment}
+                                onSelect={setSelectedAppointment}
                             />
                         )) : (
                             <PatientEmptyState
@@ -191,6 +261,64 @@ export default function PatientAppointments() {
                             />
                         )}
                     </section>
+                    ) : null}
+
+                    {selectedAppointment ? (
+                        <div className={styles.modalOverlay}>
+                            <div
+                                className={styles.modalCard}
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="appointment-detail-title"
+                                aria-describedby="appointment-detail-summary"
+                            >
+                                <div className={styles.modalHeader}>
+                                    <div>
+                                        <h3 id="appointment-detail-title" className={styles.modalTitle}>
+                                            {selectedAppointment.procedure || 'Appointment Details'}
+                                        </h3>
+                                        <p id="appointment-detail-summary" className={styles.modalSubtitle}>
+                                            {formatDateDisplay(selectedAppointment.date, { weekday: 'short' })} at {formatTime24(selectedAppointment.time)}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className={styles.modalClose}
+                                        onClick={() => setSelectedAppointment(null)}
+                                        aria-label="Close appointment details"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                                <div className={styles.detailPills}>
+                                    <PatientStatusBadge status={selectedAppointment.status} />
+                                    <span className={styles.detailPill}><FaCalendarAlt /> {formatDateDisplay(selectedAppointment.date, { weekday: 'short' })}</span>
+                                    <span className={styles.detailPill}><FaRegClock /> {formatTime24(selectedAppointment.time)}</span>
+                                    <span className={styles.detailPill}><FaClinicMedical /> {selectedAppointment.branch || 'Dentime Dental Clinic'}</span>
+                                </div>
+                                <div className={styles.timeline}>
+                                    <DetailRow label="Dentist" value={getDentistLabel(selectedAppointment)} />
+                                    <DetailRow label="Source" value={selectedAppointment.source || 'Patient booking'} />
+                                    <DetailRow label="Notes" value={selectedAppointment.notes || 'No patient note recorded.'} />
+                                    {selectedAppointment.remarks ? <DetailRow label="Clinic Remarks" value={selectedAppointment.remarks} /> : null}
+                                    {selectedAppointment.preOpInstructions ? <DetailRow label="Pre-op Instructions" value={selectedAppointment.preOpInstructions} /> : null}
+                                    {selectedAppointment.cancellationReason ? <DetailRow label="Cancellation Reason" value={selectedAppointment.cancellationReason} /> : null}
+                                </div>
+                                <div className={styles.noticeBox} style={{ marginTop: '18px' }}>
+                                    <FaInfoCircle style={{ marginRight: '8px' }} />
+                                    For cancellation, rescheduling, or status changes, please contact your assigned clinic branch. Those actions are handled by authorized clinic staff.
+                                </div>
+                                <div className={styles.heroActions}>
+                                    <button type="button" className={styles.buttonSecondary} onClick={() => setSelectedAppointment(null)}>
+                                        Close
+                                    </button>
+                                    <button type="button" className={styles.buttonPrimary} onClick={() => { setSelectedAppointment(null); setHubTab('book'); }}>
+                                        Start Booking
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
                 </>
             )}
         </PatientPageFrame>

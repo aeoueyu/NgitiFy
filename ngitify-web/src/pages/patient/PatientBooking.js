@@ -71,7 +71,7 @@ const SummaryRow = ({ label, value }) => (
     </div>
 );
 
-export default function PatientBooking({ onExit }) {
+export default function PatientBooking({ onExit, hubNav }) {
     const navigate = useNavigate();
     const { addToast } = useToast();
     const { user } = useAuth();
@@ -107,6 +107,13 @@ export default function PatientBooking({ onExit }) {
             return;
         }
         navigate('/patient/dashboard');
+    }, [navigate, onExit]);
+    const goToAppointments = useCallback(() => {
+        if (onExit) {
+            onExit();
+            return;
+        }
+        navigate('/patient/appointments');
     }, [navigate, onExit]);
 
     const assignedBranch = user?.assignedBranch || '';
@@ -357,6 +364,7 @@ export default function PatientBooking({ onExit }) {
                 title="Book Appointment"
                 subtitle="Preparing your patient booking flow..."
             >
+                {hubNav}
                 <div className={styles.loaderBox}>
                     <span className={styles.loaderText}>Checking your current booking status...</span>
                 </div>
@@ -370,7 +378,7 @@ export default function PatientBooking({ onExit }) {
             subtitle="The patient mobile booking flow, rebuilt for web and still locked to your assigned branch."
             actions={(
                 <>
-                    <button type="button" className={styles.buttonGhost} onClick={() => navigate('/patient/appointments')}>
+                    <button type="button" className={styles.buttonGhost} onClick={goToAppointments}>
                         View Appointments
                     </button>
                     <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/ai-companion?tab=visit-window')}>
@@ -379,6 +387,7 @@ export default function PatientBooking({ onExit }) {
                 </>
             )}
         >
+            {hubNav}
             {!assignedBranch ? (
                 <PatientEmptyState
                     icon={<FaCalendarAlt />}
@@ -405,11 +414,11 @@ export default function PatientBooking({ onExit }) {
                             <PatientStatusBadge status={duplicateAppointment.status} />
                         </div>
                         <div className={styles.heroActions}>
-                            <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/appointments')}>
+                            <button type="button" className={styles.buttonSecondary} onClick={goToAppointments}>
                                 Review Appointment
                             </button>
-                            <button type="button" className={styles.buttonGhost} onClick={() => navigate('/patient/dashboard')}>
-                                Back to Dashboard
+                            <button type="button" className={styles.buttonGhost} onClick={exitBooking}>
+                                Back
                             </button>
                         </div>
                     </article>
@@ -854,11 +863,11 @@ export default function PatientBooking({ onExit }) {
                             <SummaryRow label="Status" value="Pending clinic confirmation" />
                         </div>
                         <div className={styles.heroActions}>
-                            <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/appointments')}>
+                            <button type="button" className={styles.buttonSecondary} onClick={goToAppointments}>
                                 Go to My Appointments
                             </button>
-                            <button type="button" className={styles.buttonGhost} onClick={() => navigate('/patient/dashboard')}>
-                                Back to Dashboard
+                            <button type="button" className={styles.buttonGhost} onClick={exitBooking}>
+                                Back
                             </button>
                         </div>
                     </div>
