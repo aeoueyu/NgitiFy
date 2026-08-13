@@ -2139,3 +2139,371 @@ button.toolCard:focus-visible {
         grid-template-columns: repeat(4, minmax(54px, 1fr));
     }
 }
+
+/* Dental Health Education */
+.educationShell {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.educationControls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.educationSearchLabel {
+    color: var(--patient-text);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.educationSearchInput {
+    width: 100%;
+    min-height: 46px;
+    padding: 11px 14px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface);
+    color: var(--patient-text);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.educationSearchInput::placeholder {
+    color: var(--patient-text-subtle);
+}
+
+.educationSearchInput:hover {
+    border-color: rgba(1, 83, 139, 0.24);
+}
+
+.educationSearchInput:focus {
+    outline: none;
+    border-color: var(--patient-accent);
+    box-shadow: 0 0 0 4px rgba(45, 204, 246, 0.14);
+}
+
+.educationCategoryRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.educationCategoryButton {
+    min-height: 38px;
+    padding: 8px 13px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 999px;
+    background: var(--patient-surface);
+    color: var(--patient-text-muted);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    transition:
+        color 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.educationCategoryButton:hover {
+    background: var(--patient-surface-muted);
+    border-color: rgba(1, 83, 139, 0.22);
+    transform: translateY(-1px);
+}
+
+.educationCategoryButtonActive {
+    background: var(--patient-primary);
+    border-color: var(--patient-primary);
+    color: #ffffff;
+}
+
+.educationCategoryButtonActive:hover {
+    background: var(--patient-primary-dark);
+    border-color: var(--patient-primary-dark);
+}
+
+.educationRecommendations {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.educationRecommendationCard {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    min-height: 190px;
+    padding: 18px;
+    border: 1px solid var(--patient-border);
+    border-radius: var(--patient-radius-card);
+    background: var(--patient-surface);
+    color: inherit;
+    box-shadow: var(--patient-shadow);
+    font-family: 'Lexend Deca', sans-serif;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.educationRecommendationCard:hover {
+    transform: translateY(-2px);
+    border-color: rgba(1, 83, 139, 0.24);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.educationRecommendationCard strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--patient-text);
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+.educationRecommendationCard > span:not(.heroTag) {
+    display: block;
+    flex: 1;
+    color: var(--patient-text-muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.educationRecommendationCard small {
+    display: inline-block;
+    margin-top: 14px;
+    color: var(--patient-primary);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.educationLibraryLayout {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+    gap: 20px;
+    align-items: start;
+    margin-top: 20px;
+}
+
+.educationArticleList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.educationArticleCard {
+    width: 100%;
+    padding: 16px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface);
+    color: inherit;
+    font-family: 'Lexend Deca', sans-serif;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.educationArticleCard:hover {
+    background: var(--patient-surface-muted);
+    border-color: rgba(1, 83, 139, 0.2);
+    transform: translateY(-1px);
+}
+
+.educationArticleCardActive {
+    background: #eef8fd;
+    border-color: rgba(1, 83, 139, 0.32);
+    box-shadow: 0 0 0 2px rgba(1, 83, 139, 0.06);
+}
+
+.educationArticleCard .heroTag {
+    margin-bottom: 10px;
+}
+
+.educationArticleCard strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--patient-text);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+.educationArticleCard > span:not(.heroTag) {
+    display: block;
+    color: var(--patient-text-muted);
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.educationArticleCard small {
+    display: inline-block;
+    margin-top: 10px;
+    color: var(--patient-primary);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.educationArticleDetail {
+    position: sticky;
+    top: 20px;
+    min-width: 0;
+    padding: 24px;
+    border: 1px solid var(--patient-border);
+    border-radius: var(--patient-radius-card);
+    background: var(--patient-surface);
+    box-shadow: var(--patient-shadow);
+}
+
+.educationDetailTitle {
+    margin: 0 0 10px;
+    color: var(--patient-text);
+    font-size: clamp(20px, 2.2vw, 26px);
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.educationDetailSummary {
+    margin: 0;
+    color: var(--patient-text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.65;
+}
+
+.educationDetailBody {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--patient-border);
+}
+
+.educationDetailBody p {
+    margin: 0;
+    color: var(--patient-text);
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.educationDetailAction {
+    margin-top: 20px;
+    padding: 16px;
+    border: 1px solid rgba(1, 83, 139, 0.12);
+    border-radius: var(--patient-radius-control);
+    background: #eef8fd;
+}
+
+.educationDetailAction strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--patient-primary);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.educationDetailAction p {
+    margin: 0;
+    color: var(--patient-text-muted);
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.educationDisclaimer {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+    color: var(--patient-text-muted);
+}
+
+.educationDisclaimer svg {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: var(--patient-primary);
+    font-size: 16px;
+}
+
+.educationDisclaimer p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+@media (max-width: 1024px) {
+    .educationRecommendations {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .educationLibraryLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .educationArticleDetail {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .educationCategoryRow {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        scrollbar-width: thin;
+    }
+
+    .educationCategoryButton {
+        flex: 0 0 auto;
+        min-height: 42px;
+    }
+
+    .educationRecommendations {
+        grid-template-columns: 1fr;
+    }
+
+    .educationRecommendationCard {
+        min-height: 0;
+        padding: 16px;
+    }
+
+    .educationArticleCard {
+        min-height: 44px;
+    }
+
+    .educationArticleDetail {
+        padding: 18px;
+    }
+
+    .educationDetailTitle {
+        font-size: 20px;
+    }
+}
