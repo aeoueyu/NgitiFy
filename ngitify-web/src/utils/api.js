@@ -14,11 +14,11 @@ const resolveBaseUrl = () => {
             return LOCAL_API_URL;
         }
 
-        if (
-            hostname === 'ngitify.com' ||
-            hostname === 'www.ngitify.com' ||
-            hostname.endsWith('.onrender.com')
-        ) {
+        if (hostname === 'ngitify.com' || hostname === 'www.ngitify.com') {
+            return REMOTE_API_URL;
+        }
+
+        if (hostname.endsWith('.onrender.com')) {
             return normalizeBaseUrl(origin);
         }
 
