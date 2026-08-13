@@ -8,7 +8,6 @@ import {
     FaBell,
     FaBoxes,
     FaCalendarAlt,
-    FaCalendarPlus,
     FaChevronRight,
     FaClipboardList,
     FaCodeBranch,
@@ -308,13 +307,11 @@ export default function Sidebar() {
                     {isPatient ? (
                         <>
                             {navItem(schedulePath, FaCalendarAlt, 'My Appointments')}
-                            {navItem('/patient/book', FaCalendarPlus, 'Book Appointment')}
                             {sectionLabel('Care')}
                             {navItem('/patient/records', FaNotesMedical, 'Medical Records')}
                             {navItem('/patient/oral-care', FaTooth, 'Oral Health Management')}
                             {sectionLabel('Updates')}
                             {navItem('/patient/notifications', FaBell, 'Notifications', notifBadge)}
-                            {navItem('/patient/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     ) : (
                         <>
@@ -439,38 +436,36 @@ export default function Sidebar() {
                         {isExpanded && <span className={styles['nav-text']}>Settings</span>}
                     </div>
 
-                    <div
-                        className={`${styles['settings-link']} ${aiAssistantActive ? styles.active : ''}`}
-                        onClick={() => {
-                            if (isPatient) {
-                                handleNavigate('/patient/ai-companion');
-                                return;
-                            }
-                            if (isDentistUser && !isOwner) {
-                                handleNavigate('/dentist/ai-assistant');
-                                return;
-                            }
-                            if (isOwner) {
-                                handleNavigate('/owner/ai-assistant');
-                                return;
-                            }
-                            if (isBranchManager) {
-                                handleNavigate('/branch-manager/ai-assistant');
-                                return;
-                            }
-                            if (isAdmin) {
-                                handleNavigate('/admin/ai-assistant');
-                                return;
-                            }
-                            setIsChatOpen((prev) => !prev);
-                            setIsExpanded(false);
-                        }}
-                        data-tooltip="AI Assistant"
-                    >
-                        <FaRobot className={styles['nav-icon']} />
-                        {isExpanded && <span className={styles['nav-text']}>AI Assistant</span>}
-                        {isExpanded && <span className={styles['ai-badge']}>AI</span>}
-                    </div>
+                    {!isPatient && (
+                        <div
+                            className={`${styles['settings-link']} ${aiAssistantActive ? styles.active : ''}`}
+                            onClick={() => {
+                                if (isDentistUser && !isOwner) {
+                                    handleNavigate('/dentist/ai-assistant');
+                                    return;
+                                }
+                                if (isOwner) {
+                                    handleNavigate('/owner/ai-assistant');
+                                    return;
+                                }
+                                if (isBranchManager) {
+                                    handleNavigate('/branch-manager/ai-assistant');
+                                    return;
+                                }
+                                if (isAdmin) {
+                                    handleNavigate('/admin/ai-assistant');
+                                    return;
+                                }
+                                setIsChatOpen((prev) => !prev);
+                                setIsExpanded(false);
+                            }}
+                            data-tooltip="AI Assistant"
+                        >
+                            <FaRobot className={styles['nav-icon']} />
+                            {isExpanded && <span className={styles['nav-text']}>AI Assistant</span>}
+                            {isExpanded && <span className={styles['ai-badge']}>AI</span>}
+                        </div>
+                    )}
 
                     <div
                         className={styles['logout-btn']}
@@ -485,6 +480,21 @@ export default function Sidebar() {
                     </div>
                 </div>
             </aside>
+
+            {isPatient && (
+                <button
+                    type="button"
+                    className={styles.patientAiFloatingButton}
+                    onClick={() => {
+                        setIsChatOpen((prev) => !prev);
+                        setIsExpanded(false);
+                    }}
+                    aria-label={isChatOpen ? 'Close AI assistant' : 'Open AI assistant'}
+                >
+                    <FaRobot />
+                    <span>AI</span>
+                </button>
+            )}
 
             <AIChatAssistant isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
 

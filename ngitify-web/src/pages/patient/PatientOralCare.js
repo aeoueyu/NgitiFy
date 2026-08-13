@@ -180,7 +180,7 @@ export default function PatientOralCare() {
                     <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/ai-companion?tab=visit-window')}>
                         Open AI Companion
                     </button>
-                    <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/book')}>
+                    <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/appointments?mode=book')}>
                         Book Preventive Visit
                     </button>
                 </>
@@ -421,3 +421,4 @@ export default function PatientOralCare() {
         </PatientPageFrame>
     );
 }
+

@@ -130,7 +130,7 @@ export default function PatientAiCompanion() {
                         Review approved dental education, oral health guidance, and your next care window based on clinic-recorded treatment history.
                     </p>
                     <div className={styles.heroActions}>
-                        <button type="button" className={styles.buttonGhost} onClick={() => navigate('/patient/book')}>
+                        <button type="button" className={styles.buttonGhost} onClick={() => navigate('/patient/appointments?mode=book')}>
                             Book Appointment
                         </button>
                     </div>
@@ -297,7 +297,7 @@ export default function PatientAiCompanion() {
                                 Book a preventive check-up within the recommended window and mention any sensitivity, gum bleeding, or other watch signals you&apos;ve noticed.
                             </p>
                             <div className={styles.heroActions}>
-                                <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/book')}>
+                                <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/appointments?mode=book')}>
                                     Book Your Next Visit
                                 </button>
                             </div>
@@ -369,3 +369,4 @@ export default function PatientAiCompanion() {
         </PatientPageFrame>
     );
 }
+

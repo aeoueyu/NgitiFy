@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { FaCalendarAlt, FaClinicMedical, FaNotesMedical, FaRegClock } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -14,6 +14,7 @@ import {
     PatientStatusBadge,
 } from '../../components/patient/PatientFrame';
 import styles from '../../styles/patient/PatientPortal.module.css';
+import PatientBooking from './PatientBooking';
 
 const getDentistLabel = (appointment) => {
     if (appointment?.dentist?.name) {
@@ -51,7 +52,7 @@ function AppointmentCard({ appointment }) {
 }
 
 export default function PatientAppointments() {
-    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -91,13 +92,18 @@ export default function PatientAppointments() {
             .sort((left, right) => new Date(right.date) - new Date(left.date));
         return { upcoming: nextItems, past: historyItems };
     }, [appointments]);
+    const isBookingMode = searchParams.get('mode') === 'book';
+
+    if (isBookingMode) {
+        return <PatientBooking onExit={() => setSearchParams({}, { replace: true })} />;
+    }
 
     return (
         <PatientPageFrame
             title="Visits"
             subtitle="Appointments and visit history from your patient mobile experience, rebuilt for the web dashboard."
             actions={(
-                <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/book')}>
+                <button type="button" className={styles.buttonPrimary} onClick={() => setSearchParams({ mode: 'book' })}>
                     Book New Appointment
                 </button>
             )}
@@ -190,4 +196,3 @@ export default function PatientAppointments() {
         </PatientPageFrame>
     );
 }
-

@@ -71,7 +71,7 @@ const SummaryRow = ({ label, value }) => (
     </div>
 );
 
-export default function PatientBooking() {
+export default function PatientBooking({ onExit }) {
     const navigate = useNavigate();
     const { addToast } = useToast();
     const { user } = useAuth();
@@ -101,6 +101,13 @@ export default function PatientBooking() {
     const [maxAppointmentsPerDay, setMaxAppointmentsPerDay] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const [successModal, setSuccessModal] = useState(false);
+    const exitBooking = useCallback(() => {
+        if (onExit) {
+            onExit();
+            return;
+        }
+        navigate('/patient/dashboard');
+    }, [navigate, onExit]);
 
     const assignedBranch = user?.assignedBranch || '';
     const todayKey = getManilaDateKey(new Date());
@@ -724,7 +731,7 @@ export default function PatientBooking() {
                             ) : null}
 
                             <div className={styles.heroActions} style={{ marginTop: '22px' }}>
-                                <button type="button" className={styles.buttonGhost} onClick={step === 1 ? () => navigate('/patient/dashboard') : goBack} disabled={submitting}>
+                                <button type="button" className={styles.buttonGhost} onClick={step === 1 ? exitBooking : goBack} disabled={submitting}>
                                     {step === 1 ? 'Cancel' : 'Back'}
                                 </button>
                                 {step < STEP_LABELS.length ? (

@@ -263,7 +263,7 @@ export default function PatientDashboard() {
             value: upcomingAppointment ? 'Next visit ready' : 'No pending booking',
             actionLabel: 'Book Now',
             icon: <FaCalendarAlt className={adminStyles['widget-icon']} />,
-            action: () => navigate('/patient/book'),
+            action: () => navigate('/patient/appointments?mode=book'),
         },
         {
             title: 'My Appointments',
@@ -440,7 +440,7 @@ export default function PatientDashboard() {
                                 title="No upcoming appointment"
                                 message="Your next schedule will appear here as soon as your booking becomes active."
                                 action={(
-                                    <button type="button" className={patientStyles.buttonPrimary} onClick={() => navigate('/patient/book')}>
+                                    <button type="button" className={patientStyles.buttonPrimary} onClick={() => navigate('/patient/appointments?mode=book')}>
                                         Book Appointment
                                     </button>
                                 )}
@@ -670,3 +670,4 @@ export default function PatientDashboard() {
         </AdminDashboardPage>
     );
 }
+
