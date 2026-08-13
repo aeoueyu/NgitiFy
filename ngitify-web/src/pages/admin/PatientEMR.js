@@ -5,6 +5,7 @@ import styles from '../../styles/dentist/PatientEMR.module.css';
 import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
 import wideTable from '../../styles/wideTable.module.css';
 import clinicLogo from '../../assets/images/logo-dentime.svg';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 import { useAuth } from '../../hooks/useAuth';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
@@ -23,7 +24,7 @@ import {
     FaUserMd, FaPhoneAlt, FaEnvelope, FaArrowLeft, FaMapMarkerAlt,
     FaSyringe, FaNotesMedical, FaSearch, FaPlus, FaTimes, FaFilter,
     FaUpload, FaMagic, FaRobot, FaCalendarAlt, FaIdCard, FaFilePdf,
-    FaChild, FaVenusMars, FaBirthdayCake
+    FaChild, FaVenusMars, FaBirthdayCake, FaTrash
 } from 'react-icons/fa';
 import Odontogram from '../dentist/Odontogram';
 
@@ -374,7 +375,8 @@ export default function PatientEMR({
     const canEditOdontogram = effectiveRole === 'dentist';
     const radiographUploadsEnabled = systemConfig?.featureToggles?.radiographUploads !== false;
     const canEditMedical = !isReadOnly;
-    const canAddTreatmentLog = !isReadOnly;
+    const canManageTreatmentLog = ['administrator', 'owner', 'branch-manager', 'dentist'].includes(effectiveRole);
+    const canAddTreatmentLog = canManageTreatmentLog;
     const canUploadRadiograph = !isReadOnly && radiographUploadsEnabled;
     const canEnhanceRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;
     
@@ -397,6 +399,8 @@ export default function PatientEMR({
     const [logsDateFrom, setLogsDateFrom] = useState('');
     const [logsDateTo, setLogsDateTo] = useState('');
     const [logsCategory, setLogsCategory] = useState('All');
+    const [deleteLogTarget, setDeleteLogTarget] = useState(null);
+    const [isDeletingLog, setIsDeletingLog] = useState(false);
     
     // Add Log Modal
     const [isAddLogOpen, setIsAddLogOpen] = useState(false);
@@ -1678,6 +1682,33 @@ export default function PatientEMR({
         }
     };
 
+    const handleDeleteTreatmentLog = async () => {
+        if (!deleteLogTarget || isDeletingLog) return;
+
+        setIsDeletingLog(true);
+        try {
+            const { authFetch } = await import('../../utils/api');
+            const response = await authFetch(`/patients/${activePatientId}/treatment-logs/${deleteLogTarget.id}`, {
+                method: 'DELETE',
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Failed to delete treatment log.');
+
+            setLogs((prev) => prev.filter((log) => log.id !== deleteLogTarget.id));
+            setExpandedLogRows((prev) => {
+                const next = { ...prev };
+                delete next[deleteLogTarget.id];
+                return next;
+            });
+            addToast('Treatment log deleted successfully.', 'success');
+        } catch (error) {
+            addToast(error.message || 'Failed to delete treatment log.', 'error');
+        } finally {
+            setIsDeletingLog(false);
+            setDeleteLogTarget(null);
+        }
+    };
+
     const toggleLogRow = (logId) => {
         setExpandedLogRows((prev) => ({ ...prev, [logId]: !prev[logId] }));
     };
@@ -1797,6 +1828,7 @@ export default function PatientEMR({
                             <th>Procedure</th>
                             <th>Dentist/s</th>
                             <th>Details</th>
+                            {canManageTreatmentLog && <th style={{ textAlign: 'center' }}>Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
@@ -1825,10 +1857,23 @@ export default function PatientEMR({
                                         {isExpanded ? 'Hide' : 'View'}
                                     </button>
                                 </td>
+                                {canManageTreatmentLog && (
+                                    <td className={styles.detailsToggleCell}>
+                                        <button
+                                            type="button"
+                                            className={`${styles.expandInlineBtn} ${styles.deleteInlineBtn}`}
+                                            onClick={() => setDeleteLogTarget(log)}
+                                            title="Delete treatment log"
+                                            aria-label="Delete treatment log"
+                                        >
+                                            <FaTrash />
+                                        </button>
+                                    </td>
+                                )}
                             </tr>
                             {isExpanded && (
                                 <tr className={styles.expandedDetailRow}>
-                                    <td colSpan="4">
+                                    <td colSpan={canManageTreatmentLog ? 5 : 4}>
                                         <div className={styles.expandedDetailPanel}>
                                             <div className={styles.expandedDetailGrid}>
                                                 <div>
@@ -1877,6 +1922,17 @@ export default function PatientEMR({
                     <div className={scheduleStyles.emptyStateBox}>No results found</div>
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={!!deleteLogTarget}
+                title="Delete Treatment Log?"
+                message={`Are you sure you want to delete ${deleteLogTarget?.procedure || 'this treatment log'} from this patient's record?`}
+                confirmText={isDeletingLog ? 'Deleting...' : 'Yes, Delete Log'}
+                cancelText="Cancel"
+                isDestructive
+                onConfirm={handleDeleteTreatmentLog}
+                onCancel={() => !isDeletingLog && setDeleteLogTarget(null)}
+            />
 
             {canAddTreatmentLog && isAddLogOpen && (
                 <div className={styles.modalOverlay}>

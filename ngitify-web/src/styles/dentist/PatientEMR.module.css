@@ -357,6 +357,19 @@
     cursor: pointer;
 }
 
+.deleteInlineBtn {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+    min-width: 38px;
+}
+
+.deleteInlineBtn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #b91c1c;
+}
+
 .expandedDetailRow td {
     white-space: normal;
     background: #f8fbfd;

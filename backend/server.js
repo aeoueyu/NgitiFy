@@ -9602,6 +9602,13 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
+
         if (req.user.role === 'dentist') {
             const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
             if (!canAccess) {
@@ -9686,6 +9693,13 @@ app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, r
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
 
         if (req.user.role === 'dentist') {
             const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
