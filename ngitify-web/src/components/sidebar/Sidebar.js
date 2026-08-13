@@ -481,7 +481,7 @@ export default function Sidebar() {
                 </div>
             </aside>
 
-            {isPatient && (
+            {isPatient && location.pathname !== '/patient/dashboard' && (
                 <button
                     type="button"
                     className={styles.patientAiFloatingButton}

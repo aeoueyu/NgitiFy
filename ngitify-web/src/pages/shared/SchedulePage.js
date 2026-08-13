@@ -86,6 +86,21 @@ const WORKFLOW_FILTER_OPTIONS = [
     { value: 'all', label: 'All Statuses', statuses: ALL_STATUS_VALUES },
 ];
 
+const SCHEDULE_ROWS_PER_PAGE_STORAGE_KEY = 'ngitify_schedule_rows_per_page';
+const DEFAULT_SCHEDULE_ROWS_PER_PAGE = 10;
+const MIN_SCHEDULE_ROWS_PER_PAGE = 10;
+
+const normalizeScheduleRowsPerPage = (value) => {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return DEFAULT_SCHEDULE_ROWS_PER_PAGE;
+    return Math.max(MIN_SCHEDULE_ROWS_PER_PAGE, Math.floor(numericValue));
+};
+
+const getInitialScheduleRowsPerPage = () => {
+    if (typeof window === 'undefined') return DEFAULT_SCHEDULE_ROWS_PER_PAGE;
+    return normalizeScheduleRowsPerPage(window.localStorage.getItem(SCHEDULE_ROWS_PER_PAGE_STORAGE_KEY));
+};
+
 const STATUS_TRANSITIONS = {
     pending: ['confirmed', 'cancelled'],
     confirmed: ['in-clinic', 'cancelled'],
@@ -502,6 +517,8 @@ export default function SchedulePage() {
     const [procedureFilter, setProcedureFilter] = useState('');
     const [dentistFilter, setDentistFilter] = useState('');
     const [branchFilter, setBranchFilter] = useState('');
+    const [rowsPerPage, setRowsPerPage] = useState(getInitialScheduleRowsPerPage);
+    const [page, setPage] = useState(1);
 
     const [formState, setFormState] = useState(buildInitialForm({ assignedBranch, currentUserId, role }));
     const [formErrors, setFormErrors] = useState({});
@@ -1034,6 +1051,12 @@ export default function SchedulePage() {
                 return 0;
             })
     ), [rowsBeforeStatusFilter, statusFilter]);
+    const totalPages = Math.max(1, Math.ceil(combinedRows.length / rowsPerPage));
+    const paginatedRows = useMemo(() => (
+        combinedRows.slice((page - 1) * rowsPerPage, page * rowsPerPage)
+    ), [combinedRows, page, rowsPerPage]);
+    const firstVisibleRow = combinedRows.length > 0 ? ((page - 1) * rowsPerPage) + 1 : 0;
+    const lastVisibleRow = Math.min(page * rowsPerPage, combinedRows.length);
     const exportRows = useMemo(() => (
         combinedRows.map((entry) => ([
             entry.patientName || 'Unknown Patient',
@@ -1049,6 +1072,25 @@ export default function SchedulePage() {
             formatCreatedAt(entry.createdAt),
         ]))
     ), [combinedRows]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [branchFilter, dateFilter, customDateFrom, customDateTo, dentistFilter, patientFilter, procedureFilter, rowsPerPage, searchQuery, statusFilter, typeFilter]);
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, totalPages));
+    }, [totalPages]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(SCHEDULE_ROWS_PER_PAGE_STORAGE_KEY, String(rowsPerPage));
+        }
+    }, [rowsPerPage]);
+
+    const handleRowsPerPageChange = (event) => {
+        setRowsPerPage(normalizeScheduleRowsPerPage(event.target.value));
+    };
+
     const handleExportCsv = useCallback(() => {
         downloadCsvFile(
             `schedule_records_${new Date().toISOString().slice(0, 10)}.csv`,
@@ -2462,9 +2504,9 @@ export default function SchedulePage() {
                                     </td>
                                 </tr>
                             ) : combinedRows.length > 0 ? (
-                                combinedRows.map((entry, index) => (
+                                paginatedRows.map((entry, index) => (
                                     <tr key={`${entry.type}-${entry.id}`}>
-                                        <td style={{ textAlign: 'center', width: '42px' }}>{index + 1}</td>
+                                        <td style={{ textAlign: 'center', width: '42px' }}>{((page - 1) * rowsPerPage) + index + 1}</td>
                                         <td className={wideTable.wrapCell}>
                                             <div className={styles.patientCell}>
                                                 <strong>{entry.patientName}</strong>
@@ -2579,6 +2621,44 @@ export default function SchedulePage() {
                         </tbody>
                     </table>
                 </div>
+
+                {!loading && combinedRows.length > 0 && (
+                    <div className={styles.paginationRow}>
+                        <label className={styles.rowsPerPageLabel}>
+                            Rows per page
+                            <input
+                                type="number"
+                                min={MIN_SCHEDULE_ROWS_PER_PAGE}
+                                step="10"
+                                inputMode="numeric"
+                                value={rowsPerPage}
+                                onChange={handleRowsPerPageChange}
+                                className={styles.rowsPerPageInput}
+                            />
+                        </label>
+                        <div className={styles.paginationControls}>
+                            <span className={styles.paginationMeta}>
+                                Showing {firstVisibleRow} to {lastVisibleRow} of {combinedRows.length}
+                            </span>
+                            <button
+                                type="button"
+                                className={styles.secondaryButton}
+                                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                                disabled={page === 1}
+                            >
+                                Previous
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.secondaryButton}
+                                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                                disabled={page === totalPages}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {renderFormModal()}

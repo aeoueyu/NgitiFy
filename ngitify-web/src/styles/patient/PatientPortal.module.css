@@ -351,6 +351,13 @@
     gap: 20px;
 }
 
+.dashboardFocusGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    gap: 20px;
+    padding-bottom: 88px;
+}
+
 .dashboardLeftColumn,
 .dashboardRightColumn {
     display: flex;
@@ -358,8 +365,182 @@
     gap: 20px;
 }
 
+.dashboardSideStack {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
 .dashboardWidget {
     padding: 20px;
+}
+
+.dashboardSchedulePanel {
+    grid-column: 1 / -1;
+}
+
+.dashboardPanelIcon {
+    color: var(--patient-primary);
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.dashboardWeekStrip {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.dashboardWeekDay {
+    min-width: 0;
+    min-height: 74px;
+    padding: 9px 6px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface);
+    color: var(--patient-text);
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    text-align: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dashboardWeekDay:hover {
+    background: var(--patient-surface-muted);
+    border-color: rgba(1, 83, 139, 0.14);
+    transform: translateY(-1px);
+}
+
+.dashboardWeekDay span,
+.dashboardWeekDay small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboardWeekDay span {
+    color: var(--patient-text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.dashboardWeekDay strong {
+    display: block;
+    margin: 4px 0;
+    color: var(--patient-primary);
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.dashboardWeekDay small {
+    color: var(--patient-text-subtle);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.dashboardWeekDayActive {
+    background: var(--patient-primary);
+    border-color: var(--patient-primary);
+    box-shadow: 0 4px 10px rgba(1, 83, 139, 0.14);
+}
+
+.dashboardWeekDayActive span,
+.dashboardWeekDayActive strong,
+.dashboardWeekDayActive small {
+    color: #ffffff;
+}
+
+.dashboardScheduleList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dashboardScheduleItem {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.22fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-control);
+    background: var(--patient-surface-muted);
+}
+
+.dashboardScheduleTime {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.dashboardScheduleTime strong {
+    color: var(--patient-primary);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.dashboardScheduleBody {
+    min-width: 0;
+}
+
+.dashboardScheduleBody h3 {
+    margin: 0 0 6px;
+    color: var(--patient-text);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.dashboardScheduleBody p {
+    margin: 0;
+    color: var(--patient-text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.dashboardAiButton {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1090;
+    width: 58px;
+    height: 58px;
+    border: none;
+    border-radius: 50%;
+    background: var(--patient-primary);
+    color: #ffffff;
+    box-shadow: 0 12px 30px rgba(1, 83, 139, 0.24);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.dashboardAiButton svg {
+    width: 20px;
+    height: 20px;
+}
+
+.dashboardAiButton:hover {
+    background: var(--patient-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 16px 34px rgba(1, 83, 139, 0.3);
+}
+
+.dashboardAiButton:focus-visible {
+    outline: 3px solid var(--patient-accent);
+    outline-offset: 4px;
+    box-shadow: var(--patient-focus-ring), 0 16px 34px rgba(1, 83, 139, 0.3);
 }
 
 .dashboardAppointmentPanel {
@@ -1318,6 +1499,7 @@ button.toolCard:focus-visible {
     }
 
     .dashboardGrid,
+    .dashboardFocusGrid,
     .dashboardStatGrid,
     .dashboardAppointmentPanel,
     .heroGrid,
@@ -1334,6 +1516,11 @@ button.toolCard:focus-visible {
         padding: 14px 0 0;
         border-left: none;
         border-top: 1px solid var(--patient-border-strong);
+    }
+
+    .dashboardScheduleItem {
+        grid-template-columns: 1fr;
+        align-items: stretch;
     }
 }
 
@@ -1357,6 +1544,26 @@ button.toolCard:focus-visible {
 
     .calendarGrid {
         gap: 6px;
+    }
+
+    .dashboardWeekStrip {
+        grid-template-columns: repeat(7, minmax(42px, 1fr));
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .dashboardWeekDay {
+        min-width: 42px;
+        min-height: 66px;
+    }
+
+    .dashboardWeekDay strong {
+        font-size: 17px;
+    }
+
+    .dashboardAiButton {
+        right: 18px;
+        bottom: 18px;
     }
 
     .patientOdontogramArch {

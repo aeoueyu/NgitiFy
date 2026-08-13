@@ -357,6 +357,49 @@
     padding: 16px 20px 20px;
     background: white;
     border-top: 1px solid #eef3f7;
+    flex-wrap: wrap;
+}
+
+.rowsPerPageLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #475569;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.rowsPerPageInput {
+    width: 92px;
+    min-height: 42px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 50px;
+    padding: 0 12px;
+    color: #334155;
+    background: #ffffff;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    outline: none;
+}
+
+.rowsPerPageInput:focus {
+    border-color: #01538b;
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
+}
+
+.paginationControls {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.paginationMeta {
+    color: #475569;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .patientSearchRow {
@@ -1105,6 +1148,17 @@ select.formControl {
     .headerActions {
         justify-content: flex-start;
         flex-wrap: wrap;
+    }
+
+    .paginationRow,
+    .paginationControls,
+    .rowsPerPageLabel {
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .paginationControls {
+        justify-content: flex-start;
     }
 
     .reportFilterGrid {
