@@ -1124,7 +1124,6 @@ export default function PatientEMR({
     const getMedicalFormValidationErrors = (data = medicalForm) => {
         const nextErrors = {};
         const requiredMessage = 'Required';
-        const requiredWhenYesMessage = 'Required when answered Yes';
         const requiredYesNoFields = [
             'hadTreatmentReaction',
             'hasConfidentialInfo',
@@ -1146,22 +1145,22 @@ export default function PatientEMR({
         });
 
         if (data.hadTreatmentReaction === 'yes' && !String(data.reactionDetails || '').trim()) {
-            nextErrors.reactionDetails = requiredWhenYesMessage;
+            nextErrors.reactionDetails = requiredMessage;
         }
         if (data.underMedicalTreatment === 'yes' && !String(data.medicalTreatmentDetails || '').trim()) {
-            nextErrors.medicalTreatmentDetails = requiredWhenYesMessage;
+            nextErrors.medicalTreatmentDetails = requiredMessage;
         }
         if (data.hadSeriousIllnessOrSurgery === 'yes' && !String(data.seriousIllnessOrSurgeryDetails || '').trim()) {
-            nextErrors.seriousIllnessOrSurgeryDetails = requiredWhenYesMessage;
+            nextErrors.seriousIllnessOrSurgeryDetails = requiredMessage;
         }
         if (data.hadHospitalization === 'yes' && !String(data.hospitalizationDetails || '').trim()) {
-            nextErrors.hospitalizationDetails = requiredWhenYesMessage;
+            nextErrors.hospitalizationDetails = requiredMessage;
         }
         if (data.isTakingMedication === 'yes' && !String(data.medications || '').trim()) {
-            nextErrors.medications = requiredWhenYesMessage;
+            nextErrors.medications = requiredMessage;
         }
         if (data.hasAllergies === 'yes' && getCsvValues(data.allergies).length === 0 && getCsvValues(data.allergyOther).length === 0) {
-            nextErrors.allergies = 'Select at least one allergy or specify another allergy.';
+            nextErrors.allergies = requiredMessage;
         }
 
         return nextErrors;
