@@ -122,6 +122,9 @@ export default function OralCareInsightsScreen({ navigation, route }) {
   const [logNotes, setLogNotes] = useState('');
   const [factorsVisible, setFactorsVisible] = useState(false);
   const [logVisible, setLogVisible] = useState(false);
+  const [educationQuery, setEducationQuery] = useState('');
+  const [educationCategory, setEducationCategory] = useState('all');
+  const [selectedEducationArticle, setSelectedEducationArticle] = useState(null);
 
   const fetchOralHealth = useCallback(async () => {
     if (!userToken) return;
@@ -154,6 +157,119 @@ export default function OralCareInsightsScreen({ navigation, route }) {
 
   const activeFactors = factors.filter((item) => item.active && item.id !== 'none');
   const selectedLogItems = logGroups.flatMap((group) => group.items.filter((item) => item.selected));
+
+  const educationArticles = useMemo(
+    () => (
+      Array.isArray(preview.education?.articles)
+        ? preview.education.articles
+        : []
+    ),
+    [preview.education?.articles],
+  );
+
+  const contextualEducation = useMemo(
+    () => (
+      Array.isArray(preview.education?.contextualArticles)
+        ? preview.education.contextualArticles.slice(0, 3)
+        : []
+    ),
+    [preview.education?.contextualArticles],
+  );
+
+  const educationCategories = useMemo(() => {
+    const categoryMap = new Map();
+
+    educationArticles.forEach((article) => {
+      const label = String(
+        article.category || 'Dental Health Education',
+      ).trim();
+
+      const categoryId = String(
+        article.categoryId
+        || label
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+        || 'dental-health-education',
+      );
+
+      if (!categoryMap.has(categoryId)) {
+        categoryMap.set(categoryId, {
+          id: categoryId,
+          label,
+        });
+      }
+    });
+
+    return Array.from(categoryMap.values());
+  }, [educationArticles]);
+
+  const filteredEducationArticles = useMemo(() => {
+    const normalizedQuery = educationQuery.trim().toLowerCase();
+
+    return educationArticles.filter((article) => {
+      const categoryLabel = String(
+        article.category || 'Dental Health Education',
+      ).trim();
+
+      const categoryId = String(
+        article.categoryId
+        || categoryLabel
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+        || 'dental-health-education',
+      );
+
+      if (
+        educationCategory !== 'all'
+        && categoryId !== educationCategory
+      ) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const searchableText = [
+        article.title,
+        article.category,
+        article.summary,
+        article.body,
+        article.action,
+        ...(Array.isArray(article.keywords) ? article.keywords : []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(normalizedQuery);
+    });
+  }, [
+    educationArticles,
+    educationCategory,
+    educationQuery,
+  ]);
+
+  const openEducationArticle = (article) => {
+    if (!article) {
+      return;
+    }
+
+    setSelectedEducationArticle(article);
+  };
+
+  const openContextualEducationArticle = (article) => {
+    setEducationCategory('all');
+    setEducationQuery('');
+    openEducationArticle(article);
+  };
+
+  const clearEducationFilters = () => {
+    setEducationCategory('all');
+    setEducationQuery('');
+  };
 
   const toggleFactor = (factorId) => {
     setFactors((current) => {
@@ -407,49 +523,343 @@ export default function OralCareInsightsScreen({ navigation, route }) {
           ))}
         </SurfaceCard>
 
-        <SectionLabel eyebrow="Contextual Dental Health Education" title="Related to recent logs" style={styles.sectionSpacing} />
-        {(preview.education.contextualArticles || []).length ? (
-          preview.education.contextualArticles.map((article) => (
-            <SurfaceCard key={article.id} style={styles.educationCard}>
-              <Text style={styles.summaryCount}>{article.category || 'Dental Health Education'}</Text>
-              <Text style={styles.summaryTitle}>{article.title}</Text>
-              <Text style={styles.educationBody}>{article.summary}</Text>
-              {article.action ? <Text style={styles.previewHint}>{article.action}</Text> : null}
-            </SurfaceCard>
-          ))
-        ) : (
-          <SurfaceCard style={styles.educationCard}>
+        <SectionLabel
+          eyebrow="Dental Health Education"
+          title="Learn about your oral health"
+          style={styles.sectionSpacing}
+        />
+
+        <SurfaceCard style={styles.educationIntroCard}>
+          <View style={styles.educationIntroIcon}>
             <MaterialCommunityIcons
               name="book-open-page-variant-outline"
-              size={30}
+              size={24}
               color={mobileTheme.colors.primaryDark}
-              style={{ marginBottom: 10 }}
             />
-            <Text style={styles.summaryTitle}>No matching topic yet</Text>
+          </View>
+
+          <View style={styles.educationIntroContent}>
+            <Text style={styles.educationIntroTitle}>
+              Dental Health Education
+            </Text>
+
             <Text style={styles.educationBody}>
-              Save symptoms or care habits such as sensitivity, bleeding gums, flossing, or missed brushing to see related Dental Health Education.
+              {preview.education.body}
+            </Text>
+          </View>
+
+          <View style={styles.educationDisclaimer}>
+            <Ionicons
+              name="information-circle-outline"
+              size={18}
+              color={mobileTheme.colors.primaryDark}
+            />
+
+            <Text style={styles.educationDisclaimerText}>
+              This information is educational and does not diagnose dental
+              disease. Persistent, worsening, or concerning symptoms may be
+              worth discussing with your dentist or clinic.
+            </Text>
+          </View>
+        </SurfaceCard>
+
+        <SectionLabel
+          eyebrow="Recommended for You"
+          title={
+            contextualEducation.length
+              ? 'Related to your recent logs'
+              : 'No matching topics yet'
+          }
+          style={styles.sectionSpacing}
+        />
+
+        {contextualEducation.length ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.educationRecommendationScroll}
+            contentContainerStyle={styles.educationRecommendationContent}
+          >
+            {contextualEducation.map((article) => (
+              <TouchableOpacity
+                key={article.id}
+                activeOpacity={0.86}
+                style={styles.educationRecommendationCard}
+                onPress={() => openContextualEducationArticle(article)}
+                accessibilityRole="button"
+                accessibilityLabel={`Read ${article.title}`}
+              >
+                <View style={styles.educationRecommendationIcon}>
+                  <MaterialCommunityIcons
+                    name="tooth-outline"
+                    size={21}
+                    color={mobileTheme.colors.primaryDark}
+                  />
+                </View>
+
+                <Text style={styles.educationCategoryEyebrow}>
+                  {article.category || 'Dental Health Education'}
+                </Text>
+
+                <Text
+                  style={styles.educationRecommendationTitle}
+                  numberOfLines={3}
+                >
+                  {article.title}
+                </Text>
+
+                <Text
+                  style={styles.educationRecommendationSummary}
+                  numberOfLines={4}
+                >
+                  {article.summary}
+                </Text>
+
+                <View style={styles.educationReadRow}>
+                  <Text style={styles.educationReadText}>
+                    Read topic
+                  </Text>
+
+                  <Ionicons
+                    name="arrow-forward"
+                    size={15}
+                    color={mobileTheme.colors.primaryDark}
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <SurfaceCard style={styles.educationEmptyCard}>
+            <View style={styles.educationEmptyIcon}>
+              <MaterialCommunityIcons
+                name="book-search-outline"
+                size={27}
+                color={mobileTheme.colors.primaryDark}
+              />
+            </View>
+
+            <Text style={styles.educationEmptyTitle}>
+              No contextual education yet
+            </Text>
+
+            <Text style={styles.educationEmptyText}>
+              Save Oral Health Management information such as sensitivity,
+              bleeding gums, flossing, missed brushing, sugary drinks,
+              smoking, or vaping to see related educational topics.
             </Text>
           </SurfaceCard>
         )}
 
-        <SectionLabel eyebrow="Dental Health Education" title="Approved Topic Library" style={styles.sectionSpacing} />
-        <SurfaceCard style={styles.educationCard}>
-          <MaterialCommunityIcons
-            name="tooth-outline"
-            size={30}
-            color={mobileTheme.colors.primaryDark}
-            style={{ marginBottom: 10 }}
-          />
-          <Text style={styles.educationBody}>{preview.education.body}</Text>
-        </SurfaceCard>
-        {(preview.education.articles || []).map((article) => (
-          <SurfaceCard key={article.id} style={styles.educationCard}>
-            <Text style={styles.summaryCount}>{article.category || 'Dental Health Education'}</Text>
-            <Text style={styles.summaryTitle}>{article.title}</Text>
-            <Text style={styles.educationBody}>{article.summary}</Text>
-            {article.action ? <Text style={styles.previewHint}>{article.action}</Text> : null}
+        <SectionLabel
+          eyebrow="Education Library"
+          title="Browse Dental Health Education"
+          style={styles.sectionSpacing}
+        />
+
+        {educationArticles.length ? (
+          <>
+            <View style={styles.educationSearchWrap}>
+              <Ionicons
+                name="search-outline"
+                size={19}
+                color={mobileTheme.colors.textSoft}
+              />
+
+              <TextInput
+                value={educationQuery}
+                onChangeText={setEducationQuery}
+                placeholder="Search education topics"
+                placeholderTextColor={mobileTheme.colors.textSoft}
+                style={styles.educationSearchInput}
+                autoCorrect={false}
+                returnKeyType="search"
+                accessibilityLabel="Search Dental Health Education"
+              />
+
+              {educationQuery ? (
+                <TouchableOpacity
+                  style={styles.educationSearchClear}
+                  onPress={() => setEducationQuery('')}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear education search"
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={19}
+                    color={mobileTheme.colors.textSoft}
+                  />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.educationCategoryScroll}
+              contentContainerStyle={styles.educationCategoryContent}
+            >
+              <TouchableOpacity
+                activeOpacity={0.84}
+                style={[
+                  styles.educationCategoryChip,
+                  educationCategory === 'all'
+                    && styles.educationCategoryChipActive,
+                ]}
+                onPress={() => setEducationCategory('all')}
+                accessibilityRole="button"
+                accessibilityState={{
+                  selected: educationCategory === 'all',
+                }}
+              >
+                <Text
+                  style={[
+                    styles.educationCategoryChipText,
+                    educationCategory === 'all'
+                      && styles.educationCategoryChipTextActive,
+                  ]}
+                >
+                  All Topics
+                </Text>
+              </TouchableOpacity>
+
+              {educationCategories.map((category) => {
+                const selected = educationCategory === category.id;
+
+                return (
+                  <TouchableOpacity
+                    key={category.id}
+                    activeOpacity={0.84}
+                    style={[
+                      styles.educationCategoryChip,
+                      selected && styles.educationCategoryChipActive,
+                    ]}
+                    onPress={() => setEducationCategory(category.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text
+                      style={[
+                        styles.educationCategoryChipText,
+                        selected && styles.educationCategoryChipTextActive,
+                      ]}
+                    >
+                      {category.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {filteredEducationArticles.length ? (
+              <View style={styles.educationArticleList}>
+                {filteredEducationArticles.map((article) => (
+                  <TouchableOpacity
+                    key={article.id}
+                    activeOpacity={0.86}
+                    style={styles.educationArticleCard}
+                    onPress={() => openEducationArticle(article)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${article.title}`}
+                  >
+                    <View style={styles.educationArticleIcon}>
+                      <MaterialCommunityIcons
+                        name="book-open-outline"
+                        size={21}
+                        color={mobileTheme.colors.primaryDark}
+                      />
+                    </View>
+
+                    <View style={styles.educationArticleContent}>
+                      <Text style={styles.educationCategoryEyebrow}>
+                        {article.category || 'Dental Health Education'}
+                      </Text>
+
+                      <Text style={styles.educationArticleTitle}>
+                        {article.title}
+                      </Text>
+
+                      <Text
+                        style={styles.educationArticleSummary}
+                        numberOfLines={3}
+                      >
+                        {article.summary}
+                      </Text>
+                    </View>
+
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={mobileTheme.colors.textSoft}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <SurfaceCard style={styles.educationEmptyCard}>
+                <View style={styles.educationEmptyIcon}>
+                  <Ionicons
+                    name="search-outline"
+                    size={25}
+                    color={mobileTheme.colors.primaryDark}
+                  />
+                </View>
+
+                <Text style={styles.educationEmptyTitle}>
+                  No education topics found
+                </Text>
+
+                <Text style={styles.educationEmptyText}>
+                  Try another category or clear your search to browse the
+                  complete Dental Health Education library.
+                </Text>
+
+                <TouchableOpacity
+                  activeOpacity={0.84}
+                  style={styles.educationResetButton}
+                  onPress={clearEducationFilters}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.educationResetButtonText}>
+                    Show All Topics
+                  </Text>
+                </TouchableOpacity>
+              </SurfaceCard>
+            )}
+          </>
+        ) : (
+          <SurfaceCard style={styles.educationEmptyCard}>
+            <View style={styles.educationEmptyIcon}>
+              <MaterialCommunityIcons
+                name="book-alert-outline"
+                size={27}
+                color={mobileTheme.colors.primaryDark}
+              />
+            </View>
+
+            <Text style={styles.educationEmptyTitle}>
+              Dental Health Education is unavailable
+            </Text>
+
+            <Text style={styles.educationEmptyText}>
+              The education library could not be loaded right now. Your Daily
+              Oral Health Log and other Oral Health Management features remain
+              available.
+            </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.84}
+              style={styles.educationResetButton}
+              onPress={fetchOralHealth}
+              accessibilityRole="button"
+            >
+              <Text style={styles.educationResetButtonText}>
+                Try Again
+              </Text>
+            </TouchableOpacity>
           </SurfaceCard>
-        ))}
+        )}
       </ScrollView>
 
       <Modal visible={factorsVisible} transparent animationType="slide" onRequestClose={() => setFactorsVisible(false)}>
@@ -474,7 +884,12 @@ export default function OralCareInsightsScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      <Modal visible={logVisible} transparent animationType="slide" onRequestClose={() => setLogVisible(false)}>
+      <Modal
+        visible={logVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLogVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.sheetCard}>
             <SheetHeader
@@ -482,10 +897,14 @@ export default function OralCareInsightsScreen({ navigation, route }) {
               subtitle="Save today's symptoms and home-care habits."
               onClose={() => setLogVisible(false)}
             />
+
             <ScrollView showsVerticalScrollIndicator={false}>
               {logGroups.map((group) => (
                 <View key={group.id} style={styles.logGroup}>
-                  <Text style={styles.logGroupTitle}>{group.title}</Text>
+                  <Text style={styles.logGroupTitle}>
+                    {group.title}
+                  </Text>
+
                   <View style={styles.logChipWrap}>
                     {group.items.map((item) => (
                       <LogChip
@@ -497,7 +916,11 @@ export default function OralCareInsightsScreen({ navigation, route }) {
                   </View>
                 </View>
               ))}
-              <Text style={styles.notesLabel}>Notes</Text>
+
+              <Text style={styles.notesLabel}>
+                Notes
+              </Text>
+
               <TextInput
                 value={logNotes}
                 onChangeText={setLogNotes}
@@ -508,11 +931,103 @@ export default function OralCareInsightsScreen({ navigation, route }) {
                 style={styles.notesInput}
               />
             </ScrollView>
+
             <PrimaryButton
               label={saving ? 'Saving...' : 'Save Daily Log'}
               onPress={saveDailyLog}
               style={{ marginTop: 16 }}
             />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={Boolean(selectedEducationArticle)}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedEducationArticle(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.educationSheetCard}>
+            <SheetHeader
+              title="Dental Health Education"
+              subtitle={
+                selectedEducationArticle?.category
+                || 'Educational oral-health information'
+              }
+              onClose={() => setSelectedEducationArticle(null)}
+            />
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.educationSheetContent}
+            >
+              {selectedEducationArticle ? (
+                <>
+                  <View style={styles.educationSheetIcon}>
+                    <MaterialCommunityIcons
+                      name="book-open-page-variant-outline"
+                      size={26}
+                      color={mobileTheme.colors.primaryDark}
+                    />
+                  </View>
+
+                  <Text style={styles.educationSheetCategory}>
+                    {selectedEducationArticle.category
+                      || 'Dental Health Education'}
+                  </Text>
+
+                  <Text style={styles.educationSheetTitle}>
+                    {selectedEducationArticle.title}
+                  </Text>
+
+                  <Text style={styles.educationSheetSummary}>
+                    {selectedEducationArticle.summary}
+                  </Text>
+
+                  <View style={styles.educationSheetDivider} />
+
+                  <Text style={styles.educationSheetBody}>
+                    {selectedEducationArticle.body
+                      || selectedEducationArticle.summary}
+                  </Text>
+
+                  {selectedEducationArticle.action ? (
+                    <View style={styles.educationActionCard}>
+                      <View style={styles.educationActionHeader}>
+                        <Ionicons
+                          name="checkmark-circle-outline"
+                          size={19}
+                          color={mobileTheme.colors.primaryDark}
+                        />
+
+                        <Text style={styles.educationActionTitle}>
+                          What you can do
+                        </Text>
+                      </View>
+
+                      <Text style={styles.educationActionText}>
+                        {selectedEducationArticle.action}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.educationSheetDisclaimer}>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={20}
+                      color={mobileTheme.colors.primaryDark}
+                    />
+
+                    <Text style={styles.educationSheetDisclaimerText}>
+                      This information is educational and is not a diagnosis.
+                      Consider contacting the clinic if symptoms continue,
+                      worsen, or concern you.
+                    </Text>
+                  </View>
+                </>
+              ) : null}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -901,5 +1416,349 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     fontSize: 13,
     lineHeight: 19,
+  },
+
+  educationIntroCard: {
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  educationIntroIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: mobileTheme.colors.primarySoft,
+    marginBottom: 14,
+  },
+  educationIntroContent: {
+    width: '100%',
+  },
+  educationIntroTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800',
+    color: mobileTheme.colors.text,
+    marginBottom: 8,
+  },
+  educationDisclaimer: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 16,
+    padding: 14,
+    borderRadius: mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.border,
+    backgroundColor: mobileTheme.colors.backgroundMuted,
+  },
+  educationDisclaimerText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 12,
+    lineHeight: 18,
+    color: mobileTheme.colors.textMuted,
+  },
+
+  educationRecommendationScroll: {
+    marginHorizontal: -18,
+    marginBottom: 20,
+  },
+  educationRecommendationContent: {
+    paddingHorizontal: 18,
+    paddingBottom: 4,
+  },
+  educationRecommendationCard: {
+    width: 264,
+    minHeight: 230,
+    marginRight: 12,
+    padding: 17,
+    borderRadius: mobileTheme.radii.lg,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.border,
+    backgroundColor: mobileTheme.colors.surface,
+    ...mobileTheme.shadows.soft,
+  },
+  educationRecommendationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: mobileTheme.colors.primarySoft,
+    marginBottom: 12,
+  },
+  educationCategoryEyebrow: {
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: '800',
+    color: mobileTheme.colors.secondaryDark,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  educationRecommendationTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '800',
+    color: mobileTheme.colors.text,
+    marginBottom: 8,
+  },
+  educationRecommendationSummary: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    color: mobileTheme.colors.textMuted,
+  },
+  educationReadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  educationReadText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: mobileTheme.colors.primaryDark,
+    marginRight: 5,
+  },
+
+  educationSearchWrap: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    borderRadius: mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.border,
+    backgroundColor: mobileTheme.colors.surface,
+  },
+  educationSearchInput: {
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: 10,
+    color: mobileTheme.colors.text,
+    fontSize: 14,
+  },
+  educationSearchClear: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  educationCategoryScroll: {
+    marginHorizontal: -18,
+    marginBottom: 16,
+  },
+  educationCategoryContent: {
+    paddingHorizontal: 18,
+    paddingBottom: 3,
+  },
+  educationCategoryChip: {
+    minHeight: 42,
+    justifyContent: 'center',
+    marginRight: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: mobileTheme.radii.pill,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.border,
+    backgroundColor: mobileTheme.colors.surface,
+  },
+  educationCategoryChipActive: {
+    borderColor: mobileTheme.colors.primaryDark,
+    backgroundColor: mobileTheme.colors.primaryDark,
+  },
+  educationCategoryChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: mobileTheme.colors.textMuted,
+  },
+  educationCategoryChipTextActive: {
+    color: '#ffffff',
+  },
+
+  educationArticleList: {
+    marginBottom: 20,
+  },
+  educationArticleCard: {
+    minHeight: 118,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    marginBottom: 11,
+    borderRadius: mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.border,
+    backgroundColor: mobileTheme.colors.surface,
+    ...mobileTheme.shadows.soft,
+  },
+  educationArticleIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: mobileTheme.colors.primarySoft,
+    marginRight: 12,
+  },
+  educationArticleContent: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  educationArticleTitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+    color: mobileTheme.colors.text,
+    marginBottom: 5,
+  },
+  educationArticleSummary: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: mobileTheme.colors.textMuted,
+  },
+
+  educationEmptyCard: {
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  educationEmptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    backgroundColor: mobileTheme.colors.primarySoft,
+  },
+  educationEmptyTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '800',
+    color: mobileTheme.colors.text,
+    marginBottom: 7,
+  },
+  educationEmptyText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: mobileTheme.colors.textMuted,
+  },
+  educationResetButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 14,
+    borderRadius: mobileTheme.radii.pill,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.primaryDark,
+    backgroundColor: mobileTheme.colors.surface,
+  },
+  educationResetButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: mobileTheme.colors.primaryDark,
+  },
+
+  educationSheetCard: {
+    maxHeight: '88%',
+    backgroundColor: mobileTheme.colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 26,
+  },
+  educationSheetContent: {
+    paddingBottom: 12,
+  },
+  educationSheetIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: mobileTheme.colors.primarySoft,
+    marginBottom: 16,
+  },
+  educationSheetCategory: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '800',
+    color: mobileTheme.colors.secondaryDark,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    marginBottom: 7,
+  },
+  educationSheetTitle: {
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: '800',
+    color: mobileTheme.colors.text,
+    marginBottom: 12,
+  },
+  educationSheetSummary: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: mobileTheme.colors.textMuted,
+  },
+  educationSheetDivider: {
+    height: 1,
+    backgroundColor: mobileTheme.colors.border,
+    marginVertical: 20,
+  },
+  educationSheetBody: {
+    fontSize: 14,
+    lineHeight: 23,
+    color: mobileTheme.colors.text,
+  },
+  educationActionCard: {
+    marginTop: 20,
+    padding: 16,
+    borderRadius: mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.borderStrong,
+    backgroundColor: mobileTheme.colors.primarySoft,
+  },
+  educationActionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 7,
+  },
+  educationActionTitle: {
+    marginLeft: 7,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '800',
+    color: mobileTheme.colors.primaryDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  educationActionText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: mobileTheme.colors.textMuted,
+  },
+  educationSheetDisclaimer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 18,
+    padding: 15,
+    borderRadius: mobileTheme.radii.md,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.border,
+    backgroundColor: mobileTheme.colors.backgroundMuted,
+  },
+  educationSheetDisclaimerText: {
+    flex: 1,
+    marginLeft: 9,
+    fontSize: 12,
+    lineHeight: 19,
+    color: mobileTheme.colors.textMuted,
   },
 });
