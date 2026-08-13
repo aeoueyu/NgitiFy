@@ -387,6 +387,7 @@ export default function PatientEMR({
     const [medicalHistory, setMedicalHistory] = useState(INITIAL_MEDICAL_HISTORY);
     const [isEditingMedical, setIsEditingMedical] = useState(false);
     const [medicalForm, setMedicalForm] = useState(INITIAL_MEDICAL_HISTORY);
+    const [medicalFormErrors, setMedicalFormErrors] = useState({});
     const [isSavingMedical, setIsSavingMedical] = useState(false);
 
     // Tab: Treatment Logs States
@@ -1118,12 +1119,74 @@ export default function PatientEMR({
     };
 
     // ─── MEDICAL HISTORY & ALERTS TAB ──────────────────────────────────────────
-    const handleMedicalFormChange = (e) => {
-        const { name, value } = e.target;
-        setMedicalForm(prev => ({ ...prev, [name]: value }));
+    const getCsvValues = (value) => value ? value.split(',').map((item) => item.trim()).filter(Boolean) : [];
+
+    const getMedicalFormValidationErrors = (data = medicalForm) => {
+        const nextErrors = {};
+        const requiredMessage = 'Required';
+        const requiredWhenYesMessage = 'Required when answered Yes';
+        const requiredYesNoFields = [
+            'hadTreatmentReaction',
+            'hasConfidentialInfo',
+            'inGoodHealth',
+            'underMedicalTreatment',
+            'hadSeriousIllnessOrSurgery',
+            'hadHospitalization',
+            'isTakingMedication',
+            'usesTobacco',
+            'usesAlcoholOrDrugs',
+            'hasAllergies',
+            'isPregnant',
+            'isNursing',
+            'takingBirthControl',
+        ];
+
+        requiredYesNoFields.forEach((field) => {
+            if (!data[field]) nextErrors[field] = requiredMessage;
+        });
+
+        if (data.hadTreatmentReaction === 'yes' && !String(data.reactionDetails || '').trim()) {
+            nextErrors.reactionDetails = requiredWhenYesMessage;
+        }
+        if (data.underMedicalTreatment === 'yes' && !String(data.medicalTreatmentDetails || '').trim()) {
+            nextErrors.medicalTreatmentDetails = requiredWhenYesMessage;
+        }
+        if (data.hadSeriousIllnessOrSurgery === 'yes' && !String(data.seriousIllnessOrSurgeryDetails || '').trim()) {
+            nextErrors.seriousIllnessOrSurgeryDetails = requiredWhenYesMessage;
+        }
+        if (data.hadHospitalization === 'yes' && !String(data.hospitalizationDetails || '').trim()) {
+            nextErrors.hospitalizationDetails = requiredWhenYesMessage;
+        }
+        if (data.isTakingMedication === 'yes' && !String(data.medications || '').trim()) {
+            nextErrors.medications = requiredWhenYesMessage;
+        }
+        if (data.hasAllergies === 'yes' && getCsvValues(data.allergies).length === 0 && getCsvValues(data.allergyOther).length === 0) {
+            nextErrors.allergies = 'Select at least one allergy or specify another allergy.';
+        }
+
+        return nextErrors;
     };
 
-    const getCsvValues = (value) => value ? value.split(',').map((item) => item.trim()).filter(Boolean) : [];
+    const syncMedicalFormErrors = (data = medicalForm) => {
+        const nextErrors = getMedicalFormValidationErrors(data);
+        setMedicalFormErrors(nextErrors);
+        return nextErrors;
+    };
+
+    const getMedicalFieldClass = (field) => `${styles.inputField} ${medicalFormErrors[field] ? styles.errorBorder : ''}`;
+    const getMedicalTextareaClass = (field) => `${styles.textareaField} ${medicalFormErrors[field] ? styles.errorBorder : ''}`;
+    const renderMedicalFieldError = (field) => (
+        medicalFormErrors[field] ? <span className={styles.errorText}>{medicalFormErrors[field]}</span> : null
+    );
+
+    const handleMedicalFormChange = (e) => {
+        const { name, value } = e.target;
+        setMedicalForm((prev) => {
+            const next = { ...prev, [name]: value };
+            syncMedicalFormErrors(next);
+            return next;
+        });
+    };
 
     const handleMedicalCheckboxToggle = (field, item) => {
         setMedicalForm((prev) => {
@@ -1131,7 +1194,9 @@ export default function PatientEMR({
             const nextValues = values.includes(item)
                 ? values.filter((entry) => entry !== item)
                 : [...values, item];
-            return { ...prev, [field]: nextValues.join(', ') };
+            const next = { ...prev, [field]: nextValues.join(', ') };
+            syncMedicalFormErrors(next);
+            return next;
         });
     };
 
@@ -1140,7 +1205,7 @@ export default function PatientEMR({
     const renderYesNoEditor = (label, name, required = false) => (
         <div className={styles.formGroup}>
             <label>{label} {required && renderRequiredMark()}</label>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', minHeight: '44px' }}>
+            <div className={`${styles.radioPillGroup} ${medicalFormErrors[name] ? styles.errorBorder : ''}`}>
                 <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <input type="radio" name={name} value="yes" checked={medicalForm[name] === 'yes'} onChange={handleMedicalFormChange} required={required} />
                     <span>Yes</span>
@@ -1150,11 +1215,23 @@ export default function PatientEMR({
                     <span>No</span>
                 </label>
             </div>
+            {renderMedicalFieldError(name)}
         </div>
     );
 
     const handleSaveMedical = async (e) => {
         e.preventDefault();
+        const validationErrors = syncMedicalFormErrors();
+        if (Object.keys(validationErrors).length > 0) {
+            const firstInvalidField = Object.keys(validationErrors)[0];
+            const firstInvalidElement = document.getElementsByName(firstInvalidField)[0];
+            if (firstInvalidElement) {
+                firstInvalidElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalidElement.focus();
+            }
+            return;
+        }
+
         setIsSavingMedical(true);
         try {
             const { authFetch } = await import('../../utils/api');
@@ -1256,6 +1333,7 @@ export default function PatientEMR({
                 },
             }) : prev);
             setIsEditingMedical(false);
+            setMedicalFormErrors({});
             addToast('Medical history updated successfully.', 'success');
         } catch (err) {
             addToast(err.message || 'Failed to update medical history.', 'error');
@@ -1266,6 +1344,7 @@ export default function PatientEMR({
 
     const handleCancelMedical = () => {
         setMedicalForm(medicalHistory);
+        setMedicalFormErrors({});
         setIsEditingMedical(false);
     };
 
@@ -1311,21 +1390,22 @@ export default function PatientEMR({
                 </div>
 
                 {isEditingMedical ? (
-                    <form onSubmit={handleSaveMedical}>
+                    <form onSubmit={handleSaveMedical} noValidate>
                         {renderHistorySectionTitle('Dental History', false)}
                         <div className={styles.infoGrid}>
                             <div className={styles.formGroup}>
                                 <label>Reason for Consultation</label>
-                                <input type="text" name="reasonForConsultation" value={medicalForm.reasonForConsultation} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="text" name="reasonForConsultation" value={medicalForm.reasonForConsultation} onChange={handleMedicalFormChange} className={getMedicalFieldClass('reasonForConsultation')} />
                             </div>
                             <div className={styles.formGroup}>
                                 <label>Last Dental Visit</label>
-                                <input type="date" name="lastExam" value={medicalForm.lastExam} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="date" name="lastExam" value={medicalForm.lastExam} onChange={handleMedicalFormChange} className={getMedicalFieldClass('lastExam')} />
                             </div>
                             {renderYesNoEditor('Reaction or Complication After Dental Treatment?', 'hadTreatmentReaction', true)}
                             <div className={styles.formGroup}>
                                 <label>If Yes, Please Detail {medicalForm.hadTreatmentReaction === 'yes' && renderRequiredMark()}</label>
-                                <textarea name="reactionDetails" value={medicalForm.reactionDetails} onChange={handleMedicalFormChange} className={styles.textareaField} rows={3} />
+                                <textarea name="reactionDetails" value={medicalForm.reactionDetails} onChange={handleMedicalFormChange} className={getMedicalTextareaClass('reactionDetails')} rows={3} />
+                                {renderMedicalFieldError('reactionDetails')}
                             </div>
                             {renderYesNoEditor('Private or Confidential Information to Discuss in Private?', 'hasConfidentialInfo', true)}
                         </div>
@@ -1334,11 +1414,11 @@ export default function PatientEMR({
                         <div className={styles.infoGrid}>
                             <div className={styles.formGroup}>
                                 <label>Physician Name</label>
-                                <input type="text" name="physicianName" value={medicalForm.physicianName} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="text" name="physicianName" value={medicalForm.physicianName} onChange={handleMedicalFormChange} className={getMedicalFieldClass('physicianName')} />
                             </div>
                             <div className={styles.formGroup}>
                                 <label>Specialty, If Applicable</label>
-                                <select name="physicianSpecialty" value={medicalForm.physicianSpecialty} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <select name="physicianSpecialty" value={medicalForm.physicianSpecialty} onChange={handleMedicalFormChange} className={getMedicalFieldClass('physicianSpecialty')}>
                                     <option value="">Select Specialty</option>
                                     {PHYSICIAN_SPECIALTY_OPTIONS.map((option) => (
                                         <option key={option} value={option}>{option}</option>
@@ -1347,11 +1427,11 @@ export default function PatientEMR({
                             </div>
                             <div className={styles.formGroup}>
                                 <label>Office Address</label>
-                                <input type="text" name="physicianOfficeAddress" value={medicalForm.physicianOfficeAddress} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="text" name="physicianOfficeAddress" value={medicalForm.physicianOfficeAddress} onChange={handleMedicalFormChange} className={getMedicalFieldClass('physicianOfficeAddress')} />
                             </div>
                             <div className={styles.formGroup}>
                                 <label>Office Number</label>
-                                <input type="text" name="physicianOfficeNumber" value={medicalForm.physicianOfficeNumber} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="text" name="physicianOfficeNumber" value={medicalForm.physicianOfficeNumber} onChange={handleMedicalFormChange} className={getMedicalFieldClass('physicianOfficeNumber')} />
                             </div>
                         </div>
 
@@ -1364,7 +1444,8 @@ export default function PatientEMR({
                             {renderYesNoEditor('Are You Under Medical Treatment Now?', 'underMedicalTreatment', true)}
                             <div className={styles.formGroup}>
                                 <label>If So, What Is the Condition Treated? {medicalForm.underMedicalTreatment === 'yes' && renderRequiredMark()}</label>
-                                <input type="text" name="medicalTreatmentDetails" value={medicalForm.medicalTreatmentDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="text" name="medicalTreatmentDetails" value={medicalForm.medicalTreatmentDetails} onChange={handleMedicalFormChange} className={getMedicalFieldClass('medicalTreatmentDetails')} />
+                                {renderMedicalFieldError('medicalTreatmentDetails')}
                             </div>
                         </div>
 
@@ -1372,7 +1453,8 @@ export default function PatientEMR({
                             {renderYesNoEditor('Have You Ever Had Serious Illness or Surgical Operation?', 'hadSeriousIllnessOrSurgery', true)}
                             <div className={styles.formGroup}>
                                 <label>If So, What Is the Illness or Operation? {medicalForm.hadSeriousIllnessOrSurgery === 'yes' && renderRequiredMark()}</label>
-                                <input type="text" name="seriousIllnessOrSurgeryDetails" value={medicalForm.seriousIllnessOrSurgeryDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="text" name="seriousIllnessOrSurgeryDetails" value={medicalForm.seriousIllnessOrSurgeryDetails} onChange={handleMedicalFormChange} className={getMedicalFieldClass('seriousIllnessOrSurgeryDetails')} />
+                                {renderMedicalFieldError('seriousIllnessOrSurgeryDetails')}
                             </div>
                         </div>
 
@@ -1380,7 +1462,8 @@ export default function PatientEMR({
                             {renderYesNoEditor('Have You Ever Been Hospitalized?', 'hadHospitalization', true)}
                             <div className={styles.formGroup}>
                                 <label>If So, When and Why? {medicalForm.hadHospitalization === 'yes' && renderRequiredMark()}</label>
-                                <input type="text" name="hospitalizationDetails" value={medicalForm.hospitalizationDetails} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="text" name="hospitalizationDetails" value={medicalForm.hospitalizationDetails} onChange={handleMedicalFormChange} className={getMedicalFieldClass('hospitalizationDetails')} />
+                                {renderMedicalFieldError('hospitalizationDetails')}
                             </div>
                         </div>
 
@@ -1388,7 +1471,8 @@ export default function PatientEMR({
                             {renderYesNoEditor('Are You Taking Any Prescription/Non-Prescription Medication?', 'isTakingMedication', true)}
                             <div className={styles.formGroup}>
                                 <label>If So, Please Specify {medicalForm.isTakingMedication === 'yes' && renderRequiredMark()}</label>
-                                <input type="text" name="medications" value={medicalForm.medications} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="Comma-separated medications" />
+                                <input type="text" name="medications" value={medicalForm.medications} onChange={handleMedicalFormChange} className={getMedicalFieldClass('medications')} placeholder="Comma-separated medications" />
+                                {renderMedicalFieldError('medications')}
                             </div>
                         </div>
 
@@ -1398,23 +1482,24 @@ export default function PatientEMR({
                             {renderYesNoEditor('Are You Allergic to Any of the Following?', 'hasAllergies', true)}
                         </div>
 
-                        <div className={styles.historyChecklistPanel}>
+                        <div className={`${styles.historyChecklistPanel} ${medicalFormErrors.allergies ? styles.historyChecklistPanelError : ''}`}>
                             <label className={styles.historyChecklistLabel}>Allergies {medicalForm.hasAllergies === 'yes' && renderRequiredMark()}</label>
                             <div className={styles.checklistGrid}>
                                 {ALLERGY_OPTIONS.map((option) => (
                                     <label key={option} className={styles.checklistOption}>
-                                        <input type="checkbox" checked={getCsvValues(medicalForm.allergies).includes(option)} onChange={() => handleMedicalCheckboxToggle('allergies', option)} />
+                                        <input type="checkbox" name="allergies" checked={getCsvValues(medicalForm.allergies).includes(option)} onChange={() => handleMedicalCheckboxToggle('allergies', option)} />
                                         <span>{option}</span>
                                     </label>
                                 ))}
                             </div>
-                            <input type="text" name="allergyOther" value={medicalForm.allergyOther} onChange={handleMedicalFormChange} className={styles.inputField} style={{ marginTop: '12px' }} placeholder="Other allergy" />
+                            <input type="text" name="allergyOther" value={medicalForm.allergyOther} onChange={handleMedicalFormChange} className={getMedicalFieldClass('allergies')} style={{ marginTop: '12px' }} placeholder="Other allergy" />
+                            {renderMedicalFieldError('allergies')}
                         </div>
 
                         <div className={styles.infoGrid}>
                             <div className={styles.formGroup}>
                                 <label>Bleeding Time</label>
-                                <input type="text" name="bleedingTime" value={medicalForm.bleedingTime} onChange={handleMedicalFormChange} className={styles.inputField} />
+                                <input type="text" name="bleedingTime" value={medicalForm.bleedingTime} onChange={handleMedicalFormChange} className={getMedicalFieldClass('bleedingTime')} />
                             </div>
                             <div />
                             {renderYesNoEditor('Are You Pregnant?', 'isPregnant', true)}
@@ -1423,7 +1508,7 @@ export default function PatientEMR({
                             <div />
                             <div className={styles.formGroup}>
                                 <label>Blood Type</label>
-                                <select name="bloodType" value={medicalForm.bloodType} onChange={handleMedicalFormChange} className={styles.inputField}>
+                                <select name="bloodType" value={medicalForm.bloodType} onChange={handleMedicalFormChange} className={getMedicalFieldClass('bloodType')}>
                                     <option value="">Select Blood Type</option>
                                     {BLOOD_TYPE_OPTIONS.map((option) => (
                                         <option key={option} value={option}>{option}</option>
@@ -1432,7 +1517,7 @@ export default function PatientEMR({
                             </div>
                             <div className={styles.formGroup}>
                                 <label>Blood Pressure</label>
-                                <input type="text" name="bloodPressure" value={medicalForm.bloodPressure} onChange={handleMedicalFormChange} className={styles.inputField} placeholder="e.g. 120/80" />
+                                <input type="text" name="bloodPressure" value={medicalForm.bloodPressure} onChange={handleMedicalFormChange} className={getMedicalFieldClass('bloodPressure')} placeholder="e.g. 120/80" />
                             </div>
                         </div>
 
@@ -1446,12 +1531,12 @@ export default function PatientEMR({
                                     </label>
                                 ))}
                             </div>
-                            <input type="text" name="conditionOther" value={medicalForm.conditionOther} onChange={handleMedicalFormChange} className={styles.inputField} style={{ marginTop: '12px' }} placeholder="Other condition" />
+                            <input type="text" name="conditionOther" value={medicalForm.conditionOther} onChange={handleMedicalFormChange} className={getMedicalFieldClass('conditionOther')} style={{ marginTop: '12px' }} placeholder="Other condition" />
                         </div>
 
                         <div className={styles.formGroup}>
                             <label>Medical Notes</label>
-                            <textarea name="notes" value={medicalForm.notes} onChange={handleMedicalFormChange} className={styles.textareaField} rows={3} />
+                            <textarea name="notes" value={medicalForm.notes} onChange={handleMedicalFormChange} className={getMedicalTextareaClass('notes')} rows={3} />
                         </div>
 
                         <div className={styles.formActions}>
