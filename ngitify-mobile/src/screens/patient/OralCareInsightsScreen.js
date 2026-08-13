@@ -125,6 +125,9 @@ export default function OralCareInsightsScreen({ navigation, route }) {
   const [educationQuery, setEducationQuery] = useState('');
   const [educationCategory, setEducationCategory] = useState('all');
   const [selectedEducationArticle, setSelectedEducationArticle] = useState(null);
+  const [educationQuery, setEducationQuery] = useState('');
+  const [educationCategory, setEducationCategory] = useState('all');
+  const [selectedEducationArticle, setSelectedEducationArticle] = useState(null);
 
   const fetchOralHealth = useCallback(async () => {
     if (!userToken) return;
@@ -253,10 +256,7 @@ export default function OralCareInsightsScreen({ navigation, route }) {
   ]);
 
   const openEducationArticle = (article) => {
-    if (!article) {
-      return;
-    }
-
+    if (!article) return;
     setSelectedEducationArticle(article);
   };
 
@@ -538,15 +538,13 @@ export default function OralCareInsightsScreen({ navigation, route }) {
             />
           </View>
 
-          <View style={styles.educationIntroContent}>
-            <Text style={styles.educationIntroTitle}>
-              Dental Health Education
-            </Text>
+          <Text style={styles.educationIntroTitle}>
+            Dental Health Education
+          </Text>
 
-            <Text style={styles.educationBody}>
-              {preview.education.body}
-            </Text>
-          </View>
+          <Text style={styles.educationBody}>
+            {preview.education.body}
+          </Text>
 
           <View style={styles.educationDisclaimer}>
             <Ionicons
@@ -843,9 +841,9 @@ export default function OralCareInsightsScreen({ navigation, route }) {
             </Text>
 
             <Text style={styles.educationEmptyText}>
-              The education library could not be loaded right now. Your Daily
-              Oral Health Log and other Oral Health Management features remain
-              available.
+              The education library could not be loaded right now. Your
+              Daily Oral Health Log and other Oral Health Management features
+              remain available.
             </Text>
 
             <TouchableOpacity
@@ -1430,9 +1428,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: mobileTheme.colors.primarySoft,
     marginBottom: 14,
-  },
-  educationIntroContent: {
-    width: '100%',
   },
   educationIntroTitle: {
     fontSize: 18,
