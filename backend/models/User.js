@@ -313,10 +313,17 @@ const userSchema = new mongoose.Schema({
     },
 
     // ✅ PATIENT MOBILE: Patient-specific preferences (Phase 3)
-    educationConsent:   { type: Boolean, default: false }, // Allow personalized dental education
-    notifAppointments:  { type: Boolean, default: true  }, // Appointment confirmation/reminder alerts
-    notifVisitWindow:   { type: Boolean, default: true  }, // Predictive visit due/overdue alerts
-    notifHealthTips:    { type: Boolean, default: true  }, // Weekly dental health tip notifications
+    educationConsent:   { type: Boolean, default: false }, // Allow personalized Dental Health Education
+    notifAppointments:  { type: Boolean, default: true  }, // Appointment Alerts
+    notifVisitWindow:   { type: Boolean, default: true  }, // Recommended Visit Window reminders
+    notifOralHealthDaily: { type: Boolean, default: true }, // Daily Oral Health Management reminder
+    notifSymptomFollowUp: { type: Boolean, default: true }, // Approved deterministic symptom follow-up reminders
+    notifHealthTips:    { type: Boolean, default: true  }, // Dental Health Education / dental-health tips
+    oralHealthReminderTime: {
+        type: String,
+        default: '20:00',
+        match: /^(?:[01]\d|2[0-3]):[0-5]\d$/,
+    },
     predictiveVisitReminder: {
         dueWindowKey: { type: String, default: '' },
         overdueWindowKey: { type: String, default: '' },

@@ -78,6 +78,12 @@ const {
     mergePatientAiLiveContext,
 } = require('./utils/patientAi');
 // ADD this line with the other model imports (after the AuditLog import)
+const {
+    DEFAULT_ORAL_HEALTH_REMINDER_TIME,
+    buildDailyOralHealthReminderDecision,
+    buildDentalHealthEducationTipDecision,
+    buildSymptomFollowUpReminderDecision,
+} = require('./utils/patientNotifications');
 const MaterialUsageLog = require('./models/MaterialUsageLog');
 const RADIOGRAPH_ENHANCER_SCRIPT = path.join(__dirname, 'python', 'radiograph_enhance.py');
 const RADIOGRAPH_ENHANCER_ENGINES = Object.freeze({
@@ -3395,26 +3401,72 @@ const createPatientNotification = async ({
     title,
     message,
     relatedId = null,
+    dedupeKey = '',
 }) => {
     if (!patientId) return null;
 
-    const patient = await User.findById(patientId).select(
-        'notifAppointments notifVisitWindow notifHealthTips isArchived role'
-    );
-    if (!patient || patient.role !== 'patient' || patient.isArchived) {
+    const patient =
+        await User.findById(
+            patientId
+        ).select(
+            [
+                'notifAppointments',
+                'notifVisitWindow',
+                'notifOralHealthDaily',
+                'notifSymptomFollowUp',
+                'notifHealthTips',
+                'isArchived',
+                'role',
+            ].join(' ')
+        );
+
+    if (
+        !patient
+        || patient.role !== 'patient'
+        || patient.isArchived
+    ) {
         return null;
     }
-    if (!isPatientNotificationEnabled(patient, type)) {
+
+    if (
+        !isPatientNotificationEnabled(
+            patient,
+            type
+        )
+    ) {
         return null;
+    }
+
+    const normalizedDedupeKey =
+        String(
+            dedupeKey || ''
+        ).trim();
+
+    if (normalizedDedupeKey) {
+        const existing =
+            await Notification.exists({
+                recipientId:
+                    patient._id,
+                dedupeKey:
+                    normalizedDedupeKey,
+            });
+
+        if (existing) {
+            return false;
+        }
     }
 
     await Notification.create({
         type,
         title,
         message,
-        recipientId: patient._id,
-        recipientRole: 'patient',
+        recipientId:
+            patient._id,
+        recipientRole:
+            'patient',
         relatedId,
+        dedupeKey:
+            normalizedDedupeKey,
     });
 
     return true;
@@ -3733,18 +3785,65 @@ const getStaffNotificationPreferenceKey = (role = '', type = '') => {
     return '';
 };
 
-const isPatientNotificationEnabled = (patient = null, type = '') => {
+const isPatientNotificationEnabled = (
+    patient = null,
+    type = ''
+) => {
     if (!patient) return false;
-    const normalizedType = String(type || '').trim();
 
-    if (APPOINTMENT_NOTIFICATION_TYPES.has(normalizedType)) {
-        return patient.notifAppointments !== false;
+    const normalizedType =
+        String(type || '').trim();
+
+    if (
+        APPOINTMENT_NOTIFICATION_TYPES
+            .has(normalizedType)
+    ) {
+        return (
+            patient.notifAppointments
+            !== false
+        );
     }
-    if (['PREDICTIVE_VISIT_DUE', 'PREDICTIVE_VISIT_OVERDUE'].includes(normalizedType)) {
-        return patient.notifVisitWindow !== false;
+
+    if (
+        [
+            'PREDICTIVE_VISIT_DUE',
+            'PREDICTIVE_VISIT_OVERDUE',
+        ].includes(normalizedType)
+    ) {
+        return (
+            patient.notifVisitWindow
+            !== false
+        );
     }
-    if (normalizedType === 'DENTAL_HEALTH_TIP') {
-        return patient.notifHealthTips !== false;
+
+    if (
+        normalizedType ===
+        'ORAL_HEALTH_DAILY_REMINDER'
+    ) {
+        return (
+            patient.notifOralHealthDaily
+            !== false
+        );
+    }
+
+    if (
+        normalizedType ===
+        'ORAL_HEALTH_SYMPTOM_FOLLOW_UP'
+    ) {
+        return (
+            patient.notifSymptomFollowUp
+            !== false
+        );
+    }
+
+    if (
+        normalizedType ===
+        'DENTAL_HEALTH_TIP'
+    ) {
+        return (
+            patient.notifHealthTips
+            !== false
+        );
     }
 
     return true;
@@ -8954,6 +9053,222 @@ const remindPatientsAboutPredictiveVisitWindows = async () => {
     }
 };
 
+const remindPatientsAboutOralHealthManagement = async () => {
+    const now =
+        new Date();
+
+    const parts =
+        getManilaDateParts(now);
+
+    const todayKey =
+        getManilaDateKey(now);
+
+    const currentTime =
+        `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`;
+
+    const patients =
+        await User.find({
+            role: 'patient',
+            isArchived: false,
+            $or: [
+                {
+                    notifOralHealthDaily: {
+                        $ne: false,
+                    },
+                },
+                {
+                    notifSymptomFollowUp: {
+                        $ne: false,
+                    },
+                },
+                {
+                    notifHealthTips: {
+                        $ne: false,
+                    },
+                },
+            ],
+        }).select(
+            [
+                'oralHealthLogs',
+                'notifOralHealthDaily',
+                'notifSymptomFollowUp',
+                'notifHealthTips',
+                'oralHealthReminderTime',
+            ].join(' ')
+        );
+
+    for (const patient of patients) {
+        const storedLogs =
+            await OralHealthLog.find({
+                patient:
+                    patient._id,
+            })
+                .sort({
+                    logDateKey: -1,
+                })
+                .limit(30)
+                .lean();
+
+        const logsByDate =
+            new Map();
+
+        storedLogs.forEach(
+            (log) => {
+                const normalized =
+                    normalizeSavedLogForPayload(
+                        log
+                    );
+
+                if (
+                    normalized.logDateKey
+                ) {
+                    logsByDate.set(
+                        normalized.logDateKey,
+                        normalized
+                    );
+                }
+            }
+        );
+
+        (
+            patient.oralHealthLogs
+            || []
+        ).forEach(
+            (log) => {
+                const normalized =
+                    normalizeSavedLogForPayload(
+                        log
+                    );
+
+                if (
+                    normalized.logDateKey
+                    && !logsByDate.has(
+                        normalized.logDateKey
+                    )
+                ) {
+                    logsByDate.set(
+                        normalized.logDateKey,
+                        normalized
+                    );
+                }
+            }
+        );
+
+        const logs =
+            [...logsByDate.values()]
+                .sort(
+                    (left, right) =>
+                        String(
+                            right.logDateKey
+                            || ''
+                        ).localeCompare(
+                            String(
+                                left.logDateKey
+                                || ''
+                            )
+                        )
+                );
+
+        const dailyDecision =
+            buildDailyOralHealthReminderDecision({
+                enabled:
+                    patient
+                        .notifOralHealthDaily
+                    !== false,
+                logs,
+                todayKey,
+                currentTime,
+                reminderTime:
+                    patient
+                        .oralHealthReminderTime
+                    || DEFAULT_ORAL_HEALTH_REMINDER_TIME,
+            });
+
+        if (
+            dailyDecision
+                .shouldNotify
+        ) {
+            await createPatientNotification({
+                patientId:
+                    patient._id,
+                type:
+                    dailyDecision.type,
+                title:
+                    dailyDecision.title,
+                message:
+                    dailyDecision.message,
+                relatedId:
+                    patient._id,
+                dedupeKey:
+                    dailyDecision
+                        .dedupeKey,
+            });
+        }
+
+        const symptomDecision =
+            buildSymptomFollowUpReminderDecision({
+                enabled:
+                    patient
+                        .notifSymptomFollowUp
+                    !== false,
+                logs,
+                todayKey,
+            });
+
+        if (
+            symptomDecision
+                .shouldNotify
+        ) {
+            await createPatientNotification({
+                patientId:
+                    patient._id,
+                type:
+                    symptomDecision.type,
+                title:
+                    symptomDecision.title,
+                message:
+                    symptomDecision.message,
+                relatedId:
+                    patient._id,
+                dedupeKey:
+                    symptomDecision
+                        .dedupeKey,
+            });
+        }
+
+        const educationDecision =
+            buildDentalHealthEducationTipDecision({
+                enabled:
+                    patient
+                        .notifHealthTips
+                    !== false,
+                logs,
+                todayKey,
+            });
+
+        if (
+            educationDecision
+                .shouldNotify
+        ) {
+            await createPatientNotification({
+                patientId:
+                    patient._id,
+                type:
+                    educationDecision.type,
+                title:
+                    educationDecision.title,
+                message:
+                    educationDecision.message,
+                relatedId:
+                    patient._id,
+                dedupeKey:
+                    educationDecision
+                        .dedupeKey,
+            });
+        }
+    }
+};
+
 app.post('/api/pre-register/:token', async (req, res) => {
     try {
         const token = String(req.params.token || '').trim();
@@ -10781,16 +11096,44 @@ app.get('/api/my/settings', verifyToken, async (req, res) => {
         if (req.user.role !== 'patient') {
             return res.status(403).json({ message: 'Access denied.' });
         }
-        const patient = await User.findById(req.user.id).select(
-            'educationConsent notifAppointments notifVisitWindow notifHealthTips'
-        );
+        const patient =
+            await User.findById(
+                req.user.id
+            ).select(
+                [
+                    'educationConsent',
+                    'notifAppointments',
+                    'notifVisitWindow',
+                    'notifOralHealthDaily',
+                    'notifSymptomFollowUp',
+                    'notifHealthTips',
+                    'oralHealthReminderTime',
+                ].join(' ')
+            );
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
         res.json({
-            educationConsent:  patient.educationConsent  ?? false,
-            notifAppointments: patient.notifAppointments ?? true,
-            notifVisitWindow:  patient.notifVisitWindow  ?? true,
-            notifHealthTips:   patient.notifHealthTips   ?? true,
+            educationConsent:
+                patient.educationConsent
+                ?? false,
+            notifAppointments:
+                patient.notifAppointments
+                ?? true,
+            notifVisitWindow:
+                patient.notifVisitWindow
+                ?? true,
+            notifOralHealthDaily:
+                patient.notifOralHealthDaily
+                ?? true,
+            notifSymptomFollowUp:
+                patient.notifSymptomFollowUp
+                ?? true,
+            notifHealthTips:
+                patient.notifHealthTips
+                ?? true,
+            oralHealthReminderTime:
+                patient.oralHealthReminderTime
+                || DEFAULT_ORAL_HEALTH_REMINDER_TIME,
         });
     } catch (error) {
         console.error('Error fetching patient settings:', error);
@@ -10805,12 +11148,46 @@ app.patch('/api/my/settings', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
-        const allowed = ['educationConsent', 'notifAppointments', 'notifVisitWindow', 'notifHealthTips'];
+        const allowed = [
+            'educationConsent',
+            'notifAppointments',
+            'notifVisitWindow',
+            'notifOralHealthDaily',
+            'notifSymptomFollowUp',
+            'notifHealthTips',
+        ];
         const updates = {};
         for (const key of allowed) {
             if (typeof req.body[key] === 'boolean') {
                 updates[key] = req.body[key];
             }
+        }
+        
+        if (
+            req.body
+                .oralHealthReminderTime
+            !== undefined
+        ) {
+            const reminderTime =
+                String(
+                    req.body
+                        .oralHealthReminderTime
+                    || ''
+                ).trim();
+
+            if (
+                !/^(?:[01]\d|2[0-3]):[0-5]\d$/
+                    .test(reminderTime)
+            ) {
+                return res.status(400).json({
+                    message:
+                        'Oral Health Management reminder time must use HH:MM 24-hour format.',
+                });
+            }
+
+            updates
+                .oralHealthReminderTime =
+                reminderTime;
         }
 
         if (Object.keys(updates).length === 0) {
@@ -10820,7 +11197,18 @@ app.patch('/api/my/settings', verifyToken, async (req, res) => {
         const patient = await User.findByIdAndUpdate(
             req.user.id,
             { $set: updates },
-            { new: true, select: 'educationConsent notifAppointments notifVisitWindow notifHealthTips' }
+            {
+                new: true,
+                select: [
+                    'educationConsent',
+                    'notifAppointments',
+                    'notifVisitWindow',
+                    'notifOralHealthDaily',
+                    'notifSymptomFollowUp',
+                    'notifHealthTips',
+                    'oralHealthReminderTime',
+                ].join(' '),
+            }
         );
 
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -10834,11 +11222,24 @@ app.patch('/api/my/settings', verifyToken, async (req, res) => {
         });
 
         res.json({
-            message:           'Settings saved.',
-            educationConsent:  patient.educationConsent,
-            notifAppointments: patient.notifAppointments,
-            notifVisitWindow:  patient.notifVisitWindow,
-            notifHealthTips:   patient.notifHealthTips,
+            message:
+                'Settings saved.',
+            educationConsent:
+                patient.educationConsent,
+            notifAppointments:
+                patient.notifAppointments,
+            notifVisitWindow:
+                patient.notifVisitWindow,
+            notifOralHealthDaily:
+                patient.notifOralHealthDaily,
+            notifSymptomFollowUp:
+                patient.notifSymptomFollowUp,
+            notifHealthTips:
+                patient.notifHealthTips,
+            oralHealthReminderTime:
+                patient
+                    .oralHealthReminderTime
+                || DEFAULT_ORAL_HEALTH_REMINDER_TIME,
         });
     } catch (error) {
         console.error('Error saving patient settings:', error);
@@ -11264,9 +11665,20 @@ app.get('/api/dashboard/stats', verifyToken, async (req, res) => {
 // Get notifications for the logged-in user's role
 app.get('/api/notifications', verifyToken, async (req, res) => {
     try {
-        const currentUser = await User.findById(req.user.id).select(
-            'role notificationPreferences notifAppointments notifVisitWindow notifHealthTips'
-        );
+        const currentUser =
+            await User.findById(
+                req.user.id
+            ).select(
+                [
+                    'role',
+                    'notificationPreferences',
+                    'notifAppointments',
+                    'notifVisitWindow',
+                    'notifOralHealthDaily',
+                    'notifSymptomFollowUp',
+                    'notifHealthTips',
+                ].join(' ')
+            );
         if (!currentUser) {
             return res.status(404).json({ message: 'User not found.' });
         }
@@ -12714,7 +13126,17 @@ setInterval(() => {
         console.error('Appointment reminder worker error:', error);
     });
     remindPatientsAboutPredictiveVisitWindows().catch((error) => {
-        console.error('Predictive visit reminder worker error:', error);
+        console.error(
+            'Predictive visit reminder worker error:',
+            error
+        );
+    });
+
+    remindPatientsAboutOralHealthManagement().catch((error) => {
+        console.error(
+            'Oral Health Management reminder worker error:',
+            error
+        );
     });
 }, 60 * 1000);
 
@@ -12728,7 +13150,17 @@ remindPatientsAboutUpcomingAppointments().catch((error) => {
     console.error('Initial appointment reminder worker error:', error);
 });
 remindPatientsAboutPredictiveVisitWindows().catch((error) => {
-    console.error('Initial predictive visit reminder worker error:', error);
+    console.error(
+        'Initial predictive visit reminder worker error:',
+        error
+    );
+});
+
+remindPatientsAboutOralHealthManagement().catch((error) => {
+    console.error(
+        'Initial Oral Health Management reminder worker error:',
+        error
+    );
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

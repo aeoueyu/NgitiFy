@@ -16,9 +16,11 @@ const NotificationSchema = new mongoose.Schema({
             'APPOINTMENT_DECLINED',        // Admin/secretary declined booking
             'APPOINTMENT_STATUS_UPDATED',  // Appointment status changed after booking
             'APPOINTMENT_REMINDER',        // Scheduled — 24 hrs before appointment
-            'PREDICTIVE_VISIT_DUE',        // 14 days before predicted visit date
-            'PREDICTIVE_VISIT_OVERDUE',    // Past predicted visit date
-            'DENTAL_HEALTH_TIP',           // Weekly educational notification
+            'PREDICTIVE_VISIT_DUE',        // Recommended Visit Window is approaching
+            'PREDICTIVE_VISIT_OVERDUE',    // Recommended Visit Window has passed
+            'ORAL_HEALTH_DAILY_REMINDER',  // Daily Oral Health Management reminder
+            'ORAL_HEALTH_SYMPTOM_FOLLOW_UP', // Approved deterministic symptom follow-up
+            'DENTAL_HEALTH_TIP',           // Dental Health Education / oral-health tip
             'NEW_RADIOGRAPH',              // Dentist uploaded a new X-ray
         ]
     },
@@ -38,10 +40,14 @@ const NotificationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User'
     },
-    relatedId: { 
+        relatedId: {
         type: mongoose.Schema.Types.ObjectId
     },
-    isRead: { 
+    dedupeKey: {
+        type: String,
+        default: ''
+    },
+    isRead: {
         type: Boolean, 
         default: false 
     },
