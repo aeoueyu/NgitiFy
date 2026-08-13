@@ -29,18 +29,76 @@ const formatTimestamp = (ts) => {
 };
 
 const NOTIF_ICON_MAP = {
-    NEW_APPOINTMENT:             { name: 'calendar-outline',         lib: 'Ionicons',               color: '#1e88e5' },
-    APPOINTMENT_CONFIRMED:       { name: 'checkmark-circle-outline', lib: 'Ionicons',               color: '#2e7d32' },
-    APPOINTMENT_DECLINED:        { name: 'close-circle-outline',     lib: 'Ionicons',               color: '#c62828' },
-    APPOINTMENT_REMINDER:        { name: 'alarm-outline',            lib: 'Ionicons',               color: '#f57f17' },
-    APPOINTMENT_CANCELLED:       { name: 'ban-outline',              lib: 'Ionicons',               color: '#757575' },
-    APPOINTMENT_STATUS_UPDATED:  { name: 'sync-outline',             lib: 'Ionicons',               color: '#01538b' },
-    PREDICTIVE_VISIT_DUE:        { name: 'warning-outline',          lib: 'Ionicons',               color: '#e65100' },
-    PREDICTIVE_VISIT_OVERDUE:    { name: 'alert-circle-outline',     lib: 'Ionicons',               color: '#b71c1c' },
-    DENTAL_HEALTH_TIP:           { name: 'tooth-outline',            lib: 'MaterialCommunityIcons', color: '#00897b' },
-    NEW_RADIOGRAPH:              { name: 'bone',                     lib: 'MaterialCommunityIcons', color: '#4527a0' },
-    LOW_INVENTORY:               { name: 'cube-outline',             lib: 'Ionicons',               color: '#558b2f' },
-    NEW_PATIENT_REGISTRATION:    { name: 'person-add-outline',       lib: 'Ionicons',               color: '#00838f' },
+    NEW_APPOINTMENT: {
+        name: 'calendar-outline',
+        lib: 'Ionicons',
+        color: '#1e88e5',
+    },
+    APPOINTMENT_CONFIRMED: {
+        name: 'checkmark-circle-outline',
+        lib: 'Ionicons',
+        color: '#2e7d32',
+    },
+    APPOINTMENT_DECLINED: {
+        name: 'close-circle-outline',
+        lib: 'Ionicons',
+        color: '#c62828',
+    },
+    APPOINTMENT_REMINDER: {
+        name: 'alarm-outline',
+        lib: 'Ionicons',
+        color: '#f57f17',
+    },
+    APPOINTMENT_CANCELLED: {
+        name: 'ban-outline',
+        lib: 'Ionicons',
+        color: '#757575',
+    },
+    APPOINTMENT_STATUS_UPDATED: {
+        name: 'sync-outline',
+        lib: 'Ionicons',
+        color: '#01538b',
+    },
+    PREDICTIVE_VISIT_DUE: {
+        name: 'calendar-outline',
+        lib: 'Ionicons',
+        color: '#e65100',
+    },
+    PREDICTIVE_VISIT_OVERDUE: {
+        name: 'alert-circle-outline',
+        lib: 'Ionicons',
+        color: '#b71c1c',
+    },
+    ORAL_HEALTH_DAILY_REMINDER: {
+        name: 'toothbrush',
+        lib: 'MaterialCommunityIcons',
+        color: '#01538b',
+    },
+    ORAL_HEALTH_SYMPTOM_FOLLOW_UP: {
+        name: 'alert-circle-outline',
+        lib: 'Ionicons',
+        color: '#d97706',
+    },
+    DENTAL_HEALTH_TIP: {
+        name: 'book-open-page-variant-outline',
+        lib: 'MaterialCommunityIcons',
+        color: '#00897b',
+    },
+    NEW_RADIOGRAPH: {
+        name: 'bone',
+        lib: 'MaterialCommunityIcons',
+        color: '#4527a0',
+    },
+    LOW_INVENTORY: {
+        name: 'cube-outline',
+        lib: 'Ionicons',
+        color: '#558b2f',
+    },
+    NEW_PATIENT_REGISTRATION: {
+        name: 'person-add-outline',
+        lib: 'Ionicons',
+        color: '#00838f',
+    },
 };
 
 function NotifIcon({ type, size = 22 }) {
@@ -52,14 +110,57 @@ function NotifIcon({ type, size = 22 }) {
 }
 
 const getNavTarget = (type = '') => {
-    if (type.includes('APPOINTMENT')) return { screen: 'PatientTabs', params: { screen: 'MyAppointments' } };
-    if (type.includes('RADIOGRAPH')) return { screen: 'PatientTabs', params: { screen: 'MedicalRecords' } };
-    if (type.includes('TICKET') || type.includes('INQUIRY')) {
-        return { screen: 'AiPatientCareCompanion', params: { initialSection: 'inquiry' } };
+    const normalizedType =
+        String(type || '').trim();
+
+    if (
+        normalizedType.includes('APPOINTMENT')
+    ) {
+        return {
+            screen: 'PatientTabs',
+            params: {
+                screen: 'MyAppointments',
+            },
+        };
     }
-    if (type.includes('VISIT')) {
-        return { screen: 'AiPatientCareCompanion', params: { initialSection: 'visitWindow' } };
+
+    if (
+        normalizedType.includes('RADIOGRAPH')
+    ) {
+        return {
+            screen: 'PatientTabs',
+            params: {
+                screen: 'MedicalRecords',
+            },
+        };
     }
+
+    if (
+        normalizedType.includes('TICKET')
+        || normalizedType.includes('INQUIRY')
+    ) {
+        return {
+            screen: 'AiPatientCareCompanion',
+        };
+    }
+
+    if (
+        [
+            'PREDICTIVE_VISIT_DUE',
+            'PREDICTIVE_VISIT_OVERDUE',
+            'ORAL_HEALTH_DAILY_REMINDER',
+            'ORAL_HEALTH_SYMPTOM_FOLLOW_UP',
+            'DENTAL_HEALTH_TIP',
+        ].includes(normalizedType)
+    ) {
+        return {
+            screen: 'PatientTabs',
+            params: {
+                screen: 'OralCareInsights',
+            },
+        };
+    }
+
     return null;
 };
 
@@ -207,8 +308,9 @@ export default function NotificationsScreen({ navigation }) {
                 <Ionicons name="notifications-outline" size={52} color="#bbb" style={{ marginBottom: 16 }} />
                 <Text style={styles.emptyTitle}>No notifications yet</Text>
                 <Text style={styles.emptySubtitle}>
-                    You'll be notified here when your appointments are confirmed,
-                    when it's time to visit, and more.
+                    Appointment Alerts, Recommended Visit Window reminders,
+                    Oral Health Management reminders, Dental Health Education,
+                    and record updates will appear here.
                 </Text>
             </View>
         );

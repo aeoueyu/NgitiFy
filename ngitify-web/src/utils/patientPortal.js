@@ -65,16 +65,78 @@ export const ORAL_HEALTH_TIPS = [
 ];
 
 export const NOTIFICATION_META = {
-    NEW_APPOINTMENT: { icon: 'calendar-outline', library: 'Ionicons', color: '#1e88e5', label: 'Appointment' },
-    APPOINTMENT_CONFIRMED: { icon: 'checkmark-circle-outline', library: 'Ionicons', color: '#2e7d32', label: 'Confirmed' },
-    APPOINTMENT_DECLINED: { icon: 'close-circle-outline', library: 'Ionicons', color: '#c62828', label: 'Declined' },
-    APPOINTMENT_REMINDER: { icon: 'alarm-outline', library: 'Ionicons', color: '#f57f17', label: 'Reminder' },
-    APPOINTMENT_CANCELLED: { icon: 'ban-outline', library: 'Ionicons', color: '#757575', label: 'Cancelled' },
-    APPOINTMENT_STATUS_UPDATED: { icon: 'sync-outline', library: 'Ionicons', color: '#01538b', label: 'Updated' },
-    PREDICTIVE_VISIT_DUE: { icon: 'warning-outline', library: 'Ionicons', color: '#e65100', label: 'Visit Due' },
-    PREDICTIVE_VISIT_OVERDUE: { icon: 'alert-circle-outline', library: 'Ionicons', color: '#b71c1c', label: 'Visit Overdue' },
-    DENTAL_HEALTH_TIP: { icon: 'tooth-outline', library: 'MaterialCommunityIcons', color: '#00897b', label: 'Dental Tip' },
-    NEW_RADIOGRAPH: { icon: 'bone', library: 'MaterialCommunityIcons', color: '#4527a0', label: 'Radiograph' },
+    NEW_APPOINTMENT: {
+        icon: 'calendar-outline',
+        library: 'Ionicons',
+        color: '#1e88e5',
+        label: 'Appointment',
+    },
+    APPOINTMENT_CONFIRMED: {
+        icon: 'checkmark-circle-outline',
+        library: 'Ionicons',
+        color: '#2e7d32',
+        label: 'Confirmed',
+    },
+    APPOINTMENT_DECLINED: {
+        icon: 'close-circle-outline',
+        library: 'Ionicons',
+        color: '#c62828',
+        label: 'Declined',
+    },
+    APPOINTMENT_REMINDER: {
+        icon: 'alarm-outline',
+        library: 'Ionicons',
+        color: '#f57f17',
+        label: 'Appointment Reminder',
+    },
+    APPOINTMENT_CANCELLED: {
+        icon: 'ban-outline',
+        library: 'Ionicons',
+        color: '#757575',
+        label: 'Cancelled',
+    },
+    APPOINTMENT_STATUS_UPDATED: {
+        icon: 'sync-outline',
+        library: 'Ionicons',
+        color: '#01538b',
+        label: 'Appointment Updated',
+    },
+    PREDICTIVE_VISIT_DUE: {
+        icon: 'calendar-outline',
+        library: 'Ionicons',
+        color: '#e65100',
+        label: 'Recommended Visit Window',
+    },
+    PREDICTIVE_VISIT_OVERDUE: {
+        icon: 'alert-circle-outline',
+        library: 'Ionicons',
+        color: '#b71c1c',
+        label: 'Recommended Visit Window',
+    },
+    ORAL_HEALTH_DAILY_REMINDER: {
+        icon: 'toothbrush',
+        library: 'MaterialCommunityIcons',
+        color: '#01538b',
+        label: 'Oral Health Management',
+    },
+    ORAL_HEALTH_SYMPTOM_FOLLOW_UP: {
+        icon: 'alert-circle-outline',
+        library: 'Ionicons',
+        color: '#d97706',
+        label: 'Oral Health Management Follow-Up',
+    },
+    DENTAL_HEALTH_TIP: {
+        icon: 'book-open-page-variant-outline',
+        library: 'MaterialCommunityIcons',
+        color: '#00897b',
+        label: 'Dental Health Education',
+    },
+    NEW_RADIOGRAPH: {
+        icon: 'bone',
+        library: 'MaterialCommunityIcons',
+        color: '#4527a0',
+        label: 'Radiograph',
+    },
 };
 
 export const getTodayDateKey = () => new Date().toISOString().split('T')[0];
@@ -215,9 +277,39 @@ export const formatAddress = (address = {}) => {
 };
 
 export const getNotificationTarget = (type = '') => {
-    if (type.includes('APPOINTMENT')) return '/patient/appointments';
-    if (type.includes('RADIOGRAPH')) return '/patient/records?tab=radiographs';
-    if (type.includes('TICKET') || type.includes('INQUIRY')) return '/patient/ai-companion?tab=inquiry';
-    if (type.includes('VISIT')) return '/patient/oral-care';
+    const normalizedType =
+        String(type || '').trim();
+
+    if (
+        normalizedType.includes('APPOINTMENT')
+    ) {
+        return '/patient/appointments';
+    }
+
+    if (
+        normalizedType.includes('RADIOGRAPH')
+    ) {
+        return '/patient/records?tab=radiographs';
+    }
+
+    if (
+        normalizedType.includes('TICKET')
+        || normalizedType.includes('INQUIRY')
+    ) {
+        return '/patient/ai-companion';
+    }
+
+    if (
+        [
+            'PREDICTIVE_VISIT_DUE',
+            'PREDICTIVE_VISIT_OVERDUE',
+            'ORAL_HEALTH_DAILY_REMINDER',
+            'ORAL_HEALTH_SYMPTOM_FOLLOW_UP',
+            'DENTAL_HEALTH_TIP',
+        ].includes(normalizedType)
+    ) {
+        return '/patient/oral-care';
+    }
+
     return '';
 };

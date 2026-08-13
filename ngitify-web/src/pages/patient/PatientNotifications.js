@@ -117,7 +117,7 @@ export default function PatientNotifications() {
     return (
         <PatientPageFrame
             title="Notifications"
-            subtitle="Appointment alerts, predictive visit reminders, support updates, and patient-facing clinic notices."
+            subtitle="Appointment Alerts, Recommended Visit Window reminders, Oral Health Management reminders, Dental Health Education, and patient-facing clinic updates."
         >
             <div className={styles.metricGrid}>
                 <article className={styles.metricCard}>
@@ -167,7 +167,7 @@ export default function PatientNotifications() {
                 <PatientEmptyState
                     icon={<FaCheckCircle />}
                     title="No notifications yet"
-                    message="Appointment confirmations, visit reminders, support replies, and radiograph updates will appear here."
+                    message="Appointment Alerts, Recommended Visit Window reminders, Oral Health Management reminders, Dental Health Education, and record updates will appear here."
                 />
             )}
         </PatientPageFrame>
