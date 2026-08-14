@@ -28,7 +28,10 @@ export default function PatientSettings() {
     const [settings, setSettings] = useState({
         notifAppointments: true,
         notifVisitWindow: true,
+        notifOralHealthDaily: true,
+        notifSymptomFollowUp: true,
         notifHealthTips: true,
+        oralHealthReminderTime: '20:00',
         educationConsent: false,
     });
     const [loading, setLoading] = useState(true);
@@ -52,10 +55,27 @@ export default function PatientSettings() {
                 }
                 const payload = await response.json();
                 setSettings({
-                    notifAppointments: payload.notifAppointments ?? true,
-                    notifVisitWindow: payload.notifVisitWindow ?? true,
-                    notifHealthTips: payload.notifHealthTips ?? true,
-                    educationConsent: payload.educationConsent ?? false,
+                    notifAppointments:
+                        payload.notifAppointments
+                        ?? true,
+                    notifVisitWindow:
+                        payload.notifVisitWindow
+                        ?? true,
+                    notifOralHealthDaily:
+                        payload.notifOralHealthDaily
+                        ?? true,
+                    notifSymptomFollowUp:
+                        payload.notifSymptomFollowUp
+                        ?? true,
+                    notifHealthTips:
+                        payload.notifHealthTips
+                        ?? true,
+                    oralHealthReminderTime:
+                        payload.oralHealthReminderTime
+                        || '20:00',
+                    educationConsent:
+                        payload.educationConsent
+                        ?? false,
                 });
             } catch {
                 setSettingsMessage('Patient settings could not be loaded. Default values are shown.');
@@ -94,6 +114,93 @@ export default function PatientSettings() {
         } catch {
             setSettings((current) => ({ ...current, [key]: !value }));
             setSettingsMessage('Unable to save this setting. Please try again.');
+        } finally {
+            setSavingKey('');
+        }
+    };
+
+        const saveReminderTime = async (value) => {
+        const normalized = String(
+            value || ''
+        ).trim();
+
+        if (
+            !/^(?:[01]\d|2[0-3]):[0-5]\d$/
+                .test(normalized)
+        ) {
+            setSettingsMessage(
+                'Reminder time must use a valid 24-hour HH:MM time.'
+            );
+            return;
+        }
+
+        const previousValue =
+            settings.oralHealthReminderTime;
+
+        setSavingKey(
+            'oralHealthReminderTime'
+        );
+
+        setSettingsMessage('');
+
+        setSettings((current) => ({
+            ...current,
+            oralHealthReminderTime:
+                normalized,
+        }));
+
+        try {
+            const response =
+                await authFetch(
+                    '/my/settings',
+                    {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            oralHealthReminderTime:
+                                normalized,
+                        }),
+                    }
+                );
+
+            const payload =
+                await response
+                    .json()
+                    .catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    payload.message
+                    || 'Unable to save reminder time.'
+                );
+            }
+
+            setSettings((current) => ({
+                ...current,
+                oralHealthReminderTime:
+                    payload
+                        .oralHealthReminderTime
+                    || normalized,
+            }));
+
+            setSettingsMessage(
+                'Settings saved successfully.'
+            );
+
+            window.setTimeout(
+                () => setSettingsMessage(''),
+                2500
+            );
+        } catch (error) {
+            setSettings((current) => ({
+                ...current,
+                oralHealthReminderTime:
+                    previousValue,
+            }));
+
+            setSettingsMessage(
+                error.message
+                || 'Unable to save reminder time. Please try again.'
+            );
         } finally {
             setSavingKey('');
         }
@@ -256,36 +363,206 @@ export default function PatientSettings() {
 
     const renderNotificationsSection = () => (
         <div>
-            <h3 className={styles.mainSectionTitle}>Notification Settings</h3>
-            <p className={styles.sectionDescription}>Choose which patient alerts should be active for your account.</p>
+            <h3 className={styles.mainSectionTitle}>
+                Notification Settings
+            </h3>
+
+            <p className={styles.sectionDescription}>
+                Choose which patient alerts should be active for your account.
+                These preferences are shared with the NgitiFy mobile app.
+            </p>
+
             {settingsMessage && (
-                <div className={settingsMessage.includes('success') ? styles.successMessage : styles.apiErrorMessage} role={settingsMessage.includes('success') ? 'status' : 'alert'} aria-live="polite">
+                <div
+                    className={
+                        settingsMessage.includes(
+                            'success'
+                        )
+                            ? styles.successMessage
+                            : styles.apiErrorMessage
+                    }
+                    role={
+                        settingsMessage.includes(
+                            'success'
+                        )
+                            ? 'status'
+                            : 'alert'
+                    }
+                    aria-live="polite"
+                >
                     {settingsMessage}
                 </div>
             )}
 
             {[
-                ['notifAppointments', 'Appointment Alerts', 'Receive confirmations, declines, reminders, and appointment updates.'],
-                ['notifVisitWindow', 'Visit Window Reminders', 'Receive reminders when your next preventive visit is due.'],
-                ['notifHealthTips', 'Weekly Dental Health Tips', 'Receive Dental Health Education reminders about oral health and preventive care.'],
-            ].map(([key, label, description]) => (
-                <div key={key} className={styles.toggleRow}>
-                    <div className={styles.toggleLabel}>
-                        <span className={styles.toggleTitle}>{label}</span>
-                        <span className={styles.toggleDesc}>{description}</span>
+                [
+                    'notifAppointments',
+                    'Appointment Alerts',
+                    'Receive confirmations, declines, reminders, cancellations, and appointment updates.',
+                ],
+                [
+                    'notifVisitWindow',
+                    'Recommended Visit Window Reminders',
+                    'Receive reminders related to your current NgitiFy Recommended Visit Window.',
+                ],
+                [
+                    'notifOralHealthDaily',
+                    'Daily Oral Health Management Reminder',
+                    'Receive a reminder when today’s Daily Oral Health Log has not been completed by your selected reminder time.',
+                ],
+                [
+                    'notifSymptomFollowUp',
+                    'Symptom Follow-Up Reminders',
+                    'Receive non-diagnostic follow-up reminders generated only from approved Oral Health Management safety rules.',
+                ],
+                [
+                    'notifHealthTips',
+                    'Dental Health Education / Dental Health Tips',
+                    'Receive approved Dental Health Education and oral-health tip notifications.',
+                ],
+            ].map(
+                ([
+                    key,
+                    label,
+                    description,
+                ]) => (
+                    <div
+                        key={key}
+                        className={
+                            styles.toggleRow
+                        }
+                    >
+                        <div
+                            className={
+                                styles.toggleLabel
+                            }
+                        >
+                            <span
+                                className={
+                                    styles.toggleTitle
+                                }
+                            >
+                                {label}
+                            </span>
+
+                            <span
+                                className={
+                                    styles.toggleDesc
+                                }
+                            >
+                                {description}
+                            </span>
+                        </div>
+
+                        <label
+                            className={
+                                styles.switch
+                            }
+                        >
+                            <input
+                                type="checkbox"
+                                checked={
+                                    settings[key]
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    saveSetting(
+                                        key,
+                                        event
+                                            .target
+                                            .checked
+                                    )
+                                }
+                                disabled={
+                                    savingKey
+                                    === key
+                                }
+                                aria-label={
+                                    label
+                                }
+                            />
+
+                            <span
+                                className={
+                                    styles.slider
+                                }
+                            />
+                        </label>
                     </div>
-                    <label className={styles.switch}>
-                        <input
-                            type="checkbox"
-                            checked={settings[key]}
-                            onChange={(event) => saveSetting(key, event.target.checked)}
-                            disabled={savingKey === key}
-                            aria-label={label}
-                        />
-                        <span className={styles.slider}></span>
-                    </label>
+                )
+            )}
+
+            <div className={styles.toggleRow}>
+                <div
+                    className={
+                        styles.toggleLabel
+                    }
+                >
+                    <span
+                        className={
+                            styles.toggleTitle
+                        }
+                    >
+                        Daily Oral Health Management Reminder Time
+                    </span>
+
+                    <span
+                        className={
+                            styles.toggleDesc
+                        }
+                    >
+                        Choose when NgitiFy should check whether today&apos;s Daily Oral Health Log is still missing. No missing-log reminder is generated if today&apos;s log is already completed.
+                    </span>
                 </div>
-            ))}
+
+                <div
+                    style={{
+                        minWidth: '150px',
+                        marginLeft: '24px',
+                    }}
+                >
+                    <input
+                        type="time"
+                        className={
+                            styles.inputField
+                        }
+                        value={
+                            settings
+                                .oralHealthReminderTime
+                        }
+                        onChange={(event) =>
+                            saveReminderTime(
+                                event.target.value
+                            )
+                        }
+                        disabled={
+                            !settings
+                                .notifOralHealthDaily
+                            || savingKey
+                                === 'oralHealthReminderTime'
+                        }
+                        aria-label="Daily Oral Health Management reminder time"
+                    />
+
+                    {!settings
+                        .notifOralHealthDaily ? (
+                        <span
+                            className={
+                                styles.toggleDesc
+                            }
+                            style={{
+                                display:
+                                    'block',
+                                marginTop:
+                                    '6px',
+                            }}
+                        >
+                            Enable the daily reminder to use this time.
+                        </span>
+                    ) : null}
+                </div>
+            </div>
         </div>
     );
 

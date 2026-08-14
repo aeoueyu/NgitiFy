@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
-    View, Text, StyleSheet, TouchableOpacity, ScrollView,
-    Switch, Modal, TextInput, ActivityIndicator,
-    KeyboardAvoidingView, Platform, StatusBar, Image,
+    Alert,
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    ScrollView,
+    Switch,
+    Modal,
+    TextInput,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    StatusBar,
+    Image,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import LogoutModal from '../../components/LogoutModal';
@@ -34,10 +45,40 @@ export default function SettingsScreen({ navigation }) {
     const [isLogoutVisible, setIsLogoutVisible] = useState(false);
 
     // ── Settings state ──
-    const [notifAppointments, setNotifAppointments] = useState(true);
-    const [notifVisitWindow,  setNotifVisitWindow]  = useState(true);
-    const [notifHealthTips,   setNotifHealthTips]   = useState(true);
-    const [educationConsent,  setEducationConsent]  = useState(false);
+    const [
+        notifAppointments,
+        setNotifAppointments,
+    ] = useState(true);
+
+    const [
+        notifVisitWindow,
+        setNotifVisitWindow,
+    ] = useState(true);
+
+    const [
+        notifOralHealthDaily,
+        setNotifOralHealthDaily,
+    ] = useState(true);
+
+    const [
+        notifSymptomFollowUp,
+        setNotifSymptomFollowUp,
+    ] = useState(true);
+
+    const [
+        notifHealthTips,
+        setNotifHealthTips,
+    ] = useState(true);
+
+    const [
+        oralHealthReminderTime,
+        setOralHealthReminderTime,
+    ] = useState('20:00');
+
+    const [
+        educationConsent,
+        setEducationConsent,
+    ] = useState(false);
 
     // ── Loading states ──
     const [loadingSettings, setLoadingSettings] = useState(true);
@@ -72,10 +113,40 @@ export default function SettingsScreen({ navigation }) {
             const res  = await fetch(`${API_BASE_URL}/api/my/settings`, { headers: authHeader });
             if (!res.ok) throw new Error();
             const data = await res.json();
-            setNotifAppointments(data.notifAppointments ?? true);
-            setNotifVisitWindow(data.notifVisitWindow   ?? true);
-            setNotifHealthTips(data.notifHealthTips     ?? true);
-            setEducationConsent(data.educationConsent   ?? false);
+            setNotifAppointments(
+                data.notifAppointments
+                ?? true
+            );
+
+            setNotifVisitWindow(
+                data.notifVisitWindow
+                ?? true
+            );
+
+            setNotifOralHealthDaily(
+                data.notifOralHealthDaily
+                ?? true
+            );
+
+            setNotifSymptomFollowUp(
+                data.notifSymptomFollowUp
+                ?? true
+            );
+
+            setNotifHealthTips(
+                data.notifHealthTips
+                ?? true
+            );
+
+            setOralHealthReminderTime(
+                data.oralHealthReminderTime
+                || '20:00'
+            );
+
+            setEducationConsent(
+                data.educationConsent
+                ?? false
+            );
         } catch {
             // Non-critical — use defaults
         } finally {
@@ -95,21 +166,139 @@ export default function SettingsScreen({ navigation }) {
     }, [newPassword]);
 
     // ── Toggle handlers ──────────────────────────────────────────────────────
-    const saveToggle = async (key, value) => {
+        const saveToggle = async (
+        key,
+        value
+    ) => {
         setSavingKey(key);
+
         try {
-            await fetch(`${API_BASE_URL}/api/my/settings`, {
-                method:  'PATCH',
-                headers: { ...authHeader, 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ [key]: value }),
-            });
-        } catch {}
-        finally { setSavingKey(null); }
+            const response =
+                await fetch(
+                    `${API_BASE_URL}/api/my/settings`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            ...authHeader,
+                            'Content-Type':
+                                'application/json',
+                        },
+                        body:
+                            JSON.stringify({
+                                [key]:
+                                    value,
+                            }),
+                    }
+                );
+
+            const payload =
+                await response
+                    .json()
+                    .catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    payload.message
+                    || 'Unable to save this setting.'
+                );
+            }
+
+            return true;
+        } catch (error) {
+            Alert.alert(
+                'Setting Not Saved',
+                error.message
+                || 'Unable to save this setting. Please try again.'
+            );
+
+            await fetchSettings();
+
+            return false;
+        } finally {
+            setSavingKey(null);
+        }
     };
 
-    const handleToggle = (key, value, setter) => {
+    const handleToggle = (
+        key,
+        value,
+        setter
+    ) => {
         setter(value);
         saveToggle(key, value);
+    };
+
+    const saveReminderTime = async () => {
+        const normalized =
+            String(
+                oralHealthReminderTime
+                || ''
+            ).trim();
+
+        if (
+            !/^(?:[01]\d|2[0-3]):[0-5]\d$/
+                .test(normalized)
+        ) {
+            Alert.alert(
+                'Invalid Reminder Time',
+                'Use a valid 24-hour time in HH:MM format, for example 20:00.'
+            );
+
+            await fetchSettings();
+            return;
+        }
+
+        setSavingKey(
+            'oralHealthReminderTime'
+        );
+
+        try {
+            const response =
+                await fetch(
+                    `${API_BASE_URL}/api/my/settings`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            ...authHeader,
+                            'Content-Type':
+                                'application/json',
+                        },
+                        body:
+                            JSON.stringify({
+                                oralHealthReminderTime:
+                                    normalized,
+                            }),
+                    }
+                );
+
+            const payload =
+                await response
+                    .json()
+                    .catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    payload.message
+                    || 'Unable to save reminder time.'
+                );
+            }
+
+            setOralHealthReminderTime(
+                payload
+                    .oralHealthReminderTime
+                || normalized
+            );
+        } catch (error) {
+            Alert.alert(
+                'Reminder Time Not Saved',
+                error.message
+                || 'Unable to save the reminder time. Please try again.'
+            );
+
+            await fetchSettings();
+        } finally {
+            setSavingKey(null);
+        }
     };
 
     // ── Change Password flow ─────────────────────────────────────────────────
@@ -319,35 +508,195 @@ export default function SettingsScreen({ navigation }) {
                 </View>
 
                 {/* ── Notifications ── */}
-                <Text style={styles.sectionTitle}>Notifications</Text>
+                <Text style={styles.sectionTitle}>
+                    Notifications
+                </Text>
+
                 {loadingSettings ? (
                     <View style={styles.card}>
-                        <ActivityIndicator color="#01538b" style={{ padding: 20 }} />
+                        <ActivityIndicator
+                            color="#01538b"
+                            style={{
+                                padding: 20,
+                            }}
+                        />
                     </View>
                 ) : (
                     <View style={styles.card}>
                         {renderToggleRow(
                             'Appointment Alerts',
-                            'Confirmations, declines & reminders',
+                            'Confirmations, declines, reminders, cancellations, and updates',
                             notifAppointments,
-                            (v) => handleToggle('notifAppointments', v, setNotifAppointments),
-                            savingKey === 'notifAppointments',
+                            (value) =>
+                                handleToggle(
+                                    'notifAppointments',
+                                    value,
+                                    setNotifAppointments
+                                ),
+                            savingKey
+                                === 'notifAppointments'
                         )}
-                        <View style={styles.divider} />
+
+                        <View
+                            style={
+                                styles.divider
+                            }
+                        />
+
                         {renderToggleRow(
-                            'Visit Window Reminders',
-                            'Get notified when your check-up is due',
+                            'Recommended Visit Window Reminders',
+                            'Notifications related to your current Recommended Visit Window',
                             notifVisitWindow,
-                            (v) => handleToggle('notifVisitWindow', v, setNotifVisitWindow),
-                            savingKey === 'notifVisitWindow',
+                            (value) =>
+                                handleToggle(
+                                    'notifVisitWindow',
+                                    value,
+                                    setNotifVisitWindow
+                                ),
+                            savingKey
+                                === 'notifVisitWindow'
                         )}
-                        <View style={styles.divider} />
+
+                        <View
+                            style={
+                                styles.divider
+                            }
+                        />
+
                         {renderToggleRow(
-                            'Weekly Dental Health Tips',
-                            'Educational tips sent weekly',
+                            'Daily Oral Health Management Reminder',
+                            'Remind me when today’s Daily Oral Health Log is still missing',
+                            notifOralHealthDaily,
+                            (value) =>
+                                handleToggle(
+                                    'notifOralHealthDaily',
+                                    value,
+                                    setNotifOralHealthDaily
+                                ),
+                            savingKey
+                                === 'notifOralHealthDaily'
+                        )}
+
+                        {notifOralHealthDaily ? (
+                            <>
+                                <View
+                                    style={
+                                        styles.divider
+                                    }
+                                />
+
+                                <View
+                                    style={
+                                        styles.reminderTimeRow
+                                    }
+                                >
+                                    <View
+                                        style={
+                                            styles
+                                                .switchLabelGroup
+                                        }
+                                    >
+                                        <Text
+                                            style={
+                                                styles
+                                                    .menuText
+                                            }
+                                        >
+                                            Daily Reminder Time
+                                        </Text>
+
+                                        <Text
+                                            style={
+                                                styles
+                                                    .menuSub
+                                            }
+                                        >
+                                            24-hour HH:MM format. If today&apos;s log already exists, NgitiFy will not generate the missing-log reminder.
+                                        </Text>
+                                    </View>
+
+                                    {savingKey
+                                        === 'oralHealthReminderTime' ? (
+                                        <ActivityIndicator
+                                            size="small"
+                                            color="#01538b"
+                                            style={{
+                                                marginLeft:
+                                                    10,
+                                            }}
+                                        />
+                                    ) : (
+                                        <TextInput
+                                            style={
+                                                styles
+                                                    .reminderTimeInput
+                                            }
+                                            value={
+                                                oralHealthReminderTime
+                                            }
+                                            onChangeText={
+                                                setOralHealthReminderTime
+                                            }
+                                            onEndEditing={
+                                                saveReminderTime
+                                            }
+                                            placeholder="20:00"
+                                            placeholderTextColor="#aaa"
+                                            maxLength={5}
+                                            keyboardType={
+                                                Platform.OS
+                                                === 'ios'
+                                                    ? 'numbers-and-punctuation'
+                                                    : 'numeric'
+                                            }
+                                            autoCorrect={
+                                                false
+                                            }
+                                            accessibilityLabel="Daily Oral Health Management reminder time"
+                                        />
+                                    )}
+                                </View>
+                            </>
+                        ) : null}
+
+                        <View
+                            style={
+                                styles.divider
+                            }
+                        />
+
+                        {renderToggleRow(
+                            'Symptom Follow-Up Reminders',
+                            'Non-diagnostic follow-up reminders based only on approved Oral Health Management rules',
+                            notifSymptomFollowUp,
+                            (value) =>
+                                handleToggle(
+                                    'notifSymptomFollowUp',
+                                    value,
+                                    setNotifSymptomFollowUp
+                                ),
+                            savingKey
+                                === 'notifSymptomFollowUp'
+                        )}
+
+                        <View
+                            style={
+                                styles.divider
+                            }
+                        />
+
+                        {renderToggleRow(
+                            'Dental Health Education / Dental Health Tips',
+                            'Approved Dental Health Education and oral-health tip notifications',
                             notifHealthTips,
-                            (v) => handleToggle('notifHealthTips', v, setNotifHealthTips),
-                            savingKey === 'notifHealthTips',
+                            (value) =>
+                                handleToggle(
+                                    'notifHealthTips',
+                                    value,
+                                    setNotifHealthTips
+                                ),
+                            savingKey
+                                === 'notifHealthTips'
                         )}
                     </View>
                 )}
@@ -670,7 +1019,32 @@ const styles = StyleSheet.create({
         flexDirection: 'row', justifyContent: 'space-between',
         paddingVertical: 13, paddingHorizontal: 18, alignItems: 'center',
     },
-    switchLabelGroup: { flex: 1, paddingRight: 10 },
+    switchLabelGroup: {
+        flex: 1,
+        paddingRight: 10,
+    },
+
+    reminderTimeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 13,
+        paddingHorizontal: 18,
+    },
+
+    reminderTimeInput: {
+        width: 78,
+        minHeight: 42,
+        paddingHorizontal: 10,
+        borderWidth: 1,
+        borderColor: '#d5e9f4',
+        borderRadius: 10,
+        backgroundColor: '#f7fbfd',
+        color: '#17364a',
+        fontSize: 14,
+        fontWeight: '700',
+        textAlign: 'center',
+    },
 
     consentNote: {
         backgroundColor: '#f9f9f9', marginHorizontal: 18,
