@@ -279,7 +279,11 @@ export default function PatientDashboard() {
             navigate={navigate}
         >
             <div className={patientStyles.dashboardFocusGrid}>
-                <section className={patientStyles.dashboardWidget} aria-labelledby="patient-calendar-title">
+                <div className={patientStyles.dashboardLeftColumn}>
+                    <section
+                        className={patientStyles.dashboardWidget}
+                        aria-labelledby="patient-calendar-title"
+                    >
                     <div className={patientStyles.sectionHeader}>
                         <div>
                             <span className={patientStyles.sectionEyebrow}>Calendar</span>
@@ -324,7 +328,167 @@ export default function PatientDashboard() {
                         onChangeMonth={handleMonthChange}
                         onSelectDate={handleSelectDate}
                     />
-                </section>
+                    </section>
+
+                    <section
+                        className={`${patientStyles.dashboardWidget} ${patientStyles.dashboardSchedulePanel}`}
+                        aria-labelledby="selected-day-schedule-title"
+                    >
+                        <div className={patientStyles.sectionHeader}>
+                            <div>
+                                <span className={patientStyles.sectionEyebrow}>
+                                    Selected-Day Schedule
+                                </span>
+
+                                <h2
+                                    id="selected-day-schedule-title"
+                                    className={patientStyles.sectionTitle}
+                                >
+                                    {selectedDateLabel}
+                                </h2>
+
+                                <p className={patientStyles.sectionDescription}>
+                                    Appointments refresh when you choose another date.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                className={patientStyles.buttonSecondary}
+                                onClick={() =>
+                                    navigate('/patient/appointments')
+                                }
+                            >
+                                My Appointments
+                                {' '}
+                                <FaChevronRight
+                                    aria-hidden="true"
+                                    focusable="false"
+                                />
+                            </button>
+                        </div>
+
+                        {loading ? (
+                            <div className={patientStyles.loaderBox}>
+                                <span className={patientStyles.loaderText}>
+                                    Loading your schedule...
+                                </span>
+                            </div>
+                        ) : appointmentError ? (
+                            <PatientEmptyState
+                                icon={<FaCalendarAlt />}
+                                title="Schedule unavailable"
+                                message={appointmentError}
+                                action={(
+                                    <button
+                                        type="button"
+                                        className={patientStyles.buttonSecondary}
+                                        onClick={fetchDashboard}
+                                    >
+                                        Try Again
+                                    </button>
+                                )}
+                            />
+                        ) : selectedDateAppointments.length ? (
+                            <div className={patientStyles.dashboardScheduleList}>
+                                {selectedDateAppointments.map(
+                                    (appointment) => (
+                                        <article
+                                            key={appointment._id}
+                                            className={
+                                                patientStyles
+                                                    .dashboardScheduleItem
+                                            }
+                                        >
+                                            <div
+                                                className={
+                                                    patientStyles
+                                                        .dashboardScheduleTime
+                                                }
+                                            >
+                                                <strong>
+                                                    {appointment.time
+                                                        ? formatTime24(
+                                                            appointment.time
+                                                        )
+                                                        : 'Time pending'}
+                                                </strong>
+
+                                                <PatientStatusBadge
+                                                    status={
+                                                        appointment.status
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div
+                                                className={
+                                                    patientStyles
+                                                        .dashboardScheduleBody
+                                                }
+                                            >
+                                                <h3>
+                                                    {appointment.procedure
+                                                        || 'Upcoming Appointment'}
+                                                </h3>
+
+                                                <p>
+                                                    {getDentistLabel(
+                                                        appointment
+                                                    )}
+                                                </p>
+
+                                                <p>
+                                                    {getBranchLabel(
+                                                        appointment,
+                                                        assignedBranch
+                                                    )}
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className={
+                                                    patientStyles.buttonGhost
+                                                }
+                                                onClick={() =>
+                                                    navigate(
+                                                        '/patient/appointments'
+                                                    )
+                                                }
+                                                aria-label={
+                                                    `View details for ${
+                                                        appointment.procedure
+                                                        || 'appointment'
+                                                    } on ${selectedDateLabel}`
+                                                }
+                                            >
+                                                Details
+                                            </button>
+                                        </article>
+                                    )
+                                )}
+                            </div>
+                        ) : (
+                            <PatientEmptyState
+                                icon={<FaCalendarAlt />}
+                                title="No appointment on this day"
+                                message="Choose another date or open My Appointments when you are ready to review or request an appointment."
+                                action={(
+                                    <button
+                                        type="button"
+                                        className={patientStyles.buttonSecondary}
+                                        onClick={() =>
+                                            navigate('/patient/appointments')
+                                        }
+                                    >
+                                        Open My Appointments
+                                    </button>
+                                )}
+                            />
+                        )}
+                    </section>
+                </div>
 
                 <div className={patientStyles.dashboardSideStack}>
                     <section className={patientStyles.dashboardWidget} aria-labelledby="oral-management-summary-title">
@@ -394,91 +558,15 @@ export default function PatientDashboard() {
                             <button
                                 type="button"
                                 className={patientStyles.buttonSecondary}
-                                onClick={() => setVisitReasonOpen(true)}
+                                onClick={() =>
+                                    setVisitReasonOpen(true)
+                                }
                             >
                                 Why am I seeing this?
-                            </button>
-                            <button
-                                type="button"
-                                className={patientStyles.buttonGhost}
-                                onClick={() => navigate('/patient/appointments?mode=book')}
-                            >
-                                Book Appointment
                             </button>
                         </div>
                     </section>
                 </div>
-
-                <section className={`${patientStyles.dashboardWidget} ${patientStyles.dashboardSchedulePanel}`} aria-labelledby="selected-day-schedule-title">
-                    <div className={patientStyles.sectionHeader}>
-                        <div>
-                            <span className={patientStyles.sectionEyebrow}>Selected-Day Schedule</span>
-                            <h2 id="selected-day-schedule-title" className={patientStyles.sectionTitle}>{selectedDateLabel}</h2>
-                            <p className={patientStyles.sectionDescription}>
-                                Appointments refresh when you choose another date.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            className={patientStyles.buttonSecondary}
-                            onClick={() => navigate('/patient/appointments')}
-                        >
-                            My Appointments <FaChevronRight aria-hidden="true" focusable="false" />
-                        </button>
-                    </div>
-
-                    {loading ? (
-                        <div className={patientStyles.loaderBox}>
-                            <span className={patientStyles.loaderText}>Loading your schedule...</span>
-                        </div>
-                    ) : appointmentError ? (
-                        <PatientEmptyState
-                            icon={<FaCalendarAlt />}
-                            title="Schedule unavailable"
-                            message={appointmentError}
-                            action={(
-                                <button type="button" className={patientStyles.buttonSecondary} onClick={fetchDashboard}>
-                                    Try Again
-                                </button>
-                            )}
-                        />
-                    ) : selectedDateAppointments.length ? (
-                        <div className={patientStyles.dashboardScheduleList}>
-                            {selectedDateAppointments.map((appointment) => (
-                                <article key={appointment._id} className={patientStyles.dashboardScheduleItem}>
-                                    <div className={patientStyles.dashboardScheduleTime}>
-                                        <strong>{appointment.time ? formatTime24(appointment.time) : 'Time pending'}</strong>
-                                        <PatientStatusBadge status={appointment.status} />
-                                    </div>
-                                    <div className={patientStyles.dashboardScheduleBody}>
-                                        <h3>{appointment.procedure || 'Upcoming Appointment'}</h3>
-                                        <p>{getDentistLabel(appointment)}</p>
-                                        <p>{getBranchLabel(appointment, assignedBranch)}</p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className={patientStyles.buttonGhost}
-                                        onClick={() => navigate('/patient/appointments')}
-                                        aria-label={`View details for ${appointment.procedure || 'appointment'} on ${selectedDateLabel}`}
-                                    >
-                                        Details
-                                    </button>
-                                </article>
-                            ))}
-                        </div>
-                    ) : (
-                        <PatientEmptyState
-                            icon={<FaCalendarAlt />}
-                            title="No appointment on this day"
-                            message="Choose another date or request a new appointment when you are ready."
-                            action={(
-                                <button type="button" className={patientStyles.buttonPrimary} onClick={() => navigate('/patient/appointments?mode=book')}>
-                                    Book Appointment
-                                </button>
-                            )}
-                        />
-                    )}
-                </section>
             </div>
 
             <button
