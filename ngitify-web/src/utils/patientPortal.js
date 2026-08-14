@@ -16,54 +16,6 @@ export const CHATBOT_SUGGESTIONS = [
 
 export const INQUIRY_CATEGORIES = ['General', 'Treatment', 'Schedule', 'Billing'];
 
-export const EDUCATION_ARTICLES = [
-    {
-        id: '1',
-        iconName: 'toothbrush',
-        iconLib: 'MaterialCommunityIcons',
-        iconColor: '#01538b',
-        title: 'Proper Brushing Technique',
-        summary: 'Brush for 2 minutes, twice a day using circular motions at a 45 degree angle.',
-        body: 'Use a soft-bristled toothbrush and fluoride toothpaste. Hold the brush at a 45 degree angle to your gums. Use short, gentle circular strokes instead of scrubbing. Brush outer surfaces, inner surfaces, and chewing surfaces of all teeth, and clean your tongue too. Replace your toothbrush every 3 to 4 months.',
-    },
-    {
-        id: '2',
-        iconName: 'tooth-outline',
-        iconLib: 'MaterialCommunityIcons',
-        iconColor: '#00897b',
-        title: 'Why Flossing Matters',
-        summary: 'Flossing removes plaque from areas your toothbrush cannot reach.',
-        body: 'Floss at least once a day, ideally before bed. Break off about 45 cm of floss and wind it around your middle fingers. Gently slide it between teeth in a C-shape motion and go just below the gumline. Floss picks and water flossers can also help. Skipping flossing leaves many tooth surfaces uncleaned.',
-    },
-    {
-        id: '3',
-        iconName: 'nutrition-outline',
-        iconLib: 'Ionicons',
-        iconColor: '#2e7d32',
-        title: 'Foods That Protect Your Teeth',
-        summary: 'Cheese, leafy greens, and crunchy vegetables naturally support enamel.',
-        body: 'Dairy products provide calcium and phosphates that help remineralize enamel. Crunchy fruits and vegetables increase saliva production, which helps wash away bacteria. Leafy greens are rich in calcium and folic acid. Water, especially fluoridated water, is still one of the best drinks for oral health.',
-    },
-    {
-        id: '4',
-        iconName: 'cafe-outline',
-        iconLib: 'Ionicons',
-        iconColor: '#c62828',
-        title: 'Habits That Harm Your Teeth',
-        summary: 'Coffee, soda, tobacco, and grinding can speed up dental problems.',
-        body: 'Sugary and acidic drinks erode enamel over time, especially if sipped throughout the day. Tobacco increases the risk of gum disease, tooth loss, and oral cancer. Grinding your teeth damages enamel and can cause jaw pain. Using your teeth to open objects can chip or fracture them.',
-    },
-];
-
-export const ORAL_HEALTH_TIPS = [
-    { id: '1', iconName: 'sunny-outline', iconLib: 'Ionicons', iconColor: '#f57f17', title: 'Morning Routine', tip: 'Brush and rinse before breakfast to remove overnight bacteria buildup.' },
-    { id: '2', iconName: 'moon-outline', iconLib: 'Ionicons', iconColor: '#5c6bc0', title: 'Night Routine', tip: 'Brush and floss before bed. This is the most important brushing session.' },
-    { id: '3', iconName: 'water-outline', iconLib: 'Ionicons', iconColor: '#0288d1', title: 'Stay Hydrated', tip: 'Drink water after meals to rinse away food particles and acid.' },
-    { id: '4', iconName: 'flask-outline', iconLib: 'Ionicons', iconColor: '#00897b', title: 'Mouthwash', tip: 'Use fluoride or antibacterial mouthwash to reach areas brushing misses.' },
-    { id: '5', iconName: 'calendar-outline', iconLib: 'Ionicons', iconColor: '#01538b', title: 'Regular Check-ups', tip: 'Visit your dentist every 6 months for cleaning and early detection.' },
-    { id: '6', iconName: 'toothbrush', iconLib: 'MaterialCommunityIcons', iconColor: '#6a1b9a', title: 'Change Your Brush', tip: 'Replace your toothbrush every 3 months or after any illness.' },
-];
-
 export const NOTIFICATION_META = {
     NEW_APPOINTMENT: {
         icon: 'calendar-outline',

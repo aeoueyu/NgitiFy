@@ -108,13 +108,33 @@ const toDateKey = (value = new Date()) => {
 
 export default function OralCareInsightsScreen({ navigation, route }) {
   const { userToken, API_BASE_URL } = useContext(AuthContext);
-  const [oralHealth, setOralHealth] = useState(route?.params?.oralHealth || null);
-  const [loading, setLoading] = useState(!route?.params?.oralHealth);
+  const [oralHealth, setOralHealth] = useState(
+    route?.params?.oralHealth || null
+  );
+
+  const [
+    visitPrediction,
+    setVisitPrediction,
+  ] = useState(
+    route?.params?.visitPrediction || null
+  );
+
+  const [loading, setLoading] = useState(
+    !route?.params?.oralHealth
+  );
+
   const [saving, setSaving] = useState(false);
 
   const preview = useMemo(
-    () => getStaticOralCarePreview(route?.params?.visitPrediction || null, oralHealth),
-    [oralHealth, route?.params?.visitPrediction],
+    () =>
+      getStaticOralCarePreview(
+        visitPrediction,
+        oralHealth
+      ),
+    [
+      oralHealth,
+      visitPrediction,
+    ],
   );
 
   const [factors, setFactors] = useState(preview.factors);
@@ -126,28 +146,119 @@ export default function OralCareInsightsScreen({ navigation, route }) {
   const [educationCategory, setEducationCategory] = useState('all');
   const [selectedEducationArticle, setSelectedEducationArticle] = useState(null);
 
-  const fetchOralHealth = useCallback(async () => {
-    if (!userToken) return;
+  const fetchCareData = useCallback(async () => {
+    if (
+      !userToken
+      || !API_BASE_URL
+    ) {
+      return;
+    }
+
     setLoading(true);
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/my/oral-health`, {
-        headers: { Authorization: `Bearer ${userToken}` },
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.message || 'Could not load oral health data.');
-      setOralHealth(payload);
+      const [
+        oralHealthResult,
+        visitPredictionResult,
+      ] = await Promise.allSettled([
+        fetch(
+          `${API_BASE_URL}/api/my/oral-health`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${userToken}`,
+            },
+          },
+        ),
+        fetch(
+          `${API_BASE_URL}/api/my/visit-prediction`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${userToken}`,
+            },
+          },
+        ),
+      ]);
+
+      if (
+        oralHealthResult.status
+        === 'fulfilled'
+      ) {
+        const response =
+          oralHealthResult.value;
+
+        const payload =
+          await response
+            .json()
+            .catch(() => ({}));
+
+        if (response.ok) {
+          setOralHealth(payload);
+        } else if (
+          !route?.params?.oralHealth
+        ) {
+          throw new Error(
+            payload.message
+            || 'Could not load oral health data.'
+          );
+        }
+      } else if (
+        !route?.params?.oralHealth
+      ) {
+        throw new Error(
+          'Unable to connect to the oral health service.'
+        );
+      }
+
+      if (
+        visitPredictionResult.status
+        === 'fulfilled'
+      ) {
+        const response =
+          visitPredictionResult.value;
+
+        const payload =
+          await response
+            .json()
+            .catch(() => ({}));
+
+        if (response.ok) {
+          setVisitPrediction(
+            payload?.prediction
+            || null
+          );
+        } else if (
+          !route?.params
+            ?.visitPrediction
+        ) {
+          setVisitPrediction(null);
+        }
+      } else if (
+        !route?.params
+          ?.visitPrediction
+      ) {
+        setVisitPrediction(null);
+      }
     } catch (error) {
-      Alert.alert('Oral Health Management', error.message || 'Unable to connect to the oral health service.');
+      Alert.alert(
+        'Oral Health Management',
+        error.message
+        || 'Unable to load your Oral Health Management information.'
+      );
     } finally {
       setLoading(false);
     }
-  }, [API_BASE_URL, userToken]);
+  }, [
+    API_BASE_URL,
+    route?.params?.oralHealth,
+    route?.params?.visitPrediction,
+    userToken,
+  ]);
 
   useEffect(() => {
-    if (!route?.params?.oralHealth) {
-      fetchOralHealth();
-    }
-  }, [fetchOralHealth, route?.params?.oralHealth]);
+    fetchCareData();
+  }, [fetchCareData]);
 
   useEffect(() => {
     setFactors(preview.factors);
@@ -398,9 +509,27 @@ export default function OralCareInsightsScreen({ navigation, route }) {
 
         <SurfaceCard style={styles.heroCard}>
           <View style={styles.heroTopRow}>
-            <Text style={styles.heroEyebrow}>{preview.hero.eyebrow}</Text>
-            <View style={styles.previewBadge}>
-              <Text style={styles.previewBadgeText}>Preview</Text>
+            <Text style={styles.heroEyebrow}>
+              {preview.hero.eyebrow}
+            </Text>
+
+            <View style={styles.systemBadge}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={14}
+                color={
+                  mobileTheme.colors
+                    .primaryDark
+                }
+              />
+
+              <Text
+                style={
+                  styles.systemBadgeText
+                }
+              >
+                System Recommendation
+              </Text>
             </View>
           </View>
 
@@ -413,7 +542,9 @@ export default function OralCareInsightsScreen({ navigation, route }) {
             <Text style={styles.heroStatusText}>{preview.hero.statusLabel}</Text>
           </View>
 
-          <Text style={styles.previewHint}>Based on</Text>
+          <Text style={styles.previewHint}>
+            Recommendation based on
+          </Text>
           <View style={styles.summaryChipRow}>
             {(preview.hero.sourceLabels || []).map((source) => (
               <View key={source} style={styles.summaryChip}>
@@ -430,7 +561,9 @@ export default function OralCareInsightsScreen({ navigation, route }) {
             ))}
           </View>
 
-          <Text style={styles.previewHint}>{preview.hero.previewHint}</Text>
+          <Text style={styles.previewHint}>
+            {preview.hero.previewHint}
+          </Text>
 
           <View style={styles.heroActions}>
             <PrimaryButton
@@ -480,10 +613,12 @@ export default function OralCareInsightsScreen({ navigation, route }) {
         </SurfaceCard>
 
         <SectionLabel
-          eyebrow="Quick Log"
-          title="Daily Care Preview"
+          eyebrow="Daily Oral Health Log"
+          title="Record Today"
           actionLabel="Open"
-          onActionPress={() => setLogVisible(true)}
+          onActionPress={() =>
+            setLogVisible(true)
+          }
           style={styles.sectionSpacing}
         />
         <SurfaceCard style={styles.summaryCard}>
@@ -1066,13 +1201,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  previewBadge: {
+  systemBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: mobileTheme.radii.pill,
     backgroundColor: mobileTheme.colors.primarySoft,
   },
-  previewBadgeText: {
+  systemBadgeText: {
     fontSize: 11,
     fontWeight: '800',
     color: mobileTheme.colors.primaryDark,
