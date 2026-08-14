@@ -42,9 +42,8 @@ function AppointmentCard({ appointment, onSelect }) {
     return (
         <button
             type="button"
-            className={styles.listCard}
+            className={`${styles.listCard} ${styles.listCardButton}`}
             onClick={() => onSelect(appointment)}
-            style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
             aria-label={`View details for ${appointment.procedure || 'appointment'} on ${formatDateDisplay(appointment.date, { weekday: 'short' })} at ${formatTime24(appointment.time)}`}
         >
             <div className={styles.listHeader}>
@@ -63,7 +62,9 @@ function AppointmentCard({ appointment, onSelect }) {
 
             {appointment.notes ? (
                 <div className={styles.noticeBox}>
-                    <strong style={{ display: 'block', marginBottom: '6px', color: '#17364a' }}>Notes</strong>
+                    <strong className={styles.noticeTitle}>
+                        Notes
+                    </strong>
                     {appointment.notes}
                 </div>
             ) : null}

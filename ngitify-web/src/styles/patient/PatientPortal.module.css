@@ -778,6 +778,24 @@ button.toolCard:focus-visible {
     margin-bottom: 14px;
 }
 
+.listCardButton {
+    width: 100%;
+    appearance: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+}
+
+.listCardButton:hover {
+    border-color: rgba(1, 83, 139, 0.14);
+    box-shadow: var(--patient-shadow-hover);
+}
+
+.listCardButton:focus-visible {
+    border-color: var(--patient-accent);
+}
+
 .listHeader {
     display: flex;
     flex-wrap: wrap;
@@ -1778,6 +1796,13 @@ button.toolCard:focus-visible {
     font-size: 13px;
     line-height: 1.6;
     border: 1px solid #e2e8f0;
+}
+
+.noticeTitle {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--patient-text);
+    font-weight: 800;
 }
 
 .loaderBox {

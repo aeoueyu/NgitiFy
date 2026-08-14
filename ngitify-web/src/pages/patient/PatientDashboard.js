@@ -534,7 +534,9 @@ export default function PatientDashboard() {
                             </div>
                             <div className={patientStyles.dashboardMiniRow}>
                                 <span className={patientStyles.dashboardMiniLabel}>System Source</span>
-                                <span className={patientStyles.dashboardMiniValue}>{visitPrediction?.intervalLabel || 'Preventive timing preview'}</span>
+                                <span className={patientStyles.dashboardMiniValue}>
+                                    {visitPrediction?.intervalLabel || 'System recommendation details unavailable'}
+                                </span>
                             </div>
                             <div className={patientStyles.dashboardMiniRow}>
                                 <span className={patientStyles.dashboardMiniLabel}>Explanation</span>

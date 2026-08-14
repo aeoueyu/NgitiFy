@@ -4,6 +4,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/AdminSettings.module.css';
 import PasswordField from '../../components/common/PasswordField';
+import {
+    PatientPageFrame,
+} from '../../components/patient/PatientFrame';
 
 const getPasswordChecklist = (value) => ({
     length: value.length >= 8,
@@ -621,53 +624,99 @@ export default function PatientSettings() {
     );
 
     return (
-        <div className={styles.container}>
-            <div className={styles.headerWrapper}>
-                <div className={styles.header}>
-                    <h1 className={styles.title}>Settings</h1>
-                    <p className={styles.subtitle}>Manage your patient account security, notifications, privacy, and account actions.</p>
-                </div>
-            </div>
-
+        <PatientPageFrame
+            title="Settings"
+            subtitle="Manage your patient account security, notifications, privacy, and account actions."
+        >
             {loading ? (
                 <div className={styles.contentArea}>
-                    <h3 className={styles.mainSectionTitle}>Loading Settings</h3>
-                    <p className={styles.sectionDescription}>Loading your patient settings...</p>
+                    <h3 className={styles.mainSectionTitle}>
+                        Loading Settings
+                    </h3>
+
+                    <p className={styles.sectionDescription}>
+                        Loading your patient settings...
+                    </p>
                 </div>
             ) : (
                 <div className={styles.settingsLayout}>
-                    <div className={styles.sidebar}>
-                        <ul className={styles.tabList} role="tablist" aria-label="Patient settings sections">
+                    <nav
+                        className={styles.sidebar}
+                        aria-label="Patient settings"
+                    >
+                        <ul
+                            className={styles.tabList}
+                            role="tablist"
+                            aria-label="Patient settings sections"
+                        >
                             {[
-                                ['security', 'Account Security'],
-                                ['notifications', 'Notifications'],
-                                ['privacy', 'Privacy and Data'],
-                                ['account', 'Account Actions'],
+                                [
+                                    'security',
+                                    'Account Security',
+                                ],
+                                [
+                                    'notifications',
+                                    'Notifications',
+                                ],
+                                [
+                                    'privacy',
+                                    'Privacy and Data',
+                                ],
+                                [
+                                    'account',
+                                    'Account Actions',
+                                ],
                             ].map(([key, label]) => (
                                 <li key={key}>
                                     <button
                                         type="button"
                                         role="tab"
-                                        aria-selected={activeTab === key}
-                                        aria-controls={`patient-settings-${key}`}
-                                        className={`${styles.tabItem} ${activeTab === key ? styles.activeTab : ''}`}
-                                        onClick={() => setActiveTab(key)}
+                                        id={`patient-settings-tab-${key}`}
+                                        aria-selected={
+                                            activeTab === key
+                                        }
+                                        aria-controls={
+                                            `patient-settings-${key}`
+                                        }
+                                        className={`${styles.tabItem} ${
+                                            activeTab === key
+                                                ? styles.activeTab
+                                                : ''
+                                        }`}
+                                        onClick={() =>
+                                            setActiveTab(key)
+                                        }
                                     >
                                         {label}
                                     </button>
                                 </li>
                             ))}
                         </ul>
-                    </div>
+                    </nav>
 
-                    <div className={styles.contentArea} id={`patient-settings-${activeTab}`} role="tabpanel">
-                        {activeTab === 'security' && renderSecuritySection()}
-                        {activeTab === 'notifications' && renderNotificationsSection()}
-                        {activeTab === 'privacy' && renderPrivacySection()}
-                        {activeTab === 'account' && renderAccountSection()}
-                    </div>
+                    <section
+                        className={styles.contentArea}
+                        id={`patient-settings-${activeTab}`}
+                        role="tabpanel"
+                        aria-labelledby={
+                            `patient-settings-tab-${activeTab}`
+                        }
+                        tabIndex={0}
+                    >
+                        {activeTab === 'security'
+                            && renderSecuritySection()}
+
+                        {activeTab === 'notifications'
+                            && renderNotificationsSection()}
+
+                        {activeTab === 'privacy'
+                            && renderPrivacySection()}
+
+                        {activeTab === 'account'
+                            && renderAccountSection()}
+                    </section>
                 </div>
             )}
-        </div>
+        </PatientPageFrame>
     );
 }
