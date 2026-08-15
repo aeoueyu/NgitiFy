@@ -91,53 +91,88 @@ export const AuthProvider = ({ children }) => {
 
     // ─── Login ───────────────────────────────────────────────────────────────
     const login = async (email, password) => {
-        setIsLoading(true);
         try {
             const res = await fetch(`${API_BASE_URL}/api/login`, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ email, password }),
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email,
+                    password,
+                }),
             });
 
-            const data = await res.json();
+            const data = await res
+                .json()
+                .catch(() => ({}));
 
             if (!res.ok) {
-                // Backend returns 400/403/404 with a { message } body
-                return { success: false, message: data.message || 'Login failed. Please try again.' };
-            }
-
-            const { token, role, userId: id } = data;
-
-            // Only patients may use the mobile app
-            if (role !== 'patient') {
                 return {
                     success: false,
-                    message: 'This app is for patients only. Please use the web portal.',
+                    message:
+                        data.message
+                        || 'Login failed. Please check your email and password.',
                 };
             }
 
-            // Persist session
+            const {
+                token,
+                role,
+                userId: id,
+            } = data;
+
+            // Only patients may use the mobile app.
+            if (role !== 'patient') {
+                return {
+                    success: false,
+                    message:
+                        'This app is for patients only. Please use the web portal.',
+                };
+            }
+
             await Promise.all([
-                AsyncStorage.setItem(STORAGE_KEYS.TOKEN,   token),
-                AsyncStorage.setItem(STORAGE_KEYS.USER_ID, id.toString()),
-                AsyncStorage.setItem(STORAGE_KEYS.ROLE,    role),
+                AsyncStorage.setItem(
+                    STORAGE_KEYS.TOKEN,
+                    token,
+                ),
+
+                AsyncStorage.setItem(
+                    STORAGE_KEYS.USER_ID,
+                    id.toString(),
+                ),
+
+                AsyncStorage.setItem(
+                    STORAGE_KEYS.ROLE,
+                    role,
+                ),
             ]);
 
-            // Fetch full profile (name, email)
-            const profile = await fetchUserProfile(id, token);
+            const profile =
+                await fetchUserProfile(
+                    id,
+                    token,
+                );
 
             setUserToken(token);
             setUserId(id);
             setUserRole(role);
             setUserInfo(profile);
 
-            return { success: true };
-
+            return {
+                success: true,
+            };
         } catch (err) {
-            console.error('Login error:', err);
-            return { success: false, message: 'Unable to connect to the server. Please check your internet connection.' };
-        } finally {
-            setIsLoading(false);
+            console.error(
+                'Login error:',
+                err,
+            );
+
+            return {
+                success: false,
+                message:
+                    'Unable to connect to the server. Please check your internet connection.',
+            };
         }
     };
 
