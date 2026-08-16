@@ -107,6 +107,111 @@ const oralHealthLogSchema = new mongoose.Schema({
     notes: { type: String, default: '' },
 }, { timestamps: true });
 
+const patientOnboardingSchema = new mongoose.Schema({
+    version: {
+        type: Number,
+        required: true,
+        min: 1,
+    },
+
+    completed: {
+        type: Boolean,
+        default: false,
+    },
+
+    completedAt: {
+        type: Date,
+        default: null,
+    },
+
+    currentStep: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 8,
+    },
+
+    preferredName: {
+        type: String,
+        default: '',
+        maxlength: 60,
+    },
+
+    educationInterests: [{
+        type: String,
+        enum: [
+            'better-brushing-routine',
+            'consistent-flossing',
+            'gum-care',
+            'tooth-sensitivity',
+            'oral-health-symptoms',
+            'appointment-reminders',
+            'recommended-visits',
+            'preventive-dental-care',
+        ],
+    }],
+
+    oralCareRoutine: {
+        brushing: {
+            type: String,
+            enum: [
+                '',
+                'twice-daily',
+                'once-daily',
+                'varies',
+                'prefer-not-to-say',
+            ],
+            default: '',
+        },
+
+        flossing: {
+            type: String,
+            enum: [
+                '',
+                'most-days',
+                'sometimes',
+                'rarely',
+                'prefer-not-to-say',
+            ],
+            default: '',
+        },
+    },
+
+    experiencePreferences: {
+        oralHealthManagement: {
+            type: Boolean,
+            default: true,
+        },
+
+        dentalHealthEducation: {
+            type: Boolean,
+            default: true,
+        },
+
+        visitRecommendations: {
+            type: Boolean,
+            default: true,
+        },
+
+        appointmentUpdates: {
+            type: Boolean,
+            default: true,
+        },
+    },
+
+    startedAt: {
+        type: Date,
+        default: null,
+    },
+
+    updatedAt: {
+        type: Date,
+        default: null,
+    },
+}, {
+    _id: false,
+});
+
 const userSchema = new mongoose.Schema({
     // 1. NESTED NAME OBJECT
     name: {
@@ -313,6 +418,20 @@ const userSchema = new mongoose.Schema({
     },
 
     // ✅ PATIENT MOBILE: Patient-specific preferences (Phase 3)
+    /*
+     * First-time Patient Mobile onboarding.
+     *
+     * IMPORTANT:
+     * Do not give this field a schema default.
+     * Existing Patients created before onboarding intentionally
+     * have no patientOnboarding value and are treated as legacy
+     * established accounts rather than being blocked.
+     */
+    patientOnboarding: {
+        type: patientOnboardingSchema,
+        default: undefined,
+    },
+
     educationConsent:   { type: Boolean, default: false }, // Allow personalized Dental Health Education
     notifAppointments:  { type: Boolean, default: true  }, // Appointment Alerts
     notifVisitWindow:   { type: Boolean, default: true  }, // Recommended Visit Window reminders

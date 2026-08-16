@@ -77,6 +77,14 @@ const {
     buildPatientAiCareContext,
     mergePatientAiLiveContext,
 } = require('./utils/patientAi');
+
+const {
+    PATIENT_ONBOARDING_VERSION,
+    createInitialPatientOnboardingState,
+    serializePatientOnboarding,
+    normalizePatientOnboardingUpdate,
+} = require('./utils/patientOnboarding');
+
 // ADD this line with the other model imports (after the AuditLog import)
 const {
     DEFAULT_ORAL_HEALTH_REMINDER_TIME,
@@ -3320,6 +3328,9 @@ const provisionGuestPatientAccountForAppointment = async ({ surgery, actor }) =>
         activationToken: undefined,
         temporaryPasswordExpires: null,
         isPasswordChanged: false,
+
+        patientOnboarding:
+            createInitialPatientOnboardingState(),
     });
     await newUser.save();
 
@@ -5450,6 +5461,9 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
             activationTokenExpires: new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS),
             temporaryPasswordExpires: null,
             isPasswordChanged: false,
+
+            patientOnboarding:
+                createInitialPatientOnboardingState(),
         });
         await newUser.save();
 
@@ -7886,6 +7900,9 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             activationTokenExpires: new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS),
             temporaryPasswordExpires: null,
             isPasswordChanged: false,
+
+            patientOnboarding:
+                createInitialPatientOnboardingState(),
         });
         await newUser.save();
 
@@ -11090,7 +11107,439 @@ app.post('/api/my/oral-health/logs', verifyToken, async (req, res) => {
     }
 });
 
-// GET /api/my/settings — return patient's current preferences
+// -------------------------------------------------------
+// PATIENT MOBILE — FIRST-TIME ONBOARDING
+// -------------------------------------------------------
+
+app.get(
+    '/api/my/onboarding',
+    verifyToken,
+    async (req, res) => {
+        try {
+            if (
+                req.user.role
+                !== 'patient'
+            ) {
+                return res
+                    .status(403)
+                    .json({
+                        message:
+                            'Access denied.',
+                    });
+            }
+
+            const patient =
+                await User
+                    .findById(
+                        req.user.id
+                    )
+                    .select(
+                        [
+                            'name',
+                            'appConsentGiven',
+                            'patientOnboarding',
+                            'notifAppointments',
+                            'notifVisitWindow',
+                            'notifOralHealthDaily',
+                            'notifSymptomFollowUp',
+                            'notifHealthTips',
+                            'educationConsent',
+                        ].join(' ')
+                    );
+
+            if (!patient) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            'Patient not found.',
+                    });
+            }
+
+            return res.json({
+                onboarding:
+                    serializePatientOnboarding(
+                        patient
+                            .patientOnboarding
+                    ),
+
+                patient: {
+                    firstName:
+                        patient.name
+                            ?.first
+                        || '',
+
+                    appConsentGiven:
+                        patient
+                            .appConsentGiven
+                        === true,
+                },
+
+                notificationPreferences: {
+                    notifAppointments:
+                        patient
+                            .notifAppointments
+                        ?? true,
+
+                    notifVisitWindow:
+                        patient
+                            .notifVisitWindow
+                        ?? true,
+
+                    notifOralHealthDaily:
+                        patient
+                            .notifOralHealthDaily
+                        ?? true,
+
+                    notifSymptomFollowUp:
+                        patient
+                            .notifSymptomFollowUp
+                        ?? true,
+
+                    notifHealthTips:
+                        patient
+                            .notifHealthTips
+                        ?? true,
+
+                    educationConsent:
+                        patient
+                            .educationConsent
+                        ?? false,
+                },
+            });
+        } catch (error) {
+            console.error(
+                'Error fetching patient onboarding:',
+                error
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        'Server error loading onboarding.',
+                });
+        }
+    }
+);
+
+app.patch(
+    '/api/my/onboarding',
+    verifyToken,
+    async (req, res) => {
+        try {
+            if (
+                req.user.role
+                !== 'patient'
+            ) {
+                return res
+                    .status(403)
+                    .json({
+                        message:
+                            'Access denied.',
+                    });
+            }
+
+            const patient =
+                await User
+                    .findById(
+                        req.user.id
+                    )
+                    .select(
+                        [
+                            'email',
+                            'patientOnboarding',
+                        ].join(' ')
+                    );
+
+            if (!patient) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            'Patient not found.',
+                    });
+            }
+
+            /*
+             * Legacy established accounts are not automatically
+             * converted into first-time users. If they ever enter
+             * onboarding voluntarily in a future UI, initialize
+             * their state explicitly at that time.
+             */
+            const existing =
+                patient
+                    .patientOnboarding
+                || createInitialPatientOnboardingState();
+
+            const updates =
+                normalizePatientOnboardingUpdate({
+                    input:
+                        req.body
+                        || {},
+
+                    existing,
+                });
+
+            if (
+                Object.keys(updates)
+                    .length === 0
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            'No valid onboarding fields provided.',
+                    });
+            }
+
+            const now =
+                new Date();
+
+            if (
+                !patient
+                    .patientOnboarding
+            ) {
+                patient.patientOnboarding =
+                    createInitialPatientOnboardingState();
+            }
+
+            if (
+                !patient
+                    .patientOnboarding
+                    .startedAt
+            ) {
+                patient
+                    .patientOnboarding
+                    .startedAt =
+                    now;
+            }
+
+            patient
+                .patientOnboarding
+                .version =
+                PATIENT_ONBOARDING_VERSION;
+
+            Object.entries(
+                updates
+            ).forEach(
+                ([
+                    key,
+                    value,
+                ]) => {
+                    patient
+                        .patientOnboarding[
+                            key
+                        ] =
+                        value;
+                }
+            );
+
+            patient
+                .patientOnboarding
+                .updatedAt =
+                now;
+
+            await patient.save();
+
+            await AuditLog.create({
+                action:
+                    'UPDATE_PATIENT_ONBOARDING',
+
+                user:
+                    req.user.email,
+
+                role:
+                    req.user.role,
+
+                details:
+                    `Patient updated onboarding preferences: ${Object.keys(updates).join(', ')}`,
+
+                actorId:
+                    req.user.id,
+            });
+
+            return res.json({
+                message:
+                    'Onboarding progress saved.',
+
+                onboarding:
+                    serializePatientOnboarding(
+                        patient
+                            .patientOnboarding
+                    ),
+            });
+        } catch (error) {
+            const statusCode =
+                error.statusCode
+                || 500;
+
+            console.error(
+                'Error saving patient onboarding:',
+                error
+            );
+
+            return res
+                .status(statusCode)
+                .json({
+                    message:
+                        statusCode
+                        === 500
+                            ? 'Server error saving onboarding.'
+                            : error.message,
+                });
+        }
+    }
+);
+
+app.post(
+    '/api/my/onboarding/complete',
+    verifyToken,
+    async (req, res) => {
+        try {
+            if (
+                req.user.role
+                !== 'patient'
+            ) {
+                return res
+                    .status(403)
+                    .json({
+                        message:
+                            'Access denied.',
+                    });
+            }
+
+            const patient =
+                await User
+                    .findById(
+                        req.user.id
+                    )
+                    .select(
+                        [
+                            'email',
+                            'appConsentGiven',
+                            'patientOnboarding',
+                        ].join(' ')
+                    );
+
+            if (!patient) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            'Patient not found.',
+                    });
+            }
+
+            /*
+             * The current application already treats app privacy
+             * consent as an essential Patient gate. Onboarding
+             * completion must not bypass that requirement.
+             */
+            if (
+                patient
+                    .appConsentGiven
+                !== true
+            ) {
+                return res
+                    .status(409)
+                    .json({
+                        message:
+                            'App privacy consent must be completed before onboarding can be finished.',
+                    });
+            }
+
+            if (
+                !patient
+                    .patientOnboarding
+            ) {
+                patient.patientOnboarding =
+                    createInitialPatientOnboardingState();
+            }
+
+            const now =
+                new Date();
+
+            if (
+                !patient
+                    .patientOnboarding
+                    .startedAt
+            ) {
+                patient
+                    .patientOnboarding
+                    .startedAt =
+                    now;
+            }
+
+            patient
+                .patientOnboarding
+                .version =
+                PATIENT_ONBOARDING_VERSION;
+
+            patient
+                .patientOnboarding
+                .completed =
+                true;
+
+            patient
+                .patientOnboarding
+                .completedAt =
+                now;
+
+            patient
+                .patientOnboarding
+                .currentStep =
+                8;
+
+            patient
+                .patientOnboarding
+                .updatedAt =
+                now;
+
+            await patient.save();
+
+            await AuditLog.create({
+                action:
+                    'COMPLETE_PATIENT_ONBOARDING',
+
+                user:
+                    req.user.email,
+
+                role:
+                    req.user.role,
+
+                details:
+                    'Patient completed Mobile first-time onboarding.',
+
+                actorId:
+                    req.user.id,
+            });
+
+            return res.json({
+                message:
+                    'Onboarding completed.',
+
+                onboarding:
+                    serializePatientOnboarding(
+                        patient
+                            .patientOnboarding
+                    ),
+            });
+        } catch (error) {
+            console.error(
+                'Error completing patient onboarding:',
+                error
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        'Server error completing onboarding.',
+                });
+        }
+    }
+);
 app.get('/api/my/settings', verifyToken, async (req, res) => {
     try {
         if (req.user.role !== 'patient') {
