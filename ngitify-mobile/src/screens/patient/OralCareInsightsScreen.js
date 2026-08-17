@@ -2157,6 +2157,15 @@ export default function OralCareInsightsScreen({
                     )
                   }
                   accessibilityRole="button"
+                  accessibilityLabel={
+                    `${day.weekday} ${day.day}. ${
+                      day.hasLog
+                        ? 'Oral health log saved.'
+                        : future
+                          ? 'Future date.'
+                          : 'No oral health log saved.'
+                    }`
+                  }
                   accessibilityState={{
                     selected,
                     disabled: future,
@@ -2268,12 +2277,11 @@ export default function OralCareInsightsScreen({
                 styles.cardBody
               }
             >
-              A Daily Oral Health
-              Log already exists for
-              this date. Opening it
-              edits and updates the
-              same patient/date
-              record.
+              Your oral health log
+              for this date is saved.
+              Review your selections
+              below or edit them
+              anytime.
             </Text>
 
             <View
@@ -2335,8 +2343,8 @@ export default function OralCareInsightsScreen({
             }
           >
             {selectedDateIsFuture
-              ? 'Future dates are not editable.'
-              : 'No Daily Oral Health Log has been saved for this date yet.'}
+              ? 'Future dates cannot be logged yet.'
+              : 'Nothing logged yet. Add a quick oral health check-in for this date.'}
           </Text>
         )}
 
@@ -2353,6 +2361,11 @@ export default function OralCareInsightsScreen({
                 : 'add-circle-outline'
             }
             onPress={openLog}
+            accessibilityLabel={
+              selectedLog
+                ? `Edit oral health log for ${formatLongDate(selectedDateKey)}`
+                : `Log oral health for ${formatLongDate(selectedDateKey)}`
+            }
             style={{
               marginTop: 10,
             }}
@@ -3858,6 +3871,10 @@ export default function OralCareInsightsScreen({
                 <Text
                   style={
                     styles.logProgressLabel
+                  }
+                  accessibilityRole="header"
+                  accessibilityLabel={
+                    `Oral health log step ${logStep + 1} of 4`
                   }
                 >
                   Step {logStep + 1} of 4
@@ -5854,11 +5871,12 @@ const styles = StyleSheet.create({
   },
 
   logSheet: {
-    maxHeight: '90%',
+    maxHeight: '94%',
+    minHeight: '64%',
 
     paddingHorizontal: 18,
     paddingTop: 18,
-    paddingBottom: 24,
+    paddingBottom: 18,
 
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -6448,7 +6466,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingTop: 12,
+    paddingTop: 14,
+    paddingBottom: 4,
     borderTopWidth: 1,
     borderTopColor:
       mobileTheme.colors
