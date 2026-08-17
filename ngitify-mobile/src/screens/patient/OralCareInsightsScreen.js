@@ -692,6 +692,11 @@ export default function OralCareInsightsScreen({
   ] = useState(false);
 
   const [
+    logStep,
+    setLogStep,
+  ] = useState(0);
+
+  const [
     trendDays,
     setTrendDays,
   ] = useState(7);
@@ -1388,6 +1393,8 @@ export default function OralCareInsightsScreen({
       return;
     }
 
+    setLogStep(0);
+    setSymptomDetailId(null);
     setLogVisible(true);
   };
 
@@ -1674,6 +1681,109 @@ export default function OralCareInsightsScreen({
     );
   };
 
+    const activeLogGroup =
+    useMemo(() => {
+      const groupId =
+        logStep === 0
+          ? 'symptoms'
+          : logStep === 1
+            ? 'dailyCare'
+            : logStep === 2
+              ? 'riskFactors'
+              : null;
+
+      if (!groupId) {
+        return null;
+      }
+
+      return (
+        logGroups.find(
+          (group) =>
+            group.id === groupId,
+        )
+        || null
+      );
+    }, [
+      logGroups,
+      logStep,
+    ]);
+
+  const selectedLogItemsByGroup =
+    useMemo(
+      () => ({
+        symptoms:
+          logGroups
+            .find(
+              (group) =>
+                group.id
+                === 'symptoms',
+            )
+            ?.items
+            ?.filter(
+              (item) =>
+                item.selected,
+            )
+            || [],
+
+        dailyCare:
+          logGroups
+            .find(
+              (group) =>
+                group.id
+                === 'dailyCare',
+            )
+            ?.items
+            ?.filter(
+              (item) =>
+                item.selected,
+            )
+            || [],
+
+        riskFactors:
+          logGroups
+            .find(
+              (group) =>
+                group.id
+                === 'riskFactors',
+            )
+            ?.items
+            ?.filter(
+              (item) =>
+                item.selected,
+            )
+            || [],
+      }),
+      [logGroups],
+    );
+
+  const closeLog = () => {
+    setLogVisible(false);
+    setLogStep(0);
+    setSymptomDetailId(null);
+  };
+
+  const goToPreviousLogStep =
+    () => {
+      setLogStep(
+        (current) =>
+          Math.max(
+            0,
+            current - 1,
+          ),
+      );
+    };
+
+  const goToNextLogStep =
+    () => {
+      setLogStep(
+        (current) =>
+          Math.min(
+            3,
+            current + 1,
+          ),
+      );
+    };
+
   const saveFactors =
     async () => {
       setSaving(true);
@@ -1906,10 +2016,7 @@ export default function OralCareInsightsScreen({
         }
 
         setOralHealth(payload);
-        setLogVisible(false);
-        setSymptomDetailId(
-          null,
-        );
+        closeLog();
 
         Alert.alert(
           'Oral Health Management',
@@ -2237,8 +2344,8 @@ export default function OralCareInsightsScreen({
           <PrimaryButton
             label={
               selectedLog
-                ? 'Edit Daily Oral Health Log'
-                : 'Add Daily Oral Health Log'
+                ? 'Edit Oral Health Log'
+                : 'Log Oral Health'
             }
             icon={
               selectedLog
@@ -2257,6 +2364,34 @@ export default function OralCareInsightsScreen({
   const renderToday =
     () => (
       <>
+        <SectionLabel
+          eyebrow="Oral Health Management"
+          title={
+            selectedDateKey
+              === todayKey
+              ? "Today's Oral Health"
+              : 'Selected Date'
+          }
+          actionLabel={
+            selectedDateKey
+              === todayKey
+              ? undefined
+              : 'Today'
+          }
+          onActionPress={
+            goToToday
+          }
+        />
+
+        {renderWeekStrip()}
+
+        {renderSelectedLogCard()}
+
+        <SectionLabel
+          eyebrow="Recommended Visit Window"
+          title="Your Current Visit Guidance"
+        />
+
         <SurfaceCard
           style={styles.heroCard}
         >
@@ -2427,24 +2562,6 @@ export default function OralCareInsightsScreen({
         </SurfaceCard>
 
         <SectionLabel
-          eyebrow="Date-First Flow"
-          title="Choose a Date"
-          actionLabel={
-            selectedDateKey
-              === todayKey
-              ? undefined
-              : 'Today'
-          }
-          onActionPress={
-            goToToday
-          }
-        />
-
-        {renderWeekStrip()}
-
-        {renderSelectedLogCard()}
-
-        <SectionLabel
           eyebrow="Oral Health Management"
           title="Current Factors"
           actionLabel="Open"
@@ -2554,6 +2671,8 @@ export default function OralCareInsightsScreen({
               'education',
             )
           }
+          accessibilityRole="button"
+          accessibilityLabel="Open Dental Health Education"
         >
           <View
             style={
@@ -3696,8 +3815,8 @@ export default function OralCareInsightsScreen({
         visible={logVisible}
         transparent
         animationType="slide"
-        onRequestClose={() =>
-          setLogVisible(false)
+        onRequestClose={
+          closeLog
         }
       >
         <View
@@ -3713,277 +3832,487 @@ export default function OralCareInsightsScreen({
             <SheetHeader
               title={
                 selectedLog
-                  ? 'Edit Daily Oral Health Log'
-                  : 'Add Daily Oral Health Log'
+                  ? 'Edit Oral Health Log'
+                  : 'Log Oral Health'
               }
               subtitle={
                 formatLongDate(
                   selectedDateKey,
                 )
               }
-              onClose={() => {
-                setLogVisible(false);
-                setSymptomDetailId(
-                  null,
-                );
-              }}
+              onClose={
+                closeLog
+              }
             />
+
+            <View
+              style={
+                styles.logProgressArea
+              }
+            >
+              <View
+                style={
+                  styles.logProgressTop
+                }
+              >
+                <Text
+                  style={
+                    styles.logProgressLabel
+                  }
+                >
+                  Step {logStep + 1} of 4
+                </Text>
+
+                <Text
+                  style={
+                    styles.logProgressTitle
+                  }
+                >
+                  {logStep === 0
+                    ? 'Symptoms'
+                    : logStep === 1
+                      ? 'Daily Care'
+                      : logStep === 2
+                        ? 'Other Factors'
+                        : 'Review'}
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.logProgressTrack
+                }
+                accessibilityRole="progressbar"
+                accessibilityValue={{
+                  min: 1,
+                  max: 4,
+                  now:
+                    logStep + 1,
+                  text:
+                    `Step ${logStep + 1} of 4`,
+                }}
+              >
+                <View
+                  style={[
+                    styles.logProgressFill,
+                    {
+                      width:
+                        `${((logStep + 1) / 4) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
 
             <ScrollView
               showsVerticalScrollIndicator={
                 false
               }
               keyboardShouldPersistTaps="handled"
+              contentContainerStyle={
+                styles.logStepScroll
+              }
             >
-              <View
-                style={
-                  styles.editState
-                }
-              >
-                <Ionicons
-                  name={
-                    selectedLog
-                      ? 'create-outline'
-                      : 'add-circle-outline'
-                  }
-                  size={18}
-                  color={
-                    mobileTheme.colors
-                      .primaryDark
-                  }
-                />
-
-                <Text
-                  style={
-                    styles.editStateText
-                  }
-                >
-                  {selectedLog
-                    ? 'A log already exists for this date. Saving updates the same patient/date record.'
-                    : 'No log exists for this date. Saving creates the patient/date record.'}
-                </Text>
-              </View>
-
-              {logGroups.map(
-                (group) => (
-                  <View
-                    key={group.id}
+              {logStep < 3
+              && activeLogGroup ? (
+                <>
+                  <Text
                     style={
-                      styles.logGroup
+                      styles.logStepTitle
+                    }
+                  >
+                    {logStep === 0
+                      ? 'How are you feeling?'
+                      : logStep === 1
+                        ? 'What did you do for your oral care?'
+                        : 'Any other factors today?'}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.logStepDescription
+                    }
+                  >
+                    {logStep === 0
+                      ? 'Select what applies. Choose No Symptoms when none of the listed symptoms apply.'
+                      : logStep === 1
+                        ? 'Select the care habits that apply to this date.'
+                        : 'Select any relevant factors. Leave everything unselected if none apply.'}
+                  </Text>
+
+                  <View
+                    style={
+                      styles.logChipWrap
+                    }
+                  >
+                    {activeLogGroup
+                      .items
+                      .map((item) => {
+                        const supportsDetails =
+                          activeLogGroup.id
+                            === 'symptoms'
+                          && Array.isArray(
+                            item.detailFields,
+                          )
+                          && item
+                            .detailFields
+                            .length
+                            > 0;
+
+                        return (
+                          <View
+                            key={item.id}
+                            style={
+                              styles.logItemWrap
+                            }
+                          >
+                            <TouchableOpacity
+                              style={[
+                                styles.logChip,
+                                item.selected
+                                  && styles
+                                    .logChipActive,
+                              ]}
+                              activeOpacity={
+                                0.84
+                              }
+                              onPress={() =>
+                                toggleLogItem(
+                                  activeLogGroup.id,
+                                  item.id,
+                                )
+                              }
+                              accessibilityRole="checkbox"
+                              accessibilityState={{
+                                checked:
+                                  Boolean(
+                                    item.selected,
+                                  ),
+                              }}
+                              accessibilityLabel={
+                                item.label
+                              }
+                            >
+                              <Text
+                                style={[
+                                  styles.logChipText,
+                                  item.selected
+                                    && styles
+                                      .logChipTextActive,
+                                ]}
+                              >
+                                {item.label}
+                              </Text>
+
+                              {item.selected ? (
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={17}
+                                  color="#ffffff"
+                                />
+                              ) : null}
+                            </TouchableOpacity>
+
+                            {supportsDetails
+                            && item
+                              .selected ? (
+                              <TouchableOpacity
+                                style={
+                                  styles.detailButton
+                                }
+                                activeOpacity={
+                                  0.82
+                                }
+                                onPress={() =>
+                                  setSymptomDetailId(
+                                    item.id,
+                                  )
+                                }
+                                accessibilityRole="button"
+                                accessibilityLabel={
+                                  `Add details for ${item.label}`
+                                }
+                              >
+                                <Ionicons
+                                  name="options-outline"
+                                  size={13}
+                                  color={
+                                    mobileTheme
+                                      .colors
+                                      .primaryDark
+                                  }
+                                />
+
+                                <Text
+                                  style={
+                                    styles
+                                      .detailButtonText
+                                  }
+                                >
+                                  {symptomDetails[
+                                    item.id
+                                  ]?.severity
+                                  || symptomDetails[
+                                    item.id
+                                  ]?.duration
+                                    ? 'Details saved'
+                                    : 'Add details'}
+                                </Text>
+                              </TouchableOpacity>
+                            ) : null}
+                          </View>
+                        );
+                      })}
+                  </View>
+
+                  {logStep === 0 ? (
+                    <View
+                      style={
+                        styles.disclaimerInline
+                      }
+                    >
+                      <Ionicons
+                        name="information-circle-outline"
+                        size={17}
+                        color={
+                          mobileTheme
+                            .colors
+                            .primaryDark
+                        }
+                      />
+
+                      <Text
+                        style={
+                          styles.disclaimerText
+                        }
+                      >
+                        No Symptoms is exclusive. Severity and duration are optional descriptive details and do not create a diagnosis.
+                      </Text>
+                    </View>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <Text
+                    style={
+                      styles.logStepTitle
+                    }
+                  >
+                    Review your log
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.logStepDescription
+                    }
+                  >
+                    Check what you selected before saving. You can go back to make changes.
+                  </Text>
+
+                  <View
+                    style={
+                      styles.logReviewCard
                     }
                   >
                     <Text
                       style={
-                        styles.logGroupTitle
+                        styles.logReviewLabel
                       }
                     >
-                      {group.title}
+                      Symptoms
                     </Text>
 
-                    {group.id
-                      === 'symptoms' ? (
-                      <Text
-                        style={
-                          styles
-                            .logGroupHint
-                        }
-                      >
-                        No Symptoms is
-                        exclusive. Some
-                        symptoms support
-                        optional severity
-                        and duration
-                        details.
-                      </Text>
-                    ) : null}
-
-                    <View
+                    <Text
                       style={
-                        styles.logChipWrap
+                        styles.logReviewValue
                       }
                     >
-                      {group.items.map(
-                        (item) => {
-                          const supportsDetails =
-                            group.id
-                              === 'symptoms'
-                            && Array.isArray(
-                              item
-                                .detailFields,
-                            )
-                            && item
-                              .detailFields
-                              .length
-                              > 0;
-
-                          return (
-                            <View
-                              key={
-                                item.id
-                              }
-                              style={
-                                styles
-                                  .logItemWrap
-                              }
-                            >
-                              <TouchableOpacity
-                                style={[
-                                  styles.logChip,
-
-                                  item.selected
-                                    && styles
-                                      .logChipActive,
-                                ]}
-                                activeOpacity={0.84}
-                                onPress={() =>
-                                  toggleLogItem(
-                                    group.id,
-                                    item.id,
-                                  )
-                                }
-                                accessibilityRole="checkbox"
-                                accessibilityState={{
-                                  checked:
-                                    Boolean(
-                                      item.selected,
-                                    ),
-                                }}
-                              >
-                                <Text
-                                  style={[
-                                    styles
-                                      .logChipText,
-
-                                    item.selected
-                                      && styles
-                                        .logChipTextActive,
-                                  ]}
-                                >
-                                  {item.label}
-                                </Text>
-                              </TouchableOpacity>
-
-                              {supportsDetails
-                                && item
-                                  .selected ? (
-                                <TouchableOpacity
-                                  style={
-                                    styles
-                                      .detailButton
-                                  }
-                                  activeOpacity={0.82}
-                                  onPress={() =>
-                                    setSymptomDetailId(
-                                      item.id,
-                                    )
-                                  }
-                                >
-                                  <Ionicons
-                                    name="options-outline"
-                                    size={13}
-                                    color={
-                                      mobileTheme
-                                        .colors
-                                        .primaryDark
-                                    }
-                                  />
-
-                                  <Text
-                                    style={
-                                      styles
-                                        .detailButtonText
-                                    }
-                                  >
-                                    {symptomDetails[
-                                      item.id
-                                    ]?.severity
-                                    || symptomDetails[
-                                      item.id
-                                    ]?.duration
-                                      ? 'Details saved'
-                                      : 'Details'}
-                                  </Text>
-                                </TouchableOpacity>
-                              ) : null}
-                            </View>
-                          );
-                        },
-                      )}
-                    </View>
+                      {selectedLogItemsByGroup
+                        .symptoms
+                        .length
+                        ? selectedLogItemsByGroup
+                          .symptoms
+                          .map(
+                            (item) =>
+                              item.label,
+                          )
+                          .join(', ')
+                        : 'None selected'}
+                    </Text>
                   </View>
-                ),
+
+                  <View
+                    style={
+                      styles.logReviewCard
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.logReviewLabel
+                      }
+                    >
+                      Daily Care
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.logReviewValue
+                      }
+                    >
+                      {selectedLogItemsByGroup
+                        .dailyCare
+                        .length
+                        ? selectedLogItemsByGroup
+                          .dailyCare
+                          .map(
+                            (item) =>
+                              item.label,
+                          )
+                          .join(', ')
+                        : 'None selected'}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={
+                      styles.logReviewCard
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.logReviewLabel
+                      }
+                    >
+                      Other Factors
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.logReviewValue
+                      }
+                    >
+                      {selectedLogItemsByGroup
+                        .riskFactors
+                        .length
+                        ? selectedLogItemsByGroup
+                          .riskFactors
+                          .map(
+                            (item) =>
+                              item.label,
+                          )
+                          .join(', ')
+                        : 'None selected'}
+                    </Text>
+                  </View>
+
+                  <Text
+                    style={
+                      styles.notesLabel
+                    }
+                  >
+                    Notes
+                  </Text>
+
+                  <TextInput
+                    style={
+                      styles.notesInput
+                    }
+                    value={logNotes}
+                    onChangeText={
+                      setLogNotes
+                    }
+                    multiline
+                    maxLength={500}
+                    placeholder="Optional note for yourself before your next visit."
+                    placeholderTextColor={
+                      mobileTheme
+                        .colors
+                        .textSoft
+                    }
+                    accessibilityLabel="Optional oral health log notes"
+                  />
+
+                  <View
+                    style={
+                      styles.disclaimerInline
+                    }
+                  >
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={17}
+                      color={
+                        mobileTheme
+                          .colors
+                          .primaryDark
+                      }
+                    />
+
+                    <Text
+                      style={
+                        styles.disclaimerText
+                      }
+                    >
+                      This log records observations and habits. It does not diagnose a dental condition.
+                    </Text>
+                  </View>
+                </>
               )}
+            </ScrollView>
 
-              <Text
-                style={
-                  styles.notesLabel
-                }
-              >
-                Notes
-              </Text>
-
-              <TextInput
-                style={
-                  styles.notesInput
-                }
-                value={logNotes}
-                onChangeText={
-                  setLogNotes
-                }
-                multiline
-                maxLength={500}
-                placeholder="Optional note for yourself before your next visit."
-                placeholderTextColor={
-                  mobileTheme.colors
-                    .textSoft
-                }
-              />
+            <View
+              style={
+                styles.logStepFooter
+              }
+            >
+              {logStep > 0 ? (
+                <SecondaryButton
+                  label="Back"
+                  icon="arrow-back-outline"
+                  onPress={
+                    goToPreviousLogStep
+                  }
+                  disabled={saving}
+                  style={
+                    styles.logStepBackButton
+                  }
+                />
+              ) : null}
 
               <View
                 style={
-                  styles.disclaimerInline
+                  styles.logStepPrimary
                 }
               >
-                <Ionicons
-                  name="information-circle-outline"
-                  size={17}
-                  color={
-                    mobileTheme.colors
-                      .primaryDark
-                  }
-                />
-
-                <Text
-                  style={
-                    styles.disclaimerText
-                  }
-                >
-                  This log records
-                  observations and
-                  habits. It does not
-                  diagnose a dental
-                  condition.
-                </Text>
+                {logStep < 3 ? (
+                  <PrimaryButton
+                    label="Next"
+                    icon="arrow-forward-outline"
+                    onPress={
+                      goToNextLogStep
+                    }
+                    disabled={saving}
+                  />
+                ) : (
+                  <PrimaryButton
+                    label={
+                      saving
+                        ? 'Saving...'
+                        : selectedLog
+                          ? 'Update Oral Health Log'
+                          : 'Save Oral Health Log'
+                    }
+                    icon="checkmark-circle-outline"
+                    disabled={
+                      saving
+                      || selectedDateIsFuture
+                    }
+                    onPress={
+                      saveDailyLog
+                    }
+                  />
+                )}
               </View>
-            </ScrollView>
-
-            <PrimaryButton
-              label={
-                saving
-                  ? 'Saving...'
-                  : selectedLog
-                    ? 'Update Daily Log'
-                    : 'Save Daily Log'
-              }
-              disabled={
-                saving
-                || selectedDateIsFuture
-              }
-              onPress={saveDailyLog}
-              style={{
-                marginTop: 14,
-              }}
-            />
+            </View>
           </View>
         </View>
       </Modal>
@@ -6045,5 +6374,127 @@ const styles = StyleSheet.create({
     color:
       mobileTheme.colors
         .textMuted,
+  },
+
+    logProgressArea: {
+    marginBottom: 14,
+  },
+
+  logProgressTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+    marginBottom: 8,
+  },
+
+  logProgressLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color:
+      mobileTheme.colors
+        .textMuted,
+  },
+
+  logProgressTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color:
+      mobileTheme.colors
+        .primaryDark,
+  },
+
+  logProgressTrack: {
+    height: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor:
+      mobileTheme.colors
+        .border,
+  },
+
+  logProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor:
+      mobileTheme.colors
+        .primary,
+  },
+
+  logStepScroll: {
+    paddingBottom: 16,
+  },
+
+  logStepTitle: {
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: '800',
+    color:
+      mobileTheme.colors
+        .text,
+    marginBottom: 7,
+  },
+
+  logStepDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    color:
+      mobileTheme.colors
+        .textMuted,
+    marginBottom: 18,
+  },
+
+  logStepFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor:
+      mobileTheme.colors
+        .border,
+  },
+
+  logStepBackButton: {
+    flex: 0.8,
+  },
+
+  logStepPrimary: {
+    flex: 1.2,
+  },
+
+  logReviewCard: {
+    padding: 14,
+    marginBottom: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors
+        .border,
+    backgroundColor:
+      mobileTheme.colors
+        .surfaceSoft
+      || mobileTheme.colors
+        .surface,
+  },
+
+  logReviewLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform:
+      'uppercase',
+    letterSpacing: 0.4,
+    color:
+      mobileTheme.colors
+        .primaryDark,
+    marginBottom: 5,
+  },
+
+  logReviewValue: {
+    fontSize: 14,
+    lineHeight: 21,
+    color:
+      mobileTheme.colors
+        .text,
   },
 });
