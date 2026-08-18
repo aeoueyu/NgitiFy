@@ -422,7 +422,7 @@ export default function AiPatientCareCompanionScreen({
       <View style={styles.sectionHeadingRow}>
         <View>
           <Text style={styles.sectionEyebrow}>
-            YOUR CARE CONTEXT
+            Care context used for explanations
           </Text>
 
           <Text style={styles.sectionTitle}>
@@ -672,8 +672,11 @@ export default function AiPatientCareCompanionScreen({
 
   const renderQuickPrompts = () => (
     <View style={styles.quickPromptSection}>
-      <Text style={styles.sectionEyebrow}>
-        SUGGESTED PROMPTS
+      <Text
+        style={styles.quickPromptLabel}
+        accessibilityRole="header"
+      >
+        Try asking
       </Text>
 
       <ScrollView
@@ -714,14 +717,14 @@ export default function AiPatientCareCompanionScreen({
         <View style={styles.aiAvatar}>
           <Ionicons
             name="sparkles"
-            size={21}
+            size={18}
             color={mobileTheme.colors.primaryDark}
           />
         </View>
 
         <View style={styles.conversationHeaderText}>
           <Text style={styles.contextEyebrow}>
-            AI EXPLANATION
+            CONVERSATION
           </Text>
 
           <Text style={styles.conversationTitle}>
@@ -924,44 +927,46 @@ export default function AiPatientCareCompanionScreen({
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <Ionicons
-              name="sparkles"
-              size={27}
-              color={mobileTheme.colors.primaryDark}
-            />
+          <View style={styles.heroCompactRow}>
+            <View style={styles.heroIcon}>
+              <Ionicons
+                name="sparkles"
+                size={22}
+                color={mobileTheme.colors.primaryDark}
+              />
+            </View>
+
+            <View style={styles.heroCompactText}>
+              <Text style={styles.heroEyebrow}>
+                PATIENT AI ASSISTANT
+              </Text>
+
+              <Text style={styles.heroTitle}>
+                Ask about your NgitiFy care
+              </Text>
+            </View>
           </View>
 
-          <Text style={styles.heroEyebrow}>
-            PATIENT AI ASSISTANT
-          </Text>
-
-          <Text style={styles.heroTitle}>
-            Understand your existing NgitiFy care information
-          </Text>
-
           <Text style={styles.heroText}>
-            Ask for explanations of your System Recommendation, Oral Health Management records, Dental Health Education, or appointments.
+            Get explanations of your System Recommendation, Oral Health Management records, Dental Health Education, and appointments.
           </Text>
 
           <View style={styles.heroDisclaimer}>
             <Ionicons
               name="information-circle-outline"
-              size={19}
+              size={18}
               color={mobileTheme.colors.primaryDark}
             />
 
             <Text style={styles.heroDisclaimerText}>
-              AI information is educational and explanatory, not a diagnosis. The AI does not independently calculate medical urgency or replace your dentist&apos;s recommendation.
+              AI is educational and explanatory only. It does not diagnose conditions, calculate medical urgency, or replace your dentist&apos;s recommendation.
             </Text>
           </View>
         </View>
 
-        {renderCareContext()}
-
-        {renderQuickPrompts()}
-
         {renderConversation()}
+
+        {renderCareContext()}
 
         <View style={styles.bottomDisclaimer}>
           <Ionicons
@@ -976,7 +981,10 @@ export default function AiPatientCareCompanionScreen({
         </View>
       </ScrollView>
 
-      <View style={styles.composer}>
+      <View style={styles.chatDock}>
+        {renderQuickPrompts()}
+
+        <View style={styles.composer}>
         <TextInput
           style={styles.input}
           value={input}
@@ -1023,6 +1031,7 @@ export default function AiPatientCareCompanionScreen({
             />
           )}
         </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -1088,22 +1097,31 @@ const styles = StyleSheet.create({
   },
 
   heroCard: {
-    padding: mobileTheme.spacing.lg,
+    padding: 16,
     borderRadius: mobileTheme.radii.lg,
     borderWidth: 1,
     borderColor:
       mobileTheme.colors.border,
     backgroundColor:
       mobileTheme.colors.surface,
-    ...mobileTheme.shadows.card,
+    ...mobileTheme.shadows.soft,
+  },
+
+  heroCompactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  heroCompactText: {
+    flex: 1,
   },
   heroIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginRight: 11,
     backgroundColor:
       mobileTheme.colors.primarySoft,
   },
@@ -1117,8 +1135,8 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: mobileTheme.colors.text,
-    fontSize: 22,
-    lineHeight: 29,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '800',
   },
   heroText: {
@@ -1148,7 +1166,7 @@ const styles = StyleSheet.create({
   },
 
   contextSection: {
-    marginTop: 26,
+    marginTop: 18,
   },
   sectionHeadingRow: {
     flexDirection: 'row',
@@ -1205,29 +1223,24 @@ const styles = StyleSheet.create({
   },
 
   contextCard: {
-    marginBottom: 12,
-    padding: 17,
-    borderRadius:
-      mobileTheme.radii.lg,
-    borderWidth: 1,
-    borderColor:
+    marginBottom: 18,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor:
       mobileTheme.colors.border,
-    backgroundColor:
-      mobileTheme.colors.surface,
-    ...mobileTheme.shadows.soft,
   },
   contextCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   contextIcon: {
-    width: 42,
-    height: 42,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 21,
-    marginRight: 11,
+    borderRadius: 18,
+    marginRight: 10,
     backgroundColor:
       mobileTheme.colors.primarySoft,
   },
@@ -1289,12 +1302,11 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   authorityBox: {
-    marginTop: 14,
-    padding: 12,
-    borderRadius:
-      mobileTheme.radii.md,
-    backgroundColor:
-      mobileTheme.colors.backgroundMuted,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor:
+      mobileTheme.colors.border,
   },
   authorityTitle: {
     marginBottom: 4,
@@ -1313,15 +1325,11 @@ const styles = StyleSheet.create({
   contactNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: 13,
-    padding: 12,
-    borderRadius:
-      mobileTheme.radii.md,
-    borderWidth: 1,
-    borderColor:
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor:
       mobileTheme.colors.borderStrong,
-    backgroundColor:
-      mobileTheme.colors.primarySoft,
   },
   contactNoticeText: {
     flex: 1,
@@ -1369,15 +1377,10 @@ const styles = StyleSheet.create({
   },
 
   educationItem: {
-    marginBottom: 8,
-    padding: 11,
-    borderRadius:
-      mobileTheme.radii.md,
-    borderWidth: 1,
-    borderColor:
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor:
       mobileTheme.colors.border,
-    backgroundColor:
-      mobileTheme.colors.surfaceAlt,
   },
   educationCategory: {
     color:
@@ -1396,70 +1399,74 @@ const styles = StyleSheet.create({
   },
 
   quickPromptSection: {
-    marginTop: 16,
+    paddingTop: 10,
+    paddingBottom: 8,
+    backgroundColor:
+      mobileTheme.colors.surface,
   },
+
+  quickPromptLabel: {
+    paddingHorizontal:
+      mobileTheme.spacing.md,
+    marginBottom: 8,
+    color:
+      mobileTheme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
   promptScroll: {
-    marginHorizontal:
-      -mobileTheme.spacing.md,
-    marginTop: 10,
+    marginHorizontal: 0,
   },
+
   promptContent: {
     paddingHorizontal:
       mobileTheme.spacing.md,
-    paddingBottom: 4,
+    paddingBottom: 2,
   },
+
   promptChip: {
-    width: 232,
-    minHeight: 76,
+    maxWidth: 210,
+    minHeight: 42,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginRight: 10,
-    padding: 14,
+    alignItems: 'center',
+    marginRight: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderRadius:
-      mobileTheme.radii.md,
+      mobileTheme.radii.pill,
     borderWidth: 1,
     borderColor:
       mobileTheme.colors.border,
     backgroundColor:
-      mobileTheme.colors.surface,
+      mobileTheme.colors.surfaceAlt,
   },
+
   promptChipText: {
-    flex: 1,
-    marginLeft: 8,
-    color: mobileTheme.colors.text,
-    fontSize: 12,
-    lineHeight: 18,
+    flexShrink: 1,
+    marginLeft: 7,
+    color:
+      mobileTheme.colors.text,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '700',
   },
 
   conversationCard: {
-    marginTop: 24,
-    padding: 16,
-    borderRadius:
-      mobileTheme.radii.lg,
-    borderWidth: 1,
-    borderColor:
-      mobileTheme.colors.border,
-    backgroundColor:
-      mobileTheme.colors.surface,
-    ...mobileTheme.shadows.card,
+    marginTop: 16,
   },
   conversationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 14,
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor:
-      mobileTheme.colors.border,
+    marginBottom: 14,
   },
   aiAvatar: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
-    marginRight: 10,
+    borderRadius: 18,
+    marginRight: 9,
     backgroundColor:
       mobileTheme.colors.primarySoft,
   },
@@ -1473,20 +1480,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   clearButton: {
-    minHeight: 38,
+    minHeight: 36,
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderRadius:
       mobileTheme.radii.pill,
-    borderWidth: 1,
-    borderColor:
-      mobileTheme.colors.border,
   },
   clearButtonText: {
     color:
-      mobileTheme.colors.primaryDark,
+      mobileTheme.colors.textMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 
   messageRow: {
@@ -1494,6 +1498,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     marginBottom: 12,
+    paddingHorizontal: 2,
   },
   messageRowUser: {
     justifyContent: 'flex-end',
@@ -1622,15 +1627,21 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
+  chatDock: {
+    borderTopWidth: 1,
+    borderTopColor:
+      mobileTheme.colors.border,
+    backgroundColor:
+      mobileTheme.colors.surface,
+  },
+
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal:
       mobileTheme.spacing.md,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor:
-      mobileTheme.colors.border,
+    paddingTop: 4,
+    paddingBottom: 12,
     backgroundColor:
       mobileTheme.colors.surface,
   },
