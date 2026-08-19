@@ -843,16 +843,21 @@ const initializeBackupScheduler = async () => {
     scheduleAutomaticBackups(DEFAULT_BACKUP_SETTINGS);
 
     try {
-        const persistedSettings = await getPersistedBackupSettings();
-        scheduleAutomaticBackups(persistedSettings);
+        const persistedSettings =
+            await getPersistedBackupSettings();
+
+        scheduleAutomaticBackups(
+            persistedSettings
+        );
     } catch (error) {
-        console.error('Error loading persisted backup settings:', error);
+        console.error(
+            'Error loading persisted backup settings:',
+            error
+        );
+
+        throw error;
     }
 };
-
-initializeBackupScheduler().catch((error) => {
-    console.error('Error initializing backup scheduler:', error);
-});
 
 const serializeBackupLog = (backup) => {
     const filePath = path.join(BACKUP_DIR, backup.filename);
@@ -1034,3 +1039,6 @@ router.get('/backup/download/:filename', verifyToken, isAdmin, (req, res) => {
 });
 
 module.exports = router;
+
+module.exports.initializeBackupScheduler =
+    initializeBackupScheduler;

@@ -53,6 +53,8 @@ const verifyToken = require('./middleware/auth');
 const User = require('./models/User'); 
 const AuditLog = require('./models/AuditLog'); 
 const OralHealthLog = require('./models/OralHealthLog');
+const PatientAiConversation =
+    require('./models/PatientAiConversation');
 // Patient model removed — patients use the User model (role: 'patient')
 const Appointment = require('./models/Appointment');
 const Surgery = Appointment;
@@ -64,8 +66,15 @@ const Branch = require('./models/Branch');
 const Queue = require('./models/Queue');
 const SystemConfig = require('./models/SystemConfig');
 const RolePermission = require('./models/RolePermission');
-const backupRoutes = require('./routes/backup');
-const integrityRoutes = require('./routes/integrity');
+const backupRoutes =
+    require('./routes/backup');
+
+const {
+    initializeBackupScheduler,
+} = backupRoutes;
+
+const integrityRoutes =
+    require('./routes/integrity');
 const {
     buildExplainableVisitRecommendation,
     buildOralHealthPayloadFromPatient,
@@ -84,6 +93,15 @@ const {
     serializePatientOnboarding,
     normalizePatientOnboardingUpdate,
 } = require('./utils/patientOnboarding');
+
+const {
+    deriveConversationTitle,
+    normalizeConversationMessage,
+    normalizeConversationTitle,
+    serializeConversation,
+    serializeConversationMessage,
+    serializeConversationSummary,
+} = require('./utils/patientAiConversations');
 
 // ADD this line with the other model imports (after the AuditLog import)
 const {
@@ -840,11 +858,15 @@ const corsOptions = {
         'http://127.0.0.1:3000',
         'http://localhost:5173',
         'http://127.0.0.1:5173',
+        'http://localhost:8081',
+        'http://127.0.0.1:8081',
+        'http://localhost:8082',
+        'http://127.0.0.1:8082',
         'https://ngitify.com',
         'https://www.ngitify.com',
         'https://ngitify.netlify.app'
     ],
-    credentials: true, 
+    credentials: true,
 };
 app.use(helmet());
 app.use(cors(corsOptions));
@@ -856,20 +878,12 @@ app.use(defaultFormParser);
 app.use('/api', backupRoutes);
 app.use('/api', integrityRoutes);
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log('✅ Connected to Local MongoDB'))
-.catch((err) => console.error('❌ Error connecting to MongoDB:', err));
+// MongoDB connection is started explicitly near the end of this file
+// after all routes, helpers, and background-worker functions are defined.
 
 // EMAIL CONFIG
 const resend = new Resend(process.env.RESEND_API_KEY);
 console.log('✅ Resend email client initialized');
-
-mongoose.connection.once('open', async () => {
-    await ensureInventoryBatchIndexes();
-    await ensureInventoryStockInNumbers();
-    await OralHealthLog.createIndexes();
-});
 
 // ================= PUBLIC ROUTES ================= //
 
@@ -12709,9 +12723,517 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
     }
 });
 
+
 // -------------------------------------------------------
 // AI PATIENT CARE COMPANION — Chat proxy
 // -------------------------------------------------------
+
+const MAX_PATIENT_AI_HISTORY_MESSAGES =
+    40;
+
+const assertPatientAiAccess =
+    (
+        req,
+        res
+    ) => {
+        if (
+            req.user.role
+            !== 'patient'
+        ) {
+            res.status(
+                403
+            ).json({
+                message:
+                    'Access denied.',
+            });
+
+            return false;
+        }
+
+        return true;
+    };
+
+const getOwnedPatientAiConversation =
+    async ({
+        req,
+        conversationId,
+    }) => {
+        const normalizedId =
+            String(
+                conversationId
+                || ''
+            ).trim();
+
+        if (
+            !mongoose.Types.ObjectId
+                .isValid(
+                    normalizedId
+                )
+        ) {
+            const error =
+                new Error(
+                    'Conversation not found.'
+                );
+
+            error.statusCode =
+                404;
+
+            throw error;
+        }
+
+        const conversation =
+            await PatientAiConversation
+                .findOne({
+                    _id:
+                        normalizedId,
+
+                    patient:
+                        req.user.id,
+                });
+
+        if (!conversation) {
+            const error =
+                new Error(
+                    'Conversation not found.'
+                );
+
+            error.statusCode =
+                404;
+
+            throw error;
+        }
+
+        return conversation;
+    };
+
+const getPersistedPatientAiMessages =
+    (
+        conversation
+    ) =>
+        (
+            conversation
+                ?.messages
+            || []
+        )
+            .slice(
+                -MAX_PATIENT_AI_HISTORY_MESSAGES
+            )
+            .map(
+                (
+                    message
+                ) => ({
+                    role:
+                        message.role,
+
+                    content:
+                        message.content,
+                })
+            );
+
+// -------------------------------------------------------
+// PATIENT AI CONVERSATIONS — persisted shared Web/Mobile
+// -------------------------------------------------------
+
+app.get(
+    '/api/my/ai-conversations',
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            if (
+                !assertPatientAiAccess(
+                    req,
+                    res
+                )
+            ) {
+                return;
+            }
+
+            const archived =
+                String(
+                    req.query.archived
+                    || ''
+                )
+                    .trim()
+                    .toLowerCase()
+                === 'true';
+
+            const conversations =
+                await PatientAiConversation
+                    .find({
+                        patient:
+                            req.user.id,
+
+                        isArchived:
+                            archived,
+                    })
+                    .sort({
+                        isPinned: -1,
+                        lastMessageAt: -1,
+                        updatedAt: -1,
+                    });
+
+            res.json({
+                conversations:
+                    conversations.map(
+                        serializeConversationSummary
+                    ),
+            });
+        } catch (
+            error
+        ) {
+            console.error(
+                'Patient AI conversation list error:',
+                error
+            );
+
+            res.status(
+                500
+            ).json({
+                message:
+                    'Server error loading AI conversations.',
+            });
+        }
+    }
+);
+
+app.post(
+    '/api/my/ai-conversations',
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            if (
+                !assertPatientAiAccess(
+                    req,
+                    res
+                )
+            ) {
+                return;
+            }
+
+            const requestedTitle =
+                String(
+                    req.body?.title
+                    || ''
+                ).trim();
+
+            const conversation =
+                await PatientAiConversation
+                    .create({
+                        patient:
+                            req.user.id,
+
+                        title:
+                            requestedTitle
+                                ? normalizeConversationTitle(
+                                    requestedTitle
+                                )
+                                : 'New conversation',
+
+                        titleSource:
+                            requestedTitle
+                                ? 'manual'
+                                : 'derived',
+
+                        lastMessageAt:
+                            new Date(),
+                    });
+
+            res.status(
+                201
+            ).json({
+                conversation:
+                    serializeConversation(
+                        conversation
+                    ),
+            });
+        } catch (
+            error
+        ) {
+            console.error(
+                'Patient AI conversation create error:',
+                error
+            );
+
+            res.status(
+                error.statusCode
+                || 500
+            ).json({
+                message:
+                    error.message
+                    || 'Server error creating AI conversation.',
+            });
+        }
+    }
+);
+
+app.get(
+    '/api/my/ai-conversations/:id',
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            if (
+                !assertPatientAiAccess(
+                    req,
+                    res
+                )
+            ) {
+                return;
+            }
+
+            const conversation =
+                await getOwnedPatientAiConversation({
+                    req,
+
+                    conversationId:
+                        req.params.id,
+                });
+
+            res.json({
+                conversation:
+                    serializeConversation(
+                        conversation
+                    ),
+            });
+        } catch (
+            error
+        ) {
+            console.error(
+                'Patient AI conversation read error:',
+                error
+            );
+
+            res.status(
+                error.statusCode
+                || 500
+            ).json({
+                message:
+                    error.message
+                    || 'Server error loading AI conversation.',
+            });
+        }
+    }
+);
+
+app.patch(
+    '/api/my/ai-conversations/:id',
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            if (
+                !assertPatientAiAccess(
+                    req,
+                    res
+                )
+            ) {
+                return;
+            }
+
+            const conversation =
+                await getOwnedPatientAiConversation({
+                    req,
+
+                    conversationId:
+                        req.params.id,
+                });
+
+            const hasTitle =
+                Object.prototype
+                    .hasOwnProperty
+                    .call(
+                        req.body
+                        || {},
+                        'title'
+                    );
+
+            const hasPinned =
+                Object.prototype
+                    .hasOwnProperty
+                    .call(
+                        req.body
+                        || {},
+                        'isPinned'
+                    );
+
+            const hasArchived =
+                Object.prototype
+                    .hasOwnProperty
+                    .call(
+                        req.body
+                        || {},
+                        'isArchived'
+                    );
+
+            if (
+                !hasTitle
+                && !hasPinned
+                && !hasArchived
+            ) {
+                return res.status(
+                    400
+                ).json({
+                    message:
+                        'No supported conversation changes were provided.',
+                });
+            }
+
+            if (hasTitle) {
+                conversation.title =
+                    normalizeConversationTitle(
+                        req.body.title
+                    );
+
+                conversation
+                    .titleSource =
+                    'manual';
+            }
+
+            if (hasPinned) {
+                if (
+                    typeof
+                    req.body
+                        .isPinned
+                    !== 'boolean'
+                ) {
+                    return res.status(
+                        400
+                    ).json({
+                        message:
+                            'isPinned must be a boolean.',
+                    });
+                }
+
+                conversation
+                    .isPinned =
+                    req.body
+                        .isPinned;
+            }
+
+            if (hasArchived) {
+                if (
+                    typeof
+                    req.body
+                        .isArchived
+                    !== 'boolean'
+                ) {
+                    return res.status(
+                        400
+                    ).json({
+                        message:
+                            'isArchived must be a boolean.',
+                    });
+                }
+
+                conversation
+                    .isArchived =
+                    req.body
+                        .isArchived;
+
+                conversation
+                    .archivedAt =
+                    req.body
+                        .isArchived
+                        ? new Date()
+                        : null;
+            }
+
+            await conversation
+                .save();
+
+            res.json({
+                conversation:
+                    serializeConversation(
+                        conversation
+                    ),
+            });
+        } catch (
+            error
+        ) {
+            console.error(
+                'Patient AI conversation update error:',
+                error
+            );
+
+            res.status(
+                error.statusCode
+                || 500
+            ).json({
+                message:
+                    error.message
+                    || 'Server error updating AI conversation.',
+            });
+        }
+    }
+);
+
+app.delete(
+    '/api/my/ai-conversations/:id',
+    verifyToken,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            if (
+                !assertPatientAiAccess(
+                    req,
+                    res
+                )
+            ) {
+                return;
+            }
+
+            const conversation =
+                await getOwnedPatientAiConversation({
+                    req,
+
+                    conversationId:
+                        req.params.id,
+                });
+
+            await PatientAiConversation
+                .deleteOne({
+                    _id:
+                        conversation._id,
+
+                    patient:
+                        req.user.id,
+                });
+
+            res.json({
+                message:
+                    'AI conversation deleted.',
+            });
+        } catch (
+            error
+        ) {
+            console.error(
+                'Patient AI conversation delete error:',
+                error
+            );
+
+            res.status(
+                error.statusCode
+                || 500
+            ).json({
+                message:
+                    error.message
+                    || 'Server error deleting AI conversation.',
+            });
+        }
+    }
+);
 
 const aiChatLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
@@ -12721,6 +13243,210 @@ const aiChatLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+app.post(
+    '/api/my/ai-conversations/:id/messages',
+    verifyToken,
+    aiChatLimiter,
+    async (
+        req,
+        res
+    ) => {
+        try {
+            if (
+                !assertPatientAiAccess(
+                    req,
+                    res
+                )
+            ) {
+                return;
+            }
+
+            const geminiService =
+                await ensureAiConfigured(
+                    res
+                );
+
+            if (!geminiService) {
+                return;
+            }
+
+            const conversation =
+                await getOwnedPatientAiConversation({
+                    req,
+
+                    conversationId:
+                        req.params.id,
+                });
+
+            if (
+                conversation
+                    .isArchived
+            ) {
+                return res.status(
+                    409
+                ).json({
+                    message:
+                        'Unarchive this conversation before sending a new message.',
+                });
+            }
+
+            const patientMessage =
+                normalizeConversationMessage({
+                    role:
+                        'user',
+
+                    content:
+                        req.body
+                            ?.content,
+                });
+
+            const existingMessages =
+                getPersistedPatientAiMessages(
+                    conversation
+                );
+
+            const aiMessages = [
+                ...existingMessages,
+
+                patientMessage,
+            ].slice(
+                -MAX_PATIENT_AI_HISTORY_MESSAGES
+            );
+
+            const mergedAssistantContext =
+                await buildPatientAiLiveContext({
+                    userId:
+                        req.user.id,
+
+                    messages:
+                        aiMessages,
+
+                    assistantContext:
+                        null,
+                });
+
+            const reply =
+                await geminiService
+                    .generateScopedReply({
+                        scope:
+                            'patient',
+
+                        messages:
+                            aiMessages,
+
+                        additionalContext:
+                            mergedAssistantContext,
+                    });
+
+            const assistantMessage =
+                normalizeConversationMessage({
+                    role:
+                        'assistant',
+
+                    content:
+                        reply,
+                });
+
+            const hadPatientMessage =
+                (
+                    conversation
+                        .messages
+                    || []
+                ).some(
+                    (
+                        message
+                    ) =>
+                        message.role
+                        === 'user'
+                );
+
+            if (
+                !hadPatientMessage
+                && conversation
+                    .titleSource
+                    !== 'manual'
+            ) {
+                conversation.title =
+                    deriveConversationTitle(
+                        patientMessage
+                            .content
+                    );
+
+                conversation
+                    .titleSource =
+                    'derived';
+            }
+
+            const now =
+                new Date();
+
+            conversation
+                .messages
+                .push({
+                    ...patientMessage,
+
+                    createdAt:
+                        now,
+                });
+
+            conversation
+                .messages
+                .push({
+                    ...assistantMessage,
+
+                    createdAt:
+                        now,
+                });
+
+            conversation
+                .lastMessageAt =
+                now;
+
+            await conversation
+                .save();
+
+            const persistedAssistantMessage =
+                conversation
+                    .messages[
+                    conversation
+                        .messages
+                        .length
+                    - 1
+                ];
+
+            res.json({
+                reply,
+
+                message:
+                    serializeConversationMessage(
+                        persistedAssistantMessage
+                    ),
+
+                conversation:
+                    serializeConversation(
+                        conversation
+                    ),
+            });
+        } catch (
+            error
+        ) {
+            console.error(
+                'Patient persisted AI conversation message error:',
+                error
+            );
+
+            res.status(
+                error.statusCode
+                || 500
+            ).json({
+                message:
+                    error.message
+                    || 'Server error processing AI conversation message.',
+            });
+        }
+    }
+);
 
 const handlePatientAiChat = async (req, res) => {
     try {
@@ -13564,16 +14290,28 @@ app.post('/api/transfer-ownership', verifyToken, async (req, res) => {
     return res.status(410).json({ message: 'Ownership transfer is not available in Phase 2.' });
 });
 
-setInterval(() => {
+const runBackgroundWorkers = () => {
     autoCancelOverdueAppointments().catch((error) => {
-        console.error('Auto-cancellation worker error:', error);
+        console.error(
+            'Auto-cancellation worker error:',
+            error
+        );
     });
+
     remindIncompleteSchedulesForStaff().catch((error) => {
-        console.error('Schedule reminder worker error:', error);
+        console.error(
+            'Schedule reminder worker error:',
+            error
+        );
     });
+
     remindPatientsAboutUpcomingAppointments().catch((error) => {
-        console.error('Appointment reminder worker error:', error);
+        console.error(
+            'Appointment reminder worker error:',
+            error
+        );
     });
+
     remindPatientsAboutPredictiveVisitWindows().catch((error) => {
         console.error(
             'Predictive visit reminder worker error:',
@@ -13587,29 +14325,51 @@ setInterval(() => {
             error
         );
     });
-}, 60 * 1000);
+};
 
-autoCancelOverdueAppointments().catch((error) => {
-    console.error('Initial auto-cancellation worker error:', error);
-});
-remindIncompleteSchedulesForStaff().catch((error) => {
-    console.error('Initial schedule reminder worker error:', error);
-});
-remindPatientsAboutUpcomingAppointments().catch((error) => {
-    console.error('Initial appointment reminder worker error:', error);
-});
-remindPatientsAboutPredictiveVisitWindows().catch((error) => {
-    console.error(
-        'Initial predictive visit reminder worker error:',
-        error
+const startBackgroundWorkers = () => {
+    runBackgroundWorkers();
+
+    setInterval(
+        runBackgroundWorkers,
+        60 * 1000
     );
-});
+};
 
-remindPatientsAboutOralHealthManagement().catch((error) => {
-    console.error(
-        'Initial Oral Health Management reminder worker error:',
-        error
-    );
-});
+const startServer = async () => {
+    try {
+        await mongoose.connect(
+            process.env.MONGO_URI
+        );
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+        console.log(
+            '✅ Connected to Local MongoDB'
+        );
+
+        await ensureInventoryBatchIndexes();
+        await ensureInventoryStockInNumbers();
+        await OralHealthLog.createIndexes();
+
+        await initializeBackupScheduler();
+
+        startBackgroundWorkers();
+
+        app.listen(
+            PORT,
+            () => {
+                console.log(
+                    `Server running on port ${PORT}`
+                );
+            }
+        );
+    } catch (error) {
+        console.error(
+            '❌ Failed to start backend:',
+            error
+        );
+
+        process.exit(1);
+    }
+};
+
+startServer();
