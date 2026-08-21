@@ -8,7 +8,12 @@ export function PatientPageFrame({
     actions,
     children,
     hideHeader = false,
+    bare = false,
 }) {
+    if (bare) {
+        return children;
+    }
+
     return (
         <main className={`${adminStyles['main-content']} ${styles.page}`}>
             {!hideHeader ? (

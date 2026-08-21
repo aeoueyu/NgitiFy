@@ -7,12 +7,7 @@ import React, {
 } from 'react';
 
 import {
-    useNavigate,
-} from 'react-router-dom';
-
-import {
     FaArchive,
-    FaArrowLeft,
     FaBars,
     FaBook,
     FaCalendarAlt,
@@ -197,10 +192,11 @@ const getErrorMessage = (
     );
 };
 
-const PatientAiCompanion = () => {
-    const navigate =
-        useNavigate();
-
+const PatientAiCompanion = ({
+    embedded = false,
+    isOpen = true,
+    onClose,
+}) => {
     const [
         visitInfo,
         setVisitInfo,
@@ -503,6 +499,20 @@ const PatientAiCompanion = () => {
         openingConversation,
         chatError,
     ]);
+
+    useEffect(() => {
+        if (!embedded || !isOpen) {
+            setSidebarOpen(false);
+            setActiveOverlay(null);
+            return;
+        }
+
+        const focusTimerId = window.setTimeout(() => {
+            textareaRef.current?.focus();
+        }, 180);
+
+        return () => window.clearTimeout(focusTimerId);
+    }, [embedded, isOpen]);
 
     const oralHealthSummary =
         useMemo(
@@ -2000,11 +2010,17 @@ const PatientAiCompanion = () => {
         <PatientPageFrame
             hideHeader
             title="AI Care Companion"
+            bare={embedded}
         >
             <div
-                className={
-                    styles.patientAiConversationShell
-                }
+                className={`${styles.patientAiConversationShell}${
+                    embedded
+                        ? ` ${styles.patientAiConversationShellFloating}`
+                        : ''
+                }`}
+                role={embedded ? 'dialog' : undefined}
+                aria-modal={embedded ? 'false' : undefined}
+                aria-label={embedded ? 'Patient AI Care Companion' : undefined}
             >
                 <aside
                     className={`${styles.patientAiConversationSidebar}${
@@ -2037,88 +2053,62 @@ const PatientAiCompanion = () => {
                     }
                 >
                     <header
-                        className={
-                            styles.patientAiConversationTopBar
-                        }
+                        className={`${styles.patientAiConversationTopBar}${
+                            embedded
+                                ? ` ${styles.patientAiFloatingTopBar}`
+                                : ''
+                        }`}
                     >
-                        <div
-                            className={
-                                styles.patientAiTopBarLeft
-                            }
-                        >
+                        <div className={styles.patientAiTopBarLeft}>
                             <button
                                 type="button"
-                                className={
-                                    styles.patientAiTopBarIconButton
-                                }
-                                onClick={() =>
-                                    navigate(
-                                        '/patient/dashboard'
-                                    )
-                                }
-                                aria-label="Back to dashboard"
-                                title="Back to dashboard"
-                            >
-                                <FaArrowLeft />
-                            </button>
-
-                            <button
-                                type="button"
-                                className={
-                                    styles.patientAiTopBarButton
-                                }
+                                className={styles.patientAiTopBarIconButton}
                                 onClick={() => {
-                                    setActiveOverlay(
-                                        null
-                                    );
-
-                                    setSidebarView(
-                                        'active'
-                                    );
-
-                                    setSidebarOpen(
-                                        true
-                                    );
+                                    setActiveOverlay(null);
+                                    setSidebarView('active');
+                                    setSidebarOpen(true);
                                 }}
                                 aria-label="Open saved conversations"
+                                title="Chat history"
                             >
                                 <FaBars />
-
-                                <span>
-                                    Chats
-                                </span>
                             </button>
+
+                            {embedded ? (
+                                <div className={styles.patientAiFloatingIdentity}>
+                                    <span className={styles.patientAiFloatingAvatar} aria-hidden="true">
+                                        <FaRobot />
+                                    </span>
+                                    <div className={styles.patientAiFloatingTitle}>
+                                        <strong>NgitiFy AI</strong>
+                                        <span>{currentConversation?.title || 'Care Companion'}</span>
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
 
-                        <div
-                            className={
-                                styles.patientAiConversationTitleWrap
-                            }
-                        >
-                            <strong>
-                                {currentConversation
-                                    ?.title
-                                || 'AI Care Companion'}
-                            </strong>
-
-                            <span>
-                                AI Care Companion
-                            </span>
-                        </div>
+                        {!embedded ? (
+                            <div className={styles.patientAiConversationTitleWrap}>
+                                <strong>{currentConversation?.title || 'AI Care Companion'}</strong>
+                                <span>AI Care Companion</span>
+                            </div>
+                        ) : null}
 
                         <button
                             type="button"
-                            className={
-                                styles.patientAiInfoButton
-                            }
-                            onClick={() =>
-                                setActiveOverlay(
-                                    'info'
-                                )
-                            }
-                            aria-label="About AI Care Companion"
+                            className={styles.patientAiInfoButton}
+                            onClick={() => {
+                                if (embedded) {
+                                    onClose?.();
+                                    return;
+                                }
+
+                                setActiveOverlay('info');
+                            }}
+                            aria-label={embedded ? 'Close AI Care Companion' : 'About AI Care Companion'}
+                            title={embedded ? 'Close chat' : 'About AI Care Companion'}
                         >
-                            <FaInfoCircle />
+                            {embedded ? <FaTimes /> : <FaInfoCircle />}
                         </button>
                     </header>
 

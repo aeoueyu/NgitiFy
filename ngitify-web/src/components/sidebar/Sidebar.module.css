@@ -294,48 +294,6 @@
     line-height: 1.4;
 }
 
-.patientAiFloatingButton {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    z-index: 1100;
-    width: 58px;
-    height: 58px;
-    border: none;
-    border-radius: 50%;
-    background: #01538b;
-    color: #ffffff;
-    box-shadow: 0 12px 30px rgba(1, 83, 139, 0.24);
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    cursor: pointer;
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-}
-
-.patientAiFloatingButton svg {
-    width: 20px;
-    height: 20px;
-}
-
-.patientAiFloatingButton:hover {
-    background: #013f6b;
-    transform: translateY(-2px);
-    box-shadow: 0 16px 34px rgba(1, 83, 139, 0.3);
-}
-
-.patientAiFloatingButton:focus-visible {
-    outline: 3px solid #2dccf6;
-    outline-offset: 4px;
-    box-shadow: 0 0 0 5px rgba(45, 204, 246, 0.24), 0 16px 34px rgba(1, 83, 139, 0.3);
-}
-
 .sidebar:not(.expanded) [data-tooltip]:hover::after,
 .sidebar:not(.expanded) [data-tooltip]:hover::before {
     opacity: 1;
@@ -390,8 +348,4 @@
         width: min(270px, calc(100vw - 36px));
     }
 
-    .patientAiFloatingButton {
-        right: 18px;
-        bottom: 18px;
-    }
 }

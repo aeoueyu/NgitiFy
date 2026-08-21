@@ -94,7 +94,6 @@ const OwnerAIAssistant = lazy(() => import('./pages/owner/OwnerAIAssistant'));
 const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
 const PatientOralCare = lazy(() => import('./pages/patient/PatientOralCare'));
 const PatientEditProfile = lazy(() => import('./pages/patient/PatientEditProfile'));
-const PatientAiCompanion = lazy(() => import('./pages/patient/PatientAiCompanion'));
 
 
 const PageLoader = () => (
@@ -145,7 +144,10 @@ function App() {
                   <Route path="/patient/profile/edit" element={<PatientEditProfile />} />
                   <Route path="/patient/settings" element={<SettingsPage />} />
                   <Route path="/patient/activity-logs" element={<SharedActivityLogsPage />} />
-                  <Route path="/patient/ai-companion" element={<PatientAiCompanion />} />
+                  <Route
+                    path="/patient/ai-companion"
+                    element={<Navigate to="/patient/dashboard" replace state={{ openPatientAi: true }} />}
+                  />
                 </Route>
               </Route>
 

@@ -14,6 +14,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { getStaticOralCarePreview } from '../../utils/oralCarePreview';
 import { authFetch } from '../../utils/api';
+import { openPatientAiChat } from '../../utils/patientAiChat';
 import {
     formatDateDisplay,
     parseDateKey,
@@ -1406,7 +1407,7 @@ export default function PatientOralCare() {
             subtitle={`Date-centered tracking, trends, recommended visit windows, and Dental Health Education for ${user?.assignedBranch || 'your assigned branch'}.`}
             actions={(
                 <>
-                    <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/ai-companion?tab=visit-window')}>
+                    <button type="button" className={styles.buttonSecondary} onClick={openPatientAiChat}>
                         Open AI Companion
                     </button>
                     <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/appointments?mode=book')}>

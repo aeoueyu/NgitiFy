@@ -4,7 +4,6 @@ import {
     FaCalendarAlt,
     FaChevronRight,
     FaInfoCircle,
-    FaRobot,
     FaTimes,
     FaTooth,
 } from 'react-icons/fa';
@@ -568,16 +567,6 @@ export default function PatientDashboard() {
                     </section>
                 </div>
             </div>
-
-            <button
-                type="button"
-                className={patientStyles.dashboardAiButton}
-                onClick={() => navigate('/patient/ai-companion')}
-                aria-label="Open patient AI experience"
-            >
-                <FaRobot aria-hidden="true" focusable="false" />
-                <span>AI</span>
-            </button>
 
             {visitReasonOpen ? (
                 <div className={patientStyles.modalOverlay} role="presentation" onMouseDown={() => setVisitReasonOpen(false)}>

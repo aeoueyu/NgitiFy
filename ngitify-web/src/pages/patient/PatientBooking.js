@@ -20,6 +20,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 import { authFetch } from '../../utils/api';
+import { openPatientAiChat } from '../../utils/patientAiChat';
 import {
     DIRECT_BOOKING_PROCEDURES,
     formatDateDisplay,
@@ -381,7 +382,7 @@ export default function PatientBooking({ onExit, hubNav }) {
                     <button type="button" className={styles.buttonGhost} onClick={goToAppointments}>
                         View Appointments
                     </button>
-                    <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/ai-companion?tab=visit-window')}>
+                    <button type="button" className={styles.buttonSecondary} onClick={openPatientAiChat}>
                         Visit Window
                     </button>
                 </>

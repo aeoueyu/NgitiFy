@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useSessionTimeout } from '../../hooks/useSessionTimeout';
 import { authFetch } from '../../utils/api';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
+import PatientAIChat from '../patient/PatientAIChat';
 
 export default function DashboardLayout() {
     const { logout, user } = useAuth();
@@ -62,6 +63,8 @@ export default function DashboardLayout() {
             <div className={styles.mainContent}>
                 <Outlet />
             </div>
+
+            {user?.role === 'patient' ? <PatientAIChat /> : null}
 
             <SessionWarningModal
                 isOpen={showWarning}
