@@ -3213,3 +3213,809 @@ button.toolCard:focus-visible {
         height: 48px;
     }
 }
+
+/* Patient AI Care Companion - saved conversation experience */
+
+.patientAiConversationShell {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: calc(100vh - 32px);
+    min-height: 620px;
+    max-height: none;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: var(--patient-radius-card);
+    background: var(--patient-surface);
+    box-shadow: var(--patient-shadow);
+}
+
+.patientAiConversationSidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    width: min(86vw, 330px);
+    min-width: 0;
+    overflow: hidden;
+    border-right: 1px solid var(--patient-border-strong);
+    background: var(--patient-surface-muted);
+    box-shadow: 18px 0 44px rgba(15, 23, 42, 0.16);
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+}
+
+.patientAiConversationSidebarOpen {
+    transform: translateX(0);
+}
+
+.patientAiSidebarHeader {
+    min-height: 64px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--patient-border-strong);
+    background: var(--patient-surface);
+}
+
+.patientAiSidebarHeader strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--patient-text);
+    font-size: 15px;
+    font-weight: 800;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.patientAiIconButton,
+.patientAiInfoButton,
+.patientAiTopBarButton,
+.patientAiConversationMenuButton {
+    border: none;
+    background: transparent;
+    color: var(--patient-primary);
+    font-family: 'Lexend Deca', sans-serif;
+    cursor: pointer;
+}
+
+.patientAiIconButton {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+
+.patientAiIconButton:hover,
+.patientAiInfoButton:hover,
+.patientAiTopBarButton:hover,
+.patientAiConversationMenuButton:hover {
+    background: rgba(1, 83, 139, 0.07);
+}
+
+.patientAiSidebarNewWrap {
+    padding: 14px;
+}
+
+.patientAiNewConversationButton {
+    width: 100%;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--patient-primary);
+    color: #ffffff;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.patientAiNewConversationButton:hover:not(:disabled) {
+    background: var(--patient-primary-dark);
+}
+
+.patientAiNewConversationButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.patientAiSavedList {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 10px 14px;
+}
+
+.patientAiSavedSectionLabel {
+    display: block;
+    padding: 14px 8px 6px;
+    color: var(--patient-text-subtle);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.patientAiSavedConversation {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    margin-bottom: 3px;
+    border-radius: 10px;
+}
+
+.patientAiSavedConversation:hover,
+.patientAiSavedConversationActive {
+    background: rgba(1, 83, 139, 0.08);
+}
+
+.patientAiSavedConversationMain {
+    flex: 1;
+    min-width: 0;
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 6px 8px 10px;
+    border: none;
+    background: transparent;
+    color: var(--patient-text);
+    font-family: 'Lexend Deca', sans-serif;
+    text-align: left;
+    cursor: pointer;
+}
+
+.patientAiSavedConversationMain svg {
+    flex: 0 0 auto;
+    color: var(--patient-text-muted);
+    font-size: 13px;
+}
+
+.patientAiSavedConversationMain span {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.patientAiConversationMenuButton {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+    border-radius: 9px;
+    color: var(--patient-text-muted);
+}
+
+.patientAiSavedEmpty {
+    margin: 0;
+    padding: 18px 10px;
+    color: var(--patient-text-subtle);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.patientAiArchivedLink {
+    width: 100%;
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 12px;
+    padding: 10px;
+    border: none;
+    border-top: 1px solid var(--patient-border-strong);
+    background: transparent;
+    color: var(--patient-text-muted);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.patientAiSidebarError {
+    margin: 0 12px 10px;
+    padding: 10px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fff7f7;
+    color: #991b1b;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.patientAiSidebarError button {
+    margin-top: 7px;
+    border: none;
+    background: transparent;
+    color: #991b1b;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.patientAiConversationMain {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--patient-surface-muted);
+}
+
+.patientAiConversationTopBar {
+    flex: 0 0 auto;
+    min-height: 64px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--patient-border-strong);
+    background: var(--patient-surface);
+}
+
+.patientAiTopBarLeft {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.patientAiTopBarIconButton {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--patient-primary);
+    cursor: pointer;
+}
+
+.patientAiTopBarIconButton:hover {
+    background: rgba(1, 83, 139, 0.07);
+}
+
+.patientAiTopBarButton {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 7px;
+    padding: 0 9px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.patientAiConversationTitleWrap {
+    min-width: 0;
+    text-align: center;
+}
+
+.patientAiConversationTitleWrap strong,
+.patientAiConversationTitleWrap span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.patientAiConversationTitleWrap strong {
+    color: var(--patient-text);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.patientAiConversationTitleWrap span {
+    margin-top: 2px;
+    color: var(--patient-text-subtle);
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.patientAiInfoButton {
+    justify-self: end;
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 19px;
+}
+
+.patientAiConversationMessages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 24px max(20px, 7vw);
+    scroll-behavior: smooth;
+}
+
+.patientAiConversationMessages .patientAiMessageRowAssistant,
+.patientAiConversationMessages .patientAiMessageRowUser {
+    width: min(100%, 850px);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.patientAiConversationLoading {
+    width: min(100%, 850px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px auto;
+    padding: 12px 14px;
+    color: var(--patient-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.patientAiConversationLoading svg {
+    color: var(--patient-primary);
+}
+
+.patientAiConversationDock {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--patient-border-strong);
+    background: var(--patient-surface);
+}
+
+.patientAiConversationPromptRow {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 10px max(16px, 5vw) 6px;
+    scrollbar-width: thin;
+}
+
+.patientAiConversationPromptRow button {
+    flex: 0 0 auto;
+    max-width: 240px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 11px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 999px;
+    background: var(--patient-surface-muted);
+    color: var(--patient-text);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.patientAiConversationPromptRow button svg {
+    color: var(--patient-primary);
+}
+
+.patientAiConversationPromptRow button:hover:not(:disabled) {
+    border-color: rgba(1, 83, 139, 0.22);
+    background: rgba(1, 83, 139, 0.05);
+}
+
+.patientAiConversationPromptRow button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.patientAiConversationDock .patientAiComposer {
+    width: min(100%, 900px);
+    margin: 0 auto;
+    border-top: none;
+    padding-top: 6px;
+}
+
+.patientAiArchivedNotice {
+    flex: 0 0 auto;
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 18px;
+    border-top: 1px solid var(--patient-border-strong);
+    background: var(--patient-surface);
+    color: var(--patient-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.patientAiSidebarBackdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 70;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+    background: rgba(15, 23, 42, 0.34);
+    cursor: pointer;
+}
+
+.patientAiOverlayBackdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    border: none;
+    background: rgba(15, 23, 42, 0.42);
+}
+
+.patientAiActionPanel,
+.patientAiConfirmPanel,
+.patientAiInfoPanel {
+    border: 1px solid var(--patient-border-strong);
+    background: var(--patient-surface);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+
+.patientAiActionPanel {
+    align-self: flex-end;
+    width: min(100%, 420px);
+    padding: 18px;
+    border-radius: 18px;
+}
+
+.patientAiActionPanel h3,
+.patientAiConfirmPanel h3 {
+    margin: 0 0 12px;
+    color: var(--patient-text);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.patientAiActionPanel > button {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 8px;
+    border: none;
+    border-bottom: 1px solid var(--patient-border-strong);
+    background: transparent;
+    color: var(--patient-text);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.patientAiActionPanel > button:last-child {
+    border-bottom: none;
+}
+
+.patientAiActionPanel .patientAiDangerAction {
+    color: #b42318;
+}
+
+.patientAiConfirmPanel {
+    width: min(100%, 430px);
+    padding: 22px;
+    border-radius: 18px;
+}
+
+.patientAiConfirmPanel p {
+    margin: 0;
+    color: var(--patient-text-muted);
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+.patientAiConfirmPanel input {
+    width: 100%;
+    min-height: 46px;
+    box-sizing: border-box;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 10px;
+    color: var(--patient-text);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 12px;
+}
+
+.patientAiConfirmActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.patientAiConfirmActions button {
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 9px;
+    background: var(--patient-surface);
+    color: var(--patient-text-muted);
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.patientAiConfirmActions .patientAiConfirmPrimary {
+    border-color: var(--patient-primary);
+    background: var(--patient-primary);
+    color: #ffffff;
+}
+
+.patientAiConfirmActions .patientAiConfirmDanger {
+    border-color: #b42318;
+    background: #b42318;
+    color: #ffffff;
+}
+
+.patientAiInfoPanel {
+    width: min(100%, 620px);
+    max-height: calc(100% - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 20px;
+}
+
+.patientAiOverlayHeader {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--patient-border-strong);
+}
+
+.patientAiOverlayHeader span {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--patient-primary);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.patientAiOverlayHeader h2 {
+    margin: 0;
+    color: var(--patient-text);
+    font-size: 19px;
+    font-weight: 800;
+}
+
+.patientAiOverlayHeader button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--patient-text);
+    cursor: pointer;
+}
+
+.patientAiInfoScroll {
+    overflow-y: auto;
+    padding: 0 20px 22px;
+}
+
+.patientAiInfoScroll section {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--patient-border-strong);
+}
+
+.patientAiInfoScroll section h3 {
+    margin: 4px 0 8px;
+    color: var(--patient-text);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.patientAiInfoScroll section p {
+    margin: 6px 0 0;
+    color: var(--patient-text-muted);
+    font-size: 11px;
+    line-height: 1.65;
+}
+
+.patientAiInfoScroll section small {
+    display: block;
+    margin-top: 10px;
+    color: var(--patient-text-subtle);
+    font-size: 9px;
+    line-height: 1.6;
+}
+
+.patientAiInfoEyebrow {
+    color: var(--patient-primary);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+}
+
+.patientAiInfoStrong {
+    display: block;
+    margin-top: 9px;
+    color: var(--patient-primary-dark);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.patientAiInfoNotice {
+    color: var(--patient-primary-dark) !important;
+    font-weight: 700;
+}
+
+.patientAiInfoError {
+    color: #b42318 !important;
+}
+
+.patientAiInfoEducation {
+    padding: 9px 0;
+    border-bottom: 1px solid var(--patient-border);
+}
+
+.patientAiInfoEducation span,
+.patientAiInfoEducation strong {
+    display: block;
+}
+
+.patientAiInfoEducation span {
+    color: var(--patient-text-subtle);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.patientAiInfoEducation strong {
+    margin-top: 3px;
+    color: var(--patient-text);
+    font-size: 11px;
+}
+
+.patientAiInfoSafety {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin-top: 18px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--patient-surface-muted);
+    color: var(--patient-text-muted);
+}
+
+.patientAiInfoSafety svg {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: var(--patient-primary);
+}
+
+.patientAiInfoSafety p {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+    .patientAiConversationMessages {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+}
+
+@media (max-width: 600px) {
+    .patientAiConversationShell {
+        width: 100%;
+        height: calc(100vh - 20px);
+        min-height: 580px;
+        border-radius: 12px;
+    }
+
+    .patientAiConversationTopBar {
+        grid-template-columns: auto minmax(0, 1fr) 50px;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .patientAiTopBarButton {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+
+    .patientAiTopBarButton span {
+        display: none;
+    }
+
+    .patientAiConversationMessages {
+        padding: 18px 12px;
+    }
+
+    .patientAiConversationPromptRow {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .patientAiConversationDock .patientAiComposer {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .patientAiOverlayBackdrop {
+        padding: 12px;
+    }
+
+    .patientAiActionPanel {
+        width: 100%;
+    }
+
+    .patientAiInfoPanel {
+        max-height: calc(100% - 12px);
+    }
+}
+
+/* Patient dashboard responsive overlap guard */
+
+.dashboardFocusGrid > *,
+.dashboardLeftColumn,
+.dashboardRightColumn,
+.dashboardSideStack,
+.dashboardWidget,
+.dashboardSchedulePanel {
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.dashboardMiniRow,
+.dashboardMiniValue,
+.detailPills {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.dashboardMiniValue {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.detailPills {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 1280px) {
+    .dashboardFocusGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -2,16 +2,37 @@ import React from 'react';
 import adminStyles from '../../styles/admin/AdminDashboard.module.css';
 import styles from '../../styles/patient/PatientPortal.module.css';
 
-export function PatientPageFrame({ title, subtitle, actions, children }) {
+export function PatientPageFrame({
+    title,
+    subtitle,
+    actions,
+    children,
+    hideHeader = false,
+}) {
     return (
         <main className={`${adminStyles['main-content']} ${styles.page}`}>
-            <header className={`${adminStyles.header} ${styles.header}`}>
-                <div className={`${adminStyles['header-left']} ${styles.headerCopy}`}>
-                    <h1 className={`${adminStyles.title} ${styles.title}`}>{title}</h1>
-                    {subtitle ? <p className={`${adminStyles.subtitle} ${styles.subtitle}`}>{subtitle}</p> : null}
-                </div>
-                {actions ? <div className={`${adminStyles['header-right']} ${styles.headerActions}`}>{actions}</div> : null}
-            </header>
+            {!hideHeader ? (
+                <header className={`${adminStyles.header} ${styles.header}`}>
+                    <div className={`${adminStyles['header-left']} ${styles.headerCopy}`}>
+                        <h1 className={`${adminStyles.title} ${styles.title}`}>
+                            {title}
+                        </h1>
+
+                        {subtitle ? (
+                            <p className={`${adminStyles.subtitle} ${styles.subtitle}`}>
+                                {subtitle}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    {actions ? (
+                        <div className={`${adminStyles['header-right']} ${styles.headerActions}`}>
+                            {actions}
+                        </div>
+                    ) : null}
+                </header>
+            ) : null}
+
             {children}
         </main>
     );
