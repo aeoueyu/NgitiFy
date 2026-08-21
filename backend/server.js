@@ -51,13 +51,16 @@ const verifyToken = require('./middleware/auth');
 const { getDisallowedPatientProfileFields } = require('./utils/patientProfilePermissions');
 const {
     ACCOUNT_SECRET_PROJECTION,
+    canApproveRadiographSummary,
     canPatientCancelAppointment,
     canPatientRescheduleAppointment,
     canReadPatientClinicalRecord,
     canWritePatientClinicalRecord,
+    getDisallowedStaffAccountUpdateFields,
     getRestrictedClinicalUpdateFields,
     isPatientPublishedRadiograph,
     isSameId,
+    pickAllowedStaffAccountUpdateFields,
     sanitizeUserForActor,
 } = require('./utils/healthcareAccess');
 
@@ -246,10 +249,13 @@ const buildRadiographPayload = (radiograph = {}) => {
         visitId: radiograph.visitId || null,
         analysis: radiograph.analysis || { status: 'not-analyzed', detections: [] },
         annotations: radiograph.annotations || [],
+        manualReview: radiograph.manualReview || {},
         reviewSummary: radiograph.reviewSummary || { status: 'none' },
         createdAt: radiograph.createdAt || null,
     };
 };
+
+const RADIOGRAPH_TYPES = Object.freeze(['Periapical', 'Bitewing', 'Occlusal', 'Panoramic', 'Other']);
 
 const buildPatientRadiographPayload = (radiograph = {}) => {
     const payload = buildRadiographPayload(radiograph);
@@ -5601,9 +5607,6 @@ app.post('/api/add-patient', verifyToken, async (req, res) => {
 
         const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
 
-        console.log(`📧 Attempting to send activation email to: ${email}`);
-        console.log(`🔗 Activation link: ${activationLink}`);
-
         try {
             await sendActivationEmail(normalizedEmail, 'Patient', activationLink);
             console.log(`✅ Email sent successfully to: ${email}`);
@@ -5717,8 +5720,8 @@ app.get('/api/assignable-dentists', verifyToken, async (req, res) => {
             query = applyBranchOwnershipFilter(query, req.user.assignedBranch);
         }
 
-        const dentists = await User.find(query).select('-password');
-        res.json(dentists);
+        const dentists = await User.find(query).select(ACCOUNT_SECRET_PROJECTION);
+        res.json(dentists.map((dentist) => sanitizeUserForActor(dentist, req.user)));
     } catch (error) {
         console.error('Error fetching assignable dentists:', error);
         res.status(500).json({ message: 'Server error.' });
@@ -6202,10 +6205,10 @@ app.put('/api/patients/:id/transfer-branch', verifyToken, async (req, res) => {
             },
         });
 
-        const updatedPatient = await User.findById(patient._id).select('-password');
+        const updatedPatient = await User.findById(patient._id).select(ACCOUNT_SECRET_PROJECTION);
         res.json({
             message: `Patient branch transferred from ${currentBranch} to ${targetBranch}.`,
-            patient: updatedPatient,
+            patient: sanitizeUserForActor(updatedPatient, req.user),
             previousBranch: currentBranch,
             newBranch: targetBranch,
         });
@@ -6387,7 +6390,7 @@ app.put('/api/user/toggle-status/:id', verifyToken, async (req, res) => {
             details: userStatusDetails
         });
 
-        res.json({ message: `User marked as ${normalizedStatus}.`, user });
+        res.json({ message: `User marked as ${normalizedStatus}.`, user: sanitizeUserForActor(user, req.user) });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error." });
@@ -6473,7 +6476,7 @@ app.put('/api/patient/toggle-status/:id', verifyToken, async (req, res) => {
             details: patientStatusDetails
         });
 
-        res.json({ message: `Patient marked as ${normalizedStatus}.`, patient });
+        res.json({ message: `Patient marked as ${normalizedStatus}.`, patient: sanitizeUserForActor(patient, req.user) });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error." });
@@ -6726,14 +6729,34 @@ app.put('/api/user/app-consent', verifyToken, async (req, res) => {
 
 app.put('/api/user/:id', verifyToken, async (req, res) => {
     try {
-        if (req.user.role === 'patient') {
-            return res.status(403).json({ message: 'Access denied.' });
-        }
-
-        const { password, email, role, isVerified, activationToken, isPasswordChanged, status, ...updateData } = req.body;
         const userId = req.params.id;
         const currentUser = await User.findById(userId);
         if (!currentUser) return res.status(404).json({ message: "User not found" });
+        if (currentUser.role === 'patient') {
+            return res.status(403).json({ message: 'Patient accounts cannot be updated through the generic account route. Use the authorized patient profile or assigned-dentist clinical endpoints.' });
+        }
+
+        const lifecyclePermission = canManageStaffLifecycle({ actor: req.user, target: currentUser });
+        if (!lifecyclePermission.allowed) {
+            return res.status(403).json({ message: lifecyclePermission.message });
+        }
+
+        const disallowedFields = getDisallowedStaffAccountUpdateFields({
+            targetRole: currentUser.role,
+            payload: req.body,
+        });
+        if (disallowedFields.length) {
+            return res.status(400).json({
+                message: 'One or more fields cannot be updated through the generic account route.',
+                fields: disallowedFields,
+            });
+        }
+
+        const allowedUpdateData = pickAllowedStaffAccountUpdateFields({
+            targetRole: currentUser.role,
+            payload: req.body,
+        });
+        const { email, ...updateData } = allowedUpdateData;
         if (currentUser.isArchived) {
             return res.status(409).json({ message: 'Restore this archived account before editing the record.' });
         }
@@ -6770,20 +6793,6 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             : (Array.isArray(normalizedUpdateData.assignedBranches)
                 ? (normalizedUpdateData.assignedBranches[0] || '')
                 : (currentUser.assignedBranch || currentUser.assignedBranches?.[0] || ''));
-
-        if (currentUser.role === 'administrator' && req.user.role !== 'administrator') {
-            return res.status(403).json({ message: 'Access denied. Cannot modify the administrator account.' });
-        }
-        // Nobody below administrator can escalate a role to administrator
-        if (role === 'administrator' && req.user.role !== 'administrator') {
-            await AuditLog.create({
-                action: 'UNAUTHORIZED_ESCALATION_ATTEMPT',
-                user: req.user.email,
-                role: req.user.role,
-                details: 'Attempted to escalate role to administrator.'
-            });
-            return res.status(403).json({ message: 'Access denied. Cannot escalate role to administrator.' });
-        }
 
         if (email) {
             const normalizedEmail = normalizeEmail(email);
@@ -6840,7 +6849,7 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
                     message: currentUser.isPasswordChanged
                         ? "User updated. Verification email sent to the new address. The current password will stay the same after activation."
                         : "User updated. Re-activation email sent.",
-                    user: updatedUser,
+                    user: sanitizeUserForActor(updatedUser, req.user),
                 });
             }
         }
@@ -6857,7 +6866,7 @@ app.put('/api/user/:id', verifyToken, async (req, res) => {
             details: `Updated user information for: ${updatedUser.email}`
         });
 
-        res.json(updatedUser);
+        res.json(sanitizeUserForActor(updatedUser, req.user));
     } catch (error) { res.status(500).json({ message: "Error updating user." }); }
 });
 
@@ -6909,6 +6918,15 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found." });
+        }
+        if (user.role === 'patient') {
+            const restrictedFields = getRestrictedClinicalUpdateFields(req.body);
+            if (restrictedFields.length) {
+                return res.status(403).json({
+                    message: 'Clinical records cannot be changed through a profile route. Use an assigned-dentist clinical endpoint.',
+                    fields: restrictedFields,
+                });
+            }
         }
 
         const invalidPersonNameMessage = getInvalidPersonNameMessage([
@@ -8003,10 +8021,10 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
                 dentistName: getDentistDisplayName(surgery.dentist),
             });
 
-            const linkedPatient = await User.findById(existingUser._id).select('-password');
+            const linkedPatient = await User.findById(existingUser._id).select(ACCOUNT_SECRET_PROJECTION);
             return res.status(200).json({
                 message: 'Guest appointment linked to existing patient.',
-                patient: linkedPatient,
+                patient: sanitizeUserForActor(linkedPatient, req.user),
                 surgery,
                 linkedExisting: true,
             });
@@ -8135,10 +8153,10 @@ app.post(['/api/admin/appointments/:surgeryId/register-guest', '/api/admin/appoi
             statusCode = 207;
         }
 
-        const createdPatient = await User.findById(newUser._id).select('-password');
+        const createdPatient = await User.findById(newUser._id).select(ACCOUNT_SECRET_PROJECTION);
         return res.status(statusCode).json({
             message,
-            patient: createdPatient,
+            patient: sanitizeUserForActor(createdPatient, req.user),
             surgery,
             linkedExisting: false,
         });
@@ -10947,8 +10965,8 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
     try {
         const { label, date, url, notes, findings, radiographNumber, visitId } = req.body;
 
-        if (!label || !date) {
-            return res.status(400).json({ message: 'Label and date are required.' });
+        if (!RADIOGRAPH_TYPES.includes(label) || !date) {
+            return res.status(400).json({ message: 'A valid radiograph type and date are required.' });
         }
         if (url) {
             const parsedImage = parseBase64ImageDataUrl(url);
@@ -10989,7 +11007,7 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
         if (!patient.radiographs) patient.radiographs = [];
 
         const newEntry = {
-            label,
+            label: String(label),
             date: new Date(date),
             radiographNumber: String(radiographNumber || '').trim(),
             url: url || null,
@@ -13656,6 +13674,17 @@ app.post('/api/patients/:id/radiographs/:radiographId/approve-summary', verifyTo
     try {
         const record = await requireDentistRadiograph(req, res);
         if (!record) return;
+        if (req.body.manualReviewConfirmed === true) {
+            record.radiograph.manualReview = {
+                reviewedAt: new Date(),
+                reviewedBy: req.user.id,
+            };
+        }
+        if (!canApproveRadiographSummary(record.radiograph)) {
+            return res.status(409).json({
+                message: 'Resolve every AI suggestion or confirm that the dentist manually reviewed the radiograph before approval.',
+            });
+        }
         const approvedText = String(req.body.text || record.radiograph.reviewSummary?.draft || '').trim().slice(0, 5000);
         if (!approvedText) return res.status(400).json({ message: 'A summary draft is required before approval.' });
         record.radiograph.reviewSummary.status = 'approved';
@@ -14661,7 +14690,7 @@ app.post('/api/users/:id/grant-admin', verifyToken, async (req, res) => {
             details: `Admin access ${isAdminAccess ? 'granted to' : 'revoked from'} user: ${user.email}`
         });
 
-        res.json({ message: `Admin access ${isAdminAccess ? 'granted' : 'revoked'} successfully.`, user });
+        res.json({ message: `Admin access ${isAdminAccess ? 'granted' : 'revoked'} successfully.`, user: sanitizeUserForActor(user, req.user) });
     } catch (error) {
         console.error('Error granting admin access:', error);
         res.status(500).json({ message: 'Server error.' });

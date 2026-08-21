@@ -1,6 +1,6 @@
 # Predictive Visit Windows
 
-Dentime already has product logic for patient visit prediction based on recorded treatment history. The AI assistant does not create the prediction on its own.
+Dentime already has product logic for patient visit prediction based on recorded treatment history. The AI Patient Engagement Module does not create the prediction on its own.
 
 ## What the assistant may say
 

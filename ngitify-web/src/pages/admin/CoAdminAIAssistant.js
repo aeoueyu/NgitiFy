@@ -12,7 +12,7 @@ const SUGGESTED_PROMPTS = [
 
 export default function AdminAIAssistantPreview() {
     useAuth();
-    const title = 'Administrator AI workspace preview';
+    const title = 'Administrator NgitiBot workspace preview';
     const roleLabel = 'administrator';
     const helperScopeLabel = 'admin assistant';
 
@@ -23,11 +23,11 @@ export default function AdminAIAssistantPreview() {
                     <FaRobot className={styles.heroIcon} />
                 </div>
                 <div>
-                    <p className={styles.eyebrow}>AI Staff Assistant</p>
+                    <p className={styles.eyebrow}>NgitiBot</p>
                     <h1 className={styles.title}>{title}</h1>
                     <p className={styles.subtitle}>
-                        This frontend preview shows how the {roleLabel} AI helper will look once
-                        the guided work assistant is finalized. The live AI workflow is intentionally
+                        This frontend preview shows how {roleLabel} NgitiBot will look once
+                        the guided work helper is finalized. The live NgitiBot workflow is intentionally
                         not enabled here yet.
                     </p>
                 </div>
@@ -102,7 +102,7 @@ export default function AdminAIAssistantPreview() {
                 </div>
 
                 <div className={styles.inputRow}>
-                    <div className={styles.disabledInput}>Ask the AI assistant about your admin workflow...</div>
+                    <div className={styles.disabledInput}>Ask NgitiBot about your admin workflow...</div>
                     <button type="button" className={styles.sendBtn} disabled>
                         <FaPaperPlane />
                     </button>

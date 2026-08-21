@@ -17,11 +17,11 @@ export default function BranchManagerAIAssistant() {
                     <FaRobot className={styles.heroIcon} />
                 </div>
                 <div>
-                    <p className={styles.eyebrow}>AI Staff Assistant</p>
-                    <h1 className={styles.title}>Branch manager AI workspace preview</h1>
+                    <p className={styles.eyebrow}>NgitiBot</p>
+                    <h1 className={styles.title}>Branch manager NgitiBot workspace preview</h1>
                     <p className={styles.subtitle}>
-                        This frontend preview shows how the branch manager AI helper will look once
-                        the guided work assistant is finalized. The live AI workflow is intentionally
+                        This frontend preview shows how branch manager NgitiBot will look once
+                        the guided work helper is finalized. The live NgitiBot workflow is intentionally
                         not enabled here yet.
                     </p>
                 </div>
@@ -96,7 +96,7 @@ export default function BranchManagerAIAssistant() {
                 </div>
 
                 <div className={styles.inputRow}>
-                    <div className={styles.disabledInput}>Ask the AI assistant about your branch workflow...</div>
+                    <div className={styles.disabledInput}>Ask NgitiBot about your branch workflow...</div>
                     <button type="button" className={styles.sendBtn} disabled>
                         <FaPaperPlane />
                     </button>

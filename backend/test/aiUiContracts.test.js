@@ -7,7 +7,7 @@ const read = (...parts) => fs.readFileSync(path.join(__dirname, '..', '..', ...p
 
 test('mobile patient shell exposes a global accessible AI overlay launcher', () => {
     const source = read('ngitify-mobile', 'src', 'navigation', 'AppNavigator.js');
-    assert.match(source, /accessibilityLabel="Open NgitiFy AI"/);
+    assert.match(source, /accessibilityLabel="Open NgitiBot"/);
     assert.match(source, /<Modal visible=\{aiOpen\} transparent/);
     assert.match(source, /height: '92%'/);
 });
@@ -26,9 +26,11 @@ test('mobile patient dashboard no longer presents AI as a Care Tools destination
     assert.match(source, /label="Electronic Medical Record"/);
 });
 
-test('web staff AI supports history lifecycle and accessible close', () => {
+test('web staff NgitiBot supports history lifecycle and floating inbox controls', () => {
     const source = read('ngitify-web', 'src', 'components', 'common', 'AIChatAssistant.js');
-    for (const text of ['New chat', 'Pinned', 'Archived', 'Rename conversation', 'Delete conversation', 'Close AI assistant']) {
+    for (const text of ['New chat', 'Pinned', 'Archived', 'Rename conversation', 'Delete conversation', 'Minimize NgitiBot', 'Close NgitiBot']) {
         assert.match(source, new RegExp(text));
     }
+    assert.match(source, /aria-label="NgitiBot"/);
+    assert.doesNotMatch(source, /NgitiFy Staff AI|AI assistant/);
 });

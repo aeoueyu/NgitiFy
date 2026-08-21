@@ -1,5 +1,6 @@
 // backend/models/User.js
 const mongoose = require('mongoose');
+const { ACCOUNT_SECRET_FIELDS } = require('../utils/healthcareAccess');
 
 const addressSchema = new mongoose.Schema({
     country: { type: String, default: 'Philippines' },
@@ -97,6 +98,11 @@ const radiographSummarySchema = new mongoose.Schema({
     provenance: { type: String, default: '' },
 }, { _id: false });
 
+const radiographManualReviewSchema = new mongoose.Schema({
+    reviewedAt: { type: Date, default: null },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+}, { _id: false });
+
 const radiographSchema = new mongoose.Schema({
     label: { type: String, required: true },
     date: { type: Date, required: true },
@@ -120,6 +126,7 @@ const radiographSchema = new mongoose.Schema({
     analysis: { type: radiographAnalysisSchema, default: () => ({}) },
     analysisHistory: { type: [radiographAnalysisSchema], default: [] },
     annotations: { type: [radiographAnnotationSchema], default: [] },
+    manualReview: { type: radiographManualReviewSchema, default: () => ({}) },
     reviewSummary: { type: radiographSummarySchema, default: () => ({}) },
 }, { timestamps: true });
 
@@ -516,6 +523,7 @@ const userSchema = new mongoose.Schema({
 userSchema.set('toJSON', {
     virtuals: true,
     transform: (_doc, ret) => {
+        ACCOUNT_SECRET_FIELDS.forEach((field) => delete ret[field]);
         const canonicalHomeAddress = ret.homeAddress || ret.currentAddress || ret.permanentAddress || null;
         if (canonicalHomeAddress) {
             ret.homeAddress = canonicalHomeAddress;

@@ -10,6 +10,7 @@ import {
     FaCalendarAlt,
     FaChevronRight,
     FaClipboardList,
+    FaCommentMedical,
     FaCodeBranch,
     FaCog,
     FaDatabase,
@@ -254,10 +255,6 @@ export default function Sidebar() {
     const notifBadge = renderBadge(notifUnreadCount);
     const inventoryBadge = renderBadge(lowStockCount);
 
-    const aiAssistantActive = isPatient
-        ? location.pathname.startsWith('/patient/ai-companion')
-        : isChatOpen;
-
     return (
         <>
             {isExpanded && (
@@ -432,21 +429,6 @@ export default function Sidebar() {
                         {isExpanded && <span className={styles['nav-text']}>Settings</span>}
                     </div>
 
-                    {!isPatient && (
-                        <div
-                            className={`${styles['settings-link']} ${aiAssistantActive ? styles.active : ''}`}
-                            onClick={() => {
-                                setIsChatOpen((prev) => !prev);
-                                setIsExpanded(false);
-                            }}
-                            data-tooltip="AI Assistant"
-                        >
-                            <FaRobot className={styles['nav-icon']} />
-                            {isExpanded && <span className={styles['nav-text']}>AI Assistant</span>}
-                            {isExpanded && <span className={styles['ai-badge']}>AI</span>}
-                        </div>
-                    )}
-
                     <div
                         className={styles['logout-btn']}
                         onClick={() => {
@@ -466,10 +448,12 @@ export default function Sidebar() {
                     type="button"
                     className={styles.staffAiLauncher}
                     onClick={() => setIsChatOpen(true)}
-                    aria-label="Open NgitiFy Staff AI"
-                    title="Open NgitiFy Staff AI"
+                    aria-label="Open NgitiBot"
+                    title="Ask NgitiBot"
                 >
-                    <FaRobot aria-hidden="true" />
+                    <FaCommentMedical className={styles.staffAiLauncherBubble} aria-hidden="true" />
+                    <FaRobot className={styles.staffAiLauncherRobot} aria-hidden="true" />
+                    <span className={styles.staffAiLauncherTooltip} role="tooltip">Ask NgitiBot</span>
                 </button>
             ) : null}
 

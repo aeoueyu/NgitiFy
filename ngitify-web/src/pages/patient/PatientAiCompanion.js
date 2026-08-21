@@ -2009,7 +2009,7 @@ const PatientAiCompanion = ({
     return (
         <PatientPageFrame
             hideHeader
-            title="AI Care Companion"
+            title="NgitiBot"
             bare={embedded}
         >
             <div
@@ -2020,7 +2020,7 @@ const PatientAiCompanion = ({
                 }`}
                 role={embedded ? 'dialog' : undefined}
                 aria-modal={embedded ? 'false' : undefined}
-                aria-label={embedded ? 'Patient AI Care Companion' : undefined}
+                aria-label={embedded ? 'NgitiBot' : undefined}
             >
                 <aside
                     className={`${styles.patientAiConversationSidebar}${
@@ -2080,8 +2080,8 @@ const PatientAiCompanion = ({
                                         <FaRobot />
                                     </span>
                                     <div className={styles.patientAiFloatingTitle}>
-                                        <strong>NgitiFy AI</strong>
-                                        <span>{currentConversation?.title || 'Care Companion'}</span>
+                                        <strong>NgitiBot</strong>
+                                        <span>{currentConversation?.title || 'New conversation'}</span>
                                     </div>
                                 </div>
                             ) : null}
@@ -2089,8 +2089,8 @@ const PatientAiCompanion = ({
 
                         {!embedded ? (
                             <div className={styles.patientAiConversationTitleWrap}>
-                                <strong>{currentConversation?.title || 'AI Care Companion'}</strong>
-                                <span>AI Care Companion</span>
+                                <strong>{currentConversation?.title || 'NgitiBot'}</strong>
+                                <span>NgitiBot</span>
                             </div>
                         ) : null}
 
@@ -2105,8 +2105,8 @@ const PatientAiCompanion = ({
 
                                 setActiveOverlay('info');
                             }}
-                            aria-label={embedded ? 'Close AI Care Companion' : 'About AI Care Companion'}
-                            title={embedded ? 'Close chat' : 'About AI Care Companion'}
+                            aria-label={embedded ? 'Close NgitiBot' : 'About NgitiBot'}
+                            title={embedded ? 'Close chat' : 'About NgitiBot'}
                         >
                             {embedded ? <FaTimes /> : <FaInfoCircle />}
                         </button>
@@ -2344,7 +2344,7 @@ const PatientAiCompanion = ({
                                         styles.srOnly
                                     }
                                 >
-                                    Message AI Care Companion
+                                    Message NgitiBot
                                 </label>
 
                                 <textarea
@@ -2370,7 +2370,7 @@ const PatientAiCompanion = ({
                                     onKeyDown={
                                         handleKeyDown
                                     }
-                                    placeholder="Message AI Care Companion..."
+                                    placeholder="Message NgitiBot..."
                                     rows={2}
                                     maxLength={
                                         1500
@@ -2426,7 +2426,7 @@ const PatientAiCompanion = ({
                             }
                             role="dialog"
                             aria-modal="true"
-                            aria-label="About AI Care Companion"
+                            aria-label="About NgitiBot"
                         >
                             <div
                                 className={
@@ -2435,7 +2435,7 @@ const PatientAiCompanion = ({
                             >
                                 <div>
                                     <span>
-                                        AI CARE COMPANION
+                                        NGITIBOT
                                     </span>
 
                                     <h2>
@@ -2616,7 +2616,7 @@ const PatientAiCompanion = ({
                                     <FaExclamationTriangle />
 
                                     <p>
-                                        AI Care Companion is educational and explanatory. It does not diagnose conditions or replace professional dental care. Contact the clinic if symptoms persist, worsen, or concern you.
+                                        NgitiBot is educational and explanatory. It does not diagnose conditions or replace professional dental care. Contact the clinic if symptoms persist, worsen, or concern you.
                                     </p>
                                 </div>
                             </div>

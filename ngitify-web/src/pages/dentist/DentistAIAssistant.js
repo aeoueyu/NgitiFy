@@ -17,11 +17,11 @@ export default function DentistAIAssistant() {
                     <FaRobot className={styles.heroIcon} />
                 </div>
                 <div>
-                    <p className={styles.eyebrow}>AI Staff Assistant</p>
-                    <h1 className={styles.title}>Dentist-side AI workspace preview</h1>
+                    <p className={styles.eyebrow}>NgitiBot</p>
+                    <h1 className={styles.title}>Dentist NgitiBot workspace preview</h1>
                     <p className={styles.subtitle}>
-                        This frontend preview shows how the dentist AI assistant will look once the guided
-                        work-helper experience is finalized. The live AI workflow is intentionally not enabled here yet.
+                        This frontend preview shows how NgitiBot will look once the guided
+                        work-helper experience is finalized. The live NgitiBot workflow is intentionally not enabled here yet.
                     </p>
                 </div>
                 <div className={styles.statusBadge}>
@@ -89,7 +89,7 @@ export default function DentistAIAssistant() {
                 </div>
 
                 <div className={styles.inputRow}>
-                    <div className={styles.disabledInput}>Ask the AI assistant about your dentist workflow...</div>
+                    <div className={styles.disabledInput}>Ask NgitiBot about your dentist workflow...</div>
                     <button type="button" className={styles.sendBtn} disabled>
                         <FaPaperPlane />
                     </button>

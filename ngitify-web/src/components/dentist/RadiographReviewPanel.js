@@ -1,38 +1,50 @@
-import React, { useMemo, useState } from 'react';
-import { FaArrowLeft, FaCheck, FaCompress, FaEye, FaEyeSlash, FaMagic, FaMinus, FaPlus, FaRobot, FaTrash } from 'react-icons/fa';
+import React, { useMemo, useRef, useState } from 'react';
+import { FaArrowLeft, FaCompress, FaMagic, FaMinus, FaPlus, FaRobot, FaTrash } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import styles from './RadiographReviewPanel.module.css';
 
 const FDI_TEETH = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28,48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38].map(String);
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Date not recorded';
-const statusLabel = (status) => ({ pending: 'Needs verification', confirmed: 'Dentist verified', corrected: 'Corrected', ignored: 'Ignored' }[status] || 'Needs verification');
+const reviewStatusLabel = (status) => ({ approved: 'Dentist Verified', draft: 'Draft Review' }[status] || 'Review Pending');
+const reviewStatusTone = (status) => ({ approved: 'reviewStatusApproved', draft: 'reviewStatusDraft' }[status] || 'reviewStatusPending');
+
+export const toNormalizedImagePoint = ({ clientX, clientY }, rect) => ({
+    type: 'point',
+    x: Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)),
+    y: Math.min(1, Math.max(0, (clientY - rect.top) / rect.height)),
+    width: 0,
+    height: 0,
+});
 
 export default function RadiographReviewPanel({ patientId, radiograph, radiographs = [], treatmentLogs = [], onChange, onClose, onEnhance, onDelete }) {
     const [activeTab, setActiveTab] = useState('quality');
     const [view, setView] = useState('original');
     const [zoom, setZoom] = useState(1);
-    const [showAi, setShowAi] = useState(true);
     const [displayAdjustments, setDisplayAdjustments] = useState({ brightness: 100, contrast: 100 });
     const [busy, setBusy] = useState('');
-    const [selectedDetectionId, setSelectedDetectionId] = useState('');
-    const [correction, setCorrection] = useState('');
     const [compareId, setCompareId] = useState('');
     const [annotationMode, setAnnotationMode] = useState(false);
     const [geometry, setGeometry] = useState(null);
     const [finding, setFinding] = useState({ toothNumber: '', findingType: '', note: '', linkToOdontogram: true, treatmentLogId: '' });
     const [summaryText, setSummaryText] = useState(radiograph.reviewSummary?.draft || radiograph.reviewSummary?.approvedText || '');
+    const [manualReviewConfirmed, setManualReviewConfirmed] = useState(Boolean(radiograph.manualReview?.reviewedAt));
     const [evaluation, setEvaluation] = useState(null);
     const [message, setMessage] = useState('');
+    const [messageTone, setMessageTone] = useState('info');
+    const [isImproving, setIsImproving] = useState(false);
+    const improveInFlightRef = useRef(false);
 
     const analysis = radiograph.analysis || { status: 'not-analyzed', detections: [] };
-    const detections = analysis.detections || [];
     const previousOptions = useMemo(() => radiographs.filter((item) => item.id !== radiograph.id && new Date(item.date || item.rawDate) < new Date(radiograph.date || radiograph.rawDate)).sort((a, b) => new Date(b.date || b.rawDate) - new Date(a.date || a.rawDate)), [radiographs, radiograph]);
     const comparison = previousOptions.find((item) => item.id === compareId);
     const imageUrl = view === 'enhanced' && radiograph.enhancedUrl ? radiograph.enhancedUrl : radiograph.url;
+    const qualityLabel = analysis.qualityAssessment?.label || (analysis.status === 'failed' ? 'Unavailable' : 'Not analyzed');
+    const qualityTone = analysis.status === 'failed' ? 'statusError' : analysis.qualityAssessment?.label ? 'statusSuccess' : 'statusNeutral';
 
     const request = async (endpoint, options = {}) => {
         setBusy(endpoint);
         setMessage('');
+        setMessageTone('info');
         try {
             const response = await authFetch(endpoint, options);
             const data = await response.json();
@@ -42,9 +54,11 @@ export default function RadiographReviewPanel({ patientId, radiograph, radiograp
                 setSummaryText(data.radiograph.reviewSummary?.draft || data.radiograph.reviewSummary?.approvedText || '');
             }
             setMessage(data.message || 'Saved.');
+            setMessageTone('success');
             return data;
         } catch (error) {
             setMessage(error.message);
+            setMessageTone('error');
             return null;
         } finally {
             setBusy('');
@@ -52,9 +66,8 @@ export default function RadiographReviewPanel({ patientId, radiograph, radiograp
     };
 
     const analyze = () => request(`/patients/${patientId}/radiographs/${radiograph.id}/analyze`, { method: 'POST' });
-    const updateDetection = (item, action) => request(`/patients/${patientId}/radiographs/${radiograph.id}/detections/${item._id || item.id}`, { method: 'PATCH', body: JSON.stringify({ action, confirmedToothNumber: action === 'correct' ? correction : item.predictedToothNumber }) });
     const generateSummary = () => request(`/patients/${patientId}/radiographs/${radiograph.id}/generate-summary`, { method: 'POST' });
-    const approveSummary = () => request(`/patients/${patientId}/radiographs/${radiograph.id}/approve-summary`, { method: 'POST', body: JSON.stringify({ text: summaryText }) });
+    const approveSummary = () => request(`/patients/${patientId}/radiographs/${radiograph.id}/approve-summary`, { method: 'POST', body: JSON.stringify({ text: summaryText, manualReviewConfirmed }) });
     const loadEvaluation = async () => {
         const data = await request('/radiograph-review/evaluation');
         if (data) setEvaluation(data);
@@ -71,53 +84,80 @@ export default function RadiographReviewPanel({ patientId, radiograph, radiograp
             link.click();
             URL.revokeObjectURL(url);
             setMessage('Anonymized evaluation export downloaded.');
+            setMessageTone('success');
         } catch (error) {
             setMessage(error.message);
+            setMessageTone('error');
         } finally {
             setBusy('');
         }
     };
 
-    const selectDetection = (item) => {
-        setSelectedDetectionId(String(item._id || item.id));
-        setCorrection(item.confirmedToothNumber || item.predictedToothNumber || '');
-        setFinding((current) => ({ ...current, toothNumber: item.confirmedToothNumber || item.predictedToothNumber || '' }));
-        setGeometry(item.geometry || null);
-    };
-
     const placeAnnotation = (event) => {
         if (!annotationMode) return;
         const rect = event.currentTarget.getBoundingClientRect();
-        setGeometry({ type: 'point', x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height, width: 0, height: 0 });
+        if (!rect.width || !rect.height) return;
+        setGeometry(toNormalizedImagePoint(event, rect));
         setActiveTab('findings');
         setAnnotationMode(false);
     };
 
     const saveFinding = async () => {
-        if (!geometry) return setMessage('Select an AI region or use Add annotation and click the image first.');
+        if (!geometry) {
+            setMessageTone('error');
+            return setMessage('Use Add annotation, then click the radiograph where the finding belongs.');
+        }
         const result = await request(`/patients/${patientId}/radiographs/${radiograph.id}/annotations`, { method: 'POST', body: JSON.stringify({ ...finding, geometry }) });
-        if (result) setFinding({ toothNumber: '', findingType: '', note: '', linkToOdontogram: true, treatmentLogId: '' });
+        if (result) {
+            setFinding({ toothNumber: '', findingType: '', note: '', linkToOdontogram: true, treatmentLogId: '' });
+            setGeometry(null);
+        }
     };
 
-    const renderImage = (source, alt) => (
-        <div className={styles.canvas} onClick={placeAnnotation} data-annotation-mode={annotationMode}>
+    const improveImage = async () => {
+        if (improveInFlightRef.current || !radiograph.url) return;
+        improveInFlightRef.current = true;
+        setIsImproving(true);
+        setMessage('');
+        setMessageTone('info');
+        try {
+            const succeeded = await onEnhance?.('basic');
+            if (succeeded === false) {
+                setMessageTone('error');
+                setMessage('Auto Improve could not be completed. Please try again.');
+            }
+        } catch (error) {
+            setMessageTone('error');
+            setMessage(error?.message || 'Auto Improve could not be completed. Please try again.');
+        } finally {
+            improveInFlightRef.current = false;
+            setIsImproving(false);
+        }
+    };
+
+    const renderImage = (source, alt, interactive = true) => (
+        <div className={styles.canvas} data-annotation-mode={interactive && annotationMode}>
             <div className={styles.zoomLayer} style={{ transform: `scale(${zoom})` }}>
-                <img src={source} alt={alt} draggable="false" style={{ filter: `brightness(${displayAdjustments.brightness}%) contrast(${displayAdjustments.contrast}%)` }} />
-                {showAi && source === imageUrl && detections.filter((item) => item.status !== 'ignored' && item.confidenceLevel !== 'low').map((item) => (
-                    <button key={item._id || item.id} type="button" className={`${styles.detectionBox} ${styles[item.status || 'pending']}`} style={{ left: `${item.geometry.x * 100}%`, top: `${item.geometry.y * 100}%`, width: `${item.geometry.width * 100}%`, height: `${item.geometry.height * 100}%` }} onClick={(event) => { event.stopPropagation(); selectDetection(item); }} aria-label={`AI suggestion tooth ${item.predictedToothNumber}, ${statusLabel(item.status)}`}>
-                        <span>{item.confirmedToothNumber || item.predictedToothNumber}</span>
-                    </button>
-                ))}
-                {geometry?.type === 'point' ? <span className={styles.pointMarker} style={{ left: `${geometry.x * 100}%`, top: `${geometry.y * 100}%` }} aria-label="New annotation point" /> : null}
+                <img
+                    src={source}
+                    alt={alt}
+                    draggable="false"
+                    onClick={interactive ? placeAnnotation : undefined}
+                    style={{ filter: `brightness(${displayAdjustments.brightness}%) contrast(${displayAdjustments.contrast}%)` }}
+                />
+                {interactive ? (radiograph.annotations || []).filter((item) => item.geometry?.type === 'point').map((item) => (
+                    <span key={item._id || item.id} className={styles.savedPointMarker} style={{ left: `${item.geometry.x * 100}%`, top: `${item.geometry.y * 100}%` }} aria-label="Dentist annotation" />
+                )) : null}
+                {interactive && geometry?.type === 'point' ? <span className={styles.pointMarker} style={{ left: `${geometry.x * 100}%`, top: `${geometry.y * 100}%` }} aria-label="New annotation point" /> : null}
             </div>
         </div>
     );
 
     return (
-        <section className={styles.review} aria-label="AI-Assisted Radiograph Review">
+        <section className={styles.review} aria-label="Radiograph Review">
             <header className={styles.topBar}>
                 <button type="button" className={styles.linkButton} onClick={onClose}><FaArrowLeft /> Gallery</button>
-                <div><h2>AI-Assisted Radiograph Review</h2><p>{radiograph.type || radiograph.label} · {formatDate(radiograph.date || radiograph.rawDate)}</p></div>
+                <div className={styles.titleBlock}><h2>Radiograph Review</h2><div className={styles.metaBadges}><span>{radiograph.type || radiograph.label}</span><span>{formatDate(radiograph.date || radiograph.rawDate)}</span><span className={`${styles.reviewStatus} ${styles[reviewStatusTone(radiograph.reviewSummary?.status)]}`}>{reviewStatusLabel(radiograph.reviewSummary?.status)}</span></div></div>
                 <div className={styles.topActions}>
                     <button type="button" onClick={() => setView('original')} aria-pressed={view === 'original'}>Original</button>
                     <button type="button" onClick={() => setView('enhanced')} disabled={!radiograph.enhancedUrl} aria-pressed={view === 'enhanced'}>Enhanced</button>
@@ -131,54 +171,44 @@ export default function RadiographReviewPanel({ patientId, radiograph, radiograp
                         <button type="button" onClick={() => setZoom((value) => Math.min(3, value + 0.25))} aria-label="Zoom in"><FaPlus /></button>
                         <button type="button" onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))} aria-label="Zoom out"><FaMinus /></button>
                         <button type="button" onClick={() => setZoom(1)}><FaCompress /> Fit</button>
-                        <button type="button" onClick={() => setShowAi((value) => !value)}>{showAi ? <FaEye /> : <FaEyeSlash />} Show AI</button>
                         <button type="button" onClick={() => setAnnotationMode(true)}>Add annotation</button>
-                        <select value={compareId} onChange={(event) => setCompareId(event.target.value)} aria-label="Compare with previous radiograph">
+                        <select className={styles.pillSelect} value={compareId} onChange={(event) => setCompareId(event.target.value)} aria-label="Compare with previous radiograph">
                             <option value="">Compare with previous</option>
                             {previousOptions.map((item) => <option key={item.id} value={item.id}>{formatDate(item.date || item.rawDate)} · {item.type}</option>)}
                         </select>
                     </div>
-                    {comparison ? <div className={styles.comparison}><div><strong>Current · {formatDate(radiograph.date || radiograph.rawDate)}</strong>{renderImage(imageUrl, 'Current radiograph')}</div><div><strong>Previous · {formatDate(comparison.date || comparison.rawDate)}</strong>{renderImage(comparison.url, 'Previous radiograph')}</div></div> : renderImage(imageUrl, radiograph.type || 'Radiograph')}
+                    {comparison ? <div className={styles.comparison}><div><strong>Current · {formatDate(radiograph.date || radiograph.rawDate)}</strong>{renderImage(imageUrl, 'Current radiograph')}</div><div><strong>Previous · {formatDate(comparison.date || comparison.rawDate)}</strong>{renderImage(comparison.url, 'Previous radiograph', false)}</div></div> : renderImage(imageUrl, radiograph.type || 'Radiograph')}
                     <div className={styles.enhanceRow}>
                         <div><strong>Improve Image Visibility</strong><small>Adjust the view without changing the original.</small></div>
                         <label>Brightness <input type="range" min="50" max="150" value={displayAdjustments.brightness} onChange={(event) => setDisplayAdjustments({ ...displayAdjustments, brightness: Number(event.target.value) })} /></label>
                         <label>Contrast <input type="range" min="50" max="180" value={displayAdjustments.contrast} onChange={(event) => setDisplayAdjustments({ ...displayAdjustments, contrast: Number(event.target.value) })} /></label>
                         <button type="button" onClick={() => setDisplayAdjustments({ brightness: 100, contrast: 100 })}>Reset</button>
-                        <button type="button" onClick={() => onEnhance('basic')} disabled={busy || !radiograph.url}><FaMagic /> Auto Improve</button>
+                        <button type="button" onClick={improveImage} disabled={isImproving || !radiograph.url} aria-busy={isImproving}>{isImproving ? <span className={styles.spinner} aria-hidden="true" /> : <FaMagic />} {isImproving ? 'Improving...' : 'Auto Improve'}</button>
                     </div>
-                    <p className={styles.disclaimer}>AI suggestions are for review support only. Confirm findings using your clinical judgment.</p>
+                    <div className={styles.workflow} aria-label="Radiograph review workflow"><span>Radiograph Image</span><b>↓</b><span>Quality Review</span><b>↓</b><span>Dentist Finding</span><b>↓</b><span>Clinical Record</span><b>↓</b><span>Patient Explanation</span></div>
                 </main>
 
                 <aside className={styles.panel}>
-                    <nav>{['quality', 'teeth', 'findings', 'history'].map((tab) => <button key={tab} type="button" className={activeTab === tab ? styles.activeTab : ''} onClick={() => setActiveTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}</nav>
-                    {message ? <p className={styles.message} role="status">{message}</p> : null}
+                    <nav>{['quality', 'findings', 'history'].map((tab) => <button key={tab} type="button" className={activeTab === tab ? styles.activeTab : ''} onClick={() => setActiveTab(tab)}>{tab === 'history' ? 'Summary' : tab[0].toUpperCase() + tab.slice(1)}</button>)}</nav>
+                    {message ? <p className={`${styles.message} ${styles[`${messageTone}Message`]}`} role="status"><span>{message}</span></p> : null}
                     {activeTab === 'quality' ? <div className={styles.section}>
-                        <div className={styles.statusRow}><span>Image Quality</span><strong>{analysis.qualityAssessment?.label || (analysis.status === 'failed' ? 'Unavailable' : 'Not analyzed')}</strong></div>
+                        <div className={styles.statusRow}><span>Image Quality</span><strong className={`${styles.statusBadge} ${styles[qualityTone]}`}>{qualityLabel}</strong></div>
                         {(analysis.qualityAssessment?.issues || []).map((issue) => <article key={issue.code}><strong>{issue.label}</strong><p>{issue.suggestion}</p></article>)}
                         <button type="button" className={styles.primary} onClick={analyze} disabled={Boolean(busy)}><FaRobot /> {busy.includes('/analyze') ? 'Analyzing…' : analysis.status === 'ready' ? 'Run analysis again' : 'Analyze radiograph'}</button>
                         {analysis.limitations ? <small>{analysis.limitations}</small> : null}
                     </div> : null}
-                    {activeTab === 'teeth' ? <div className={styles.section}>
-                        <p>{detections.filter((item) => item.status === 'pending').length} suggestion(s) need review.</p>
-                        {detections.map((item) => <article key={item._id || item.id} className={selectedDetectionId === String(item._id || item.id) ? styles.selectedCard : ''}>
-                            <button type="button" className={styles.detectionTitle} onClick={() => selectDetection(item)}>AI suggestion: Tooth {item.predictedToothNumber}</button>
-                            <small>{statusLabel(item.status)} · {item.confidenceLevel} confidence ({Math.round(item.confidence * 100)}%)</small>
-                            {item.status === 'pending' ? <div className={styles.actions}><button type="button" onClick={() => updateDetection(item, 'confirm')}><FaCheck /> Confirm</button><select value={selectedDetectionId === String(item._id || item.id) ? correction : item.predictedToothNumber} onFocus={() => selectDetection(item)} onChange={(event) => setCorrection(event.target.value)}>{FDI_TEETH.map((tooth) => <option key={tooth}>{tooth}</option>)}</select><button type="button" onClick={() => updateDetection(item, 'correct')}>Correct</button><button type="button" onClick={() => updateDetection(item, 'ignore')}>Ignore</button></div> : null}
-                        </article>)}
-                        {detections.some((item) => item.confidenceLevel === 'low') ? <small>Low-confidence suggestions are listed here but hidden from the overlay by default.</small> : null}
-                    </div> : null}
                     {activeTab === 'findings' ? <div className={styles.section}>
-                        <label>FDI tooth<select value={finding.toothNumber} onChange={(event) => setFinding({ ...finding, toothNumber: event.target.value })}><option value="">Area only</option>{FDI_TEETH.map((tooth) => <option key={tooth}>{tooth}</option>)}</select></label>
+                        <label className={styles.pillField}><span>FDI Tooth:</span><select aria-label="FDI Tooth" value={finding.toothNumber} onChange={(event) => setFinding({ ...finding, toothNumber: event.target.value })}><option value="">Area only</option>{FDI_TEETH.map((tooth) => <option key={tooth}>{tooth}</option>)}</select></label>
                         <label>Finding recorded by dentist<input value={finding.findingType} onChange={(event) => setFinding({ ...finding, findingType: event.target.value })} placeholder="Use an existing clinical term" /></label>
                         <label>Clinical note<textarea value={finding.note} onChange={(event) => setFinding({ ...finding, note: event.target.value })} rows="3" /></label>
-                        <label className={styles.checkbox}><input type="checkbox" checked={finding.linkToOdontogram} onChange={(event) => setFinding({ ...finding, linkToOdontogram: event.target.checked })} /> Link reference to odontogram</label>
-                        <label>Related treatment<select value={finding.treatmentLogId} onChange={(event) => setFinding({ ...finding, treatmentLogId: event.target.value })}><option value="">None</option>{treatmentLogs.map((item) => <option key={item.id} value={item.id}>{item.procedure} · {formatDate(item.date || item.rawDate)}</option>)}</select></label>
+                        <label className={`${styles.checkbox} ${styles.checkboxPill}`}><input type="checkbox" checked={finding.linkToOdontogram} onChange={(event) => setFinding({ ...finding, linkToOdontogram: event.target.checked })} /> Link reference to odontogram</label>
+                        <label className={styles.pillField}><span>Related Treatment:</span><select aria-label="Related Treatment" value={finding.treatmentLogId} onChange={(event) => setFinding({ ...finding, treatmentLogId: event.target.value })}><option value="">None</option>{treatmentLogs.map((item) => <option key={item.id} value={item.id}>{item.procedure} · {formatDate(item.date || item.rawDate)}</option>)}</select></label>
                         <button type="button" className={styles.primary} onClick={saveFinding} disabled={Boolean(busy)}>Save dentist finding</button>
-                        {(radiograph.annotations || []).map((item) => <article key={item._id || item.id}><strong>{item.toothNumber ? `Tooth ${item.toothNumber}` : 'Marked area'} · Dentist recorded</strong><p>{item.findingType}{item.note ? ` — ${item.note}` : ''}</p>{item.linkToOdontogram ? <small>Linked to odontogram reference</small> : null}</article>)}
+                        {(radiograph.annotations || []).map((item) => <article key={item._id || item.id}><div className={styles.findingHeading}><strong>{item.toothNumber ? `Tooth ${item.toothNumber}` : 'Marked area'}</strong><span className={styles.verifiedBadge}>Dentist Recorded</span></div><p>{item.findingType}{item.note ? ` — ${item.note}` : ''}</p>{item.linkToOdontogram ? <small className={styles.infoBadge}>Linked to odontogram</small> : null}</article>)}
                     </div> : null}
                     {activeTab === 'history' ? <div className={styles.section}>
                         <h3>Review summary</h3><button type="button" onClick={generateSummary} disabled={Boolean(busy)}>Generate summary</button>
-                        {summaryText || radiograph.reviewSummary?.draft ? <><textarea rows="8" value={summaryText} onChange={(event) => setSummaryText(event.target.value)} /><button type="button" className={styles.primary} onClick={approveSummary} disabled={Boolean(busy)}>Approve summary</button><small>AI-assisted summary, saved only after dentist approval.</small></> : null}
+                        {summaryText || radiograph.reviewSummary?.draft ? <><textarea rows="8" value={summaryText} onChange={(event) => setSummaryText(event.target.value)} /><label className={styles.checkbox}><input type="checkbox" checked={manualReviewConfirmed} onChange={(event) => setManualReviewConfirmed(event.target.checked)} /> I manually reviewed this radiograph image</label><button type="button" className={styles.primary} onClick={approveSummary} disabled={Boolean(busy)}>Approve summary</button><small>AI-assisted summary, saved only after AI suggestions are resolved or manual review is recorded, followed by dentist approval.</small></> : null}
                         <h3>Previous radiographs</h3>{previousOptions.map((item) => <button type="button" key={item.id} className={styles.historyItem} onClick={() => setCompareId(item.id)}>{formatDate(item.date || item.rawDate)} · {item.type}</button>)}
                         <h3>Related treatments</h3>{treatmentLogs.filter((log) => (radiograph.annotations || []).some((item) => String(item.treatmentLogId || '') === String(log.id))).map((log) => <p key={log.id}>{log.procedure} · {formatDate(log.date || log.rawDate)}</p>)}
                         {radiograph.visitId ? <p><strong>Linked visit:</strong> {String(radiograph.visitId)}</p> : null}

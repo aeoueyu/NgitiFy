@@ -15,7 +15,7 @@ import { mobileTheme } from '../../theme/mobileTheme';
 // â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const TABS = [
-    { key: 'medical', label: 'Medical & Dental History' },
+    { key: 'medical', label: 'Medical and Dental History' },
     { key: 'treatment', label: 'Treatment History' },
     { key: 'odontogram', label: 'Odontogram' },
     { key: 'radiograph', label: 'Radiograph Images' },
@@ -645,7 +645,7 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
     if (!radiographs.length) return (
         <EmptyState
             iconComponent={<MaterialCommunityIcons name="bone" size={40} color="#bbb" />}
-            title="No X-Rays On File"
+            title="No Radiograph Images on File"
             sub="Dental X-rays shared by your dentist will appear here."
         />
     );
@@ -907,7 +907,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         }
         logActivity(
             'EMR_VIEWED',
-            `Viewed Medical Records - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab`,
+            `Viewed Electronic Medical Record (EMR) - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab`,
             userToken, API_BASE_URL
         );
     }, [activeTab]);
@@ -943,7 +943,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
                 <View style={styles.heroCopy}>
                     <Text style={styles.heroTitle}>Your Electronic Medical Record</Text>
                     <Text style={styles.heroText}>
-                        Review your health history, treatments, tooth chart, and radiographs.
+                        Review your Medical and Dental History, Treatment History, Odontogram (your tooth chart), and Radiograph Images (your dental X-rays).
                     </Text>
                 </View>
             </View>

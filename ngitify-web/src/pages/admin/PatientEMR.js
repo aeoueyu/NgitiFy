@@ -169,6 +169,9 @@ const getRadiographViewOptions = (radiograph) => {
     ];
     return options.filter((option) => option.available);
 };
+
+const RADIOGRAPH_TYPES = ['Periapical', 'Bitewing', 'Occlusal', 'Panoramic', 'Other'];
+const DEFAULT_RADIOGRAPH_TYPE = 'Periapical';
 const normalizeRadiographRecord = (radiograph = {}) => {
     const rawDateValue = radiograph.date || radiograph.rawDate || radiograph.uploadedAt || radiograph.createdAt || 0;
     const variants = getNormalizedEnhancementVariants(radiograph);
@@ -435,7 +438,7 @@ export default function PatientEMR({
     const [enhancingEngine, setEnhancingEngine] = useState('');
     const [selectedRadiographView, setSelectedRadiographView] = useState('latest');
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [uploadForm, setUploadForm] = useState({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
+    const [uploadForm, setUploadForm] = useState({ label: DEFAULT_RADIOGRAPH_TYPE, date: '', radiographNumber: '', findings: '', notes: '' });
     const [uploadPreview, setUploadPreview] = useState(null);
     const [uploadFormErrors, setUploadFormErrors] = useState({});
     const [deleteRadiographTarget, setDeleteRadiographTarget] = useState(null);
@@ -1395,7 +1398,7 @@ export default function PatientEMR({
         return (
             <div className={styles.contentCard}>
                 <div className={styles.sectionHeaderRow}>
-                    <h3 className={styles.sectionTitle}>Medical & Dental History</h3>
+                    <h3 className={styles.sectionTitle}>Medical and Dental History</h3>
                     {canEditMedical && !isEditingMedical && (
                         <button className={styles.actionBtn} onClick={() => setIsEditingMedical(true)}>
                             Edit Medical History
@@ -2164,7 +2167,7 @@ export default function PatientEMR({
 
     const validateUploadForm = () => {
         const errors = {};
-        if (!String(uploadForm.label || '').trim()) errors.label = 'Required';
+        if (!RADIOGRAPH_TYPES.includes(uploadForm.label)) errors.label = 'Select a valid radiograph type';
         if (!String(uploadForm.date || '').trim()) errors.date = 'Required';
         if (!uploadPreview) errors.image = 'Required';
         return errors;
@@ -2183,7 +2186,7 @@ export default function PatientEMR({
     const resetUploadModal = () => {
         setIsUploadModalOpen(false);
         setUploadPreview(null);
-        setUploadForm({ label: '', date: '', radiographNumber: '', findings: '', notes: '' });
+        setUploadForm({ label: DEFAULT_RADIOGRAPH_TYPE, date: '', radiographNumber: '', findings: '', notes: '' });
         setUploadFormErrors({});
     };
 
@@ -2265,14 +2268,15 @@ export default function PatientEMR({
     };
 
     const handleAIEnhance = async (engine = 'basic') => {
+        if (isEnhancing) return false;
         if (!canEnhanceRadiograph) {
             addToast('Only dentists can use AI-assisted radiograph review tools.', 'error');
-            return;
+            return false;
         }
 
         if (!selectedRadiograph?.id) {
             addToast('Select a radiograph first.', 'error');
-            return;
+            return false;
         }
 
         setIsEnhancing(true);
@@ -2301,8 +2305,10 @@ export default function PatientEMR({
                     ? 'selfHosted'
                     : 'basic');
             addToast(data.message || 'Enhanced radiograph saved to the patient record.', 'success');
+            return true;
         } catch (err) {
             addToast(err.message || 'Failed to enhance radiograph.', 'error');
+            return false;
         } finally {
             setIsEnhancing(false);
             setEnhancingEngine('');
@@ -2638,14 +2644,15 @@ export default function PatientEMR({
                     <form onSubmit={handleUploadSubmit}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px', marginBottom: '16px' }}>
                             <div className={styles.formGroup}>
-                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Label / Type {renderRequiredMark()}</label>
-                                <input
-                                    type="text"
+                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Radiograph Type {renderRequiredMark()}</label>
+                                <select
                                     className={getUploadFieldClass('label')}
-                                    placeholder="e.g. Panoramic, Periapical, Bitewing"
                                     value={uploadForm.label}
                                     onChange={(e) => updateUploadField('label', e.target.value)}
-                                />
+                                    required
+                                >
+                                    {RADIOGRAPH_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                                </select>
                                 {renderUploadError('label')}
                             </div>
                             <div className={styles.formGroup}>
@@ -2809,10 +2816,10 @@ export default function PatientEMR({
             {/* Updated Tab Structure */}
             <div className={styles.tabContainer}>
                 <button className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.active : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
-                        <button className={`${styles.tabBtn} ${activeTab === 'medicalHistory' ? styles.active : ''}`} onClick={() => setActiveTab('medicalHistory')}>Medical & Dental History</button>
+                        <button className={`${styles.tabBtn} ${activeTab === 'medicalHistory' ? styles.active : ''}`} onClick={() => setActiveTab('medicalHistory')}>Medical and Dental History</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'treatmentLogs' ? styles.active : ''}`} onClick={() => setActiveTab('treatmentLogs')}>Treatment History</button>
                 <button className={`${styles.tabBtn} ${activeTab === 'odontogram' ? styles.active : ''}`} onClick={() => setActiveTab('odontogram')}>Odontogram</button>
-                <button className={`${styles.tabBtn} ${activeTab === 'radiographs' ? styles.active : ''}`} onClick={() => setActiveTab('radiographs')}>Radiographs</button>
+                <button className={`${styles.tabBtn} ${activeTab === 'radiographs' ? styles.active : ''}`} onClick={() => setActiveTab('radiographs')}>Radiograph Images</button>
             </div>
 
             <div className={styles.tabContentArea}>

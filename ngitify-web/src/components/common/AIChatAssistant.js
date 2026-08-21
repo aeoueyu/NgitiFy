@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FaArchive, FaBars, FaChevronDown, FaEdit, FaPaperPlane, FaPlus, FaRobot, FaThumbtack, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
+import { FaArchive, FaBars, FaChevronDown, FaEdit, FaMinus, FaPaperPlane, FaPlus, FaRobot, FaThumbtack, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch, BASE_URL } from '../../utils/api';
 import { STAFF_AI_SUGGESTIONS } from '../../data/staffAiKnowledge';
 import styles from './AIChatAssistant.module.css';
 
-const welcome = (role) => ({ id: 'welcome', role: 'assistant', isStreaming: false, content: `Hi! I’m your NgitiFy ${role || 'staff'} assistant. I can summarize permitted work information and explain the features available to you.` });
+const welcome = (role) => ({ id: 'welcome', role: 'assistant', isStreaming: false, content: `Hi! I’m NgitiBot. I can help with permitted ${role || 'staff'} work information and explain the features available to your role.` });
 const moduleFromPath = (path = '') => (path.split('/').filter(Boolean).pop() || 'dashboard').replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export default function AIChatAssistant({ isOpen, onClose }) {
@@ -151,11 +151,11 @@ export default function AIChatAssistant({ isOpen, onClose }) {
     if (!isOpen) return null;
     const pinned = conversations.filter((item) => item.isPinned);
     const recent = conversations.filter((item) => !item.isPinned);
-    return <div className={styles.overlay} role="dialog" aria-modal="false" aria-label="NgitiFy staff AI assistant"><section className={styles.panel}>
+    return <div className={styles.overlay} role="dialog" aria-modal="false" aria-label="NgitiBot"><section className={styles.panel}>
         <header className={styles.header}><div className={styles.headerLeft}>
             <button className={styles.headerIconBtn} onClick={() => setShowHistory(true)} aria-label="Open conversation history"><FaBars /></button>
-            <div className={styles.avatarBubble}><FaRobot className={styles.avatarIcon} /></div><div><h3 className={styles.headerTitle}>NgitiFy Staff AI</h3><p className={styles.headerSub}>{moduleFromPath(location.pathname)}</p></div>
-        </div><div className={styles.headerActions}><button className={styles.headerIconBtn} onClick={newConversation} aria-label="Start a new conversation"><FaPlus /></button><button className={styles.closeBtn} onClick={onClose} aria-label="Close AI assistant"><FaTimes /></button></div></header>
+            <div className={styles.avatarBubble}><FaRobot className={styles.avatarIcon} /></div><div><h3 className={styles.headerTitle}>NgitiBot</h3><p className={styles.headerSub}>{moduleFromPath(location.pathname)}</p></div>
+        </div><div className={styles.headerActions}><button className={styles.headerIconBtn} onClick={newConversation} aria-label="Start a new conversation"><FaPlus /></button><button className={styles.headerIconBtn} onClick={onClose} aria-label="Minimize NgitiBot"><FaMinus /></button><button className={styles.closeBtn} onClick={onClose} aria-label="Close NgitiBot"><FaTimes /></button></div></header>
         <div className={styles.messages} ref={messagesRef} onScroll={() => { const el = messagesRef.current; setShowScrollBtn(el ? el.scrollHeight - el.scrollTop - el.clientHeight > 120 : false); }}>
             {messages.map((message) => <div key={message.id || `${message.role}-${message.createdAt}`} className={`${styles.messageRow} ${message.role === 'user' ? styles.userRow : styles.assistantRow}`}>
                 {message.role === 'assistant' && <div className={styles.assistantAvatar}><FaRobot /></div>}<div className={`${styles.bubble} ${message.role === 'user' ? styles.userBubble : styles.assistantBubble}`}>
@@ -165,7 +165,7 @@ export default function AIChatAssistant({ isOpen, onClose }) {
         {showScrollBtn && <button className={styles.scrollToBottomBtn} onClick={() => messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' })} aria-label="Scroll to newest message"><FaChevronDown /></button>}
         {messages.length === 1 && <div className={styles.quickPrompts}>{suggestions.slice(0, 4).map((prompt) => <button key={prompt} className={styles.quickBtn} onClick={() => sendMessage(prompt)}>{prompt}</button>)}</div>}
         {error && <div className={styles.errorBanner} role="alert">{error}{lastFailedPrompt && <button type="button" onClick={() => sendMessage(lastFailedPrompt)}>Retry</button>}</div>}
-        <div className={styles.inputArea}><textarea ref={inputRef} className={styles.input} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); } }} placeholder="Ask about your work or this page…" rows={1} disabled={isStreaming} aria-label="Message NgitiFy staff AI" /><button className={styles.sendBtn} onClick={() => sendMessage()} disabled={!input.trim() || isStreaming} aria-label="Send message"><FaPaperPlane /></button></div>
+        <div className={styles.inputArea}><textarea ref={inputRef} className={styles.input} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); } }} placeholder="Message NgitiBot…" rows={1} disabled={isStreaming} aria-label="Message NgitiBot" /><button className={styles.sendBtn} onClick={() => sendMessage()} disabled={!input.trim() || isStreaming} aria-label="Send message"><FaPaperPlane /></button></div>
         <p className={styles.disclaimer}>Read-only guidance. NgitiFy permissions still apply.</p>
         {showHistory && <><button className={styles.drawerBackdrop} onClick={() => setShowHistory(false)} aria-label="Close conversation history" /><aside className={styles.historyDrawer} aria-label="Conversation history">
             <div className={styles.drawerHeader}><strong>Conversations</strong><button onClick={() => setShowHistory(false)} aria-label="Close history"><FaTimes /></button></div>

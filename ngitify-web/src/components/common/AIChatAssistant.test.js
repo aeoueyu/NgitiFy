@@ -23,11 +23,13 @@ test('opens and closes the partial conversation history without closing chat', a
     expect(onClose).not.toHaveBeenCalled();
 });
 
-test('close X closes the assistant', async () => {
+test('close and minimize controls close the floating inbox', async () => {
     const onClose = jest.fn();
     render(<AIChatAssistant isOpen onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText('Close AI assistant'));
+    fireEvent.click(screen.getByLabelText('Minimize NgitiBot'));
     expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByLabelText('Close NgitiBot'));
+    expect(onClose).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(authFetch).toHaveBeenCalled());
 });
 
@@ -35,4 +37,21 @@ test('secretary receives role-specific prompt suggestions', async () => {
     render(<AIChatAssistant isOpen onClose={() => {}} />);
     expect(await screen.findByRole('button', { name: 'How do I register a new patient?' })).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'How do I update the tooth chart?' })).toBeNull();
+});
+
+test('conversation history remains mounted across minimize and reopen', async () => {
+    authFetch.mockImplementation((endpoint) => {
+        if (endpoint === '/staff/ai/conversations/saved-1') {
+            return okJson({ conversation: { id: 'saved-1', messages: [{ id: 'm-1', role: 'assistant', content: 'Saved role-safe context' }] } });
+        }
+        return okJson({ conversations: [{ id: 'saved-1', title: 'Saved chat', isPinned: false }] });
+    });
+    const { rerender } = render(<AIChatAssistant isOpen onClose={() => {}} />);
+    fireEvent.click(screen.getByLabelText('Open conversation history'));
+    fireEvent.click(await screen.findByRole('button', { name: /saved chat/i }));
+    expect(await screen.findByText('Saved role-safe context')).not.toBeNull();
+
+    rerender(<AIChatAssistant isOpen={false} onClose={() => {}} />);
+    rerender(<AIChatAssistant isOpen onClose={() => {}} />);
+    expect(await screen.findByText('Saved role-safe context')).not.toBeNull();
 });

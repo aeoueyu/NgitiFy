@@ -17,12 +17,12 @@ export default function OwnerAIAssistant() {
                     <FaRobot className={styles.heroIcon} />
                 </div>
                 <div>
-                    <p className={styles.eyebrow}>AI Staff Assistant</p>
-                    <h1 className={styles.title}>Owner-side AI workspace preview</h1>
+                    <p className={styles.eyebrow}>NgitiBot</p>
+                    <h1 className={styles.title}>Owner NgitiBot workspace preview</h1>
                     <p className={styles.subtitle}>
-                        This preview shows the future owner AI assistant experience for answering
+                        This preview shows the future owner NgitiBot experience for answering
                         workflow questions, surfacing records, and guiding you through NgitiFy.
-                        The live AI behavior is intentionally not enabled yet.
+                        The live NgitiBot behavior is intentionally not enabled yet.
                     </p>
                 </div>
                 <div className={styles.statusBadge}>
@@ -96,7 +96,7 @@ export default function OwnerAIAssistant() {
                 </div>
 
                 <div className={styles.inputRow}>
-                    <div className={styles.disabledInput}>Ask the AI assistant about your owner workflow...</div>
+                    <div className={styles.disabledInput}>Ask NgitiBot about your owner workflow...</div>
                     <button type="button" className={styles.sendBtn} disabled>
                         <FaPaperPlane />
                     </button>

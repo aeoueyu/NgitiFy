@@ -36,7 +36,7 @@ describe('PatientAIChat', () => {
         renderChat();
 
         fireEvent.click(screen.getByRole('button', {
-            name: 'Open NgitiFy AI Care Companion',
+            name: 'Open NgitiBot',
         }));
 
         expect(screen.getByTestId('patient-ai-window').getAttribute('data-open')).toBe('true');
@@ -48,7 +48,7 @@ describe('PatientAIChat', () => {
         });
 
         expect(screen.getByRole('button', {
-            name: 'Open NgitiFy AI Care Companion',
+            name: 'Open NgitiBot',
         })).not.toBeNull();
     });
 
@@ -56,7 +56,7 @@ describe('PatientAIChat', () => {
         renderChat();
 
         fireEvent.click(screen.getByRole('button', {
-            name: 'Open NgitiFy AI Care Companion',
+            name: 'Open NgitiBot',
         }));
         fireEvent.keyDown(window, { key: 'Escape' });
 

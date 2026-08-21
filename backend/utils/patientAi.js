@@ -1,3 +1,5 @@
+const { isPatientPublishedRadiograph } = require('./healthcareAccess');
+
 const MAX_RECENT_ORAL_HEALTH_LOGS = 7;
 const MAX_CONTEXTUAL_EDUCATION_ARTICLES = 3;
 
@@ -129,7 +131,7 @@ const buildPatientAiEducationContext = ({
 const buildPatientAiRadiographContext = (radiographs = []) => (
     (Array.isArray(radiographs) ? radiographs : [])
         .map(toPlainObject)
-        .filter((radiograph) => radiograph?.reviewSummary?.status === 'approved')
+        .filter(isPatientPublishedRadiograph)
         .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0))
         .slice(0, 5)
         .map((radiograph) => ({

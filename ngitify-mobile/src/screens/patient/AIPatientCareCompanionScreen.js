@@ -51,7 +51,7 @@ const QUICK_PROMPTS = [
 const WELCOME_MESSAGE = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Hi! How can I help? Ask about your appointments, dental records, daily care, or how NgitiFy works.\n\nNgitiFy AI can explain your saved information but does not replace your dentist.',
+  content: 'Hi! How can I help? Ask about your appointments, Electronic Medical Record (EMR), daily care, or how NgitiFy works.\n\nNgitiBot can explain your saved information but does not replace your dentist.',
 };
 
 const formatDateKey = (value) => {
@@ -2441,7 +2441,7 @@ export default function AiPatientCareCompanionScreen({
                   styles.infoEyebrow
                 }
               >
-                AI CARE COMPANION
+                NGITIBOT
               </Text>
 
               <Text
@@ -2494,7 +2494,7 @@ export default function AiPatientCareCompanionScreen({
                 styles.infoBody
               }
             >
-              AI Care Companion can explain existing NgitiFy information such as appointments, your System Recommendation, Oral Health Management records, and approved Dental Health Education.
+              NgitiBot can explain existing NgitiFy information such as appointments, your System Recommendation, Oral Health Management records, and approved Dental Health Education.
             </Text>
 
             <View
@@ -2847,7 +2847,7 @@ export default function AiPatientCareCompanionScreen({
                   styles.infoSafetyText
                 }
               >
-                AI Care Companion is educational and explanatory. It does not diagnose conditions or replace professional dental care. Contact the clinic if symptoms persist, worsen, or concern you.
+                NgitiBot is educational and explanatory. It does not diagnose conditions or replace professional dental care. Contact the clinic if symptoms persist, worsen, or concern you.
               </Text>
             </View>
           </ScrollView>
@@ -3443,7 +3443,7 @@ export default function AiPatientCareCompanionScreen({
           >
             {currentConversation
               ?.title
-              || 'AI Care Companion'}
+              || 'NgitiBot'}
           </Text>
 
           <Text
@@ -3451,7 +3451,7 @@ export default function AiPatientCareCompanionScreen({
               styles.headerSubtitle
             }
           >
-            AI Care Companion
+            NgitiBot
           </Text>
         </View>
 
@@ -3520,7 +3520,7 @@ export default function AiPatientCareCompanionScreen({
               style={styles.input}
               value={input}
               onChangeText={setInput}
-              placeholder="Message AI Care Companion..."
+              placeholder="Message NgitiBot..."
               placeholderTextColor={
                 mobileTheme
                   .colors
@@ -3530,7 +3530,7 @@ export default function AiPatientCareCompanionScreen({
               maxLength={1500}
               editable={!sending}
               returnKeyType="default"
-              accessibilityLabel="Message AI Care Companion"
+              accessibilityLabel="Message NgitiBot"
             />
 
             <TouchableOpacity

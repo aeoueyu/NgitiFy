@@ -24,7 +24,7 @@ test('patient radiograph serialization omits raw analysis and unapproved summary
 
 test('patient AI receives only approved radiograph records', () => {
     const records = buildPatientAiRadiographContext([
-        { _id: 'approved', label: 'Panoramic', reviewSummary: { status: 'approved', approvedText: 'Dentist approved.' }, annotations: [{ toothNumber: '46', findingType: 'Existing restoration' }] },
+        { _id: 'approved', label: 'Panoramic', reviewSummary: { status: 'approved', approvedText: 'Dentist approved.', approvedAt: new Date(), approvedBy: 'd1' }, annotations: [{ toothNumber: '46', findingType: 'Existing restoration' }] },
         { _id: 'draft', label: 'Periapical', reviewSummary: { status: 'draft', draft: 'Not approved.' }, analysis: { detections: [{ predictedToothNumber: '47' }] } },
     ]);
     assert.equal(records.length, 1);
@@ -36,4 +36,33 @@ test('evaluation export uses pseudonymous ids and excludes direct patient identi
     const evaluationRoute = serverSource.slice(serverSource.indexOf("app.get('/api/radiograph-review/evaluation'"), serverSource.indexOf("const createStaffAiRouter", serverSource.indexOf("app.get('/api/radiograph-review/evaluation'")));
     assert.match(evaluationRoute, /createHmac\('sha256'/);
     assert.doesNotMatch(evaluationRoute, /patient\.name|patient\.email|contactNumber|address/);
+});
+
+test('radiograph summary approval records manual review and dentist approval before publication', () => {
+    const approvalRoute = serverSource.slice(serverSource.indexOf("app.post('/api/patients/:id/radiographs/:radiographId/approve-summary'"), serverSource.indexOf("app.get('/api/radiograph-review/evaluation'"));
+    assert.match(approvalRoute, /manualReviewConfirmed === true/);
+    assert.match(approvalRoute, /canApproveRadiographSummary/);
+    assert.match(approvalRoute, /reviewSummary\.approvedAt = new Date\(\)/);
+    assert.match(approvalRoute, /reviewSummary\.approvedBy = req\.user\.id/);
+});
+
+test('radiograph upload accepts only the controlled clinical type list', () => {
+    const uploadRoute = serverSource.slice(serverSource.indexOf("app.post('/api/patients/:id/radiographs'"), serverSource.indexOf("app.delete('/api/patients/:id/radiographs/:entryId'"));
+    for (const type of ['Periapical', 'Bitewing', 'Occlusal', 'Panoramic', 'Other']) {
+        assert.match(serverSource, new RegExp(`['\"]${type}['\"]`));
+    }
+    assert.match(uploadRoute, /RADIOGRAPH_TYPES\.includes\(label\)/);
+    assert.match(uploadRoute, /valid radiograph type and date/);
+    const emrSource = fs.readFileSync(path.join(__dirname, '..', '..', 'ngitify-web', 'src', 'pages', 'admin', 'PatientEMR.js'), 'utf8');
+    assert.match(emrSource, /DEFAULT_RADIOGRAPH_TYPE = 'Periapical'/);
+    assert.match(emrSource, /<select[\s\S]*value=\{uploadForm\.label\}[\s\S]*required/);
+    assert.doesNotMatch(emrSource, /placeholder="e\.g\. Panoramic, Periapical, Bitewing"/);
+});
+
+test('radiograph review UI omits visual detection overlays and supports guarded enhancement', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', '..', 'ngitify-web', 'src', 'components', 'dentist', 'RadiographReviewPanel.js'), 'utf8');
+    assert.doesNotMatch(source, /Show AI|detectionBox|AI suggestion:/);
+    assert.match(source, /Improving\.\.\./);
+    assert.match(source, /improveInFlightRef/);
+    assert.match(source, /getBoundingClientRect\(\)/);
 });

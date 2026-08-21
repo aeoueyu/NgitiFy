@@ -53,7 +53,7 @@ test('mobile Records exposes the four required read-only EMR tabs in order', () 
     const source = fs.readFileSync(path.join(__dirname, '..', '..', 'ngitify-mobile', 'src', 'screens', 'patient', 'MedicalRecordsScreen.js'), 'utf8');
     const tabBlock = source.slice(source.indexOf('const TABS = ['), source.indexOf('];', source.indexOf('const TABS = [')) + 2);
 
-    assert.ok(tabBlock.indexOf("label: 'Medical & Dental History'") < tabBlock.indexOf("label: 'Treatment History'"));
+    assert.ok(tabBlock.indexOf("label: 'Medical and Dental History'") < tabBlock.indexOf("label: 'Treatment History'"));
     assert.ok(tabBlock.indexOf("label: 'Treatment History'") < tabBlock.indexOf("label: 'Odontogram'"));
     assert.ok(tabBlock.indexOf("label: 'Odontogram'") < tabBlock.indexOf("label: 'Radiograph Images'"));
     assert.match(source, /: 'medical';/);

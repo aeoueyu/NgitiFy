@@ -64,14 +64,14 @@ export default function PatientAIChat() {
                     type="button"
                     className={styles.patientAiLauncher}
                     onClick={openChat}
-                    aria-label="Open NgitiFy AI Care Companion"
+                    aria-label="Open NgitiBot"
                     aria-haspopup="dialog"
-                    title="Ask NgitiFy AI"
+                    title="Ask NgitiBot"
                 >
                     <FaCommentMedical className={styles.patientAiLauncherBubble} aria-hidden="true" />
                     <FaRobot className={styles.patientAiLauncherRobot} aria-hidden="true" />
                     <span className={styles.patientAiLauncherTooltip} role="tooltip">
-                        Ask NgitiFy AI
+                        Ask NgitiBot
                     </span>
                 </button>
             ) : null}

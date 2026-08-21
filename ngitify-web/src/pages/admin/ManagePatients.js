@@ -706,13 +706,13 @@ export default function ManagePatients() {
                                     <td style={{ textAlign: 'center' }}>
                                         <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
                                             <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(patient.id)} title="View Patient EMR"><FaEye /></button>
-                                            {(canEditPatients || isDentist) && (
+                                            {canEditPatients && !isDentist && (
                                                 <>
                                                     <button
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.editIconButton}`}
                                                         onClick={() => handleEditClick(patient.id)}
-                                                        title={isArchivedRecord ? 'Archived records are read-only' : (isDentist ? 'Open Patient EMR' : 'Edit Quick Details')}
+                                                        title={isArchivedRecord ? 'Archived records are read-only' : 'Edit Quick Details'}
                                                         disabled={isArchivedRecord}
                                                     >
                                                         <FaEdit />

@@ -1,33 +1,33 @@
 @import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');
 
-/* ── Panel overlay (fixed, right side) ─────────────────────────────────────── */
+/* Floating inbox overlay shared by every staff role. */
 .overlay {
     position: fixed;
-    inset: 0;
+    right: 24px;
+    bottom: 24px;
+    width: min(430px, calc(100vw - 48px));
+    height: min(720px, calc(100vh - 48px));
     z-index: 2000;
-    pointer-events: none;   /* only the panel itself is interactive */
     font-family: 'Lexend Deca', sans-serif;
+    filter: drop-shadow(0 18px 42px rgba(15, 23, 42, .22));
 }
 
 .panel {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 420px;
-    max-width: 100vw;
+    position: relative;
+    width: 100%;
+    height: 100%;
     background: #ffffff;
-    box-shadow: -6px 0 40px rgba(0, 0, 0, 0.14);
     display: flex;
     flex-direction: column;
-    pointer-events: all;
-    animation: slideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-    border-left: 1px solid #e2e8f0;
+    animation: floatIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    border: 1px solid #dbe7ef;
+    border-radius: 20px;
+    overflow: hidden;
 }
 
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
+@keyframes floatIn {
+    from { transform: translateY(18px) scale(.98); opacity: 0; }
+    to   { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
@@ -360,5 +360,5 @@
 
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
-    .panel { width: 100vw; }
+    .overlay { right: 10px; bottom: 10px; width: calc(100vw - 20px); height: calc(100vh - 20px); }
 }

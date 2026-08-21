@@ -2485,7 +2485,7 @@ button.toolCard:focus-visible {
         font-size: 20px;
     }
 }
-/* Patient AI Assistant */
+/* AI Patient Engagement Module */
 .patientAiPageGrid {
     display: grid;
     grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.55fr);
@@ -3167,7 +3167,7 @@ button.toolCard:focus-visible {
     }
 }
 
-/* Patient AI Care Companion - saved conversation experience */
+/* AI Patient Engagement Module - saved conversation experience */
 
 .patientAiConversationShell {
     position: relative;
@@ -3973,7 +3973,7 @@ button.toolCard:focus-visible {
     }
 }
 
-/* Floating Patient AI Care Companion */
+/* Floating AI Patient Engagement Module */
 
 .patientAiLauncher {
     position: fixed;

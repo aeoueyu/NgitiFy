@@ -1,4 +1,4 @@
-# AI-Assisted Radiograph Review model note
+# Radiograph Review model note
 
 ## Computer-vision baseline
 
@@ -17,7 +17,7 @@ The tooth-region stage uses CLAHE, Otsu thresholding, morphology, and contour fi
 
 No patient identity is sent to the Python process. The process receives only the stored image data URL and returns normalized geometry, suggestion confidence, objective image measurements, model version, prediction type, and limitations.
 
-## Confidence display
+## Internal confidence bands
 
 The application uses documented review bands:
 
@@ -25,11 +25,11 @@ The application uses documented review bands:
 - medium: 0.60 through 0.8499;
 - low: below 0.60.
 
-The contour baseline intentionally caps its own confidence below 0.85 because it has not been clinically validated. Low-confidence regions are listed for dentists but hidden from the image overlay by default. Confidence is never called accuracy.
+The contour baseline intentionally caps its own confidence below 0.85 because it has not been clinically validated. Tooth-region suggestions and detection geometry are not displayed in the radiograph review interface. Confidence is never called accuracy.
 
 ## Language layer
 
-Radiograph summaries are deterministic drafts assembled from dentist-verified tooth numbers, dentist-created annotations, and linked EMR records. The raw image and pending predictions are not sent to the language model. The dentist may edit the draft and must explicitly approve it before it is returned to a patient or included in patient AI context.
+Radiograph summaries are deterministic drafts assembled from dentist-verified tooth numbers, dentist-created annotations, and linked EMR records. The raw image and pending predictions are not sent to the language model. The dentist may edit the draft and must explicitly approve it before it is returned to a patient or included in the AI Patient Engagement Module context.
 
 ## Evaluation status
 

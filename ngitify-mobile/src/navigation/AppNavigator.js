@@ -309,7 +309,7 @@ function PatientTabsNavigator() {
             style={styles.patientAiLauncher}
             onPress={() => setAiOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Open NgitiFy AI"
+            accessibilityLabel="Open NgitiBot"
             activeOpacity={0.84}
         >
             <Text style={styles.patientAiSparkle}>✦</Text>
