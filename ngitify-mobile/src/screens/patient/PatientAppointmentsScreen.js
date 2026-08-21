@@ -1,6 +1,8 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
+    FlatList,
+    Modal,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -19,6 +21,7 @@ import {
     SurfaceCard,
 } from '../../components/mobile/MobileUI';
 import { mobileTheme } from '../../theme/mobileTheme';
+const { classifyPatientAppointments } = require('../../utils/patientVisitHistory');
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -106,12 +109,23 @@ function EmptyState({ icon, title, subtitle }) {
     );
 }
 
+function PastVisitRow({ appointment }) {
+    return <View style={styles.pastVisitRow}>
+        <View style={styles.pastVisitCopy}>
+            <Text style={styles.pastVisitTitle} numberOfLines={1}>{appointment.procedure || 'Dental visit'}</Text>
+            <Text style={styles.pastVisitMeta} numberOfLines={1}>{formatDate(appointment.date)} · {getAppointmentDentistLabel(appointment)}</Text>
+        </View>
+        <StatusChip status={appointment.status} label={appointment.status} />
+    </View>;
+}
+
 export default function PatientAppointmentsScreen({ navigation }) {
     const { userToken, userId, API_BASE_URL } = useContext(AuthContext);
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
+    const [showAllPast, setShowAllPast] = useState(false);
 
     const fetchAppointments = useCallback(async () => {
         if (!userToken || !userId) return;
@@ -124,8 +138,8 @@ export default function PatientAppointmentsScreen({ navigation }) {
             const data = await res.json().catch(() => []);
             if (!res.ok) throw new Error(data?.message || 'Could not load appointments.');
             setAppointments(Array.isArray(data) ? data : []);
-        } catch (fetchError) {
-            setError(fetchError.message || 'Could not load appointments.');
+        } catch {
+            setError("We couldn't load your visits. Check your connection and try again.");
             setAppointments([]);
         } finally {
             setLoading(false);
@@ -148,13 +162,7 @@ export default function PatientAppointmentsScreen({ navigation }) {
     };
 
     const { upcoming, past } = useMemo(() => {
-        const upcomingItems = appointments
-            .filter((appt) => ['pending', 'confirmed', 'in-clinic'].includes(appt.status))
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
-        const pastItems = appointments
-            .filter((appt) => ['completed', 'cancelled'].includes(appt.status))
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
-        return { upcoming: upcomingItems, past: pastItems };
+        return classifyPatientAppointments(appointments);
     }, [appointments]);
 
     return (
@@ -202,10 +210,12 @@ export default function PatientAppointmentsScreen({ navigation }) {
                     </View>
 
                     <PrimaryButton
-                        label="Book New Appointment"
+                        label="Book Appointment"
                         icon="add-outline"
                         onPress={() => navigation.navigate('AppointmentBooking')}
                         style={styles.heroButton}
+                        textStyle={styles.heroButtonText}
+                        iconColor={mobileTheme.colors.primaryDark}
                     />
                 </SurfaceCard>
 
@@ -253,8 +263,8 @@ export default function PatientAppointmentsScreen({ navigation }) {
                             style={styles.sectionHeader}
                         />
                         {past.length ? (
-                            past.map((appointment) => (
-                                <AppointmentCard
+                            past.slice(0, 4).map((appointment) => (
+                                <PastVisitRow
                                     key={appointment._id || `${appointment.date}-${appointment.time}-${appointment.procedure}`}
                                     appointment={appointment}
                                 />
@@ -266,9 +276,17 @@ export default function PatientAppointmentsScreen({ navigation }) {
                                 subtitle="Completed and cancelled appointments will show up here after your clinic activity grows."
                             />
                         )}
+                        {past.length > 4 ? <TouchableOpacity style={styles.viewAllButton} onPress={() => setShowAllPast(true)} accessibilityRole="button">
+                            <Text style={styles.viewAllText}>View all past visits ({past.length})</Text><Ionicons name="chevron-forward" size={18} color={mobileTheme.colors.primaryDark} />
+                        </TouchableOpacity> : null}
                     </>
                 )}
             </ScrollView>
+            <Modal visible={showAllPast} animationType="slide" onRequestClose={() => setShowAllPast(false)}>
+                <Screen><Header title="Past Visits" subtitle={`${past.length} saved visits`} onBack={() => setShowAllPast(false)} />
+                    <FlatList data={past} keyExtractor={(item, index) => item._id || `past-${index}`} renderItem={({ item }) => <PastVisitRow appointment={item} />} contentContainerStyle={styles.historyList} initialNumToRender={12} maxToRenderPerBatch={12} windowSize={7} />
+                </Screen>
+            </Modal>
         </Screen>
     );
 }
@@ -284,6 +302,14 @@ const styles = StyleSheet.create({
         backgroundColor: mobileTheme.colors.primary,
         borderColor: '#0e72b1',
     },
+    heroButtonText: { color: mobileTheme.colors.primaryDark },
+    pastVisitRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: mobileTheme.colors.border, backgroundColor: mobileTheme.colors.surface },
+    pastVisitCopy: { flex: 1, paddingRight: 10 },
+    pastVisitTitle: { color: mobileTheme.colors.text, fontSize: 15, fontWeight: '700' },
+    pastVisitMeta: { marginTop: 5, color: mobileTheme.colors.textMuted, fontSize: 12 },
+    viewAllButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 16 },
+    viewAllText: { color: mobileTheme.colors.primaryDark, fontSize: 13, fontWeight: '700' },
+    historyList: { paddingHorizontal: 18, paddingBottom: 36 },
     heroTopRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',

@@ -126,6 +126,25 @@ const buildPatientAiEducationContext = ({
         .filter((article) => article.id && article.title)
 );
 
+const buildPatientAiRadiographContext = (radiographs = []) => (
+    (Array.isArray(radiographs) ? radiographs : [])
+        .map(toPlainObject)
+        .filter((radiograph) => radiograph?.reviewSummary?.status === 'approved')
+        .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0))
+        .slice(0, 5)
+        .map((radiograph) => ({
+            radiographId: String(radiograph._id || radiograph.id || ''),
+            type: String(radiograph.label || 'Radiograph').trim(),
+            date: radiograph.date || null,
+            approvedSummary: String(radiograph.reviewSummary?.approvedText || '').trim(),
+            dentistRecordedFindings: (radiograph.annotations || []).map(toPlainObject).filter((item) => item.findingType || item.note).map((item) => ({
+                toothNumber: String(item.toothNumber || '').trim(),
+                findingType: String(item.findingType || '').trim(),
+                note: String(item.note || '').trim(),
+            })),
+        }))
+);
+
 const buildPatientAiOralHealthContext = (
     oralHealthPayload = {}
 ) => {
@@ -171,6 +190,7 @@ const buildPatientAiOralHealthContext = (
 const buildPatientAiCareContext = ({
     prediction = null,
     oralHealthPayload = {},
+    radiographs = [],
 } = {}) => ({
     contextPolicy: {
         recommendationAuthority:
@@ -179,6 +199,8 @@ const buildPatientAiCareContext = ({
             'Oral Health Management entries are patient-recorded context. They do not diagnose disease.',
         educationAuthority:
             'Dental Health Education is approved educational information and is not a diagnosis.',
+        radiographAuthority:
+            'Radiograph information is limited to dentist-approved summaries and dentist-recorded findings. Explain those records only; do not interpret the image or diagnose.',
     },
     systemRecommendation:
         buildPatientAiVisitRecommendationContext(prediction),
@@ -189,6 +211,8 @@ const buildPatientAiCareContext = ({
             contextualEducation:
                 oralHealthPayload?.contextualEducation,
         }),
+    approvedRadiographRecords:
+        buildPatientAiRadiographContext(radiographs),
 });
 
 const mergePatientAiLiveContext = ({
@@ -219,6 +243,7 @@ module.exports = {
     buildPatientAiEducationContext,
     buildPatientAiOralHealthContext,
     buildPatientAiRecentOralHealthLogs,
+    buildPatientAiRadiographContext,
     buildPatientAiVisitRecommendationContext,
     mergePatientAiLiveContext,
 };

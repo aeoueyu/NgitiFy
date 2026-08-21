@@ -36,6 +36,7 @@ import { AuthContext } from '../../context/AuthContext';
 import {
   getStaticOralCarePreview,
 } from '../../utils/oralCarePreview';
+const { buildFrequencyRows, buildTrendChartData, getRecentCheckIns } = require('../../utils/oralCareTrends');
 
 const NAV_ITEMS = [
   {
@@ -52,7 +53,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'education',
-    label: 'Dental Health Education',
+    label: 'Learn',
   },
 ];
 
@@ -314,84 +315,6 @@ const getLabelMap = (
   return labels;
 };
 
-const buildFrequencyRows = ({
-  logs,
-  field,
-  labels,
-}) => {
-  const counts = {};
-
-  logs.forEach((log) => {
-    const uniqueItems =
-      new Set(
-        Array.isArray(
-          log?.[field],
-        )
-          ? log[field]
-          : [],
-      );
-
-    uniqueItems.forEach(
-      (itemId) => {
-        if (
-          field === 'symptoms'
-          && itemId
-            === 'no-symptoms'
-        ) {
-          return;
-        }
-
-        counts[itemId] =
-          (counts[itemId] || 0)
-          + 1;
-      },
-    );
-  });
-
-  return Object.entries(counts)
-    .map(
-      ([
-        id,
-        count,
-      ]) => ({
-        id,
-        label:
-          labels[id]
-          || id,
-        count,
-
-        percentage:
-          logs.length
-            ? Math.round(
-                (
-                  count
-                  / logs.length
-                )
-                * 100,
-              )
-            : 0,
-      }),
-    )
-    .sort(
-      (left, right) => {
-        if (
-          right.count
-          !== left.count
-        ) {
-          return (
-            right.count
-            - left.count
-          );
-        }
-
-        return left.label
-          .localeCompare(
-            right.label,
-          );
-      },
-    );
-};
-
 function SheetHeader({
   title,
   subtitle,
@@ -499,6 +422,7 @@ function TrendFrequencyCard({
   totalLogs,
   emptyMessage,
 }) {
+  const maxCount = Math.max(1, ...rows.map((row) => row.count));
   return (
     <SurfaceCard
       style={styles.trendCard}
@@ -562,18 +486,8 @@ function TrendFrequencyCard({
               </Text>
             </View>
 
-            <View
-              style={
-                styles.trendPercent
-              }
-            >
-              <Text
-                style={
-                  styles.trendPercentText
-                }
-              >
-                {row.percentage}%
-              </Text>
+            <View style={styles.trendBarTrack} accessibilityLabel={`${row.label}: ${row.count} of ${totalLogs} logged days`}>
+              <View style={[styles.trendBarFill, { width: `${Math.max(8, (row.count / maxCount) * 100)}%` }]} />
             </View>
           </View>
         ))
@@ -588,6 +502,24 @@ function TrendFrequencyCard({
       )}
     </SurfaceCard>
   );
+}
+
+function TrendTimelineChart({ data }) {
+  const maxValue = Math.max(1, ...data.map((item) => item.dailyCareCount + item.symptomCount + item.riskFactorCount));
+  return <SurfaceCard style={styles.trendCard}>
+    <Text style={styles.trendTitle}>Check-ins over time</Text>
+    <Text style={styles.cardBody}>Each bar shows how many care habits, symptoms, and other factors you saved that day.</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timelineChart} accessibilityLabel="Saved oral health check-ins by date">
+      {data.map((item) => {
+        const total = item.dailyCareCount + item.symptomCount + item.riskFactorCount;
+        const dateLabel = formatLongDate(item.date);
+        return <View key={item.date} style={styles.timelineColumn} accessible accessibilityLabel={`${dateLabel}: ${total} saved items`}>
+          <View style={styles.timelineBarArea}><View style={[styles.timelineBar, { height: Math.max(6, (total / maxValue) * 82) }]} /></View>
+          <Text style={styles.timelineValue}>{total}</Text><Text style={styles.timelineDate}>{new Date(`${item.date}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</Text>
+        </View>;
+      })}
+    </ScrollView>
+  </SurfaceCard>;
 }
 
 export default function OralCareInsightsScreen({
@@ -1152,6 +1084,8 @@ export default function OralCareInsightsScreen({
 
   const enoughTrendHistory =
     trendLogs.length >= 3;
+
+  const trendChartData = useMemo(() => buildTrendChartData(logs, trendDays), [logs, trendDays]);
 
   /*
    * Keep Dental Health Education tied
@@ -2872,12 +2806,11 @@ export default function OralCareInsightsScreen({
 
         <SectionLabel
           eyebrow="History"
-          title="Recent Saved Logs"
+          title="Recent Check-ins"
         />
 
         {logs.length ? (
-          logs
-            .slice(0, 12)
+          getRecentCheckIns(logs)
             .map((log) => {
               const count =
                 (
@@ -2974,15 +2907,13 @@ export default function OralCareInsightsScreen({
             <Text
               style={styles.cardTitle}
             >
-              No saved history yet
+              No check-ins yet
             </Text>
 
             <Text
               style={styles.cardBody}
             >
-              Daily Oral Health Logs
-              will appear here after
-              you save them.
+              Your saved daily check-ins will appear here.
             </Text>
           </SurfaceCard>
         )}
@@ -2993,7 +2924,7 @@ export default function OralCareInsightsScreen({
     () => (
       <>
         <SectionLabel
-          eyebrow="Factual History"
+          eyebrow="Your History"
           title="Trends"
         />
 
@@ -3003,7 +2934,7 @@ export default function OralCareInsightsScreen({
           <Text
             style={styles.cardTitle}
           >
-            Logged frequencies
+            What You’ve Logged
           </Text>
 
           <Text
@@ -3103,7 +3034,7 @@ export default function OralCareInsightsScreen({
                 },
               ]}
             >
-              Insufficient history
+              Not enough information yet
             </Text>
 
             <Text
@@ -3121,6 +3052,7 @@ export default function OralCareInsightsScreen({
           </SurfaceCard>
         ) : (
           <>
+            <TrendTimelineChart data={trendChartData} />
             <TrendFrequencyCard
               title="Care Habits"
               icon="checkmark-done-outline"
@@ -3610,20 +3542,7 @@ export default function OralCareInsightsScreen({
     <Screen>
       <Header
         title="Oral Health Management"
-        subtitle="Date-first logs, history, trends, visit guidance, and education"
-        onBack={() => {
-          if (
-            navigation.canGoBack()
-          ) {
-            navigation.goBack();
-            return;
-          }
-
-          navigation.navigate(
-            'PatientDashboardMain',
-          );
-        }}
-        floating
+        subtitle="Daily care, trends, and visit guidance"
       />
 
       <View
@@ -5613,6 +5532,27 @@ const styles = StyleSheet.create({
       mobileTheme.colors
         .primaryDark,
   },
+
+  trendBarTrack: {
+    width: 92,
+    height: 12,
+    overflow: 'hidden',
+    borderRadius: 6,
+    backgroundColor: mobileTheme.colors.primarySoft,
+  },
+
+  trendBarFill: {
+    height: '100%',
+    borderRadius: 6,
+    backgroundColor: mobileTheme.colors.primaryDark,
+  },
+
+  timelineChart: { alignItems: 'flex-end', minHeight: 132, paddingTop: 18, paddingRight: 12 },
+  timelineColumn: { width: 48, alignItems: 'center', marginRight: 6 },
+  timelineBarArea: { height: 86, justifyContent: 'flex-end' },
+  timelineBar: { width: 22, borderRadius: 6, backgroundColor: mobileTheme.colors.primaryDark },
+  timelineValue: { marginTop: 4, color: mobileTheme.colors.text, fontSize: 11, fontWeight: '800' },
+  timelineDate: { marginTop: 2, color: mobileTheme.colors.textSoft, fontSize: 9 },
 
   emptyBody: {
     fontSize: 12,

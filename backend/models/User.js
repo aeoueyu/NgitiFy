@@ -41,6 +41,62 @@ const radiographEnhancementVariantSchema = new mongoose.Schema({
     model: { type: String, default: '' },
 }, { _id: false });
 
+const radiographGeometrySchema = new mongoose.Schema({
+    type: { type: String, enum: ['point', 'rectangle', 'region'], default: 'rectangle' },
+    x: { type: Number, min: 0, max: 1, required: true },
+    y: { type: Number, min: 0, max: 1, required: true },
+    width: { type: Number, min: 0, max: 1, default: 0 },
+    height: { type: Number, min: 0, max: 1, default: 0 },
+}, { _id: false });
+
+const toothDetectionSchema = new mongoose.Schema({
+    predictedToothNumber: { type: String, required: true },
+    confidence: { type: Number, min: 0, max: 1, required: true },
+    confidenceLevel: { type: String, enum: ['high', 'medium', 'low'], required: true },
+    geometry: { type: radiographGeometrySchema, required: true },
+    status: { type: String, enum: ['pending', 'confirmed', 'corrected', 'ignored'], default: 'pending' },
+    confirmedToothNumber: { type: String, default: '' },
+    confirmedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    confirmedAt: { type: Date, default: null },
+    modelVersion: { type: String, required: true },
+    inferenceTimestamp: { type: Date, required: true },
+    predictionType: { type: String, default: 'tooth-region-and-fdi-suggestion' },
+}, { timestamps: true });
+
+const radiographAnnotationSchema = new mongoose.Schema({
+    toothNumber: { type: String, default: '' },
+    geometry: { type: radiographGeometrySchema, required: true },
+    findingType: { type: String, default: '' },
+    note: { type: String, default: '' },
+    linkToOdontogram: { type: Boolean, default: false },
+    treatmentLogId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    visitId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', default: null },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+}, { timestamps: true });
+
+const radiographAnalysisSchema = new mongoose.Schema({
+    status: { type: String, enum: ['not-analyzed', 'processing', 'ready', 'failed'], default: 'not-analyzed' },
+    verificationState: { type: String, enum: ['requires-verification', 'verified'], default: 'requires-verification' },
+    modelVersion: { type: String, default: '' },
+    predictionType: { type: String, default: '' },
+    qualityAssessment: { type: mongoose.Schema.Types.Mixed, default: null },
+    detections: { type: [toothDetectionSchema], default: [] },
+    limitations: { type: String, default: '' },
+    analyzedAt: { type: Date, default: null },
+    errorMessage: { type: String, default: '' },
+}, { _id: false });
+
+const radiographSummarySchema = new mongoose.Schema({
+    draft: { type: String, default: '' },
+    approvedText: { type: String, default: '' },
+    status: { type: String, enum: ['none', 'draft', 'approved'], default: 'none' },
+    generatedAt: { type: Date, default: null },
+    generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    approvedAt: { type: Date, default: null },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    provenance: { type: String, default: '' },
+}, { _id: false });
+
 const radiographSchema = new mongoose.Schema({
     label: { type: String, required: true },
     date: { type: Date, required: true },
@@ -57,7 +113,14 @@ const radiographSchema = new mongoose.Schema({
     lastEnhancementEngine: { type: String, default: '' },
     findings: { type: String, default: '' },
     notes: { type: String },
-    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    branch: { type: String, default: '' },
+    visitId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', default: null },
+    analysis: { type: radiographAnalysisSchema, default: () => ({}) },
+    analysisHistory: { type: [radiographAnalysisSchema], default: [] },
+    annotations: { type: [radiographAnnotationSchema], default: [] },
+    reviewSummary: { type: radiographSummarySchema, default: () => ({}) },
 }, { timestamps: true });
 
 const odontogramLogSchema = new mongoose.Schema({

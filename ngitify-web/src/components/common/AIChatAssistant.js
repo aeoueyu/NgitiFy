@@ -1,465 +1,183 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import styles from './AIChatAssistant.module.css';
-import { FaTimes, FaRobot, FaPaperPlane, FaTrash, FaChevronDown } from 'react-icons/fa';
+import { FaArchive, FaBars, FaChevronDown, FaEdit, FaPaperPlane, FaPlus, FaRobot, FaThumbtack, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { authFetch, BASE_URL } from '../../utils/api';
+import { STAFF_AI_SUGGESTIONS } from '../../data/staffAiKnowledge';
+import styles from './AIChatAssistant.module.css';
 
-const QUICK_PROMPTS = [
-    'What materials are needed for a tooth extraction?',
-    'Post-op care instructions for scaling?',
-    'How do I log material usage in NgitiFy?',
-    'How do I access a patient\'s odontogram?',
-];
-
-const WELCOME_MESSAGE = {
-    id: 'welcome',
-    role: 'assistant',
-    content: "Hello! I'm your NgitiFy AI Staff Assistant. I can help you with dental procedure questions, material protocols, post-op care guidelines, and how to use the NgitiFy system.\n\nWhat can I help you with today?",
-    isStreaming: false,
-};
-
-const NOTIFICATION_KEYWORDS = ['notification', 'notifications', 'alert', 'alerts', 'unread', 'reminder', 'reminders'];
-const INVENTORY_KEYWORDS = ['inventory', 'stock', 'low stock', 'material', 'materials', 'supply', 'supplies'];
-const APPOINTMENT_KEYWORDS = ['appointment', 'appointments', 'schedule', 'scheduled', 'calendar', 'pending', 'walk-in', 'walk in', 'queue'];
-const ACTIVITY_KEYWORDS = ['activity log', 'activity logs', 'audit log', 'audit logs', 'audit trail', 'recent actions'];
-
-const includesKeyword = (text, keywords) => {
-    const lowerText = String(text || '').toLowerCase();
-    return keywords.some((keyword) => lowerText.includes(keyword));
-};
-
-const formatRoleLabel = (role = '') => ({
-    administrator: 'Administrator',
-    owner: 'Owner',
-    'branch-manager': 'Branch Manager',
-    dentist: 'Dentist',
-    secretary: 'Secretary',
-})[role] || role || 'Staff';
-
-const getModuleLabel = (pathname = '') => {
-    if (pathname.includes('/material-usage')) return 'Material Usage Log';
-    if (pathname.includes('/notifications')) return 'Notifications';
-    if (pathname.includes('/activity-logs')) return 'Activity Logs';
-    if (pathname.includes('/audit-trail') || pathname.includes('/audit-logs')) return 'Audit Logs';
-    if (pathname.includes('/patients')) return 'Manage Patients';
-    if (pathname.includes('/manage-staffs') || pathname.includes('/manage-users')) return 'Manage Staffs';
-    if (pathname.includes('/schedule')) return 'Schedule';
-    if (pathname.includes('/inventory')) return 'Inventory';
-    if (pathname.includes('/dashboard')) return 'Dashboard';
-    if (pathname.includes('/emr')) return 'Patient EMR';
-    if (pathname.includes('/odontogram')) return 'Odontogram';
-    return 'Dentime';
-};
-
-const normalizeAppointmentContext = (item) => ({
-    id: item._id,
-    patientName: item.patient?.name
-        ? `${item.patient.name.first || ''} ${item.patient.name.last || ''}`.trim()
-        : (item.guestName || 'Unknown Patient'),
-    dentistName: item.dentist?.name
-        ? `Dr. ${item.dentist.name.first || ''} ${item.dentist.name.last || ''}`.trim()
-        : 'Unassigned',
-    procedure: item.procedure || 'Unspecified Procedure',
-    date: item.date || '',
-    time: item.time || '',
-    status: item.status || 'pending',
-    branch: item.branch || '',
-    source: item.source || '',
-});
+const welcome = (role) => ({ id: 'welcome', role: 'assistant', isStreaming: false, content: `Hi! I’m your NgitiFy ${role || 'staff'} assistant. I can summarize permitted work information and explain the features available to you.` });
+const moduleFromPath = (path = '') => (path.split('/').filter(Boolean).pop() || 'dashboard').replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export default function AIChatAssistant({ isOpen, onClose }) {
     const { user } = useAuth();
     const location = useLocation();
-    const [messages, setMessages] = useState([WELCOME_MESSAGE]);
+    const role = user?.role || '';
+    const suggestions = STAFF_AI_SUGGESTIONS[role] || STAFF_AI_SUGGESTIONS.default;
+    const [messages, setMessages] = useState([welcome(role)]);
+    const [conversations, setConversations] = useState([]);
+    const [activeId, setActiveId] = useState(null);
+    const [showHistory, setShowHistory] = useState(false);
+    const [showArchived, setShowArchived] = useState(false);
     const [input, setInput] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [error, setError] = useState('');
+    const [lastFailedPrompt, setLastFailedPrompt] = useState('');
     const [showScrollBtn, setShowScrollBtn] = useState(false);
-
     const messagesEndRef = useRef(null);
-    const messagesContainerRef = useRef(null);
+    const messagesRef = useRef(null);
     const inputRef = useRef(null);
     const abortRef = useRef(null);
 
-    // Auto-scroll to bottom on new messages
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, []);
+    const loadList = useCallback(async (archived = showArchived) => {
+        setIsLoadingHistory(true);
+        try {
+            const response = await authFetch(`/staff/ai/conversations?archived=${archived}`);
+            if (!response.ok) throw new Error('Could not load conversations.');
+            const data = await response.json();
+            setConversations(data.conversations || []);
+        } catch (nextError) { setError(nextError.message); }
+        finally { setIsLoadingHistory(false); }
+    }, [showArchived]);
 
     useEffect(() => {
-        if (isOpen) {
-            scrollToBottom();
-            setTimeout(() => inputRef.current?.focus(), 300);
-        }
-    }, [isOpen, messages, scrollToBottom]);
+        if (!isOpen) return;
+        loadList();
+        const timer = window.setTimeout(() => inputRef.current?.focus(), 150);
+        return () => window.clearTimeout(timer);
+    }, [isOpen, loadList]);
 
-    // Show scroll-to-bottom button when scrolled up
-    const handleScroll = () => {
-        const el = messagesContainerRef.current;
-        if (!el) return;
-        const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-        setShowScrollBtn(distFromBottom > 120);
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const closeOnEscape = (event) => {
+            if (event.key !== 'Escape') return;
+            if (showHistory) setShowHistory(false); else onClose();
+        };
+        window.addEventListener('keydown', closeOnEscape);
+        return () => window.removeEventListener('keydown', closeOnEscape);
+    }, [isOpen, onClose, showHistory]);
+    useEffect(() => messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' }), [messages]);
+
+    const newConversation = useCallback(() => {
+        abortRef.current?.abort();
+        setActiveId(null); setMessages([welcome(role)]); setInput(''); setError(''); setLastFailedPrompt(''); setShowHistory(false);
+    }, [role]);
+
+    const ensureConversation = useCallback(async () => {
+        if (activeId) return activeId;
+        const response = await authFetch('/staff/ai/conversations', { method: 'POST', body: JSON.stringify({}) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not start a conversation.');
+        setActiveId(data.conversation.id);
+        return data.conversation.id;
+    }, [activeId]);
+
+    const openConversation = async (id) => {
+        setError('');
+        const response = await authFetch(`/staff/ai/conversations/${id}`);
+        const data = await response.json();
+        if (!response.ok) return setError(data.message || 'Could not open that conversation.');
+        setActiveId(id);
+        setMessages(data.conversation.messages?.length ? data.conversation.messages : [welcome(role)]);
+        setShowHistory(false);
     };
 
-    const buildAssistantContext = useCallback(async (userText) => {
-        const baseContext = {
-            staffSession: {
-                role: user?.role || '',
-                roleLabel: formatRoleLabel(user?.role),
-                assignedBranch: user?.assignedBranch || '',
-                currentPath: location.pathname,
-                currentModule: getModuleLabel(location.pathname),
-                requestedAt: new Date().toISOString(),
-            },
-        };
+    const updateConversation = async (conversation, changes) => {
+        const response = await authFetch(`/staff/ai/conversations/${conversation.id}`, { method: 'PATCH', body: JSON.stringify(changes) });
+        const data = await response.json();
+        if (!response.ok) return setError(data.message || 'Could not update that conversation.');
+        if (changes.isArchived && activeId === conversation.id) newConversation();
+        await loadList();
+    };
+    const renameConversation = async (conversation) => {
+        const title = window.prompt('Rename conversation', conversation.title);
+        if (title?.trim()) await updateConversation(conversation, { title: title.trim() });
+    };
+    const deleteConversation = async (conversation) => {
+        if (!window.confirm(`Delete “${conversation.title}”? This cannot be undone.`)) return;
+        const response = await authFetch(`/staff/ai/conversations/${conversation.id}`, { method: 'DELETE' });
+        if (!response.ok) return setError('Could not delete that conversation.');
+        if (activeId === conversation.id) newConversation();
+        await loadList();
+    };
 
-        const contextLoaders = [];
-
-        if (includesKeyword(userText, NOTIFICATION_KEYWORDS)) {
-            contextLoaders.push((async () => {
-                try {
-                    const response = await authFetch('/notifications');
-                    if (!response.ok) return {};
-                    const items = await response.json();
-                    const safeItems = Array.isArray(items) ? items : [];
-                    const unreadItems = safeItems.filter((item) => !item.isRead);
-
-                    return {
-                        notificationsSnapshot: {
-                            unreadCount: unreadItems.length,
-                            recentUnread: unreadItems.slice(0, 10).map((item) => ({
-                                id: item._id,
-                                title: item.title || '',
-                                message: item.message || '',
-                                type: item.type || '',
-                                createdAt: item.createdAt || item.timestamp || '',
-                            })),
-                        },
-                    };
-                } catch {
-                    return {};
-                }
-            })());
-        }
-
-        if (includesKeyword(userText, INVENTORY_KEYWORDS)) {
-            contextLoaders.push((async () => {
-                try {
-                    const response = await authFetch('/inventory');
-                    if (!response.ok) return {};
-                    const items = await response.json();
-                    const safeItems = Array.isArray(items) ? items : [];
-                    const lowStockItems = safeItems
-                        .filter((item) => {
-                            const current = Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0));
-                            const threshold = Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0));
-                            return current <= threshold;
-                        })
-                        .sort((left, right) => (
-                            Number(left.quantity !== undefined ? left.quantity : (left.currentStock || 0))
-                            - Number(right.quantity !== undefined ? right.quantity : (right.currentStock || 0))
-                        ));
-
-                    return {
-                        inventorySnapshot: {
-                            totalItems: safeItems.length,
-                            lowStockCount: lowStockItems.length,
-                            lowStockItems: lowStockItems.slice(0, 10).map((item) => ({
-                                id: item._id,
-                                name: item.itemName || item.name || 'Unknown Item',
-                                currentStock: Number(item.quantity !== undefined ? item.quantity : (item.currentStock || 0)),
-                                threshold: Number(item.reorderLevel !== undefined ? item.reorderLevel : (item.threshold || 0)),
-                                unit: item.unit || 'pcs',
-                                branch: item.branch || '',
-                            })),
-                        },
-                    };
-                } catch {
-                    return {};
-                }
-            })());
-        }
-
-        if (includesKeyword(userText, APPOINTMENT_KEYWORDS)) {
-            contextLoaders.push((async () => {
-                try {
-                    const response = await authFetch('/appointments');
-                    if (!response.ok) return {};
-                    const items = await response.json();
-                    const safeItems = Array.isArray(items) ? items : [];
-                    const normalized = safeItems
-                        .map(normalizeAppointmentContext)
-                        .sort((left, right) => new Date(left.date || 0) - new Date(right.date || 0));
-
-                    const pendingStatuses = new Set(['pending', 'confirmed', 'in-clinic']);
-                    const actionable = normalized.filter((item) => pendingStatuses.has(String(item.status || '').toLowerCase()));
-
-                    return {
-                        appointmentsSnapshot: {
-                            totalAppointments: normalized.length,
-                            actionableCount: actionable.length,
-                            upcomingAppointments: actionable.slice(0, 10),
-                        },
-                    };
-                } catch {
-                    return {};
-                }
-            })());
-        }
-
-        if (includesKeyword(userText, ACTIVITY_KEYWORDS)) {
-            contextLoaders.push((async () => {
-                try {
-                    const response = await authFetch('/audit-logs?limit=50');
-                    if (!response.ok) return {};
-                    const items = await response.json();
-                    const safeItems = Array.isArray(items) ? items : [];
-
-                    return {
-                        activitySnapshot: {
-                            recentLogs: safeItems.slice(0, 10).map((item) => ({
-                                id: item._id,
-                                action: item.action || '',
-                                role: item.role || '',
-                                user: typeof item.user === 'object'
-                                    ? `${item.user?.name?.first || ''} ${item.user?.name?.last || ''}`.trim() || item.user?.email || 'System'
-                                    : (item.user || 'System'),
-                                details: item.details || '',
-                                timestamp: item.timestamp || item.createdAt || '',
-                            })),
-                        },
-                    };
-                } catch {
-                    return {};
-                }
-            })());
-        }
-
-        if (!contextLoaders.length) {
-            return baseContext;
-        }
-
-        const resolvedContexts = await Promise.all(contextLoaders);
-        return Object.assign(baseContext, ...resolvedContexts);
-    }, [location.pathname, user?.assignedBranch, user?.role]);
-
-    const sendMessage = useCallback(async (text) => {
-        const userText = (text || input).trim();
-        if (!userText || isStreaming) return;
-
-        setInput('');
-
-        const userMsg = { id: Date.now(), role: 'user', content: userText, isStreaming: false };
-        const assistantMsgId = Date.now() + 1;
-        const assistantMsg = { id: assistantMsgId, role: 'assistant', content: '', isStreaming: true };
-
-        setMessages(prev => [...prev, userMsg, assistantMsg]);
+    const sendMessage = useCallback(async (value) => {
+        const content = String(value ?? input).trim();
+        if (!content || isStreaming) return;
+        setInput(''); setError(''); setLastFailedPrompt('');
+        const userMessage = { id: `user-${Date.now()}`, role: 'user', content };
+        const assistantId = `assistant-${Date.now()}`;
+        setMessages((current) => [...current, userMessage, { id: assistantId, role: 'assistant', content: '', isStreaming: true }]);
         setIsStreaming(true);
-
-        // Build history for the API (exclude welcome and currently-streaming messages)
-        const history = [...messages.filter(m => m.id !== 'welcome'), userMsg].map(m => ({
-            role: m.role,
-            content: m.content,
-        }));
-
         try {
+            const conversationId = await ensureConversation();
             const token = localStorage.getItem('token');
-            const controller = new AbortController();
-            abortRef.current = controller;
-            const assistantContext = await buildAssistantContext(userText);
-
-            const response = await fetch(`${BASE_URL}/api/ai/staff-chat`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: JSON.stringify({
-                    messages: history,
-                    assistantContext,
-                }),
-                signal: controller.signal,
+            const controller = new AbortController(); abortRef.current = controller;
+            const response = await fetch(`${BASE_URL}/api/staff/ai/conversations/${conversationId}/messages`, {
+                method: 'POST', signal: controller.signal,
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                body: JSON.stringify({ message: { role: 'user', content }, assistantContext: { currentRoute: location.pathname, currentModule: moduleFromPath(location.pathname) } }),
             });
-
             if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.message || 'Request failed.');
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.message || 'The assistant could not respond.');
             }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
+            const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
             while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop(); // Keep partial line
-
+                const { done, value: chunk } = await reader.read(); if (done) break;
+                buffer += decoder.decode(chunk, { stream: true });
+                const lines = buffer.split('\n'); buffer = lines.pop() || '';
                 for (const line of lines) {
                     if (!line.startsWith('data: ')) continue;
-                    const data = line.slice(6).trim();
-                    if (data === '[DONE]') break;
-
-                    try {
-                        const parsed = JSON.parse(data);
-                        if (parsed.text) {
-                            setMessages(prev => prev.map(m =>
-                                m.id === assistantMsgId
-                                    ? { ...m, content: m.content + parsed.text }
-                                    : m
-                            ));
-                        }
-                        if (parsed.error) throw new Error(parsed.error);
-                    } catch (parseErr) {
-                        if (parseErr.message !== 'Unexpected end of JSON input') {
-                            throw parseErr;
-                        }
-                    }
+                    const raw = line.slice(6).trim(); if (raw === '[DONE]') continue;
+                    const data = JSON.parse(raw);
+                    if (data.text) setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, content: item.content + data.text } : item));
                 }
             }
-
-        } catch (err) {
-            if (err.name === 'AbortError') return;
-            console.error('Staff chat error:', err);
-            setMessages(prev => prev.map(m =>
-                m.id === assistantMsgId
-                    ? { ...m, content: 'Sorry, I encountered an error. Please try again.', isStreaming: false }
-                    : m
-            ));
+            await loadList(false);
+        } catch (nextError) {
+            if (nextError.name !== 'AbortError') {
+                setError(nextError.message);
+                setLastFailedPrompt(content);
+                setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, content: 'I couldn’t complete that request. Please try again.' } : item));
+            }
         } finally {
-            setMessages(prev => prev.map(m =>
-                m.id === assistantMsgId ? { ...m, isStreaming: false } : m
-            ));
-            setIsStreaming(false);
-            abortRef.current = null;
+            setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, isStreaming: false } : item));
+            setIsStreaming(false); abortRef.current = null;
         }
-    }, [buildAssistantContext, input, isStreaming, messages]);
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    };
-
-    const handleClear = () => {
-        if (isStreaming && abortRef.current) abortRef.current.abort();
-        setMessages([WELCOME_MESSAGE]);
-        setIsStreaming(false);
-    };
+    }, [ensureConversation, input, isStreaming, loadList, location.pathname]);
 
     if (!isOpen) return null;
-
-    return (
-        <div className={styles.overlay}>
-            <div className={styles.panel}>
-
-                {/* HEADER */}
-                <div className={styles.header}>
-                    <div className={styles.headerLeft}>
-                        <div className={styles.avatarBubble}>
-                            <FaRobot className={styles.avatarIcon} />
-                        </div>
-                        <div>
-                            <h3 className={styles.headerTitle}>AI Staff Assistant</h3>
-                            <p className={styles.headerSub}>NgitiFy · Dentime Dental Clinic</p>
-                        </div>
-                    </div>
-                    <div className={styles.headerActions}>
-                        <button className={styles.clearBtn} onClick={handleClear} title="Clear conversation">
-                            <FaTrash />
-                        </button>
-                        <button className={styles.closeBtn} onClick={onClose} title="Close">
-                            <FaTimes />
-                        </button>
-                    </div>
-                </div>
-
-                {/* MESSAGES */}
-                <div
-                    className={styles.messages}
-                    ref={messagesContainerRef}
-                    onScroll={handleScroll}
-                >
-                    {messages.map(msg => (
-                        <div
-                            key={msg.id}
-                            className={`${styles.messageRow} ${msg.role === 'user' ? styles.userRow : styles.assistantRow}`}
-                        >
-                            {msg.role === 'assistant' && (
-                                <div className={styles.assistantAvatar}>
-                                    <FaRobot />
-                                </div>
-                            )}
-                            <div className={`${styles.bubble} ${msg.role === 'user' ? styles.userBubble : styles.assistantBubble}`}>
-                                {msg.content
-                                    ? msg.content.split('\n').map((line, i) =>
-                                        line.trim()
-                                            ? <p key={i} className={styles.bubbleLine}>{line}</p>
-                                            : <br key={i} />
-                                    )
-                                    : null
-                                }
-                                {msg.isStreaming && (
-                                    <span className={styles.cursor} aria-hidden="true">▋</span>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* SCROLL TO BOTTOM */}
-                {showScrollBtn && (
-                    <button className={styles.scrollToBottomBtn} onClick={scrollToBottom}>
-                        <FaChevronDown />
-                    </button>
-                )}
-
-                {/* QUICK PROMPTS */}
-                {messages.length <= 2 && !isStreaming && (
-                    <div className={styles.quickPrompts}>
-                        {QUICK_PROMPTS.map((prompt, i) => (
-                            <button
-                                key={i}
-                                className={styles.quickBtn}
-                                onClick={() => sendMessage(prompt)}
-                            >
-                                {prompt}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {/* INPUT */}
-                <div className={styles.inputArea}>
-                    <textarea
-                        ref={inputRef}
-                        className={styles.input}
-                        placeholder="Ask about procedures, materials, or NgitiFy..."
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        rows={1}
-                        disabled={isStreaming}
-                    />
-                    <button
-                        className={styles.sendBtn}
-                        onClick={() => sendMessage()}
-                        disabled={!input.trim() || isStreaming}
-                        title="Send (Enter)"
-                    >
-                        <FaPaperPlane />
-                    </button>
-                </div>
-
-                <p className={styles.disclaimer}>
-                    AI responses are for informational use only. Always apply professional clinical judgment.
-                </p>
-            </div>
+    const pinned = conversations.filter((item) => item.isPinned);
+    const recent = conversations.filter((item) => !item.isPinned);
+    return <div className={styles.overlay} role="dialog" aria-modal="false" aria-label="NgitiFy staff AI assistant"><section className={styles.panel}>
+        <header className={styles.header}><div className={styles.headerLeft}>
+            <button className={styles.headerIconBtn} onClick={() => setShowHistory(true)} aria-label="Open conversation history"><FaBars /></button>
+            <div className={styles.avatarBubble}><FaRobot className={styles.avatarIcon} /></div><div><h3 className={styles.headerTitle}>NgitiFy Staff AI</h3><p className={styles.headerSub}>{moduleFromPath(location.pathname)}</p></div>
+        </div><div className={styles.headerActions}><button className={styles.headerIconBtn} onClick={newConversation} aria-label="Start a new conversation"><FaPlus /></button><button className={styles.closeBtn} onClick={onClose} aria-label="Close AI assistant"><FaTimes /></button></div></header>
+        <div className={styles.messages} ref={messagesRef} onScroll={() => { const el = messagesRef.current; setShowScrollBtn(el ? el.scrollHeight - el.scrollTop - el.clientHeight > 120 : false); }}>
+            {messages.map((message) => <div key={message.id || `${message.role}-${message.createdAt}`} className={`${styles.messageRow} ${message.role === 'user' ? styles.userRow : styles.assistantRow}`}>
+                {message.role === 'assistant' && <div className={styles.assistantAvatar}><FaRobot /></div>}<div className={`${styles.bubble} ${message.role === 'user' ? styles.userBubble : styles.assistantBubble}`}>
+                    {String(message.content || '').split('\n').map((line, index) => <p key={index} className={styles.bubbleLine}>{line || '\u00a0'}</p>)}{message.isStreaming && <span className={styles.cursor}>▌</span>}
+                </div></div>)}<div ref={messagesEndRef} />
         </div>
-    );
+        {showScrollBtn && <button className={styles.scrollToBottomBtn} onClick={() => messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' })} aria-label="Scroll to newest message"><FaChevronDown /></button>}
+        {messages.length === 1 && <div className={styles.quickPrompts}>{suggestions.slice(0, 4).map((prompt) => <button key={prompt} className={styles.quickBtn} onClick={() => sendMessage(prompt)}>{prompt}</button>)}</div>}
+        {error && <div className={styles.errorBanner} role="alert">{error}{lastFailedPrompt && <button type="button" onClick={() => sendMessage(lastFailedPrompt)}>Retry</button>}</div>}
+        <div className={styles.inputArea}><textarea ref={inputRef} className={styles.input} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); } }} placeholder="Ask about your work or this page…" rows={1} disabled={isStreaming} aria-label="Message NgitiFy staff AI" /><button className={styles.sendBtn} onClick={() => sendMessage()} disabled={!input.trim() || isStreaming} aria-label="Send message"><FaPaperPlane /></button></div>
+        <p className={styles.disclaimer}>Read-only guidance. NgitiFy permissions still apply.</p>
+        {showHistory && <><button className={styles.drawerBackdrop} onClick={() => setShowHistory(false)} aria-label="Close conversation history" /><aside className={styles.historyDrawer} aria-label="Conversation history">
+            <div className={styles.drawerHeader}><strong>Conversations</strong><button onClick={() => setShowHistory(false)} aria-label="Close history"><FaTimes /></button></div>
+            <button className={styles.newChatBtn} onClick={newConversation}><FaPlus /> New chat</button><button className={styles.archiveToggle} onClick={() => { const next = !showArchived; setShowArchived(next); loadList(next); }}><FaArchive /> {showArchived ? 'Back to conversations' : 'Archived'}</button>
+            {isLoadingHistory ? <p className={styles.drawerEmpty}>Loading…</p> : conversations.length === 0 ? <p className={styles.drawerEmpty}>No {showArchived ? 'archived ' : ''}conversations yet.</p> : <>{!!pinned.length && <ConversationGroup title="Pinned" items={pinned} {...{ openConversation, renameConversation, updateConversation, deleteConversation, showArchived }} />}<ConversationGroup title={showArchived ? 'Archived' : 'Recent'} items={recent} {...{ openConversation, renameConversation, updateConversation, deleteConversation, showArchived }} /></>}
+        </aside></>}
+    </section></div>;
+}
+
+function ConversationGroup({ title, items, openConversation, renameConversation, updateConversation, deleteConversation, showArchived }) {
+    if (!items.length) return null;
+    return <div className={styles.conversationGroup}><h4>{title}</h4>{items.map((conversation) => <div className={styles.conversationItem} key={conversation.id}><button className={styles.conversationTitle} onClick={() => openConversation(conversation.id)}><span>{conversation.title}</span><small>{conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}</small></button><div className={styles.conversationActions}>
+        {!showArchived && <button onClick={() => updateConversation(conversation, { isPinned: !conversation.isPinned })} aria-label={conversation.isPinned ? 'Unpin conversation' : 'Pin conversation'}><FaThumbtack /></button>}<button onClick={() => renameConversation(conversation)} aria-label="Rename conversation"><FaEdit /></button><button onClick={() => updateConversation(conversation, { isArchived: !conversation.isArchived })} aria-label={conversation.isArchived ? 'Restore conversation' : 'Archive conversation'}>{conversation.isArchived ? <FaUndo /> : <FaArchive />}</button><button onClick={() => deleteConversation(conversation)} aria-label="Delete conversation"><FaTrash /></button>
+    </div></div>)}</div>;
 }

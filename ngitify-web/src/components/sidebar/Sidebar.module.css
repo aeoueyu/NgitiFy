@@ -349,3 +349,27 @@
     }
 
 }
+.staffAiLauncher {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1900;
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: #01538b;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(1, 83, 139, .3);
+}
+
+.staffAiLauncher:hover { background: #013f6b; transform: translateY(-2px); }
+.staffAiLauncher:focus-visible { outline: 3px solid #2dccf6; outline-offset: 3px; }
+
+@media (max-width: 600px) {
+    .staffAiLauncher { right: 16px; bottom: 16px; width: 52px; height: 52px; }
+}

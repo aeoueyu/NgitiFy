@@ -47,7 +47,7 @@ const QUICK_PROMPTS = [
         id: 'education',
         icon: FaBook,
         label:
-            'Give me Dental Health Education related to my recent log',
+            'Show dental care guides for my recent check-in',
     },
     {
         id: 'appointment',
@@ -67,7 +67,7 @@ const WELCOME_MESSAGE = {
     id: 'welcome',
     role: 'assistant',
     content:
-        'Hello! Ask me about your existing NgitiFy care information, Oral Health Management records, Dental Health Education, appointments, or System Recommendation. I provide educational explanations and do not diagnose conditions.',
+        'Hi! How can I help? Ask about your appointments, saved dental records, daily care, or how NgitiFy works. I can explain saved information but do not replace your dentist.',
 };
 
 const formatDateKey = (value) => {
@@ -573,7 +573,7 @@ const PatientAiCompanion = ({
         || (
             careLoading
                 ? 'Loading...'
-                : 'Insufficient Data'
+                : 'Not enough information yet'
         );
 
     const recommendationWindow =
@@ -587,7 +587,7 @@ const PatientAiCompanion = ({
             ?.recommendationReason
         || (
             visitInfo
-                ? 'NgitiFy is using the current System Recommendation.'
+                ? 'NgitiFy is using your current visit guidance.'
                 : 'NgitiFy does not currently have enough supported clinic information to create a visit window.'
         );
 
@@ -2487,7 +2487,7 @@ const PatientAiCompanion = ({
                                     </span>
 
                                     <h3>
-                                        Recommended Visit Window
+                                        When to Visit Next
                                     </h3>
 
                                     <strong
@@ -2542,7 +2542,7 @@ const PatientAiCompanion = ({
                                     <p>
                                         {latestLogDate
                                             ? `Latest saved log: ${formatDateKey(latestLogDate)}.`
-                                            : 'No recent Daily Oral Health Log is available yet.'}
+                                            : 'No recent daily care check-in is available yet.'}
                                     </p>
 
                                     <p>

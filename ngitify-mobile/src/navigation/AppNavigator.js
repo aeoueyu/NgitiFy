@@ -9,8 +9,10 @@ import React, {
 
 import {
     ActivityIndicator,
+    Modal,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from 'react-native';
 
@@ -241,7 +243,10 @@ function PatientTabsNavigator() {
             ? 'OralCareInsights'
             : 'PatientDashboardMain';
 
+    const [aiOpen, setAiOpen] = useState(false);
+
     return (
+        <View style={styles.patientShell}>
         <PatientTabs.Navigator
             initialRouteName={
                 initialRouteName
@@ -300,6 +305,23 @@ function PatientTabsNavigator() {
                 }
             />
         </PatientTabs.Navigator>
+        <TouchableOpacity
+            style={styles.patientAiLauncher}
+            onPress={() => setAiOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open NgitiFy AI"
+            activeOpacity={0.84}
+        >
+            <Text style={styles.patientAiSparkle}>✦</Text>
+        </TouchableOpacity>
+        <Modal visible={aiOpen} transparent animationType="slide" onRequestClose={() => setAiOpen(false)}>
+            <View style={styles.patientAiBackdrop}>
+                <View style={styles.patientAiSheet}>
+                    <AiPatientCareCompanionScreen embedded onClose={() => setAiOpen(false)} />
+                </View>
+            </View>
+        </Modal>
+        </View>
     );
 }
 
@@ -715,6 +737,35 @@ export default function AppNavigator() {
 
 const styles =
     StyleSheet.create({
+        patientShell: { flex: 1 },
+        patientAiLauncher: {
+            position: 'absolute',
+            right: 22,
+            bottom: 98,
+            zIndex: 20,
+            width: 52,
+            height: 52,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 26,
+            backgroundColor: mobileTheme.colors.primaryDark,
+            borderWidth: 2,
+            borderColor: '#ffffff',
+            ...mobileTheme.shadows.card,
+        },
+        patientAiSparkle: { color: '#ffffff', fontSize: 25, fontWeight: '800' },
+        patientAiBackdrop: {
+            flex: 1,
+            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(15, 23, 42, 0.32)',
+        },
+        patientAiSheet: {
+            height: '92%',
+            overflow: 'hidden',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            backgroundColor: mobileTheme.colors.background,
+        },
         loadingScreen: {
             flex: 1,
 

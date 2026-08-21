@@ -48,6 +48,7 @@ const otpLimiter = rateLimit({
 
 // Import Middleware
 const verifyToken = require('./middleware/auth');
+const { getDisallowedPatientProfileFields } = require('./utils/patientProfilePermissions');
 
 // Import Model
 const User = require('./models/User'); 
@@ -112,6 +113,15 @@ const {
 } = require('./utils/patientNotifications');
 const MaterialUsageLog = require('./models/MaterialUsageLog');
 const RADIOGRAPH_ENHANCER_SCRIPT = path.join(__dirname, 'python', 'radiograph_enhance.py');
+const RADIOGRAPH_ANALYZER_SCRIPT = path.join(__dirname, 'python', 'radiograph_analyze.py');
+const {
+    buildApprovedSummaryDraft,
+    calculateEvaluationMetrics,
+    classifyImageQuality,
+    getConfidenceLevel,
+    isValidFdiTooth,
+    transitionDetection,
+} = require('./utils/radiographReview');
 const RADIOGRAPH_ENHANCER_ENGINES = Object.freeze({
     basic: {
         key: 'basic',
@@ -220,6 +230,48 @@ const buildRadiographPayload = (radiograph = {}) => {
         enhancedBy: radiograph.enhancedBy || null,
         lastEnhancementEngine: radiograph.lastEnhancementEngine || '',
         enhancementVariants: variants,
+        providerId: radiograph.providerId || null,
+        branch: radiograph.branch || '',
+        visitId: radiograph.visitId || null,
+        analysis: radiograph.analysis || { status: 'not-analyzed', detections: [] },
+        annotations: radiograph.annotations || [],
+        reviewSummary: radiograph.reviewSummary || { status: 'none' },
+        createdAt: radiograph.createdAt || null,
+    };
+};
+
+const buildPatientRadiographPayload = (radiograph = {}) => {
+    const payload = buildRadiographPayload(radiograph);
+    return {
+        _id: payload._id,
+        label: payload.label,
+        date: payload.date,
+        radiographNumber: payload.radiographNumber,
+        url: payload.url,
+        enhancedUrl: payload.enhancedUrl,
+        enhancedAt: payload.enhancedAt,
+        visitId: payload.visitId,
+        approvedSummary: payload.reviewSummary?.status === 'approved' ? payload.reviewSummary.approvedText : '',
+        approvedFindings: (payload.annotations || [])
+            .filter((item) => item.findingType || item.note)
+            .map((item) => ({ toothNumber: item.toothNumber || '', findingType: item.findingType || '', note: item.note || '' })),
+        disclaimer: 'This information is based on records approved by your dental care team. It does not replace advice from your dentist.',
+    };
+};
+
+const buildNonInterpretiveRadiographPayload = (radiograph = {}) => {
+    const payload = buildRadiographPayload(radiograph);
+    return {
+        _id: payload._id,
+        label: payload.label,
+        date: payload.date,
+        radiographNumber: payload.radiographNumber,
+        url: payload.url,
+        enhancedUrl: payload.enhancedUrl,
+        enhancedAt: payload.enhancedAt,
+        enhancementVariants: payload.enhancementVariants,
+        visitId: payload.visitId,
+        createdAt: payload.createdAt,
     };
 };
 
@@ -242,6 +294,18 @@ const buildTreatmentLogPayload = (entry = {}) => ({
     updatedAt: entry.updatedAt || null,
 });
 
+const buildPatientTreatmentLogPayload = (entry = {}) => ({
+    _id: entry._id,
+    id: entry._id || entry.id,
+    date: entry.date,
+    procedure: entry.procedure || '',
+    tooth: entry.tooth || '',
+    category: entry.category || 'Other',
+    dentistName: entry.dentistName || '',
+    branch: entry.branch || '',
+    nextAppointment: entry.nextAppointment || null,
+});
+
 const getRadiographEnhancerCommands = () => {
     const configuredCommand = String(process.env.OPENCV_PYTHON_BIN || '').trim();
     if (configuredCommand) {
@@ -260,6 +324,40 @@ const getRadiographEnhancerCommands = () => {
         { command: 'python3', args: [] },
         { command: 'python', args: [] },
     ];
+};
+
+const spawnRadiographAnalyzer = ({ command, args, imageDataUrl }) => new Promise((resolve, reject) => {
+    const child = spawn(command, [...args, RADIOGRAPH_ANALYZER_SCRIPT], { stdio: ['pipe', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.on('error', (error) => reject(Object.assign(new Error(`Could not start radiograph analysis with "${command}".`), { cause: error })));
+    child.on('close', (code) => {
+        if (code !== 0) return reject(new Error(stderr.trim() || stdout.trim() || `Radiograph analysis exited with code ${code}.`));
+        try {
+            const parsed = JSON.parse(stdout);
+            if (!parsed?.modelVersion || !parsed?.qualityMetrics || !Array.isArray(parsed?.detections)) throw new Error('Analyzer returned an incomplete payload.');
+            resolve(parsed);
+        } catch (error) {
+            reject(new Error(`Could not parse radiograph analysis output. ${error.message}`));
+        }
+    });
+    child.stdin.end(JSON.stringify({ imageDataUrl }));
+});
+
+const runRadiographAnalysis = async (imageDataUrl) => {
+    parseBase64ImageDataUrl(imageDataUrl);
+    let lastError;
+    for (const commandConfig of getRadiographEnhancerCommands()) {
+        try {
+            return await spawnRadiographAnalyzer({ ...commandConfig, imageDataUrl });
+        } catch (error) {
+            lastError = error;
+            if (!String(error.message || '').startsWith('Could not start radiograph analysis')) throw error;
+        }
+    }
+    throw lastError || new Error('Could not start radiograph analysis.');
 };
 
 const spawnRadiographEnhancer = ({ command, args, payload }) => {
@@ -2868,6 +2966,7 @@ const buildPatientAiLiveContext = async ({
                 'treatmentLogs',
                 'oralHealthFactors',
                 'oralHealthLogs',
+                'radiographs',
             ].join(' ')
         )
         .lean();
@@ -3050,6 +3149,7 @@ const buildPatientAiLiveContext = async ({
                 prediction:
                     systemRecommendation,
                 oralHealthPayload,
+                radiographs: patient.radiographs || [],
             }),
     };
 
@@ -6701,6 +6801,15 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
     const isAdminTier = req.user.role === 'administrator';
     if (req.params.id !== req.user.id && !isAdminTier) {
         return res.status(403).json({ message: 'Access denied.' });
+    }
+    if (req.user.role === 'patient') {
+        const disallowedFields = getDisallowedPatientProfileFields(req.body);
+        if (disallowedFields.length) {
+            return res.status(400).json({
+                message: 'Clinical record fields cannot be changed from your profile. Please contact the clinic to request a correction.',
+                fields: disallowedFields,
+            });
+        }
     }
     try {
         const userId = req.params.id;
@@ -10698,7 +10807,12 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             (a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)
         );
 
-        res.json(sorted.map((entry) => buildRadiographPayload(entry)));
+        const serializer = req.user.role === 'dentist'
+            ? buildRadiographPayload
+            : req.user.role === 'patient'
+                ? buildPatientRadiographPayload
+                : buildNonInterpretiveRadiographPayload;
+        res.json(sorted.map((entry) => serializer(entry)));
     } catch (error) {
         console.error('Error fetching radiographs:', error);
         res.status(500).json({ message: 'Server error fetching radiographs.' });
@@ -10716,24 +10830,52 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
     if (req.user.role === 'secretary') {
         return res.status(403).json({ message: 'Access denied. Secretaries cannot upload radiographs.' });
     }
+    if (!['administrator', 'branch-manager', 'dentist', 'owner'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     if (!(await assertSystemFeatureEnabled(res, 'radiographUploads'))) {
         return;
     }
     try {
-        const { label, date, url, notes, findings, radiographNumber } = req.body;
+        const { label, date, url, notes, findings, radiographNumber, visitId } = req.body;
 
         if (!label || !date) {
             return res.status(400).json({ message: 'Label and date are required.' });
         }
+        if (url) {
+            const parsedImage = parseBase64ImageDataUrl(url);
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(parsedImage.mediaType.toLowerCase())) {
+                return res.status(400).json({ message: 'Radiographs must be JPEG, PNG, or WebP images.' });
+            }
+            if (Buffer.byteLength(parsedImage.imageBase64, 'base64') > 10 * 1024 * 1024) {
+                return res.status(413).json({ message: 'Radiograph images must be 10 MB or smaller.' });
+            }
+        }
 
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        if (isBranchScopedStaff(req.user.role)) {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!patientBelongsToBranch(patient, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+            }
+        }
 
         if (req.user.role === 'dentist') {
             const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
             if (!canAccess) {
                 return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
             }
+        }
+
+        let linkedVisit = null;
+        if (visitId) {
+            if (!mongoose.isValidObjectId(visitId)) return res.status(400).json({ message: 'The selected visit is invalid.' });
+            linkedVisit = await Appointment.findOne({ _id: visitId, patient: patient._id }).select('_id branch dentist');
+            if (!linkedVisit) return res.status(400).json({ message: 'The selected visit does not belong to this patient.' });
+        } else if (req.user.role === 'dentist') {
+            linkedVisit = await Appointment.findOne({ patient: patient._id, dentist: req.user.id, status: 'in-clinic' }).sort({ date: -1 }).select('_id branch dentist');
         }
 
         if (!patient.radiographs) patient.radiographs = [];
@@ -10755,6 +10897,12 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             findings: String(findings || '').trim(),
             notes: notes || '',
             uploadedBy: req.user?.id || null,
+            providerId: req.user?.role === 'dentist' ? req.user.id : null,
+            branch: linkedVisit?.branch || patient.assignedBranch || getScopedBranchForUser(req.user) || '',
+            visitId: linkedVisit?._id || null,
+            analysis: { status: 'not-analyzed', detections: [] },
+            annotations: [],
+            reviewSummary: { status: 'none' },
         };
 
         patient.radiographs.push(newEntry);
@@ -10764,7 +10912,7 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             action: 'ADD_RADIOGRAPH',
             user: req.user?.email,
             role: req.user?.role,
-            details: `Added radiograph "${label}" for patient ID ${req.params.id}`
+            details: `Added radiograph "${label}" for patient ID ${req.params.id}${linkedVisit?._id ? ` and linked visit ID ${linkedVisit._id}` : ''}`
         });
 
         const added = patient.radiographs[patient.radiographs.length - 1];
@@ -10856,7 +11004,7 @@ app.get('/api/my/treatment-logs', verifyToken, async (req, res) => {
         const sorted = (patient.treatmentLogs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
         );
-        res.json(sorted);
+        res.json(sorted.map((entry) => buildPatientTreatmentLogPayload(entry)));
     } catch (error) {
         console.error('Error fetching own treatment logs:', error);
         res.status(500).json({ message: 'Server error.' });
@@ -10950,7 +11098,7 @@ app.get('/api/my/radiographs', verifyToken, async (req, res) => {
         const sorted = (patient.radiographs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
         );
-        res.json(sorted);
+        res.json(sorted.map((entry) => buildPatientRadiographPayload(entry)));
     } catch (error) {
         console.error('Error fetching own radiographs:', error);
         res.status(500).json({ message: 'Server error.' });
@@ -13244,6 +13392,218 @@ const aiChatLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+// -------------------------------------------------------
+// AI-ASSISTED RADIOGRAPH REVIEW (dentist decision support)
+// -------------------------------------------------------
+const requireDentistRadiograph = async (req, res) => {
+    if (req.user.role !== 'dentist') {
+        res.status(403).json({ message: 'Access denied. Radiograph interpretation tools are limited to dentists.' });
+        return null;
+    }
+    const patient = await User.findById(req.params.id).select('role radiographs treatmentLogs assignedBranch');
+    if (!patient || patient.role !== 'patient') {
+        res.status(404).json({ message: 'Patient not found.' });
+        return null;
+    }
+    if (!(await dentistCanAccessPatient(req.user.id, patient._id))) {
+        res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+        return null;
+    }
+    const radiograph = (patient.radiographs || []).find((entry) => String(entry._id) === String(req.params.radiographId));
+    if (!radiograph) {
+        res.status(404).json({ message: 'Radiograph entry not found.' });
+        return null;
+    }
+    return { patient, radiograph };
+};
+
+app.post('/api/patients/:id/radiographs/:radiographId/analyze', verifyToken, async (req, res) => {
+    let record;
+    try {
+        record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const { patient, radiograph } = record;
+        if (!radiograph.url) return res.status(400).json({ message: 'The original radiograph image is unavailable.' });
+
+        if (!radiograph.analysisHistory) radiograph.analysisHistory = [];
+        if (radiograph.analysis?.status === 'ready' && (radiograph.analysis.detections || []).length) {
+            radiograph.analysisHistory.push(radiograph.analysis.toObject ? radiograph.analysis.toObject() : radiograph.analysis);
+        }
+        radiograph.analysis = { status: 'processing', verificationState: 'requires-verification', detections: [] };
+        patient.markModified('radiographs');
+        await patient.save();
+
+        const result = await runRadiographAnalysis(radiograph.url);
+        const inferenceTimestamp = new Date();
+        radiograph.analysis = {
+            status: 'ready',
+            verificationState: result.detections.length ? 'requires-verification' : 'verified',
+            modelVersion: result.modelVersion,
+            predictionType: result.predictionType,
+            qualityAssessment: classifyImageQuality(result.qualityMetrics),
+            detections: result.detections.map((item) => ({
+                ...item,
+                confidenceLevel: getConfidenceLevel(item.confidence),
+                status: 'pending',
+                confirmedToothNumber: '',
+                confirmedBy: null,
+                confirmedAt: null,
+                modelVersion: result.modelVersion,
+                inferenceTimestamp,
+                predictionType: result.predictionType,
+            })),
+            limitations: result.limitations,
+            analyzedAt: inferenceTimestamp,
+            errorMessage: '',
+        };
+        patient.markModified('radiographs');
+        await patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_ANALYZED', user: req.user.email, role: req.user.role, details: `Radiograph review analysis completed for radiograph ID ${radiograph._id}.` });
+        res.json({ message: `${result.detections.length} AI tooth suggestion${result.detections.length === 1 ? '' : 's'} ready for dentist review.`, radiograph: buildRadiographPayload(radiograph) });
+    } catch (error) {
+        if (record?.radiograph && record?.patient) {
+            record.radiograph.analysis = { status: 'failed', verificationState: 'requires-verification', detections: [], errorMessage: 'Analysis service unavailable.' };
+            record.patient.markModified('radiographs');
+            await record.patient.save().catch(() => {});
+        }
+        console.error('Radiograph analysis error:', error);
+        res.status(error.statusCode || 503).json({ message: `We couldn't analyze this radiograph. You can still review the original image. ${error.message || ''}`.trim() });
+    }
+});
+
+app.patch('/api/patients/:id/radiographs/:radiographId/detections/:detectionId', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const detection = record.radiograph.analysis?.detections?.id(req.params.detectionId);
+        if (!detection) return res.status(404).json({ message: 'AI tooth suggestion not found.' });
+        const updated = transitionDetection(detection.toObject(), req.body.action, req.body.confirmedToothNumber);
+        detection.status = updated.status;
+        detection.confirmedToothNumber = updated.confirmedToothNumber;
+        detection.confirmedBy = req.user.id;
+        detection.confirmedAt = new Date();
+        const unresolved = record.radiograph.analysis.detections.some((item) => item.status === 'pending');
+        record.radiograph.analysis.verificationState = unresolved ? 'requires-verification' : 'verified';
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: updated.status === 'corrected' ? 'RADIOGRAPH_DETECTION_CORRECTED' : updated.status === 'ignored' ? 'RADIOGRAPH_DETECTION_IGNORED' : 'RADIOGRAPH_DETECTION_CONFIRMED', user: req.user.email, role: req.user.role, details: `AI tooth suggestion ${detection._id} ${updated.status}; model ${detection.modelVersion}.` });
+        res.json({ message: updated.status === 'corrected' ? 'AI suggestion corrected and logged.' : updated.status === 'ignored' ? 'AI suggestion ignored.' : 'AI suggestion dentist verified.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(error.message?.includes('valid permanent FDI') || error.message?.startsWith('Use correct') || error.message?.startsWith('Choose a different') ? 400 : 500).json({ message: error.message || 'Could not update the AI suggestion.' });
+    }
+});
+
+app.post('/api/patients/:id/radiographs/:radiographId/annotations', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const toothNumber = String(req.body.toothNumber || '').trim();
+        if (toothNumber && !isValidFdiTooth(toothNumber)) return res.status(400).json({ message: 'A valid permanent FDI tooth number is required.' });
+        const geometry = req.body.geometry || {};
+        const values = ['x', 'y', 'width', 'height'].map((key) => Number(geometry[key] || 0));
+        if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) return res.status(400).json({ message: 'Annotation coordinates must be normalized between 0 and 1.' });
+        const treatmentLogId = req.body.treatmentLogId;
+        if (treatmentLogId && !(record.patient.treatmentLogs || []).some((item) => String(item._id) === String(treatmentLogId))) {
+            return res.status(400).json({ message: 'The selected treatment does not belong to this patient.' });
+        }
+        let linkedVisitId = null;
+        if (req.body.visitId) {
+            if (!mongoose.isValidObjectId(req.body.visitId)) return res.status(400).json({ message: 'The selected visit is invalid.' });
+            const visitExists = await Appointment.exists({ _id: req.body.visitId, patient: record.patient._id });
+            if (!visitExists) return res.status(400).json({ message: 'The selected visit does not belong to this patient.' });
+            linkedVisitId = req.body.visitId;
+        }
+        record.radiograph.annotations.push({
+            toothNumber,
+            geometry: { type: ['point', 'rectangle', 'region'].includes(geometry.type) ? geometry.type : 'rectangle', x: values[0], y: values[1], width: values[2], height: values[3] },
+            findingType: String(req.body.findingType || '').trim().slice(0, 160),
+            note: String(req.body.note || '').trim().slice(0, 2000),
+            linkToOdontogram: Boolean(req.body.linkToOdontogram && toothNumber),
+            treatmentLogId: mongoose.isValidObjectId(treatmentLogId) ? treatmentLogId : null,
+            visitId: linkedVisitId,
+            createdBy: req.user.id,
+        });
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_ANNOTATION_ADDED', user: req.user.email, role: req.user.role, details: `Dentist annotation added to radiograph ID ${record.radiograph._id}${toothNumber ? ` for tooth ${toothNumber}` : ''}.` });
+        if (req.body.linkToOdontogram && toothNumber) {
+            await AuditLog.create({ action: 'RADIOGRAPH_LINKED_TO_ODONTOGRAM', user: req.user.email, role: req.user.role, details: `Radiograph ID ${record.radiograph._id} linked by reference to odontogram tooth ${toothNumber}; odontogram status was not changed.` });
+        }
+        if (treatmentLogId) {
+            await AuditLog.create({ action: 'RADIOGRAPH_LINKED_TO_TREATMENT', user: req.user.email, role: req.user.role, details: `Radiograph ID ${record.radiograph._id} linked to existing treatment log ID ${treatmentLogId}.` });
+        }
+        res.status(201).json({ message: 'Dentist finding added.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not add the dentist finding.' });
+    }
+});
+
+app.post('/api/patients/:id/radiographs/:radiographId/generate-summary', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const previous = (record.patient.radiographs || []).filter((item) => String(item._id) !== String(record.radiograph._id) && new Date(item.date) < new Date(record.radiograph.date)).sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null;
+        const draft = buildApprovedSummaryDraft({ radiograph: record.radiograph, treatmentLogs: record.patient.treatmentLogs || [], previousRadiograph: previous });
+        record.radiograph.reviewSummary = { draft, approvedText: '', status: 'draft', generatedAt: new Date(), generatedBy: req.user.id, provenance: 'Generated only from dentist-verified detections, dentist annotations, and linked EMR records.' };
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_SUMMARY_GENERATED', user: req.user.email, role: req.user.role, details: `AI-assisted summary draft generated for radiograph ID ${record.radiograph._id}.` });
+        res.json({ message: 'Summary draft generated from verified records.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not generate the radiograph review summary.' });
+    }
+});
+
+app.post('/api/patients/:id/radiographs/:radiographId/approve-summary', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const approvedText = String(req.body.text || record.radiograph.reviewSummary?.draft || '').trim().slice(0, 5000);
+        if (!approvedText) return res.status(400).json({ message: 'A summary draft is required before approval.' });
+        record.radiograph.reviewSummary.status = 'approved';
+        record.radiograph.reviewSummary.approvedText = approvedText;
+        record.radiograph.reviewSummary.approvedAt = new Date();
+        record.radiograph.reviewSummary.approvedBy = req.user.id;
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_SUMMARY_APPROVED', user: req.user.email, role: req.user.role, details: `AI-assisted summary dentist approved for radiograph ID ${record.radiograph._id}.` });
+        res.json({ message: 'AI-assisted summary approved and added to the patient record.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not approve the radiograph review summary.' });
+    }
+});
+
+app.get('/api/radiograph-review/evaluation', verifyToken, async (req, res) => {
+    try {
+        if (!['administrator', 'dentist'].includes(req.user.role)) return res.status(403).json({ message: 'Access denied.' });
+        const patients = await User.find({ role: 'patient', 'radiographs.analysis.status': 'ready' }).select('radiographs').lean();
+        const radiographs = patients.flatMap((patient) => patient.radiographs || []);
+        const metrics = calculateEvaluationMetrics(radiographs);
+        if (String(req.query.format || '').toLowerCase() === 'csv') {
+            const secret = process.env.JWT_SECRET || 'radiograph-evaluation';
+            const rows = ['radiograph_eval_id,model_version,predicted_tooth,confirmed_tooth,confidence,correct,reviewed_at'];
+            radiographs.forEach((radiograph) => {
+                const analyses = [...(radiograph.analysisHistory || []), radiograph.analysis].filter(Boolean);
+                analyses.forEach((analysis) => {
+                    (analysis.detections || []).forEach((item) => {
+                        if (!['confirmed', 'corrected'].includes(item.status)) return;
+                        const evalId = crypto.createHmac('sha256', secret).update(String(radiograph._id)).digest('hex').slice(0, 20);
+                        rows.push([evalId, item.modelVersion, item.predictedToothNumber, item.confirmedToothNumber, item.confidence, String(item.predictedToothNumber) === String(item.confirmedToothNumber), item.confirmedAt ? new Date(item.confirmedAt).toISOString() : ''].join(','));
+                    });
+                });
+            });
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', 'attachment; filename="radiograph-evaluation.csv"');
+            return res.send(rows.join('\n'));
+        }
+        res.json({ ...metrics, precision: null, recall: null, f1: null, note: 'Precision, recall, F1, IoU, and mAP are unavailable until region-level ground truth is supplied.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not calculate radiograph evaluation metrics.' });
+    }
+});
+
+const createStaffAiRouter = require('./routes/staffAi');
+
 app.post(
     '/api/my/ai-conversations/:id/messages',
     verifyToken,
@@ -13487,8 +13847,7 @@ app.post('/api/chatbot/message', verifyToken, aiChatLimiter, handlePatientAiChat
 // -------------------------------------------------------
 // AI STAFF CHAT ASSISTANT — Streaming SSE (Phase 4)
 // -------------------------------------------------------
-const STAFF_CHAT_ALLOWED = ['dentist', 'administrator', 'branch-manager', 'secretary', 'owner'];
-
+/* Legacy inline staff-chat implementation replaced by the shared, persistent router.
 app.post('/api/ai/staff-chat', verifyToken, aiChatLimiter, async (req, res) => {
     try {
         const geminiService = await ensureAiConfigured(res);
@@ -13572,6 +13931,24 @@ Strict rules:
             res.end();
         }
     }
+}); */
+
+const staffAiRouter = createStaffAiRouter({
+    verifyToken,
+    aiChatLimiter,
+    ensureAiConfigured,
+    Appointment,
+    Inventory: LegacyInventory,
+    User,
+    AuditLog,
+    getScopedBranchForUser,
+    dentistCanAccessPatient,
+    patientBelongsToBranch,
+});
+app.use('/api/staff/ai', staffAiRouter);
+app.post('/api/ai/staff-chat', (req, res, next) => {
+    req.url = '/chat';
+    staffAiRouter(req, res, next);
 });
 
 // -------------------------------------------------------

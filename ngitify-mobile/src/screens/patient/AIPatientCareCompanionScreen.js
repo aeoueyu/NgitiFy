@@ -29,35 +29,29 @@ const QUICK_PROMPTS = [
   {
     id: 'visit-recommendation',
     icon: 'calendar-outline',
-    label: 'Explain my current visit recommendation',
+    label: 'When is my next visit?',
   },
   {
     id: 'oral-health-trend',
     icon: 'analytics-outline',
-    label: 'Explain my recent Oral Health Management trend',
+    label: 'Show me my recent care check-ins',
   },
   {
     id: 'education',
     icon: 'book-outline',
-    label: 'Give me Dental Health Education related to my recent log',
+    label: 'Explain my tooth chart',
   },
   {
     id: 'appointment',
     icon: 'time-outline',
-    label: 'Help me understand my upcoming appointment',
-  },
-  {
-    id: 'home-care',
-    icon: 'sparkles-outline',
-    label: 'Give me brushing and flossing guidance',
+    label: 'How does this app work?',
   },
 ];
 
 const WELCOME_MESSAGE = {
   id: 'welcome',
   role: 'assistant',
-  content:
-    'Hello! Ask me about your existing NgitiFy care information, Oral Health Management records, Dental Health Education, appointments, or System Recommendation. I provide educational explanations and do not diagnose conditions.',
+  content: 'Hi! How can I help? Ask about your appointments, dental records, daily care, or how NgitiFy works.\n\nNgitiFy AI can explain your saved information but does not replace your dentist.',
 };
 
 const formatDateKey = (value) => {
@@ -160,6 +154,8 @@ const normalizePersistedMessages = (
 
 export default function AiPatientCareCompanionScreen({
   navigation,
+  embedded = false,
+  onClose,
 }) {
   const {
     userToken,
@@ -2087,6 +2083,12 @@ export default function AiPatientCareCompanionScreen({
           styles.fullScreenOverlay
         }
       >
+        <TouchableOpacity
+          style={styles.historyBackdrop}
+          onPress={() => setChatsVisible(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Close chat history"
+        />
         <View
           style={styles.modalScreen}
         >
@@ -3454,18 +3456,19 @@ export default function AiPatientCareCompanionScreen({
         </View>
 
         <TouchableOpacity
-          style={
-            styles.infoButton
-          }
-          onPress={() =>
-            setInfoVisible(true)
-          }
+          style={styles.infoButton}
+          onPress={() => {
+            setActiveChatOverlay(null);
+            setChatsVisible(false);
+            if (onClose) onClose();
+            else navigation?.goBack?.();
+          }}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="About AI Care Companion"
+          accessibilityLabel="Close AI chat"
         >
           <Ionicons
-            name="information-circle-outline"
+            name="close"
             size={25}
             color={
               mobileTheme
@@ -3899,8 +3902,13 @@ const styles = StyleSheet.create({
 
   modalScreen: {
     flex: 1,
+    width: '82%',
     backgroundColor:
       mobileTheme.colors.background,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 12,
   },
 
   modalHeader: {
@@ -4135,8 +4143,13 @@ const styles = StyleSheet.create({
   fullScreenOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 100,
-    backgroundColor:
-      mobileTheme.colors.background,
+    alignItems: 'flex-start',
+    backgroundColor: 'transparent',
+  },
+
+  historyBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.38)',
   },
 
   confirmBackdrop: {

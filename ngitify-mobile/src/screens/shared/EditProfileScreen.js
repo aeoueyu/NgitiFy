@@ -52,9 +52,6 @@ const formatDisplayDate = (dateStr) => {
     return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-const csvFromArray = (value) => Array.isArray(value) ? value.join(', ') : (value || '');
-const arrayFromCsv = (value) => value.split(',').map(item => item.trim()).filter(Boolean);
-
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function EditProfileScreen({ navigation }) {
@@ -80,15 +77,19 @@ export default function EditProfileScreen({ navigation }) {
         birthdate:  '',
         gender:     '',
         phone:      '',
+        homePhone:  '',
+        workPhone:  '',
         occupation: '',
         civilStatus: '',
-        bloodType: '',
+        nationality: '',
+        religion: '',
         emergencyName: '',
         emergencyRelationship: '',
         emergencyPhone: '',
-        allergies: '',
-        conditions: '',
-        medications: '',
+        guardianName: '',
+        guardianRelationship: '',
+        guardianPhone: '',
+        guardianOccupation: '',
         // Current address codes (for dropdown filtering)
         reg:    '',
         prov:   '',
@@ -145,15 +146,19 @@ export default function EditProfileScreen({ navigation }) {
                 birthdate:  data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0] : '',
                 gender:     data.gender        || '',
                 phone:      data.contactNumber || '',
+                homePhone:  data.homePhone || '',
+                workPhone:  data.workPhone || '',
                 occupation: data.occupation || '',
                 civilStatus: data.civilStatus || '',
-                bloodType: data.bloodType || data.medicalHistory?.bloodType || '',
+                nationality: data.nationality || '',
+                religion: data.religion || '',
                 emergencyName: data.emergencyContact?.name || '',
                 emergencyRelationship: data.emergencyContact?.relationship || '',
                 emergencyPhone: data.emergencyContact?.contactNumber || '',
-                allergies: csvFromArray(data.medicalHistory?.allergies),
-                conditions: csvFromArray(data.medicalHistory?.conditions),
-                medications: csvFromArray(data.medicalHistory?.medications),
+                guardianName: data.guardian?.name || '',
+                guardianRelationship: data.guardian?.relationship || '',
+                guardianPhone: data.guardian?.contactNumber || '',
+                guardianOccupation: data.guardian?.occupation || '',
                 reg:    regCode,
                 prov:   provCode,
                 city:   cityCode,
@@ -314,19 +319,22 @@ export default function EditProfileScreen({ navigation }) {
             contactNumber:    formData.phone.trim(),
             birthdate:        formData.birthdate || undefined,
             gender:           formData.gender    || undefined,
+            homePhone:        formData.homePhone.trim(),
+            workPhone:        formData.workPhone.trim(),
             occupation:       formData.occupation.trim() || undefined,
             civilStatus:      formData.civilStatus || undefined,
-            bloodType:        formData.bloodType || undefined,
+            nationality:      formData.nationality.trim() || undefined,
+            religion:         formData.religion.trim() || undefined,
             emergencyContact: {
                 name: formData.emergencyName.trim() || undefined,
                 relationship: formData.emergencyRelationship.trim() || undefined,
                 contactNumber: formData.emergencyPhone.trim() || undefined,
             },
-            medicalHistory: {
-                bloodType: formData.bloodType || undefined,
-                allergies: arrayFromCsv(formData.allergies),
-                conditions: arrayFromCsv(formData.conditions),
-                medications: arrayFromCsv(formData.medications),
+            guardian: {
+                name: formData.guardianName.trim() || undefined,
+                relationship: formData.guardianRelationship.trim() || undefined,
+                contactNumber: formData.guardianPhone.trim() || undefined,
+                occupation: formData.guardianOccupation.trim() || undefined,
             },
             homeAddress: homeAddressPayload,
             profileImage:     profileImage ?? undefined,
@@ -546,9 +554,64 @@ export default function EditProfileScreen({ navigation }) {
                             />
                         </View>
                     </View>
+
+                    <View style={styles.row}>
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                            <Text style={styles.label}>Nationality</Text>
+                            <TextInput
+                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                                value={formData.nationality}
+                                onChangeText={v => handleChange('nationality', v)}
+                                editable={isEditing}
+                                placeholder="Nationality"
+                                placeholderTextColor="#bbb"
+                            />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.label}>Religion</Text>
+                            <TextInput
+                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                                value={formData.religion}
+                                onChangeText={v => handleChange('religion', v)}
+                                editable={isEditing}
+                                placeholder="Religion"
+                                placeholderTextColor="#bbb"
+                            />
+                        </View>
+                    </View>
                 </View>
 
                 {/* ── Current Address ── */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Contact Details</Text>
+                    <View style={styles.row}>
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                            <Text style={styles.label}>Home Phone</Text>
+                            <TextInput
+                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                                value={formData.homePhone}
+                                onChangeText={v => handleChange('homePhone', v)}
+                                editable={isEditing}
+                                keyboardType="phone-pad"
+                                placeholder="Home phone"
+                                placeholderTextColor="#bbb"
+                            />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.label}>Work Phone</Text>
+                            <TextInput
+                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                                value={formData.workPhone}
+                                onChangeText={v => handleChange('workPhone', v)}
+                                editable={isEditing}
+                                keyboardType="phone-pad"
+                                placeholder="Work phone"
+                                placeholderTextColor="#bbb"
+                            />
+                        </View>
+                    </View>
+                </View>
+
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Emergency Contact</Text>
                     <Text style={styles.label}>Contact Name</Text>
@@ -613,45 +676,49 @@ export default function EditProfileScreen({ navigation }) {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Medical Information</Text>
-                    <Text style={styles.label}>Blood Type</Text>
+                    <Text style={styles.sectionTitle}>Guardian</Text>
+                    <Text style={styles.label}>Guardian Name</Text>
                     <TextInput
                         style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
-                        value={formData.bloodType}
-                        onChangeText={v => handleChange('bloodType', v)}
+                        value={formData.guardianName}
+                        onChangeText={v => handleChange('guardianName', v)}
                         editable={isEditing}
-                        placeholder="A+, O-, etc."
+                        placeholder="Full name"
                         placeholderTextColor="#bbb"
                     />
-                    <Text style={styles.label}>Allergies</Text>
+                    <View style={styles.row}>
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                            <Text style={styles.label}>Relationship</Text>
+                            <TextInput
+                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                                value={formData.guardianRelationship}
+                                onChangeText={v => handleChange('guardianRelationship', v)}
+                                editable={isEditing}
+                                placeholder="Relationship"
+                                placeholderTextColor="#bbb"
+                            />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.label}>Contact Number</Text>
+                            <TextInput
+                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                                value={formData.guardianPhone}
+                                onChangeText={v => handleChange('guardianPhone', v)}
+                                editable={isEditing}
+                                keyboardType="phone-pad"
+                                placeholder="Contact number"
+                                placeholderTextColor="#bbb"
+                            />
+                        </View>
+                    </View>
+                    <Text style={styles.label}>Occupation</Text>
                     <TextInput
-                        style={[styles.textArea, !isEditing && styles.inputReadOnly]}
-                        value={formData.allergies}
-                        onChangeText={v => handleChange('allergies', v)}
+                        style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                        value={formData.guardianOccupation}
+                        onChangeText={v => handleChange('guardianOccupation', v)}
                         editable={isEditing}
-                        placeholder="Comma-separated allergies"
+                        placeholder="Occupation"
                         placeholderTextColor="#bbb"
-                        multiline
-                    />
-                    <Text style={styles.label}>Medical Conditions</Text>
-                    <TextInput
-                        style={[styles.textArea, !isEditing && styles.inputReadOnly]}
-                        value={formData.conditions}
-                        onChangeText={v => handleChange('conditions', v)}
-                        editable={isEditing}
-                        placeholder="Comma-separated conditions"
-                        placeholderTextColor="#bbb"
-                        multiline
-                    />
-                    <Text style={styles.label}>Current Medications</Text>
-                    <TextInput
-                        style={[styles.textArea, !isEditing && styles.inputReadOnly]}
-                        value={formData.medications}
-                        onChangeText={v => handleChange('medications', v)}
-                        editable={isEditing}
-                        placeholder="Comma-separated medications"
-                        placeholderTextColor="#bbb"
-                        multiline
                     />
                 </View>
 

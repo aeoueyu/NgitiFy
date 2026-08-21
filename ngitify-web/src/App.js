@@ -56,7 +56,6 @@ const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const IntegrityTools = lazy(() => import('./pages/admin/IntegrityTools'));
 const ArchiveReview = lazy(() => import('./pages/admin/ArchiveReview'));
 const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
-const AdminAIAssistant = lazy(() => import('./pages/admin/CoAdminAIAssistant'));
 
 // Pages - Dentist
 const DentistDashboard = lazy(() => import('./pages/dentist/DentistDashboard'));
@@ -65,7 +64,6 @@ const DentistNotifications = lazy(() => import('./pages/dentist/Notifications'))
 const DentistActivityLogs  = lazy(() => import('./pages/dentist/ActivityLogs'));
 const DentistMaterialUsage = lazy(() => import('./pages/dentist/MaterialUsageLog'));
 const DentistSettings      = lazy(() => import('./pages/dentist/DentistSettings'));
-const DentistAIAssistant   = lazy(() => import('./pages/dentist/DentistAIAssistant'));
 
 // Pages - Secretary
 const SecretaryDashboard    = lazy(() => import('./pages/secretary/SecretaryDashboard'));
@@ -84,11 +82,9 @@ const BranchManagerAnalytics = lazy(() => import('./pages/branch-manager/BranchM
 const BranchManagerPatientEMR = lazy(() => import('./pages/branch-manager/BranchManagerPatientEMR'));
 const BranchManagerActivityLogs = lazy(() => import('./pages/admin/ActivityLogs'));
 const BranchManagerNotifications = lazy(() => import('./pages/admin/Notifications'));
-const BranchManagerAIAssistant = lazy(() => import('./pages/branch-manager/BranchManagerAIAssistant'));
 
 // ✅ PHASE 3: Owner pages
 const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
-const OwnerAIAssistant = lazy(() => import('./pages/owner/OwnerAIAssistant'));
 
 // Pages - Patient
 const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
@@ -165,7 +161,7 @@ function App() {
                   <Route path="/dentist/odontogram"              element={<Navigate to="/dentist/patients" replace />} />
                   <Route path="/dentist/notifications"           element={<DentistNotifications />} />
                   <Route path="/dentist/activity-logs"           element={<DentistActivityLogs />} />
-                  <Route path="/dentist/ai-assistant"            element={<DentistAIAssistant />} />
+                  <Route path="/dentist/ai-assistant"            element={<Navigate to="/dentist/dashboard" replace state={{ openStaffAi: true }} />} />
                   <Route path="/dentist/profile"                 element={<AdminProfile />} />
                   <Route path="/dentist/settings"                element={<DentistSettings />} />
                   <Route path="/dentist/inventory"               element={<Navigate to="/dentist/material-usage" replace />} />
@@ -189,7 +185,7 @@ function App() {
                   <Route path="/branch-manager/analytics"    element={<BranchManagerAnalytics />} />
                   <Route path="/branch-manager/activity-logs" element={<BranchManagerActivityLogs />} />
                   <Route path="/branch-manager/notifications" element={<BranchManagerNotifications />} />
-                  <Route path="/branch-manager/ai-assistant" element={<BranchManagerAIAssistant />} />
+                  <Route path="/branch-manager/ai-assistant" element={<Navigate to="/branch-manager/dashboard" replace state={{ openStaffAi: true }} />} />
                   <Route path="/branch-manager/inventory"    element={<InventoryTracker />} />
                   <Route path="/branch-manager/profile"      element={<AdminProfile />} />
                   <Route path="/branch-manager/settings"     element={<AdminSettings />} />
@@ -222,7 +218,7 @@ function App() {
                   <Route path="/owner/inventory"                    element={<InventoryTracker />} />
                   <Route path="/owner/notifications"                element={<Notifications />} />
                   <Route path="/owner/activity-logs"                element={<ActivityLogs />} />
-                  <Route path="/owner/ai-assistant"                 element={<OwnerAIAssistant />} />
+                  <Route path="/owner/ai-assistant"                 element={<Navigate to="/owner/dashboard" replace state={{ openStaffAi: true }} />} />
                   <Route path="/owner/profile"                      element={<AdminProfile />} />
                   <Route path="/owner/settings"                     element={<AdminSettings />} />
                   <Route path="/owner/roles"                        element={<RolesPermissions />} />
@@ -246,6 +242,7 @@ function App() {
                   <Route path="/secretary/activity-logs"                element={<SecretaryActivityLogs />} />
                   <Route path="/secretary/profile"                      element={<AdminProfile />} />
                   <Route path="/secretary/settings"                     element={<SecretarySettings />} />
+                  <Route path="/secretary/ai-assistant"                element={<Navigate to="/secretary/dashboard" replace state={{ openStaffAi: true }} />} />
                 </Route>
               </Route>
 
@@ -295,7 +292,7 @@ function App() {
                   <Route path="/admin/archive-review" element={<ArchiveReview />} />
                   <Route path="/admin/integrity" element={<IntegrityTools />} />
                   <Route path="/admin/activity-logs" element={<ActivityLogs />} />
-                  <Route path="/admin/ai-assistant" element={<AdminAIAssistant />} />
+                  <Route path="/admin/ai-assistant" element={<Navigate to="/admin/dashboard" replace state={{ openStaffAi: true }} />} />
                 </Route>
               </Route>
 

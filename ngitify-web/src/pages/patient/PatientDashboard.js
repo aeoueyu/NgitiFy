@@ -520,7 +520,7 @@ export default function PatientDashboard() {
                     <section className={patientStyles.dashboardWidget} aria-labelledby="visit-window-title">
                         <div className={patientStyles.sectionHeader}>
                             <div>
-                                <span className={patientStyles.sectionEyebrow}>Recommended Visit Window</span>
+                                <span className={patientStyles.sectionEyebrow}>When to Visit Next</span>
                                 <h2 id="visit-window-title" className={patientStyles.sectionTitle}>Next care timing</h2>
                             </div>
                             <FaInfoCircle className={patientStyles.dashboardPanelIcon} aria-hidden="true" focusable="false" />
@@ -532,7 +532,7 @@ export default function PatientDashboard() {
                                 <strong className={patientStyles.dashboardMiniValue}>{dentistSuggestedVisit}</strong>
                             </div>
                             <div className={patientStyles.dashboardMiniRow}>
-                                <span className={patientStyles.dashboardMiniLabel}>Current System Recommendation</span>
+                                <span className={patientStyles.dashboardMiniLabel}>Current Visit Guidance</span>
                                 <strong className={patientStyles.dashboardMiniValue}>{systemRecommendation}</strong>
                             </div>
                             {recommendationSources.length ? (

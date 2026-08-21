@@ -7,12 +7,8 @@ import { authFetch } from '../../utils/api';
 import { barangays, cities, provinces, regions } from '../../utils/addressData';
 import { getHomeAddress, normalizeAddressForForm } from '../../utils/addressHelpers';
 import {
-    ALLERGY_OPTIONS,
-    BLOOD_TYPE_OPTIONS,
-    MEDICAL_CONDITION_OPTIONS,
     NATIONALITY_OPTIONS,
     OCCUPATION_OPTIONS,
-    PHYSICIAN_SPECIALTY_OPTIONS,
     RELATIONSHIP_OPTIONS,
     RELIGION_OPTIONS,
     stripLandlinePrefix,
@@ -26,24 +22,7 @@ import { PROFILE_IMAGE_SIZE_ERROR, readProfileImageAsDataUrl, isProfileImageTooL
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'];
 const CIVIL_STATUS_OPTIONS = ['Single', 'Married', 'Separated', 'Widowed', 'Prefer not to say'];
-const YES_NO_OPTIONS = [
-    { value: '', label: 'Select answer' },
-    { value: 'yes', label: 'Yes' },
-    { value: 'no', label: 'No' },
-];
-
-const arrayToCsv = (value) => (Array.isArray(value) ? value.join(', ') : String(value || '').trim());
-const csvToArray = (value) => String(value || '').split(',').map((entry) => entry.trim()).filter(Boolean);
-const splitKnownAndOther = (values = [], options = []) => {
-    const list = Array.isArray(values) ? values : csvToArray(values);
-    return {
-        selected: list.filter((entry) => options.includes(entry)),
-        other: list.filter((entry) => !options.includes(entry)).join(', '),
-    };
-};
 const cloneFormState = (value) => JSON.parse(JSON.stringify(value));
-const boolToSelect = (value) => (value === true ? 'yes' : value === false ? 'no' : '');
-const selectToBool = (value) => (value === 'yes' ? true : value === 'no' ? false : undefined);
 
 const optionListWithCurrent = (options, current) => {
     const safeCurrent = String(current || '').trim();
@@ -60,12 +39,7 @@ const formatDateInput = (value) => {
 
 const buildInitialForm = (profile = {}) => {
     const normalizedAddress = normalizeAddressForForm(getHomeAddress(profile));
-    const medicalHistory = profile.medicalHistory || {};
-    const dentalHistory = profile.dentalHistory || {};
-    const physician = profile.physician || {};
     const guardian = profile.guardian || {};
-    const allergies = splitKnownAndOther(medicalHistory.allergies, ALLERGY_OPTIONS);
-    const conditions = splitKnownAndOther(medicalHistory.conditions, MEDICAL_CONDITION_OPTIONS);
 
     return {
         firstName: profile?.name?.first || '',
@@ -80,9 +54,6 @@ const buildInitialForm = (profile = {}) => {
         civilStatus: profile.civilStatus || '',
         nationality: profile.nationality || 'Filipino',
         religion: profile.religion || '',
-        bloodType: profile.bloodType || medicalHistory.bloodType || '',
-        referredBy: profile.referredBy || '',
-        reasonForConsultation: profile.reasonForConsultation || dentalHistory.chiefComplaint || '',
         emergencyName: profile.emergencyContact?.name || '',
         emergencyRelationship: profile.emergencyContact?.relationship || '',
         emergencyPhone: stripMobilePrefix(profile.emergencyContact?.contactNumber || ''),
@@ -90,37 +61,6 @@ const buildInitialForm = (profile = {}) => {
         guardianRelationship: guardian.relationship || '',
         guardianPhone: stripMobilePrefix(guardian.contactNumber || ''),
         guardianOccupation: guardian.occupation || '',
-        physicianName: physician.name || '',
-        physicianSpecialty: physician.specialty || '',
-        physicianOfficeAddress: physician.officeAddress || '',
-        physicianOfficeNumber: stripLandlinePrefix(physician.officeNumber || ''),
-        dentalLastExamDate: formatDateInput(dentalHistory.lastExamDate),
-        dentalHadTreatmentReaction: boolToSelect(dentalHistory.hadTreatmentReaction),
-        dentalReactionDetails: dentalHistory.reactionDetails || '',
-        dentalHasConfidentialInfo: boolToSelect(dentalHistory.hasConfidentialInfo),
-        dentalNotes: dentalHistory.notes || '',
-        inGoodHealth: boolToSelect(medicalHistory.inGoodHealth),
-        underMedicalTreatment: boolToSelect(medicalHistory.underMedicalTreatment),
-        medicalTreatmentDetails: medicalHistory.medicalTreatmentDetails || '',
-        hadSeriousIllnessOrSurgery: boolToSelect(medicalHistory.hadSeriousIllnessOrSurgery),
-        seriousIllnessOrSurgeryDetails: medicalHistory.seriousIllnessOrSurgeryDetails || '',
-        hadHospitalization: boolToSelect(medicalHistory.hadHospitalization),
-        hospitalizationDetails: medicalHistory.hospitalizationDetails || '',
-        isTakingMedication: boolToSelect(medicalHistory.isTakingMedication),
-        medications: arrayToCsv(medicalHistory.medications),
-        usesTobacco: boolToSelect(medicalHistory.usesTobacco),
-        usesAlcoholOrDrugs: boolToSelect(medicalHistory.usesAlcoholOrDrugs),
-        hasAllergies: boolToSelect(medicalHistory.hasAllergies),
-        allergies: allergies.selected,
-        allergyOther: allergies.other,
-        conditions: conditions.selected,
-        conditionOther: conditions.other,
-        bleedingTime: medicalHistory.bleedingTime || '',
-        bloodPressure: medicalHistory.bloodPressure || '',
-        isPregnant: boolToSelect(medicalHistory.isPregnant),
-        isNursing: boolToSelect(medicalHistory.isNursing),
-        takingBirthControl: boolToSelect(medicalHistory.takingBirthControl),
-        medicalNotes: medicalHistory.notes || '',
         region: normalizedAddress.region || '',
         province: normalizedAddress.province || '',
         city: normalizedAddress.city || '',
@@ -196,29 +136,7 @@ export default function PatientEditProfile() {
         });
         setFormData((current) => {
             const next = { ...current, [field]: value };
-            if (field === 'gender' && value === 'Male') {
-                next.isPregnant = '';
-                next.isNursing = '';
-                next.takingBirthControl = '';
-            }
             return next;
-        });
-    };
-
-    const handleCheckboxToggle = (field, option) => {
-        setSaveError('');
-        setFieldErrors((current) => {
-            if (!current[field]) return current;
-            const next = { ...current };
-            delete next[field];
-            return next;
-        });
-        setFormData((current) => {
-            const values = Array.isArray(current[field]) ? current[field] : [];
-            const nextValues = values.includes(option)
-                ? values.filter((entry) => entry !== option)
-                : [...values, option];
-            return { ...current, [field]: nextValues };
         });
     };
 
@@ -281,8 +199,6 @@ export default function PatientEditProfile() {
         const requireField = (field, message = 'Required') => {
             if (!String(formData[field] || '').trim()) nextErrors[field] = message;
         };
-        const requireYesNo = (field) => requireField(field);
-
         requireField('firstName');
         requireField('lastName');
         requireField('birthdate');
@@ -291,31 +207,6 @@ export default function PatientEditProfile() {
         requireField('emergencyName');
         requireField('emergencyRelationship');
         requireField('emergencyPhone');
-        requireYesNo('dentalHadTreatmentReaction');
-        requireYesNo('dentalHasConfidentialInfo');
-        requireYesNo('inGoodHealth');
-        requireYesNo('underMedicalTreatment');
-        requireYesNo('hadSeriousIllnessOrSurgery');
-        requireYesNo('hadHospitalization');
-        requireYesNo('isTakingMedication');
-        requireYesNo('usesTobacco');
-        requireYesNo('usesAlcoholOrDrugs');
-        requireYesNo('hasAllergies');
-
-        if (formData.gender !== 'Male') {
-            requireYesNo('isPregnant');
-            requireYesNo('isNursing');
-            requireYesNo('takingBirthControl');
-        }
-
-        if (formData.dentalHadTreatmentReaction === 'yes') requireField('dentalReactionDetails', 'Required when answer is Yes');
-        if (formData.underMedicalTreatment === 'yes') requireField('medicalTreatmentDetails', 'Required when answer is Yes');
-        if (formData.hadSeriousIllnessOrSurgery === 'yes') requireField('seriousIllnessOrSurgeryDetails', 'Required when answer is Yes');
-        if (formData.hadHospitalization === 'yes') requireField('hospitalizationDetails', 'Required when answer is Yes');
-        if (formData.isTakingMedication === 'yes') requireField('medications', 'Required when answer is Yes');
-        if (formData.hasAllergies === 'yes' && !formData.allergies.length && !formData.allergyOther.trim()) {
-            nextErrors.allergies = 'Select or enter at least one allergy';
-        }
 
         if (!formData.firstName.trim() || !formData.lastName.trim()) {
             setFieldErrors(nextErrors);
@@ -390,9 +281,6 @@ export default function PatientEditProfile() {
             civilStatus: formData.civilStatus || '',
             nationality: formData.nationality || '',
             religion: formData.religion || '',
-            bloodType: formData.bloodType || '',
-            referredBy: formData.referredBy.trim(),
-            reasonForConsultation: formData.reasonForConsultation.trim(),
             emergencyContact: {
                 name: formData.emergencyName.trim(),
                 relationship: formData.emergencyRelationship,
@@ -403,43 +291,6 @@ export default function PatientEditProfile() {
                 relationship: formData.guardianRelationship,
                 contactNumber: formData.guardianPhone ? toMobilePayload(formData.guardianPhone) : '',
                 occupation: formData.guardianOccupation,
-            },
-            physician: {
-                name: formData.physicianName.trim(),
-                specialty: formData.physicianSpecialty,
-                officeAddress: formData.physicianOfficeAddress.trim(),
-                officeNumber: formData.physicianOfficeNumber ? toLandlinePayload(formData.physicianOfficeNumber) : '',
-            },
-            dentalHistory: {
-                chiefComplaint: formData.reasonForConsultation.trim(),
-                lastExamDate: formData.dentalLastExamDate || undefined,
-                hadTreatmentReaction: selectToBool(formData.dentalHadTreatmentReaction),
-                reactionDetails: formData.dentalReactionDetails.trim(),
-                hasConfidentialInfo: selectToBool(formData.dentalHasConfidentialInfo),
-                notes: formData.dentalNotes.trim(),
-            },
-            medicalHistory: {
-                bloodType: formData.bloodType || '',
-                inGoodHealth: selectToBool(formData.inGoodHealth),
-                underMedicalTreatment: selectToBool(formData.underMedicalTreatment),
-                medicalTreatmentDetails: formData.medicalTreatmentDetails.trim(),
-                hadSeriousIllnessOrSurgery: selectToBool(formData.hadSeriousIllnessOrSurgery),
-                seriousIllnessOrSurgeryDetails: formData.seriousIllnessOrSurgeryDetails.trim(),
-                hadHospitalization: selectToBool(formData.hadHospitalization),
-                hospitalizationDetails: formData.hospitalizationDetails.trim(),
-                isTakingMedication: selectToBool(formData.isTakingMedication),
-                medications: csvToArray(formData.medications),
-                usesTobacco: selectToBool(formData.usesTobacco),
-                usesAlcoholOrDrugs: selectToBool(formData.usesAlcoholOrDrugs),
-                hasAllergies: selectToBool(formData.hasAllergies),
-                allergies: [...formData.allergies, ...csvToArray(formData.allergyOther)],
-                conditions: [...formData.conditions, ...csvToArray(formData.conditionOther)],
-                bleedingTime: formData.bleedingTime.trim(),
-                bloodPressure: formData.bloodPressure.trim(),
-                isPregnant: formData.gender === 'Male' ? null : selectToBool(formData.isPregnant),
-                isNursing: formData.gender === 'Male' ? null : selectToBool(formData.isNursing),
-                takingBirthControl: formData.gender === 'Male' ? null : selectToBool(formData.takingBirthControl),
-                notes: formData.medicalNotes.trim(),
             },
             homeAddress,
             permanentAddress: homeAddress,
@@ -494,19 +345,6 @@ export default function PatientEditProfile() {
         </div>
     );
 
-    const renderTextarea = (label, field, options = {}) => (
-        <div className={styles.formGroup} style={{ flex: '1 1 100%' }}>
-            <label>{label} {options.required ? <RequiredMark /> : null}</label>
-            <textarea
-                className={`${styles.inputField} ${styles.textareaField} ${fieldErrors[field] ? styles.errorBorder : ''}`}
-                value={formData[field] || ''}
-                onChange={(event) => handleFieldChange(field, event.target.value)}
-                disabled={saving}
-            />
-            {renderFieldError(field)}
-        </div>
-    );
-
     const renderSelect = (label, field, options, config = {}) => (
         <div className={styles.formGroup}>
             <label>{label} {config.required ? <RequiredMark /> : null}</label>
@@ -521,53 +359,6 @@ export default function PatientEditProfile() {
                     <option key={option} value={option}>{option}</option>
                 ))}
             </select>
-            {renderFieldError(field)}
-        </div>
-    );
-
-    const renderYesNo = (label, field, options = {}) => (
-        <div className={styles.formGroup}>
-            <label>{label} {options.required ? <RequiredMark /> : null}</label>
-            <select
-                className={`${styles.inputField} ${fieldErrors[field] ? styles.errorBorder : ''}`}
-                value={formData[field] || ''}
-                onChange={(event) => handleFieldChange(field, event.target.value)}
-                disabled={saving}
-            >
-                {YES_NO_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-            </select>
-            {renderFieldError(field)}
-        </div>
-    );
-
-    const renderCheckboxGroup = (label, field, options, otherField, config = {}) => (
-        <div className={styles.formGroup} style={{ flex: '1 1 100%' }}>
-            <label>{label} {config.required ? <RequiredMark /> : null}</label>
-            <div className={styles.checkboxGrid}>
-                {options.map((option) => (
-                    <label key={option} className={styles.checkboxOption}>
-                        <input
-                            type="checkbox"
-                            checked={(formData[field] || []).includes(option)}
-                            onChange={() => handleCheckboxToggle(field, option)}
-                            disabled={saving}
-                        />
-                        <span>{option}</span>
-                    </label>
-                ))}
-            </div>
-            {otherField ? (
-                <input
-                    className={`${styles.inputField} ${fieldErrors[field] ? styles.errorBorder : ''}`}
-                    style={{ marginTop: '12px' }}
-                    value={formData[otherField] || ''}
-                    onChange={(event) => handleFieldChange(otherField, event.target.value)}
-                    placeholder={config.otherPlaceholder || 'Other'}
-                    disabled={saving}
-                />
-            ) : null}
             {renderFieldError(field)}
         </div>
     );
@@ -645,15 +436,11 @@ export default function PatientEditProfile() {
                         {renderSelect('OCCUPATION', 'occupation', OCCUPATION_OPTIONS)}
                     </div>
 
-                    <h3 className={styles.mainSectionTitle}>Contact and Consultation Details</h3>
+                    <h3 className={styles.mainSectionTitle}>Contact Details</h3>
                     <div className={styles.row}>
                         {renderInput('MOBILE NUMBER', 'contactNumber', { placeholder: '9xxxxxxxxx', maxLength: 10, required: true })}
                         {renderInput('HOME PHONE', 'homePhone', { placeholder: '1234567', maxLength: 8 })}
                         {renderInput('WORK PHONE', 'workPhone', { placeholder: '1234567', maxLength: 8 })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderInput('REFERRED BY', 'referredBy')}
-                        {renderInput('REASON FOR CONSULTATION', 'reasonForConsultation', { wide: true })}
                     </div>
 
                     <h3 className={styles.mainSectionTitle}>Emergency Contact and Guardian</h3>
@@ -669,88 +456,6 @@ export default function PatientEditProfile() {
                     </div>
                     <div className={styles.row}>
                         {renderSelect('GUARDIAN OCCUPATION', 'guardianOccupation', OCCUPATION_OPTIONS)}
-                    </div>
-
-                    <h3 className={styles.mainSectionTitle}>Dental History</h3>
-                    <div className={styles.row}>
-                        {renderInput('LAST DENTAL VISIT', 'dentalLastExamDate', { type: 'date', max: new Date().toISOString().split('T')[0] })}
-                        {renderYesNo('REACTION OR COMPLICATION AFTER DENTAL TREATMENT?', 'dentalHadTreatmentReaction', { required: true })}
-                        {renderYesNo('PRIVATE OR CONFIDENTIAL INFORMATION TO DISCUSS IN PRIVATE?', 'dentalHasConfidentialInfo', { required: true })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderTextarea('IF YES, PLEASE DETAIL', 'dentalReactionDetails', { required: formData.dentalHadTreatmentReaction === 'yes' })}
-                        {renderTextarea('DENTAL NOTES', 'dentalNotes')}
-                    </div>
-
-                    <h3 className={styles.mainSectionTitle}>Physician Details</h3>
-                    <div className={styles.row}>
-                        {renderInput('PHYSICIAN NAME', 'physicianName')}
-                        {renderSelect('SPECIALTY, IF APPLICABLE', 'physicianSpecialty', PHYSICIAN_SPECIALTY_OPTIONS)}
-                        {renderInput('OFFICE NUMBER', 'physicianOfficeNumber', { placeholder: '1234567', maxLength: 8 })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderInput('OFFICE ADDRESS', 'physicianOfficeAddress', { wide: true })}
-                    </div>
-
-                    <h3 className={styles.mainSectionTitle}>Medical History</h3>
-                    <div className={styles.row}>
-                        {renderSelect('BLOOD TYPE', 'bloodType', BLOOD_TYPE_OPTIONS)}
-                        {renderYesNo('ARE YOU IN GOOD HEALTH?', 'inGoodHealth', { required: true })}
-                        <div className={styles.formGroup} />
-                    </div>
-                    <div className={styles.row}>
-                        {renderYesNo('ARE YOU UNDER MEDICAL TREATMENT NOW?', 'underMedicalTreatment', { required: true })}
-                        {renderInput('IF SO, WHAT IS THE CONDITION TREATED?', 'medicalTreatmentDetails', { required: formData.underMedicalTreatment === 'yes' })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderYesNo('HAVE YOU EVER HAD SERIOUS ILLNESS OR SURGICAL OPERATION?', 'hadSeriousIllnessOrSurgery', { required: true })}
-                        {renderInput('IF SO, WHAT IS THE ILLNESS OR OPERATION?', 'seriousIllnessOrSurgeryDetails', { required: formData.hadSeriousIllnessOrSurgery === 'yes' })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderYesNo('HAVE YOU EVER BEEN HOSPITALIZED?', 'hadHospitalization', { required: true })}
-                        {renderInput('IF SO, WHEN AND WHY?', 'hospitalizationDetails', { required: formData.hadHospitalization === 'yes' })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderYesNo('ARE YOU TAKING ANY PRESCRIPTION/NON-PRESCRIPTION MEDICATION?', 'isTakingMedication', { required: true })}
-                        {renderInput('IF SO, PLEASE SPECIFY', 'medications', { required: formData.isTakingMedication === 'yes' })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderYesNo('DO YOU USE TOBACCO PRODUCTS?', 'usesTobacco', { required: true })}
-                        {renderYesNo('DO YOU USE ALCOHOL, COCAINE, OR OTHER DANGEROUS DRUGS?', 'usesAlcoholOrDrugs', { required: true })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderYesNo('ARE YOU ALLERGIC TO ANY OF THE FOLLOWING?', 'hasAllergies', { required: true })}
-                        <div className={styles.formGroup} />
-                    </div>
-                    <div className={styles.row}>
-                        {renderCheckboxGroup('ALLERGIES', 'allergies', ALLERGY_OPTIONS, 'allergyOther', {
-                            required: formData.hasAllergies === 'yes',
-                            otherPlaceholder: 'Other allergy',
-                        })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderInput('BLEEDING TIME', 'bleedingTime')}
-                        {renderInput('BLOOD PRESSURE', 'bloodPressure', { placeholder: 'e.g. 120/80' })}
-                    </div>
-                    {formData.gender !== 'Male' ? (
-                        <>
-                            <div className={styles.row}>
-                                {renderYesNo('ARE YOU PREGNANT?', 'isPregnant', { required: true })}
-                                {renderYesNo('ARE YOU NURSING?', 'isNursing', { required: true })}
-                            </div>
-                            <div className={styles.row}>
-                                {renderYesNo('ARE YOU TAKING BIRTH CONTROL PILLS?', 'takingBirthControl', { required: true })}
-                                <div className={styles.formGroup} />
-                            </div>
-                        </>
-                    ) : null}
-                    <div className={styles.row}>
-                        {renderCheckboxGroup('MEDICAL CONDITIONS', 'conditions', MEDICAL_CONDITION_OPTIONS, 'conditionOther', {
-                            otherPlaceholder: 'Other condition',
-                        })}
-                    </div>
-                    <div className={styles.row}>
-                        {renderTextarea('MEDICAL NOTES', 'medicalNotes')}
                     </div>
 
                     <h3 className={styles.mainSectionTitle}>Home Address</h3>

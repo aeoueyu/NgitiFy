@@ -188,7 +188,7 @@ function ProfileSheet({ visible, onClose, navigation, userInfo, logout }) {
     { label: 'My Profile', icon: 'person-outline', target: 'MyProfile' },
     { label: 'Edit Profile', icon: 'create-outline', target: 'EditProfile' },
     { label: 'My Appointments', icon: 'calendar-outline', target: 'MyAppointments' },
-    { label: 'Medical Records', icon: 'medkit-outline', target: 'MedicalRecords' },
+    { label: 'Dental Records', icon: 'medkit-outline', target: 'MedicalRecords' },
     { label: 'Notifications', icon: 'notifications-outline', target: 'Notifications' },
     { label: 'Settings', icon: 'settings-outline', target: 'Settings' },
     { label: 'Activity Logs', icon: 'document-text-outline', target: 'ActivityLogs' },
@@ -561,17 +561,10 @@ export default function PatientDashboard({ navigation }) {
             />
             <QuickAction
               icon="medkit-outline"
-              label="Medical Records"
-              sublabel="View your EMR"
+              label="Dental Records"
+              sublabel="View your dental records"
               onPress={() => navigation.navigate('MedicalRecords')}
               tone="secondary"
-            />
-            <QuickAction
-              icon="sparkles-outline"
-              label="AI Companion"
-              sublabel="Ask care questions"
-              onPress={() => navigation.navigate('AiPatientCareCompanion')}
-              tone="primary"
             />
             <QuickAction
               icon="sparkles-outline"

@@ -54,6 +54,10 @@ export default function Sidebar() {
     const sidebarRef = useRef(null);
 
     useEffect(() => {
+        if (!isPatient && location.state?.openStaffAi) setIsChatOpen(true);
+    }, [isPatient, location.key, location.state]);
+
+    useEffect(() => {
         const userId = user?.userId || user?.id || user?._id;
         if (!userId) return;
 
@@ -250,17 +254,9 @@ export default function Sidebar() {
     const notifBadge = renderBadge(notifUnreadCount);
     const inventoryBadge = renderBadge(lowStockCount);
 
-    const aiAssistantActive = isDentistUser
-        ? location.pathname === '/dentist/ai-assistant'
-        : isPatient
-            ? location.pathname.startsWith('/patient/ai-companion')
-        : isOwner
-            ? location.pathname === '/owner/ai-assistant'
-            : isBranchManager
-                ? location.pathname === '/branch-manager/ai-assistant'
-                : isAdmin
-                    ? location.pathname === '/admin/ai-assistant'
-                : isChatOpen;
+    const aiAssistantActive = isPatient
+        ? location.pathname.startsWith('/patient/ai-companion')
+        : isChatOpen;
 
     return (
         <>
@@ -440,22 +436,6 @@ export default function Sidebar() {
                         <div
                             className={`${styles['settings-link']} ${aiAssistantActive ? styles.active : ''}`}
                             onClick={() => {
-                                if (isDentistUser && !isOwner) {
-                                    handleNavigate('/dentist/ai-assistant');
-                                    return;
-                                }
-                                if (isOwner) {
-                                    handleNavigate('/owner/ai-assistant');
-                                    return;
-                                }
-                                if (isBranchManager) {
-                                    handleNavigate('/branch-manager/ai-assistant');
-                                    return;
-                                }
-                                if (isAdmin) {
-                                    handleNavigate('/admin/ai-assistant');
-                                    return;
-                                }
                                 setIsChatOpen((prev) => !prev);
                                 setIsExpanded(false);
                             }}
@@ -480,6 +460,18 @@ export default function Sidebar() {
                     </div>
                 </div>
             </aside>
+
+            {!isPatient && !isChatOpen ? (
+                <button
+                    type="button"
+                    className={styles.staffAiLauncher}
+                    onClick={() => setIsChatOpen(true)}
+                    aria-label="Open NgitiFy Staff AI"
+                    title="Open NgitiFy Staff AI"
+                >
+                    <FaRobot aria-hidden="true" />
+                </button>
+            ) : null}
 
             {!isPatient ? (
                 <AIChatAssistant

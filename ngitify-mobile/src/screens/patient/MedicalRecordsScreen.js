@@ -1,7 +1,7 @@
-import React, { useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { useContext, useState, useCallback, useEffect } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
-    ActivityIndicator, FlatList, Animated
+    ActivityIndicator, FlatList, Modal
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon } from 'react-native-svg';
 import { AuthContext } from '../../context/AuthContext';
@@ -15,9 +15,10 @@ import { mobileTheme } from '../../theme/mobileTheme';
 // â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const TABS = [
+    { key: 'medical', label: 'Medical & Dental History' },
+    { key: 'treatment', label: 'Treatment History' },
     { key: 'odontogram', label: 'Odontogram' },
-    { key: 'radiograph', label: 'X-Rays' },
-    { key: 'medical',    label: 'Medical History' },
+    { key: 'radiograph', label: 'Radiographs' },
 ];
 
 // FDI tooth notation â€” 4 quadrants, upper then lower
@@ -182,6 +183,7 @@ function ErrorState({ message, onRetry }) {
 
 function TreatmentTab({ logs, loading, error, onRetry }) {
     const [expanded, setExpanded] = useState(null);
+    const [showAll, setShowAll] = useState(false);
 
     if (loading) return <LoadingState />;
     if (error)   return <ErrorState message={error} onRetry={onRetry} />;
@@ -193,9 +195,7 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
         />
     );
 
-    return (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
-            {logs.map((log) => {
+    const renderLog = (log) => {
                 const isOpen = expanded === log._id;
                 return (
                     <TouchableOpacity
@@ -243,8 +243,37 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
                         ) : null}
                     </TouchableOpacity>
                 );
-            })}
+    };
+
+    return (
+        <>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
+            <Text style={styles.sectionIntro}>Your most recent completed treatments</Text>
+            {logs.slice(0, 4).map(renderLog)}
+            {logs.length > 4 ? (
+                <TouchableOpacity style={styles.viewAllButton} onPress={() => setShowAll(true)}>
+                    <Text style={styles.viewAllButtonText}>View all treatments</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#01538b" />
+                </TouchableOpacity>
+            ) : null}
         </ScrollView>
+        <Modal visible={showAll} animationType="slide" onRequestClose={() => setShowAll(false)}>
+            <View style={styles.modalScreen}>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Treatment History</Text>
+                    <TouchableOpacity onPress={() => setShowAll(false)} accessibilityLabel="Close treatment history">
+                        <Ionicons name="close" size={26} color="#01538b" />
+                    </TouchableOpacity>
+                </View>
+                <FlatList
+                    data={logs}
+                    keyExtractor={(item, index) => String(item._id || item.id || index)}
+                    renderItem={({ item }) => renderLog(item)}
+                    contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                />
+            </View>
+        </Modal>
+        </>
     );
 }
 
@@ -291,8 +320,8 @@ function OdontogramTab({ data, loading, error, onRetry }) {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
-                <Text style={styles.odontogramTitle}>Odontogram</Text>
-                <Text style={styles.odontogramSub}>FDI Notation  -  Read-only</Text>
+                <Text style={styles.odontogramTitle}>Tooth Chart</Text>
+                <Text style={styles.odontogramSub}>Your dentist’s saved tooth information · Read-only</Text>
 
                 {!hasData && (
                     <View style={styles.odontogramEmpty}>
@@ -542,8 +571,8 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
-                <Text style={styles.odontogramTitle}>Odontogram</Text>
-                <Text style={styles.odontogramSub}>Surface-based 2D odontogram · FDI notation · Tap a tooth to view its status</Text>
+                <Text style={styles.odontogramTitle}>Tooth Chart</Text>
+                <Text style={styles.odontogramSub}>Tap a tooth to view its saved status</Text>
 
                 {!hasData && (
                     <View style={styles.odontogramEmpty}>
@@ -617,7 +646,7 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
         <EmptyState
             iconComponent={<MaterialCommunityIcons name="bone" size={40} color="#bbb" />}
             title="No X-Rays On File"
-            sub="Uploaded radiographs will appear here after your dentist scans them in."
+            sub="Dental X-rays shared by your dentist will appear here."
         />
     );
 
@@ -644,13 +673,10 @@ function RadiographTab({ radiographs, loading, error, onRetry, navigation }) {
                         <Text style={styles.xrayLabel} numberOfLines={2}>{item.label}</Text>
                         <Text style={styles.xrayDate}>{fmtDate(item.date)}</Text>
                         {item.radiographNumber ? (
-                            <Text style={styles.xrayMeta} numberOfLines={1}>Radiograph No. {item.radiographNumber}</Text>
+                            <Text style={styles.xrayMeta} numberOfLines={1}>X-ray No. {item.radiographNumber}</Text>
                         ) : null}
-                        {item.findings ? (
-                            <Text style={styles.xrayMeta} numberOfLines={2}>{item.findings}</Text>
-                        ) : null}
-                        {item.notes ? (
-                            <Text style={styles.xrayNotes} numberOfLines={1}>{item.notes}</Text>
+                        {item.approvedSummary ? (
+                            <Text style={styles.xrayNotes} numberOfLines={2}>{item.approvedSummary}</Text>
                         ) : null}
                         <Text style={styles.xrayTapHint}>Tap to view -></Text>
                     </View>
@@ -689,6 +715,15 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
 
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
+            <View style={styles.correctionNotice}>
+                <Ionicons name="information-circle-outline" size={20} color={mobileTheme.colors.primaryDark} />
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.correctionNoticeTitle}>This information is part of your dental record.</Text>
+                    <Text style={styles.correctionNoticeText}>
+                        Clinical information is read-only after registration consent. Need to correct something? Please contact the clinic.
+                    </Text>
+                </View>
+            </View>
             {(physician.name || physician.officeNumber) ? (
                 <View style={styles.historySectionCard}>
                     <Text style={styles.historySectionTitle}>Attending Physician</Text>
@@ -702,7 +737,7 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
             ) : null}
 
             <View style={styles.historySectionCard}>
-                <Text style={styles.historySectionTitle}>Medical and Dental History</Text>
+                <Text style={styles.historySectionTitle}>Medical &amp; Dental History</Text>
                 {pairedRows.map((row) => (
                     <View key={row[0]} style={styles.detailRowPair}>
                         <View style={styles.detailCell}>
@@ -766,20 +801,22 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
 
 // â”€â”€â”€ Main Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export default function MedicalRecordsScreen({ navigation }) {
+export default function MedicalRecordsScreen({ navigation, route }) {
     const { userToken, userId, API_BASE_URL } = useContext(AuthContext);
 
-    const [activeTab, setActiveTab] = useState('odontogram');
-    const underlineAnim = useRef(new Animated.Value(0)).current;
+    const requestedTab = route?.params?.initialTab;
+    const initialTab = TABS.some((tab) => tab.key === requestedTab) ? requestedTab : 'medical';
+    const [activeTab, setActiveTab] = useState(initialTab);
 
     // Per-tab state
     const [odontogramData, setOdontogramData] = useState({});
     const [radiographs,    setRadiographs]    = useState([]);
+    const [treatmentLogs,  setTreatmentLogs]  = useState([]);
     const [profile,        setProfile]        = useState(null);
 
-    const [loading, setLoading] = useState({ odontogram: false, radiograph: false, medical: false });
-    const [errors,  setErrors]  = useState({ odontogram: '', radiograph: '', medical: '' });
-    const [fetched, setFetched] = useState({ odontogram: false, radiograph: false, medical: false });
+    const [loading, setLoading] = useState({ medical: false, treatment: false, odontogram: false, radiograph: false });
+    const [errors,  setErrors]  = useState({ medical: '', treatment: '', odontogram: '', radiograph: '' });
+    const [fetched, setFetched] = useState({ medical: false, treatment: false, odontogram: false, radiograph: false });
 
     const headers = { Authorization: `Bearer ${userToken}` };
 
@@ -837,10 +874,30 @@ export default function MedicalRecordsScreen({ navigation }) {
         }
     }, [userToken, userId, API_BASE_URL]);
 
+    const fetchTreatmentHistory = useCallback(async () => {
+        setTabLoading('treatment', true);
+        setTabError('treatment', '');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/my/treatment-logs`, { headers });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            const sortedLogs = (Array.isArray(data) ? data : []).sort(
+                (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
+            );
+            setTreatmentLogs(sortedLogs);
+            setTabFetched('treatment');
+        } catch (e) {
+            setTabError('treatment', e.message || 'Could not load treatment history.');
+        } finally {
+            setTabLoading('treatment', false);
+        }
+    }, [userToken, API_BASE_URL]);
+
     const FETCHERS = {
+        medical:    fetchMedicalHistory,
+        treatment:  fetchTreatmentHistory,
         odontogram: fetchOdontogram,
         radiograph: fetchRadiographs,
-        medical:    fetchMedicalHistory,
     };
 
     // Fetch on first tab activation (lazy per tab)
@@ -871,22 +928,12 @@ export default function MedicalRecordsScreen({ navigation }) {
         };
     }, [activeTab, navigation, fetchOdontogram]);
 
-    // Animate tab underline
-    const TAB_INDEX = { odontogram: 0, radiograph: 1, medical: 2 };
-    useEffect(() => {
-        Animated.timing(underlineAnim, {
-            toValue: TAB_INDEX[activeTab],
-            duration: 200,
-            useNativeDriver: false,
-        }).start();
-    }, [activeTab]);
-
     // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     return (
         <Screen>
             <Header
                 title="Records"
-                subtitle="EMR, radiographs, and medical history"
+                subtitle="Your dental records and X-rays"
             />
 
             <View style={styles.heroCard}>
@@ -894,15 +941,20 @@ export default function MedicalRecordsScreen({ navigation }) {
                     <Ionicons name="document-text-outline" size={22} color="#ffffff" />
                 </View>
                 <View style={styles.heroCopy}>
-                    <Text style={styles.heroTitle}>Your dental record hub</Text>
+                    <Text style={styles.heroTitle}>Your dental records</Text>
                     <Text style={styles.heroText}>
-                        Switch between odontogram, x-rays, and medical history without leaving the same patient record space.
+                        Review your health history, treatments, tooth chart, and radiographs.
                     </Text>
                 </View>
             </View>
 
-            <View style={styles.tabBar}>
-                {TABS.map((tab, idx) => (
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabBar}
+                style={styles.tabScroller}
+            >
+                {TABS.map((tab) => (
                     <TouchableOpacity
                         key={tab.key}
                         style={[
@@ -911,6 +963,8 @@ export default function MedicalRecordsScreen({ navigation }) {
                         ]}
                         onPress={() => setActiveTab(tab.key)}
                         activeOpacity={0.7}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: activeTab === tab.key }}
                     >
                         <Text style={[
                             styles.tabLabel,
@@ -920,7 +974,7 @@ export default function MedicalRecordsScreen({ navigation }) {
                         </Text>
                     </TouchableOpacity>
                 ))}
-            </View>
+            </ScrollView>
 
             {/* Tab content */}
             <View style={{ flex: 1 }}>
@@ -932,6 +986,14 @@ export default function MedicalRecordsScreen({ navigation }) {
                     ) : (
                         <PatientOdontogramChart data={odontogramData} />
                     )
+                )}
+                {activeTab === 'treatment' && (
+                    <TreatmentTab
+                        logs={treatmentLogs}
+                        loading={loading.treatment}
+                        error={errors.treatment}
+                        onRetry={fetchTreatmentHistory}
+                    />
                 )}
                 {activeTab === 'radiograph' && (
                     <RadiographTab
@@ -1008,10 +1070,13 @@ const styles = StyleSheet.create({
     },
 
     // Tab bar
+    tabScroller: {
+        flexGrow: 0,
+        marginBottom: 10,
+    },
     tabBar: {
         flexDirection: 'row',
         marginHorizontal: 18,
-        marginBottom: 10,
         backgroundColor: mobileTheme.colors.surface,
         borderRadius: 22,
         borderWidth: 1,
@@ -1020,8 +1085,9 @@ const styles = StyleSheet.create({
         ...mobileTheme.shadows.soft,
     },
     tabItem: {
-        flex: 1,
+        minWidth: 118,
         alignItems: 'center',
+        paddingHorizontal: 14,
         paddingVertical: 11,
         borderRadius: 16,
     },
@@ -1054,6 +1120,12 @@ const styles = StyleSheet.create({
     logNotesBox:  { backgroundColor: mobileTheme.colors.surfaceAlt, padding: 14, borderTopWidth: 1, borderTopColor: mobileTheme.colors.border },
     logNotesLabel:{ fontSize: 11, fontWeight: 'bold', color: mobileTheme.colors.primary, marginBottom: 4 },
     logNotes:     { fontSize: 13, color: mobileTheme.colors.textMuted, lineHeight: 19 },
+    sectionIntro: { fontSize: 13, color: mobileTheme.colors.textSoft, marginBottom: 12 },
+    viewAllButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 16, backgroundColor: mobileTheme.colors.primarySoft },
+    viewAllButtonText: { color: mobileTheme.colors.primaryDark, fontSize: 14, fontWeight: '800' },
+    modalScreen: { flex: 1, backgroundColor: mobileTheme.colors.background },
+    modalHeader: { paddingHorizontal: 20, paddingTop: 54, paddingBottom: 16, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: mobileTheme.colors.border },
+    modalTitle: { fontSize: 20, fontWeight: '800', color: mobileTheme.colors.primaryDark },
 
     // Odontogram
     odontogramCard:   { backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: mobileTheme.colors.border, ...mobileTheme.shadows.soft },
@@ -1116,6 +1188,9 @@ const styles = StyleSheet.create({
     historyStatusPill: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
     historyStatusText: { fontSize: 11, fontWeight: 'bold' },
     historySectionCard: { backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: mobileTheme.colors.border, ...mobileTheme.shadows.soft },
+    correctionNotice: { flexDirection: 'row', gap: 10, backgroundColor: mobileTheme.colors.primarySoft, borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: mobileTheme.colors.border },
+    correctionNoticeTitle: { fontSize: 13, fontWeight: '800', color: mobileTheme.colors.primaryDark, marginBottom: 4 },
+    correctionNoticeText: { fontSize: 12, lineHeight: 18, color: mobileTheme.colors.textMuted },
     historySectionTitle: { fontSize: 16, fontWeight: '800', color: mobileTheme.colors.primary, marginBottom: 14 },
     detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     detailRowPair: { flexDirection: 'row', gap: 12, marginBottom: 12 },

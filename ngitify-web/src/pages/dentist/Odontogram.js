@@ -439,7 +439,7 @@ const buildDraftMapFromToothData = (toothData) => Object.fromEntries(
     })
 );
 
-export default function Odontogram({ patientId, readOnly = false, documentMode = false, onOdontogramSaved }) {
+export default function Odontogram({ patientId, readOnly = false, documentMode = false, onOdontogramSaved, radiographLinks = [], onOpenRadiograph }) {
     const { addToast } = useToast();
 
     const [chartData, setChartData] = useState({});
@@ -745,6 +745,17 @@ export default function Odontogram({ patientId, readOnly = false, documentMode =
                                 x
                             </button>
                         </div>
+
+                        {radiographLinks.filter((item) => String(item.toothNumber) === String(selectedTooth)).length ? (
+                            <div style={{ margin: '0 22px 16px', padding: '12px', border: '1px solid #bae6fd', borderRadius: '10px', background: '#f0f9ff' }}>
+                                <strong style={{ color: '#075985', fontSize: '13px' }}>Related radiographs</strong>
+                                {radiographLinks.filter((item) => String(item.toothNumber) === String(selectedTooth)).map((item) => (
+                                    <button key={`${item.radiographId}-${item.annotationId}`} type="button" onClick={() => onOpenRadiograph?.(item.radiographId)} style={{ display: 'block', border: 0, background: 'transparent', padding: '7px 0 0', color: '#0369a1', cursor: 'pointer', textAlign: 'left' }}>
+                                        {item.label} · {item.date ? new Date(item.date).toLocaleDateString() : 'Date not recorded'}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
 
                         <div className={styles.modalLayout}>
                             <div className={styles.previewPanel}>

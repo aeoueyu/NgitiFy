@@ -6,6 +6,7 @@ import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
 import wideTable from '../../styles/wideTable.module.css';
 import clinicLogo from '../../assets/images/logo-dentime.svg';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import RadiographReviewPanel from '../../components/dentist/RadiographReviewPanel';
 
 import { useAuth } from '../../hooks/useAuth';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
@@ -2265,7 +2266,7 @@ export default function PatientEMR({
 
     const handleAIEnhance = async (engine = 'basic') => {
         if (!canEnhanceRadiograph) {
-            addToast('Only dentists can use the AI image enhancer for radiographs.', 'error');
+            addToast('Only dentists can use AI-assisted radiograph review tools.', 'error');
             return;
         }
 
@@ -2309,6 +2310,24 @@ export default function PatientEMR({
     };
 
     const renderRadiographs = () => {
+        if (selectedRadiograph && canEnhanceRadiograph) {
+            return (
+                <RadiographReviewPanel
+                    patientId={activePatientId}
+                    radiograph={selectedRadiograph}
+                    radiographs={radiographs}
+                    treatmentLogs={logs}
+                    onClose={closeImageModal}
+                    onEnhance={handleAIEnhance}
+                    onDelete={canDeleteRadiograph ? () => setDeleteRadiographTarget(selectedRadiograph) : null}
+                    onChange={(updated) => {
+                        const normalized = normalizeRadiographRecord(updated);
+                        setSelectedRadiograph(normalized);
+                        setRadiographs((current) => current.map((item) => item.id === normalized.id ? normalized : item));
+                    }}
+                />
+            );
+        }
         if (selectedRadiograph) {
             const availableViewOptions = getRadiographViewOptions(selectedRadiograph);
             return (
@@ -2419,7 +2438,10 @@ export default function PatientEMR({
         return (
             <div className={styles.contentCard}>
                 <div className={styles.sectionHeaderRow}>
-                    <h3 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Dental Radiographs (X-Rays)</h3>
+                    <div>
+                        <h3 className={styles.sectionTitle} style={{ marginBottom: '4px' }}>AI-Assisted Radiograph Review</h3>
+                        <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Review original images, verify AI tooth suggestions, annotate findings, and connect approved records to the EMR.</p>
+                    </div>
                     {canUploadRadiograph && (
                         <button
                             className={styles.uploadBtn}
@@ -2470,6 +2492,22 @@ export default function PatientEMR({
                 patientId={activePatientId}
                 readOnly={!canEditOdontogram}
                 onOdontogramSaved={() => loadOdontogramLogs(activePatientId)}
+                radiographLinks={radiographs.flatMap((radiograph) => (radiograph.annotations || [])
+                    .filter((annotation) => annotation.linkToOdontogram && annotation.toothNumber)
+                    .map((annotation) => ({
+                        radiographId: radiograph.id,
+                        annotationId: annotation._id || annotation.id,
+                        toothNumber: annotation.toothNumber,
+                        label: radiograph.type,
+                        date: radiograph.date || radiograph.rawDate,
+                    })))}
+                onOpenRadiograph={(radiographId) => {
+                    const linked = radiographs.find((item) => item.id === radiographId);
+                    if (linked) {
+                        setSelectedRadiograph(linked);
+                        setActiveTab('radiographs');
+                    }
+                }}
             />
 
             <div className={styles.contentCard} style={{ marginTop: '22px', background: '#fcfdff' }}>

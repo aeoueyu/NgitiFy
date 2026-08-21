@@ -108,32 +108,42 @@ export default function PatientXRayView({ navigation, route }) {
                     )}
                 </View>
 
-                {/* Radiograph findings and notes */}
-                {radiograph?.findings ? (
+                {/* Only dentist-approved clinical information is returned to patients. */}
+                {radiograph?.approvedSummary ? (
                     <View style={styles.notesCard}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                             <Ionicons name="medkit-outline" size={14} color="#01538b" style={{ marginRight: 6 }} />
-                            <Text style={[styles.notesTitle, { marginBottom: 0 }]}>Findings / Impression</Text>
+                            <Text style={[styles.notesTitle, { marginBottom: 0 }]}>Dentist-approved review summary</Text>
                         </View>
-                        <Text style={styles.notesText}>{radiograph.findings}</Text>
+                        <Text style={styles.notesText}>{radiograph.approvedSummary}</Text>
                     </View>
                 ) : null}
 
-                {radiograph?.notes ? (
+                {(radiograph?.approvedFindings || []).length ? (
                     <View style={styles.notesCard}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                         <Ionicons name="document-text-outline" size={14} color="#01538b" style={{ marginRight: 6 }} />
-                        <Text style={[styles.notesTitle, { marginBottom: 0 }]}>Radiograph Notes</Text>
+                        <Text style={[styles.notesTitle, { marginBottom: 0 }]}>Information recorded by your dentist</Text>
                     </View>
-                        <Text style={styles.notesText}>{radiograph.notes}</Text>
+                        {radiograph.approvedFindings.map((item, index) => (
+                            <Text key={`${item.toothNumber}-${index}`} style={styles.notesText}>
+                                {item.toothNumber ? `Tooth ${item.toothNumber}: ` : ''}{item.findingType}{item.note ? ` — ${item.note}` : ''}
+                            </Text>
+                        ))}
                     </View>
+                ) : null}
+
+                {(radiograph?.approvedSummary || (radiograph?.approvedFindings || []).length) ? (
+                    <TouchableOpacity style={styles.explainButton} onPress={() => navigation.navigate('AiPatientCareCompanion')} accessibilityRole="button" accessibilityLabel="Explain this radiograph record">
+                        <Ionicons name="chatbubble-ellipses-outline" size={17} color="#fff" />
+                        <Text style={styles.explainButtonText}>Explain this record</Text>
+                    </TouchableOpacity>
                 ) : null}
 
                 {/* Disclaimer */}
                 <View style={styles.disclaimer}>
                     <Text style={styles.disclaimerText}>
-                        This radiograph is part of your Electronic Medical Record (EMR) and is for your personal reference only. 
-                        Please consult your dentist for a professional interpretation.
+                        {radiograph?.disclaimer || 'This explanation is based on information recorded by your dental care team. It does not replace advice from your dentist.'}
                     </Text>
                 </View>
             </Animated.ScrollView>
@@ -181,6 +191,8 @@ const styles = StyleSheet.create({
     },
     notesTitle: { fontWeight: 'bold', color: '#01538b', fontSize: 14, marginBottom: 8 },
     notesText: { fontSize: 14, color: '#555', lineHeight: 21 },
+    explainButton: { backgroundColor: '#087e8b', borderRadius: 12, padding: 14, marginBottom: 15, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
+    explainButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
     disclaimer: { backgroundColor: '#e3f2fd', padding: 14, borderRadius: 12 },
     disclaimerText: { fontSize: 12, color: '#1565c0', lineHeight: 18, textAlign: 'center' },

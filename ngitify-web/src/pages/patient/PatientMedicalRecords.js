@@ -198,13 +198,13 @@ export default function PatientMedicalRecords() {
 
     return (
         <PatientPageFrame
-            title="My EMR"
-            subtitle="A read-only patient EMR view of your own odontogram, x-rays, medical history, and recent treatment timeline."
+            title="My Dental Records"
+            subtitle="Your tooth chart, dental X-rays, health history, and recent treatments."
         >
             <div className={styles.tabs} role="tablist" aria-label="Medical records sections">
                 {[
-                    { key: 'odontogram', label: 'Odontogram' },
-                    { key: 'radiographs', label: 'X-Rays' },
+                    { key: 'odontogram', label: 'Tooth Chart' },
+                    { key: 'radiographs', label: 'Dental X-rays' },
                     { key: 'medical', label: 'Medical History' },
                 ].map((tab) => (
                     <button
@@ -241,8 +241,8 @@ export default function PatientMedicalRecords() {
                         <section className={styles.tabPanel}>
                             <PatientSectionHeader
                                 eyebrow="Read-only"
-                                title="Odontogram"
-                                description="Tap a tooth to view its recorded status. Patients cannot edit the odontogram."
+                                title="Tooth Chart"
+                                description="Tap a tooth to view its saved status. Only your dental team can update this chart."
                             />
                             {Object.keys(odontogram || {}).length ? (
                                 <>
@@ -291,8 +291,8 @@ export default function PatientMedicalRecords() {
                             ) : (
                                 <PatientEmptyState
                                     icon={<FaTooth />}
-                                    title="No odontogram recorded yet"
-                                    message="Your dentist will update this odontogram after an examination or treatment visit."
+                                    title="No tooth chart yet"
+                                    message="Your dentist will update your tooth chart after an examination or treatment."
                                 />
                             )}
                         </section>
@@ -302,8 +302,8 @@ export default function PatientMedicalRecords() {
                         <section className={styles.tabPanel}>
                             <PatientSectionHeader
                                 eyebrow="Imaging"
-                                title="Radiograph records"
-                                description="Open an image to view the uploaded radiograph, notes, and findings."
+                                title="Dental X-rays"
+                                description="Open an image to view the X-ray, notes, and findings shared by your clinic."
                             />
                             {radiographs.length ? (
                                 <div className={styles.cardGrid}>
@@ -316,19 +316,19 @@ export default function PatientMedicalRecords() {
                                             style={{ textAlign: 'left', border: 'none', cursor: 'pointer' }}
                                         >
                                             <span className={styles.toolIcon}><FaXRay /></span>
-                                            <h3 className={styles.toolTitle}>{item.label || 'Radiograph'}</h3>
+                                            <h3 className={styles.toolTitle}>{item.label || 'Dental X-ray'}</h3>
                                             <p className={styles.toolText}>
                                                 {item.date ? `Taken on ${formatDateDisplay(item.date)}` : 'No date recorded yet.'}
                                             </p>
-                                            <p className={styles.toolText}>{item.findings || item.notes || 'Tap to review the image and notes.'}</p>
+                                            <p className={styles.toolText}>{item.approvedSummary || 'Tap to review information approved by your dentist.'}</p>
                                         </button>
                                     ))}
                                 </div>
                             ) : (
                                 <PatientEmptyState
                                     icon={<FaXRay />}
-                                    title="No radiographs yet"
-                                    message="Radiographs uploaded by the clinic will appear here for your reference."
+                                    title="No dental X-rays yet"
+                                    message="Dental X-rays shared by your clinic will appear here."
                                 />
                             )}
                         </section>
@@ -341,6 +341,10 @@ export default function PatientMedicalRecords() {
                                 title="Medical history and profile snapshot"
                                 description="The same patient information the clinic keeps on file for your visits."
                             />
+                            <div className={styles.noticeBox} style={{ marginBottom: '18px' }} role="note">
+                                <strong>This information is part of your dental record.</strong>{' '}
+                                Clinical information is read-only after registration consent. Need to correct something? Please contact the clinic.
+                            </div>
                             <div className={styles.cardGrid}>
                                 <article className={styles.infoCard}>
                                     <h3 className={styles.sectionTitle} style={{ fontSize: '18px', marginBottom: '14px' }}>Medical Profile</h3>
@@ -393,10 +397,10 @@ export default function PatientMedicalRecords() {
                     >
                         <div className={styles.modalHeader}>
                             <div>
-                                <h3 id="radiograph-viewer-title" className={styles.modalTitle}>{selectedRadiograph.label || 'Radiograph'}</h3>
+                                <h3 id="radiograph-viewer-title" className={styles.modalTitle}>{selectedRadiograph.label || 'Dental X-ray'}</h3>
                                 <p id="radiograph-viewer-description" className={styles.modalSubtitle}>
-                                    {selectedRadiograph.date ? `Taken on ${formatDateDisplay(selectedRadiograph.date)}` : 'No radiograph date recorded.'}
-                                    {selectedRadiograph.radiographNumber ? ` • Radiograph No. ${selectedRadiograph.radiographNumber}` : ''}
+                                    {selectedRadiograph.date ? `Taken on ${formatDateDisplay(selectedRadiograph.date)}` : 'No X-ray date recorded.'}
+                                    {selectedRadiograph.radiographNumber ? ` • X-ray No. ${selectedRadiograph.radiographNumber}` : ''}
                                 </p>
                             </div>
                             <button type="button" className={styles.modalClose} onClick={() => setSelectedRadiograph(null)} aria-label="Close radiograph viewer">×</button>
@@ -424,21 +428,26 @@ export default function PatientMedicalRecords() {
                             <PatientEmptyState
                                 icon={<FaXRay />}
                                 title="Image not yet available"
-                                message="The clinic has not uploaded the digital radiograph image yet."
+                                message="The clinic has not uploaded the dental X-ray image yet."
                             />
                         )}
-                        {selectedRadiograph.findings ? (
+                        {selectedRadiograph.approvedSummary ? (
                             <article className={styles.summaryCard} style={{ marginBottom: '14px' }}>
-                                <span className={styles.infoLabel}>Findings / Impression</span>
-                                <p className={styles.infoValue}>{selectedRadiograph.findings}</p>
+                                <span className={styles.infoLabel}>Dentist-approved review summary</span>
+                                <p className={styles.infoValue} style={{ whiteSpace: 'pre-line' }}>{selectedRadiograph.approvedSummary}</p>
                             </article>
                         ) : null}
-                        {selectedRadiograph.notes ? (
+                        {(selectedRadiograph.approvedFindings || []).length ? (
                             <article className={styles.summaryCard}>
-                                <span className={styles.infoLabel}>Radiograph Notes</span>
-                                <p className={styles.infoValue}>{selectedRadiograph.notes}</p>
+                                <span className={styles.infoLabel}>Information recorded by your dentist</span>
+                                {(selectedRadiograph.approvedFindings || []).map((item, index) => (
+                                    <p key={`${item.toothNumber}-${index}`} className={styles.infoValue}>
+                                        {item.toothNumber ? `Tooth ${item.toothNumber}: ` : ''}{item.findingType}{item.note ? ` — ${item.note}` : ''}
+                                    </p>
+                                ))}
                             </article>
                         ) : null}
+                        <p className={styles.toolText}>{selectedRadiograph.disclaimer || 'This explanation is based on information recorded by your dental care team. It does not replace advice from your dentist.'}</p>
                     </div>
                 </div>
             ) : null}
