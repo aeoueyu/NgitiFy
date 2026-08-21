@@ -1408,7 +1408,7 @@ export default function PatientOralCare() {
             actions={(
                 <>
                     <button type="button" className={styles.buttonSecondary} onClick={openPatientAiChat}>
-                        Open AI Companion
+                        Open NgitiBot
                     </button>
                     <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/appointments?mode=book')}>
                         Book Preventive Visit

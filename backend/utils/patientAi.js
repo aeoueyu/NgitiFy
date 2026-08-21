@@ -217,7 +217,6 @@ const buildPatientAiCareContext = ({
 
 const mergePatientAiLiveContext = ({
     liveContext = {},
-    assistantContext,
 } = {}) => {
     const trustedLiveContext =
         liveContext
@@ -226,14 +225,7 @@ const mergePatientAiLiveContext = ({
             ? liveContext
             : {};
 
-    if (assistantContext === undefined || assistantContext === null) {
-        return trustedLiveContext;
-    }
-
-    return {
-        ...trustedLiveContext,
-        clientSuppliedContext: assistantContext,
-    };
+    return trustedLiveContext;
 };
 
 module.exports = {

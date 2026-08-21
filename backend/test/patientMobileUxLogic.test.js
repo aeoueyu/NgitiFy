@@ -55,7 +55,7 @@ test('mobile Records exposes the four required read-only EMR tabs in order', () 
 
     assert.ok(tabBlock.indexOf("label: 'Medical & Dental History'") < tabBlock.indexOf("label: 'Treatment History'"));
     assert.ok(tabBlock.indexOf("label: 'Treatment History'") < tabBlock.indexOf("label: 'Odontogram'"));
-    assert.ok(tabBlock.indexOf("label: 'Odontogram'") < tabBlock.indexOf("label: 'Radiographs'"));
+    assert.ok(tabBlock.indexOf("label: 'Odontogram'") < tabBlock.indexOf("label: 'Radiograph Images'"));
     assert.match(source, /: 'medical';/);
     assert.match(source, /\/api\/my\/treatment-logs/);
     assert.match(source, /logs\.slice\(0, 4\)/);

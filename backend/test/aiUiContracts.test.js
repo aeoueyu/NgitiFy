@@ -23,7 +23,7 @@ test('mobile AI has an X close action and partial history drawer', () => {
 test('mobile patient dashboard no longer presents AI as a Care Tools destination', () => {
     const source = read('ngitify-mobile', 'src', 'screens', 'patient', 'PatientDashboard.js');
     assert.doesNotMatch(source, /label="AI Companion"/);
-    assert.match(source, /label="Dental Records"/);
+    assert.match(source, /label="Electronic Medical Record"/);
 });
 
 test('web staff AI supports history lifecycle and accessible close', () => {

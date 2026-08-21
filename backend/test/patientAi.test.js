@@ -315,7 +315,7 @@ test('builds a complete AI care context with explicit authority boundaries', () 
     );
 });
 
-test('client-supplied context cannot overwrite server-owned patient AI context', () => {
+test('client-supplied context is discarded from patient AI context', () => {
     const liveContext = {
         patientSession: {
             patientName: 'Real Patient',
@@ -358,14 +358,10 @@ test('client-supplied context cannot overwrite server-owned patient AI context',
         'Recommended'
     );
 
-    assert.equal(
-        merged.clientSuppliedContext
-            .patientSession.patientName,
-        'Different Patient'
-    );
+    assert.equal(merged.clientSuppliedContext, undefined);
 });
 
-test('primitive client context is isolated from trusted live context', () => {
+test('primitive client context is discarded from trusted live context', () => {
     const merged =
         mergePatientAiLiveContext({
             liveContext: {
@@ -383,10 +379,7 @@ test('primitive client context is isolated from trusted live context', () => {
         'Real Patient'
     );
 
-    assert.equal(
-        merged.clientSuppliedContext,
-        'untrusted client value'
-    );
+    assert.equal(merged.clientSuppliedContext, undefined);
 });
 
 test('AI care context remains available independently of an external AI provider', () => {

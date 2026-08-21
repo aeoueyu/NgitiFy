@@ -49,6 +49,17 @@ const otpLimiter = rateLimit({
 // Import Middleware
 const verifyToken = require('./middleware/auth');
 const { getDisallowedPatientProfileFields } = require('./utils/patientProfilePermissions');
+const {
+    ACCOUNT_SECRET_PROJECTION,
+    canPatientCancelAppointment,
+    canPatientRescheduleAppointment,
+    canReadPatientClinicalRecord,
+    canWritePatientClinicalRecord,
+    getRestrictedClinicalUpdateFields,
+    isPatientPublishedRadiograph,
+    isSameId,
+    sanitizeUserForActor,
+} = require('./utils/healthcareAccess');
 
 // Import Model
 const User = require('./models/User'); 
@@ -5715,6 +5726,10 @@ app.get('/api/assignable-dentists', verifyToken, async (req, res) => {
 });
 
 app.get('/api/users', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'owner', 'branch-manager', 'secretary', 'dentist'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const { role } = req.query;
         const includeArchived = parseBooleanQueryFlag(req.query.includeArchived);
@@ -5734,6 +5749,11 @@ app.get('/api/users', verifyToken, async (req, res) => {
             if (!role || !DENTIST_ALLOWED_ROLES.includes(role)) {
                 return res.status(403).json({
                     message: "Access denied. You do not have permission to view management accounts."
+                });
+            }
+            if (role === 'patient') {
+                return res.status(403).json({
+                    message: 'Use the assigned-patient directory to view patient accounts.',
                 });
             }
         }
@@ -5756,8 +5776,8 @@ app.get('/api/users', verifyToken, async (req, res) => {
             query = applyBranchOwnershipFilter(query, req.user.assignedBranch);
         }
 
-        const users = await User.find(query).select('-password');
-        res.json(users);
+        const users = await User.find(query).select(ACCOUNT_SECRET_PROJECTION);
+        res.json(users.map((user) => sanitizeUserForActor(user, req.user)));
     } catch (error) {
         console.error("Error fetching users:", error);
         res.status(500).json({ message: "Server error." });
@@ -5802,16 +5822,23 @@ app.get('/api/patients', verifyToken, async (req, res) => {
         }
 
         const patients = await User.find(baseFilter)
-            .select('-password')
+            .select(ACCOUNT_SECRET_PROJECTION)
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
 
         const total = await User.countDocuments(baseFilter);
 
-        const patientsWithPendingPreRegistration = await attachPendingGuestPreRegistrationToPatientRecords(patients);
+        const patientsWithPendingPreRegistration = req.user.role === 'dentist'
+            ? await attachPendingGuestPreRegistrationToPatientRecords(patients)
+            : patients;
 
-        res.json({ patients: patientsWithPendingPreRegistration, total, page, pages: Math.ceil(total / limit) });
+        res.json({
+            patients: patientsWithPendingPreRegistration.map((patient) => sanitizeUserForActor(patient, req.user)),
+            total,
+            page,
+            pages: Math.ceil(total / limit),
+        });
     } catch (error) {
         res.status(500).json({ message: "Server error." });
     }
@@ -5853,7 +5880,7 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
     }
     try {
         const patient = await User.findById(req.params.id)
-            .select('-password')
+            .select(ACCOUNT_SECRET_PROJECTION)
             .populate(LIFECYCLE_ACTOR_POPULATE);
         if (!patient) return res.status(404).json({ message: "Patient not found" });
 
@@ -5879,14 +5906,20 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
             }
         }
 
-        const [patientWithPendingPreRegistration] = await attachPendingGuestPreRegistrationToPatientRecords([patient]);
-        res.json(patientWithPendingPreRegistration);
+        const [patientWithPendingPreRegistration] = req.user.role === 'dentist'
+            ? await attachPendingGuestPreRegistrationToPatientRecords([patient])
+            : [patient];
+        res.json(sanitizeUserForActor(patientWithPendingPreRegistration, req.user));
     } catch (error) {
         res.status(500).json({ message: "Server error." });
     }
 });
 
 app.put('/api/patients/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['administrator', 'owner', 'branch-manager', 'secretary', 'dentist'];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const { email } = req.body;
         const normalizedRequestedEmail = email !== undefined ? normalizeEmail(email) : undefined;
@@ -5913,6 +5946,16 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             const canAccess = await dentistCanAccessPatient(req.user.id, currentPatient._id);
             if (!canAccess) {
                 return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            }
+        }
+
+        if (!canWritePatientClinicalRecord(req.user.role)) {
+            const restrictedFields = getRestrictedClinicalUpdateFields(req.body);
+            if (restrictedFields.length) {
+                return res.status(403).json({
+                    message: 'Access denied. Clinical records may only be changed by an assigned dentist.',
+                    fields: restrictedFields,
+                });
             }
         }
 
@@ -6047,7 +6090,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             patientId,
             updateData,
             { new: true, runValidators: true }
-        ).select('-password');
+        ).select(ACCOUNT_SECRET_PROJECTION);
 
         await AuditLog.create({
             action: "UPDATE_PATIENT",
@@ -6056,7 +6099,7 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             details: `Updated patient information for: ${updatedPatient.email}`
         });
 
-        res.json(updatedPatient);
+        res.json(sanitizeUserForActor(updatedPatient, req.user));
     } catch (error) {
         console.error('Error updating patient:', error);
         res.status(500).json({ message: "Server error." });
@@ -6174,19 +6217,40 @@ app.put('/api/patients/:id/transfer-branch', verifyToken, async (req, res) => {
 
 app.get('/api/user/:id', verifyToken, async (req, res) => {
     try {
-        if (req.user.role === 'patient' && String(req.params.id) !== String(req.user.id)) {
+        if (req.user.role === 'patient' && !isSameId(req.params.id, req.user.id)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
         const user = await User.findById(req.params.id)
-            .select('-password')
+            .select(ACCOUNT_SECRET_PROJECTION)
             .populate(LIFECYCLE_ACTOR_POPULATE);
         if (!user) return res.status(404).json({ message: "User not found" });
-        if (user.role === 'patient') {
-            const [userWithPendingPreRegistration] = await attachPendingGuestPreRegistrationToPatientRecords([user]);
-            return res.json(userWithPendingPreRegistration);
+
+        const isSelf = isSameId(req.params.id, req.user.id);
+        const isManagementRole = ['administrator', 'owner', 'branch-manager'].includes(req.user.role);
+        if (!isSelf && !isManagementRole && req.user.role !== 'dentist') {
+            return res.status(403).json({ message: 'Access denied.' });
         }
-        res.json(user);
+
+        if (!isSelf && req.user.role === 'dentist') {
+            if (user.role !== 'patient' || !(await dentistCanAccessPatient(req.user.id, user._id))) {
+                return res.status(403).json({ message: 'Access denied.' });
+            }
+        }
+
+        if (!isSelf && req.user.role === 'branch-manager') {
+            const scopedBranch = getScopedBranchForUser(req.user);
+            if (!scopedBranch || !patientBelongsToBranch(user, scopedBranch)) {
+                return res.status(403).json({ message: 'Access denied. This account belongs to a different branch.' });
+            }
+        }
+        if (user.role === 'patient') {
+            const [userWithPendingPreRegistration] = req.user.role === 'dentist'
+                ? await attachPendingGuestPreRegistrationToPatientRecords([user])
+                : [user];
+            return res.json(sanitizeUserForActor(userWithPendingPreRegistration, req.user));
+        }
+        res.json(sanitizeUserForActor(user, req.user));
     } catch (error) { res.status(500).json({ message: "Server error." }); }
 });
 
@@ -6956,7 +7020,7 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
 
         res.status(200).json({ 
             message: "Profile updated successfully.", 
-            user 
+            user: sanitizeUserForActor(user, req.user),
         });
 
     } catch (error) {
@@ -8090,9 +8154,13 @@ app.get(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
             return next();
         }
         const surgery = await Surgery.findById(req.params.id)
-            .populate('patient')
+            .populate('patient', 'name email contactNumber profileImage assignedBranch assignedBranches')
             .populate('dentist', 'name email role');
         if (!surgery) return res.status(404).json({ message: "Dental treatment not found" });
+
+        if (req.user.role === 'patient' && !isSameId(surgery.patient?._id || surgery.patient, req.user.id)) {
+            return res.status(403).json({ message: 'Access denied. Patients can only view their own appointments.' });
+        }
 
         if (isBranchScopedStaff(req.user.role) && surgery.branch !== getScopedBranchForUser(req.user)) {
             return res.status(403).json({ message: 'Access denied. This record belongs to a different branch.' });
@@ -8110,6 +8178,10 @@ app.get(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
 });
 
 app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req, res) => {
+    const staffRoles = ['administrator', 'owner', 'branch-manager', 'secretary', 'dentist'];
+    if (!staffRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied. Use the patient cancel or reschedule action.' });
+    }
     try {
         const existing = await Surgery.findById(req.params.id);
         if (!existing) return res.status(404).json({ message: "Dental treatment not found" });
@@ -8508,6 +8580,20 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         const TERMINAL_STATUSES = ['completed', 'cancelled'];
         const currentSurgery = await Surgery.findById(req.params.id);
         if (!currentSurgery) return res.status(404).json({ message: 'Dental treatment not found.' });
+
+        const staffRoles = ['administrator', 'owner', 'branch-manager', 'secretary', 'dentist'];
+        if (req.user.role === 'patient') {
+            if (!isSameId(currentSurgery.patient, req.user.id)) {
+                return res.status(403).json({ message: 'Access denied. Patients can only cancel their own appointments.' });
+            }
+            const allowedPatientFields = new Set(['status', 'cancellationReason']);
+            const forbiddenPatientFields = Object.keys(req.body || {}).filter((field) => !allowedPatientFields.has(field));
+            if (status !== 'cancelled' || forbiddenPatientFields.length || !canPatientCancelAppointment(currentSurgery)) {
+                return res.status(403).json({ message: 'This appointment cannot be changed from the patient portal.' });
+            }
+        } else if (!staffRoles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
         const shouldSendGuestDeclineEmail = (
             status === 'cancelled' &&
             isGuestPreRegistrationAppointment(currentSurgery)
@@ -8863,7 +8949,7 @@ app.get('/api/pre-register/:token', async (req, res) => {
 
 app.post('/api/appointments/:id/reschedule', verifyToken, async (req, res) => {
     try {
-        const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'owner', 'dentist'];
+        const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'owner', 'dentist', 'patient'];
         if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
@@ -8876,6 +8962,15 @@ app.post('/api/appointments/:id/reschedule', verifyToken, async (req, res) => {
         const appointment = await Surgery.findById(req.params.id).populate('patient', 'name email').populate('dentist', 'name email');
         if (!appointment || appointment.isArchived) {
             return res.status(404).json({ message: 'Appointment not found.' });
+        }
+
+        if (req.user.role === 'patient') {
+            if (!isSameId(appointment.patient?._id || appointment.patient, req.user.id)) {
+                return res.status(403).json({ message: 'Access denied. Patients can only reschedule their own appointments.' });
+            }
+            if (!canPatientRescheduleAppointment(appointment)) {
+                return res.status(409).json({ message: 'This appointment can no longer be rescheduled.' });
+            }
         }
 
         if (isBranchScopedStaff(req.user.role)) {
@@ -10152,7 +10247,7 @@ app.get('/api/appointments/blocked-dates', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner', 'patient'];
+    const allowedRoles = ['dentist', 'patient'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -10187,7 +10282,10 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
             (a, b) => new Date(b.date) - new Date(a.date)
         );
 
-        res.json(sorted.map((entry) => buildTreatmentLogPayload(entry)));
+        const serializer = req.user.role === 'patient'
+            ? buildPatientTreatmentLogPayload
+            : buildTreatmentLogPayload;
+        res.json(sorted.map((entry) => serializer(entry)));
     } catch (error) {
         console.error('Error fetching treatment logs:', error);
         res.status(500).json({ message: 'Server error fetching treatment logs.' });
@@ -10287,9 +10385,8 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'branch-manager', 'dentist', 'owner'];
-    if (!allowedRoles.includes(req.user.role)) {
-        return res.status(403).json({ message: 'Access denied.' });
+    if (!canWritePatientClinicalRecord(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied. Only dentists can delete treatment history entries.' });
     }
     try {
         const patient = await User.findById(req.params.id);
@@ -10626,6 +10723,9 @@ const serializeOdontogramMap = (odontogramMap) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
+    if (!canReadPatientClinicalRecord({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const patient = await User.findById(req.params.id).select('odontogram name assignedBranch assignedBranches');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -10658,6 +10758,9 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients/:id/odontogram-logs', verifyToken, async (req, res) => {
+    if (!canReadPatientClinicalRecord({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const patient = await User.findById(req.params.id).select('odontogramLogs name assignedBranch assignedBranches');
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
@@ -10697,6 +10800,9 @@ app.get('/api/patients/:id/odontogram-logs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
+    if (!canWritePatientClinicalRecord(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied. Only dentists can update the odontogram.' });
+    }
     // Phase 5: Secretary has read-only access to EMR — block write
     if (req.user.role === 'secretary') {
         return res.status(403).json({ message: 'Access denied. Secretaries have read-only access to odontogram.' });
@@ -10777,8 +10883,7 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner', 'patient'];
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!canReadPatientClinicalRecord({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -10807,12 +10912,12 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             (a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)
         );
 
-        const serializer = req.user.role === 'dentist'
-            ? buildRadiographPayload
-            : req.user.role === 'patient'
-                ? buildPatientRadiographPayload
-                : buildNonInterpretiveRadiographPayload;
-        res.json(sorted.map((entry) => serializer(entry)));
+        if (req.user.role === 'patient') {
+            return res.json(sorted
+                .filter((entry) => isPatientPublishedRadiograph(entry))
+                .map((entry) => buildPatientRadiographPayload(entry)));
+        }
+        return res.json(sorted.map((entry) => buildRadiographPayload(entry)));
     } catch (error) {
         console.error('Error fetching radiographs:', error);
         res.status(500).json({ message: 'Server error fetching radiographs.' });
@@ -10826,6 +10931,9 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
+    if (!canWritePatientClinicalRecord(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied. Only dentists can upload radiograph images.' });
+    }
     // Phase 5: Secretary has read-only access to EMR — block upload
     if (req.user.role === 'secretary') {
         return res.status(403).json({ message: 'Access denied. Secretaries cannot upload radiographs.' });
@@ -10916,13 +11024,6 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
         });
 
         const added = patient.radiographs[patient.radiographs.length - 1];
-        await createPatientNotification({
-            patientId: patient._id,
-            type: 'NEW_RADIOGRAPH',
-            title: 'New Radiograph Available',
-            message: `A new radiograph record "${label}" dated ${formatEmailDateLabel(date)} is now available in your patient records.`,
-            relatedId: patient._id,
-        });
         res.status(201).json(buildRadiographPayload(added));
 
     } catch (error) {
@@ -10937,6 +11038,9 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, res) => {
+    if (!canWritePatientClinicalRecord(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied. Only dentists can delete radiograph images.' });
+    }
     // Phase 5: Secretary has read-only access to EMR — block delete
     const allowedRoles = ['administrator', 'branch-manager', 'dentist', 'owner'];
     if (!allowedRoles.includes(req.user.role)) {
@@ -11098,7 +11202,9 @@ app.get('/api/my/radiographs', verifyToken, async (req, res) => {
         const sorted = (patient.radiographs || []).sort(
             (a, b) => new Date(b.date) - new Date(a.date)
         );
-        res.json(sorted.map((entry) => buildPatientRadiographPayload(entry)));
+        res.json(sorted
+            .filter((entry) => isPatientPublishedRadiograph(entry))
+            .map((entry) => buildPatientRadiographPayload(entry)));
     } catch (error) {
         console.error('Error fetching own radiographs:', error);
         res.status(500).json({ message: 'Server error.' });
@@ -12851,14 +12957,6 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
             details: `${engineConfig.label} radiograph enhancement saved for radiograph ID ${radiographId} on patient ID ${patientId}.`,
         });
 
-        await createPatientNotification({
-            patientId,
-            type: 'NEW_RADIOGRAPH',
-            title: 'Enhanced Radiograph Ready',
-            message: `An enhanced radiograph for "${radiograph.label}" is now available in your patient records.`,
-            relatedId: patientId,
-        });
-
         res.json({
             message: `${engineConfig.label} saved successfully.`,
             enhanced: true,
@@ -13567,6 +13665,13 @@ app.post('/api/patients/:id/radiographs/:radiographId/approve-summary', verifyTo
         record.patient.markModified('radiographs');
         await record.patient.save();
         await AuditLog.create({ action: 'RADIOGRAPH_SUMMARY_APPROVED', user: req.user.email, role: req.user.role, details: `AI-assisted summary dentist approved for radiograph ID ${record.radiograph._id}.` });
+        await createPatientNotification({
+            patientId: record.patient._id,
+            type: 'NEW_RADIOGRAPH',
+            title: 'Radiograph Image Available',
+            message: `A dentist-approved radiograph image${record.radiograph.label ? ` (${record.radiograph.label})` : ''} is now available in your Electronic Medical Record (EMR).`,
+            relatedId: record.patient._id,
+        });
         res.json({ message: 'AI-assisted summary approved and added to the patient record.', radiograph: buildRadiographPayload(record.radiograph) });
     } catch (error) {
         res.status(500).json({ message: 'Could not approve the radiograph review summary.' });
@@ -13817,7 +13922,7 @@ const handlePatientAiChat = async (req, res) => {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
-        const { messages, assistantContext } = req.body;
+        const { messages } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ message: 'Messages array is required.' });
         }
@@ -13825,7 +13930,7 @@ const handlePatientAiChat = async (req, res) => {
         const mergedAssistantContext = await buildPatientAiLiveContext({
             userId: req.user.id,
             messages,
-            assistantContext,
+            assistantContext: null,
         });
 
         const reply = await geminiService.generateScopedReply({

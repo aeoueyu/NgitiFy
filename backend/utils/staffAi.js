@@ -20,7 +20,7 @@ const ROLE_WORKFLOWS = Object.freeze({
     },
     dentist: {
         label: 'Dentist',
-        modules: ['Dashboard', 'Schedule', 'Patients', 'Dental Records', 'AI-Assisted Radiograph Review', 'Tooth Chart', 'Material Usage', 'Notifications'],
+        modules: ['Dashboard', 'Schedule', 'Patients', 'Electronic Medical Record (EMR)', 'AI-Assisted Radiograph Review', 'Odontogram', 'Material Usage', 'Notifications'],
         guidance: 'May review assigned appointments and authorized patient records, verify AI tooth suggestions, annotate radiographs, and approve summaries. Clinical judgment remains required.',
     },
     secretary: {

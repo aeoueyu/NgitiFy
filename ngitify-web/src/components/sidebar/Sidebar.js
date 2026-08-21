@@ -304,7 +304,7 @@ export default function Sidebar() {
                         <>
                             {navItem(schedulePath, FaCalendarAlt, 'My Appointments')}
                             {sectionLabel('Care')}
-                            {navItem('/patient/records', FaNotesMedical, 'Medical Records')}
+                            {navItem('/patient/records', FaNotesMedical, 'Electronic Medical Record')}
                             {navItem('/patient/oral-care', FaTooth, 'Oral Health Management')}
                             {sectionLabel('Updates')}
                             {navItem('/patient/notifications', FaBell, 'Notifications', notifBadge)}

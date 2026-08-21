@@ -18,7 +18,7 @@ const TABS = [
     { key: 'medical', label: 'Medical & Dental History' },
     { key: 'treatment', label: 'Treatment History' },
     { key: 'odontogram', label: 'Odontogram' },
-    { key: 'radiograph', label: 'Radiographs' },
+    { key: 'radiograph', label: 'Radiograph Images' },
 ];
 
 // FDI tooth notation â€” 4 quadrants, upper then lower
@@ -320,7 +320,7 @@ function OdontogramTab({ data, loading, error, onRetry }) {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
-                <Text style={styles.odontogramTitle}>Tooth Chart</Text>
+                <Text style={styles.odontogramTitle}>Odontogram</Text>
                 <Text style={styles.odontogramSub}>Your dentist’s saved tooth information · Read-only</Text>
 
                 {!hasData && (
@@ -571,7 +571,7 @@ function OdontogramSurfaceTab({ data, loading, error, onRetry }) {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 140 }}>
             <View style={styles.odontogramCard}>
-                <Text style={styles.odontogramTitle}>Tooth Chart</Text>
+                <Text style={styles.odontogramTitle}>Odontogram</Text>
                 <Text style={styles.odontogramSub}>Tap a tooth to view its saved status</Text>
 
                 {!hasData && (
@@ -932,8 +932,8 @@ export default function MedicalRecordsScreen({ navigation, route }) {
     return (
         <Screen>
             <Header
-                title="Records"
-                subtitle="Your dental records and X-rays"
+                title="Electronic Medical Record (EMR)"
+                subtitle="Your clinical record, tooth chart, and dental X-rays"
             />
 
             <View style={styles.heroCard}>
@@ -941,7 +941,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
                     <Ionicons name="document-text-outline" size={22} color="#ffffff" />
                 </View>
                 <View style={styles.heroCopy}>
-                    <Text style={styles.heroTitle}>Your dental records</Text>
+                    <Text style={styles.heroTitle}>Your Electronic Medical Record</Text>
                     <Text style={styles.heroText}>
                         Review your health history, treatments, tooth chart, and radiographs.
                     </Text>

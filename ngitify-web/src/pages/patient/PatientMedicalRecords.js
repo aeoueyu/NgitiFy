@@ -198,14 +198,14 @@ export default function PatientMedicalRecords() {
 
     return (
         <PatientPageFrame
-            title="My Dental Records"
-            subtitle="Your tooth chart, dental X-rays, health history, and recent treatments."
+            title="Electronic Medical Record (EMR)"
+            subtitle="Your Medical and Dental History, Treatment History, tooth chart, and dental X-rays."
         >
             <div className={styles.tabs} role="tablist" aria-label="Medical records sections">
                 {[
-                    { key: 'odontogram', label: 'Tooth Chart' },
-                    { key: 'radiographs', label: 'Dental X-rays' },
-                    { key: 'medical', label: 'Medical History' },
+                    { key: 'odontogram', label: 'Odontogram · Your tooth chart' },
+                    { key: 'radiographs', label: 'Radiograph Images · Your dental X-rays' },
+                    { key: 'medical', label: 'Medical and Dental History' },
                 ].map((tab) => (
                     <button
                         key={tab.key}
@@ -241,7 +241,7 @@ export default function PatientMedicalRecords() {
                         <section className={styles.tabPanel}>
                             <PatientSectionHeader
                                 eyebrow="Read-only"
-                                title="Tooth Chart"
+                                title="Odontogram"
                                 description="Tap a tooth to view its saved status. Only your dental team can update this chart."
                             />
                             {Object.keys(odontogram || {}).length ? (
@@ -302,7 +302,7 @@ export default function PatientMedicalRecords() {
                         <section className={styles.tabPanel}>
                             <PatientSectionHeader
                                 eyebrow="Imaging"
-                                title="Dental X-rays"
+                                title="Radiograph Images"
                                 description="Open an image to view the X-ray, notes, and findings shared by your clinic."
                             />
                             {radiographs.length ? (
@@ -327,7 +327,7 @@ export default function PatientMedicalRecords() {
                             ) : (
                                 <PatientEmptyState
                                     icon={<FaXRay />}
-                                    title="No dental X-rays yet"
+                                    title="No radiograph images yet"
                                     message="Dental X-rays shared by your clinic will appear here."
                                 />
                             )}
