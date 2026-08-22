@@ -17,6 +17,7 @@ const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const crypto = require('crypto');
 const dns = require('dns').promises;
+const fs = require('fs');
 const { spawn } = require('child_process');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -140,19 +141,19 @@ const RADIOGRAPH_ENHANCER_ENGINES = Object.freeze({
     basic: {
         key: 'basic',
         variantKey: 'basic',
-        label: 'Basic Enhance',
+        label: 'Adaptive Enhance',
         storageEngine: 'basic',
     },
     'self-hosted': {
         key: 'self-hosted',
         variantKey: 'selfHosted',
-        label: 'Self-Hosted AI',
+        label: 'Experimental Super-resolution',
         storageEngine: 'self-hosted',
     },
     'hugging-face': {
         key: 'hugging-face',
         variantKey: 'huggingFace',
-        label: 'Hugging Face AI',
+        label: 'Experimental External Enhancement',
         storageEngine: 'hugging-face',
     },
 });
@@ -206,6 +207,13 @@ const buildEnhancementVariantRecord = (variant = {}) => ({
     generatedBy: variant?.generatedBy || null,
     provider: String(variant?.provider || '').trim(),
     model: String(variant?.model || '').trim(),
+    metadata: variant?.metadata && typeof variant.metadata === 'object' ? variant.metadata : null,
+    feedback: {
+        rating: ['useful', 'not-useful', 'artifact'].includes(String(variant?.feedback?.rating || '')) ? String(variant.feedback.rating) : '',
+        note: String(variant?.feedback?.note || '').slice(0, 500),
+        submittedAt: variant?.feedback?.submittedAt ? new Date(variant.feedback.submittedAt) : null,
+        submittedBy: variant?.feedback?.submittedBy || null,
+    },
 });
 
 const getNormalizedEnhancementVariants = (radiograph = {}) => {
@@ -220,7 +228,7 @@ const getNormalizedEnhancementVariants = (radiograph = {}) => {
         variants.basic = buildEnhancementVariantRecord({
             url: radiograph.enhancedUrl,
             engine: radiograph.lastEnhancementEngine || 'basic',
-            label: 'Basic Enhance',
+            label: 'Adaptive Enhance',
             generatedAt: radiograph.enhancedAt || null,
             generatedBy: radiograph.enhancedBy || null,
         });
@@ -270,7 +278,7 @@ const buildPatientRadiographPayload = (radiograph = {}) => {
         visitId: payload.visitId,
         approvedSummary: payload.reviewSummary?.status === 'approved' ? payload.reviewSummary.approvedText : '',
         approvedFindings: (payload.annotations || [])
-            .filter((item) => item.findingType || item.note)
+            .filter((item) => !['archived', 'deleted'].includes(String(item.status || 'active')) && (item.findingType || item.note))
             .map((item) => ({ toothNumber: item.toothNumber || '', findingType: item.findingType || '', note: item.note || '' })),
         disclaimer: 'This information is based on records approved by your dental care team. It does not replace advice from your dentist.',
     };
@@ -325,19 +333,23 @@ const buildPatientTreatmentLogPayload = (entry = {}) => ({
 
 const getRadiographEnhancerCommands = () => {
     const configuredCommand = String(process.env.OPENCV_PYTHON_BIN || '').trim();
-    if (configuredCommand) {
-        return [{
-            command: configuredCommand,
-            args: [],
-        }];
-    }
+    const configuredIsPath = path.isAbsolute(configuredCommand) || /[\\/]/.test(configuredCommand);
+    const configuredCandidate = configuredCommand && (!configuredIsPath || fs.existsSync(configuredCommand))
+        ? [{ command: configuredCommand, args: [] }]
+        : [];
     if (process.platform === 'win32') {
+        const localVenvPython = path.join(__dirname, '.venv-ai', 'Scripts', 'python.exe');
         return [
-            { command: 'python', args: [] },
+            ...configuredCandidate,
+            ...(fs.existsSync(localVenvPython) ? [{ command: localVenvPython, args: [] }] : []),
             { command: 'py', args: ['-3'] },
+            { command: 'python', args: [] },
         ];
     }
+    const localVenvPython = path.join(__dirname, '.venv-ai', 'bin', 'python3');
     return [
+        ...configuredCandidate,
+        ...(fs.existsSync(localVenvPython) ? [{ command: localVenvPython, args: [] }] : []),
         { command: 'python3', args: [] },
         { command: 'python', args: [] },
     ];
@@ -414,6 +426,9 @@ const spawnRadiographEnhancer = ({ command, args, payload }) => {
                 ) {
                     return reject(new Error('Self-hosted AI enhancement dependencies are not installed. Install backend/python/requirements-ai.txt to enable Real-ESRGAN.'));
                 }
+                if (detail.includes('resolution is too low') || detail.includes('clipped pixels')) {
+                    return reject(Object.assign(new Error(detail), { statusCode: 422 }));
+                }
                 return reject(new Error(`Radiograph enhancement failed. ${detail}`));
             }
             try {
@@ -424,6 +439,7 @@ const spawnRadiographEnhancer = ({ command, args, payload }) => {
                 resolve({
                     mediaType: parsed.mediaType,
                     imageBase64: parsed.imageBase64,
+                    metadata: parsed.metadata && typeof parsed.metadata === 'object' ? parsed.metadata : null,
                 });
             } catch (error) {
                 reject(new Error(`Could not parse enhancer output. ${error.message}`));
@@ -448,6 +464,7 @@ const runPythonRadiographEnhancer = async (imageDataUrl, options = {}) => {
                     mediaType,
                     engine: options.engine || 'basic',
                     upscale: Number.isFinite(options.upscale) ? options.upscale : undefined,
+                    radiographType: options.radiographType || 'Other',
                 },
             });
         } catch (error) {
@@ -12945,6 +12962,7 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
             model,
             provider,
             upscale: engineConfig.key === 'self-hosted' ? 2 : undefined,
+            radiographType: radiograph.label || 'Other',
         });
         const enhancedUrl = `data:${result.mediaType};base64,${result.imageBase64}`;
         const generatedAt = new Date();
@@ -12958,6 +12976,7 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
             generatedBy: req.user.id,
             provider: result.provider || provider || '',
             model: result.model || model || '',
+            metadata: result.metadata || null,
         });
 
         radiograph.enhancedUrl = enhancedUrl;
@@ -12984,6 +13003,64 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Radiograph enhance error:', error);
         res.status(error.statusCode || 500).json({ message: error.message || 'Server error during radiograph enhancement.' });
+    }
+});
+
+app.post('/api/patients/:id/radiographs/:radiographId/enhancement-feedback', verifyToken, async (req, res) => {
+    try {
+        if (!ENHANCE_ALLOWED.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Access denied. Only dentists can review radiograph enhancements.' });
+        }
+
+        const rating = String(req.body?.rating || '').trim().toLowerCase();
+        const note = String(req.body?.note || '').trim();
+        if (!['useful', 'not-useful', 'artifact'].includes(rating)) {
+            return res.status(400).json({ message: 'Select Useful, Not useful, or Introduced artifact.' });
+        }
+        if (note.length > 500) {
+            return res.status(400).json({ message: 'Enhancement feedback must be 500 characters or fewer.' });
+        }
+
+        const patient = await User.findById(req.params.id).select('role radiographs');
+        if (!patient || patient.role !== 'patient') {
+            return res.status(404).json({ message: 'Patient not found.' });
+        }
+        if (!(await dentistCanAccessPatient(req.user.id, patient._id))) {
+            return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+        }
+
+        const radiograph = (patient.radiographs || []).find((entry) => String(entry._id) === String(req.params.radiographId));
+        if (!radiograph) {
+            return res.status(404).json({ message: 'Radiograph entry not found.' });
+        }
+
+        const engineConfig = getRadiographEnhancementConfig(req.body?.engine || radiograph.lastEnhancementEngine || 'basic');
+        const variants = getNormalizedEnhancementVariants(radiograph);
+        if (!variants[engineConfig.variantKey]?.url) {
+            return res.status(409).json({ message: 'Generate this enhancement before recording feedback.' });
+        }
+
+        variants[engineConfig.variantKey].feedback = {
+            rating,
+            note,
+            submittedAt: new Date(),
+            submittedBy: req.user.id,
+        };
+        radiograph.enhancementVariants = variants;
+        patient.markModified('radiographs');
+        await patient.save();
+
+        await AuditLog.create({
+            action: 'RADIOGRAPH_ENHANCEMENT_FEEDBACK',
+            user: req.user.email,
+            role: req.user.role,
+            details: `Dentist rated ${engineConfig.label} as ${rating} for radiograph ID ${radiograph._id}; feedback note content was not logged.`,
+        });
+
+        res.json({ message: 'Enhancement feedback saved.', radiograph: buildRadiographPayload(radiograph) });
+    } catch (error) {
+        console.error('Radiograph enhancement feedback error:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Could not save enhancement feedback.' });
     }
 });
 
@@ -13533,6 +13610,49 @@ const requireDentistRadiograph = async (req, res) => {
     return { patient, radiograph };
 };
 
+const isActiveRadiographFinding = (finding = {}) => !['archived', 'deleted'].includes(String(finding.status || 'active'));
+
+const snapshotRadiographFinding = (finding = {}) => ({
+    toothNumber: finding.toothNumber || '',
+    geometry: finding.geometry?.toObject ? finding.geometry.toObject() : finding.geometry || null,
+    findingType: finding.findingType || '',
+    note: finding.note || '',
+    linkToOdontogram: Boolean(finding.linkToOdontogram),
+    treatmentLogId: finding.treatmentLogId || null,
+    visitId: finding.visitId || null,
+    status: finding.status || 'active',
+});
+
+const recordRadiographFindingChange = (finding, { action, userId, reason = '' }) => {
+    if (!finding.auditHistory) finding.auditHistory = [];
+    finding.auditHistory.push({
+        action,
+        previous: snapshotRadiographFinding(finding),
+        reason: String(reason || '').trim().slice(0, 500),
+        changedAt: new Date(),
+        changedBy: userId,
+    });
+};
+
+const markRadiographSummaryAfterFindingChange = (radiograph, userId) => {
+    const summary = radiograph.reviewSummary;
+    if (!summary) return;
+    if (summary.status === 'approved' && String(summary.approvedText || '').trim()) {
+        summary.findingsChangedAt = new Date();
+        summary.findingsChangedBy = userId;
+        summary.revisionDraft = '';
+        summary.revisionStartedAt = null;
+        summary.revisionStartedBy = null;
+        return;
+    }
+    if (summary.status === 'draft') {
+        summary.status = 'none';
+        summary.draft = '';
+        summary.generatedAt = null;
+        summary.generatedBy = null;
+    }
+};
+
 app.post('/api/patients/:id/radiographs/:radiographId/analyze', verifyToken, async (req, res) => {
     let record;
     try {
@@ -13615,7 +13735,13 @@ app.post('/api/patients/:id/radiographs/:radiographId/annotations', verifyToken,
         if (!record) return;
         const toothNumber = String(req.body.toothNumber || '').trim();
         if (toothNumber && !isValidFdiTooth(toothNumber)) return res.status(400).json({ message: 'A valid permanent FDI tooth number is required.' });
+        const findingType = String(req.body.findingType || '').trim();
+        const findingNote = String(req.body.note || '');
+        if (!findingType) return res.status(400).json({ message: 'Finding recorded by dentist is required.', field: 'findingType' });
+        if (findingType.length > 160) return res.status(400).json({ message: 'Finding recorded by dentist must be 160 characters or fewer.', field: 'findingType' });
+        if (findingNote.length > 2000) return res.status(400).json({ message: 'Clinical note must be 2000 characters or fewer.', field: 'note' });
         const geometry = req.body.geometry || {};
+        if (!['point', 'rectangle', 'region'].includes(geometry.type) || geometry.x === undefined || geometry.y === undefined) return res.status(400).json({ message: 'Annotation location is required.', field: 'geometry' });
         const values = ['x', 'y', 'width', 'height'].map((key) => Number(geometry[key] || 0));
         if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) return res.status(400).json({ message: 'Annotation coordinates must be normalized between 0 and 1.' });
         const treatmentLogId = req.body.treatmentLogId;
@@ -13632,13 +13758,14 @@ app.post('/api/patients/:id/radiographs/:radiographId/annotations', verifyToken,
         record.radiograph.annotations.push({
             toothNumber,
             geometry: { type: ['point', 'rectangle', 'region'].includes(geometry.type) ? geometry.type : 'rectangle', x: values[0], y: values[1], width: values[2], height: values[3] },
-            findingType: String(req.body.findingType || '').trim().slice(0, 160),
-            note: String(req.body.note || '').trim().slice(0, 2000),
+            findingType,
+            note: findingNote.trim(),
             linkToOdontogram: Boolean(req.body.linkToOdontogram && toothNumber),
             treatmentLogId: mongoose.isValidObjectId(treatmentLogId) ? treatmentLogId : null,
             visitId: linkedVisitId,
             createdBy: req.user.id,
         });
+        markRadiographSummaryAfterFindingChange(record.radiograph, req.user.id);
         record.patient.markModified('radiographs');
         await record.patient.save();
         await AuditLog.create({ action: 'RADIOGRAPH_ANNOTATION_ADDED', user: req.user.email, role: req.user.role, details: `Dentist annotation added to radiograph ID ${record.radiograph._id}${toothNumber ? ` for tooth ${toothNumber}` : ''}.` });
@@ -13654,19 +13781,169 @@ app.post('/api/patients/:id/radiographs/:radiographId/annotations', verifyToken,
     }
 });
 
+app.patch('/api/patients/:id/radiographs/:radiographId/annotations/:annotationId', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const finding = record.radiograph.annotations?.id(req.params.annotationId);
+        if (!finding || finding.status === 'deleted') return res.status(404).json({ message: 'Dentist finding not found.' });
+        const toothNumber = String(req.body.toothNumber || '').trim();
+        if (toothNumber && !isValidFdiTooth(toothNumber)) return res.status(400).json({ message: 'A valid permanent FDI tooth number is required.' });
+        const findingType = String(req.body.findingType || '').trim();
+        const findingNote = String(req.body.note || '');
+        if (!findingType) return res.status(400).json({ message: 'Finding recorded by dentist is required.', field: 'findingType' });
+        if (findingType.length > 160) return res.status(400).json({ message: 'Finding recorded by dentist must be 160 characters or fewer.', field: 'findingType' });
+        if (findingNote.length > 2000) return res.status(400).json({ message: 'Clinical note must be 2000 characters or fewer.', field: 'note' });
+        const treatmentLogId = req.body.treatmentLogId;
+        if (treatmentLogId && !(record.patient.treatmentLogs || []).some((item) => String(item._id) === String(treatmentLogId))) {
+            return res.status(400).json({ message: 'The selected treatment does not belong to this patient.' });
+        }
+        const wasActive = isActiveRadiographFinding(finding);
+        recordRadiographFindingChange(finding, { action: 'edited', userId: req.user.id, reason: req.body.reason || 'Dentist edited finding.' });
+        finding.toothNumber = toothNumber;
+        finding.findingType = findingType;
+        finding.note = findingNote.trim();
+        finding.linkToOdontogram = Boolean(req.body.linkToOdontogram && toothNumber);
+        finding.treatmentLogId = mongoose.isValidObjectId(treatmentLogId) ? treatmentLogId : null;
+        finding.editedAt = new Date();
+        finding.editedBy = req.user.id;
+        if (wasActive) markRadiographSummaryAfterFindingChange(record.radiograph, req.user.id);
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_FINDING_EDITED', user: req.user.email, role: req.user.role, details: `Dentist finding ${finding._id} edited for radiograph ID ${record.radiograph._id}.` });
+        res.json({ message: wasActive ? 'Dentist finding updated. Review the approved summary if needed.' : 'Archived dentist finding updated.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not update the dentist finding.' });
+    }
+});
+
+app.post('/api/patients/:id/radiographs/:radiographId/annotations/:annotationId/archive', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const finding = record.radiograph.annotations?.id(req.params.annotationId);
+        if (!finding || finding.status === 'deleted') return res.status(404).json({ message: 'Dentist finding not found.' });
+        if (finding.status === 'archived') return res.status(409).json({ message: 'This dentist finding is already archived.' });
+        recordRadiographFindingChange(finding, { action: 'archived', userId: req.user.id, reason: req.body.reason || 'Archived by dentist.' });
+        finding.status = 'archived';
+        finding.archivedAt = new Date();
+        finding.archivedBy = req.user.id;
+        markRadiographSummaryAfterFindingChange(record.radiograph, req.user.id);
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_FINDING_ARCHIVED', user: req.user.email, role: req.user.role, details: `Dentist finding ${finding._id} archived for radiograph ID ${record.radiograph._id}.` });
+        res.json({ message: 'Dentist finding archived. The previous approved summary was preserved.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not archive the dentist finding.' });
+    }
+});
+
+app.post('/api/patients/:id/radiographs/:radiographId/annotations/:annotationId/restore', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const finding = record.radiograph.annotations?.id(req.params.annotationId);
+        if (!finding || finding.status === 'deleted') return res.status(404).json({ message: 'Dentist finding not found.' });
+        if (finding.status !== 'archived') return res.status(409).json({ message: 'Only archived dentist findings can be restored.' });
+        recordRadiographFindingChange(finding, { action: 'restored', userId: req.user.id, reason: req.body.reason || 'Restored by dentist.' });
+        finding.status = 'active';
+        finding.archivedAt = null;
+        finding.archivedBy = null;
+        markRadiographSummaryAfterFindingChange(record.radiograph, req.user.id);
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_FINDING_RESTORED', user: req.user.email, role: req.user.role, details: `Dentist finding ${finding._id} restored for radiograph ID ${record.radiograph._id}.` });
+        res.json({ message: 'Dentist finding restored. Review the approved summary if needed.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not restore the dentist finding.' });
+    }
+});
+
+app.delete('/api/patients/:id/radiographs/:radiographId/annotations/:annotationId', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const finding = record.radiograph.annotations?.id(req.params.annotationId);
+        if (!finding || finding.status === 'deleted') return res.status(404).json({ message: 'Dentist finding not found.' });
+        const reason = String(req.body.reason || '').trim().slice(0, 500);
+        if (!reason) return res.status(400).json({ message: 'A reason is required to delete a clinical finding.' });
+        const wasActive = isActiveRadiographFinding(finding);
+        recordRadiographFindingChange(finding, { action: 'deleted', userId: req.user.id, reason });
+        finding.status = 'deleted';
+        finding.deletedAt = new Date();
+        finding.deletedBy = req.user.id;
+        finding.deletionReason = reason;
+        if (wasActive) markRadiographSummaryAfterFindingChange(record.radiograph, req.user.id);
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_FINDING_DELETED', user: req.user.email, role: req.user.role, details: `Dentist finding ${finding._id} soft-deleted for radiograph ID ${record.radiograph._id}; a deletion reason was recorded.` });
+        res.json({ message: 'Dentist finding deleted from the active clinical review. Audit history was preserved.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not delete the dentist finding.' });
+    }
+});
+
 app.post('/api/patients/:id/radiographs/:radiographId/generate-summary', verifyToken, async (req, res) => {
     try {
         const record = await requireDentistRadiograph(req, res);
         if (!record) return;
         const previous = (record.patient.radiographs || []).filter((item) => String(item._id) !== String(record.radiograph._id) && new Date(item.date) < new Date(record.radiograph.date)).sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null;
         const draft = buildApprovedSummaryDraft({ radiograph: record.radiograph, treatmentLogs: record.patient.treatmentLogs || [], previousRadiograph: previous });
-        record.radiograph.reviewSummary = { draft, approvedText: '', status: 'draft', generatedAt: new Date(), generatedBy: req.user.id, provenance: 'Generated only from dentist-verified detections, dentist annotations, and linked EMR records.' };
+        const summary = record.radiograph.reviewSummary;
+        const isRevision = summary?.status === 'approved' && Boolean(String(summary.approvedText || '').trim());
+        if (isRevision) {
+            summary.revisionDraft = draft;
+            summary.revisionStartedAt = new Date();
+            summary.revisionStartedBy = req.user.id;
+            summary.generatedAt = new Date();
+            summary.generatedBy = req.user.id;
+            summary.provenance = 'Generated only from dentist-verified detections, dentist annotations, and linked EMR records.';
+        } else {
+            record.radiograph.reviewSummary = {
+                draft,
+                revisionDraft: '',
+                approvedText: '',
+                status: 'draft',
+                generatedAt: new Date(),
+                generatedBy: req.user.id,
+                revisionStartedAt: null,
+                revisionStartedBy: null,
+                provenance: 'Generated only from dentist-verified detections, dentist annotations, and linked EMR records.',
+            };
+        }
         record.patient.markModified('radiographs');
         await record.patient.save();
-        await AuditLog.create({ action: 'RADIOGRAPH_SUMMARY_GENERATED', user: req.user.email, role: req.user.role, details: `AI-assisted summary draft generated for radiograph ID ${record.radiograph._id}.` });
-        res.json({ message: 'Summary draft generated from verified records.', radiograph: buildRadiographPayload(record.radiograph) });
+        await AuditLog.create({ action: isRevision ? 'RADIOGRAPH_SUMMARY_REVISION_STARTED' : 'RADIOGRAPH_SUMMARY_GENERATED', user: req.user.email, role: req.user.role, details: `${isRevision ? 'Revision' : 'Initial'} summary draft generated for radiograph ID ${record.radiograph._id}.` });
+        res.json({
+            message: isRevision
+                ? 'Revision draft created. The current approved summary remains available until this revision is approved.'
+                : 'Summary draft generated from verified records.',
+            radiograph: buildRadiographPayload(record.radiograph),
+        });
     } catch (error) {
         res.status(500).json({ message: 'Could not generate the radiograph review summary.' });
+    }
+});
+
+app.post('/api/patients/:id/radiographs/:radiographId/cancel-summary-revision', verifyToken, async (req, res) => {
+    try {
+        const record = await requireDentistRadiograph(req, res);
+        if (!record) return;
+        const summary = record.radiograph.reviewSummary;
+        const hasApprovedSummary = summary?.status === 'approved' && Boolean(String(summary.approvedText || '').trim());
+        const hasRevisionDraft = Boolean(String(summary?.revisionDraft || '').trim());
+        if (!hasApprovedSummary || !hasRevisionDraft) {
+            return res.status(409).json({ message: 'There is no pending summary revision to cancel.' });
+        }
+        summary.revisionDraft = '';
+        summary.revisionStartedAt = null;
+        summary.revisionStartedBy = null;
+        record.patient.markModified('radiographs');
+        await record.patient.save();
+        await AuditLog.create({ action: 'RADIOGRAPH_SUMMARY_REVISION_CANCELLED', user: req.user.email, role: req.user.role, details: `Pending summary revision cancelled for radiograph ID ${record.radiograph._id}; the approved summary was retained.` });
+        res.json({ message: 'Revision cancelled. The previous approved summary was retained.', radiograph: buildRadiographPayload(record.radiograph) });
+    } catch (error) {
+        res.status(500).json({ message: 'Could not cancel the summary revision.' });
     }
 });
 
@@ -13685,12 +13962,21 @@ app.post('/api/patients/:id/radiographs/:radiographId/approve-summary', verifyTo
                 message: 'Resolve every AI suggestion or confirm that the dentist manually reviewed the radiograph before approval.',
             });
         }
-        const approvedText = String(req.body.text || record.radiograph.reviewSummary?.draft || '').trim().slice(0, 5000);
+        const summary = record.radiograph.reviewSummary;
+        const hasPendingDraft = summary?.status === 'draft' || Boolean(String(summary?.revisionDraft || '').trim());
+        if (!hasPendingDraft) return res.status(409).json({ message: 'Generate or revise the summary before approving it.' });
+        const approvedText = String(req.body.text || summary.revisionDraft || summary.draft || '').trim().slice(0, 5000);
         if (!approvedText) return res.status(400).json({ message: 'A summary draft is required before approval.' });
-        record.radiograph.reviewSummary.status = 'approved';
-        record.radiograph.reviewSummary.approvedText = approvedText;
-        record.radiograph.reviewSummary.approvedAt = new Date();
-        record.radiograph.reviewSummary.approvedBy = req.user.id;
+        summary.status = 'approved';
+        summary.approvedText = approvedText;
+        summary.draft = '';
+        summary.revisionDraft = '';
+        summary.revisionStartedAt = null;
+        summary.revisionStartedBy = null;
+        summary.approvedAt = new Date();
+        summary.approvedBy = req.user.id;
+        summary.findingsChangedAt = null;
+        summary.findingsChangedBy = null;
         record.patient.markModified('radiographs');
         await record.patient.save();
         await AuditLog.create({ action: 'RADIOGRAPH_SUMMARY_APPROVED', user: req.user.email, role: req.user.role, details: `AI-assisted summary dentist approved for radiograph ID ${record.radiograph._id}.` });

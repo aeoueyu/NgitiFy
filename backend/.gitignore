@@ -1,6 +1,8 @@
 node_modules/
 .env
 .venv-ai/
+__pycache__/
+*.py[cod]
 python/weights/
 backups/
 *.gz

@@ -16,14 +16,52 @@ REALESRGAN_X4_URL = (
 )
 _REALESRGAN_UPSAMPLER = None
 
+ENHANCEMENT_VERSION = "ngitify-adaptive-radiograph-v1.0.0"
+
+RADIOGRAPH_PROFILES = {
+    "periapical": {"clahe_scale": 1.0, "denoise_offset": 0, "detail_scale": 1.0},
+    "bitewing": {"clahe_scale": 0.95, "denoise_offset": 0, "detail_scale": 0.95},
+    "occlusal": {"clahe_scale": 0.9, "denoise_offset": 1, "detail_scale": 0.85},
+    "panoramic": {"clahe_scale": 0.82, "denoise_offset": 2, "detail_scale": 0.72},
+    "other": {"clahe_scale": 0.88, "denoise_offset": 1, "detail_scale": 0.8},
+}
+
 
 def decode_base64_image(image_base64):
     raw_bytes = base64.b64decode(image_base64)
     image_array = np.frombuffer(raw_bytes, dtype=np.uint8)
-    image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE)
+    image = cv2.imdecode(image_array, cv2.IMREAD_UNCHANGED)
     if image is None:
         raise ValueError("Could not decode the radiograph image.")
+    if image.ndim == 3:
+        image = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY if image.shape[2] == 4 else cv2.COLOR_BGR2GRAY)
     return image
+
+
+def normalize_source_to_uint8(image):
+    if image.dtype == np.uint8:
+        return image.copy()
+    pixels = image.astype(np.float32)
+    minimum = float(np.min(pixels))
+    maximum = float(np.max(pixels))
+    if maximum - minimum < 1e-6:
+        return np.zeros(image.shape, dtype=np.uint8)
+    return np.clip(((pixels - minimum) / (maximum - minimum)) * 255.0, 0, 255).astype(np.uint8)
+
+
+def measure_quality(image):
+    image_u8 = normalize_source_to_uint8(image)
+    pixels = image_u8.astype(np.float32)
+    median = cv2.medianBlur(image_u8, 3)
+    noise = float(np.mean(np.abs(pixels - median.astype(np.float32))))
+    return {
+        "brightness": round(float(np.mean(pixels)), 2),
+        "contrast": round(float(np.std(pixels)), 2),
+        "sharpness": round(float(cv2.Laplacian(image_u8, cv2.CV_64F).var()), 2),
+        "clippedDarkRatio": round(float(np.mean(pixels <= 5)), 4),
+        "clippedBrightRatio": round(float(np.mean(pixels >= 250)), 4),
+        "noiseEstimate": round(noise, 2),
+    }
 
 
 def to_float32(image):
@@ -42,11 +80,11 @@ def float_to_uint8(image):
     return np.clip(image * 255.0, 0, 255).astype(np.uint8)
 
 
-def apply_multi_scale_clahe(image):
+def apply_multi_scale_clahe(image, scale=1.0):
     image_u8 = float_to_uint8(image)
-    fine = cv2.createCLAHE(clipLimit=1.4, tileGridSize=(8, 8)).apply(image_u8)
-    medium = cv2.createCLAHE(clipLimit=1.2, tileGridSize=(16, 16)).apply(image_u8)
-    coarse = cv2.createCLAHE(clipLimit=1.1, tileGridSize=(24, 24)).apply(image_u8)
+    fine = cv2.createCLAHE(clipLimit=1.4 * scale, tileGridSize=(8, 8)).apply(image_u8)
+    medium = cv2.createCLAHE(clipLimit=1.2 * scale, tileGridSize=(16, 16)).apply(image_u8)
+    coarse = cv2.createCLAHE(clipLimit=1.1 * scale, tileGridSize=(24, 24)).apply(image_u8)
 
     fine_f = to_float32(fine)
     medium_f = to_float32(medium)
@@ -60,13 +98,33 @@ def unsharp_mask(image, sigma, amount, clip_limit=0.075):
     return np.clip(image + (amount * detail), 0.0, 1.0)
 
 
-def enhance_radiograph_basic(image):
-    base = percentile_rescale(to_float32(image), 0.6, 99.4)
+def enhance_radiograph_basic(image, radiograph_type="Other"):
+    image_u8 = normalize_source_to_uint8(image)
+    before = measure_quality(image_u8)
+    profile_key = str(radiograph_type or "Other").strip().lower()
+    profile = RADIOGRAPH_PROFILES.get(profile_key, RADIOGRAPH_PROFILES["other"])
+    warnings = []
+
+    if min(image_u8.shape[:2]) < 96:
+        raise ValueError("The radiograph resolution is too low for safe automatic enhancement.")
+    if before["clippedDarkRatio"] + before["clippedBrightRatio"] > 0.72:
+        raise ValueError("The radiograph contains extensive clipped pixels. Missing image information cannot be restored safely.")
+
+    contrast_scale = 1.18 if before["contrast"] < 28 else 0.9 if before["contrast"] > 72 else 1.0
+    denoise_strength = int(np.clip(8 + profile["denoise_offset"] + (3 if before["noiseEstimate"] > 8 else 0), 7, 14))
+    detail_scale = profile["detail_scale"]
+    if before["sharpness"] < 25:
+        detail_scale *= 0.55
+        warnings.append("The source appears substantially blurred; sharpening was limited to avoid creating false edge detail.")
+    if before["clippedDarkRatio"] > 0.18 or before["clippedBrightRatio"] > 0.18:
+        warnings.append("Some source pixels are clipped; enhancement cannot recover information that was not captured.")
+
+    base = percentile_rescale(to_float32(image_u8), 0.6, 99.4)
 
     denoised = cv2.fastNlMeansDenoising(
         float_to_uint8(base),
         None,
-        h=11,
+        h=denoise_strength,
         templateWindowSize=7,
         searchWindowSize=31,
     )
@@ -87,9 +145,9 @@ def enhance_radiograph_basic(image):
         1.0,
     )
 
-    local_contrast = apply_multi_scale_clahe(flattened)
-    detailed = unsharp_mask(local_contrast, sigma=0.9, amount=0.9, clip_limit=0.055)
-    detailed = unsharp_mask(detailed, sigma=2.1, amount=0.55, clip_limit=0.045)
+    local_contrast = apply_multi_scale_clahe(flattened, scale=profile["clahe_scale"] * contrast_scale)
+    detailed = unsharp_mask(local_contrast, sigma=0.9, amount=0.9 * detail_scale, clip_limit=0.055)
+    detailed = unsharp_mask(detailed, sigma=2.1, amount=0.55 * detail_scale, clip_limit=0.045)
     blended = np.clip((0.58 * detailed) + (0.27 * flattened) + (0.15 * base), 0.0, 1.0)
     tone_mapped = np.power(blended, 1.08)
     final_float = percentile_rescale(tone_mapped, 0.9, 99.1)
@@ -97,7 +155,24 @@ def enhance_radiograph_basic(image):
     micro_detail = np.clip(final_float - micro_blur, -0.03, 0.03)
     final_float = np.clip(final_float + (0.28 * micro_detail), 0.0, 1.0)
 
-    return float_to_uint8(final_float)
+    output = float_to_uint8(final_float)
+    transformations = [
+        "Percentile exposure normalization",
+        f"Adaptive denoising (strength {denoise_strength})",
+        f"{radiograph_type or 'Other'} local-contrast profile",
+        "Conservative multi-scale detail refinement",
+    ]
+    return output, {
+        "version": ENHANCEMENT_VERSION,
+        "profile": radiograph_type or "Other",
+        "sourceBitDepth": int(image.dtype.itemsize * 8),
+        "sourceDimensions": {"width": int(image.shape[1]), "height": int(image.shape[0])},
+        "before": before,
+        "after": measure_quality(output),
+        "transformations": transformations,
+        "warnings": warnings,
+        "preservesOriginal": True,
+    }
 
 
 def ensure_realesrgan_weights():
@@ -148,18 +223,31 @@ def postprocess_superres_result(image):
     return float_to_uint8(refined)
 
 
-def enhance_radiograph_realesrgan(image, upscale=2):
+def enhance_radiograph_realesrgan(image, upscale=2, radiograph_type="Other"):
+    image_u8 = normalize_source_to_uint8(image)
     upsampler = get_realesrgan_upsampler()
-    bgr_input = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    bgr_input = cv2.cvtColor(image_u8, cv2.COLOR_GRAY2BGR)
     result, _ = upsampler.enhance(bgr_input, outscale=max(1, float(upscale or 2)))
-    return postprocess_superres_result(result)
+    output = postprocess_superres_result(result)
+    return output, {
+        "version": "RealESRGAN_x4plus-experimental",
+        "profile": radiograph_type or "Other",
+        "sourceBitDepth": int(image.dtype.itemsize * 8),
+        "sourceDimensions": {"width": int(image.shape[1]), "height": int(image.shape[0])},
+        "before": measure_quality(image_u8),
+        "after": measure_quality(output),
+        "transformations": ["Experimental generative super-resolution", "Post-enhancement local contrast"],
+        "warnings": ["Experimental output may introduce artificial detail and must be compared with the original."],
+        "preservesOriginal": True,
+        "experimental": True,
+    }
 
 
-def enhance_radiograph(image, engine="basic", upscale=2):
+def enhance_radiograph(image, engine="basic", upscale=2, radiograph_type="Other"):
     normalized_engine = str(engine or "basic").strip().lower()
     if normalized_engine == "realesrgan":
-        return enhance_radiograph_realesrgan(image, upscale=upscale)
-    return enhance_radiograph_basic(image)
+        return enhance_radiograph_realesrgan(image, upscale=upscale, radiograph_type=radiograph_type)
+    return enhance_radiograph_basic(image, radiograph_type=radiograph_type)
 
 
 def encode_png_base64(image):
@@ -176,16 +264,18 @@ def main():
         raise ValueError("imageBase64 is required.")
 
     source_image = decode_base64_image(image_base64)
-    enhanced_image = enhance_radiograph(
+    enhanced_image, metadata = enhance_radiograph(
         source_image,
         engine=payload.get("engine") or "basic",
         upscale=payload.get("upscale") or 2,
+        radiograph_type=payload.get("radiographType") or "Other",
     )
     enhanced_base64 = encode_png_base64(enhanced_image)
 
     print(json.dumps({
         "mediaType": "image/png",
         "imageBase64": enhanced_base64,
+        "metadata": metadata,
     }))
 
 

@@ -69,7 +69,7 @@ const buildApprovedSummaryDraft = ({ radiograph, treatmentLogs = [], previousRad
     const analysis = radiograph?.analysis || {};
     const verified = (analysis.detections || []).filter((item) => ['confirmed', 'corrected'].includes(item.status));
     const teeth = [...new Set(verified.map((item) => item.confirmedToothNumber).filter(isValidFdiTooth))].sort();
-    const findings = (radiograph?.annotations || []).filter((item) => item.findingType || item.note);
+    const findings = (radiograph?.annotations || []).filter((item) => !['archived', 'deleted'].includes(String(item.status || 'active')) && (item.findingType || item.note));
     const linkedTreatmentIds = new Set(findings.map((item) => String(item.treatmentLogId || '')).filter(Boolean));
     const relatedTreatments = treatmentLogs.filter((item) => linkedTreatmentIds.has(String(item._id || item.id)));
     const date = radiograph?.date ? new Date(radiograph.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) : 'an unrecorded date';

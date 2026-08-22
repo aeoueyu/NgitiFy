@@ -26,3 +26,9 @@ test('secretary and dentist patient access checks are enforced before context us
     assert.match(source, /role === 'secretary'[\s\S]+statusCode = 403/);
     assert.match(source, /role === 'dentist'[\s\S]+dentistCanAccessPatient/);
 });
+
+test('today appointment context is filtered before it is summarized for NgitiBot', () => {
+    assert.match(source, /wantsTodayAppointments\(messages\)/);
+    assert.match(source, /query\.date = \{ \$gte: todayRange\.start, \$lte: todayRange\.end \}/);
+    assert.match(source, /period: todayRange \? 'today'/);
+});

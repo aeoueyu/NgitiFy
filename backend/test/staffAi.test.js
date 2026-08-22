@@ -4,9 +4,11 @@ const {
     STAFF_AI_ROLES,
     ROLE_WORKFLOWS,
     buildStaffSystemContext,
+    getManilaDayRange,
     summarizeAppointments,
     summarizeInventory,
     summarizeRadiographRecords,
+    wantsTodayAppointments,
     wantsOperationalContext,
 } = require('../utils/staffAi');
 
@@ -38,6 +40,22 @@ test('appointment summary filters dates and counts statuses', () => {
 
 test('appointment summary supports empty results', () => {
     assert.deepEqual(summarizeAppointments([]), { total: 0, statusBreakdown: {} });
+});
+
+test('today appointment requests use the Manila clinic day', () => {
+    const range = getManilaDayRange('2026-08-21T20:00:00.000Z');
+    assert.equal(range.dateKey, '2026-08-22');
+    assert.equal(range.start.toISOString(), '2026-08-21T16:00:00.000Z');
+    assert.equal(range.end.toISOString(), '2026-08-22T15:59:59.999Z');
+    assert.equal(wantsTodayAppointments([{ role: 'user', content: 'Summarize my schedule today' }]), true);
+});
+
+test('today appointment intent does not leak from older conversation messages', () => {
+    assert.equal(wantsTodayAppointments([
+        { role: 'user', content: 'What appointments do I have today?' },
+        { role: 'assistant', content: 'You have no appointments today.' },
+        { role: 'user', content: 'Show my complete appointment history instead.' },
+    ]), false);
 });
 
 test('inventory summary reports only items at or below their threshold', () => {

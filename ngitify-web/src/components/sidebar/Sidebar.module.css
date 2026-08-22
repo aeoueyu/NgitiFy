@@ -349,32 +349,3 @@
     }
 
 }
-.staffAiLauncher {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    z-index: 1900;
-    width: 56px;
-    height: 56px;
-    display: block;
-    border: 0;
-    border-radius: 50%;
-    background: #01538b;
-    color: #fff;
-    cursor: pointer;
-    box-shadow: 0 8px 24px rgba(1, 83, 139, .3);
-}
-
-.staffAiLauncher::after { content: ''; position: absolute; inset: 5px; border: 1px solid rgba(255,255,255,.2); border-radius: 50%; }
-.staffAiLauncherBubble { position: absolute; inset: 13px; width: 30px; height: 30px; color: #fff; }
-.staffAiLauncherRobot { position: absolute; right: 10px; bottom: 9px; width: 18px; height: 18px; padding: 3px; border-radius: 50%; background: #2dccf6; color: #01538b; z-index: 1; }
-.staffAiLauncherTooltip { position: absolute; right: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(5px); width: max-content; padding: 7px 10px; border-radius: 8px; background: #0f172a; color: #fff; font: 600 12px 'Lexend Deca', sans-serif; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; }
-.staffAiLauncher:hover .staffAiLauncherTooltip,
-.staffAiLauncher:focus-visible .staffAiLauncherTooltip { opacity: 1; transform: translateY(-50%) translateX(0); }
-
-.staffAiLauncher:hover { background: #013f6b; transform: translateY(-2px); }
-.staffAiLauncher:focus-visible { outline: 3px solid #2dccf6; outline-offset: 3px; }
-
-@media (max-width: 600px) {
-    .staffAiLauncher { right: 16px; bottom: 16px; width: 52px; height: 52px; }
-}

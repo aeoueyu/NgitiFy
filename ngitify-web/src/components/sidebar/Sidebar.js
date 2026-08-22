@@ -10,13 +10,11 @@ import {
     FaCalendarAlt,
     FaChevronRight,
     FaClipboardList,
-    FaCommentMedical,
     FaCodeBranch,
     FaCog,
     FaDatabase,
     FaHistory,
     FaNotesMedical,
-    FaRobot,
     FaShieldAlt,
     FaSignOutAlt,
     FaTachometerAlt,
@@ -29,6 +27,7 @@ import { authFetch } from '../../utils/api';
 import UserAvatar from '../common/UserAvatar';
 import ConfirmModal from '../common/ConfirmModal';
 import AIChatAssistant from '../common/AIChatAssistant';
+import NgitiBotFloatingChat from '../common/NgitiBotFloatingChat';
 
 const PROFILE_REFRESH_EVENT = 'ngitify-profile-updated';
 
@@ -47,16 +46,11 @@ export default function Sidebar() {
     const isDentistUser = user?.role === 'dentist' || (user?.role === 'owner' && user?.isDentist);
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
-    const [isChatOpen, setIsChatOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [lowStockCount, setLowStockCount] = useState(0);
     const [notifUnreadCount, setNotifUnreadCount] = useState(0);
     const [sidebarProfile, setSidebarProfile] = useState(null);
     const sidebarRef = useRef(null);
-
-    useEffect(() => {
-        if (!isPatient && location.state?.openStaffAi) setIsChatOpen(true);
-    }, [isPatient, location.key, location.state]);
 
     useEffect(() => {
         const userId = user?.userId || user?.id || user?._id;
@@ -443,25 +437,10 @@ export default function Sidebar() {
                 </div>
             </aside>
 
-            {!isPatient && !isChatOpen ? (
-                <button
-                    type="button"
-                    className={styles.staffAiLauncher}
-                    onClick={() => setIsChatOpen(true)}
-                    aria-label="Open NgitiBot"
-                    title="Ask NgitiBot"
-                >
-                    <FaCommentMedical className={styles.staffAiLauncherBubble} aria-hidden="true" />
-                    <FaRobot className={styles.staffAiLauncherRobot} aria-hidden="true" />
-                    <span className={styles.staffAiLauncherTooltip} role="tooltip">Ask NgitiBot</span>
-                </button>
-            ) : null}
-
             {!isPatient ? (
-                <AIChatAssistant
-                    isOpen={isChatOpen}
-                    onClose={() => setIsChatOpen(false)}
-                />
+                <NgitiBotFloatingChat openRequestKey={location.state?.openStaffAi ? location.key : ''}>
+                    {({ isOpen, onClose }) => <AIChatAssistant isOpen={isOpen} onClose={onClose} />}
+                </NgitiBotFloatingChat>
             ) : null}
 
             <ConfirmModal

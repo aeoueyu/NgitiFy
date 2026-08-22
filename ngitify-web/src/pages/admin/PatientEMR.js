@@ -135,9 +135,9 @@ const normalizeTreatmentNotes = (value) => {
     return /^\[AUTO-APPOINTMENT:[^\]]+\]$/.test(text) ? '' : text;
 };
 const RADIOGRAPH_VARIANT_LABELS = {
-    basic: 'Basic Enhance',
-    selfHosted: 'Self-Hosted AI',
-    huggingFace: 'Hugging Face AI',
+    basic: 'Adaptive Enhance',
+    selfHosted: 'Experimental Super-resolution',
+    huggingFace: 'Experimental External Enhancement',
 };
 const getNormalizedEnhancementVariants = (radiograph = {}) => {
     const variants = radiograph.enhancementVariants || {};
@@ -163,9 +163,9 @@ const getRadiographViewOptions = (radiograph) => {
     const options = [
         { key: 'original', label: 'Original', available: Boolean(radiograph.url || radiograph.imageUrl) },
         { key: 'latest', label: 'Latest Saved', available: Boolean(radiograph.enhancedUrl) },
-        { key: 'basic', label: 'Basic Enhance', available: Boolean(variants.basic?.url) },
-        { key: 'selfHosted', label: 'Self-Hosted AI', available: Boolean(variants.selfHosted?.url) },
-        { key: 'huggingFace', label: 'Hugging Face AI', available: Boolean(variants.huggingFace?.url) },
+        { key: 'basic', label: RADIOGRAPH_VARIANT_LABELS.basic, available: Boolean(variants.basic?.url) },
+        { key: 'selfHosted', label: RADIOGRAPH_VARIANT_LABELS.selfHosted, available: Boolean(variants.selfHosted?.url) },
+        { key: 'huggingFace', label: RADIOGRAPH_VARIANT_LABELS.huggingFace, available: Boolean(variants.huggingFace?.url) },
     ];
     return options.filter((option) => option.available);
 };
@@ -2411,12 +2411,12 @@ export default function PatientEMR({
                                         type="button"
                                     >
                                         {isEnhancing && enhancingEngine === 'basic'
-                                            ? 'Processing Basic Enhance...'
-                                            : <><FaMagic /> Save Basic Enhance</>}
+                                            ? 'Processing Adaptive Enhance...'
+                                            : <><FaMagic /> Save Adaptive Enhance</>}
                                     </button>
                                 </div>
                                 <p style={{ margin: 0, color: '#64748b', fontSize: '12px', lineHeight: 1.5 }}>
-                                    `Basic Enhance` keeps the existing OpenCV pipeline.
+                                    Adaptive Enhance uses conservative, radiograph-type-aware processing and always preserves the original image.
                                 </p>
                             </div>
                         ) : null}
@@ -2446,7 +2446,7 @@ export default function PatientEMR({
                 <div className={styles.sectionHeaderRow}>
                     <div>
                         <h3 className={styles.sectionTitle} style={{ marginBottom: '4px' }}>AI-Assisted Radiograph Review</h3>
-                        <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Review original images, verify AI tooth suggestions, annotate findings, and connect approved records to the EMR.</p>
+                        <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Review image quality, compare conservative enhancements, record dentist findings, and connect approved records to the EMR.</p>
                     </div>
                     {canUploadRadiograph && (
                         <button

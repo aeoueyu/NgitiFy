@@ -26,11 +26,21 @@ test('mobile patient dashboard no longer presents AI as a Care Tools destination
     assert.match(source, /label="Electronic Medical Record"/);
 });
 
-test('web staff NgitiBot supports history lifecycle and floating inbox controls', () => {
+test('web staff NgitiBot reuses the patient floating shell and conversation styles', () => {
     const source = read('ngitify-web', 'src', 'components', 'common', 'AIChatAssistant.js');
-    for (const text of ['New chat', 'Pinned', 'Archived', 'Rename conversation', 'Delete conversation', 'Minimize NgitiBot', 'Close NgitiBot']) {
+    const sharedShell = read('ngitify-web', 'src', 'components', 'common', 'NgitiBotFloatingChat.js');
+    const patientEntry = read('ngitify-web', 'src', 'components', 'patient', 'PatientAIChat.js');
+    const staffEntry = read('ngitify-web', 'src', 'components', 'sidebar', 'Sidebar.js');
+    for (const text of ['New chat', 'Pinned', 'Archived', 'Rename conversation', 'Delete conversation', 'Close NgitiBot']) {
         assert.match(source, new RegExp(text));
     }
+    assert.match(source, /PatientPortal\.module\.css/);
+    assert.match(source, /patientAiConversationShellFloating/);
+    assert.match(sharedShell, /patientAiLauncher/);
+    assert.match(sharedShell, /patientAiFloatingHost/);
+    assert.match(patientEntry, /<NgitiBotFloatingChat/);
+    assert.match(staffEntry, /<NgitiBotFloatingChat/);
+    assert.doesNotMatch(staffEntry, /staffAiLauncher/);
     assert.match(source, /aria-label="NgitiBot"/);
     assert.doesNotMatch(source, /NgitiFy Staff AI|AI assistant/);
 });

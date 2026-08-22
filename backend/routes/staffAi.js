@@ -11,9 +11,11 @@ const {
 const {
     STAFF_AI_ROLES,
     buildStaffSystemContext,
+    getManilaDayRange,
     summarizeAppointments,
     summarizeInventory,
     summarizeRadiographRecords,
+    wantsTodayAppointments,
     wantsOperationalContext,
 } = require('../utils/staffAi');
 
@@ -70,11 +72,17 @@ module.exports = function createStaffAiRouter({
 
         if (requested.appointments) {
             const query = { isArchived: { $ne: true } };
+            const todayRange = wantsTodayAppointments(messages) ? getManilaDayRange() : null;
             if (branch) query.branch = branch;
             else if (ownerBranches.length) query.branch = { $in: ownerBranches };
             if (role === 'dentist') query.dentist = req.user.id;
+            if (todayRange) query.date = { $gte: todayRange.start, $lte: todayRange.end };
             const appointments = await Appointment.find(query).select('date status branch').lean();
-            aggregates.appointments = summarizeAppointments(appointments);
+            aggregates.appointments = {
+                ...summarizeAppointments(appointments),
+                period: todayRange ? 'today' : 'all-authorized-appointments',
+                ...(todayRange ? { date: todayRange.dateKey, timeZone: 'Asia/Manila' } : {}),
+            };
         }
 
         if (requested.inventory && role !== 'secretary') {

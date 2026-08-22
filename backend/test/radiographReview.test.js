@@ -38,8 +38,14 @@ test('summary uses verified teeth and dentist annotations, never pending suggest
     const draft = buildApprovedSummaryDraft({ radiograph: { label: 'Panoramic radiograph', date: '2026-08-21', analysis: { detections: [
         { predictedToothNumber: '47', status: 'pending' },
         { predictedToothNumber: '46', confirmedToothNumber: '46', status: 'confirmed' },
-    ] }, annotations: [{ toothNumber: '46', findingType: 'Existing restoration', note: 'Dentist recorded.' }] } });
+    ] }, annotations: [
+        { toothNumber: '46', findingType: 'Existing restoration', note: 'Dentist recorded.', status: 'active' },
+        { toothNumber: '47', findingType: 'Archived finding', status: 'archived' },
+        { toothNumber: '48', findingType: 'Deleted finding', status: 'deleted' },
+    ] } });
     assert.match(draft, /Dentist-verified teeth: 46/);
+    assert.match(draft, /1 dentist-recorded finding/);
+    assert.doesNotMatch(draft, /Archived finding|Deleted finding/);
     assert.doesNotMatch(draft, /47/);
 });
 

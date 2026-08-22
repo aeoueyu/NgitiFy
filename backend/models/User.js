@@ -40,6 +40,13 @@ const radiographEnhancementVariantSchema = new mongoose.Schema({
     generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     provider: { type: String, default: '' },
     model: { type: String, default: '' },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: null },
+    feedback: {
+        rating: { type: String, enum: ['', 'useful', 'not-useful', 'artifact'], default: '' },
+        note: { type: String, default: '', maxlength: 500 },
+        submittedAt: { type: Date, default: null },
+        submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    },
 }, { _id: false });
 
 const radiographGeometrySchema = new mongoose.Schema({
@@ -73,6 +80,24 @@ const radiographAnnotationSchema = new mongoose.Schema({
     treatmentLogId: { type: mongoose.Schema.Types.ObjectId, default: null },
     visitId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    status: { type: String, enum: ['active', 'archived', 'deleted'], default: 'active' },
+    editedAt: { type: Date, default: null },
+    editedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    archivedAt: { type: Date, default: null },
+    archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    deletionReason: { type: String, default: '', maxlength: 500 },
+    auditHistory: {
+        type: [{
+            action: { type: String, enum: ['edited', 'archived', 'restored', 'deleted'], required: true },
+            previous: { type: mongoose.Schema.Types.Mixed, default: null },
+            reason: { type: String, default: '', maxlength: 500 },
+            changedAt: { type: Date, required: true },
+            changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        }],
+        default: [],
+    },
 }, { timestamps: true });
 
 const radiographAnalysisSchema = new mongoose.Schema({
@@ -89,12 +114,17 @@ const radiographAnalysisSchema = new mongoose.Schema({
 
 const radiographSummarySchema = new mongoose.Schema({
     draft: { type: String, default: '' },
+    revisionDraft: { type: String, default: '' },
     approvedText: { type: String, default: '' },
     status: { type: String, enum: ['none', 'draft', 'approved'], default: 'none' },
     generatedAt: { type: Date, default: null },
     generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    revisionStartedAt: { type: Date, default: null },
+    revisionStartedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     approvedAt: { type: Date, default: null },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    findingsChangedAt: { type: Date, default: null },
+    findingsChangedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     provenance: { type: String, default: '' },
 }, { _id: false });
 

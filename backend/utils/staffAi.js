@@ -2,6 +2,8 @@ const STAFF_AI_ROLES = Object.freeze([
     'administrator', 'owner', 'branch-manager', 'dentist', 'secretary',
 ]);
 
+const MANILA_TIME_ZONE = 'Asia/Manila';
+
 const ROLE_WORKFLOWS = Object.freeze({
     administrator: {
         label: 'Administrator',
@@ -55,6 +57,27 @@ const summarizeAppointments = (items = [], { start, end } = {}) => {
     return { total: filtered.length, statusBreakdown: countByStatus(filtered) };
 };
 
+const getManilaDayRange = (value = new Date()) => {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+        timeZone: MANILA_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(new Date(value)).map((part) => [part.type, part.value]));
+    const dateKey = `${parts.year}-${parts.month}-${parts.day}`;
+    return {
+        dateKey,
+        start: new Date(`${dateKey}T00:00:00+08:00`),
+        end: new Date(`${dateKey}T23:59:59.999+08:00`),
+    };
+};
+
+const wantsTodayAppointments = (messages = []) => {
+    const latestMessage = [...messages].reverse().find((message) => message?.role === 'user')
+        || messages[messages.length - 1];
+    return /\b(?:today|today['’]s|this day|current day)\b/i.test(String(latestMessage?.content || ''));
+};
+
 const summarizeInventory = (items = []) => {
     const lowStockItems = items.filter((item) => {
         const quantity = Number(item?.quantity ?? item?.currentStock ?? 0);
@@ -80,12 +103,13 @@ const summarizeRadiographRecords = (radiographs = [], treatmentLogs = []) => {
         const verifiedTeeth = [...new Set((radiograph.analysis?.detections || [])
             .filter((item) => ['confirmed', 'corrected'].includes(item.status))
             .map((item) => String(item.confirmedToothNumber || '').trim()).filter(Boolean))];
-        const dentistFindings = (radiograph.annotations || []).map((item) => ({
+        const activeFindings = (radiograph.annotations || []).filter((item) => !['archived', 'deleted'].includes(String(item.status || 'active')));
+        const dentistFindings = activeFindings.map((item) => ({
             toothNumber: String(item.toothNumber || '').trim(),
             findingType: String(item.findingType || '').trim(),
             note: String(item.note || '').trim(),
         })).filter((item) => item.findingType || item.note);
-        const relatedTreatments = [...new Set((radiograph.annotations || []).map((item) => String(item.treatmentLogId || '')).filter(Boolean))]
+        const relatedTreatments = [...new Set(activeFindings.map((item) => String(item.treatmentLogId || '')).filter(Boolean))]
             .map((id) => treatmentsById.get(id)).filter(Boolean).map((item) => ({ id: String(item._id || item.id), procedure: item.procedure || '', tooth: item.tooth || '', date: item.date || null }));
         return {
             radiographId: String(radiograph._id || radiograph.id || ''),
@@ -135,13 +159,16 @@ const buildStaffSystemContext = ({ role, branch = '', currentModule = '', curren
 
 module.exports = {
     STAFF_AI_ROLES,
+    MANILA_TIME_ZONE,
     ROLE_WORKFLOWS,
     ROLE_SUGGESTIONS,
     buildStaffSystemContext,
     countByStatus,
+    getManilaDayRange,
     isDateInRange,
     summarizeAppointments,
     summarizeInventory,
     summarizeRadiographRecords,
+    wantsTodayAppointments,
     wantsOperationalContext,
 };

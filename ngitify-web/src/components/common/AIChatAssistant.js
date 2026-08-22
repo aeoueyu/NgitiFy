@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FaArchive, FaBars, FaChevronDown, FaEdit, FaMinus, FaPaperPlane, FaPlus, FaRobot, FaThumbtack, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
+import { FaArchive, FaBars, FaEdit, FaExclamationTriangle, FaPaperPlane, FaPlus, FaRedoAlt, FaRobot, FaThumbtack, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
-import { authFetch, BASE_URL } from '../../utils/api';
+import { authFetch } from '../../utils/api';
 import { STAFF_AI_SUGGESTIONS } from '../../data/staffAiKnowledge';
-import styles from './AIChatAssistant.module.css';
+import styles from '../../styles/patient/PatientPortal.module.css';
 
 const welcome = (role) => ({ id: 'welcome', role: 'assistant', isStreaming: false, content: `Hi! I’m NgitiBot. I can help with permitted ${role || 'staff'} work information and explain the features available to your role.` });
 const moduleFromPath = (path = '') => (path.split('/').filter(Boolean).pop() || 'dashboard').replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -24,9 +24,7 @@ export default function AIChatAssistant({ isOpen, onClose }) {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [error, setError] = useState('');
     const [lastFailedPrompt, setLastFailedPrompt] = useState('');
-    const [showScrollBtn, setShowScrollBtn] = useState(false);
     const messagesEndRef = useRef(null);
-    const messagesRef = useRef(null);
     const inputRef = useRef(null);
     const abortRef = useRef(null);
 
@@ -57,7 +55,9 @@ export default function AIChatAssistant({ isOpen, onClose }) {
         window.addEventListener('keydown', closeOnEscape);
         return () => window.removeEventListener('keydown', closeOnEscape);
     }, [isOpen, onClose, showHistory]);
-    useEffect(() => messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' }), [messages]);
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+    }, [messages]);
 
     const newConversation = useCallback(() => {
         abortRef.current?.abort();
@@ -112,17 +112,16 @@ export default function AIChatAssistant({ isOpen, onClose }) {
         setIsStreaming(true);
         try {
             const conversationId = await ensureConversation();
-            const token = localStorage.getItem('token');
             const controller = new AbortController(); abortRef.current = controller;
-            const response = await fetch(`${BASE_URL}/api/staff/ai/conversations/${conversationId}/messages`, {
+            const response = await authFetch(`/staff/ai/conversations/${conversationId}/messages`, {
                 method: 'POST', signal: controller.signal,
-                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                 body: JSON.stringify({ message: { role: 'user', content }, assistantContext: { currentRoute: location.pathname, currentModule: moduleFromPath(location.pathname) } }),
             });
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
                 throw new Error(data.message || 'The assistant could not respond.');
             }
+            if (!response.body?.getReader) throw new Error('The response stream was unavailable. Please try again.');
             const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
             while (true) {
                 const { done, value: chunk } = await reader.read(); if (done) break;
@@ -131,7 +130,9 @@ export default function AIChatAssistant({ isOpen, onClose }) {
                 for (const line of lines) {
                     if (!line.startsWith('data: ')) continue;
                     const raw = line.slice(6).trim(); if (raw === '[DONE]') continue;
-                    const data = JSON.parse(raw);
+                    let data;
+                    try { data = JSON.parse(raw); } catch { continue; }
+                    if (data.error) throw new Error(data.error);
                     if (data.text) setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, content: item.content + data.text } : item));
                 }
             }
@@ -151,33 +152,46 @@ export default function AIChatAssistant({ isOpen, onClose }) {
     if (!isOpen) return null;
     const pinned = conversations.filter((item) => item.isPinned);
     const recent = conversations.filter((item) => !item.isPinned);
-    return <div className={styles.overlay} role="dialog" aria-modal="false" aria-label="NgitiBot"><section className={styles.panel}>
-        <header className={styles.header}><div className={styles.headerLeft}>
-            <button className={styles.headerIconBtn} onClick={() => setShowHistory(true)} aria-label="Open conversation history"><FaBars /></button>
-            <div className={styles.avatarBubble}><FaRobot className={styles.avatarIcon} /></div><div><h3 className={styles.headerTitle}>NgitiBot</h3><p className={styles.headerSub}>{moduleFromPath(location.pathname)}</p></div>
-        </div><div className={styles.headerActions}><button className={styles.headerIconBtn} onClick={newConversation} aria-label="Start a new conversation"><FaPlus /></button><button className={styles.headerIconBtn} onClick={onClose} aria-label="Minimize NgitiBot"><FaMinus /></button><button className={styles.closeBtn} onClick={onClose} aria-label="Close NgitiBot"><FaTimes /></button></div></header>
-        <div className={styles.messages} ref={messagesRef} onScroll={() => { const el = messagesRef.current; setShowScrollBtn(el ? el.scrollHeight - el.scrollTop - el.clientHeight > 120 : false); }}>
-            {messages.map((message) => <div key={message.id || `${message.role}-${message.createdAt}`} className={`${styles.messageRow} ${message.role === 'user' ? styles.userRow : styles.assistantRow}`}>
-                {message.role === 'assistant' && <div className={styles.assistantAvatar}><FaRobot /></div>}<div className={`${styles.bubble} ${message.role === 'user' ? styles.userBubble : styles.assistantBubble}`}>
-                    {String(message.content || '').split('\n').map((line, index) => <p key={index} className={styles.bubbleLine}>{line || '\u00a0'}</p>)}{message.isStreaming && <span className={styles.cursor}>▌</span>}
-                </div></div>)}<div ref={messagesEndRef} />
-        </div>
-        {showScrollBtn && <button className={styles.scrollToBottomBtn} onClick={() => messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' })} aria-label="Scroll to newest message"><FaChevronDown /></button>}
-        {messages.length === 1 && <div className={styles.quickPrompts}>{suggestions.slice(0, 4).map((prompt) => <button key={prompt} className={styles.quickBtn} onClick={() => sendMessage(prompt)}>{prompt}</button>)}</div>}
-        {error && <div className={styles.errorBanner} role="alert">{error}{lastFailedPrompt && <button type="button" onClick={() => sendMessage(lastFailedPrompt)}>Retry</button>}</div>}
-        <div className={styles.inputArea}><textarea ref={inputRef} className={styles.input} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); } }} placeholder="Message NgitiBot…" rows={1} disabled={isStreaming} aria-label="Message NgitiBot" /><button className={styles.sendBtn} onClick={() => sendMessage()} disabled={!input.trim() || isStreaming} aria-label="Send message"><FaPaperPlane /></button></div>
-        <p className={styles.disclaimer}>Read-only guidance. NgitiFy permissions still apply.</p>
-        {showHistory && <><button className={styles.drawerBackdrop} onClick={() => setShowHistory(false)} aria-label="Close conversation history" /><aside className={styles.historyDrawer} aria-label="Conversation history">
-            <div className={styles.drawerHeader}><strong>Conversations</strong><button onClick={() => setShowHistory(false)} aria-label="Close history"><FaTimes /></button></div>
-            <button className={styles.newChatBtn} onClick={newConversation}><FaPlus /> New chat</button><button className={styles.archiveToggle} onClick={() => { const next = !showArchived; setShowArchived(next); loadList(next); }}><FaArchive /> {showArchived ? 'Back to conversations' : 'Archived'}</button>
-            {isLoadingHistory ? <p className={styles.drawerEmpty}>Loading…</p> : conversations.length === 0 ? <p className={styles.drawerEmpty}>No {showArchived ? 'archived ' : ''}conversations yet.</p> : <>{!!pinned.length && <ConversationGroup title="Pinned" items={pinned} {...{ openConversation, renameConversation, updateConversation, deleteConversation, showArchived }} />}<ConversationGroup title={showArchived ? 'Archived' : 'Recent'} items={recent} {...{ openConversation, renameConversation, updateConversation, deleteConversation, showArchived }} /></>}
-        </aside></>}
-    </section></div>;
+    return <div className={`${styles.patientAiConversationShell} ${styles.patientAiConversationShellFloating}`} role="dialog" aria-modal="false" aria-label="NgitiBot">
+        <aside className={`${styles.patientAiConversationSidebar} ${showHistory ? styles.patientAiConversationSidebarOpen : ''}`} aria-label="Conversation history">
+            <div className={styles.patientAiSidebarHeader}><button type="button" className={styles.patientAiIconButton} onClick={() => setShowHistory(false)} aria-label="Close history"><FaTimes /></button><strong>Conversations</strong><span /></div>
+            <div className={styles.patientAiSidebarNewWrap}><button type="button" className={styles.patientAiNewConversationButton} onClick={newConversation}><FaPlus /> New chat</button></div>
+            <div className={styles.patientAiSavedList}>
+                <button type="button" className={styles.patientAiArchivedLink} onClick={() => { const next = !showArchived; setShowArchived(next); loadList(next); }}><FaArchive /> {showArchived ? 'Back to conversations' : 'Archived'}</button>
+                {isLoadingHistory ? <p className={styles.patientAiSavedEmpty}>Loading…</p> : conversations.length === 0 ? <p className={styles.patientAiSavedEmpty}>No {showArchived ? 'archived ' : ''}conversations yet.</p> : <>{!!pinned.length && <ConversationGroup title="Pinned" items={pinned} {...{ openConversation, renameConversation, updateConversation, deleteConversation, showArchived, activeId }} />}<ConversationGroup title={showArchived ? 'Archived' : 'Recent'} items={recent} {...{ openConversation, renameConversation, updateConversation, deleteConversation, showArchived, activeId }} /></>}
+            </div>
+        </aside>
+        {showHistory ? <button type="button" className={styles.patientAiSidebarBackdrop} onClick={() => setShowHistory(false)} aria-label="Close saved conversations" /> : null}
+        <section className={styles.patientAiConversationMain}>
+            <header className={`${styles.patientAiConversationTopBar} ${styles.patientAiFloatingTopBar}`}>
+                <div className={styles.patientAiTopBarLeft}><button type="button" className={styles.patientAiTopBarIconButton} onClick={() => setShowHistory(true)} aria-label="Open conversation history"><FaBars /></button><div className={styles.patientAiFloatingIdentity}><span className={styles.patientAiFloatingAvatar} aria-hidden="true"><FaRobot /></span><div className={styles.patientAiFloatingTitle}><strong>NgitiBot</strong><span>{moduleFromPath(location.pathname)}</span></div></div></div>
+                <button type="button" className={styles.patientAiInfoButton} onClick={onClose} aria-label="Close NgitiBot" title="Close chat"><FaTimes /></button>
+            </header>
+            <div className={styles.patientAiConversationMessages} aria-live="polite">
+                {messages.map((message) => <div key={message.id || `${message.role}-${message.createdAt}`} className={message.role === 'user' ? styles.patientAiMessageRowUser : styles.patientAiMessageRowAssistant}>
+                    {message.role === 'assistant' ? <div className={styles.patientAiMessageAvatar}><FaRobot /></div> : null}
+                    <div className={message.role === 'user' ? styles.patientAiUserBubble : styles.patientAiAssistantBubble}>
+                        {message.isStreaming && !message.content ? <div className={styles.patientAiTyping}><span /><span /><span /></div> : String(message.content || '').split('\n').map((line, index) => line ? <p key={index}>{line}</p> : <br key={index} />)}
+                    </div>
+                </div>)}
+                {error ? <div className={styles.patientAiChatError} role="alert"><FaExclamationTriangle /><div><strong>NgitiBot response unavailable</strong><p>{error}</p></div>{lastFailedPrompt ? <button type="button" className={styles.patientAiRetryButton} onClick={() => sendMessage(lastFailedPrompt)} disabled={isStreaming}><FaRedoAlt /> Retry</button> : null}</div> : null}
+                <div ref={messagesEndRef} />
+            </div>
+            <div className={styles.patientAiConversationDock}>
+                {messages.length === 1 ? <div className={styles.patientAiConversationPromptRow}>{suggestions.slice(0, 4).map((prompt) => <button type="button" key={prompt} onClick={() => sendMessage(prompt)} disabled={isStreaming}><FaRobot /><span>{prompt}</span></button>)}</div> : null}
+                <form className={styles.patientAiComposer} onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
+                    <label htmlFor="staff-ngitibot-message" className={styles.srOnly}>Message NgitiBot</label>
+                    <textarea id="staff-ngitibot-message" ref={inputRef} className={styles.patientAiTextarea} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); } }} placeholder="Message NgitiBot..." rows={2} maxLength={1500} disabled={isStreaming} />
+                    <button type="submit" className={styles.patientAiSendButton} disabled={!input.trim() || isStreaming} aria-label="Send message"><FaPaperPlane /></button>
+                </form>
+            </div>
+        </section>
+    </div>;
 }
 
-function ConversationGroup({ title, items, openConversation, renameConversation, updateConversation, deleteConversation, showArchived }) {
+function ConversationGroup({ title, items, openConversation, renameConversation, updateConversation, deleteConversation, showArchived, activeId }) {
     if (!items.length) return null;
-    return <div className={styles.conversationGroup}><h4>{title}</h4>{items.map((conversation) => <div className={styles.conversationItem} key={conversation.id}><button className={styles.conversationTitle} onClick={() => openConversation(conversation.id)}><span>{conversation.title}</span><small>{conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}</small></button><div className={styles.conversationActions}>
-        {!showArchived && <button onClick={() => updateConversation(conversation, { isPinned: !conversation.isPinned })} aria-label={conversation.isPinned ? 'Unpin conversation' : 'Pin conversation'}><FaThumbtack /></button>}<button onClick={() => renameConversation(conversation)} aria-label="Rename conversation"><FaEdit /></button><button onClick={() => updateConversation(conversation, { isArchived: !conversation.isArchived })} aria-label={conversation.isArchived ? 'Restore conversation' : 'Archive conversation'}>{conversation.isArchived ? <FaUndo /> : <FaArchive />}</button><button onClick={() => deleteConversation(conversation)} aria-label="Delete conversation"><FaTrash /></button>
-    </div></div>)}</div>;
+    return <div><span className={styles.patientAiSavedSectionLabel}>{title}</span>{items.map((conversation) => <div className={`${styles.patientAiSavedConversation} ${activeId === conversation.id ? styles.patientAiSavedConversationActive : ''}`} key={conversation.id}><button type="button" className={styles.patientAiSavedConversationMain} onClick={() => openConversation(conversation.id)}><FaRobot /><span>{conversation.title}</span></button>
+        {!showArchived ? <button type="button" className={styles.patientAiConversationMenuButton} onClick={() => updateConversation(conversation, { isPinned: !conversation.isPinned })} aria-label={conversation.isPinned ? 'Unpin conversation' : 'Pin conversation'}><FaThumbtack /></button> : null}<button type="button" className={styles.patientAiConversationMenuButton} onClick={() => renameConversation(conversation)} aria-label="Rename conversation"><FaEdit /></button><button type="button" className={styles.patientAiConversationMenuButton} onClick={() => updateConversation(conversation, { isArchived: !conversation.isArchived })} aria-label={conversation.isArchived ? 'Restore conversation' : 'Archive conversation'}>{conversation.isArchived ? <FaUndo /> : <FaArchive />}</button><button type="button" className={styles.patientAiConversationMenuButton} onClick={() => deleteConversation(conversation)} aria-label="Delete conversation"><FaTrash /></button>
+    </div>)}</div>;
 }

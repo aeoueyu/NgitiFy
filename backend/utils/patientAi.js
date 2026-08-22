@@ -139,7 +139,7 @@ const buildPatientAiRadiographContext = (radiographs = []) => (
             type: String(radiograph.label || 'Radiograph').trim(),
             date: radiograph.date || null,
             approvedSummary: String(radiograph.reviewSummary?.approvedText || '').trim(),
-            dentistRecordedFindings: (radiograph.annotations || []).map(toPlainObject).filter((item) => item.findingType || item.note).map((item) => ({
+            dentistRecordedFindings: (radiograph.annotations || []).map(toPlainObject).filter((item) => !['archived', 'deleted'].includes(String(item.status || 'active')) && (item.findingType || item.note)).map((item) => ({
                 toothNumber: String(item.toothNumber || '').trim(),
                 findingType: String(item.findingType || '').trim(),
                 note: String(item.note || '').trim(),
