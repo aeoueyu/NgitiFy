@@ -339,7 +339,10 @@ export default function ManageSecretaries() {
                                 const computedStatus = getAccountLifecycleLabel(secretary);
                                 const isArchivedRecord = statusKey === 'archived';
                                 return (
-                                <tr key={secretary.id} style={{ opacity: statusKey === 'inactive' || isArchivedRecord ? 0.6 : 1 }}>
+                                <tr key={secretary.id} style={{
+                                    opacity: ['inactive', 'needsActivation', 'archived'].includes(statusKey) ? 0.6 : 1,
+                                    backgroundColor: ['inactive', 'needsActivation', 'archived'].includes(statusKey) ? '#f1f5f9' : undefined,
+                                }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>{secretary.name}</span>

@@ -9,6 +9,22 @@ const addDays = (value, days) => {
     return date;
 };
 
+const CLINIC_TIME_ZONE = 'Asia/Manila';
+
+const toDateKeyInTimeZone = (value = new Date(), timeZone = CLINIC_TIME_ZONE) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = Object.fromEntries(
+        new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).formatToParts(date).map((part) => [part.type, part.value])
+    );
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
 const toDateKey = (value = new Date()) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
@@ -19,9 +35,19 @@ const toDateKey = (value = new Date()) => {
 };
 
 const parseDateKey = (value) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim())) return null;
-    const date = new Date(`${value}T12:00:00`);
-    return Number.isNaN(date.getTime()) ? null : date;
+    const normalized = String(value || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
+    const [year, month, day] = normalized.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day, 12));
+    if (
+        Number.isNaN(date.getTime())
+        || date.getUTCFullYear() !== year
+        || date.getUTCMonth() !== month - 1
+        || date.getUTCDate() !== day
+    ) {
+        return null;
+    }
+    return date;
 };
 
 const ORAL_HEALTH_FACTOR_OPTIONS = Object.freeze([
@@ -167,17 +193,17 @@ const normalizeOralHealthFactors = (input = [], existing = []) => {
     });
 };
 
-const normalizeDailyOralHealthLogInput = (body = {}) => {
-    const logDate = parseDateKey(body.logDate || toDateKey(new Date()));
+const normalizeDailyOralHealthLogInput = (body = {}, { now = new Date() } = {}) => {
+    const requestedDateKey = String(body.logDate || toDateKeyInTimeZone(now)).trim();
+    const logDate = parseDateKey(requestedDateKey);
     if (!logDate) {
         const error = new Error('Log date must be a valid YYYY-MM-DD date.');
         error.statusCode = 400;
         throw error;
     }
 
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    if (logDate > today) {
+    const clinicTodayKey = toDateKeyInTimeZone(now);
+    if (requestedDateKey > clinicTodayKey) {
         const error = new Error('Daily oral health logs cannot be dated in the future.');
         error.statusCode = 400;
         throw error;
@@ -244,7 +270,7 @@ const normalizeDailyOralHealthLogInput = (body = {}) => {
 
     return {
         logDate,
-        logDateKey: toDateKey(logDate),
+        logDateKey: requestedDateKey,
         symptoms,
         dailyCare,
         riskFactors,

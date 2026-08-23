@@ -88,6 +88,19 @@ const canReadPatientClinicalRecord = ({ actorRole, actorId, patientId }) => (
     || (actorRole === 'patient' && isSameId(actorId, patientId))
 );
 
+const DENTAL_IMAGING_READ_ROLES = Object.freeze([
+    'administrator',
+    'owner',
+    'branch-manager',
+    'secretary',
+    'dentist',
+]);
+
+const canReadPatientDentalImaging = ({ actorRole, actorId, patientId }) => (
+    DENTAL_IMAGING_READ_ROLES.includes(String(actorRole || '').trim().toLowerCase())
+    || (actorRole === 'patient' && isSameId(actorId, patientId))
+);
+
 const canWritePatientClinicalRecord = (actorRole) => actorRole === 'dentist';
 
 const getRestrictedClinicalUpdateFields = (payload = {}) => (
@@ -167,6 +180,7 @@ module.exports = {
     canPatientCancelAppointment,
     canPatientRescheduleAppointment,
     canReadPatientClinicalRecord,
+    canReadPatientDentalImaging,
     canWritePatientClinicalRecord,
     canApproveRadiographSummary,
     getAllowedStaffAccountUpdateFields,

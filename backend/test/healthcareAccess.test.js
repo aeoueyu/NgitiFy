@@ -7,6 +7,7 @@ const {
     canPatientRescheduleAppointment,
     canApproveRadiographSummary,
     canReadPatientClinicalRecord,
+    canReadPatientDentalImaging,
     canWritePatientClinicalRecord,
     getDisallowedStaffAccountUpdateFields,
     getRestrictedClinicalUpdateFields,
@@ -24,6 +25,41 @@ test('patient clinical access is self-only and clinical writes are dentist-only'
     assert.equal(canReadPatientClinicalRecord({ actorRole: 'owner', actorId: 'o1', patientId: 'p1' }), false);
     assert.equal(canWritePatientClinicalRecord('dentist'), true);
     assert.equal(canWritePatientClinicalRecord('administrator'), false);
+});
+
+test('all staff roles can view odontograms and radiographs while patients remain self-only', () => {
+    for (const actorRole of ['administrator', 'owner', 'branch-manager', 'secretary', 'dentist']) {
+        assert.equal(
+            canReadPatientDentalImaging({ actorRole, actorId: `${actorRole}-1`, patientId: 'patient-1' }),
+            true
+        );
+    }
+    assert.equal(canReadPatientDentalImaging({ actorRole: 'patient', actorId: 'patient-1', patientId: 'patient-1' }), true);
+    assert.equal(canReadPatientDentalImaging({ actorRole: 'patient', actorId: 'patient-1', patientId: 'patient-2' }), false);
+    assert.equal(canReadPatientDentalImaging({ actorRole: 'unknown', actorId: 'u1', patientId: 'patient-1' }), false);
+});
+
+test('odontogram and radiograph read routes use the staff imaging permission', () => {
+    for (const routeMarker of [
+        "app.get('/api/patients/:id/odontogram'",
+        "app.get('/api/patients/:id/odontogram-logs'",
+        "app.get('/api/patients/:id/radiographs'",
+    ]) {
+        const routeStart = serverSource.indexOf(routeMarker);
+        const nextRoute = serverSource.indexOf('\napp.', routeStart + routeMarker.length);
+        const route = serverSource.slice(routeStart, nextRoute);
+
+        assert.notEqual(routeStart, -1, `Missing route: ${routeMarker}`);
+        assert.match(route, /canReadPatientDentalImaging/);
+    }
+
+    const patientEmr = fs.readFileSync(
+        path.join(__dirname, '..', '..', 'ngitify-web', 'src', 'pages', 'admin', 'PatientEMR.js'),
+        'utf8'
+    );
+    assert.match(patientEmr, /const canEditOdontogram = effectiveRole === 'dentist'/);
+    assert.match(patientEmr, /const canUploadRadiograph = effectiveRole === 'dentist'/);
+    assert.match(patientEmr, /const canDeleteRadiograph = effectiveRole === 'dentist'/);
 });
 
 test('operational viewers receive no clinical fields or account recovery secrets', () => {

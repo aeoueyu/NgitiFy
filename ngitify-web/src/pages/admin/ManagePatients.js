@@ -17,27 +17,12 @@ import PrintReportPreviewModal from '../../components/common/PrintReportPreviewM
 import { useToast } from '../../context/ToastContext';
 import {
     getAccessRecoveryLabel,
+    getAccountLifecycleKey as getPatientLifecycleKey,
+    getAccountLifecycleLabel as getPatientLifecycleLabel,
     hasExpiredTemporaryPassword,
+    matchesAccountLifecycleFilter as matchesPatientLifecycleFilter,
     shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
-
-const PATIENT_LIFECYCLE = {
-    active: 'Active',
-    inactive: 'Inactive',
-    archived: 'Archived',
-    all: 'All',
-};
-
-const getPatientLifecycleKey = (patient = {}) => {
-    if (patient.isArchived) return 'archived';
-    return patient.rawStatus === 'active' ? 'active' : 'inactive';
-};
-
-const getPatientLifecycleLabel = (patient = {}) => PATIENT_LIFECYCLE[getPatientLifecycleKey(patient)] || 'Inactive';
-
-const matchesPatientLifecycleFilter = (patient = {}, filter = 'all') => (
-    filter === 'all' || getPatientLifecycleKey(patient) === filter
-);
 
 const hasPendingPreRegistration = (patient = {}) => Boolean(patient.pendingPreRegistration?.appointmentId);
 
@@ -206,6 +191,7 @@ export default function ManagePatients() {
 
     const statusFilterLabel = {
         active: 'Active',
+        needsActivation: 'Needs Activation',
         inactive: 'Inactive',
         archived: 'Archived',
         all: 'All',
@@ -427,6 +413,10 @@ export default function ManagePatients() {
     }, [branchTransferState.patient?.id, branchTransferState.targetBranch]);
 
     const openBranchTransferModal = (patient) => {
+        if (getPatientLifecycleKey(patient) !== 'active') {
+            addToast('Activate this patient account before transferring branches.', 'error');
+            return;
+        }
         setBranchTransferState({
             patient,
             preview: null,
@@ -453,6 +443,12 @@ export default function ManagePatients() {
     const handleSubmitBranchTransfer = async () => {
         const patient = branchTransferState.patient;
         if (!patient) return;
+
+        if (getPatientLifecycleKey(patient) !== 'active') {
+            addToast('Activate this patient account before transferring branches.', 'error');
+            closeBranchTransferModal();
+            return;
+        }
 
         if (!branchTransferState.targetBranch) {
             addToast('Please select the target branch.', 'error');
@@ -612,6 +608,7 @@ export default function ManagePatients() {
 
                     <div className={styles.pillGroup}>
                         <button className={`${styles.filterPill} ${statusFilter === 'active' ? styles.activePill : ''}`} onClick={() => setStatusFilter('active')}>Active</button>
+                        <button className={`${styles.filterPill} ${statusFilter === 'needsActivation' ? styles.activePill : ''}`} onClick={() => setStatusFilter('needsActivation')}>Needs Activation</button>
                         <button className={`${styles.filterPill} ${statusFilter === 'inactive' ? styles.activePill : ''}`} onClick={() => setStatusFilter('inactive')}>Inactive</button>
                         <button className={`${styles.filterPill} ${statusFilter === 'archived' ? styles.activePill : ''}`} onClick={() => setStatusFilter('archived')}>Archived</button>
                         <button className={`${styles.filterPill} ${statusFilter === 'all' ? styles.activePill : ''}`} onClick={() => setStatusFilter('all')}>All</button>
@@ -668,8 +665,12 @@ export default function ManagePatients() {
                                 const statusKey = getPatientLifecycleKey(patient);
                                 const computedStatus = getPatientLifecycleLabel(patient);
                                 const isArchivedRecord = statusKey === 'archived';
+                                const isBranchTransferDisabled = statusKey !== 'active';
                                 return (
-                                <tr key={patient.id} style={{ opacity: statusKey === 'inactive' || isArchivedRecord ? 0.6 : 1 }}>
+                                <tr key={patient.id} style={{
+                                    opacity: ['inactive', 'needsActivation', 'archived'].includes(statusKey) ? 0.6 : 1,
+                                    backgroundColor: ['inactive', 'needsActivation', 'archived'].includes(statusKey) ? '#f1f5f9' : undefined,
+                                }}>
                                     <td className={tblStyles.wrapCell}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span className={styles.fwBold}>{patient.name}</span>
@@ -699,7 +700,7 @@ export default function ManagePatients() {
                                         </div>
                                     </td>
                                     <td>
-                                        <span className={`${tblStyles.statusBadge} ${statusKey === 'active' ? tblStyles.statusGreen : statusKey === 'archived' ? tblStyles.statusGray : tblStyles.statusRed}`}>
+                                        <span className={`${tblStyles.statusBadge} ${statusKey === 'active' ? tblStyles.statusGreen : statusKey === 'needsActivation' ? tblStyles.statusAmber : statusKey === 'archived' ? tblStyles.statusGray : tblStyles.statusRed}`}>
                                             {computedStatus}
                                         </span>
                                     </td>
@@ -724,8 +725,12 @@ export default function ManagePatients() {
                                                                     type="button"
                                                                     className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.transferIconButton}`}
                                                                     onClick={() => openBranchTransferModal(patient)}
-                                                                    title={isArchivedRecord ? 'Restore before transferring branches' : 'Transfer Branch'}
-                                                                    disabled={isArchivedRecord}
+                                                                    title={isArchivedRecord
+                                                                        ? 'Restore before transferring branches'
+                                                                        : isBranchTransferDisabled
+                                                                            ? 'Activate account before transferring branches'
+                                                                            : 'Transfer Branch'}
+                                                                    disabled={isBranchTransferDisabled}
                                                                 >
                                                                     <FaExchangeAlt />
                                                                 </button>

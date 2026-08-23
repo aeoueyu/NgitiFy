@@ -44,6 +44,41 @@ test('normalizes a daily oral health log payload', () => {
     assert.equal(normalized.notes, 'Cold drink sensitivity.');
 });
 
+test('accepts the Manila calendar date while the server is still on the previous UTC date', () => {
+    const now = new Date('2026-08-23T16:30:00.000Z');
+    const normalized = normalizeDailyOralHealthLogInput({
+        logDate: '2026-08-24',
+        symptoms: ['no-symptoms'],
+        dailyCare: ['brushed-am'],
+    }, { now });
+
+    assert.equal(normalized.logDateKey, '2026-08-24');
+});
+
+test('still rejects a date after the current Manila calendar date', () => {
+    const now = new Date('2026-08-23T16:30:00.000Z');
+
+    assert.throws(
+        () => normalizeDailyOralHealthLogInput({
+            logDate: '2026-08-25',
+            symptoms: ['no-symptoms'],
+            dailyCare: ['brushed-am'],
+        }, { now }),
+        /cannot be dated in the future/
+    );
+});
+
+test('rejects impossible calendar dates instead of rolling them forward', () => {
+    assert.throws(
+        () => normalizeDailyOralHealthLogInput({
+            logDate: '2026-02-31',
+            symptoms: ['no-symptoms'],
+            dailyCare: ['brushed-am'],
+        }),
+        /valid YYYY-MM-DD date/
+    );
+});
+
 test('rejects No Symptoms combined with actual symptoms', () => {
     assert.throws(
         () => normalizeDailyOralHealthLogInput({

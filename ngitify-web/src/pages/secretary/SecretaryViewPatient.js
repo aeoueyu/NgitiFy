@@ -7,6 +7,7 @@ import { regions, provinces, cities } from '../../utils/addressData';
 import { FaArrowLeft, FaEdit, FaFileMedical } from 'react-icons/fa';
 import UserAvatar from '../../components/common/UserAvatar';
 import { getHomeAddress } from '../../utils/addressHelpers';
+import { getAccountLifecycleKey, getAccountLifecycleLabel } from '../../utils/accountStatus';
 
 export default function SecretaryViewPatient() {
     const { patientId } = useParams();
@@ -62,6 +63,8 @@ export default function SecretaryViewPatient() {
     const birthRaw = patient.birthdate || patient.dob || patient.dateOfBirth;
     const age      = getAge(birthRaw);
     const isMinor  = age !== null && age < 18;
+    const accountLifecycleKey = getAccountLifecycleKey(patient);
+    const accountLifecycleLabel = getAccountLifecycleLabel(patient);
 
     return (
         <div className={styles.page}>
@@ -110,8 +113,8 @@ export default function SecretaryViewPatient() {
                     <InfoBox label="Age"    value={age !== null ? `${age} years old` : 'Unknown'} />
                     <InfoBox label="Gender" value={patient.gender || 'Not provided'} />
                     <InfoBox label="Account Status"
-                        value={patient.status === 'active' ? 'Active' : 'Inactive'}
-                        highlight={patient.status === 'active' ? 'green' : 'red'} />
+                        value={accountLifecycleLabel}
+                        highlight={accountLifecycleKey === 'active' ? 'green' : 'red'} />
                 </div>
 
                 {/* Guardian */}

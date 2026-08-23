@@ -3,15 +3,10 @@ import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/StaffModals.module.css';
 import { regions, provinces, cities } from '../../utils/addressData';
 import BackIcon from '../../assets/icons/Back.svg';
-import { getAccessRecoveryLabel, hasExpiredTemporaryPassword, shouldShowAccessRecovery } from '../../utils/accountStatus';
+import { getAccessRecoveryLabel, getAccountLifecycleLabel, hasExpiredTemporaryPassword, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import { getHomeAddress } from '../../utils/addressHelpers';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
 import ResendEmailButton from '../../components/common/ResendEmailButton';
-
-const getPatientLifecycleLabel = (patient = {}) => {
-    if (patient?.isArchived) return 'Archived';
-    return patient?.status === 'active' ? 'Active' : 'Inactive';
-};
 
 const formatDateLong = (value) => {
     if (!value) return 'Not provided';
@@ -88,7 +83,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
     const age = getAge(birthRaw);
     const isMinor = age !== null && age < 18;
     const bloodType = patient?.bloodType || patient?.medicalHistory?.bloodType || 'Not provided';
-    const accountLifecycleLabel = getPatientLifecycleLabel(patient);
+    const accountLifecycleLabel = getAccountLifecycleLabel(patient);
     const assignedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || 'Not assigned';
     const recoveryLabel = hasPendingPreRegistration(patient)
         ? 'Resend Pre-registration Link'

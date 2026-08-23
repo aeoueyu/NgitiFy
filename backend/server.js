@@ -56,6 +56,7 @@ const {
     canPatientCancelAppointment,
     canPatientRescheduleAppointment,
     canReadPatientClinicalRecord,
+    canReadPatientDentalImaging,
     canWritePatientClinicalRecord,
     getDisallowedStaffAccountUpdateFields,
     getRestrictedClinicalUpdateFields,
@@ -2339,6 +2340,12 @@ const canManagePatientLifecycle = ({ actor, patient }) => {
     return { allowed: false, message: 'Access denied.' };
 };
 
+const INACTIVE_PATIENT_TRANSFER_MESSAGE = 'Activate this patient account before transferring branches. Inactive patient accounts cannot be transferred.';
+const isPatientAccountActive = (patient) => (
+    String(patient?.status || '').trim().toLowerCase() === 'active'
+    && patient?.isArchived !== true
+);
+
 const canTransferPatientBranch = ({ actor, patient }) => {
     const lifecyclePermission = canManagePatientLifecycle({ actor, patient });
     if (!lifecyclePermission.allowed) {
@@ -2347,6 +2354,10 @@ const canTransferPatientBranch = ({ actor, patient }) => {
 
     if (!['administrator', 'owner', 'branch-manager', 'secretary'].includes(actor.role)) {
         return { allowed: false, message: 'Access denied.' };
+    }
+
+    if (!isPatientAccountActive(patient)) {
+        return { allowed: false, message: INACTIVE_PATIENT_TRANSFER_MESSAGE };
     }
 
     return { allowed: true };
@@ -2688,6 +2699,10 @@ const collectPatientBranchTransferImpact = async ({ patient, targetBranch = '' }
 
     const blockers = [];
     const warnings = [];
+
+    if (!isPatientAccountActive(patient)) {
+        blockers.push(INACTIVE_PATIENT_TRANSFER_MESSAGE);
+    }
 
     if (!currentBranch) {
         blockers.push('This patient does not have a current assigned branch yet. Fix the patient branch assignment first before transferring.');
@@ -6165,12 +6180,15 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
 app.get('/api/patients/:id/branch-transfer-preview', verifyToken, async (req, res) => {
     try {
         const patient = await User.findById(req.params.id)
-            .select('name email role assignedBranch assignedBranches treatmentLogs radiographs odontogram isArchived');
+            .select('name email role status assignedBranch assignedBranches treatmentLogs radiographs odontogram isArchived');
         if (!patient || patient.role !== 'patient') {
             return res.status(404).json({ message: 'Patient not found.' });
         }
         if (patient.isArchived) {
             return res.status(409).json({ message: 'Restore this archived patient before transferring branches.' });
+        }
+        if (!isPatientAccountActive(patient)) {
+            return res.status(409).json({ message: INACTIVE_PATIENT_TRANSFER_MESSAGE });
         }
 
         const permission = canTransferPatientBranch({ actor: req.user, patient });
@@ -6192,12 +6210,15 @@ app.get('/api/patients/:id/branch-transfer-preview', verifyToken, async (req, re
 app.put('/api/patients/:id/transfer-branch', verifyToken, async (req, res) => {
     try {
         const patient = await User.findById(req.params.id)
-            .select('name email role assignedBranch assignedBranches treatmentLogs radiographs odontogram isArchived');
+            .select('name email role status assignedBranch assignedBranches treatmentLogs radiographs odontogram isArchived');
         if (!patient || patient.role !== 'patient') {
             return res.status(404).json({ message: 'Patient not found.' });
         }
         if (patient.isArchived) {
             return res.status(409).json({ message: 'Restore this archived patient before transferring branches.' });
+        }
+        if (!isPatientAccountActive(patient)) {
+            return res.status(409).json({ message: INACTIVE_PATIENT_TRANSFER_MESSAGE });
         }
 
         const permission = canTransferPatientBranch({ actor: req.user, patient });
@@ -10794,7 +10815,7 @@ const serializeOdontogramMap = (odontogramMap) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
-    if (!canReadPatientClinicalRecord({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
+    if (!canReadPatientDentalImaging({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -10829,7 +10850,7 @@ app.get('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients/:id/odontogram-logs', verifyToken, async (req, res) => {
-    if (!canReadPatientClinicalRecord({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
+    if (!canReadPatientDentalImaging({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -10954,7 +10975,7 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
-    if (!canReadPatientClinicalRecord({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
+    if (!canReadPatientDentalImaging({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {

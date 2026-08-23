@@ -9,7 +9,8 @@ export const ACCOUNT_LIFECYCLE = {
 export const getAccountLifecycleKey = (account = {}) => {
     if (account.isArchived) return 'archived';
     if (!account.isVerified) return 'needsActivation';
-    return account.rawStatus === 'active' ? 'active' : 'inactive';
+    const status = account.rawStatus ?? account.status;
+    return status === 'active' ? 'active' : 'inactive';
 };
 
 export const getAccountLifecycleLabel = (account = {}) => ACCOUNT_LIFECYCLE[getAccountLifecycleKey(account)];
