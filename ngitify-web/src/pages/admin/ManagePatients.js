@@ -12,6 +12,7 @@ import { downloadCsvFile } from '../../utils/exportHelpers';
 import AddPatient from './AddPatient';
 import EditPatient from './EditPatient';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
 import { useToast } from '../../context/ToastContext';
 import {
@@ -688,13 +689,12 @@ export default function ManagePatients() {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{patient.email}</span>
                                             {(hasPendingPreRegistration(patient) || shouldShowAccessRecovery(patient)) && !isArchivedRecord && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRecoverAccess(patient)}
+                                                <ResendEmailButton
+                                                    cooldownKey={`patient:${patient.id}`}
+                                                    onResend={() => handleRecoverAccess(patient)}
+                                                    label={getPatientRecoveryLabel(patient)}
                                                     style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
-                                                >
-                                                    {getPatientRecoveryLabel(patient)}
-                                                </button>
+                                                />
                                             )}
                                         </div>
                                     </td>

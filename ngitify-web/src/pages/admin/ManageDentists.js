@@ -11,6 +11,7 @@ import AddDentist from './AddDentist';
 import EditDentist from './EditDentist';
 import ViewDentist from './ViewDentist';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccessRecoveryLabel,
@@ -358,13 +359,12 @@ export default function ManageDentists() {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{dentist.email}</span>
                                             {shouldShowAccessRecovery(dentist) && !isArchivedRecord && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRecoverAccess(dentist)}
+                                                <ResendEmailButton
+                                                    cooldownKey={`dentist:${dentist.id}`}
+                                                    onResend={() => handleRecoverAccess(dentist)}
+                                                    label={getAccessRecoveryLabel(dentist)}
                                                     style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
-                                                >
-                                                    {getAccessRecoveryLabel(dentist)}
-                                                </button>
+                                                />
                                             )}
                                         </div>
                                     </td>

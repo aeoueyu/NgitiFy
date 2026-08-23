@@ -6,6 +6,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import {
     FaArchive,
     FaBell,
+    FaBook,
     FaBoxes,
     FaCalendarAlt,
     FaChevronRight,
@@ -30,6 +31,7 @@ import AIChatAssistant from '../common/AIChatAssistant';
 import NgitiBotFloatingChat from '../common/NgitiBotFloatingChat';
 
 const PROFILE_REFRESH_EVENT = 'ngitify-profile-updated';
+const NOTIFICATIONS_UPDATED_EVENT = 'ngitify-notifications-updated';
 
 export default function Sidebar() {
     const { logout, user } = useAuth();
@@ -99,10 +101,12 @@ export default function Sidebar() {
         };
         const interval = setInterval(fetchNotifCount, 60000);
         window.addEventListener('focus', handleFocus);
+        window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, fetchNotifCount);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => {
             clearInterval(interval);
             window.removeEventListener('focus', handleFocus);
+            window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, fetchNotifCount);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, [isAdmin, isBranchManager, isOwner, isSecretary, isDentistUser, isPatient]);
@@ -297,6 +301,7 @@ export default function Sidebar() {
                             {sectionLabel('Care')}
                             {navItem('/patient/records', FaNotesMedical, 'Electronic Medical Record')}
                             {navItem('/patient/oral-care', FaTooth, 'Oral Health Management')}
+                            {navItem('/patient/dental-health-education', FaBook, 'Dental Health Education')}
                             {sectionLabel('Updates')}
                             {navItem('/patient/notifications', FaBell, 'Notifications', notifBadge)}
                         </>

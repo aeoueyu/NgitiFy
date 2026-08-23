@@ -29,9 +29,10 @@ export default function AppointmentNotifications() {
         try {
             const res = await authFetch(`/notifications/${id}/read`, { method: 'PATCH' });
             if (res.ok) {
-                setNotifications(notifications.map(n => 
+                setNotifications((current) => current.map(n =>
                     n._id === id ? { ...n, isRead: true } : n
                 ));
+                window.dispatchEvent(new Event('ngitify-notifications-updated'));
             }
         } catch (error) {
             console.error('Error marking as read:', error);
@@ -42,7 +43,8 @@ export default function AppointmentNotifications() {
         try {
             const res = await authFetch('/notifications/read-all', { method: 'PATCH' });
             if (res.ok) {
-                setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+                setNotifications((current) => current.map(n => ({ ...n, isRead: true })));
+                window.dispatchEvent(new Event('ngitify-notifications-updated'));
             }
         } catch (error) {
             console.error('Error marking all as read:', error);
@@ -68,6 +70,17 @@ export default function AppointmentNotifications() {
                         <div 
                             key={notif._id} 
                             className={`${styles.notificationCard} ${!notif.isRead ? styles.unread : ''}`}
+                            onClick={() => {
+                                if (!notif.isRead) markAsRead(notif._id);
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                                if ((event.key === 'Enter' || event.key === ' ') && !notif.isRead) {
+                                    event.preventDefault();
+                                    markAsRead(notif._id);
+                                }
+                            }}
                         >
                             <div className={styles.content}>
                                 <h4>{notif.title}</h4>
@@ -75,7 +88,10 @@ export default function AppointmentNotifications() {
                                 <small>{new Date(notif.createdAt).toLocaleString()}</small>
                             </div>
                             {!notif.isRead && (
-                                <button className={styles.readBtn} onClick={() => markAsRead(notif._id)}>
+                                <button className={styles.readBtn} onClick={(event) => {
+                                    event.stopPropagation();
+                                    markAsRead(notif._id);
+                                }}>
                                     Mark Read
                                 </button>
                             )}

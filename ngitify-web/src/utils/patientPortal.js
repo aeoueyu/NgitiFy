@@ -251,13 +251,16 @@ export const getNotificationTarget = (type = '') => {
         return '/patient/ai-companion';
     }
 
+    if (normalizedType === 'DENTAL_HEALTH_TIP') {
+        return '/patient/dental-health-education';
+    }
+
     if (
         [
             'PREDICTIVE_VISIT_DUE',
             'PREDICTIVE_VISIT_OVERDUE',
             'ORAL_HEALTH_DAILY_REMINDER',
             'ORAL_HEALTH_SYMPTOM_FOLLOW_UP',
-            'DENTAL_HEALTH_TIP',
         ].includes(normalizedType)
     ) {
         return '/patient/oral-care';

@@ -9,6 +9,7 @@ import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
 import { getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 
 export default function ViewSecretary({ secretaryId, onClose, onEdit, onRecoverAccess }) {
     const [secretary, setSecretary] = useState(null);
@@ -38,6 +39,7 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit, onRecoverA
         if (updatedAccount) {
             setSecretary((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
         }
+        return updatedAccount;
     };
 
     return (
@@ -103,9 +105,10 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit, onRecoverA
 
                         {shouldShowAccessRecovery(secretary) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
-                                <button
-                                    type="button"
-                                    onClick={handleRecoverAccessClick}
+                                <ResendEmailButton
+                                    cooldownKey={`secretary:${secretaryId}`}
+                                    onResend={handleRecoverAccessClick}
+                                    label={getAccessRecoveryLabel(secretary)}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -115,9 +118,7 @@ export default function ViewSecretary({ secretaryId, onClose, onEdit, onRecoverA
                                         fontWeight: 700,
                                         cursor: 'pointer',
                                     }}
-                                >
-                                    {getAccessRecoveryLabel(secretary)}
-                                </button>
+                                />
                             </div>
                         )}
 

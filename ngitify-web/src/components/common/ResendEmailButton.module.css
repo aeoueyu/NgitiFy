@@ -1,0 +1,29 @@
+.button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.button:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.62;
+}
+
+.spinner {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 12px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: resendEmailSpin 0.7s linear infinite;
+}
+
+.timer {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes resendEmailSpin {
+    to { transform: rotate(360deg); }
+}

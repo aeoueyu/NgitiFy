@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet,
     FlatList, RefreshControl, ActivityIndicator,
-    StatusBar,
+    StatusBar, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -265,7 +265,10 @@ export default function NotificationsScreen({ navigation }) {
                     throw new Error('Failed to mark notification as read.');
                 }
             } catch {
-                // non-critical — local state already updated
+                setNotifications(prev =>
+                    prev.map(n => n._id === item._id ? { ...n, isRead: false } : n)
+                );
+                Alert.alert('Update failed', 'The notification could not be marked as read. Please try again.');
             }
         }
 
@@ -287,12 +290,16 @@ export default function NotificationsScreen({ navigation }) {
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
 
         try {
-            await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
+            const response = await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
                 method:  'PATCH',
                 headers: { Authorization: `Bearer ${userToken}` },
             });
+            if (!response.ok) {
+                throw new Error('Failed to mark all notifications as read.');
+            }
         } catch {
-            // non-critical
+            await fetchNotifications();
+            Alert.alert('Update failed', 'Notifications could not be marked as read. Please try again.');
         } finally {
             setMarkingAll(false);
         }

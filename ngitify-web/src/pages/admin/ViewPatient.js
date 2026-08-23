@@ -6,6 +6,7 @@ import BackIcon from '../../assets/icons/Back.svg';
 import { getAccessRecoveryLabel, hasExpiredTemporaryPassword, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import { getHomeAddress } from '../../utils/addressHelpers';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 
 const getPatientLifecycleLabel = (patient = {}) => {
     if (patient?.isArchived) return 'Archived';
@@ -106,6 +107,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
         if (updatedAccount) {
             setPatient((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
         }
+        return updatedAccount;
     };
 
     return (
@@ -149,9 +151,10 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                         <LifecycleHistoryPanel account={patient} entityLabel="patient account" />
                         {(hasPendingPreRegistration(patient) || shouldShowAccessRecovery(patient)) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
-                                <button
-                                    type="button"
-                                    onClick={handleRecoverAccessClick}
+                                <ResendEmailButton
+                                    cooldownKey={`patient:${patientId}`}
+                                    onResend={handleRecoverAccessClick}
+                                    label={recoveryLabel}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -161,9 +164,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                                         fontWeight: 700,
                                         cursor: 'pointer',
                                     }}
-                                >
-                                    {recoveryLabel}
-                                </button>
+                                />
                             </div>
                         )}
 

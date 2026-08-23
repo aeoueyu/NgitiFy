@@ -4043,10 +4043,46 @@ const buildNotificationAudienceQuery = (user = null) => {
 
     return {
         $or: [
-            { recipientRole: user.role },
-            { recipientId: user.id }
+            // A direct recipient always takes precedence over a role. Without
+            // the recipientId:null guard, a dentist-targeted notification is
+            // visible to every dentist.
+            { recipientId: user.id },
+            { recipientRole: normalizedRole, recipientId: null }
         ]
     };
+};
+
+const notificationHasDirectRecipient = (notification = null) => Boolean(
+    notification?.recipientId
+);
+
+const canUserAccessNotification = (user = null, notification = null) => {
+    if (!user?.id || !user?.role || !notification) return false;
+
+    if (notificationHasDirectRecipient(notification)) {
+        return notification.recipientId.toString() === String(user.id);
+    }
+
+    return String(notification.recipientRole || '').trim().toLowerCase()
+        === String(user.role || '').trim().toLowerCase();
+};
+
+const serializeNotificationForUser = (notification, userId) => {
+    const isLegacyRoleWideRead = Boolean(
+        notification?.toObject
+        && notification.$isDefault?.('readBy')
+        && notification.isRead
+    );
+    const value = notification.toObject ? notification.toObject() : { ...notification };
+
+    if (!notificationHasDirectRecipient(value)) {
+        value.isRead = isLegacyRoleWideRead || (value.readBy || []).some(
+            (readerId) => readerId.toString() === String(userId)
+        );
+    }
+
+    delete value.readBy;
+    return value;
 };
 
 const createBranchScopedNotifications = async ({ type, title, message, branch, relatedId, includeOwners = false }) => {
@@ -12446,7 +12482,8 @@ app.get('/api/notifications', verifyToken, async (req, res) => {
 
         const notifications = rawNotifications
             .filter((notification) => isNotificationVisibleToUser(currentUser, notification))
-            .slice(0, 50);
+            .slice(0, 50)
+            .map((notification) => serializeNotificationForUser(notification, req.user.id));
 
         res.json(notifications);
     } catch (error) {
@@ -12463,13 +12500,29 @@ app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Invalid notification audience.' });
         }
 
-        await Notification.updateMany(
-            {
-                ...notificationQuery,
-                isRead: false
-            },
-            { $set: { isRead: true } }
-        );
+        const normalizedRole = String(req.user.role || '').trim().toLowerCase();
+        const updates = [
+            Notification.updateMany(
+                {
+                    recipientId: req.user.id,
+                    isRead: false,
+                },
+                { $set: { isRead: true } }
+            ),
+        ];
+
+        if (normalizedRole !== 'patient') {
+            updates.push(Notification.updateMany(
+                {
+                    recipientRole: normalizedRole,
+                    recipientId: null,
+                    readBy: { $ne: req.user.id },
+                },
+                { $addToSet: { readBy: req.user.id } }
+            ));
+        }
+
+        await Promise.all(updates);
         res.json({ message: "All notifications marked as read." });
     } catch (error) {
         console.error('Error marking all notifications read:', error);
@@ -12485,19 +12538,17 @@ app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Notification not found.' });
         }
 
-        const recipientId = notification.recipientId?.toString?.();
-        const roleMatches = notification.recipientRole === req.user.role;
-        const userMatches = recipientId === req.user.id;
-        if (recipientId && !userMatches) {
-            return res.status(403).json({ message: 'Access denied.' });
-        }
-        if (notification.recipientRole && !roleMatches) {
+        if (!canUserAccessNotification(req.user, notification)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
-        notification.isRead = true;
+        if (notificationHasDirectRecipient(notification)) {
+            notification.isRead = true;
+        } else {
+            notification.readBy.addToSet(req.user.id);
+        }
         await notification.save();
-        res.json(notification);
+        res.json(serializeNotificationForUser(notification, req.user.id));
     } catch (error) {
         console.error('Error marking notification read:', error);
         res.status(500).json({ message: "Server error." });
@@ -12511,19 +12562,20 @@ app.patch('/api/notifications/:id/unread', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Notification not found.' });
         }
 
-        const recipientId = notification.recipientId?.toString?.();
-        const roleMatches = notification.recipientRole === req.user.role;
-        const userMatches = recipientId === req.user.id;
-        if (recipientId && !userMatches) {
-            return res.status(403).json({ message: 'Access denied.' });
-        }
-        if (notification.recipientRole && !roleMatches) {
+        if (!canUserAccessNotification(req.user, notification)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
-        notification.isRead = false;
+        if (notificationHasDirectRecipient(notification)) {
+            notification.isRead = false;
+        } else {
+            // Also clear the legacy shared flag so an old role-wide record can
+            // be explicitly marked unread after the per-user migration.
+            notification.isRead = false;
+            notification.readBy.pull(req.user.id);
+        }
         await notification.save();
-        res.json(notification);
+        res.json(serializeNotificationForUser(notification, req.user.id));
     } catch (error) {
         console.error('Error marking notification unread:', error);
         res.status(500).json({ message: "Server error." });

@@ -39,6 +39,7 @@ const RANGE_OPTIONS = [
 const PAGE_SIZE = 20;
 
 const MANILA_TIME_ZONE = 'Asia/Manila';
+const NOTIFICATIONS_UPDATED_EVENT = 'ngitify-notifications-updated';
 
 const getDateKeyInManila = (value = new Date()) => Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
@@ -171,6 +172,7 @@ export default function NotificationsCenter() {
             setSelectedNotification((prev) => (
                 prev?._id === id ? { ...prev, isRead: true } : prev
             ));
+            window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT));
         } catch {
             addToast('Failed to mark the notification as read.', 'error');
         }
@@ -196,6 +198,10 @@ export default function NotificationsCenter() {
             const response = await authFetch('/notifications/read-all', { method: 'PATCH' });
             if (!response.ok) throw new Error();
             setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+            setSelectedNotification((prev) => (
+                prev ? { ...prev, isRead: true } : prev
+            ));
+            window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT));
             addToast('All notifications marked as read.', 'success');
         } catch {
             addToast('Failed to mark all notifications as read.', 'error');

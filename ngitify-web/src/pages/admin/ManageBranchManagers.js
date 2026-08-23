@@ -8,6 +8,7 @@ import AddBranchManager from './AddBranchManager';
 import ViewBranchManager from './ViewBranchManager';
 import UserTabs from './UserTabs';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccessRecoveryLabel,
@@ -348,13 +349,12 @@ const ManageBranchManagers = () => {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{manager.email}</span>
                                             {shouldShowAccessRecovery(manager) && !isArchivedRecord && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRecoverAccess(manager)}
+                                                <ResendEmailButton
+                                                    cooldownKey={`branch-manager:${manager.id}`}
+                                                    onResend={() => handleRecoverAccess(manager)}
+                                                    label={getAccessRecoveryLabel(manager)}
                                                     style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
-                                                >
-                                                    {getAccessRecoveryLabel(manager)}
-                                                </button>
+                                                />
                                             )}
                                         </div>
                                     </td>

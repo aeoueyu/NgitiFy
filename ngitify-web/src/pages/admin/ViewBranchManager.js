@@ -7,6 +7,7 @@ import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
 import { getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 
 export default function ViewBranchManager({ managerId, onClose, onEdit, onRecoverAccess }) {
     const [manager, setManager] = useState(null);
@@ -37,6 +38,7 @@ export default function ViewBranchManager({ managerId, onClose, onEdit, onRecove
         if (updatedAccount) {
             setManager((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
         }
+        return updatedAccount;
     };
 
     return (
@@ -100,9 +102,10 @@ export default function ViewBranchManager({ managerId, onClose, onEdit, onRecove
 
                         {shouldShowAccessRecovery(manager) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
-                                <button
-                                    type="button"
-                                    onClick={handleRecoverAccessClick}
+                                <ResendEmailButton
+                                    cooldownKey={`branch-manager:${managerId}`}
+                                    onResend={handleRecoverAccessClick}
+                                    label={getAccessRecoveryLabel(manager)}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -112,9 +115,7 @@ export default function ViewBranchManager({ managerId, onClose, onEdit, onRecove
                                         fontWeight: 700,
                                         cursor: 'pointer',
                                     }}
-                                >
-                                    {getAccessRecoveryLabel(manager)}
-                                </button>
+                                />
                             </div>
                         )}
 

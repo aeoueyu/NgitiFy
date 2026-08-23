@@ -89,6 +89,7 @@ const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
 // Pages - Patient
 const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
 const PatientOralCare = lazy(() => import('./pages/patient/PatientOralCare'));
+const PatientDentalHealthEducation = lazy(() => import('./pages/patient/PatientDentalHealthEducation'));
 const PatientEditProfile = lazy(() => import('./pages/patient/PatientEditProfile'));
 
 
@@ -135,6 +136,7 @@ function App() {
                   <Route path="/patient/book" element={<Navigate to="/patient/appointments?mode=book" replace />} />
                   <Route path="/patient/records" element={<PatientRecordsPage />} />
                   <Route path="/patient/oral-care" element={<PatientOralCare />} />
+                  <Route path="/patient/dental-health-education" element={<PatientDentalHealthEducation />} />
                   <Route path="/patient/notifications" element={<SharedNotificationsPage />} />
                   <Route path="/patient/profile" element={<ProfilePage />} />
                   <Route path="/patient/profile/edit" element={<PatientEditProfile />} />

@@ -51,6 +51,13 @@ const NotificationSchema = new mongoose.Schema({
         type: Boolean, 
         default: false 
     },
+    // Role-wide notifications are shared by several users. Keep their read
+    // state per user so one administrator/owner cannot clear another user's
+    // unread notification.
+    readBy: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
     createdAt: { 
         type: Date, 
         default: Date.now 

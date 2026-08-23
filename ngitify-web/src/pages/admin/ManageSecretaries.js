@@ -11,6 +11,7 @@ import AddSecretary from './AddSecretary';
 import EditSecretary from './EditSecretary';
 import ViewSecretary from './ViewSecretary';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccessRecoveryLabel,
@@ -358,13 +359,12 @@ export default function ManageSecretaries() {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{secretary.email}</span>
                                             {shouldShowAccessRecovery(secretary) && !isArchivedRecord && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRecoverAccess(secretary)}
+                                                <ResendEmailButton
+                                                    cooldownKey={`secretary:${secretary.id}`}
+                                                    onResend={() => handleRecoverAccess(secretary)}
+                                                    label={getAccessRecoveryLabel(secretary)}
                                                     style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
-                                                >
-                                                    {getAccessRecoveryLabel(secretary)}
-                                                </button>
+                                                />
                                             )}
                                         </div>
                                     </td>

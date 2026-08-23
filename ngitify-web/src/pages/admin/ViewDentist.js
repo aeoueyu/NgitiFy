@@ -9,6 +9,7 @@ import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
 import { getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 
 export default function ViewDentist({ dentistId, onClose, onEdit, onRecoverAccess }) {
     const [dentist, setDentist] = useState(null);
@@ -38,6 +39,7 @@ export default function ViewDentist({ dentistId, onClose, onEdit, onRecoverAcces
         if (updatedAccount) {
             setDentist((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
         }
+        return updatedAccount;
     };
 
     // TASK 2.2: Removed getInitials as UserAvatar handles this automatically
@@ -109,9 +111,10 @@ export default function ViewDentist({ dentistId, onClose, onEdit, onRecoverAcces
 
                         {shouldShowAccessRecovery(dentist) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
-                                <button
-                                    type="button"
-                                    onClick={handleRecoverAccessClick}
+                                <ResendEmailButton
+                                    cooldownKey={`dentist:${dentistId}`}
+                                    onResend={handleRecoverAccessClick}
+                                    label={getAccessRecoveryLabel(dentist)}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -121,9 +124,7 @@ export default function ViewDentist({ dentistId, onClose, onEdit, onRecoverAcces
                                         fontWeight: 700,
                                         cursor: 'pointer',
                                     }}
-                                >
-                                    {getAccessRecoveryLabel(dentist)}
-                                </button>
+                                />
                             </div>
                         )}
 

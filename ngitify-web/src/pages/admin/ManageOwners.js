@@ -8,6 +8,7 @@ import AddOwner from './AddOwner';
 import EditOwner from './EditOwner';
 import ViewOwner from './ViewOwner';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccessRecoveryLabel,
@@ -327,13 +328,12 @@ export default function ManageOwners() {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <span>{owner.email}</span>
                                             {shouldShowAccessRecovery(owner) && !isArchivedRecord && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRecoverAccess(owner)}
+                                                <ResendEmailButton
+                                                    cooldownKey={`owner:${owner.id}`}
+                                                    onResend={() => handleRecoverAccess(owner)}
+                                                    label={getAccessRecoveryLabel(owner)}
                                                     style={{ color: '#01538b', fontSize: '12px', fontWeight: 600, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
-                                                >
-                                                    {getAccessRecoveryLabel(owner)}
-                                                </button>
+                                                />
                                             )}
                                         </div>
                                     </td>

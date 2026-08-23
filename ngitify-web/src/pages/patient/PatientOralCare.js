@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    FaBook,
     FaCalendarAlt,
     FaChartLine,
     FaCheckCircle,
@@ -32,7 +31,6 @@ const TRACKER_TABS = [
     { id: 'today', label: 'Today', icon: FaTooth },
     { id: 'calendar', label: 'Calendar', icon: FaCalendarAlt },
     { id: 'trends', label: 'Trends', icon: FaChartLine },
-    { id: 'education', label: 'Dental Health Education', icon: FaBook },
 ];
 
 const EMPTY_LIST = Object.freeze([]);
@@ -177,19 +175,6 @@ const buildOccurrenceRows = (windowLogs, ids, field, labelMap) => ids
     .filter((row) => row.count > 0)
     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
 
-const getRelatedEducationForLog = (log, articles = []) => {
-    if (!log) return [];
-    const selections = new Set([
-        ...(log.symptoms || []),
-        ...(log.dailyCare || []),
-        ...(log.riskFactors || []),
-    ].filter((id) => id && id !== 'no-symptoms'));
-
-    return (articles || []).filter((article) => (
-        (article.relatedLogIds || []).some((id) => selections.has(id))
-    ));
-};
-
 export default function PatientOralCare() {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -207,9 +192,6 @@ export default function PatientOralCare() {
     const [logNotes, setLogNotes] = useState('');
     const [symptomDetails, setSymptomDetails] = useState({});
     const [detailSymptomId, setDetailSymptomId] = useState('');
-    const [educationCategory, setEducationCategory] = useState('all');
-    const [educationQuery, setEducationQuery] = useState('');
-    const [selectedEducationId, setSelectedEducationId] = useState('');
     const [monthExpanded, setMonthExpanded] = useState(false);
     const [appointments, setAppointments] = useState([]);
     const [treatmentLogs, setTreatmentLogs] = useState([]);
@@ -325,107 +307,6 @@ export default function PatientOralCare() {
     const selectedTreatmentLogs = treatmentLogsByDate.get(selectedDateKey) || EMPTY_LIST;
     const selectedDateHasRecommendation = visitPrediction?.recommendedDateKey === selectedDateKey;
 
-    const educationArticles = useMemo(
-        () => Array.isArray(preview.education?.articles) ? preview.education.articles : [],
-        [preview.education?.articles]
-    );
-
-    const educationCategories = useMemo(() => {
-        const categoryMap = new Map();
-
-        educationArticles.forEach((article) => {
-            const label = String(article.category || 'Dental Health Education').trim();
-            const id = String(
-                article.categoryId
-                || label
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, '-')
-                    .replace(/^-+|-+$/g, '')
-                || 'dental-health-education'
-            );
-
-            if (!categoryMap.has(id)) {
-                categoryMap.set(id, {
-                    id,
-                    label,
-                });
-            }
-        });
-
-        return Array.from(categoryMap.values());
-    }, [educationArticles]);
-
-    const filteredEducationArticles = useMemo(() => {
-        const normalizedQuery = educationQuery.trim().toLowerCase();
-
-        return educationArticles.filter((article) => {
-            const categoryLabel = String(article.category || 'Dental Health Education').trim();
-            const categoryId = String(
-                article.categoryId
-                || categoryLabel
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, '-')
-                    .replace(/^-+|-+$/g, '')
-                || 'dental-health-education'
-            );
-
-            if (educationCategory !== 'all' && categoryId !== educationCategory) {
-                return false;
-            }
-
-            if (!normalizedQuery) {
-                return true;
-            }
-
-            const searchableText = [
-                article.title,
-                article.category,
-                article.summary,
-                article.body,
-                article.action,
-                ...(Array.isArray(article.keywords) ? article.keywords : []),
-            ]
-                .filter(Boolean)
-                .join(' ')
-                .toLowerCase();
-
-            return searchableText.includes(normalizedQuery);
-        });
-    }, [educationArticles, educationCategory, educationQuery]);
-
-    const selectedEducationArticle = useMemo(() => {
-        if (!filteredEducationArticles.length) {
-            return null;
-        }
-
-        return filteredEducationArticles.find(
-            (article) => article.id === selectedEducationId
-        ) || filteredEducationArticles[0];
-    }, [filteredEducationArticles, selectedEducationId]);
-
-    const selectedContextualEducation = useMemo(
-        () => getRelatedEducationForLog(selectedLog, educationArticles),
-        [educationArticles, selectedLog]
-    );
-
-    const recommendedEducation = useMemo(() => {
-        if (selectedContextualEducation.length) {
-            return selectedContextualEducation.slice(0, 3);
-        }
-
-        return (
-            Array.isArray(preview.education?.contextualArticles)
-                ? preview.education.contextualArticles
-                : []
-        ).slice(0, 3);
-    }, [preview.education?.contextualArticles, selectedContextualEducation]);
-
-    const openEducationArticle = (articleId) => {
-        setEducationCategory('all');
-        setEducationQuery('');
-        setSelectedEducationId(articleId || '');
-        setActiveTab('education');
-    };
     const selectedSourceEvents = useMemo(() => {
         const events = [];
         if (selectedLog) {
@@ -896,77 +777,6 @@ export default function PatientOralCare() {
         </article>
     );
 
-    const renderContextualEducation = () => (
-        <section className={styles.summaryCard}>
-            <PatientSectionHeader
-                eyebrow="Contextual Dental Health Education"
-                title={
-                    selectedContextualEducation.length
-                        ? 'Recommended for this date'
-                        : 'No related education for this date'
-                }
-                action={(
-                    <button
-                        type="button"
-                        className={styles.buttonGhost}
-                        onClick={() => setActiveTab('education')}
-                    >
-                        Open Library
-                    </button>
-                )}
-            />
-
-            {selectedContextualEducation.length ? (
-                <>
-                    <p className={styles.toolText}>
-                        These educational topics match information recorded for {selectedDateLabel}.
-                        They are suggestions for learning, not diagnoses.
-                    </p>
-
-                    <div
-                        className={styles.educationRecommendations}
-                        style={{ marginTop: '16px' }}
-                    >
-                        {selectedContextualEducation.slice(0, 3).map((article) => (
-                            <button
-                                key={article.id}
-                                type="button"
-                                className={styles.educationRecommendationCard}
-                                onClick={() => openEducationArticle(article.id)}
-                            >
-                                <span className={styles.heroTag}>
-                                    {article.category || 'Dental Health Education'}
-                                </span>
-
-                                <strong>{article.title}</strong>
-
-                                <span>{article.summary}</span>
-
-                                <small>Read topic</small>
-                            </button>
-                        ))}
-                    </div>
-                </>
-            ) : (
-                <PatientEmptyState
-                    icon={<FaBook />}
-                    title="No matching topic yet"
-                    message="Save symptoms or care habits such as sensitivity, bleeding gums, flossing, missed brushing, sugary drinks, smoking, or vaping to see related Dental Health Education."
-                />
-            )}
-
-            <div className={styles.educationDisclaimer}>
-                <FaInfoCircle aria-hidden="true" focusable="false" />
-                <p>
-                    Dental Health Education is educational information only.
-                    It does not diagnose dental disease or replace an evaluation
-                    by a dentist. Persistent, worsening, or concerning symptoms
-                    may be worth discussing with the clinic.
-                </p>
-            </div>
-        </section>
-    );
-
     const renderHistory = () => (
         <article className={styles.summaryCard}>
             <PatientSectionHeader eyebrow="Review History" title="Recent Oral Health Management entries" />
@@ -1143,268 +953,16 @@ export default function PatientOralCare() {
         </div>
     );
 
-    const renderEducation = () => (
-        <div className={styles.educationShell}>
-            <section className={styles.summaryCard}>
-                <PatientSectionHeader
-                    eyebrow="Dental Health Education"
-                    title="Learn from approved oral-health topics"
-                />
-
-                <p className={styles.toolText}>
-                    Browse educational information about everyday oral care,
-                    symptoms you may want to discuss with your dentist,
-                    preventive care, diet, smoking or vaping, and dental visits.
-                </p>
-
-                <div className={styles.educationDisclaimer}>
-                    <FaInfoCircle aria-hidden="true" focusable="false" />
-                    <p>
-                        This information is educational. NgitiFy does not use
-                        these articles to diagnose a dental condition. Persistent,
-                        worsening, or concerning symptoms may be worth discussing
-                        with your dentist or clinic.
-                    </p>
-                </div>
-            </section>
-
-            {recommendedEducation.length ? (
-                <section className={styles.summaryCard}>
-                    <PatientSectionHeader
-                        eyebrow="Recommended for You"
-                        title={
-                            selectedContextualEducation.length
-                                ? `Related to ${selectedDateLabel}`
-                                : 'Related to your recent Oral Health Management logs'
-                        }
-                    />
-
-                    <p className={styles.toolText}>
-                        These topics were matched using information already recorded
-                        in your Oral Health Management logs. The matching is
-                        educational and does not determine a diagnosis.
-                    </p>
-
-                    <div
-                        className={styles.educationRecommendations}
-                        style={{ marginTop: '16px' }}
-                    >
-                        {recommendedEducation.map((article) => (
-                            <button
-                                key={article.id}
-                                type="button"
-                                className={styles.educationRecommendationCard}
-                                onClick={() => {
-                                    setEducationCategory('all');
-                                    setEducationQuery('');
-                                    setSelectedEducationId(article.id);
-                                }}
-                            >
-                                <span className={styles.heroTag}>
-                                    {article.category || 'Dental Health Education'}
-                                </span>
-
-                                <strong>{article.title}</strong>
-
-                                <span>{article.summary}</span>
-
-                                <small>Read topic</small>
-                            </button>
-                        ))}
-                    </div>
-                </section>
-            ) : null}
-
-            <section className={styles.summaryCard}>
-                <PatientSectionHeader
-                    eyebrow="Education Library"
-                    title="Browse Dental Health Education"
-                />
-
-                <div className={styles.educationControls}>
-                    <label
-                        className={styles.educationSearchLabel}
-                        htmlFor="dental-health-education-search"
-                    >
-                        Search topics
-                    </label>
-
-                    <input
-                        id="dental-health-education-search"
-                        type="search"
-                        className={styles.educationSearchInput}
-                        value={educationQuery}
-                        onChange={(event) => {
-                            setEducationQuery(event.target.value);
-                            setSelectedEducationId('');
-                        }}
-                        placeholder="Search brushing, sensitivity, gum care..."
-                        autoComplete="off"
-                    />
-
-                    <div
-                        className={styles.educationCategoryRow}
-                        aria-label="Dental Health Education categories"
-                    >
-                        <button
-                            type="button"
-                            className={`${styles.educationCategoryButton} ${
-                                educationCategory === 'all'
-                                    ? styles.educationCategoryButtonActive
-                                    : ''
-                            }`}
-                            onClick={() => {
-                                setEducationCategory('all');
-                                setSelectedEducationId('');
-                            }}
-                            aria-pressed={educationCategory === 'all'}
-                        >
-                            All Topics
-                        </button>
-
-                        {educationCategories.map((category) => (
-                            <button
-                                key={category.id}
-                                type="button"
-                                className={`${styles.educationCategoryButton} ${
-                                    educationCategory === category.id
-                                        ? styles.educationCategoryButtonActive
-                                        : ''
-                                }`}
-                                onClick={() => {
-                                    setEducationCategory(category.id);
-                                    setSelectedEducationId('');
-                                }}
-                                aria-pressed={educationCategory === category.id}
-                            >
-                                {category.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {filteredEducationArticles.length ? (
-                    <div className={styles.educationLibraryLayout}>
-                        <div
-                            className={styles.educationArticleList}
-                            aria-label="Dental Health Education topics"
-                        >
-                            {filteredEducationArticles.map((article) => {
-                                const isSelected =
-                                    selectedEducationArticle?.id === article.id;
-
-                                return (
-                                    <button
-                                        key={article.id}
-                                        type="button"
-                                        className={`${styles.educationArticleCard} ${
-                                            isSelected
-                                                ? styles.educationArticleCardActive
-                                                : ''
-                                        }`}
-                                        onClick={() => setSelectedEducationId(article.id)}
-                                        aria-pressed={isSelected}
-                                    >
-                                        <span className={styles.heroTag}>
-                                            {article.category || 'Dental Health Education'}
-                                        </span>
-
-                                        <strong>{article.title}</strong>
-
-                                        <span>{article.summary}</span>
-
-                                        <small>
-                                            {isSelected ? 'Currently selected' : 'View article'}
-                                        </small>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {selectedEducationArticle ? (
-                            <article
-                                className={styles.educationArticleDetail}
-                                aria-labelledby="selected-education-title"
-                            >
-                                <span className={styles.heroTag}>
-                                    {selectedEducationArticle.category
-                                        || 'Dental Health Education'}
-                                </span>
-
-                                <h3
-                                    id="selected-education-title"
-                                    className={styles.educationDetailTitle}
-                                >
-                                    {selectedEducationArticle.title}
-                                </h3>
-
-                                <p className={styles.educationDetailSummary}>
-                                    {selectedEducationArticle.summary}
-                                </p>
-
-                                <div className={styles.educationDetailBody}>
-                                    <p>
-                                        {selectedEducationArticle.body
-                                            || selectedEducationArticle.summary}
-                                    </p>
-                                </div>
-
-                                {selectedEducationArticle.action ? (
-                                    <div className={styles.educationDetailAction}>
-                                        <strong>What you can do</strong>
-                                        <p>{selectedEducationArticle.action}</p>
-                                    </div>
-                                ) : null}
-
-                                <div className={styles.educationDisclaimer}>
-                                    <FaInfoCircle
-                                        aria-hidden="true"
-                                        focusable="false"
-                                    />
-                                    <p>
-                                        This topic is educational and is not a
-                                        diagnosis. Consider contacting the clinic
-                                        if symptoms continue, worsen, or concern you.
-                                    </p>
-                                </div>
-                            </article>
-                        ) : null}
-                    </div>
-                ) : (
-                    <PatientEmptyState
-                        icon={<FaBook />}
-                        title="No education topics found"
-                        message="Try another category or clear your search to browse the full Dental Health Education library."
-                        action={(
-                            <button
-                                type="button"
-                                className={styles.buttonSecondary}
-                                onClick={() => {
-                                    setEducationCategory('all');
-                                    setEducationQuery('');
-                                    setSelectedEducationId('');
-                                }}
-                            >
-                                Show All Topics
-                            </button>
-                        )}
-                    />
-                )}
-            </section>
-        </div>
-    );
-
     const renderActiveTab = () => {
         if (activeTab === 'calendar') return renderCalendar();
         if (activeTab === 'trends') return renderTrends();
-        if (activeTab === 'education') return renderEducation();
         return renderToday();
     };
 
     return (
         <PatientPageFrame
             title="Oral Health Management"
-            subtitle={`Date-centered tracking, trends, recommended visit windows, and Dental Health Education for ${user?.assignedBranch || 'your assigned branch'}.`}
+            subtitle={`Date-centered tracking, trends, and recommended visit windows for ${user?.assignedBranch || 'your assigned branch'}.`}
             actions={(
                 <>
                     <button type="button" className={styles.buttonSecondary} onClick={openPatientAiChat}>
@@ -1440,8 +998,6 @@ export default function PatientOralCare() {
                 {renderSourceCards()}
                 {renderTrackerForm()}
             </div>
-
-            {renderContextualEducation()}
 
             <nav className={styles.tabs} role="tablist" aria-label="Oral Health Management sections">
                 {TRACKER_TABS.map((tab) => {

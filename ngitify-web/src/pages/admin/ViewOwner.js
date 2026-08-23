@@ -7,6 +7,7 @@ import { formatDateShort } from '../../utils/dateUtils';
 import { formatAddressDisplay, getHomeAddress } from '../../utils/addressHelpers';
 import { getAccessRecoveryLabel, shouldShowAccessRecovery } from '../../utils/accountStatus';
 import LifecycleHistoryPanel from '../../components/common/LifecycleHistoryPanel';
+import ResendEmailButton from '../../components/common/ResendEmailButton';
 
 export default function ViewOwner({ ownerId, onClose, onEdit, onRecoverAccess }) {
     const [owner, setOwner] = useState(null);
@@ -37,6 +38,7 @@ export default function ViewOwner({ ownerId, onClose, onEdit, onRecoverAccess })
         if (updatedAccount) {
             setOwner((prev) => (prev ? { ...prev, ...updatedAccount } : prev));
         }
+        return updatedAccount;
     };
 
     return (
@@ -112,9 +114,10 @@ export default function ViewOwner({ ownerId, onClose, onEdit, onRecoverAccess })
 
                         {shouldShowAccessRecovery(owner) && onRecoverAccess && (
                             <div style={{ marginTop: '-8px', marginBottom: '22px' }}>
-                                <button
-                                    type="button"
-                                    onClick={handleRecoverAccessClick}
+                                <ResendEmailButton
+                                    cooldownKey={`owner:${ownerId}`}
+                                    onResend={handleRecoverAccessClick}
+                                    label={getAccessRecoveryLabel(owner)}
                                     style={{
                                         border: '1px solid #bfdbfe',
                                         background: '#eff6ff',
@@ -124,9 +127,7 @@ export default function ViewOwner({ ownerId, onClose, onEdit, onRecoverAccess })
                                         fontWeight: 700,
                                         cursor: 'pointer',
                                     }}
-                                >
-                                    {getAccessRecoveryLabel(owner)}
-                                </button>
+                                />
                             </div>
                         )}
 

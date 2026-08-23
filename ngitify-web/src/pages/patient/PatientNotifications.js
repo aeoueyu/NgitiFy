@@ -89,9 +89,13 @@ export default function PatientNotifications() {
                 entry._id === item._id ? { ...entry, isRead: true } : entry
             )));
             try {
-                await authFetch(`/notifications/${item._id}/read`, { method: 'PATCH' });
+                const response = await authFetch(`/notifications/${item._id}/read`, { method: 'PATCH' });
+                if (!response.ok) throw new Error();
+                window.dispatchEvent(new Event('ngitify-notifications-updated'));
             } catch {
-                // Keep the optimistic UI state.
+                setNotifications((current) => current.map((entry) => (
+                    entry._id === item._id ? { ...entry, isRead: false } : entry
+                )));
             }
         }
 
@@ -106,9 +110,11 @@ export default function PatientNotifications() {
         setMarkingAll(true);
         setNotifications((current) => current.map((entry) => ({ ...entry, isRead: true })));
         try {
-            await authFetch('/notifications/read-all', { method: 'PATCH' });
+            const response = await authFetch('/notifications/read-all', { method: 'PATCH' });
+            if (!response.ok) throw new Error();
+            window.dispatchEvent(new Event('ngitify-notifications-updated'));
         } catch {
-            // Keep the optimistic UI state.
+            await fetchNotifications();
         } finally {
             setMarkingAll(false);
         }
