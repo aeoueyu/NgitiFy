@@ -8751,7 +8751,10 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             ? Number(Math.max(normalizedAmountCharged - normalizedAmountPaid, 0).toFixed(2))
             : 0;
         if (status === 'cancelled') {
-            updateFields.cancellationReason = String(cancellationReason || currentSurgery.cancellationReason || 'Cancelled by clinic staff.').trim();
+            const defaultCancellationReason = req.user.role === 'patient'
+                ? 'Cancelled by patient.'
+                : 'Cancelled by clinic staff.';
+            updateFields.cancellationReason = String(cancellationReason || currentSurgery.cancellationReason || defaultCancellationReason).trim();
             updateFields.autoCancelledAt = null;
         } else if (cancellationReason !== undefined) {
             updateFields.cancellationReason = String(cancellationReason || '').trim();
@@ -10228,13 +10231,14 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
 
 app.get('/api/appointments/slots', verifyToken, async (req, res) => {
     try {
-        const { date, branch } = req.query;
+        const { date, branch, excludeAppointmentId = '' } = req.query;
 
         if (!date) {
             return res.status(400).json({ message: 'date query parameter is required.' });
         }
 
         let resolvedBranch = String(branch || '').trim();
+        let resolvedExcludeAppointmentId = '';
 
         if (req.user.role === 'patient') {
             const patient = await User.findById(req.user.id).select('assignedBranch assignedBranches');
@@ -10245,14 +10249,30 @@ app.get('/api/appointments/slots', verifyToken, async (req, res) => {
                     message: 'Your patient account does not have an assigned branch yet. Please contact the clinic before booking an appointment.',
                 });
             }
+
+            if (excludeAppointmentId) {
+                if (!mongoose.Types.ObjectId.isValid(excludeAppointmentId)) {
+                    return res.status(400).json({ message: 'Invalid appointment identifier.' });
+                }
+                const ownedAppointment = await Surgery.findOne({
+                    _id: excludeAppointmentId,
+                    patient: req.user.id,
+                    isArchived: false,
+                }).select('_id branch');
+                if (!ownedAppointment) {
+                    return res.status(403).json({ message: 'Access denied. Patients can only reschedule their own appointments.' });
+                }
+                resolvedExcludeAppointmentId = ownedAppointment._id;
+                resolvedBranch = ownedAppointment.branch || resolvedBranch;
+            }
         } else if (isBranchScopedStaff(req.user.role)) {
             resolvedBranch = getScopedBranchForUser(req.user) || resolvedBranch;
         }
 
         const [rawAllowedSlots, takenSlots, appointmentCount, maxAppointmentsPerDay] = await Promise.all([
             getClinicAllowedSlots(),
-            getTakenSlotsForDate({ date, branch: resolvedBranch }),
-            getActiveAppointmentCountForDate({ date, branch: resolvedBranch }),
+            getTakenSlotsForDate({ date, branch: resolvedBranch, excludeAppointmentId: resolvedExcludeAppointmentId }),
+            getActiveAppointmentCountForDate({ date, branch: resolvedBranch, excludeAppointmentId: resolvedExcludeAppointmentId }),
             getClinicMaxAppointmentsPerDay(),
         ]);
 

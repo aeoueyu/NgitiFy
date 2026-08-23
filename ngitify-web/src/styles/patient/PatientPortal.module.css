@@ -87,9 +87,10 @@
 .buttonPrimary,
 .buttonSecondary,
 .buttonGhost,
+.buttonDanger,
 .calendarNavButton {
     border: none;
-    border-radius: var(--patient-radius-control);
+    border-radius: 999px;
     cursor: pointer;
     font-family: 'Lexend Deca', sans-serif;
     font-weight: 700;
@@ -137,9 +138,21 @@
     background: rgba(1, 83, 139, 0.1);
 }
 
+.buttonDanger {
+    background: #b91c1c;
+    color: #ffffff;
+    padding: 8px 16px;
+}
+
+.buttonDanger:hover {
+    background: #991b1b;
+    transform: translateY(-1px);
+}
+
 .buttonPrimary:disabled,
 .buttonSecondary:disabled,
 .buttonGhost:disabled,
+.buttonDanger:disabled,
 .calendarNavButton:disabled {
     cursor: not-allowed;
     opacity: 0.62;
@@ -1710,7 +1723,7 @@ button.toolCard:focus-visible {
     width: 100%;
     padding: 13px 14px;
     border: 1px solid var(--patient-border-strong);
-    border-radius: var(--patient-radius-control);
+    border-radius: 999px;
     background: var(--patient-surface);
     color: var(--patient-text);
     font-family: 'Lexend Deca', sans-serif;
@@ -1721,6 +1734,7 @@ button.toolCard:focus-visible {
 .textarea {
     min-height: 110px;
     resize: vertical;
+    border-radius: 22px;
 }
 
 .input:focus,
@@ -1729,6 +1743,25 @@ button.toolCard:focus-visible {
     outline: none;
     border-color: var(--patient-accent);
     box-shadow: 0 0 0 4px rgba(45, 204, 246, 0.14);
+}
+
+.fieldInvalid .label,
+.fieldError {
+    color: #b91c1c;
+}
+
+.inputInvalid,
+.inputInvalid:focus {
+    border-color: #dc2626;
+    background: #fff7f7;
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
+}
+
+.fieldError {
+    margin-top: -2px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
 }
 
 .helpText {
@@ -1754,6 +1787,25 @@ button.toolCard:focus-visible {
     font-size: 13px;
     line-height: 1.6;
     border: 1px solid #e2e8f0;
+}
+
+.actionPanel {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid var(--patient-border-strong);
+    border-radius: 24px;
+    background: var(--patient-surface-muted);
+}
+
+.actionError {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border: 1px solid rgba(185, 28, 28, 0.2);
+    border-radius: var(--patient-radius-control);
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .noticeTitle {

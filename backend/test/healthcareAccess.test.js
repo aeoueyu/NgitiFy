@@ -146,6 +146,9 @@ test('server contracts enforce ownership, role gates, trusted AI context, and pu
     assert.match(serverSource, /Patients can only view their own appointments/);
     assert.match(serverSource, /Patients can only cancel their own appointments/);
     assert.match(serverSource, /Patients can only reschedule their own appointments/);
+    assert.match(serverSource, /excludeAppointmentId/);
+    assert.match(serverSource, /patient: req\.user\.id/);
+    assert.match(serverSource, /Cancelled by patient\./);
     assert.match(serverSource, /Clinical records may only be changed by an assigned dentist/);
     assert.match(serverSource, /Only dentists can update the odontogram/);
     assert.match(serverSource, /Only dentists can upload radiograph images/);

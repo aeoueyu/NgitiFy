@@ -3,9 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { FaCalendarAlt, FaClinicMedical, FaInfoCircle, FaNotesMedical, FaRegClock } from 'react-icons/fa';
 import { authFetch } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../context/ToastContext';
 import {
     formatDateDisplay,
     formatTime24,
+    toDateKey,
 } from '../../utils/patientPortal';
 import {
     PatientEmptyState,
@@ -25,6 +27,17 @@ const getDentistLabel = (appointment) => {
 };
 
 const getAppointmentId = (appointment) => appointment?._id || appointment?.id || `${appointment?.date}-${appointment?.time}-${appointment?.procedure}`;
+const PATIENT_CHANGEABLE_STATUSES = new Set(['pending', 'confirmed']);
+
+const getManilaTodayKey = () => {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(new Date()).map((part) => [part.type, part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
 
 function DetailRow({ label, value }) {
     return (
@@ -75,10 +88,19 @@ function AppointmentCard({ appointment, onSelect }) {
 export default function PatientAppointments() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
+    const { addToast } = useToast();
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedAppointment, setSelectedAppointment] = useState(null);
+    const [actionMode, setActionMode] = useState('');
+    const [actionError, setActionError] = useState('');
+    const [actionSubmitting, setActionSubmitting] = useState(false);
+    const [cancellationReason, setCancellationReason] = useState('');
+    const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '', reason: '' });
+    const [validationErrors, setValidationErrors] = useState({});
+    const [availableSlots, setAvailableSlots] = useState([]);
+    const [loadingSlots, setLoadingSlots] = useState(false);
 
     const fetchAppointments = useCallback(async () => {
         if (!user?.id) return;
@@ -98,6 +120,133 @@ export default function PatientAppointments() {
         }
     }, [user?.id]);
 
+    const closeAppointmentDetails = () => {
+        setSelectedAppointment(null);
+        setActionMode('');
+        setActionError('');
+        setCancellationReason('');
+        setRescheduleForm({ date: '', time: '', reason: '' });
+        setValidationErrors({});
+        setAvailableSlots([]);
+    };
+
+    const openCancelAction = () => {
+        setActionMode('cancel');
+        setActionError('');
+        setCancellationReason('');
+        setValidationErrors({});
+    };
+
+    const openRescheduleAction = () => {
+        const date = toDateKey(selectedAppointment?.date);
+        setActionMode('reschedule');
+        setActionError('');
+        setValidationErrors({});
+        setRescheduleForm({
+            date,
+            time: selectedAppointment?.time || '',
+            reason: '',
+        });
+    };
+
+    const fetchRescheduleSlots = useCallback(async (appointment, date) => {
+        if (!appointment || !date) {
+            setAvailableSlots([]);
+            return;
+        }
+
+        setLoadingSlots(true);
+        setActionError('');
+        try {
+            const appointmentId = getAppointmentId(appointment);
+            const branch = appointment.branch || user?.assignedBranch || '';
+            const query = new URLSearchParams({
+                date,
+                branch,
+                excludeAppointmentId: appointmentId,
+            });
+            const response = await authFetch(`/appointments/slots?${query.toString()}`);
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || 'Could not load available time slots.');
+
+            const takenSlots = new Set(Array.isArray(payload.takenSlots) ? payload.takenSlots : []);
+            const nextSlots = (Array.isArray(payload.allowedSlots) ? payload.allowedSlots : [])
+                .filter((slot) => !takenSlots.has(slot));
+            setAvailableSlots(nextSlots);
+            setRescheduleForm((current) => ({
+                ...current,
+                time: nextSlots.includes(current.time) ? current.time : '',
+            }));
+        } catch (slotError) {
+            setAvailableSlots([]);
+            setActionError(slotError.message || 'Could not load available time slots.');
+        } finally {
+            setLoadingSlots(false);
+        }
+    }, [user?.assignedBranch]);
+
+    useEffect(() => {
+        if (actionMode !== 'reschedule' || !rescheduleForm.date || !selectedAppointment) return;
+        fetchRescheduleSlots(selectedAppointment, rescheduleForm.date);
+    }, [actionMode, fetchRescheduleSlots, rescheduleForm.date, selectedAppointment]);
+
+    const submitCancellation = async () => {
+        if (!selectedAppointment) return;
+        setActionSubmitting(true);
+        setActionError('');
+        try {
+            const response = await authFetch(`/appointments/${getAppointmentId(selectedAppointment)}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    status: 'cancelled',
+                    cancellationReason: cancellationReason.trim(),
+                }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || 'Unable to cancel this appointment.');
+            closeAppointmentDetails();
+            await fetchAppointments();
+            addToast('Appointment cancelled successfully.', 'success');
+        } catch (cancelError) {
+            setActionError(cancelError.message || 'Unable to cancel this appointment.');
+        } finally {
+            setActionSubmitting(false);
+        }
+    };
+
+    const submitReschedule = async (event) => {
+        event.preventDefault();
+        const nextValidationErrors = {};
+        if (!rescheduleForm.date) nextValidationErrors.date = 'Please select a new appointment date.';
+        if (!rescheduleForm.time) nextValidationErrors.time = 'Please select an available appointment time.';
+        setValidationErrors(nextValidationErrors);
+        if (!selectedAppointment || Object.keys(nextValidationErrors).length > 0) {
+            return;
+        }
+
+        setActionSubmitting(true);
+        setActionError('');
+        try {
+            const response = await authFetch(`/appointments/${getAppointmentId(selectedAppointment)}/reschedule`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    newDate: rescheduleForm.date,
+                    newTime: rescheduleForm.time,
+                    reason: rescheduleForm.reason.trim(),
+                }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || 'Unable to reschedule this appointment.');
+            closeAppointmentDetails();
+            await fetchAppointments();
+            addToast('Appointment rescheduled successfully.', 'success');
+        } catch (rescheduleError) {
+            setActionError(rescheduleError.message || 'Unable to reschedule this appointment.');
+        } finally {
+            setActionSubmitting(false);
+        }
+    };
+
     useEffect(() => {
         fetchAppointments();
         const handleFocus = () => fetchAppointments();
@@ -116,6 +265,10 @@ export default function PatientAppointments() {
     }, [appointments]);
     const isBookingMode = searchParams.get('mode') === 'book';
     const activeTab = isBookingMode ? 'book' : (searchParams.get('tab') === 'history' ? 'history' : 'upcoming');
+    const selectedStatus = String(selectedAppointment?.status || '').toLowerCase();
+    const canChangeSelectedAppointment = PATIENT_CHANGEABLE_STATUSES.has(selectedStatus)
+        && selectedAppointment?.isArchived !== true
+        && selectedAppointment?.isQueueEntry !== true;
 
     const setHubTab = (tab) => {
         if (tab === 'book') {
@@ -285,7 +438,7 @@ export default function PatientAppointments() {
                                     <button
                                         type="button"
                                         className={styles.modalClose}
-                                        onClick={() => setSelectedAppointment(null)}
+                                        onClick={closeAppointmentDetails}
                                         aria-label="Close appointment details"
                                     >
                                         ×
@@ -305,17 +458,116 @@ export default function PatientAppointments() {
                                     {selectedAppointment.preOpInstructions ? <DetailRow label="Pre-op Instructions" value={selectedAppointment.preOpInstructions} /> : null}
                                     {selectedAppointment.cancellationReason ? <DetailRow label="Cancellation Reason" value={selectedAppointment.cancellationReason} /> : null}
                                 </div>
-                                <div className={styles.noticeBox} style={{ marginTop: '18px' }}>
-                                    <FaInfoCircle style={{ marginRight: '8px' }} />
-                                    For cancellation, rescheduling, or status changes, please contact your assigned clinic branch. Those actions are handled by authorized clinic staff.
-                                </div>
+                                {actionMode === 'cancel' ? (
+                                    <div className={styles.actionPanel}>
+                                        <label className={styles.field}>
+                                            <span className={styles.label}>Cancellation reason (optional)</span>
+                                            <textarea
+                                                className={styles.textarea}
+                                                value={cancellationReason}
+                                                onChange={(event) => setCancellationReason(event.target.value)}
+                                                placeholder="Tell the clinic why you need to cancel"
+                                                disabled={actionSubmitting}
+                                            />
+                                        </label>
+                                        <p className={styles.helpText}>Cancelling cannot be undone from the patient portal.</p>
+                                    </div>
+                                ) : null}
+                                {actionMode === 'reschedule' ? (
+                                    <form id="patient-reschedule-form" className={styles.actionPanel} onSubmit={submitReschedule}>
+                                        <div className={styles.formGrid}>
+                                            <label className={`${styles.field} ${validationErrors.date ? styles.fieldInvalid : ''}`}>
+                                                <span className={styles.label}>New date</span>
+                                                <input
+                                                    type="date"
+                                                    className={`${styles.input} ${validationErrors.date ? styles.inputInvalid : ''}`}
+                                                    min={getManilaTodayKey()}
+                                                    value={rescheduleForm.date}
+                                                    onChange={(event) => {
+                                                        setRescheduleForm((current) => ({ ...current, date: event.target.value, time: '' }));
+                                                        setValidationErrors((current) => ({ ...current, date: '', time: '' }));
+                                                    }}
+                                                    disabled={actionSubmitting}
+                                                    aria-invalid={Boolean(validationErrors.date)}
+                                                    aria-describedby={validationErrors.date ? 'reschedule-date-error' : undefined}
+                                                />
+                                                {validationErrors.date ? <span id="reschedule-date-error" className={styles.fieldError} role="alert">{validationErrors.date}</span> : null}
+                                            </label>
+                                            <label className={`${styles.field} ${validationErrors.time ? styles.fieldInvalid : ''}`}>
+                                                <span className={styles.label}>Available time</span>
+                                                <select
+                                                    className={`${styles.select} ${validationErrors.time ? styles.inputInvalid : ''}`}
+                                                    value={rescheduleForm.time}
+                                                    onChange={(event) => {
+                                                        setRescheduleForm((current) => ({ ...current, time: event.target.value }));
+                                                        setValidationErrors((current) => ({ ...current, time: '' }));
+                                                    }}
+                                                    disabled={actionSubmitting || loadingSlots || availableSlots.length === 0}
+                                                    aria-invalid={Boolean(validationErrors.time)}
+                                                    aria-describedby={validationErrors.time ? 'reschedule-time-error' : undefined}
+                                                >
+                                                    <option value="">{loadingSlots ? 'Loading slots...' : 'Select a time'}</option>
+                                                    {availableSlots.map((slot) => (
+                                                        <option key={slot} value={slot}>{formatTime24(slot)}</option>
+                                                    ))}
+                                                </select>
+                                                {validationErrors.time ? <span id="reschedule-time-error" className={styles.fieldError} role="alert">{validationErrors.time}</span> : null}
+                                            </label>
+                                            <label className={`${styles.field} ${styles.fieldWide}`}>
+                                                <span className={styles.label}>Reason (optional)</span>
+                                                <textarea
+                                                    className={styles.textarea}
+                                                    value={rescheduleForm.reason}
+                                                    onChange={(event) => setRescheduleForm((current) => ({ ...current, reason: event.target.value }))}
+                                                    placeholder="Tell the clinic why you need a different schedule"
+                                                    disabled={actionSubmitting}
+                                                />
+                                            </label>
+                                        </div>
+                                        {!loadingSlots && rescheduleForm.date && availableSlots.length === 0 && !actionError ? (
+                                            <p className={styles.helpText}>No available times remain on this date. Please choose another date.</p>
+                                        ) : null}
+                                    </form>
+                                ) : null}
+                                {actionError ? (
+                                    <div className={styles.actionError} role="alert">{actionError}</div>
+                                ) : null}
+                                {!canChangeSelectedAppointment ? (
+                                    <div className={styles.noticeBox} style={{ marginTop: '18px' }}>
+                                        <FaInfoCircle style={{ marginRight: '8px' }} />
+                                        This appointment can no longer be cancelled or rescheduled from the patient portal. Contact your assigned clinic branch if you need help.
+                                    </div>
+                                ) : null}
                                 <div className={styles.heroActions}>
-                                    <button type="button" className={styles.buttonSecondary} onClick={() => setSelectedAppointment(null)}>
-                                        Close
-                                    </button>
-                                    <button type="button" className={styles.buttonPrimary} onClick={() => { setSelectedAppointment(null); setHubTab('book'); }}>
-                                        Start Booking
-                                    </button>
+                                    {actionMode ? (
+                                        <button type="button" className={styles.buttonSecondary} onClick={() => { setActionMode(''); setActionError(''); setValidationErrors({}); }} disabled={actionSubmitting}>
+                                            Back
+                                        </button>
+                                    ) : (
+                                        <button type="button" className={styles.buttonSecondary} onClick={closeAppointmentDetails}>
+                                            Close
+                                        </button>
+                                    )}
+                                    {canChangeSelectedAppointment && !actionMode ? (
+                                        <>
+                                            <button type="button" className={styles.buttonSecondary} onClick={openRescheduleAction}>
+                                                Reschedule
+                                            </button>
+                                            <button type="button" className={styles.buttonDanger} onClick={openCancelAction}>
+                                                Cancel Appointment
+                                            </button>
+                                        </>
+                                    ) : null}
+                                    {actionMode === 'cancel' ? (
+                                        <button type="button" className={styles.buttonDanger} onClick={submitCancellation} disabled={actionSubmitting}>
+                                            {actionSubmitting ? 'Cancelling...' : 'Confirm Cancellation'}
+                                        </button>
+                                    ) : null}
+                                    {actionMode === 'reschedule' ? (
+                                        <button type="submit" form="patient-reschedule-form" className={styles.buttonPrimary} disabled={actionSubmitting || loadingSlots}>
+                                            {actionSubmitting ? 'Saving...' : 'Confirm Reschedule'}
+                                        </button>
+                                    ) : null}
                                 </div>
                             </div>
                         </div>

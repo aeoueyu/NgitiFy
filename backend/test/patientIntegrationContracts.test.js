@@ -408,6 +408,11 @@ test(
                 'ngitify-web/src/pages/patient/PatientAppointments.js'
             );
 
+        const mobileAppointmentsSource =
+            readRepositoryFile(
+                'ngitify-mobile/src/screens/patient/PatientAppointmentsScreen.js'
+            );
+
         assert.match(
             appSource,
             /path=["']\/patient\/appointments["']/
@@ -446,6 +451,61 @@ test(
         assert.match(
             appointmentsSource,
             /<PatientBooking/
+        );
+
+        assert.match(
+            appointmentsSource,
+            /Cancel Appointment/
+        );
+
+        assert.match(
+            appointmentsSource,
+            /\/appointments\/\$\{getAppointmentId\(selectedAppointment\)\}\/status/
+        );
+
+        assert.match(
+            appointmentsSource,
+            /\/appointments\/\$\{getAppointmentId\(selectedAppointment\)\}\/reschedule/
+        );
+
+        assert.match(
+            appointmentsSource,
+            /PATIENT_CHANGEABLE_STATUSES\.has\(selectedStatus\)/
+        );
+
+        assert.match(
+            appointmentsSource,
+            /aria-invalid=\{Boolean\(validationErrors\.date\)\}/
+        );
+
+        assert.match(
+            appointmentsSource,
+            /aria-invalid=\{Boolean\(validationErrors\.time\)\}/
+        );
+
+        assert.match(
+            mobileAppointmentsSource,
+            /Cancel Appointment/
+        );
+
+        assert.match(
+            mobileAppointmentsSource,
+            /Reschedule Appointment/
+        );
+
+        assert.match(
+            mobileAppointmentsSource,
+            /api\/appointments\/\$\{actionTarget\._id\}\/status/
+        );
+
+        assert.match(
+            mobileAppointmentsSource,
+            /api\/appointments\/\$\{actionTarget\._id\}\/reschedule/
+        );
+
+        assert.match(
+            mobileAppointmentsSource,
+            /excludeAppointmentId=/
         );
     }
 );
