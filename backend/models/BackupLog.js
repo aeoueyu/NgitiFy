@@ -12,6 +12,18 @@ const backupLogSchema = new mongoose.Schema({
         default: 0,
     },
 
+    storageProvider: {
+        type: String,
+        enum: ['local', 'r2'],
+        default: 'local',
+    },
+
+    storageKey: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+
     status: {
         type: String,
         enum: ['running', 'success', 'failed'],

@@ -11,10 +11,11 @@ const isAdmin = require('../middleware/isAdmin');
 const AuditLog = require('../models/AuditLog');
 const BackupLog = require('../models/BackupLog');
 const SystemConfig = require('../models/SystemConfig');
+const backupStorage = require('../services/backupStorage');
 
 const normalizeText = (value) => String(value || '').trim();
 
-const BACKUP_DIR = path.join(__dirname, '..', 'backups');
+const BACKUP_DIR = backupStorage.workingDirectory;
 const MONGODUMP_BIN = normalizeText(process.env.MONGODUMP_BIN) || 'mongodump';
 const MONGORESTORE_BIN = normalizeText(process.env.MONGORESTORE_BIN) || '';
 const BACKUP_AUTO_ENABLED = String(process.env.BACKUP_AUTO_ENABLED || '').trim().toLowerCase() === 'true';
@@ -46,9 +47,7 @@ const backupRuntime = {
     settings: { ...DEFAULT_BACKUP_SETTINGS },
 };
 
-if (!fs.existsSync(BACKUP_DIR)) {
-    fs.mkdirSync(BACKUP_DIR, { recursive: true });
-}
+backupStorage.ensureWorkingDirectory();
 
 const buildBackupFilename = (date = new Date()) => {
     const stamp = date.toISOString().replace(/[:.]/g, '-');
@@ -533,26 +532,25 @@ const applyRetentionPolicy = async () => {
         retentionDeletedAt: null,
     })
         .sort({ createdAt: -1 })
-        .select('filename createdAt')
+        .select('filename storageProvider storageKey createdAt')
         .lean();
 
     const backupsToDelete = successfulBackups.slice(retentionCount);
     const deletedFilenames = [];
 
     for (const backup of backupsToDelete) {
-        const filePath = path.join(BACKUP_DIR, backup.filename);
-        if (!fs.existsSync(filePath)) {
+        if (!(await backupStorage.archiveExists(backup))) {
             continue;
         }
 
-        await fs.promises.unlink(filePath);
+        await backupStorage.deleteArchive(backup);
         deletedFilenames.push(backup.filename);
         await BackupLog.updateOne(
             { _id: backup._id },
             {
                 $set: {
                     retentionDeletedAt: new Date(),
-                    retentionReason: `Pruned automatically after exceeding the local retention limit of ${retentionCount} backups.`,
+                    retentionReason: `Pruned automatically after exceeding the retention limit of ${retentionCount} backups.`,
                 },
             }
         );
@@ -599,6 +597,8 @@ const createBackupRun = async ({
         startedAt,
         completedAt: null,
         toolVersion: probe.available ? probe.version : '',
+        storageProvider: backupStorage.provider,
+        storageKey: '',
         createdBy,
         createdByName,
     });
@@ -617,6 +617,7 @@ const createBackupRun = async ({
             fs.promises.stat(outputPath),
             computeFileChecksum(outputPath),
         ]);
+        const storage = await backupStorage.uploadArchive(outputPath, filename);
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
 
@@ -631,6 +632,8 @@ const createBackupRun = async ({
                     completedAt,
                     errorMessage: null,
                     toolVersion: probe.available ? probe.version : '',
+                    storageProvider: storage.storageProvider,
+                    storageKey: storage.storageKey,
                 },
             },
             { new: true }
@@ -692,6 +695,9 @@ const createBackupRun = async ({
 
         throw error;
     } finally {
+        if (backupStorage.provider === 'r2' && fs.existsSync(outputPath)) {
+            await fs.promises.unlink(outputPath).catch(() => {});
+        }
         finalizeBackupRuntime();
     }
 };
@@ -700,7 +706,6 @@ const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName
     await reconcileInterruptedBackups();
 
     const safeFilename = path.basename(filename);
-    const filePath = path.join(BACKUP_DIR, safeFilename);
     const backup = await BackupLog.findOne({ filename: safeFilename });
 
     if (!backup) {
@@ -715,19 +720,25 @@ const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName
         throw error;
     }
 
-    if (!fs.existsSync(filePath)) {
-        const error = new Error('Backup file is missing from local storage.');
+    if (!(await backupStorage.archiveExists(backup))) {
+        const error = new Error('Backup file is missing from backup storage.');
         error.statusCode = 404;
         throw error;
     }
 
+    const archive = await backupStorage.materializeArchive(backup);
+    const filePath = archive.filePath;
     const startedAt = new Date();
-    const restoreProbe = await probeMongorestore(true);
-    const { databaseName: sourceDbName } = parseMongoUriParts(process.env.MONGO_URI);
-    const tempDbName = buildRestoreVerificationDbName(sourceDbName);
-    const tempMongoUri = buildMongoUriForDatabase(process.env.MONGO_URI, tempDbName);
+    let restoreProbe = { available: false, version: '' };
+    let tempDbName = '';
+    let tempMongoUri = '';
 
     try {
+        restoreProbe = await probeMongorestore(true);
+        const { databaseName: sourceDbName } = parseMongoUriParts(process.env.MONGO_URI);
+        tempDbName = buildRestoreVerificationDbName(sourceDbName);
+        tempMongoUri = buildMongoUriForDatabase(process.env.MONGO_URI, tempDbName);
+
         const checksumSha256 = await computeFileChecksum(filePath);
         if (backup.checksumSha256 && checksumSha256 !== backup.checksumSha256) {
             throw new Error('Backup checksum mismatch. The archive may have been changed or corrupted.');
@@ -802,7 +813,8 @@ const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName
 
         throw error;
     } finally {
-        await dropDatabaseIfExists(tempMongoUri).catch(() => {});
+        if (tempMongoUri) await dropDatabaseIfExists(tempMongoUri).catch(() => {});
+        await archive.cleanup().catch(() => {});
     }
 };
 
@@ -859,9 +871,10 @@ const initializeBackupScheduler = async () => {
     }
 };
 
-const serializeBackupLog = (backup) => {
-    const filePath = path.join(BACKUP_DIR, backup.filename);
-    const fileExists = backup.status === 'success' ? fs.existsSync(filePath) : false;
+const serializeBackupLog = async (backup) => {
+    const fileExists = backup.status === 'success'
+        ? await backupStorage.archiveExists(backup)
+        : false;
     const fileState = backup.retentionDeletedAt
         ? 'pruned'
         : (backup.status === 'success'
@@ -874,6 +887,48 @@ const serializeBackupLog = (backup) => {
         fileState,
     };
 };
+
+const cronSecretMatches = (req) => {
+    const configuredSecret = normalizeText(process.env.BACKUP_CRON_SECRET);
+    const authorization = normalizeText(req.get('authorization'));
+    const suppliedSecret = authorization.toLowerCase().startsWith('bearer ')
+        ? authorization.slice(7).trim()
+        : normalizeText(req.get('x-backup-cron-secret'));
+
+    if (!configuredSecret || !suppliedSecret) return false;
+    const configuredBuffer = Buffer.from(configuredSecret);
+    const suppliedBuffer = Buffer.from(suppliedSecret);
+    return configuredBuffer.length === suppliedBuffer.length
+        && crypto.timingSafeEqual(configuredBuffer, suppliedBuffer);
+};
+
+router.post('/backup/cron', async (req, res) => {
+    if (!normalizeText(process.env.BACKUP_CRON_SECRET)) {
+        return res.status(404).json({ message: 'Not found.' });
+    }
+    if (!cronSecretMatches(req)) {
+        return res.status(401).json({ message: 'Invalid backup scheduler credentials.' });
+    }
+
+    try {
+        const result = await createBackupRun({
+            createdBy: null,
+            createdByName: 'Cloudflare Backup Scheduler',
+            triggerType: 'scheduled',
+        });
+        return res.status(201).json({
+            message: 'Scheduled backup created successfully.',
+            backup: result.backup,
+            retention: result.retention,
+        });
+    } catch (error) {
+        if (error.code === 'BACKUP_BUSY') {
+            return res.status(409).json({ message: 'A backup is already running.' });
+        }
+        console.error('External scheduled backup failed:', error);
+        return res.status(500).json({ message: 'Scheduled backup failed.' });
+    }
+});
 
 router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
     try {
@@ -900,7 +955,8 @@ router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
         ]);
 
         res.json({
-            backupDir: BACKUP_DIR,
+            backupDir: backupStorage.getStorageStatus().location,
+            storage: backupStorage.getStorageStatus(),
             binary: probe.binary || MONGODUMP_BIN,
             mongodump: probe,
             mongorestore: restoreProbe,
@@ -998,7 +1054,7 @@ router.get('/backup/list', verifyToken, isAdmin, async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(100);
 
-        res.json(backups.map(serializeBackupLog));
+        res.json(await Promise.all(backups.map(serializeBackupLog)));
     } catch (error) {
         console.error('Error listing backups:', error);
         res.status(500).json({ message: 'Server error loading backup history.' });
@@ -1025,17 +1081,27 @@ router.post('/backup/verify/:filename', verifyToken, isAdmin, async (req, res) =
     }
 });
 
-router.get('/backup/download/:filename', verifyToken, isAdmin, (req, res) => {
+router.get('/backup/download/:filename', verifyToken, isAdmin, async (req, res) => {
     const safeFilename = path.basename(req.params.filename);
-    const filePath = path.join(BACKUP_DIR, safeFilename);
+    try {
+        const backup = await BackupLog.findOne({ filename: safeFilename, status: 'success' });
+        if (!backup || !(await backupStorage.archiveExists(backup))) {
+            return res.status(404).json({ message: 'Backup file not found.' });
+        }
 
-    if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ message: 'Backup file not found.' });
+        const stream = await backupStorage.getArchiveStream(backup);
+        res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+        res.setHeader('Content-Type', 'application/gzip');
+        stream.on('error', (error) => {
+            console.error('Backup download stream failed:', error);
+            if (!res.headersSent) res.status(500).json({ message: 'Backup download failed.' });
+            else res.destroy(error);
+        });
+        stream.pipe(res);
+    } catch (error) {
+        console.error('Backup download failed:', error);
+        if (!res.headersSent) res.status(500).json({ message: 'Backup download failed.' });
     }
-
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
-    res.setHeader('Content-Type', 'application/gzip');
-    fs.createReadStream(filePath).pipe(res);
 });
 
 module.exports = router;

@@ -322,6 +322,7 @@ export default function DatabaseBackup() {
     const scheduler = status?.scheduler || {};
     const mongodump = status?.mongodump || {};
     const mongorestore = status?.mongorestore || {};
+    const storage = status?.storage || {};
     const activeBackup = status?.activeBackup || null;
     const schedulerDirty = (
         settingsForm.enabled !== (scheduler.enabled === true)
@@ -390,9 +391,14 @@ export default function DatabaseBackup() {
                         <FaShieldAlt />
                     </div>
                     <div>
-                        <h2 className={styles.bannerTitle}>Stored on this server</h2>
+                        <h2 className={styles.bannerTitle}>
+                            {storage.provider === 'r2' ? 'Stored in Cloudflare R2' : 'Stored on this server'}
+                        </h2>
                         <p className={styles.bannerCopy}>
-                            Backup files are saved in <code>{status?.backupDir || 'backend/backups'}</code>. Download important copies and keep them outside the server for additional protection.
+                            {storage.provider === 'r2'
+                                ? <>Backup files are saved in the private bucket location <code>{status?.backupDir}</code> and remain available when Render restarts.</>
+                                : <>Backup files are saved in <code>{status?.backupDir || 'backend/backups'}</code>. Download important copies and keep them outside the server for additional protection.</>
+                            }
                         </p>
                     </div>
                 </div>
@@ -489,7 +495,7 @@ export default function DatabaseBackup() {
                         </div>
                         <div className={styles.detailRow}>
                             <span>Storage location</span>
-                            <strong>Server storage</strong>
+                            <strong>{storage.provider === 'r2' ? 'Cloudflare R2' : 'Server storage'}</strong>
                         </div>
                     </div>
                 </div>

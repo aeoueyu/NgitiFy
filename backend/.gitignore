@@ -5,6 +5,7 @@ __pycache__/
 *.py[cod]
 python/weights/
 backups/
+tools/mongodb-database-tools/
 *.gz
 *.dump
 *.bak
