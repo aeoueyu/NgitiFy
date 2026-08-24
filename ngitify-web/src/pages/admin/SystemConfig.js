@@ -169,6 +169,7 @@ const SystemConfig = () => {
     const [activeSection, setActiveSection] = useState('clinic');
     const [activeWebsiteTab, setActiveWebsiteTab] = useState('branding');
     const [feedbackModal, setFeedbackModal] = useState(null);
+    const [mediaUploadErrors, setMediaUploadErrors] = useState({});
     const [configErrors, setConfigErrors] = useState({});
     const [config, setConfig] = useState(() => mergeSystemConfigState(loadedConfig));
 
@@ -347,31 +348,34 @@ const SystemConfig = () => {
         });
     };
 
-    const handleImageUpload = async ({ file, onChange, label = 'image' }) => {
+    const handleImageUpload = async ({ file, onChange, onError, label = 'image' }) => {
         if (!file) return;
         if (!file.type.startsWith('image/')) {
-            showErrorModal('Please select a valid image file.');
+            const message = 'Please select a valid image file.';
+            onError?.(message);
+            showErrorModal(message);
             return;
         }
 
         const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '');
         const sizeLimit = isSvg ? MAX_WEBSITE_SVG_UPLOAD_BYTES : MAX_WEBSITE_IMAGE_UPLOAD_BYTES;
         if (file.size > sizeLimit) {
-            showErrorModal(
-                isSvg
-                    ? `${label} is too large at ${formatUploadSize(file.size)}. Please optimize the SVG to ${formatUploadSize(sizeLimit)} or smaller before uploading.`
-                    : `${label} is too large at ${formatUploadSize(file.size)}. Please use an image that is ${formatUploadSize(sizeLimit)} or smaller.`
-            );
+            const message = `${label} exceeds the 20 MB upload limit (${formatUploadSize(file.size)} selected). Please choose a file that is 20 MB or smaller.`;
+            onError?.(message);
+            showErrorModal(message, 'Image exceeds 20 MB limit');
             return;
         }
 
         try {
+            onError?.('');
             setWebsiteActionMessage('Uploading image...');
             const dataUrl = await readFileAsDataUrl(file);
             onChange(dataUrl);
             showSuccessModal(`${label} uploaded successfully. Save changes to publish it on the website.`, 'Upload complete');
         } catch (error) {
-            showErrorModal(error.message || 'Failed to read the selected image.');
+            const message = error.message || 'Failed to read the selected image.';
+            onError?.(message);
+            showErrorModal(message);
         } finally {
             setWebsiteActionMessage('');
         }
@@ -381,6 +385,7 @@ const SystemConfig = () => {
         await handleImageUpload({
             file,
             label,
+            onError: (message) => setMediaUploadErrors((current) => ({ ...current, [field]: message })),
             onChange: (value) => handleWebsiteMediaFieldChange(field, value),
         });
     };
@@ -570,6 +575,11 @@ const SystemConfig = () => {
                         Reset Default
                     </button>
                 </div>
+                {mediaUploadErrors[field] ? (
+                    <p className={styles.uploadError} role="alert" aria-live="assertive">
+                        {mediaUploadErrors[field]}
+                    </p>
+                ) : null}
             </div>
         );
     };

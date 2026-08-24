@@ -278,6 +278,10 @@ export default function PatientAppointmentsScreen({ navigation }) {
 
     const submitCancellation = async () => {
         if (!actionTarget?._id) return;
+        if (actionReason.trim().length < 20) {
+            setActionError('Cancellation reason is required and must be at least 20 characters.');
+            return;
+        }
         setActionSubmitting(true);
         setActionError('');
         try {
@@ -490,16 +494,20 @@ export default function PatientAppointmentsScreen({ navigation }) {
                                     <Ionicons name="warning-outline" size={22} color="#b91c1c" />
                                     <Text style={styles.warningText}>Cancelling cannot be undone from the patient app.</Text>
                                 </View>
-                                <Text style={styles.inputLabel}>Cancellation reason (optional)</Text>
+                                <Text style={styles.inputLabel}>Cancellation reason (required)</Text>
                                 <TextInput
-                                    style={styles.reasonInput}
+                                    style={[styles.reasonInput, actionReason.length > 0 && actionReason.trim().length < 20 && styles.reasonInputError]}
                                     value={actionReason}
-                                    onChangeText={setActionReason}
+                                    onChangeText={(value) => {
+                                        setActionReason(value);
+                                        setActionError('');
+                                    }}
                                     placeholder="Tell the clinic why you need to cancel"
                                     placeholderTextColor={mobileTheme.colors.textSoft}
                                     multiline
                                     editable={!actionSubmitting}
                                 />
+                                <Text style={styles.reasonHelper}>At least 20 characters required ({actionReason.trim().length}/20).</Text>
                             </SurfaceCard>
                         ) : null}
 
@@ -582,10 +590,10 @@ export default function PatientAppointmentsScreen({ navigation }) {
                             <TouchableOpacity
                                 style={[
                                     actionMode === 'cancel' ? styles.confirmCancelButton : styles.confirmRescheduleButton,
-                                    (actionSubmitting || (actionMode === 'reschedule' && (!rescheduleDate || !rescheduleTime))) && styles.disabledButton,
+                                    (actionSubmitting || (actionMode === 'cancel' && actionReason.trim().length < 20) || (actionMode === 'reschedule' && (!rescheduleDate || !rescheduleTime))) && styles.disabledButton,
                                 ]}
                                 onPress={actionMode === 'cancel' ? submitCancellation : submitReschedule}
-                                disabled={actionSubmitting || (actionMode === 'reschedule' && (!rescheduleDate || !rescheduleTime))}
+                                disabled={actionSubmitting || (actionMode === 'cancel' && actionReason.trim().length < 20) || (actionMode === 'reschedule' && (!rescheduleDate || !rescheduleTime))}
                                 activeOpacity={0.82}
                             >
                                 {actionSubmitting ? <ActivityIndicator size="small" color="#ffffff" /> : null}
@@ -820,6 +828,8 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         textAlignVertical: 'top',
     },
+    reasonInputError: { borderColor: '#dc2626', backgroundColor: '#fef2f2' },
+    reasonHelper: { color: mobileTheme.colors.textMuted, fontSize: 12, marginTop: 7, lineHeight: 17 },
     slotLoader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16 },
     slotLoaderText: { color: mobileTheme.colors.textMuted, fontSize: 13 },
     slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },

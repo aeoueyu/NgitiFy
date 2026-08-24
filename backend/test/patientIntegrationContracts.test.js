@@ -534,3 +534,25 @@ test(
         );
     }
 );
+
+test(
+    'patient account and booking safeguards are exposed consistently on web and mobile',
+    () => {
+        const serverSource = readRepositoryFile('backend/server.js');
+        const webSettingsSource = readRepositoryFile('ngitify-web/src/pages/patient/PatientSettings.js');
+        const mobileSettingsSource = readRepositoryFile('ngitify-mobile/src/screens/shared/SettingsScreen.js');
+        const webBookingSource = readRepositoryFile('ngitify-web/src/pages/patient/PatientBooking.js');
+        const mobileBookingSource = readRepositoryFile('ngitify-mobile/src/screens/patient/AppointmentBookingScreen.js');
+        const systemConfigSource = readRepositoryFile('ngitify-web/src/pages/admin/SystemConfig.js');
+
+        assert.match(serverSource, /Cancellation reason is required and must be at least 20 characters/);
+        assert.match(webSettingsSource, /\/user\/request-email-change/);
+        assert.match(mobileSettingsSource, /api\/user\/request-email-change/);
+        assert.match(webSettingsSource, /\/verify-current-password/);
+        assert.match(mobileSettingsSource, /api\/verify-current-password/);
+        assert.match(webBookingSource, /disabled=\{!privacySummaryViewed\}/);
+        assert.match(mobileBookingSource, /disabled=\{!privacySummaryViewed\}/);
+        assert.match(systemConfigSource, /exceeds the 20 MB upload limit/);
+        assert.match(systemConfigSource, /role="alert" aria-live="assertive"/);
+    }
+);

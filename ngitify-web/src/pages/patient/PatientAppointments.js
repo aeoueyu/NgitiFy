@@ -192,6 +192,10 @@ export default function PatientAppointments() {
 
     const submitCancellation = async () => {
         if (!selectedAppointment) return;
+        if (cancellationReason.trim().length < 20) {
+            setActionError('Cancellation reason is required and must be at least 20 characters.');
+            return;
+        }
         setActionSubmitting(true);
         setActionError('');
         try {
@@ -461,16 +465,24 @@ export default function PatientAppointments() {
                                 {actionMode === 'cancel' ? (
                                     <div className={styles.actionPanel}>
                                         <label className={styles.field}>
-                                            <span className={styles.label}>Cancellation reason (optional)</span>
+                                            <span className={styles.label}>Cancellation reason (required)</span>
                                             <textarea
-                                                className={styles.textarea}
+                                                className={`${styles.textarea} ${cancellationReason.length > 0 && cancellationReason.trim().length < 20 ? styles.inputInvalid : ''}`}
                                                 value={cancellationReason}
-                                                onChange={(event) => setCancellationReason(event.target.value)}
+                                                onChange={(event) => {
+                                                    setCancellationReason(event.target.value);
+                                                    setActionError('');
+                                                }}
                                                 placeholder="Tell the clinic why you need to cancel"
                                                 disabled={actionSubmitting}
+                                                required
+                                                minLength={20}
+                                                aria-describedby="cancellation-reason-help"
                                             />
                                         </label>
-                                        <p className={styles.helpText}>Cancelling cannot be undone from the patient portal.</p>
+                                        <p id="cancellation-reason-help" className={styles.helpText}>
+                                            At least 20 characters required ({cancellationReason.trim().length}/20). Cancelling cannot be undone from the patient portal.
+                                        </p>
                                     </div>
                                 ) : null}
                                 {actionMode === 'reschedule' ? (
@@ -559,7 +571,7 @@ export default function PatientAppointments() {
                                         </>
                                     ) : null}
                                     {actionMode === 'cancel' ? (
-                                        <button type="button" className={styles.buttonDanger} onClick={submitCancellation} disabled={actionSubmitting}>
+                                        <button type="button" className={styles.buttonDanger} onClick={submitCancellation} disabled={actionSubmitting || cancellationReason.trim().length < 20}>
                                             {actionSubmitting ? 'Cancelling...' : 'Confirm Cancellation'}
                                         </button>
                                     ) : null}

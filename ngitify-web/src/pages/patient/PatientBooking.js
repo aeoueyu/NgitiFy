@@ -84,6 +84,7 @@ export default function PatientBooking({ onExit, hubNav }) {
     const [selectedProcedure, setSelectedProcedure] = useState('');
     const [notes, setNotes] = useState('');
     const [privacyAccepted, setPrivacyAccepted] = useState(false);
+    const [privacySummaryViewed, setPrivacySummaryViewed] = useState(false);
     const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
     const [blockedDates, setBlockedDates] = useState([]);
     const [allowedSlots, setAllowedSlots] = useState([]);
@@ -685,7 +686,9 @@ export default function PatientBooking({ onExit, hubNav }) {
                                     <button
                                         type="button"
                                         onClick={() => setPrivacyAccepted((current) => !current)}
+                                        disabled={!privacySummaryViewed}
                                         aria-pressed={privacyAccepted}
+                                        aria-disabled={!privacySummaryViewed}
                                         aria-label={`${privacyAccepted ? 'Accepted' : 'Not accepted'} privacy policy consent for booking use`}
                                         style={{
                                             width: '100%',
@@ -696,7 +699,8 @@ export default function PatientBooking({ onExit, hubNav }) {
                                             borderRadius: '18px',
                                             border: privacyAccepted ? '1px solid #01538b' : '1px solid rgba(1, 83, 139, 0.12)',
                                             background: privacyAccepted ? '#eef7fc' : '#ffffff',
-                                            cursor: 'pointer',
+                                            cursor: privacySummaryViewed ? 'pointer' : 'not-allowed',
+                                            opacity: privacySummaryViewed ? 1 : 0.55,
                                             textAlign: 'left',
                                             marginBottom: '12px',
                                         }}
@@ -718,11 +722,16 @@ export default function PatientBooking({ onExit, hubNav }) {
                                         <div>
                                             <div style={{ fontWeight: 800, color: '#17364a', marginBottom: '6px' }}>I consent to the privacy policy for booking use</div>
                                             <div style={{ fontSize: '13px', color: '#698191', lineHeight: 1.6 }}>
-                                                Dentime may use this information for appointment scheduling, clinic communication, and keeping your patient record aligned with your assigned branch.
+                                                {privacySummaryViewed
+                                                    ? 'Dentime may use this information for appointment scheduling, clinic communication, and keeping your patient record aligned with your assigned branch.'
+                                                    : 'View the Privacy Policy Summary below before this consent option becomes available.'}
                                             </div>
                                         </div>
                                     </button>
-                                    <button type="button" className={styles.buttonGhost} onClick={() => setPrivacyModalOpen(true)}>
+                                    <button type="button" className={styles.buttonGhost} onClick={() => {
+                                        setPrivacySummaryViewed(true);
+                                        setPrivacyModalOpen(true);
+                                    }}>
                                         View Privacy Policy Summary
                                     </button>
                                 </>

@@ -105,6 +105,16 @@ export default function SettingsScreen({ navigation }) {
     const [pwError,         setPwError]         = useState('');
     const [pwSuccess,       setPwSuccess]       = useState('');
 
+    // Change Email modal state
+    const [emailModalVisible, setEmailModalVisible] = useState(false);
+    const [newEmail, setNewEmail] = useState('');
+    const [emailCurrentPassword, setEmailCurrentPassword] = useState('');
+    const [showEmailPassword, setShowEmailPassword] = useState(false);
+    const [emailPasswordVerified, setEmailPasswordVerified] = useState(false);
+    const [verifyingEmailPassword, setVerifyingEmailPassword] = useState(false);
+    const [submittingEmailChange, setSubmittingEmailChange] = useState(false);
+    const [emailChangeError, setEmailChangeError] = useState('');
+
     const authHeader = { Authorization: `Bearer ${userToken}` };
 
     // ── Fetch settings on mount ──────────────────────────────────────────────
@@ -391,6 +401,84 @@ export default function SettingsScreen({ navigation }) {
         }
     };
 
+    const openEmailModal = () => {
+        setNewEmail('');
+        setEmailCurrentPassword('');
+        setShowEmailPassword(false);
+        setEmailPasswordVerified(false);
+        setVerifyingEmailPassword(false);
+        setSubmittingEmailChange(false);
+        setEmailChangeError('');
+        setEmailModalVisible(true);
+    };
+
+    const closeEmailModal = () => {
+        if (verifyingEmailPassword || submittingEmailChange) return;
+        setEmailModalVisible(false);
+    };
+
+    const verifyEmailPassword = async () => {
+        if (!emailCurrentPassword) {
+            setEmailChangeError('Current password is required.');
+            return;
+        }
+        setVerifyingEmailPassword(true);
+        setEmailChangeError('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/verify-current-password`, {
+                method: 'POST',
+                headers: { ...authHeader, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, currentPassword: emailCurrentPassword }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) throw new Error(data.message || 'Current password is incorrect.');
+            setEmailPasswordVerified(true);
+        } catch (error) {
+            setEmailPasswordVerified(false);
+            setEmailChangeError(error.message || 'Unable to verify your password.');
+        } finally {
+            setVerifyingEmailPassword(false);
+        }
+    };
+
+    const requestEmailChange = async () => {
+        const normalizedEmail = newEmail.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+            setEmailChangeError('Enter a valid new email address.');
+            return;
+        }
+        if (normalizedEmail === String(userInfo?.email || '').trim().toLowerCase()) {
+            setEmailChangeError('New email must be different from the current email.');
+            return;
+        }
+        if (!emailPasswordVerified) {
+            setEmailChangeError('Verify your current password first.');
+            return;
+        }
+        setSubmittingEmailChange(true);
+        setEmailChangeError('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/user/request-email-change`, {
+                method: 'POST',
+                headers: { ...authHeader, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newEmail: normalizedEmail, currentPassword: emailCurrentPassword }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Unable to request the email change.');
+            setEmailModalVisible(false);
+            Alert.alert(
+                'Verification Link Sent',
+                data.message || 'Check your new inbox and verify the address before signing in again.',
+                [{ text: 'OK', onPress: logout }],
+                { cancelable: false },
+            );
+        } catch (error) {
+            setEmailChangeError(error.message || 'Unable to request the email change.');
+        } finally {
+            setSubmittingEmailChange(false);
+        }
+    };
+
     // ── Helpers ──────────────────────────────────────────────────────────────
     const displayName  = userInfo?.fullName || userInfo?.firstName || 'Patient';
     const displayEmail = userInfo?.email || '';
@@ -490,6 +578,18 @@ export default function SettingsScreen({ navigation }) {
                         <View style={styles.menuItemLeft}>
                             <Ionicons name="lock-closed-outline" size={18} color="#555" style={styles.menuIcon} />
                             <Text style={styles.menuText}>Change Password</Text>
+                        </View>
+                        <Text style={styles.arrow}>›</Text>
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity
+                        style={styles.menuItem}
+                        onPress={openEmailModal}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.menuItemLeft}>
+                            <Ionicons name="mail-outline" size={18} color="#555" style={styles.menuIcon} />
+                            <Text style={styles.menuText}>Change Email</Text>
                         </View>
                         <Text style={styles.arrow}>›</Text>
                     </TouchableOpacity>
@@ -955,6 +1055,84 @@ export default function SettingsScreen({ navigation }) {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            <Modal
+                visible={emailModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={closeEmailModal}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.modalOverlay}
+                >
+                    <View style={styles.modalSheet}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Change Email Address</Text>
+                            <TouchableOpacity onPress={closeEmailModal} disabled={verifyingEmailPassword || submittingEmailChange}>
+                                <Text style={styles.modalClose}>×</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                            <Text style={styles.emailChangeNotice}>
+                                Verify your current password, then we will send an activation link to your new email. You will be logged out after the request succeeds.
+                            </Text>
+                            <Text style={styles.inputLabel}>New Email Address</Text>
+                            <TextInput
+                                style={styles.emailInput}
+                                value={newEmail}
+                                onChangeText={(value) => {
+                                    setNewEmail(value.replace(/\s/g, ''));
+                                    setEmailChangeError('');
+                                }}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                editable={!submittingEmailChange}
+                                placeholder="Enter your new email"
+                                placeholderTextColor="#aaa"
+                            />
+                            <Text style={styles.inputLabel}>Current Password</Text>
+                            <View style={styles.pwInputRow}>
+                                <TextInput
+                                    style={styles.pwInput}
+                                    value={emailCurrentPassword}
+                                    onChangeText={(value) => {
+                                        setEmailCurrentPassword(value);
+                                        setEmailPasswordVerified(false);
+                                        setEmailChangeError('');
+                                    }}
+                                    secureTextEntry={!showEmailPassword}
+                                    editable={!verifyingEmailPassword && !submittingEmailChange}
+                                    placeholder="Enter current password"
+                                    placeholderTextColor="#aaa"
+                                />
+                                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowEmailPassword((current) => !current)}>
+                                    <Ionicons name={showEmailPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color="#777" />
+                                </TouchableOpacity>
+                            </View>
+                            <TouchableOpacity
+                                style={[styles.emailVerifyButton, (!emailCurrentPassword || emailPasswordVerified) && styles.disabledButton]}
+                                onPress={verifyEmailPassword}
+                                disabled={!emailCurrentPassword || emailPasswordVerified || verifyingEmailPassword || submittingEmailChange}
+                            >
+                                {verifyingEmailPassword ? <ActivityIndicator size="small" color="#01538b" /> : (
+                                    <Text style={styles.emailVerifyButtonText}>{emailPasswordVerified ? 'Password Verified' : 'Verify Password'}</Text>
+                                )}
+                            </TouchableOpacity>
+                            {emailChangeError ? <Text style={styles.modalErrorText}>{emailChangeError}</Text> : null}
+                            {emailPasswordVerified ? <Text style={styles.modalSuccessText}>Password verified.</Text> : null}
+                            <TouchableOpacity
+                                style={[styles.emailSubmitButton, (!emailPasswordVerified || !newEmail.trim() || submittingEmailChange) && styles.disabledButton]}
+                                onPress={requestEmailChange}
+                                disabled={!emailPasswordVerified || !newEmail.trim() || submittingEmailChange}
+                            >
+                                {submittingEmailChange ? <ActivityIndicator color="#fff" /> : <Text style={styles.emailSubmitButtonText}>Send Verification Link</Text>}
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
         </View>
     );
 }
@@ -1117,4 +1295,27 @@ const styles = StyleSheet.create({
     },
     pwSubmitDisabled: { backgroundColor: '#b0bec5' },
     pwSubmitText:     { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    emailChangeNotice: {
+        color: '#7c5a14', backgroundColor: '#fff8e1', borderRadius: 10,
+        padding: 12, fontSize: 13, lineHeight: 19, marginBottom: 18,
+    },
+    emailInput: {
+        backgroundColor: '#f3f7f9', borderRadius: 12, borderWidth: 1.5,
+        borderColor: '#e0e0e0', paddingHorizontal: 14, paddingVertical: 13,
+        color: '#333', fontSize: 14, marginBottom: 16,
+    },
+    emailVerifyButton: {
+        borderWidth: 1.5, borderColor: '#01538b', borderRadius: 12,
+        paddingVertical: 12, alignItems: 'center', marginBottom: 12,
+        backgroundColor: '#f0f7fb',
+    },
+    emailVerifyButtonText: { color: '#01538b', fontWeight: '700', fontSize: 14 },
+    emailSubmitButton: {
+        backgroundColor: '#01538b', borderRadius: 12, paddingVertical: 15,
+        alignItems: 'center', marginTop: 10,
+    },
+    emailSubmitButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+    modalErrorText: { color: '#c62828', fontSize: 12, lineHeight: 18, marginBottom: 10 },
+    modalSuccessText: { color: '#2e7d32', fontSize: 12, fontWeight: '600', marginBottom: 8 },
+    disabledButton: { opacity: 0.5 },
 });

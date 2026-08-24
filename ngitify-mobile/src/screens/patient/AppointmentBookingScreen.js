@@ -130,6 +130,7 @@ export default function AppointmentBookingScreen({ navigation }) {
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [privacyAccepted, setPrivacyAccepted] = useState(false);
+    const [privacySummaryViewed, setPrivacySummaryViewed] = useState(false);
     const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState('success');
@@ -665,19 +666,26 @@ export default function AppointmentBookingScreen({ navigation }) {
             </View>
 
             <TouchableOpacity
-                style={[styles.privacyCard, privacyAccepted && styles.privacyCardActive]}
+                style={[styles.privacyCard, privacyAccepted && styles.privacyCardActive, !privacySummaryViewed && styles.privacyCardDisabled]}
                 onPress={() => setPrivacyAccepted((prev) => !prev)}
+                disabled={!privacySummaryViewed}
                 activeOpacity={0.82}
+                accessibilityState={{ disabled: !privacySummaryViewed, checked: privacyAccepted }}
             >
                 <View style={[styles.radioCircle, privacyAccepted && styles.radioSelected]}>
                     {privacyAccepted && <View style={styles.radioDot} />}
                 </View>
                 <Text style={styles.privacyText}>
-                    I have reviewed the NgitiFy Privacy Policy and consent to the use of my information for appointment scheduling and clinic communications.
+                    {privacySummaryViewed
+                        ? 'I have reviewed the NgitiFy Privacy Policy and consent to the use of my information for appointment scheduling and clinic communications.'
+                        : 'View the Privacy Policy Summary below before this consent option becomes available.'}
                 </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => setPrivacyModalVisible(true)} activeOpacity={0.75} style={styles.privacyLinkRow}>
+            <TouchableOpacity onPress={() => {
+                setPrivacySummaryViewed(true);
+                setPrivacyModalVisible(true);
+            }} activeOpacity={0.75} style={styles.privacyLinkRow}>
                 <Ionicons name="document-text-outline" size={16} color="#01538b" />
                 <Text style={styles.privacyLinkText}>View Privacy Policy Summary</Text>
             </TouchableOpacity>
@@ -852,6 +860,7 @@ const styles = StyleSheet.create({
     disclaimerText: { color: '#6d4c41', lineHeight: 19 },
     privacyCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: 'white', borderRadius: 14, padding: 14, borderWidth: 1.2, borderColor: '#d8e2e8', marginBottom: 16 },
     privacyCardActive: { borderColor: '#01538b', backgroundColor: '#e8f1f8' },
+    privacyCardDisabled: { opacity: 0.55 },
     privacyText: { flex: 1, color: '#284b63', lineHeight: 20 },
     privacyLinkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: -4, marginBottom: 16 },
     privacyLinkText: { color: '#01538b', fontWeight: '700' },

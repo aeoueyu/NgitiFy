@@ -48,6 +48,13 @@ export default function PatientSettings() {
     const [passwordError, setPasswordError] = useState('');
     const [passwordSuccess, setPasswordSuccess] = useState('');
     const [settingsMessage, setSettingsMessage] = useState('');
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [emailForm, setEmailForm] = useState({ newEmail: '', currentPassword: '' });
+    const [emailPasswordVerified, setEmailPasswordVerified] = useState(false);
+    const [verifyingEmailPassword, setVerifyingEmailPassword] = useState(false);
+    const [submittingEmailChange, setSubmittingEmailChange] = useState(false);
+    const [emailChangeError, setEmailChangeError] = useState('');
+    const [emailChangeSuccess, setEmailChangeSuccess] = useState('');
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -276,6 +283,84 @@ export default function PatientSettings() {
             setPasswordError(error.message || 'Failed to update password.');
         } finally {
             setChangingPassword(false);
+        }
+    };
+
+    const resetEmailChange = () => {
+        setEmailForm({ newEmail: '', currentPassword: '' });
+        setEmailPasswordVerified(false);
+        setVerifyingEmailPassword(false);
+        setSubmittingEmailChange(false);
+        setEmailChangeError('');
+    };
+
+    const openEmailChange = () => {
+        resetEmailChange();
+        setEmailChangeSuccess('');
+        setShowEmailModal(true);
+    };
+
+    const verifyEmailPassword = async () => {
+        if (!emailForm.currentPassword) {
+            setEmailChangeError('Current password is required.');
+            return;
+        }
+        setVerifyingEmailPassword(true);
+        setEmailChangeError('');
+        try {
+            const response = await authFetch('/verify-current-password', {
+                method: 'POST',
+                skipUnauthorizedRedirect: true,
+                body: JSON.stringify({
+                    userId: user?.id || user?.userId || user?._id,
+                    currentPassword: emailForm.currentPassword,
+                }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || 'Current password is incorrect.');
+            }
+            setEmailPasswordVerified(true);
+        } catch (error) {
+            setEmailPasswordVerified(false);
+            setEmailChangeError(error.message || 'Unable to verify your password.');
+        } finally {
+            setVerifyingEmailPassword(false);
+        }
+    };
+
+    const requestEmailChange = async (event) => {
+        event.preventDefault();
+        const newEmail = emailForm.newEmail.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+            setEmailChangeError('Enter a valid new email address.');
+            return;
+        }
+        if (newEmail === String(user?.email || '').trim().toLowerCase()) {
+            setEmailChangeError('New email must be different from the current email.');
+            return;
+        }
+        if (!emailPasswordVerified) {
+            setEmailChangeError('Verify your current password first.');
+            return;
+        }
+        setSubmittingEmailChange(true);
+        setEmailChangeError('');
+        try {
+            const response = await authFetch('/user/request-email-change', {
+                method: 'POST',
+                skipUnauthorizedRedirect: true,
+                body: JSON.stringify({ newEmail, currentPassword: emailForm.currentPassword }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || 'Unable to request the email change.');
+            setEmailChangeSuccess(payload.message || 'Verification link sent to your new email address.');
+            setShowEmailModal(false);
+            resetEmailChange();
+        } catch (error) {
+            setEmailChangeError(error.message || 'Unable to request the email change.');
+        } finally {
+            setSubmittingEmailChange(false);
         }
     };
 
@@ -613,6 +698,9 @@ export default function PatientSettings() {
                 <button type="button" className={styles.verifyBtn} onClick={() => navigate('/patient/activity-logs')}>
                     ACTIVITY LOGS
                 </button>
+                <button type="button" className={styles.verifyBtn} onClick={openEmailChange}>
+                    CHANGE EMAIL
+                </button>
             </div>
 
             <div className={styles.buttonGroup}>
@@ -717,6 +805,72 @@ export default function PatientSettings() {
                     </section>
                 </div>
             )}
+            {showEmailModal ? (
+                <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="patient-change-email-title">
+                    <div className={styles.modalCard}>
+                        <h3 id="patient-change-email-title" className={styles.modalTitle}>Change Email Address</h3>
+                        <p className={styles.modalMessage}>
+                            Enter your new email and verify your current password. You will be logged out after the verification link is sent.
+                        </p>
+                        <form onSubmit={requestEmailChange} style={{ width: '100%', textAlign: 'left' }} noValidate>
+                            <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                                <label>NEW EMAIL ADDRESS</label>
+                                <input
+                                    type="email"
+                                    className={styles.inputField}
+                                    value={emailForm.newEmail}
+                                    onChange={(event) => {
+                                        setEmailForm((current) => ({ ...current, newEmail: event.target.value }));
+                                        setEmailChangeError('');
+                                    }}
+                                    autoComplete="email"
+                                    disabled={submittingEmailChange}
+                                />
+                            </div>
+                            <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                                <label>CURRENT PASSWORD</label>
+                                <div className={styles.inputRow}>
+                                    <PasswordField
+                                        className={styles.inputField}
+                                        value={emailForm.currentPassword}
+                                        onChange={(event) => {
+                                            setEmailForm((current) => ({ ...current, currentPassword: event.target.value }));
+                                            setEmailPasswordVerified(false);
+                                            setEmailChangeError('');
+                                        }}
+                                        disabled={submittingEmailChange || verifyingEmailPassword}
+                                    />
+                                    {!emailPasswordVerified ? (
+                                        <button type="button" className={styles.verifyBtn} onClick={verifyEmailPassword} disabled={!emailForm.currentPassword || verifyingEmailPassword || submittingEmailChange}>
+                                            {verifyingEmailPassword ? 'VERIFYING...' : 'VERIFY'}
+                                        </button>
+                                    ) : <div className={styles.verifiedBadge}>Verified</div>}
+                                </div>
+                            </div>
+                            {emailChangeError ? <div className={styles.apiErrorMessage} role="alert">{emailChangeError}</div> : null}
+                            <div className={styles.buttonGroup} style={{ marginTop: '20px' }}>
+                                <button type="button" className={styles.verifyBtn} onClick={() => { setShowEmailModal(false); resetEmailChange(); }} disabled={submittingEmailChange}>CANCEL</button>
+                                <button type="submit" className={styles.submitBtn} disabled={!emailPasswordVerified || !emailForm.newEmail.trim() || submittingEmailChange}>
+                                    {submittingEmailChange ? 'REQUESTING...' : 'SEND VERIFICATION LINK'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            ) : null}
+            {emailChangeSuccess ? (
+                <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="patient-email-sent-title">
+                    <div className={styles.modalCard}>
+                        <h3 id="patient-email-sent-title" className={styles.modalTitle}>Verification Link Sent</h3>
+                        <p className={styles.modalMessage}>{emailChangeSuccess}</p>
+                        <button type="button" className={styles.modalButton} onClick={() => {
+                            setEmailChangeSuccess('');
+                            logout('email_change_requested');
+                            navigate('/login', { state: { message: 'Verify your new email before signing in again.' } });
+                        }}>OK, LOG ME OUT</button>
+                    </div>
+                </div>
+            ) : null}
         </PatientPageFrame>
     );
 }

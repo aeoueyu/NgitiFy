@@ -8683,6 +8683,12 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             if (status !== 'cancelled' || forbiddenPatientFields.length || !canPatientCancelAppointment(currentSurgery)) {
                 return res.status(403).json({ message: 'This appointment cannot be changed from the patient portal.' });
             }
+            const normalizedCancellationReason = String(cancellationReason || '').trim();
+            if (normalizedCancellationReason.length < 20) {
+                return res.status(400).json({
+                    message: 'Cancellation reason is required and must be at least 20 characters.',
+                });
+            }
         } else if (!staffRoles.includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied.' });
         }
