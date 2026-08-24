@@ -8,11 +8,58 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const KNOWLEDGE_ROOT = path.join(__dirname, 'knowledge');
 const REFUSAL_TEXT = 'I can only answer based on Dentime system knowledge and approved dental guidance.';
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const MIN_RELEVANCE = Number.parseInt(process.env.AI_MIN_RELEVANCE || '2', 10);
 const MAX_CONTEXT_LENGTH = 6000;
 
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({}) : null;
+
+const getProviderErrorText = (error) => [
+    error?.message,
+    error?.status,
+    error?.code,
+    error?.error?.message,
+    error?.error?.status,
+    error?.error?.code,
+].filter(Boolean).join(' ');
+
+export function normalizeGeminiError(error) {
+    const providerText = getProviderErrorText(error);
+    const providerStatus = Number(error?.status || error?.code || error?.error?.code);
+
+    if (
+        providerStatus === 429
+        || /RESOURCE_EXHAUSTED|quota exceeded|rate[ _-]?limit/i.test(providerText)
+    ) {
+        return Object.assign(
+            new Error('The AI request limit has been reached for now. Please try again later.'),
+            { statusCode: 429, cause: error }
+        );
+    }
+
+    if (
+        providerStatus === 503
+        || /UNAVAILABLE|service unavailable|overloaded/i.test(providerText)
+    ) {
+        return Object.assign(
+            new Error('The AI explanation service is temporarily unavailable. Please try again later.'),
+            { statusCode: 503, cause: error }
+        );
+    }
+
+    return Object.assign(
+        new Error('The AI provider could not process this request.'),
+        { statusCode: 502, cause: error }
+    );
+}
+
+const callGemini = async (request) => {
+    try {
+        return await request();
+    } catch (error) {
+        throw normalizeGeminiError(error);
+    }
+};
 
 const STOP_WORDS = new Set([
     'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'can', 'do', 'for', 'from',
@@ -360,14 +407,14 @@ export async function generateScopedReply({ scope, messages, additionalContext }
         return REFUSAL_TEXT;
     }
 
-    const response = await ai.models.generateContent({
+    const response = await callGemini(() => ai.models.generateContent({
         model: DEFAULT_MODEL,
         contents: request.contents,
         config: {
             systemInstruction: request.config.systemInstruction,
             temperature: scope === 'education' ? 0.4 : 0.2,
         },
-    });
+    }));
 
     return String(response.text || REFUSAL_TEXT).trim() || REFUSAL_TEXT;
 }
@@ -382,12 +429,12 @@ export async function generateScopedStream({ scope, messages, additionalContext 
         return null;
     }
 
-    return ai.models.generateContentStream({
+    return callGemini(() => ai.models.generateContentStream({
         model: DEFAULT_MODEL,
         contents: request.contents,
         config: {
             systemInstruction: request.config.systemInstruction,
             temperature: 0.2,
         },
-    });
+    }));
 }

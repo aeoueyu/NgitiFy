@@ -14356,7 +14356,11 @@ const handlePatientAiChat = async (req, res) => {
         res.json({ reply });
     } catch (error) {
         console.error('AI chat error:', error);
-        res.status(500).json({ message: 'Server error processing AI request.' });
+        res.status(error.statusCode || 500).json({
+            message: error.statusCode
+                ? error.message
+                : 'Server error processing AI request.',
+        });
     }
 };
 
@@ -14493,7 +14497,11 @@ app.post('/api/ai/education', verifyToken, async (req, res) => {
         res.json({ content, topic });
     } catch (error) {
         console.error('AI education error:', error);
-        res.status(500).json({ message: 'Server error generating educational content.' });
+        res.status(error.statusCode || 500).json({
+            message: error.statusCode
+                ? error.message
+                : 'Server error generating educational content.',
+        });
     }
 });
 

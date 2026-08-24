@@ -133,14 +133,14 @@ module.exports = function createStaffAiRouter({
         const geminiService = await ensureAiConfigured(res);
         if (!geminiService) return;
         const context = await buildAuthorizedContext(req, messages);
+        const stream = await geminiService.generateScopedStream({
+            scope: 'staff', messages: messages.slice(-MAX_HISTORY_MESSAGES), additionalContext: context,
+        });
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.flushHeaders();
 
-        const stream = await geminiService.generateScopedStream({
-            scope: 'staff', messages: messages.slice(-MAX_HISTORY_MESSAGES), additionalContext: context,
-        });
         let reply = '';
         if (stream) {
             for await (const chunk of stream) {
