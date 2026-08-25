@@ -2436,8 +2436,28 @@ export default function PatientEMR({
                             )}
                         </div>
 
+                        <div className={styles.largeRadiographWrapper}>
+                            <img
+                                src={getPreferredRadiographUrl(selectedRadiograph, selectedRadiographView)}
+                                alt={selectedRadiograph.type}
+                                className={styles.largeRadiograph}
+                            />
+                            {isEnhancing && (
+                                <div className={styles.loadingOverlay}>
+                                    <FaRobot className={styles.spinningIcon} />
+                                    <span>
+                                        {enhancingEngine === 'self-hosted'
+                                            ? 'Running self-hosted AI enhancement...'
+                                            : enhancingEngine === 'hugging-face'
+                                                ? 'Running Hugging Face test harness...'
+                                                : 'Enhancing radiograph...'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
                         {(approvedSummary || approvedFindings.length > 0) ? (
-                            <div style={{ marginBottom: '18px', display: 'grid', gap: '12px' }}>
+                            <div style={{ marginTop: '18px', display: 'grid', gap: '12px' }}>
                                 {approvedSummary ? (
                                     <div className={styles.contentCard}>
                                         <h4 className={styles.sectionTitle} style={{ fontSize: '16px', marginBottom: '8px' }}>
@@ -2467,26 +2487,6 @@ export default function PatientEMR({
                                 </p>
                             </div>
                         ) : null}
-
-                        <div className={styles.largeRadiographWrapper}>
-                            <img 
-                                src={getPreferredRadiographUrl(selectedRadiograph, selectedRadiographView)} 
-                                alt={selectedRadiograph.type} 
-                                className={styles.largeRadiograph}
-                            />
-                            {isEnhancing && (
-                                <div className={styles.loadingOverlay}>
-                                    <FaRobot className={styles.spinningIcon} />
-                                    <span>
-                                        {enhancingEngine === 'self-hosted'
-                                            ? 'Running self-hosted AI enhancement...'
-                                            : enhancingEngine === 'hugging-face'
-                                                ? 'Running Hugging Face test harness...'
-                                                : 'Enhancing radiograph...'}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
 
                         {canEnhanceRadiograph && selectedRadiograph.url ? (
                             <div style={{ marginTop: '16px', display: 'grid', gap: '12px' }}>

@@ -32,6 +32,10 @@ test('shared patient EMR renders dentist-approved radiograph details', () => {
     assert.match(readOnlyViewer, /selectedRadiograph\.approvedFindings/);
     assert.match(readOnlyViewer, /Dentist-approved review summary/);
     assert.match(readOnlyViewer, /Information recorded by your dentist/);
+    assert.ok(
+        readOnlyViewer.indexOf('largeRadiographWrapper') < readOnlyViewer.indexOf('Dentist-approved review summary'),
+        'Approved radiograph information should render below the image.'
+    );
 });
 
 test('patient AI receives only approved radiograph records', () => {
