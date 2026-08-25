@@ -175,6 +175,7 @@ const DEFAULT_RADIOGRAPH_TYPE = 'Periapical';
 const normalizeRadiographRecord = (radiograph = {}) => {
     const rawDateValue = radiograph.date || radiograph.rawDate || radiograph.uploadedAt || radiograph.createdAt || 0;
     const variants = getNormalizedEnhancementVariants(radiograph);
+    const reviewSummary = radiograph.reviewSummary || {};
     return {
         ...radiograph,
         id: radiograph._id || radiograph.id,
@@ -187,6 +188,12 @@ const normalizeRadiographRecord = (radiograph = {}) => {
         radiographNumber: radiograph.radiographNumber || '',
         findings: radiograph.findings || '',
         notes: radiograph.notes || '',
+        approvedSummary: radiograph.approvedSummary
+            || (reviewSummary.status === 'approved' ? reviewSummary.approvedText : '')
+            || '',
+        approvedFindings: Array.isArray(radiograph.approvedFindings)
+            ? radiograph.approvedFindings
+            : [],
     };
 };
 const normalizeTreatmentLogRecord = (log = {}) => {
@@ -2396,6 +2403,10 @@ export default function PatientEMR({
         }
         if (selectedRadiograph) {
             const availableViewOptions = getRadiographViewOptions(selectedRadiograph);
+            const approvedSummary = String(selectedRadiograph.approvedSummary || '').trim();
+            const approvedFindings = Array.isArray(selectedRadiograph.approvedFindings)
+                ? selectedRadiograph.approvedFindings
+                : [];
             return (
                 <div className={styles.contentCard}>
                     <div className={styles.imageViewerContainer}>
@@ -2424,6 +2435,38 @@ export default function PatientEMR({
                                 </button>
                             )}
                         </div>
+
+                        {(approvedSummary || approvedFindings.length > 0) ? (
+                            <div style={{ marginBottom: '18px', display: 'grid', gap: '12px' }}>
+                                {approvedSummary ? (
+                                    <div className={styles.contentCard}>
+                                        <h4 className={styles.sectionTitle} style={{ fontSize: '16px', marginBottom: '8px' }}>
+                                            Dentist-approved review summary
+                                        </h4>
+                                        <p style={{ margin: 0, color: '#475569', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
+                                            {approvedSummary}
+                                        </p>
+                                    </div>
+                                ) : null}
+                                {approvedFindings.length > 0 ? (
+                                    <div className={styles.contentCard}>
+                                        <h4 className={styles.sectionTitle} style={{ fontSize: '16px', marginBottom: '8px' }}>
+                                            Information recorded by your dentist
+                                        </h4>
+                                        {approvedFindings.map((finding, index) => (
+                                            <p key={`${finding.toothNumber || 'finding'}-${index}`} style={{ margin: index === 0 ? 0 : '8px 0 0', color: '#475569', lineHeight: 1.7 }}>
+                                                {finding.toothNumber ? `Tooth ${finding.toothNumber}: ` : ''}
+                                                {finding.findingType || finding.note || 'Recorded finding'}
+                                                {finding.findingType && finding.note ? ` — ${finding.note}` : ''}
+                                            </p>
+                                        ))}
+                                    </div>
+                                ) : null}
+                                <p style={{ margin: 0, color: '#64748b', fontSize: '12px', lineHeight: 1.5 }}>
+                                    {selectedRadiograph.disclaimer || 'This information is based on records approved by your dental care team. It does not replace advice from your dentist.'}
+                                </p>
+                            </div>
+                        ) : null}
 
                         <div className={styles.largeRadiographWrapper}>
                             <img 

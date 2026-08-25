@@ -22,6 +22,18 @@ test('patient radiograph serialization omits raw analysis and unapproved summary
     assert.doesNotMatch(serializer, /draft:/);
 });
 
+test('shared patient EMR renders dentist-approved radiograph details', () => {
+    const emrSource = fs.readFileSync(path.join(__dirname, '..', '..', 'ngitify-web', 'src', 'pages', 'admin', 'PatientEMR.js'), 'utf8');
+    const readOnlyViewer = emrSource.slice(
+        emrSource.indexOf('if (selectedRadiograph) {'),
+        emrSource.indexOf("return (\n            <div className={styles.contentCard}>", emrSource.indexOf('if (selectedRadiograph) {') + 1)
+    );
+    assert.match(readOnlyViewer, /selectedRadiograph\.approvedSummary/);
+    assert.match(readOnlyViewer, /selectedRadiograph\.approvedFindings/);
+    assert.match(readOnlyViewer, /Dentist-approved review summary/);
+    assert.match(readOnlyViewer, /Information recorded by your dentist/);
+});
+
 test('patient AI receives only approved radiograph records', () => {
     const records = buildPatientAiRadiographContext([
         { _id: 'approved', label: 'Panoramic', reviewSummary: { status: 'approved', approvedText: 'Dentist approved.', revisionDraft: 'Unapproved replacement.', approvedAt: new Date(), approvedBy: 'd1' }, annotations: [{ toothNumber: '46', findingType: 'Existing restoration', status: 'active' }, { toothNumber: '47', findingType: 'Archived private finding', status: 'archived' }, { toothNumber: '48', findingType: 'Deleted private finding', status: 'deleted' }] },
