@@ -51,6 +51,19 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
     prediction?.recommendedDate,
     fallbackRecommended,
   );
+  const clinicPlannedVisit = prediction?.clinicPlannedVisit || null;
+  const clinicPlannedRecommendedDate = resolveDateFromPrediction(
+    clinicPlannedVisit?.recommendedDateKey,
+    clinicPlannedVisit?.recommendedDate,
+    null,
+  );
+  const hasClinicPlannedVisit = Boolean(
+    clinicPlannedVisit?.recommendedDateLabel
+    || clinicPlannedRecommendedDate
+    || clinicPlannedVisit?.windowLabel,
+  );
+  const clinicPlannedDateLabel = clinicPlannedVisit?.recommendedDateLabel
+    || (clinicPlannedRecommendedDate ? formatShortDate(clinicPlannedRecommendedDate) : '');
 
   const windowLabel = hasVisitWindow
     ? (prediction?.windowLabel || buildWindowLabel(windowStart, windowEnd))
@@ -124,7 +137,9 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
       title: 'Recommended Visit Window',
       headline: hasVisitWindow
         ? `Your next recommended clinic window is ${windowLabel}.`
-        : 'No visit window is available yet.',
+        : hasClinicPlannedVisit
+          ? `Contact the clinic sooner. Your clinic-recorded next visit is ${clinicPlannedDateLabel}.`
+          : 'No visit window is available yet.',
       statusLabel,
       windowLabel,
       whyThisShowing,
@@ -133,6 +148,9 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
       sourceLabels: prediction?.sourceLabels || (hasVisitWindow ? ['Preview Mode'] : ['Insufficient Data']),
       explanationItems: prediction?.explanationItems || [whyThisShowing],
       contactClinicSooner: Boolean(prediction?.contactClinicSooner),
+      clinicPlannedDateLabel,
+      clinicPlannedWindowLabel: clinicPlannedVisit?.windowLabel || '',
+      hasClinicPlannedVisit,
       previewHint: oralHealth
         ? 'Your quick logs and factors are saved to your patient account.'
         : 'This screen is a front-end preview using static watch signals, factors, and logs.',

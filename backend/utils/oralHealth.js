@@ -427,8 +427,24 @@ const buildExplainableVisitRecommendation = ({ basePrediction = null, oralHealth
         contactClinicSooner: Boolean(escalation),
         contactClinicReason: escalation?.action || '',
         escalationRuleId: escalation?.ruleId || '',
+        clinicPlannedVisit: escalation
+            ? {
+                recommendedDate: basePrediction.recommendedDate || '',
+                recommendedDateLabel: basePrediction.recommendedDateLabel || '',
+                recommendedDateKey: basePrediction.recommendedDateKey || '',
+                windowStart: basePrediction.windowStart || '',
+                windowEnd: basePrediction.windowEnd || '',
+                windowStartLabel: basePrediction.windowStartLabel || '',
+                windowEndLabel: basePrediction.windowEndLabel || '',
+                windowStartKey: basePrediction.windowStartKey || '',
+                windowEndKey: basePrediction.windowEndKey || '',
+                windowLabel: basePrediction.windowLabel || '',
+                isFollowUpRecommendation: Boolean(basePrediction.isFollowUpRecommendation),
+            }
+            : null,
         // An urgent approved safety rule must not continue presenting a distant
-        // routine window as though it were the recommended action.
+        // routine window as though it were the recommended action. The clinic's
+        // recorded plan remains available separately for patient reference.
         hasVisitWindow: !escalation,
         recommendedDate: escalation ? '' : basePrediction.recommendedDate,
         recommendedDateLabel: escalation ? '' : basePrediction.recommendedDateLabel,

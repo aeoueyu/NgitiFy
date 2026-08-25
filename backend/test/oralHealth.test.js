@@ -145,6 +145,8 @@ test('adds explainable contact-clinic guidance for an approved oral health safet
     assert.match(prediction.recommendationReason, /swelling/i);
     assert.equal(prediction.hasVisitWindow, false);
     assert.equal(prediction.windowLabel, '');
+    assert.equal(prediction.clinicPlannedVisit.recommendedDateLabel, 'September 8, 2026');
+    assert.equal(prediction.clinicPlannedVisit.windowLabel, 'September 1, 2026 - September 15, 2026');
     assert.match(prediction.recommendationReason, /instead of waiting/i);
 });
 

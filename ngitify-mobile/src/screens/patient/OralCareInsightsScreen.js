@@ -3,6 +3,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -658,6 +659,9 @@ export default function OralCareInsightsScreen({
     type: 'warning',
   });
 
+  const logSuccessModalTimer =
+    useRef(null);
+
   const showNoticeModal = useCallback((
     title,
     message,
@@ -676,6 +680,14 @@ export default function OralCareInsightsScreen({
       ...current,
       visible: false,
     }));
+  }, []);
+
+  useEffect(() => () => {
+    if (logSuccessModalTimer.current) {
+      clearTimeout(
+        logSuccessModalTimer.current,
+      );
+    }
   }, []);
 
   const preview =
@@ -1724,6 +1736,18 @@ export default function OralCareInsightsScreen({
       [logGroups],
     );
 
+  const dailyLogIsEmpty =
+    selectedLogItemsByGroup
+      .symptoms
+      .length === 0
+    && selectedLogItemsByGroup
+      .dailyCare
+      .length === 0
+    && selectedLogItemsByGroup
+      .riskFactors
+      .length === 0
+    && !logNotes.trim();
+
   const closeLog = () => {
     setLogVisible(false);
     setLogStep(0);
@@ -1888,6 +1912,21 @@ export default function OralCareInsightsScreen({
           )
         || [];
 
+      if (
+        symptoms.length === 0
+        && dailyCare.length === 0
+        && riskFactors.length === 0
+        && !logNotes.trim()
+      ) {
+        showNoticeModal(
+          'Incomplete Oral Health Log',
+          'Select at least one symptom, care item, risk factor, or note before saving',
+          'warning',
+        );
+
+        return;
+      }
+
       const symptomIds =
         new Set(symptoms);
 
@@ -1987,18 +2026,25 @@ export default function OralCareInsightsScreen({
         }
 
         setOralHealth(payload);
+
+        const successMessage =
+          selectedLog
+            ? 'Daily oral health log updated'
+            : 'Daily oral health log saved';
+
         closeLog();
 
-        showNoticeModal(
-          'Oral Health Management',
-          payload.message
-          || (
-            selectedLog
-              ? 'Daily oral health log updated.'
-              : 'Daily oral health log saved.'
-          ),
-          'success',
-        );
+        logSuccessModalTimer.current =
+          setTimeout(() => {
+            showNoticeModal(
+              'Oral Health Management',
+              successMessage,
+              'success',
+            );
+
+            logSuccessModalTimer.current =
+              null;
+          }, 350);
       } catch (error) {
         showNoticeModal(
           'Oral Health Management',
@@ -2439,6 +2485,59 @@ export default function OralCareInsightsScreen({
                 .headline
             }
           </Text>
+
+          {preview.hero
+            .hasClinicPlannedVisit ? (
+            <View
+              style={
+                styles.clinicPlannedVisit
+              }
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={19}
+                color={
+                  mobileTheme.colors
+                    .primaryDark
+                }
+              />
+
+              <View
+                style={
+                  styles.clinicPlannedVisitCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.clinicPlannedVisitLabel
+                  }
+                >
+                  Clinic-recorded next visit
+                </Text>
+
+                <Text
+                  style={
+                    styles.clinicPlannedVisitDate
+                  }
+                >
+                  {preview.hero
+                    .clinicPlannedDateLabel}
+                </Text>
+
+                {preview.hero
+                  .clinicPlannedWindowLabel ? (
+                  <Text
+                    style={
+                      styles.clinicPlannedVisitWindow
+                    }
+                  >
+                    Planned window: {preview.hero
+                      .clinicPlannedWindowLabel}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
 
           <Text
             style={
@@ -3786,9 +3885,14 @@ export default function OralCareInsightsScreen({
         visible={logVisible}
         transparent
         animationType="slide"
-        onRequestClose={
-          closeLog
-        }
+        onRequestClose={() => {
+          if (symptomDetailId) {
+            setSymptomDetailId(null);
+            return;
+          }
+
+          closeLog();
+        }}
       >
         <View
           style={
@@ -4207,6 +4311,33 @@ export default function OralCareInsightsScreen({
                     accessibilityLabel="Optional oral health log notes"
                   />
 
+                  {dailyLogIsEmpty ? (
+                    <View
+                      style={
+                        styles.logValidationMessage
+                      }
+                      accessibilityRole="alert"
+                    >
+                      <Ionicons
+                        name="warning-outline"
+                        size={18}
+                        color={
+                          mobileTheme
+                            .colors
+                            .warning
+                        }
+                      />
+
+                      <Text
+                        style={
+                          styles.logValidationText
+                        }
+                      >
+                        Select at least one symptom, care item, risk factor, or note before saving
+                      </Text>
+                    </View>
+                  ) : null}
+
                   <View
                     style={
                       styles.disclaimerInline
@@ -4289,28 +4420,15 @@ export default function OralCareInsightsScreen({
               </View>
             </View>
           </View>
-        </View>
-      </Modal>
 
-      <Modal
-        visible={
-          Boolean(
+          {Boolean(
             symptomDetailId,
-          )
-        }
-        transparent
-        animationType="slide"
-        onRequestClose={() =>
-          setSymptomDetailId(
-            null,
-          )
-        }
-      >
-        <View
-          style={
-            styles.modalOverlay
-          }
-        >
+          ) ? (
+            <View
+              style={
+                styles.detailModalOverlay
+              }
+            >
           <View
             style={
               styles.detailSheet
@@ -4510,6 +4628,8 @@ export default function OralCareInsightsScreen({
               }}
             />
           </View>
+            </View>
+          ) : null}
         </View>
       </Modal>
 
@@ -4862,6 +4982,55 @@ const styles = StyleSheet.create({
         .textMuted,
 
     marginBottom: 14,
+  },
+
+  clinicPlannedVisit: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 13,
+    marginBottom: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors
+        .border,
+    backgroundColor:
+      mobileTheme.colors
+        .surfaceAlt,
+  },
+
+  clinicPlannedVisitCopy: {
+    flex: 1,
+  },
+
+  clinicPlannedVisitLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    color:
+      mobileTheme.colors
+        .textSoft,
+  },
+
+  clinicPlannedVisitDate: {
+    marginTop: 3,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '800',
+    color:
+      mobileTheme.colors
+        .primaryDark,
+  },
+
+  clinicPlannedVisitWindow: {
+    marginTop: 3,
+    fontSize: 12,
+    lineHeight: 18,
+    color:
+      mobileTheme.colors
+        .textMuted,
   },
 
   statusPill: {
@@ -5843,6 +6012,19 @@ const styles = StyleSheet.create({
       'rgba(1, 59, 99, 0.35)',
   },
 
+  detailModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 2,
+    elevation: 20,
+    justifyContent: 'flex-end',
+    backgroundColor:
+      'rgba(1, 59, 99, 0.45)',
+  },
+
   sheet: {
     maxHeight: '82%',
 
@@ -6499,6 +6681,33 @@ const styles = StyleSheet.create({
   logReviewValue: {
     fontSize: 14,
     lineHeight: 21,
+    color:
+      mobileTheme.colors
+        .text,
+  },
+
+  logValidationMessage: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    padding: 13,
+    marginTop: 12,
+    marginBottom: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor:
+      mobileTheme.colors
+        .warning,
+    backgroundColor:
+      mobileTheme.colors
+        .warningSoft,
+  },
+
+  logValidationText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '600',
     color:
       mobileTheme.colors
         .text,
