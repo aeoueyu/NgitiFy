@@ -120,6 +120,15 @@
     overflow: hidden;
 }
 
+.tabLoadingState {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #01538b;
+    font-weight: 700;
+}
+
 /* --- TAB 1: OVERVIEW (MEDICAL HISTORY) --- */
 .sectionHeaderRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
 .sectionTitle { color: #01538b; font-size: 20px; font-weight: 800; margin: 0; border-left: 4px solid #2dccf6; padding-left: 14px; }

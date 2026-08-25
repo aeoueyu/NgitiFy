@@ -2928,9 +2928,9 @@ export default function PatientEMR({
             <div className={styles.tabContentArea}>
                 {activeTab === 'overview'       && renderOverview()}
                 {activeTab === 'medicalHistory' && renderMedicalHistoryAligned()}
-                {activeTab === 'treatmentLogs'  && (areLogsLoading ? <div className={styles.contentCard}>Loading treatment history...</div> : renderTreatmentLogs())}
-                {activeTab === 'odontogram'     && (areOdontogramLogsLoading ? <div className={styles.contentCard}>Loading odontogram...</div> : renderOdontogram())}
-                {activeTab === 'radiographs'    && (areRadiographsLoading ? <div className={styles.contentCard}>Loading radiographs...</div> : renderRadiographs())}
+                {activeTab === 'treatmentLogs'  && (areLogsLoading ? <div className={`${styles.contentCard} ${styles.tabLoadingState}`}>Loading treatment history...</div> : renderTreatmentLogs())}
+                {activeTab === 'odontogram'     && (areOdontogramLogsLoading ? <div className={`${styles.contentCard} ${styles.tabLoadingState}`}>Loading odontogram...</div> : renderOdontogram())}
+                {activeTab === 'radiographs'    && (areRadiographsLoading ? <div className={`${styles.contentCard} ${styles.tabLoadingState}`}>Loading radiographs...</div> : renderRadiographs())}
             </div>
         </div>
     );
