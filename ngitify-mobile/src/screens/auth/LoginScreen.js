@@ -29,16 +29,15 @@ export default function LoginScreen({ navigation }) {
         setLoginError('');
 
         // Field-level validation
-        if (!email.trim()) {
-            setEmailError('Email address is required.');
-            return;
-        }
+        const emailIsEmpty = !email.trim();
+        const passwordIsEmpty = !password;
+
+        if (emailIsEmpty) setEmailError('Email address is required.');
+        if (passwordIsEmpty) setLoginError('Password is required.');
+        if (emailIsEmpty || passwordIsEmpty) return;
+
         if (!EMAIL_REGEX.test(email.trim())) {
             setEmailError('Please enter a valid email address.');
-            return;
-        }
-        if (!password) {
-            setLoginError('Password is required.');
             return;
         }
 
@@ -81,7 +80,7 @@ export default function LoginScreen({ navigation }) {
 
                     {/* Email */}
                     <TextInput
-                        style={[styles.input, emailError ? styles.inputError : null]}
+                        style={styles.input}
                         placeholder="Email Address"
                         placeholderTextColor="#aaa"
                         keyboardType="email-address"
@@ -104,7 +103,7 @@ export default function LoginScreen({ navigation }) {
                     <View style={styles.passwordWrapper}>
                         <TextInput
                             ref={passwordRef}
-                            style={[styles.passwordInput, loginError ? styles.inputError : null]}
+                            style={styles.passwordInput}
                             placeholder="Password"
                             placeholderTextColor="#aaa"
                             secureTextEntry={!showPassword}
@@ -228,10 +227,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         right: 15,
         top: 15,
-    },
-    inputError: {
-        borderColor: '#d9534f',
-        backgroundColor: '#fff5f5'
     },
     errorText: {
         color: '#d9534f',

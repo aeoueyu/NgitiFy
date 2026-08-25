@@ -238,31 +238,6 @@ const LEGEND_KEYS = [
 
 const WHOLE_TOOTH_STATUSES = new Set(['crown', 'implant', 'bridge', 'extraction-site', 'missing', 'mobility', 'root-canal']);
 
-const ARCH_LAYOUTS = [
-    {
-        id: 'upper',
-        title: 'Maxillary Arch',
-        subtitle: 'Adult permanent dentition',
-        rows: ['front', 'top', 'back'],
-        quadrants: [UPPER_RIGHT, UPPER_LEFT],
-        numberPosition: 'top',
-    },
-    {
-        id: 'lower',
-        title: 'Mandibular Arch',
-        subtitle: 'Adult permanent dentition',
-        rows: ['back', 'top', 'front'],
-        quadrants: [LOWER_RIGHT, LOWER_LEFT],
-        numberPosition: 'bottom',
-    },
-];
-
-const VIEW_LABELS = {
-    front: 'FRONT',
-    top: 'TOP',
-    back: 'BACK',
-};
-
 const STAGE_FILTER_OPTIONS = [
     { key: 'all', label: 'All' },
     ...FINDING_STAGE_ORDER.map((stageKey) => ({
@@ -682,174 +657,164 @@ function TopView({ toothNumber, statusKey, surfaces, stageKey, sizeStyle }) {
     );
 }
 
-function MiniView(props) {
-    if (props.viewType === 'top') {
-        return <TopView {...props} />;
+const getWebsiteToothTransform = (toothNumber) => {
+    const quadrant = Math.floor(toothNumber / 10);
+    const transforms = [];
+
+    if (quadrant === 2 || quadrant === 3) {
+        transforms.push({ scaleX: -1 });
     }
-    return <FaceView {...props} />;
+
+    if (isUpperTooth(toothNumber)) {
+        transforms.push({ scaleY: -1 });
+    }
+
+    return transforms;
+};
+
+function WebsiteToothCell({ toothNumber, toothData, selected, onSelectTooth }) {
+    const upper = isUpperTooth(toothNumber);
+    const meta = getStatusMeta(toothData.status);
+    const lateralStyle = [
+        styles.websiteLateralView,
+        { transform: getWebsiteToothTransform(toothNumber) },
+    ];
+    const toothTitle = `Tooth ${toothNumber} - ${toothData.statusLabel}`;
+
+    const lateralView = (
+        <FaceView
+            toothNumber={toothNumber}
+            viewType="front"
+            statusKey={toothData.status}
+            surfaces={toothData.surfaces}
+            stageKey={toothData.stage}
+            sizeStyle={lateralStyle}
+        />
+    );
+    const topView = (
+        <TopView
+            toothNumber={toothNumber}
+            statusKey={toothData.status}
+            surfaces={toothData.surfaces}
+            stageKey={toothData.stage}
+            sizeStyle={styles.websiteOcclusalView}
+        />
+    );
+    const number = (
+        <Text
+            style={[
+                styles.websiteToothNumber,
+                { color: toothData.status === 'healthy' ? '#334155' : meta.accent },
+            ]}
+        >
+            {toothNumber}
+        </Text>
+    );
+
+    return (
+        <TouchableOpacity
+            style={[
+                styles.websiteToothCell,
+                toothData.status !== 'healthy' && styles.websiteToothAffected,
+                selected && styles.websiteToothSelected,
+                (toothNumber === 18 || toothNumber === 48) && styles.websiteDistalStart,
+            ]}
+            activeOpacity={0.82}
+            onPress={() => onSelectTooth(toothNumber)}
+            accessibilityRole="button"
+            accessibilityLabel={toothTitle}
+        >
+            {upper ? (
+                <>
+                    {lateralView}
+                    {topView}
+                    {number}
+                </>
+            ) : (
+                <>
+                    {number}
+                    {topView}
+                    {lateralView}
+                </>
+            )}
+        </TouchableOpacity>
+    );
 }
 
-function ArchNumberRow({ quadrants, getDisplayToothData, numberPosition }) {
+function WebsiteQuadrant({ teeth, getDisplayToothData, selectedTooth, onSelectTooth }) {
     return (
-        <View style={[styles.numberRow, numberPosition === 'bottom' && styles.numberRowBottom]}>
-            <View style={styles.rowLabelSpacer} />
-            <View style={styles.rowTrack}>
-                <View style={styles.teethHalf}>
-                    {quadrants[0].map((toothNumber) => {
-                        const toothData = getDisplayToothData(toothNumber);
-                        const meta = getStatusMeta(toothData.status);
-                        return (
-                            <Text
-                                key={`num-${toothNumber}`}
-                                style={[styles.toothNumberTag, { color: toothData.status === 'healthy' ? '#94a3b8' : meta.accent }]}
-                            >
-                                {toothNumber}
-                            </Text>
-                        );
-                    })}
-                </View>
-                <View style={styles.midlineDivider} />
-                <View style={styles.teethHalf}>
-                    {quadrants[1].map((toothNumber) => {
-                        const toothData = getDisplayToothData(toothNumber);
-                        const meta = getStatusMeta(toothData.status);
-                        return (
-                            <Text
-                                key={`num-${toothNumber}`}
-                                style={[styles.toothNumberTag, { color: toothData.status === 'healthy' ? '#94a3b8' : meta.accent }]}
-                            >
-                                {toothNumber}
-                            </Text>
-                        );
-                    })}
-                </View>
-            </View>
-            <View style={styles.rowLabelSpacer} />
+        <View style={styles.websiteQuadrant}>
+            {teeth.map((toothNumber) => (
+                <WebsiteToothCell
+                    key={toothNumber}
+                    toothNumber={toothNumber}
+                    toothData={getDisplayToothData(toothNumber)}
+                    selected={selectedTooth === toothNumber}
+                    onSelectTooth={onSelectTooth}
+                />
+            ))}
         </View>
     );
 }
 
-function ArchViewRow({ label, viewType, quadrants, getDisplayToothData, onSelectTooth, selectedTooth }) {
+function WebsiteArchRow({ leftLabel, rightLabel, leftTeeth, rightTeeth, getDisplayToothData, selectedTooth, onSelectTooth }) {
     return (
-        <View style={styles.viewRow}>
-            <Text style={styles.viewLabel}>{label}</Text>
-            <View style={styles.rowTrack}>
-                <View style={styles.teethHalf}>
-                    {quadrants[0].map((toothNumber) => {
-                        const toothData = getDisplayToothData(toothNumber);
-                        const stageMeta = getStageMeta(toothData.stage);
-                        const isSelected = selectedTooth === toothNumber;
-                        return (
-                            <TouchableOpacity
-                                key={`${viewType}-${toothNumber}`}
-                                style={[styles.viewCellButton, isSelected && styles.viewCellButtonSelected]}
-                                activeOpacity={0.82}
-                                onPress={() => onSelectTooth(toothNumber)}
-                            >
-                                <MiniView
-                                    toothNumber={toothNumber}
-                                    viewType={viewType}
-                                    statusKey={toothData.status}
-                                    surfaces={toothData.surfaces}
-                                    stageKey={toothData.stage}
-                                    sizeStyle={viewType === 'top' ? styles.miniViewTop : styles.miniViewFace}
-                                />
-                                <Text
-                                    style={[
-                                        styles.toothStatusCaption,
-                                        { color: toothData.status === 'healthy' ? '#94a3b8' : stageMeta.accent },
-                                    ]}
-                                    numberOfLines={1}
-                                >
-                                    {toothData.statusLabel}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-                <View style={styles.midlineDivider} />
-                <View style={styles.teethHalf}>
-                    {quadrants[1].map((toothNumber) => {
-                        const toothData = getDisplayToothData(toothNumber);
-                        const stageMeta = getStageMeta(toothData.stage);
-                        const isSelected = selectedTooth === toothNumber;
-                        return (
-                            <TouchableOpacity
-                                key={`${viewType}-${toothNumber}`}
-                                style={[styles.viewCellButton, isSelected && styles.viewCellButtonSelected]}
-                                activeOpacity={0.82}
-                                onPress={() => onSelectTooth(toothNumber)}
-                            >
-                                <MiniView
-                                    toothNumber={toothNumber}
-                                    viewType={viewType}
-                                    statusKey={toothData.status}
-                                    surfaces={toothData.surfaces}
-                                    stageKey={toothData.stage}
-                                    sizeStyle={viewType === 'top' ? styles.miniViewTop : styles.miniViewFace}
-                                />
-                                <Text
-                                    style={[
-                                        styles.toothStatusCaption,
-                                        { color: toothData.status === 'healthy' ? '#94a3b8' : stageMeta.accent },
-                                    ]}
-                                    numberOfLines={1}
-                                >
-                                    {toothData.statusLabel}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-            </View>
-            <Text style={styles.viewLabel}>{label}</Text>
+        <View style={styles.websiteArchRow}>
+            <Text style={[styles.websiteArchLabel, styles.websiteArchLabelLeft]}>{leftLabel}</Text>
+            <WebsiteQuadrant
+                teeth={leftTeeth}
+                getDisplayToothData={getDisplayToothData}
+                selectedTooth={selectedTooth}
+                onSelectTooth={onSelectTooth}
+            />
+            <View style={styles.websiteMidline} />
+            <WebsiteQuadrant
+                teeth={rightTeeth}
+                getDisplayToothData={getDisplayToothData}
+                selectedTooth={selectedTooth}
+                onSelectTooth={onSelectTooth}
+            />
+            <Text style={styles.websiteArchLabel}>{rightLabel}</Text>
         </View>
     );
 }
 
-function ArchChart({ layout, getDisplayToothData, selectedTooth, onSelectTooth }) {
+function WebsiteOdontogram({ getDisplayToothData, selectedTooth, onSelectTooth }) {
     return (
-        <View style={styles.archCard}>
-            <View style={styles.archHeader}>
-                <View>
-                    <Text style={styles.archTitle}>{layout.title}</Text>
-                    <Text style={styles.archSubtitle}>{layout.subtitle}</Text>
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator
+            contentContainerStyle={styles.websiteChartScroll}
+        >
+            <View style={styles.websiteChart}>
+                <WebsiteArchRow
+                    leftLabel="Upper right"
+                    rightLabel="Upper left"
+                    leftTeeth={UPPER_RIGHT}
+                    rightTeeth={UPPER_LEFT}
+                    getDisplayToothData={getDisplayToothData}
+                    selectedTooth={selectedTooth}
+                    onSelectTooth={onSelectTooth}
+                />
+                <View style={styles.websiteCenterBand}>
+                    <View style={styles.websiteCenterLine} />
+                    <Text style={styles.websiteCenterLabel}>FDI</Text>
+                    <View style={styles.websiteCenterLine} />
                 </View>
-                <Text style={styles.archNotation}>FDI</Text>
+                <WebsiteArchRow
+                    leftLabel="Lower right"
+                    rightLabel="Lower left"
+                    leftTeeth={LOWER_RIGHT}
+                    rightTeeth={LOWER_LEFT}
+                    getDisplayToothData={getDisplayToothData}
+                    selectedTooth={selectedTooth}
+                    onSelectTooth={onSelectTooth}
+                />
+                <Text style={styles.websiteCredit}>
+                    Odontogram visual structure adapted with attribution to DentalPin.
+                </Text>
             </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.archScrollContent}>
-                <View style={styles.archGrid}>
-                    {layout.numberPosition === 'top' ? (
-                        <ArchNumberRow
-                            quadrants={layout.quadrants}
-                            getDisplayToothData={getDisplayToothData}
-                            numberPosition="top"
-                        />
-                    ) : null}
-
-                    {layout.rows.map((viewType) => (
-                        <ArchViewRow
-                            key={`${layout.id}-${viewType}`}
-                            label={VIEW_LABELS[viewType]}
-                            viewType={viewType}
-                            quadrants={layout.quadrants}
-                            getDisplayToothData={getDisplayToothData}
-                            selectedTooth={selectedTooth}
-                            onSelectTooth={onSelectTooth}
-                        />
-                    ))}
-
-                    {layout.numberPosition === 'bottom' ? (
-                        <ArchNumberRow
-                            quadrants={layout.quadrants}
-                            getDisplayToothData={getDisplayToothData}
-                            numberPosition="bottom"
-                        />
-                    ) : null}
-                </View>
-            </ScrollView>
-        </View>
+        </ScrollView>
     );
 }
 
@@ -892,7 +857,7 @@ export default function PatientOdontogramChart({ data }) {
                         <Text style={styles.chartEyebrow}>Odontogram</Text>
                         <Text style={styles.chartTitle}>Clinical 2D Odontogram</Text>
                         <Text style={styles.chartSubtitle}>
-                            Same front, top, and back chart structure used by the dentist odontogram, shown here in read-only mode.
+                            Adult FDI chart with clinic-style tooth silhouettes. Tap a tooth to view its saved condition.
                         </Text>
                     </View>
                     <View style={styles.modeChipRow}>
@@ -937,15 +902,13 @@ export default function PatientOdontogramChart({ data }) {
                     </ScrollView>
                 </View>
 
-                {ARCH_LAYOUTS.map((layout) => (
-                    <ArchChart
-                        key={layout.id}
-                        layout={layout}
+                <View style={styles.websiteChartShell}>
+                    <WebsiteOdontogram
                         getDisplayToothData={getDisplayToothData}
                         selectedTooth={selectedTooth}
                         onSelectTooth={setSelectedTooth}
                     />
-                ))}
+                </View>
 
                 {selectedTooth && selectedDisplayTooth && selectedStatusMeta ? (
                     <View style={[styles.selectedCard, { backgroundColor: selectedStatusMeta.badgeBg, borderColor: selectedStatusMeta.stroke }]}>
@@ -989,6 +952,23 @@ export default function PatientOdontogramChart({ data }) {
             </View>
 
             <View style={styles.legendSection}>
+                <Text style={styles.legendSectionTitle}>Surfaces</Text>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.surfaceKeyList}
+                >
+                    {SURFACE_CODES.map((surfaceCode) => (
+                        <View key={surfaceCode} style={styles.surfaceKeyItem}>
+                            <View style={styles.surfaceKeyBubble}>
+                                <Text style={styles.surfaceKeyBubbleText}>{surfaceCode}</Text>
+                            </View>
+                            <Text style={styles.surfaceKeyText}>{SURFACE_LABELS[surfaceCode]}</Text>
+                        </View>
+                    ))}
+                </ScrollView>
+
+                <Text style={styles.legendSectionTitle}>Stages</Text>
                 <View style={styles.stageLegendRow}>
                     {FINDING_STAGE_ORDER.map((stageKey) => {
                         const stageMeta = getStageMeta(stageKey);
@@ -1004,17 +984,7 @@ export default function PatientOdontogramChart({ data }) {
                     })}
                 </View>
 
-                <View style={styles.surfaceKeyList}>
-                    {SURFACE_CODES.map((surfaceCode) => (
-                        <View key={surfaceCode} style={styles.surfaceKeyItem}>
-                            <View style={styles.surfaceKeyBubble}>
-                                <Text style={styles.surfaceKeyBubbleText}>{surfaceCode}</Text>
-                            </View>
-                            <Text style={styles.surfaceKeyText}>{SURFACE_LABELS[surfaceCode]}</Text>
-                        </View>
-                    ))}
-                </View>
-
+                <Text style={styles.legendSectionTitle}>Conditions</Text>
                 <View style={styles.legendGrid}>
                     {LEGEND_KEYS.map((key) => {
                         const meta = STATUS_META[key];
@@ -1163,6 +1133,112 @@ const styles = StyleSheet.create({
     },
     filterCountTextActive: {
         color: mobileTheme.colors.primaryDark,
+    },
+    websiteChartShell: {
+        overflow: 'hidden',
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 18,
+        backgroundColor: '#fcfdff',
+    },
+    websiteChartScroll: {
+        paddingHorizontal: 14,
+        paddingTop: 20,
+        paddingBottom: 12,
+    },
+    websiteChart: {
+        minWidth: 880,
+    },
+    websiteArchRow: {
+        minHeight: 130,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    websiteArchLabel: {
+        width: 66,
+        paddingLeft: 8,
+        color: '#27364a',
+        fontSize: 11,
+        lineHeight: 14,
+        fontWeight: '700',
+    },
+    websiteArchLabelLeft: {
+        paddingLeft: 0,
+        paddingRight: 8,
+        textAlign: 'right',
+    },
+    websiteQuadrant: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 2,
+    },
+    websiteMidline: {
+        width: 14,
+        height: 126,
+    },
+    websiteToothCell: {
+        width: 43,
+        height: 126,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 2,
+        borderWidth: 1,
+        borderColor: 'transparent',
+        borderRadius: 6,
+        backgroundColor: 'transparent',
+    },
+    websiteToothAffected: {
+        backgroundColor: 'rgba(248,250,252,0.72)',
+    },
+    websiteToothSelected: {
+        borderColor: 'rgba(14,165,233,0.42)',
+        backgroundColor: 'rgba(240,249,255,0.9)',
+    },
+    websiteDistalStart: {
+        marginRight: 6,
+    },
+    websiteLateralView: {
+        width: 38,
+        height: 78,
+    },
+    websiteOcclusalView: {
+        width: 32,
+        height: 28,
+    },
+    websiteToothNumber: {
+        height: 14,
+        color: '#334155',
+        fontSize: 10,
+        lineHeight: 13,
+        fontWeight: '800',
+        textAlign: 'center',
+    },
+    websiteCenterBand: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        marginHorizontal: 74,
+        marginVertical: 4,
+    },
+    websiteCenterLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#dbe4ee',
+    },
+    websiteCenterLabel: {
+        color: '#64748b',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.8,
+    },
+    websiteCredit: {
+        marginTop: 12,
+        color: '#94a3b8',
+        fontSize: 9,
+        fontWeight: '600',
+        textAlign: 'center',
     },
     archCard: {
         borderRadius: 18,
@@ -1374,6 +1450,14 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         ...mobileTheme.shadows.soft,
     },
+    legendSectionTitle: {
+        color: '#0f3450',
+        fontSize: 11,
+        fontWeight: '800',
+        letterSpacing: 0.7,
+        textTransform: 'uppercase',
+        marginBottom: 8,
+    },
     stageLegendRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -1381,6 +1465,7 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     surfaceKeyList: {
+        flexDirection: 'row',
         backgroundColor: mobileTheme.colors.surfaceAlt,
         borderRadius: 14,
         padding: 12,
@@ -1391,6 +1476,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        minWidth: 132,
+        paddingRight: 8,
     },
     surfaceKeyBubble: {
         width: 24,

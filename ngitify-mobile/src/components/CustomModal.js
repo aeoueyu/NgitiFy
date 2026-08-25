@@ -3,6 +3,12 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CustomModal({ visible, title, message, type, onClose }) {
+    const icon = type === 'success'
+        ? { name: 'checkmark-circle-outline', color: '#2e7d32' }
+        : type === 'warning'
+            ? { name: 'warning-outline', color: '#f57f17' }
+            : { name: 'alert-circle-outline', color: '#c62828' };
+
     return (
         <Modal
             transparent={true}
@@ -12,11 +18,7 @@ export default function CustomModal({ visible, title, message, type, onClose }) 
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.modalCard}>
-                    {type === 'warning' ? (
-                        <Ionicons name="warning-outline" size={60} color="#f57f17" style={styles.icon} />
-                    ) : (
-                        <Ionicons name="checkmark-circle-outline" size={60} color="#2e7d32" style={styles.icon} />
-                    )}
+                    <Ionicons name={icon.name} size={60} color={icon.color} style={styles.icon} />
 
                     <Text style={styles.modalTitle}>{title}</Text>
                     <Text style={styles.modalMessage}>{message}</Text>

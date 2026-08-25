@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -33,6 +32,7 @@ import {
 
 import { mobileTheme } from '../../theme/mobileTheme';
 import { AuthContext } from '../../context/AuthContext';
+import CustomModal from '../../components/CustomModal';
 import {
   getStaticOralCarePreview,
 } from '../../utils/oralCarePreview';
@@ -648,6 +648,36 @@ export default function OralCareInsightsScreen({
     setSelectedEducationArticle,
   ] = useState(null);
 
+  const [
+    noticeModal,
+    setNoticeModal,
+  ] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'warning',
+  });
+
+  const showNoticeModal = useCallback((
+    title,
+    message,
+    type = 'warning',
+  ) => {
+    setNoticeModal({
+      visible: true,
+      title,
+      message,
+      type,
+    });
+  }, []);
+
+  const closeNoticeModal = useCallback(() => {
+    setNoticeModal((current) => ({
+      ...current,
+      visible: false,
+    }));
+  }, []);
+
   const preview =
     useMemo(
       () =>
@@ -819,9 +849,10 @@ export default function OralCareInsightsScreen({
 
         setLoadError(message);
 
-        Alert.alert(
+        showNoticeModal(
           'Oral Health Management',
           message,
+          'error',
         );
       } finally {
         setLoading(false);
@@ -831,6 +862,7 @@ export default function OralCareInsightsScreen({
       route?.params?.oralHealth,
       route?.params
         ?.visitPrediction,
+      showNoticeModal,
       userToken,
     ]);
 
@@ -1250,9 +1282,10 @@ export default function OralCareInsightsScreen({
     if (
       isFutureDate(dateKey)
     ) {
-      Alert.alert(
+      showNoticeModal(
         'Future Date',
         'Future dates cannot be edited in the Daily Oral Health Log.',
+        'warning',
       );
 
       return;
@@ -1319,9 +1352,10 @@ export default function OralCareInsightsScreen({
     if (
       selectedDateIsFuture
     ) {
-      Alert.alert(
+      showNoticeModal(
         'Future Date',
         'Daily Oral Health Logs cannot be created for future dates.',
+        'warning',
       );
 
       return;
@@ -1768,16 +1802,18 @@ export default function OralCareInsightsScreen({
         setOralHealth(payload);
         setFactorsVisible(false);
 
-        Alert.alert(
+        showNoticeModal(
           'Oral Health Management',
           payload.message
           || 'Oral health factors saved.',
+          'success',
         );
       } catch (error) {
-        Alert.alert(
+        showNoticeModal(
           'Oral Health Management',
           error.message
           || 'Failed to save oral health factors.',
+          'error',
         );
       } finally {
         setSaving(false);
@@ -1789,9 +1825,10 @@ export default function OralCareInsightsScreen({
       if (
         selectedDateIsFuture
       ) {
-        Alert.alert(
+        showNoticeModal(
           'Future Date',
           'Daily Oral Health Logs cannot be saved for future dates.',
+          'warning',
         );
 
         return;
@@ -1952,7 +1989,7 @@ export default function OralCareInsightsScreen({
         setOralHealth(payload);
         closeLog();
 
-        Alert.alert(
+        showNoticeModal(
           'Oral Health Management',
           payload.message
           || (
@@ -1960,12 +1997,14 @@ export default function OralCareInsightsScreen({
               ? 'Daily oral health log updated.'
               : 'Daily oral health log saved.'
           ),
+          'success',
         );
       } catch (error) {
-        Alert.alert(
+        showNoticeModal(
           'Oral Health Management',
           error.message
           || 'Failed to save daily oral health log.',
+          'error',
         );
       } finally {
         setSaving(false);
@@ -4639,6 +4678,14 @@ export default function OralCareInsightsScreen({
           </View>
         </View>
       </Modal>
+
+      <CustomModal
+        visible={noticeModal.visible}
+        title={noticeModal.title}
+        message={noticeModal.message}
+        type={noticeModal.type}
+        onClose={closeNoticeModal}
+      />
     </Screen>
   );
 }

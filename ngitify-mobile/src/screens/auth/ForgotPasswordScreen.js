@@ -504,7 +504,8 @@ const styles = StyleSheet.create({
     passwordWrapper: { position: 'relative', marginBottom: 10 },
     passwordInput: {
         backgroundColor: '#f9f9f9', borderRadius: 10, padding: 15,
-        paddingRight: 50, borderWidth: 1, borderColor: '#ddd', fontSize: 16, color: '#333'
+        paddingRight: 50, borderWidth: 1, borderColor: '#ddd', fontSize: 16,
+        color: '#333', letterSpacing: 0
     },
     eyeBtn: { position: 'absolute', right: 15, top: 15 },
 

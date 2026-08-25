@@ -1,0 +1,962 @@
+﻿
+### ngitify-web/src/App.js
+HEADING: Loading...
+
+### ngitify-web/src/components/admin/ConsentReviewModal.js
+BUTTON: Close
+title: Consent Form Review
+
+### ngitify-web/src/components/common/AIChatAssistant.js
+BUTTON: setShowHistory(false)} aria-label="Close history">
+BUTTON: New chat
+BUTTON: }>
+BUTTON: setShowHistory(false)} aria-label="Close saved conversations" /> : null} setShowHistory(true)} aria-label="Open conversation history">
+BUTTON: sendMessage(lastFailedPrompt)} disabled= > Retry
+BUTTON: sendMessage(prompt)} disabled= >
+BUTTON: openConversation(conversation.id)}>
+BUTTON: updateConversation(conversation, )} aria-label= >
+BUTTON: renameConversation(conversation)} aria-label="Rename conversation">
+BUTTON: deleteConversation(conversation)} aria-label="Delete conversation">
+aria-label: NgitiBot
+aria-label: Conversation history
+aria-label: Close history
+aria-label: Close saved conversations
+aria-label: Open conversation history
+aria-label: Close NgitiBot
+aria-label: Send message
+aria-label: Rename conversation
+aria-label: Delete conversation
+placeholder: Message NgitiBot...
+title: Pinned
+title: Close chat
+
+### ngitify-web/src/components/common/ConfirmModal.js
+confirmText: Confirm
+cancelText: Cancel
+
+### ngitify-web/src/components/common/ErrorBoundary.js
+BUTTON: Back to Home
+HEADING: Oops! Something went wrong.
+
+### ngitify-web/src/components/common/LifecycleActionModal.js
+HEADING: Impact Preview
+HEADING: Reason
+confirmText: Confirm
+cancelText: Cancel
+title: Confirm action
+
+### ngitify-web/src/components/common/LifecycleHistoryPanel.js
+HEADING: Lifecycle History
+
+### ngitify-web/src/components/common/NgitiBotFloatingChat.js
+BUTTON: Ask NgitiBot
+aria-label: Open NgitiBot
+title: Ask NgitiBot
+
+### ngitify-web/src/components/common/PasswordField.js
+BUTTON: setIsVisible((current) => !current)} aria-label= disabled= tabIndex= >
+
+### ngitify-web/src/components/common/PrintReportPreviewModal.js
+BUTTON: Close
+BUTTON: Print
+HEADING: Formal Report Preview
+
+### ngitify-web/src/components/common/ResendEmailButton.js
+BUTTON: {cooldownSeconds > 0 && ( s) }
+
+### ngitify-web/src/components/common/SessionWarningModal.js
+BUTTON: Stay Logged In
+HEADING: Session Expiring Soon
+
+### ngitify-web/src/components/dashboard/AdminDashboardComponents.js
+BUTTON: navigate(notificationPath)} aria-label="Notifications" > {unreadCount > 0 ? ( ) : null}
+BUTTON: &lt;
+BUTTON: &gt;
+aria-label: Notifications
+aria-label: Close Alert
+
+### ngitify-web/src/components/dentist/odontogram/DentalPinStyleOdontogram.js
+BUTTON: !readOnly && onSelect(toothNumber)} disabled= title= > {upper ? ( <> ) : ( <> )}
+
+### ngitify-web/src/components/dentist/RadiographReviewPanel.js
+BUTTON: event.stopPropagation()}> {item.toothNumber ? `Tooth $ ` : 'Marked area'} {item.findingType ? : null} {item.note ? : null}
+BUTTON: Gallery
+BUTTON: } aria-pressed= >Original
+BUTTON: } disabled= aria-pressed= >Enhanced
+BUTTON: setZoom((value) => Math.min(3, value + 0.25))} aria-label="Zoom in">
+BUTTON: setZoom((value) => Math.max(0.5, value - 0.25))} aria-label="Zoom out">
+BUTTON: Fit
+BUTTON: Grab
+BUTTON: }>Add annotation
+BUTTON: } aria-pressed= >Compare original / enhanced
+BUTTON: setDisplayAdjustments( )}>Reset
+BUTTON: submitEnhancementFeedback(rating)}>
+BUTTON: setActiveTab(tab)}>
+BUTTON: Save dentist finding
+BUTTON: Cancel
+BUTTON: Save changes
+BUTTON: startEditingFinding(item)}>Edit
+BUTTON: archiveFinding(item)} disabled= >Archive
+BUTTON: }>Delete
+BUTTON: }>Cancel
+BUTTON: Delete finding
+BUTTON: setShowArchivedFindings((shown) => !shown)}> archived findings ( )
+BUTTON: restoreFinding(item)} disabled= >Restore
+BUTTON: setCompareId(item.id)}> �
+HEADING: Radiograph Review
+HEADING: Active findings
+HEADING: Review summary
+HEADING: Previous radiographs
+HEADING: Related treatments
+aria-label: New annotation point
+aria-label: Radiograph Review
+aria-label: Delete radiograph
+aria-label: Zoom in
+aria-label: Zoom out
+aria-label: Compare with previous radiograph
+aria-label: Enhancement details
+aria-label: Radiograph review workflow
+aria-label: Finding recorded by dentist
+aria-label: FDI Tooth
+aria-label: Related Treatment
+aria-label: Edit FDI Tooth
+aria-label: Edit finding
+aria-label: Edit clinical note
+aria-label: Edit Related Treatment
+aria-label: Deletion reason
+aria-label: Approved review summary
+placeholder: Use an existing clinical term
+placeholder: Generated review summary will appear here.
+
+### ngitify-web/src/components/patient/PatientAIChat.test.js
+BUTTON: Close assistant
+
+### ngitify-web/src/components/patient/PatientMonthCalendar.js
+BUTTON: onChangeMonth(-1)} aria-label={`Show previous month before $ `} >
+BUTTON: onChangeMonth(1)} aria-label={`Show next month after $ `} >
+
+### ngitify-web/src/components/patient/PatientRegistrationFlow.js
+BUTTON: onStepSelect(index)} disabled= > {step.description ? : null}
+
+### ngitify-web/src/components/shared/LogDetailsModal.js
+BUTTON: �
+BUTTON: Close
+aria-label: Close details modal
+title: Log Details
+
+### ngitify-web/src/components/shared/NotificationsCenter.js
+BUTTON: Mark All as Read
+BUTTON: setCurrentPage((prev) => Math.max(1, prev - 1))} disabled= > Previous
+BUTTON: setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled= > Next
+BUTTON: setSelectedNotification(null)}>
+BUTTON: markAsRead(selectedNotification._id)}> Mark as Read
+BUTTON: markAsUnread(selectedNotification._id)}> Mark as Unread
+HEADING: Notifications
+placeholder: Search title or message
+
+### ngitify-web/src/components/shared/ScheduleDetailPanel.js
+BUTTON: onOpenEmr(emrHref)}> Open Full Patient EMR
+
+### ngitify-web/src/components/shared/SharedActivityLogs.js
+BUTTON: Export CSV
+BUTTON: setRangeFilter(option.value)} >
+BUTTON: setSelectedLog(log)} > View Details
+BUTTON: setPage((current) => Math.max(1, current - 1))} disabled= > Previous
+BUTTON: setPage((current) => Math.min(totalPages, current + 1))} disabled= > Next
+placeholder: Search action, detail, or category...
+title: My Activity Logs
+title: Activity Log Details
+
+### ngitify-web/src/components/sidebar/Sidebar.js
+BUTTON: setIsExpanded((prev) => !prev)} aria-label= >
+confirmText: Yes, Logout
+title: Confirm Logout
+
+### ngitify-web/src/components/website/WebsiteShell.js
+BUTTON: navigate('/')} type="button">
+BUTTON: setMenuOpen((prev) => !prev)} >
+BUTTON: navigate('/login')} type="button"> LOGIN
+BUTTON: setMenuOpen(false)} /> : null} Call navigate('/appointment')}> Book
+BUTTON: navigate('/about#locations')}> Branches
+aria-label: Close menu
+
+### ngitify-web/src/context/ToastContext.js
+BUTTON: removeToast(toast.id)}>
+
+### ngitify-web/src/pages/admin/AddBranchManager.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Add New Branch Manager
+HEADING: Personal Information
+HEADING: Branch Assignment
+HEADING: Branch Manager Added!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+
+### ngitify-web/src/pages/admin/AddDentist.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Add New Dentist
+HEADING: Personal Information
+HEADING: Branch Assignment
+HEADING: Success!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+
+### ngitify-web/src/pages/admin/AddInventoryItem.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Add New Inventory Item
+HEADING: Item Details
+HEADING: Success!
+placeholder: e.g. Latex Gloves
+placeholder: Type custom category name...
+placeholder: Type custom unit (e.g. rolls)...
+placeholder: Alert when below...
+title: Save New Inventory Item
+
+### ngitify-web/src/pages/admin/AddInventoryStock.js
+BUTTON: Cancel
+BUTTON: DONE
+HEADING: Add Supply / Stock
+HEADING: Stock Details
+HEADING: Stock Added!
+placeholder: 0
+placeholder: Optional batch / lot number
+placeholder: Optional supplier name
+title: Confirm Stock Addition
+
+### ngitify-web/src/pages/admin/AddOwner.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Add New Owner
+HEADING: Personal Information
+HEADING: Dentist Access
+HEADING: Professional Information
+HEADING: Branch Assignment
+HEADING: Owner Added!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+
+### ngitify-web/src/pages/admin/AddPatient.js
+BUTTON: Check Existing Patient Records
+BUTTON: { setSoftDuplicateConfirmed(true); setErrors((prev) => { const next = ; delete next.duplicateCheck; return next; }); }} style={ } >
+BUTTON: openExistingPatientRecord(patient.id)} style={ } > Open Existing Record
+BUTTON: Cancel
+BUTTON: handleStepAdvance(1)} disabled= >Continue to Contacts
+BUTTON: setCurrentStep(0)} disabled= >Back to Identity
+BUTTON: handleStepAdvance(2)} disabled= >Continue to Medical
+BUTTON: setCurrentStep(1)} disabled= >Back to Contacts
+BUTTON: handleStepAdvance(3)} disabled= >Continue to Consent
+BUTTON: { if (formData.dataPrivacyConsent.acknowledged) else }} disabled= style={ } >
+BUTTON: setIsConsentModalOpen(true)} disabled= style={ } > View full consent form
+BUTTON: setCurrentStep(2)} disabled= >Back to Medical
+BUTTON: DONE
+HEADING: Add New Patient
+HEADING: For Minors
+HEADING: Branch Assignment
+HEADING: Dental History
+HEADING: Attending Physician
+HEADING: Medical History
+HEADING: Data Privacy Act
+HEADING: Digital Consent
+HEADING: Success!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 1234567
+placeholder: 9xxxxxxxxx
+placeholder: Full Name
+placeholder: Other allergy
+placeholder: e.g. 120/80
+placeholder: Other condition
+title: Patient Details
+title: Emergency Contact
+title: Dental and Medical History
+title: Consent and Final Review
+title: Data Privacy Consent Review
+
+### ngitify-web/src/pages/admin/AddSecretary.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Add New Secretary
+HEADING: Personal Information
+HEADING: Branch Assignment
+HEADING: Secretary Added!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+
+### ngitify-web/src/pages/admin/AdminAppointments.js
+BUTTON: Book Appointment
+BUTTON: setStatusFilter(label)} style={ } >
+BUTTON: setDetailsTarget(appointment)} title="View appointment details" style={ } > Details
+BUTTON: navigate(`$ /$ /emr`)} title="View Patient EMR" disabled= > View Patient
+BUTTON: handleOpenReschedule(appointment)} title="Reschedule appointment" style={ } > Reschedule
+BUTTON: handleConfirmGuestAppointment(appointment)} title="Confirm guest request and send pre-registration email" style={ } > Confirm Request
+BUTTON: setDuplicateReviewState( )} title="Review possible duplicate booking" style={ } > Review Duplicate
+BUTTON: handleOpenGuestRegistration(appointment)} title="Register guest as patient" style={ } > Register / Link Patient
+BUTTON: handleResendPreRegistration(appointment)} title="Resend pre-registration link" style={ } > Resend Link
+BUTTON: setCancelTarget(appointment)} title= disabled= style={ } >
+BUTTON: setDeleteTarget(appointment)} title="Archive Appointment" >
+BUTTON: { setIsBookingModalOpen(false); setBookingForm( ); setBookingErrors( ); }} >
+BUTTON: handleTimeSelect(slot)} style={ } >
+BUTTON: { setIsBookingModalOpen(false); setBookingForm( ); setBookingErrors( ); }} disabled= > Cancel
+BUTTON: handleMarkDuplicateAppointment(match)} disabled= >
+BUTTON: Close
+BUTTON: Confirm Kept Request
+BUTTON: setDetailsTarget(null)}>
+BUTTON: setRescheduleTarget(null)}>
+BUTTON: setRescheduleTarget(null)} disabled= >Close
+BUTTON: }>
+BUTTON: }>Close
+BUTTON: Confirm Cancellation
+HEADING: All Appointments
+HEADING: Book New Appointment
+HEADING: Review Possible Duplicate
+HEADING: Appointment Details
+HEADING: Reschedule Appointment
+placeholder: Search patient name or procedure...
+placeholder: patient@example.com
+placeholder: Optional note for the patient and the audit trail
+placeholder: State why this appointment is being cancelled
+confirmText: Update Status
+confirmText: Yes, Archive
+title: From Date
+title: To Date
+title: Update Status
+title: View appointment details
+title: View Patient EMR
+title: Reschedule appointment
+title: Confirm guest request and send pre-registration email
+title: Review possible duplicate booking
+title: Register guest as patient
+title: Resend pre-registration link
+title: Archive Appointment
+title: Update Appointment Status
+
+### ngitify-web/src/pages/admin/AdminDashboard.js
+BUTTON: setShowAlertBanner(false)} aria-label="Close Alert">
+BUTTON: &lt;
+BUTTON: &gt;
+BUTTON: navigate('/admin/manage-users/patients', { state: })} > Add Patient
+BUTTON: navigate('/admin/appointments')} > Manage Appointments
+BUTTON: setShowLogoutModal(false)}>Cancel
+BUTTON: Yes, Logout
+HEADING: Patient Volume Trend (6 Mo)
+HEADING: Treatment Breakdown
+HEADING: Recent System Activity
+HEADING: {isTodaySelected ? "Today's Appointments" : `Appointments for ${selectedDate.toLocaleDateString('en-US', )}`}
+HEADING: Confirm Logout
+aria-label: Close Alert
+title: Administrator Overview
+title: Stable growth
+title: Maintained retention
+title: Needs Restock
+title: All good
+
+### ngitify-web/src/pages/admin/AdminProfile.js
+BUTTON: setShowEmailModal(true)} > Change Email
+BUTTON: setIsEditing(true)}> EDIT PROFILE
+BUTTON: CANCEL
+BUTTON: setShowSuccessModal(false)}>DONE
+BUTTON: setShowImageSizeModal(false)}> OK
+BUTTON: setShowConfirmModal(false)} disabled= > CANCEL
+BUTTON: DONE
+HEADING: Loading Profile Data...
+HEADING: My Profile
+HEADING: {formData.middleName ? `$ .` : ''}
+HEADING: Personal Information
+HEADING: Demographics
+HEADING: Professional Details
+HEADING: Home Address
+HEADING: Account Information
+HEADING: Success!
+HEADING: Upload Failed
+HEADING: Update Profile?
+HEADING: Change Email Address
+HEADING: Request Link Sent
+placeholder: 9xxxxxxxxx
+placeholder: e.g. 0123456
+placeholder: Brief summary of your expertise and background...
+placeholder: e.g. Blk 1 Lot 2
+placeholder: e.g. Main St.
+
+### ngitify-web/src/pages/admin/AdminSettings.js
+BUTTON: SAVE NOTIFICATIONS
+BUTTON: Close & Log Out
+HEADING: Account Security
+HEADING: Notification Settings
+HEADING: Settings
+HEADING: Success!
+placeholder: Enter current password
+placeholder: Enter new password
+placeholder: Re-enter new password
+
+### ngitify-web/src/pages/admin/AppointmentNotifications.js
+BUTTON: Mark All as Read
+BUTTON: }> Mark Read
+HEADING: Appointment Alerts
+
+### ngitify-web/src/pages/admin/ArchiveReview.js
+BUTTON: loadArchivedRecords( )} disabled= >
+BUTTON: openRestore(record)} title="Restore archived record" > Restore
+BUTTON: openDeleteReview(record)} title="Review permanent delete blockers" > Delete Review
+HEADING: Archive Review
+placeholder: Search by name, email, role, or archive reason...
+title: Restore archived record
+title: Review permanent delete blockers
+
+### ngitify-web/src/pages/admin/AuditTrail.js
+BUTTON: Export CSV
+BUTTON: setRangeFilter(option.value)} >
+BUTTON: setSelectedLog(log)} > View Details
+BUTTON: setPage((current) => Math.max(1, current - 1))} disabled= > Previous
+BUTTON: setPage((current) => Math.min(totalPages, current + 1))} disabled= > Next
+HEADING: System Audit Logs
+placeholder: Search by action, user, or details...
+title: Audit Log Details
+
+### ngitify-web/src/pages/admin/BranchAnalytics.js
+BUTTON: Export CSV
+BUTTON: Export PDF
+BUTTON: }> Clear
+HEADING: Branch Analytics
+HEADING: Appointments per Branch
+HEADING: Monthly Trend (Last 6 Months)
+HEADING: Procedure Distribution
+
+### ngitify-web/src/pages/admin/BranchManagement.js
+BUTTON: Add Branch
+BUTTON: openAnalytics(branch)} >
+BUTTON: openEdit(branch)} >
+BUTTON: setConfirmTarget(branch)} >
+BUTTON: Cancel
+BUTTON: setSuccessMessage('')}> DONE
+BUTTON: setAnalyticsTarget(null)} type="button"> Close
+HEADING: Branch Management
+HEADING: Success!
+HEADING: Branch Information
+HEADING: Status Breakdown
+HEADING: Monthly Activity
+HEADING: Top Procedures
+placeholder: e.g. Main Branch - Makati
+placeholder: 9xxxxxxxxx
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 12
+title: View Analytics
+title: Edit Branch
+
+### ngitify-web/src/pages/admin/CoAdminAIAssistant.js
+HEADING: Suggested Requests
+HEADING: Planned Help Scope
+HEADING: Preview Conversation Area
+title: Administrator NgitiBot workspace preview
+
+### ngitify-web/src/pages/admin/DatabaseBackup.js
+BUTTON: loadData( )} disabled= > Refresh
+BUTTON: handleDownload(backup.filename)} disabled= >
+BUTTON: handleVerify(backup.filename)} disabled= >
+HEADING: Database Backup
+HEADING: Automatic Schedule
+HEADING: File Retention
+HEADING: Backup Verification
+HEADING: Automatic Backup Settings
+HEADING: Backup History
+
+### ngitify-web/src/pages/admin/EditBranchManager.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Edit Branch Manager
+HEADING: Personal Information
+HEADING: Branch Assignment
+HEADING: Success!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+
+### ngitify-web/src/pages/admin/EditDentist.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Edit Dentist Profile
+HEADING: Personal Information
+HEADING: Branch Assignment
+HEADING: Success!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+
+### ngitify-web/src/pages/admin/EditInventoryItem.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Edit Inventory Item
+HEADING: Item Details
+HEADING: Success!
+placeholder: e.g. Latex Gloves
+placeholder: Type custom category name...
+placeholder: Type custom unit (e.g. rolls)...
+placeholder: Alert when below...
+title: Save Inventory Changes
+
+### ngitify-web/src/pages/admin/EditOwner.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Edit Owner
+HEADING: Personal Information
+HEADING: Dentist Access
+HEADING: Professional Information
+HEADING: Branch Assignment
+HEADING: Changes Saved!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+
+### ngitify-web/src/pages/admin/EditPatient.js
+BUTTON: Cancel
+BUTTON: handleStepAdvance(1)} disabled= >Continue to Contacts
+BUTTON: setCurrentStep(0)} disabled= >Back to Identity
+BUTTON: handleStepAdvance(2)} disabled= >Continue to Medical
+BUTTON: setCurrentStep(1)} disabled= >Back to Contacts
+BUTTON: handleStepAdvance(3)} disabled= >Continue to Consent
+BUTTON: { if (formData.dataPrivacyConsent.acknowledged) else }} disabled= style={ } >
+BUTTON: setIsConsentModalOpen(true)} disabled= style={ } > View full consent form
+BUTTON: setCurrentStep(2)} disabled= >Back to Medical
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Edit Patient Profile
+HEADING: Patient Details
+HEADING: For Minors
+HEADING: Branch Assignment
+HEADING: Dental History
+HEADING: Attending Physician
+HEADING: Medical History
+HEADING: Data Privacy Act
+HEADING: Digital Consent
+HEADING: Success!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 1234567
+placeholder: 9xxxxxxxxx
+placeholder: Other allergy
+placeholder: Other condition
+placeholder: e.g. 120/80
+title: Patient Details
+title: Contacts and Branch
+title: Medical and Dental
+title: Consent and Final Review
+title: Data Privacy Consent Review
+
+### ngitify-web/src/pages/admin/EditSecretary.js
+BUTTON: CANCEL
+BUTTON: DONE
+HEADING: Edit Secretary Profile
+HEADING: Personal Information
+HEADING: Branch Assignment
+HEADING: Success!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+
+### ngitify-web/src/pages/admin/IntegrityTools.js
+BUTTON: onRun(check.checkName)} disabled= >
+BUTTON: onFix(check)} disabled= >
+BUTTON: setExpanded((value) => !value)} title= >
+HEADING: Integrity Tools
+
+### ngitify-web/src/pages/admin/InventoryTracker.js
+BUTTON: Export CSV
+BUTTON: Export PDF
+BUTTON: setIsAddModalOpen(true)}> Add New Item
+BUTTON: toggleExpanded(item.itemId)} title= >
+BUTTON: } title="Edit item" >
+BUTTON: } title="Receive stock" >
+BUTTON: triggerDeleteBatch(batch.id, item.name, batch.batchNumber)} title="Delete batch" style={ } >
+HEADING: Inventory Tracker
+HEADING: 0 ? '#d97706' : '#01538b' }}>
+HEADING: Batch History
+placeholder: Search items, categories, stock-in numbers, brands, or batch numbers...
+title: Edit item
+title: Receive stock
+title: Delete batch
+
+### ngitify-web/src/pages/admin/ManageBranchManagers.js
+BUTTON: setIsAddModalOpen(true)}> Add Branch Manager
+BUTTON: setStatusFilter('active')}>Active
+BUTTON: setStatusFilter('needsActivation')}>Needs Activation
+BUTTON: setStatusFilter('inactive')}>Inactive
+BUTTON: setStatusFilter('archived')}>Archived
+BUTTON: setStatusFilter('all')}>All
+BUTTON: openManagerView(manager.id)} title="View Branch Manager" >
+BUTTON: openManagerModal(manager.id)} title= disabled= >
+BUTTON: handleToggleStatus( )} title= disabled= >
+BUTTON: handleArchiveToggle(manager)} title= >
+BUTTON: setPage((current) => Math.max(1, current - 1))} disabled= >Previous
+BUTTON: setPage((current) => Math.min(totalPages, current + 1))} disabled= >Next
+HEADING: Manage Branch Managers
+placeholder: Search branch managers by name or email...
+title: View Branch Manager
+
+### ngitify-web/src/pages/admin/ManageDentists.js
+BUTTON: setIsAddModalOpen(true)}> Add New Dentist
+BUTTON: setStatusFilter('active')}>Active
+BUTTON: setStatusFilter('needsActivation')}>Needs Activation
+BUTTON: setStatusFilter('inactive')}>Inactive
+BUTTON: setStatusFilter('archived')}>Archived
+BUTTON: setStatusFilter('all')}>All
+BUTTON: handleViewClick(dentist.id)} title="View Profile">
+BUTTON: handleEditClick(dentist.id)} title= disabled= >
+BUTTON: handleToggleStatus( )} title= disabled= >
+BUTTON: handleArchiveToggle(dentist)} title= >
+BUTTON: setPage((current) => Math.max(1, current - 1))} disabled= >Previous
+BUTTON: setPage((current) => Math.min(totalPages, current + 1))} disabled= >Next
+HEADING: Manage Dentists
+placeholder: Search dentists by name or email...
+title: View Profile
+
+### ngitify-web/src/pages/admin/ManageOwners.js
+BUTTON: setIsAddModalOpen(true)}> Add New Owner
+BUTTON: setStatusFilter('active')}>Active
+BUTTON: setStatusFilter('needsActivation')}>Needs Activation
+BUTTON: setStatusFilter('inactive')}>Inactive
+BUTTON: setStatusFilter('archived')}>Archived
+BUTTON: setStatusFilter('all')}>All
+BUTTON: handleViewClick(owner.id)} title="View Owner" >
+BUTTON: handleEditClick(owner.id)} title= disabled= >
+BUTTON: handleToggleStatus( )} title= disabled= >
+BUTTON: handleArchiveToggle(owner)} title= >
+BUTTON: setPage((current) => Math.max(1, current - 1))} disabled= >Previous
+BUTTON: setPage((current) => Math.min(totalPages, current + 1))} disabled= >Next
+HEADING: Manage Owners
+placeholder: Search by name or email...
+title: View Owner
+
+### ngitify-web/src/pages/admin/ManagePatients.js
+BUTTON: Export CSV
+BUTTON: Export PDF
+BUTTON: setIsAddModalOpen(true)} > Add New Patient
+BUTTON: setStatusFilter('active')}>Active
+BUTTON: setStatusFilter('needsActivation')}>Needs Activation
+BUTTON: setStatusFilter('inactive')}>Inactive
+BUTTON: setStatusFilter('archived')}>Archived
+BUTTON: setStatusFilter('all')}>All
+BUTTON: handleViewClick(patient.id)} title="View Patient EMR">
+BUTTON: handleEditClick(patient.id)} title= disabled= >
+BUTTON: openBranchTransferModal(patient)} title= disabled= >
+BUTTON: handleToggleStatus( )} title= disabled= >
+BUTTON: handleArchiveToggle(patient)} title= >
+BUTTON: setPage((current) => Math.max(1, current - 1))} disabled= >Previous
+BUTTON: setPage((current) => Math.min(totalPages, current + 1))} disabled= >Next
+BUTTON: Cancel
+BUTTON: 0) } >
+HEADING: Manage Patients
+HEADING: Transfer Patient Branch
+HEADING: Transfer Details
+HEADING: Impact Preview
+placeholder: Search patients by name or email...
+placeholder: Explain why this patient is being transferred to another branch.
+title: View Patient EMR
+
+### ngitify-web/src/pages/admin/ManageSecretaries.js
+BUTTON: setIsAddModalOpen(true)}> Add New Secretary
+BUTTON: setStatusFilter('active')}>Active
+BUTTON: setStatusFilter('needsActivation')}>Needs Activation
+BUTTON: setStatusFilter('inactive')}>Inactive
+BUTTON: setStatusFilter('archived')}>Archived
+BUTTON: setStatusFilter('all')}>All
+BUTTON: handleViewClick(secretary.id)} title="View Profile">
+BUTTON: handleEditClick(secretary.id)} title= disabled= >
+BUTTON: handleToggleStatus( )} title= disabled= >
+BUTTON: handleArchiveToggle(secretary)} title= >
+BUTTON: setPage((current) => Math.max(1, current - 1))} disabled= >Previous
+BUTTON: setPage((current) => Math.min(totalPages, current + 1))} disabled= >Next
+HEADING: Manage Secretaries
+placeholder: Search secretaries by name or email...
+title: View Profile
+
+### ngitify-web/src/pages/admin/PatientEMR.js
+BUTTON: setIsPrintPreviewOpen(false)}> Close
+BUTTON: Print
+BUTTON: setIsEditingMedical(true)}> Edit Medical History
+BUTTON: Cancel
+BUTTON: { setNewLogFormErrors( ); setIsAddLogOpen(true); }} > Add Log
+BUTTON: setLogsRangeFilter(option.value)} >
+BUTTON: toggleLogRow(logId)} >
+BUTTON: setDeleteLogTarget(log)} title="Delete treatment log" aria-label="Delete treatment log" >
+BUTTON: { setNewLogFormErrors( ); setIsAddLogOpen(false); }} disabled= > Cancel
+BUTTON: Back to Gallery
+BUTTON: setDeleteRadiographTarget(selectedRadiograph)} disabled= title="Delete radiograph" > Delete
+BUTTON: setSelectedRadiographView(option.key)} style={ } >
+BUTTON: handleAIEnhance('basic')} disabled= type="button" >
+BUTTON: { setUploadFormErrors( ); setIsUploadModalOpen(true); }} > Upload Radiograph
+BUTTON: toggleOdontogramLogRow(logId)} >
+BUTTON: Export PDF
+BUTTON: setActiveTab('overview')}>Overview
+BUTTON: setActiveTab('medicalHistory')}>Medical and Dental History
+BUTTON: setActiveTab('treatmentLogs')}>Treatment History
+BUTTON: setActiveTab('odontogram')}>Odontogram
+BUTTON: setActiveTab('radiographs')}>Radiograph Images
+HEADING: Formal Patient Record Preview
+HEADING: Patient Medical and Dental Record
+HEADING: Patient Identification
+HEADING: Patient Details
+HEADING: For Minors
+HEADING: Emergency Contact
+HEADING: Attending Physician
+HEADING: Consent Summary
+HEADING: Home Address
+HEADING: Medical and Dental History
+HEADING: Treatment Logs
+HEADING: Add Treatment Log
+HEADING: Findings / Impression
+HEADING: Notes
+HEADING: AI-Assisted Radiograph Review
+HEADING: Odontogram History
+HEADING: Suggested Tooth Workflow
+HEADING: Upload Radiograph
+HEADING: Electronic Medical Record
+HEADING: {patient.name?.first ? `$ $ ` : patient.name}
+aria-label: Delete treatment log
+placeholder: Comma-separated medications
+placeholder: Other allergy
+placeholder: e.g. 120/80
+placeholder: Other condition
+placeholder: Search procedures, dentist, or amounts...
+placeholder: e.g. 45, 46 or All
+placeholder: 0.00
+placeholder: Clinical notes, remarks, or follow-up instructions
+placeholder: Optional identifier
+placeholder: Observed findings or impression...
+placeholder: Any clinical notes about this image...
+cancelText: Cancel
+title: Delete treatment log
+title: Delete Treatment Log?
+title: Delete radiograph
+title: Delete Radiograph?
+title: Back
+
+### ngitify-web/src/pages/admin/QueueManagement.js
+BUTTON: updateStatus(entry._id, 'in-clinic')} title="Call next"> Call
+BUTTON: updateStatus(entry._id, 'cancelled')} title="Skip"> Skip
+BUTTON: updateStatus(entry._id, 'completed')} title="Mark done"> Done
+BUTTON: removeEntry(entry._id, entry.ticketNumber)} title="Remove">
+BUTTON: setShowModal(true)}> New Walk-In
+BUTTON: setShowModal(false)}>
+BUTTON: setShowModal(false)}> Cancel
+HEADING: Queue Management
+HEADING: New Walk-In Patient
+placeholder: e.g. Juan Dela Cruz
+placeholder: e.g. 09XX-XXX-XXXX
+placeholder: e.g. Tooth Extraction
+title: Call next
+title: Skip
+title: Mark done
+title: Remove
+title: Refresh
+title: Waiting
+title: Currently Serving
+title: Done / Skipped
+
+### ngitify-web/src/pages/admin/RegisterGuestPatient.js
+BUTTON: { setSoftDuplicateConfirmed(true); setErrors((prev) => { const next = ; delete next.duplicateCheck; return next; }); }} style={ } >
+BUTTON: setRegistrationMode('link-existing')} style={ } > Review Existing Patient Accounts
+BUTTON: handleSelectExistingPatient(patient)} style={ } > Link This Patient
+BUTTON: { setRegistrationMode('create-new'); setSelectedExistingPatientId(''); setErrors( ); }} disabled= > Create New Patient
+BUTTON: { setRegistrationMode('link-existing'); setErrors( ); }} disabled= > Link Existing Patient
+BUTTON: { if (formData.dataPrivacyConsent.acknowledged) else }} disabled= style={ } >
+BUTTON: setIsConsentModalOpen(true)} disabled= style={ } > View full consent form
+BUTTON: CANCEL
+BUTTON: OPEN PATIENT RECORD
+BUTTON: DONE
+HEADING: Register Guest Patient
+HEADING: Conversion Flow
+HEADING: Patient Details
+HEADING: Personal Information
+HEADING: Contact and Background
+HEADING: Emergency Contact
+HEADING: Guardian Information
+HEADING: Branch Assignment
+HEADING: Dental History
+HEADING: Medical History
+HEADING: Attending Physician
+HEADING: Data Privacy Act
+HEADING: Digital Consent
+HEADING: Success!
+placeholder: e.g. Mabini St.
+placeholder: e.g. Unit 123
+placeholder: 9xxxxxxxxx
+placeholder: 1234567
+placeholder: Comma-separated values
+placeholder: Other allergy
+placeholder: e.g. 120/80
+placeholder: Other condition
+title: Data Privacy Consent Review
+
+### ngitify-web/src/pages/admin/RolesPermissions.js
+BUTTON: handleSave(role.key)} disabled= >
+HEADING: Roles & Permissions
+HEADING: Role Permission Matrix
+HEADING: Grant Admin Access
+placeholder: Search by name or email...
+
+### ngitify-web/src/pages/admin/SystemConfig.js
+BUTTON: handleWebsiteMediaReset(field)}> Reset Default
+BUTTON: handleAboutHighlightReset(index)}> Reset Default
+BUTTON: handleRemoveServiceHighlight(index)} disabled={config.websiteContent.serviceHighlights.length Remove Card
+BUTTON: handleWebsiteServiceChange(index, 'imageUrl', getDefaultServiceImage(service.category))} > Reset Default
+BUTTON: Add Service Card
+BUTTON: setFeedbackModal(null)} > OK
+BUTTON: setActiveSection(section.key)} >
+BUTTON: handleRemoveListItem('onlineBookingProcedures', index)} disabled={(config.onlineBookingProcedures || []).length Remove
+BUTTON: handleAddListItem('onlineBookingProcedures')}> Add Online Booking Procedure
+BUTTON: handleRemoveListItem('clinicProcedures', index)} disabled={(config.clinicProcedures || []).length Remove
+BUTTON: handleAddListItem('clinicProcedures')}> Add Procedure
+BUTTON: handleToggleChange(feature.key)} >
+BUTTON: setActiveWebsiteTab(tab.key)} >
+HEADING: Branding and Social Links
+HEADING: Home Page
+HEADING: About Page and Locations
+HEADING: Services Page
+HEADING: Service Card
+HEADING: Contact Page
+HEADING: Appointment Page
+HEADING: System Configuration
+HEADING: Clinic Information
+HEADING: Appointment Settings
+HEADING: Email Templates
+HEADING: Feature Toggles
+HEADING: Website Content
+placeholder: Paste an image URL or upload a file.
+placeholder: Enter bookable procedure name
+placeholder: Enter procedure name
+title: Could not complete this action
+title: Success
+
+### ngitify-web/src/pages/admin/UserManagement.js
+BUTTON: navigate('/admin/archive-review')} style={ } > Open Archive Review
+HEADING: User Management
+
+### ngitify-web/src/pages/admin/UserTabs.js
+BUTTON: navigate(tab.path)} >
+
+### ngitify-web/src/pages/admin/ViewBranchManager.js
+BUTTON: EDIT PROFILE
+HEADING: Branch Manager Profile
+HEADING: Home Address
+
+### ngitify-web/src/pages/admin/ViewDentist.js
+BUTTON: EDIT PROFILE
+HEADING: Dentist Profile
+HEADING: Dr.
+HEADING: Home Address
+
+### ngitify-web/src/pages/admin/ViewOwner.js
+BUTTON: EDIT PROFILE
+HEADING: Owner Profile
+HEADING: Home Address
+
+### ngitify-web/src/pages/admin/ViewPatient.js
+BUTTON: Close
+BUTTON: Open Full EMR
+BUTTON: Edit Patient
+HEADING: Patient Profile
+HEADING: Account Overview
+HEADING: Core Information
+HEADING: Emergency Contact
+HEADING: Guardian Information (Minor)
+HEADING: Medical History Summary
+HEADING: Address Details
+HEADING: Digital Consent
+
+### ngitify-web/src/pages/admin/ViewSecretary.js
+BUTTON: EDIT PROFILE
+HEADING: Secretary Profile
+HEADING: Home Address
+
+### ngitify-web/src/pages/auth/LoginPage.js
+BUTTON: setShowPassword(p => !p)} tabIndex= aria-label= >
+HEADING: Login to your Account
+placeholder: Enter your email
+placeholder: Enter your password
+
+### ngitify-web/src/pages/auth/NewPasswordRedirectPage.js
+BUTTON: navigate('/login')} autoFocus // Automatically focuses the button so users can just press 'Enter' > GO TO LOGIN
+
+### ngitify-web/src/pages/branch-manager/BranchManagerAIAssistant.js
+HEADING: Branch manager NgitiBot workspace preview
+HEADING: Suggested Requests
+HEADING: Planned Help Scope
+HEADING: Preview Conversation Area
+
+### ngitify-web/src/pages/branch-manager/BranchManagerAnalytics.js
+BUTTON: Export CSV
+BUTTON: Export PDF
+BUTTON: }>Clear
+HEADING: Branch Analytics
+HEADING: Appointments
+HEADING: Monthly Trend (Last 6 Months)
+HEADING: Procedure Distribution
+
+### ngitify-web/src/pages/branch-manager/BranchManagerDashboard.js
+BUTTON: setShowAlertBanner(false)} aria-label="Close Alert"> x
+BUTTON: navigate('/branch-manager/patients')}> Branch Patients Active Registered under your assigned branch
+BUTTON: navigate('/branch-manager/manage-staffs')}> Branch Staff Team currently active in queue
+BUTTON: setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() - 1, 1))}> &lt;
+BUTTON: setCurrentMonthView(new Date(currentMonthView.getFullYear(), currentMonthView.getMonth() + 1, 1))}> &gt;
+BUTTON: navigate('/branch-manager/patients', { state: })} > Add Patient
+BUTTON: navigate('/branch-manager/schedule')} > Manage Schedule
+HEADING: {isTodaySelected ? "Today's Branch Schedule" : `Branch Schedule: $ `}
+HEADING: Branch Summary
+HEADING: Activity Snapshot
+HEADING: Latest Branch Alerts
+aria-label: Close Alert
+title: Branch Manager Dashboard
+
+### ngitify-web/src/pages/dentist/DentistAIAssistant.js
+HEADING: Dentist NgitiBot workspace preview
+HEADING: Suggested Requests
+HEADING: Planned Help Scope
+HEADING: Preview Conversation Area
+
+### ngitify-web/src/pages/dentist/DentistAppointments.js
+BUTTON: } > Book Appointment
+BUTTON: handleViewEMR(apt.patientId)}> View EMR
+BUTTON: { setCompleteTarget(apt); setCompletionProcedure(apt.performedProcedure || apt.procedure || ''); setCompletionDetails( ); setCompletionError(''); }} > Mark Done
+BUTTON: handleOpenMaterialLog(apt)}> Log Materials
+BUTTON: &lt;
+BUTTON: &gt;
+BUTTON: } >
+BUTTON: } disabled= > Cancel
+BUTTON: { setCompleteTarget(null); setCompletionProcedure(''); setCompletionDetails( ); setCompletionError(''); }} > Cancel
+BUTTON: Mark Done
+HEADING: Clinical Appointments
+HEADING: Book New Appointment
+HEADING: Complete Appointment
+placeholder: Search patient name or procedure...
+placeholder: e.g. 11, 12 or All
+placeholder: 0.00
+confirmText: Yes, Logout
+title: From Date
+title: To Date
+title: Confirm Logout
+
+### ngitify-web/src/pages/dentist/DentistDashboard.js
+BUTTON: navigate(`/dentist/patients/$ /emr`)} disabled= > View EMR
+BUTTON: &lt;
+BUTTON: &gt;
+BUTTON: navigate('/dentist/patients')} > Manage Patients
+BUTTON: navigate('/dentist/appointments')} > Manage Appointments
+HEADING: Schedule for
+HEADING: Clinical Work Summary
+HEADING: Recent Account Activity
+HEADING: {isTodaySelected ? "Today's Appointments" : `Appointments for ${selectedDate.toLocaleDateString('en-US', )}`}
+title: Dentist Dashboard
+
+### ngitify-web/src/pages/dentist/DentistEMRList.js
+BUTTON: setStatusFilter(s)} >
+BUTTON: openEMR(p.id)} > Open EMR
+HEADING: Patient EMR
+placeholder: Search by name, email, or phone...
+
+### ngitify-web/src/pages/dentist/DentistOdontogramPage.js

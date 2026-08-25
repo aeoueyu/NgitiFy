@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -29,22 +30,17 @@ const QUICK_PROMPTS = [
   {
     id: 'visit-recommendation',
     icon: 'calendar-outline',
-    label: 'When is my next visit?',
+    label: 'Explain my current visit recommendation',
   },
   {
     id: 'oral-health-trend',
     icon: 'analytics-outline',
-    label: 'Show me my recent care check-ins',
+    label: 'Explain my recent Oral Health Management trend',
   },
   {
-    id: 'education',
-    icon: 'book-outline',
-    label: 'Explain my tooth chart',
-  },
-  {
-    id: 'appointment',
-    icon: 'time-outline',
-    label: 'How does this app work?',
+    id: 'radiograph-findings',
+    icon: 'image-outline',
+    label: 'Explain my radiograph findings',
   },
 ];
 
@@ -223,6 +219,11 @@ export default function AiPatientCareCompanionScreen({
     input,
     setInput,
   ] = useState('');
+
+  const [
+    keyboardInset,
+    setKeyboardInset,
+  ] = useState(0);
 
   const [
     sending,
@@ -748,6 +749,31 @@ export default function AiPatientCareCompanionScreen({
   }, [
     refreshConversationLists,
   ]);
+
+  useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios'
+      ? 'keyboardWillShow'
+      : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios'
+      ? 'keyboardWillHide'
+      : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(keyboardShowEvent, (event) => {
+      setKeyboardInset(
+        Platform.OS === 'ios'
+          ? event?.endCoordinates?.height || 0
+          : 0,
+      );
+    });
+    const hideSubscription = Keyboard.addListener(keyboardHideEvent, () => {
+      setKeyboardInset(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const timeout =
@@ -3390,13 +3416,16 @@ export default function AiPatientCareCompanionScreen({
     <KeyboardAvoidingView
       style={styles.container}
       behavior={
-        Platform.OS === 'ios'
-          ? 'padding'
+        Platform.OS === 'android'
+          ? 'height'
           : undefined
       }
     >
       <View
-        style={styles.header}
+        style={[
+          styles.header,
+          embedded && styles.embeddedHeader,
+        ]}
       >
         <TouchableOpacity
           onPress={() => {
@@ -3509,7 +3538,12 @@ export default function AiPatientCareCompanionScreen({
         </View>
       ) : (
         <View
-          style={styles.chatDock}
+          style={[
+            styles.chatDock,
+            keyboardInset > 0 && {
+              marginBottom: keyboardInset,
+            },
+          ]}
         >
           {renderQuickPrompts()}
 
@@ -3530,6 +3564,14 @@ export default function AiPatientCareCompanionScreen({
               maxLength={1500}
               editable={!sending}
               returnKeyType="default"
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollRef.current
+                    ?.scrollToEnd({
+                      animated: true,
+                    });
+                }, 100);
+              }}
               accessibilityLabel="Message NgitiBot"
             />
 
@@ -3909,6 +3951,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 18,
     elevation: 12,
+  },
+
+  embeddedHeader: {
+    minHeight: 62,
+    paddingTop: 10,
   },
 
   modalHeader: {

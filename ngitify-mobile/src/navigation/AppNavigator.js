@@ -40,6 +40,8 @@ import {
     mobileTheme,
 } from '../theme/mobileTheme';
 
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
 import PatientBottomNav
     from '../components/mobile/PatientBottomNav';
 
@@ -312,7 +314,12 @@ function PatientTabsNavigator() {
             accessibilityLabel="Open NgitiBot"
             activeOpacity={0.84}
         >
-            <Text style={styles.patientAiSparkle}>✦</Text>
+            <View style={styles.patientAiIconWrap} accessible={false}>
+                <Ionicons name="chatbubble-ellipses" size={31} color="#ffffff" />
+                <View style={styles.patientAiRobotBadge}>
+                    <MaterialCommunityIcons name="robot-outline" size={14} color={mobileTheme.colors.primaryDark} />
+                </View>
+            </View>
         </TouchableOpacity>
         <Modal visible={aiOpen} transparent animationType="slide" onRequestClose={() => setAiOpen(false)}>
             <View style={styles.patientAiBackdrop}>
@@ -743,17 +750,32 @@ const styles =
             right: 22,
             bottom: 98,
             zIndex: 20,
-            width: 52,
-            height: 52,
+            width: 60,
+            height: 60,
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: 26,
+            borderRadius: 30,
             backgroundColor: mobileTheme.colors.primaryDark,
-            borderWidth: 2,
-            borderColor: '#ffffff',
+            borderWidth: 4,
+            borderColor: '#d5f4fb',
             ...mobileTheme.shadows.card,
         },
-        patientAiSparkle: { color: '#ffffff', fontSize: 25, fontWeight: '800' },
+        patientAiIconWrap: {
+            width: 42,
+            height: 42,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        patientAiRobotBadge: {
+            position: 'absolute',
+            top: 11,
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: '#ffffff',
+        },
         patientAiBackdrop: {
             flex: 1,
             justifyContent: 'flex-end',

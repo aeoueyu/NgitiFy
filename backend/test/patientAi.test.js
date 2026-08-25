@@ -7,8 +7,10 @@ const {
     buildPatientAiCareContext,
     buildPatientAiEducationContext,
     buildPatientAiOralHealthContext,
+    buildPatientAiRadiographContext,
     buildPatientAiRecentOralHealthLogs,
     buildPatientAiVisitRecommendationContext,
+    getPatientAiRequiredShortcutReply,
     mergePatientAiLiveContext,
 } = require('../utils/patientAi');
 
@@ -359,6 +361,105 @@ test('client-supplied context is discarded from patient AI context', () => {
     );
 
     assert.equal(merged.clientSuppliedContext, undefined);
+});
+
+test('exposes only dentist-approved radiograph explanations to patient AI', () => {
+    const records = buildPatientAiRadiographContext([
+        {
+            _id: 'approved-radiograph',
+            label: 'Panoramic radiograph',
+            date: '2026-08-20T00:00:00.000Z',
+            reviewSummary: {
+                status: 'approved',
+                approvedText: 'Dentist-approved explanation.',
+                approvedAt: '2026-08-21T00:00:00.000Z',
+                approvedBy: 'dentist-1',
+            },
+            annotations: [
+                {
+                    toothNumber: '16',
+                    findingType: 'Dentist-recorded finding',
+                    note: 'Approved clinical note.',
+                    status: 'active',
+                },
+                {
+                    toothNumber: '17',
+                    findingType: 'Archived finding',
+                    status: 'archived',
+                },
+            ],
+        },
+        {
+            _id: 'pending-radiograph',
+            reviewSummary: {
+                status: 'draft',
+                approvedText: 'Unapproved draft.',
+            },
+        },
+    ]);
+
+    assert.equal(records.length, 1);
+    assert.equal(
+        records[0].approvedSummary,
+        'Dentist-approved explanation.'
+    );
+    assert.equal(
+        records[0].dentistRecordedFindings.length,
+        1
+    );
+});
+
+test('marks radiograph explanations unavailable when no dentist-approved finding exists', () => {
+    const context = buildPatientAiCareContext({
+        radiographs: [
+            {
+                reviewSummary: {
+                    status: 'draft',
+                    approvedText: 'Pending explanation.',
+                },
+            },
+        ],
+    });
+
+    assert.equal(
+        context.radiographAvailability.available,
+        false
+    );
+    assert.equal(
+        context.radiographAvailability.unavailableMessage,
+        'No approved radiograph explanation is available.'
+    );
+    assert.deepEqual(
+        context.approvedRadiographRecords,
+        []
+    );
+
+    assert.equal(
+        getPatientAiRequiredShortcutReply({
+            prompt:
+                'Explain my radiograph findings',
+            careContext: context,
+        }),
+        'No approved radiograph explanation is available.'
+    );
+});
+
+test('allows AI to explain radiographs when an approved record exists', () => {
+    const shortcutReply =
+        getPatientAiRequiredShortcutReply({
+            prompt:
+                'Explain my radiograph findings',
+            careContext: {
+                approvedRadiographRecords: [
+                    {
+                        approvedSummary:
+                            'Approved explanation.',
+                    },
+                ],
+            },
+        });
+
+    assert.equal(shortcutReply, '');
 });
 
 test('primitive client context is discarded from trusted live context', () => {

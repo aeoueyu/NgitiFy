@@ -52,6 +52,30 @@ const formatDisplayDate = (dateStr) => {
     return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
+const MOBILE_PREFIX = '+63';
+const LANDLINE_PREFIX = '+632';
+const REQUIRED_FIELDS = [
+    'firstName', 'lastName', 'birthdate', 'gender', 'phone',
+    'emergencyName', 'emergencyRelationship', 'emergencyPhone',
+];
+
+const digitsOnly = (value, maxLength) => String(value || '').replace(/\D/g, '').slice(0, maxLength);
+const stripMobilePrefix = (value = '') => {
+    const digits = String(value).replace(/\D/g, '');
+    if (digits.startsWith('63') && digits.length >= 12) return digits.slice(2, 12);
+    if (digits.startsWith('0') && digits.length >= 11) return digits.slice(1, 11);
+    if (digits.startsWith('9')) return digits.slice(0, 10);
+    return digits.slice(-10);
+};
+const stripLandlinePrefix = (value = '') => {
+    const digits = String(value).replace(/\D/g, '');
+    if (digits.startsWith('632')) return digits.slice(3, 11);
+    if (digits.startsWith('02')) return digits.slice(2, 10);
+    if (digits.startsWith('63') && digits.length > 3) return digits.slice(-8);
+    if (digits.startsWith('0') && digits.length > 1) return digits.slice(-8);
+    return digits.slice(-8);
+};
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function EditProfileScreen({ navigation }) {
@@ -145,19 +169,19 @@ export default function EditProfileScreen({ navigation }) {
                 lastName:   data.name?.last   || '',
                 birthdate:  data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0] : '',
                 gender:     data.gender        || '',
-                phone:      data.contactNumber || '',
-                homePhone:  data.homePhone || '',
-                workPhone:  data.workPhone || '',
+                phone:      stripMobilePrefix(data.contactNumber || ''),
+                homePhone:  stripLandlinePrefix(data.homePhone || ''),
+                workPhone:  stripLandlinePrefix(data.workPhone || ''),
                 occupation: data.occupation || '',
                 civilStatus: data.civilStatus || '',
                 nationality: data.nationality || '',
                 religion: data.religion || '',
                 emergencyName: data.emergencyContact?.name || '',
                 emergencyRelationship: data.emergencyContact?.relationship || '',
-                emergencyPhone: data.emergencyContact?.contactNumber || '',
+                emergencyPhone: stripMobilePrefix(data.emergencyContact?.contactNumber || ''),
                 guardianName: data.guardian?.name || '',
                 guardianRelationship: data.guardian?.relationship || '',
-                guardianPhone: data.guardian?.contactNumber || '',
+                guardianPhone: stripMobilePrefix(data.guardian?.contactNumber || ''),
                 guardianOccupation: data.guardian?.occupation || '',
                 reg:    regCode,
                 prov:   provCode,
@@ -188,6 +212,25 @@ export default function EditProfileScreen({ navigation }) {
     const availableProvinces = provincesData.filter(p => p.region_code   === formData.reg);
     const availableCities    = citiesData.filter(c    => c.province_code === formData.prov);
     const availableBarangays = barangaysData.filter(b => b.city_code     === formData.city);
+
+    const validationErrors = (() => {
+        const errors = {};
+        REQUIRED_FIELDS.forEach(field => {
+            if (!String(formData[field] || '').trim()) errors[field] = 'Required';
+        });
+        if (formData.phone && !/^9\d{9}$/.test(formData.phone)) errors.phone = 'Invalid Format';
+        if (formData.homePhone && !/^\d{7,8}$/.test(formData.homePhone)) errors.homePhone = 'Invalid Format';
+        if (formData.workPhone && !/^\d{7,8}$/.test(formData.workPhone)) errors.workPhone = 'Invalid Format';
+        if (formData.emergencyPhone && !/^9\d{9}$/.test(formData.emergencyPhone)) errors.emergencyPhone = 'Invalid Format';
+        if (formData.guardianPhone && !/^9\d{9}$/.test(formData.guardianPhone)) errors.guardianPhone = 'Invalid Format';
+        return errors;
+    })();
+    const isFormValid = Object.keys(validationErrors).length === 0;
+    const renderFieldError = field => (
+        isEditing && validationErrors[field]
+            ? <Text style={styles.fieldError}>{validationErrors[field]}</Text>
+            : null
+    );
 
     // ─── Filtered address lists (permanent) ──────────────────────────────────
 
@@ -284,15 +327,7 @@ export default function EditProfileScreen({ navigation }) {
     // ─── Save changes ─────────────────────────────────────────────────────────
     const handleSave = async () => {
         setSaveError('');
-
-        if (!formData.firstName.trim() || !formData.lastName.trim()) {
-            setSaveError('First name and last name are required.');
-            return;
-        }
-        if (formData.phone && !/^[0-9+\s\-]{7,15}$/.test(formData.phone)) {
-            setSaveError('Please enter a valid phone number.');
-            return;
-        }
+        if (!isFormValid) return;
 
         // Resolve codes → names for storage
         const regionName   = nameFromCode(regionsData,   'region_code',   'region_name',   formData.reg);
@@ -316,11 +351,11 @@ export default function EditProfileScreen({ navigation }) {
                 middle: formData.middleName.trim(),
                 last:   formData.lastName.trim(),
             },
-            contactNumber:    formData.phone.trim(),
+            contactNumber:    `${MOBILE_PREFIX}${formData.phone}`,
             birthdate:        formData.birthdate || undefined,
             gender:           formData.gender    || undefined,
-            homePhone:        formData.homePhone.trim(),
-            workPhone:        formData.workPhone.trim(),
+            homePhone:        formData.homePhone ? `${LANDLINE_PREFIX}${formData.homePhone}` : '',
+            workPhone:        formData.workPhone ? `${LANDLINE_PREFIX}${formData.workPhone}` : '',
             occupation:       formData.occupation.trim() || undefined,
             civilStatus:      formData.civilStatus || undefined,
             nationality:      formData.nationality.trim() || undefined,
@@ -328,12 +363,12 @@ export default function EditProfileScreen({ navigation }) {
             emergencyContact: {
                 name: formData.emergencyName.trim() || undefined,
                 relationship: formData.emergencyRelationship.trim() || undefined,
-                contactNumber: formData.emergencyPhone.trim() || undefined,
+                contactNumber: formData.emergencyPhone ? `${MOBILE_PREFIX}${formData.emergencyPhone}` : undefined,
             },
             guardian: {
                 name: formData.guardianName.trim() || undefined,
                 relationship: formData.guardianRelationship.trim() || undefined,
-                contactNumber: formData.guardianPhone.trim() || undefined,
+                contactNumber: formData.guardianPhone ? `${MOBILE_PREFIX}${formData.guardianPhone}` : undefined,
                 occupation: formData.guardianOccupation.trim() || undefined,
             },
             homeAddress: homeAddressPayload,
@@ -388,7 +423,11 @@ export default function EditProfileScreen({ navigation }) {
                     {GENDERS.map(g => (
                         <TouchableOpacity
                             key={g}
-                            style={[styles.genderBtn, formData.gender === g && styles.genderBtnActive]}
+                            style={[
+                                styles.genderBtn,
+                                validationErrors.gender && styles.inputError,
+                                formData.gender === g && styles.genderBtnActive,
+                            ]}
                             onPress={() => handleChange('gender', g)}
                         >
                             <Text style={[styles.genderBtnText, formData.gender === g && styles.genderBtnTextActive]}>
@@ -494,13 +533,14 @@ export default function EditProfileScreen({ navigation }) {
 
                     <Text style={styles.label}>First Name</Text>
                     <TextInput
-                        style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                        style={[styles.inputBox, isEditing && validationErrors.firstName && styles.inputError, !isEditing && styles.inputReadOnly]}
                         value={formData.firstName}
                         onChangeText={v => handleChange('firstName', v)}
                         editable={isEditing}
                         placeholder="First name"
                         placeholderTextColor="#bbb"
                     />
+                    {renderFieldError('firstName')}
 
                     <Text style={styles.label}>Middle Name</Text>
                     <TextInput
@@ -514,21 +554,23 @@ export default function EditProfileScreen({ navigation }) {
 
                     <Text style={styles.label}>Last Name</Text>
                     <TextInput
-                        style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                        style={[styles.inputBox, isEditing && validationErrors.lastName && styles.inputError, !isEditing && styles.inputReadOnly]}
                         value={formData.lastName}
                         onChangeText={v => handleChange('lastName', v)}
                         editable={isEditing}
                         placeholder="Last name"
                         placeholderTextColor="#bbb"
                     />
+                    {renderFieldError('lastName')}
 
                     {renderGenderSelector()}
+                    {renderFieldError('gender')}
 
                     <View style={styles.row}>
                         <View style={{ flex: 1, marginRight: 10 }}>
                             <Text style={styles.label}>Birthdate</Text>
                             <TouchableOpacity
-                                style={[styles.inputBox, { justifyContent: 'space-between' }, !isEditing && styles.inputReadOnly]}
+                                style={[styles.inputBox, { justifyContent: 'space-between' }, isEditing && validationErrors.birthdate && styles.inputError, !isEditing && styles.inputReadOnly]}
                                 onPress={() => isEditing && setShowDatePicker(true)}
                                 activeOpacity={isEditing ? 0.7 : 1}
                             >
@@ -539,19 +581,24 @@ export default function EditProfileScreen({ navigation }) {
                                 </Text>
                                 {isEditing && <Calendar width={15} height={15} />}
                             </TouchableOpacity>
+                            {renderFieldError('birthdate')}
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.label}>Phone Number</Text>
-                            <TextInput
-                                style={[styles.inputBox, { marginBottom: 5 }, !isEditing && styles.inputReadOnly]}
-                                keyboardType="phone-pad"
-                                maxLength={15}
-                                value={formData.phone}
-                                onChangeText={v => handleChange('phone', v)}
-                                editable={isEditing}
-                                placeholder="09XXXXXXXXX"
-                                placeholderTextColor="#bbb"
-                            />
+                            <View style={[styles.phoneInputBox, isEditing && validationErrors.phone && styles.inputError, !isEditing && styles.inputReadOnly]}>
+                                <Text style={styles.phonePrefix}>{MOBILE_PREFIX}</Text>
+                                <TextInput
+                                    style={styles.phoneInput}
+                                    keyboardType="phone-pad"
+                                    maxLength={10}
+                                    value={formData.phone}
+                                    onChangeText={v => handleChange('phone', digitsOnly(v, 10))}
+                                    editable={isEditing}
+                                    placeholder="9xxxxxxxxx"
+                                    placeholderTextColor="#bbb"
+                                />
+                            </View>
+                            {renderFieldError('phone')}
                         </View>
                     </View>
 
@@ -587,27 +634,25 @@ export default function EditProfileScreen({ navigation }) {
                     <View style={styles.row}>
                         <View style={{ flex: 1, marginRight: 10 }}>
                             <Text style={styles.label}>Home Phone</Text>
-                            <TextInput
-                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
-                                value={formData.homePhone}
-                                onChangeText={v => handleChange('homePhone', v)}
-                                editable={isEditing}
-                                keyboardType="phone-pad"
-                                placeholder="Home phone"
-                                placeholderTextColor="#bbb"
-                            />
+                            <View style={[styles.phoneInputBox, isEditing && validationErrors.homePhone && styles.inputError, !isEditing && styles.inputReadOnly]}>
+                                <Text style={styles.phonePrefix}>{LANDLINE_PREFIX}</Text>
+                                <TextInput style={styles.phoneInput} value={formData.homePhone}
+                                    onChangeText={v => handleChange('homePhone', digitsOnly(v, 8))}
+                                    editable={isEditing} keyboardType="phone-pad" maxLength={8}
+                                    placeholder="1234567" placeholderTextColor="#bbb" />
+                            </View>
+                            {renderFieldError('homePhone')}
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.label}>Work Phone</Text>
-                            <TextInput
-                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
-                                value={formData.workPhone}
-                                onChangeText={v => handleChange('workPhone', v)}
-                                editable={isEditing}
-                                keyboardType="phone-pad"
-                                placeholder="Work phone"
-                                placeholderTextColor="#bbb"
-                            />
+                            <View style={[styles.phoneInputBox, isEditing && validationErrors.workPhone && styles.inputError, !isEditing && styles.inputReadOnly]}>
+                                <Text style={styles.phonePrefix}>{LANDLINE_PREFIX}</Text>
+                                <TextInput style={styles.phoneInput} value={formData.workPhone}
+                                    onChangeText={v => handleChange('workPhone', digitsOnly(v, 8))}
+                                    editable={isEditing} keyboardType="phone-pad" maxLength={8}
+                                    placeholder="1234567" placeholderTextColor="#bbb" />
+                            </View>
+                            {renderFieldError('workPhone')}
                         </View>
                     </View>
                 </View>
@@ -616,36 +661,37 @@ export default function EditProfileScreen({ navigation }) {
                     <Text style={styles.sectionTitle}>Emergency Contact</Text>
                     <Text style={styles.label}>Contact Name</Text>
                     <TextInput
-                        style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                        style={[styles.inputBox, isEditing && validationErrors.emergencyName && styles.inputError, !isEditing && styles.inputReadOnly]}
                         value={formData.emergencyName}
                         onChangeText={v => handleChange('emergencyName', v)}
                         editable={isEditing}
                         placeholder="Full name"
                         placeholderTextColor="#bbb"
                     />
+                    {renderFieldError('emergencyName')}
                     <View style={styles.row}>
                         <View style={{ flex: 1, marginRight: 10 }}>
                             <Text style={styles.label}>Relationship</Text>
                             <TextInput
-                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
+                                style={[styles.inputBox, isEditing && validationErrors.emergencyRelationship && styles.inputError, !isEditing && styles.inputReadOnly]}
                                 value={formData.emergencyRelationship}
                                 onChangeText={v => handleChange('emergencyRelationship', v)}
                                 editable={isEditing}
                                 placeholder="Mother, spouse, sibling"
                                 placeholderTextColor="#bbb"
                             />
+                            {renderFieldError('emergencyRelationship')}
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.label}>Contact Number</Text>
-                            <TextInput
-                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
-                                value={formData.emergencyPhone}
-                                onChangeText={v => handleChange('emergencyPhone', v)}
-                                editable={isEditing}
-                                keyboardType="phone-pad"
-                                placeholder="+639XXXXXXXXX"
-                                placeholderTextColor="#bbb"
-                            />
+                            <View style={[styles.phoneInputBox, isEditing && validationErrors.emergencyPhone && styles.inputError, !isEditing && styles.inputReadOnly]}>
+                                <Text style={styles.phonePrefix}>{MOBILE_PREFIX}</Text>
+                                <TextInput style={styles.phoneInput} value={formData.emergencyPhone}
+                                    onChangeText={v => handleChange('emergencyPhone', digitsOnly(v, 10))}
+                                    editable={isEditing} keyboardType="phone-pad" maxLength={10}
+                                    placeholder="9xxxxxxxxx" placeholderTextColor="#bbb" />
+                            </View>
+                            {renderFieldError('emergencyPhone')}
                         </View>
                     </View>
 
@@ -700,15 +746,14 @@ export default function EditProfileScreen({ navigation }) {
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.label}>Contact Number</Text>
-                            <TextInput
-                                style={[styles.inputBox, !isEditing && styles.inputReadOnly]}
-                                value={formData.guardianPhone}
-                                onChangeText={v => handleChange('guardianPhone', v)}
-                                editable={isEditing}
-                                keyboardType="phone-pad"
-                                placeholder="Contact number"
-                                placeholderTextColor="#bbb"
-                            />
+                            <View style={[styles.phoneInputBox, isEditing && validationErrors.guardianPhone && styles.inputError, !isEditing && styles.inputReadOnly]}>
+                                <Text style={styles.phonePrefix}>{MOBILE_PREFIX}</Text>
+                                <TextInput style={styles.phoneInput} value={formData.guardianPhone}
+                                    onChangeText={v => handleChange('guardianPhone', digitsOnly(v, 10))}
+                                    editable={isEditing} keyboardType="phone-pad" maxLength={10}
+                                    placeholder="9xxxxxxxxx" placeholderTextColor="#bbb" />
+                            </View>
+                            {renderFieldError('guardianPhone')}
                         </View>
                     </View>
                     <Text style={styles.label}>Occupation</Text>
@@ -772,9 +817,9 @@ export default function EditProfileScreen({ navigation }) {
                 {/* Save button */}
                 {isEditing && (
                     <TouchableOpacity
-                        style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                        style={[styles.saveBtn, (saving || !isFormValid) && styles.saveBtnDisabled]}
                         onPress={handleSave}
-                        disabled={saving}
+                        disabled={saving || !isFormValid}
                         activeOpacity={0.8}
                     >
                         {saving
@@ -966,6 +1011,24 @@ const styles = StyleSheet.create({
         backgroundColor: '#f9f9f9', padding: 12, borderRadius: 10,
         borderWidth: 1, borderColor: '#ddd', marginBottom: 15, fontSize: 14, color: '#333',
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 48,
+    },
+    inputError: {
+        borderColor: '#d32f2f',
+        backgroundColor: '#ffebee',
+    },
+    phoneInputBox: {
+        backgroundColor: '#f9f9f9', borderRadius: 10, borderWidth: 1,
+        borderColor: '#ddd', marginBottom: 15, height: 48,
+        flexDirection: 'row', alignItems: 'center', overflow: 'hidden',
+    },
+    phonePrefix: {
+        color: '#555', fontSize: 14, fontWeight: '600',
+        paddingLeft: 12, paddingRight: 8,
+    },
+    phoneInput: { flex: 1, height: '100%', paddingRight: 10, fontSize: 14, color: '#333' },
+    fieldError: {
+        color: '#d9534f', fontSize: 12, marginTop: -10,
+        marginBottom: 12, marginLeft: 5,
     },
     textArea: {
         backgroundColor: '#f9f9f9', padding: 12, borderRadius: 10,

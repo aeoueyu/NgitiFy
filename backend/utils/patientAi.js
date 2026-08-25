@@ -193,8 +193,12 @@ const buildPatientAiCareContext = ({
     prediction = null,
     oralHealthPayload = {},
     radiographs = [],
-} = {}) => ({
-    contextPolicy: {
+} = {}) => {
+    const approvedRadiographRecords =
+        buildPatientAiRadiographContext(radiographs);
+
+    return {
+        contextPolicy: {
         recommendationAuthority:
             'The System Recommendation is authoritative. AI may explain it but must not calculate, change, postpone, or override it.',
         oralHealthAuthority:
@@ -203,19 +207,46 @@ const buildPatientAiCareContext = ({
             'Dental Health Education is approved educational information and is not a diagnosis.',
         radiographAuthority:
             'Radiograph information is limited to dentist-approved summaries and dentist-recorded findings. Explain those records only; do not interpret the image or diagnose.',
-    },
-    systemRecommendation:
-        buildPatientAiVisitRecommendationContext(prediction),
-    oralHealthManagement:
-        buildPatientAiOralHealthContext(oralHealthPayload),
-    dentalHealthEducation:
-        buildPatientAiEducationContext({
-            contextualEducation:
-                oralHealthPayload?.contextualEducation,
-        }),
-    approvedRadiographRecords:
-        buildPatientAiRadiographContext(radiographs),
-});
+        },
+        systemRecommendation:
+            buildPatientAiVisitRecommendationContext(prediction),
+        oralHealthManagement:
+            buildPatientAiOralHealthContext(oralHealthPayload),
+        dentalHealthEducation:
+            buildPatientAiEducationContext({
+                contextualEducation:
+                    oralHealthPayload?.contextualEducation,
+            }),
+        radiographAvailability: {
+            available:
+                approvedRadiographRecords.length > 0,
+            unavailableMessage:
+                'No approved radiograph explanation is available.',
+        },
+        approvedRadiographRecords,
+    };
+};
+
+const getPatientAiRequiredShortcutReply = ({
+    prompt = '',
+    careContext = {},
+} = {}) => {
+    const normalizedPrompt = String(prompt)
+        .trim()
+        .toLowerCase();
+
+    if (
+        normalizedPrompt === 'explain my radiograph findings'
+        && !careContext?.approvedRadiographRecords?.length
+    ) {
+        return String(
+            careContext?.radiographAvailability?.unavailableMessage
+            || 'No approved radiograph explanation is available.'
+        ).trim();
+    }
+
+    return '';
+};
 
 const mergePatientAiLiveContext = ({
     liveContext = {},
@@ -239,5 +270,6 @@ module.exports = {
     buildPatientAiRecentOralHealthLogs,
     buildPatientAiRadiographContext,
     buildPatientAiVisitRecommendationContext,
+    getPatientAiRequiredShortcutReply,
     mergePatientAiLiveContext,
 };

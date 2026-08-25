@@ -101,6 +101,7 @@ const {
 } = require('./utils/oralHealth');
 const {
     buildPatientAiCareContext,
+    getPatientAiRequiredShortcutReply,
     mergePatientAiLiveContext,
 } = require('./utils/patientAi');
 
@@ -14205,8 +14206,18 @@ app.post(
                         null,
                 });
 
+            const requiredShortcutReply =
+                getPatientAiRequiredShortcutReply({
+                    prompt:
+                        patientMessage.content,
+                    careContext:
+                        mergedAssistantContext
+                            ?.careContext,
+                });
+
             const reply =
-                await geminiService
+                requiredShortcutReply
+                || await geminiService
                     .generateScopedReply({
                         scope:
                             'patient',
@@ -14347,11 +14358,21 @@ const handlePatientAiChat = async (req, res) => {
             assistantContext: null,
         });
 
-        const reply = await geminiService.generateScopedReply({
-            scope: 'patient',
-            messages,
-            additionalContext: mergedAssistantContext,
-        });
+        const requiredShortcutReply =
+            getPatientAiRequiredShortcutReply({
+                prompt:
+                    messages.at(-1)?.content,
+                careContext:
+                    mergedAssistantContext
+                        ?.careContext,
+            });
+
+        const reply = requiredShortcutReply
+            || await geminiService.generateScopedReply({
+                scope: 'patient',
+                messages,
+                additionalContext: mergedAssistantContext,
+            });
 
         res.json({ reply });
     } catch (error) {

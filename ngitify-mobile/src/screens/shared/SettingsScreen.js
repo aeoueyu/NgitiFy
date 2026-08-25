@@ -38,6 +38,26 @@ const RULES = [
     { key: 'special', label: 'One special character like ! @ # $ % ^ & *' },
 ];
 
+const ALLOWED_EMAIL_DOMAINS = new Set([
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'outlook.com',
+    'icloud.com',
+    'live.com',
+]);
+
+const isValidChangeEmail = (value = '') => {
+    const normalizedEmail = String(value).trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        return false;
+    }
+
+    const domain = normalizedEmail.split('@')[1];
+    return ALLOWED_EMAIL_DOMAINS.has(domain);
+};
+
 export default function SettingsScreen({ navigation }) {
     const { logout, userToken, userId, userInfo, API_BASE_URL } = useContext(AuthContext);
 
@@ -113,7 +133,8 @@ export default function SettingsScreen({ navigation }) {
     const [emailPasswordVerified, setEmailPasswordVerified] = useState(false);
     const [verifyingEmailPassword, setVerifyingEmailPassword] = useState(false);
     const [submittingEmailChange, setSubmittingEmailChange] = useState(false);
-    const [emailChangeError, setEmailChangeError] = useState('');
+    const [emailFieldError, setEmailFieldError] = useState('');
+    const [emailPasswordError, setEmailPasswordError] = useState('');
 
     const authHeader = { Authorization: `Bearer ${userToken}` };
 
@@ -408,7 +429,8 @@ export default function SettingsScreen({ navigation }) {
         setEmailPasswordVerified(false);
         setVerifyingEmailPassword(false);
         setSubmittingEmailChange(false);
-        setEmailChangeError('');
+        setEmailFieldError('');
+        setEmailPasswordError('');
         setEmailModalVisible(true);
     };
 
@@ -417,13 +439,25 @@ export default function SettingsScreen({ navigation }) {
         setEmailModalVisible(false);
     };
 
+    const handleNewEmailChange = (value) => {
+        const sanitizedValue = value.replace(/\s/g, '');
+        setNewEmail(sanitizedValue);
+
+        if (sanitizedValue && !isValidChangeEmail(sanitizedValue)) {
+            setEmailFieldError('Please enter a valid email address');
+            return;
+        }
+
+        setEmailFieldError('');
+    };
+
     const verifyEmailPassword = async () => {
         if (!emailCurrentPassword) {
-            setEmailChangeError('Current password is required.');
+            setEmailPasswordError('Current password is required.');
             return;
         }
         setVerifyingEmailPassword(true);
-        setEmailChangeError('');
+        setEmailPasswordError('');
         try {
             const res = await fetch(`${API_BASE_URL}/api/verify-current-password`, {
                 method: 'POST',
@@ -435,7 +469,7 @@ export default function SettingsScreen({ navigation }) {
             setEmailPasswordVerified(true);
         } catch (error) {
             setEmailPasswordVerified(false);
-            setEmailChangeError(error.message || 'Unable to verify your password.');
+            setEmailPasswordError(error.message || 'Unable to verify your password.');
         } finally {
             setVerifyingEmailPassword(false);
         }
@@ -443,20 +477,21 @@ export default function SettingsScreen({ navigation }) {
 
     const requestEmailChange = async () => {
         const normalizedEmail = newEmail.trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-            setEmailChangeError('Enter a valid new email address.');
+        if (!isValidChangeEmail(normalizedEmail)) {
+            setEmailFieldError('Please enter a valid email address');
             return;
         }
         if (normalizedEmail === String(userInfo?.email || '').trim().toLowerCase()) {
-            setEmailChangeError('New email must be different from the current email.');
+            setEmailFieldError('New email must be different from the current email.');
             return;
         }
         if (!emailPasswordVerified) {
-            setEmailChangeError('Verify your current password first.');
+            setEmailPasswordError('Verify your current password first.');
             return;
         }
         setSubmittingEmailChange(true);
-        setEmailChangeError('');
+        setEmailFieldError('');
+        setEmailPasswordError('');
         try {
             const res = await fetch(`${API_BASE_URL}/api/user/request-email-change`, {
                 method: 'POST',
@@ -464,7 +499,12 @@ export default function SettingsScreen({ navigation }) {
                 body: JSON.stringify({ newEmail: normalizedEmail, currentPassword: emailCurrentPassword }),
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.message || 'Unable to request the email change.');
+            if (!res.ok) {
+                const message = data.message === 'Invalid email domain'
+                    ? 'Please enter a valid email address'
+                    : data.message || 'Unable to request the email change.';
+                throw new Error(message);
+            }
             setEmailModalVisible(false);
             Alert.alert(
                 'Verification Link Sent',
@@ -473,7 +513,7 @@ export default function SettingsScreen({ navigation }) {
                 { cancelable: false },
             );
         } catch (error) {
-            setEmailChangeError(error.message || 'Unable to request the email change.');
+            setEmailFieldError(error.message || 'Unable to request the email change.');
         } finally {
             setSubmittingEmailChange(false);
         }
@@ -904,7 +944,7 @@ export default function SettingsScreen({ navigation }) {
                                             value={currentPassword}
                                             onChangeText={(v) => { setCurrentPassword(v); setCurrentPwError(''); }}
                                             secureTextEntry={!showCurrent}
-                                            placeholder="Enter your current password"
+                                            placeholder="Current password"
                                             placeholderTextColor="#bbb"
                                             editable={!isVerifying}
                                             autoCapitalize="none"
@@ -954,7 +994,7 @@ export default function SettingsScreen({ navigation }) {
                                             value={newPassword}
                                             onChangeText={setNewPassword}
                                             secureTextEntry={!showNew}
-                                            placeholder="Create a strong password"
+                                            placeholder="New password"
                                             placeholderTextColor="#bbb"
                                             editable={!pwLoading}
                                             autoCapitalize="none"
@@ -1079,12 +1119,13 @@ export default function SettingsScreen({ navigation }) {
                             </Text>
                             <Text style={styles.inputLabel}>New Email Address</Text>
                             <TextInput
-                                style={styles.emailInput}
+                                style={[
+                                    styles.emailInput,
+                                    emailFieldError && styles.inputError,
+                                    emailFieldError && styles.emailInputWithError,
+                                ]}
                                 value={newEmail}
-                                onChangeText={(value) => {
-                                    setNewEmail(value.replace(/\s/g, ''));
-                                    setEmailChangeError('');
-                                }}
+                                onChangeText={handleNewEmailChange}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -1092,25 +1133,31 @@ export default function SettingsScreen({ navigation }) {
                                 placeholder="Enter your new email"
                                 placeholderTextColor="#aaa"
                             />
+                            {emailFieldError ? (
+                                <Text style={styles.fieldError}>{emailFieldError}</Text>
+                            ) : null}
                             <Text style={styles.inputLabel}>Current Password</Text>
-                            <View style={styles.pwInputRow}>
+                            <View style={[styles.pwInputRow, emailPasswordError && styles.inputError]}>
                                 <TextInput
                                     style={styles.pwInput}
                                     value={emailCurrentPassword}
                                     onChangeText={(value) => {
                                         setEmailCurrentPassword(value);
                                         setEmailPasswordVerified(false);
-                                        setEmailChangeError('');
+                                        setEmailPasswordError('');
                                     }}
                                     secureTextEntry={!showEmailPassword}
                                     editable={!verifyingEmailPassword && !submittingEmailChange}
-                                    placeholder="Enter current password"
+                                    placeholder="Current password"
                                     placeholderTextColor="#aaa"
                                 />
                                 <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowEmailPassword((current) => !current)}>
                                     <Ionicons name={showEmailPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color="#777" />
                                 </TouchableOpacity>
                             </View>
+                            {emailPasswordError ? (
+                                <Text style={styles.fieldError}>{emailPasswordError}</Text>
+                            ) : null}
                             <TouchableOpacity
                                 style={[styles.emailVerifyButton, (!emailCurrentPassword || emailPasswordVerified) && styles.disabledButton]}
                                 onPress={verifyEmailPassword}
@@ -1120,7 +1167,6 @@ export default function SettingsScreen({ navigation }) {
                                     <Text style={styles.emailVerifyButtonText}>{emailPasswordVerified ? 'Password Verified' : 'Verify Password'}</Text>
                                 )}
                             </TouchableOpacity>
-                            {emailChangeError ? <Text style={styles.modalErrorText}>{emailChangeError}</Text> : null}
                             {emailPasswordVerified ? <Text style={styles.modalSuccessText}>Password verified.</Text> : null}
                             <TouchableOpacity
                                 style={[styles.emailSubmitButton, (!emailPasswordVerified || !newEmail.trim() || submittingEmailChange) && styles.disabledButton]}
@@ -1265,8 +1311,12 @@ const styles = StyleSheet.create({
         borderRadius: 12, borderWidth: 1.5, borderColor: '#e0e0e0',
         marginBottom: 8, paddingHorizontal: 14,
     },
-    pwInputError: { borderColor: '#d32f2f' },
-    pwInput:      { flex: 1, fontSize: 14, color: '#333', paddingVertical: 13 },
+    pwInputError: { borderColor: '#d32f2f', backgroundColor: '#ffebee' },
+    inputError: { borderColor: '#d32f2f', backgroundColor: '#ffebee' },
+    pwInput:      {
+        flex: 1, fontSize: 14, color: '#333', paddingVertical: 13,
+        letterSpacing: 0, fontFamily: Platform.OS === 'android' ? 'sans-serif' : undefined,
+    },
     eyeBtn:       { padding: 4 },
 
     fieldError: { color: '#d32f2f', fontSize: 12, marginBottom: 10, marginLeft: 2 },
@@ -1304,6 +1354,7 @@ const styles = StyleSheet.create({
         borderColor: '#e0e0e0', paddingHorizontal: 14, paddingVertical: 13,
         color: '#333', fontSize: 14, marginBottom: 16,
     },
+    emailInputWithError: { marginBottom: 6 },
     emailVerifyButton: {
         borderWidth: 1.5, borderColor: '#01538b', borderRadius: 12,
         paddingVertical: 12, alignItems: 'center', marginBottom: 12,
@@ -1315,7 +1366,6 @@ const styles = StyleSheet.create({
         alignItems: 'center', marginTop: 10,
     },
     emailSubmitButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
-    modalErrorText: { color: '#c62828', fontSize: 12, lineHeight: 18, marginBottom: 10 },
     modalSuccessText: { color: '#2e7d32', fontSize: 12, fontWeight: '600', marginBottom: 8 },
     disabledButton: { opacity: 0.5 },
 });
