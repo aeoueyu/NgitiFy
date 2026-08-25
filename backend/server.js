@@ -4080,6 +4080,18 @@ const buildNotificationAudienceQuery = (user = null) => {
     };
 };
 
+const runPostResponseSideEffects = (tasks = []) => {
+    setImmediate(() => {
+        Promise.all(
+            tasks.map(([label, work]) =>
+                runPostSaveSideEffect(label, work)
+            )
+        ).catch((error) => {
+            console.error('Post-response side effects failed:', error);
+        });
+    });
+};
+
 const notificationHasDirectRecipient = (notification = null) => Boolean(
     notification?.recipientId
 );
@@ -5209,7 +5221,9 @@ app.post('/api/forgot-password', otpLimiter, async (req, res) => {
             user.resetPasswordExpires = Date.now() + PASSWORD_RESET_OTP_LIFETIME_MS;
             await user.save();
 
-            await sendPasswordResetOtpEmail({ email: user.email, code });
+            runPostResponseSideEffects([
+                ['email:passwordResetOtp', () => sendPasswordResetOtpEmail({ email: user.email, code })],
+            ]);
         }
 
         // Always return 200 — prevents email/role enumeration regardless of outcome.
@@ -5238,7 +5252,9 @@ app.post('/api/mobile/forgot-password', otpLimiter, async (req, res) => {
             user.resetPasswordExpires = Date.now() + PASSWORD_RESET_OTP_LIFETIME_MS;
             await user.save();
 
-            await sendPasswordResetOtpEmail({ email: user.email, code });
+            runPostResponseSideEffects([
+                ['email:mobilePasswordResetOtp', () => sendPasswordResetOtpEmail({ email: user.email, code })],
+            ]);
         }
 
         // Non-existent emails still get a 200 to prevent enumeration
@@ -9148,39 +9164,48 @@ app.post('/api/appointments/:id/reschedule', verifyToken, async (req, res) => {
         appointment.cancellationReason = '';
         await appointment.save();
 
+        res.json({
+            message: 'Appointment rescheduled successfully.',
+            appointment,
+        });
+
         const patientEmail = appointment.patient?.email || appointment.guestEmail || '';
+        const postResponseTasks = [];
+
         if (patientEmail) {
-            await sendAppointmentRescheduledEmail({
+            postResponseTasks.push(['email:appointmentRescheduled', () => sendAppointmentRescheduledEmail({
                 email: patientEmail,
                 name: getPatientDisplayName(appointment),
                 branch: appointment.branch,
                 date: appointment.date,
                 time: appointment.time,
                 procedure: appointment.procedure,
-            });
+            })]);
         }
 
         if (appointment.dentist?._id && appointment.dentist.email) {
-            await Notification.create({
+            postResponseTasks.push(['notifyDentist:appointmentRescheduled', () => Notification.create({
                 type: 'NEW_APPOINTMENT',
                 title: 'Appointment Schedule Updated',
                 message: `${appointment.procedure} was rescheduled to ${new Date(appointment.date).toDateString()} at ${appointment.time}.`,
                 recipientId: appointment.dentist._id,
                 recipientRole: 'dentist',
                 relatedId: appointment._id,
-            });
+            })]);
         }
 
-        await AuditLog.create({
+        postResponseTasks.push(['audit:appointmentRescheduled', () => AuditLog.create({
             action: 'APPOINTMENT_RESCHEDULED',
             user: req.user?.email || req.user?.id || 'SYSTEM',
             role: req.user?.role || 'SYSTEM',
             details: `Appointment ${appointment._id} rescheduled to ${new Date(appointment.date).toDateString()} at ${appointment.time}.`,
-        });
-
-        await syncQueueEntryForAppointment(appointment);
-
-        return res.json({ message: 'Appointment rescheduled successfully.', appointment });
+        })]);
+        postResponseTasks.push([
+            'syncQueue:appointmentRescheduled',
+            () => syncQueueEntryForAppointment(appointment),
+        ]);
+        runPostResponseSideEffects(postResponseTasks);
+        return;
     } catch (error) {
         console.error('Error rescheduling appointment:', error);
         return res.status(500).json({ message: 'Server error rescheduling appointment.' });
@@ -10229,36 +10254,44 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
 
         await newSurgery.save();
 
-        await AuditLog.create({
-            action: 'APPOINTMENT_REQUEST',
-            user: patientUser.email,
-            role: 'patient',
-            details: `Patient ${patientUser.name.first} ${patientUser.name.last} requested an appointment for: ${procedure} on ${formatEmailDateLabel(slotCheck.parsedDate)}`
-        });
-
-        await notifyAppointmentManagers({
-            appointmentId: newSurgery._id,
-            patientName: `${patientUser.name.first} ${patientUser.name.last}`.trim(),
-            procedure,
-            date: slotCheck.dateKey,
-            branch: resolvedBranch,
-        });
-
-        if (patientUser.email) {
-            await sendAppointmentReceivedEmail({
-                email: patientUser.email,
-                name: `${patientUser.name.first} ${patientUser.name.last}`.trim(),
-                branch: resolvedBranch,
-                date: slotCheck.parsedDate,
-                time: slotCheck.normalizedTime,
-                procedure,
-            });
-        }
-
         res.status(201).json({
             message: 'Appointment request submitted successfully. You will be notified once confirmed.',
             surgery: newSurgery
         });
+
+        const patientName =
+            `${patientUser.name.first} ${patientUser.name.last}`.trim();
+        const postResponseTasks = [
+            ['audit:patientAppointmentRequest', () => AuditLog.create({
+                action: 'APPOINTMENT_REQUEST',
+                user: patientUser.email,
+                role: 'patient',
+                details: `Patient ${patientName} requested an appointment for: ${procedure} on ${formatEmailDateLabel(slotCheck.parsedDate)}`,
+            })],
+            ['notifyManagers:patientAppointmentRequest', () => notifyAppointmentManagers({
+                appointmentId: newSurgery._id,
+                patientName,
+                procedure,
+                date: slotCheck.dateKey,
+                branch: resolvedBranch,
+            })],
+        ];
+
+        if (patientUser.email) {
+            postResponseTasks.push([
+                'email:patientAppointmentReceived',
+                () => sendAppointmentReceivedEmail({
+                    email: patientUser.email,
+                    name: patientName,
+                    branch: resolvedBranch,
+                    date: slotCheck.parsedDate,
+                    time: slotCheck.normalizedTime,
+                    procedure,
+                }),
+            ]);
+        }
+
+        runPostResponseSideEffects(postResponseTasks);
 
     } catch (error) {
         console.error('Error submitting appointment request:', error);
@@ -11458,18 +11491,20 @@ app.patch('/api/my/oral-health/factors', verifyToken, async (req, res) => {
         patient.oralHealthFactors = normalizeOralHealthFactors(req.body.factors || [], patient.oralHealthFactors || []);
         await patient.save();
 
-        await AuditLog.create({
-            action: 'UPDATE_ORAL_HEALTH_FACTORS',
-            user: req.user.email,
-            role: req.user.role,
-            details: 'Patient updated oral health factors.',
-            actorId: req.user.id,
-        });
-
         res.json({
             message: 'Oral health factors saved.',
             ...await getOralHealthPayloadForPatient(patient),
         });
+
+        runPostResponseSideEffects([
+            ['audit:updateOralHealthFactors', () => AuditLog.create({
+                action: 'UPDATE_ORAL_HEALTH_FACTORS',
+                user: req.user.email,
+                role: req.user.role,
+                details: 'Patient updated oral health factors.',
+                actorId: req.user.id,
+            })],
+        ]);
     } catch (error) {
         const statusCode = error.statusCode || 500;
         console.error('Error saving oral health factors:', error);
@@ -11539,18 +11574,20 @@ app.post('/api/my/oral-health/logs', verifyToken, async (req, res) => {
             await patient.save();
         }
 
-        await AuditLog.create({
-            action: 'SAVE_ORAL_HEALTH_LOG',
-            user: req.user.email,
-            role: req.user.role,
-            details: `Patient saved oral health log for ${normalizedLog.logDateKey}.`,
-            actorId: req.user.id,
-        });
-
         res.status(existingLog ? 200 : 201).json({
             message: existingLog ? 'Daily oral health log updated.' : 'Daily oral health log saved.',
             ...await getOralHealthPayloadForPatient(patient),
         });
+
+        runPostResponseSideEffects([
+            ['audit:saveOralHealthLog', () => AuditLog.create({
+                action: 'SAVE_ORAL_HEALTH_LOG',
+                user: req.user.email,
+                role: req.user.role,
+                details: `Patient saved oral health log for ${normalizedLog.logDateKey}.`,
+                actorId: req.user.id,
+            })],
+        ]);
     } catch (error) {
         const statusCode = error.statusCode || 500;
         console.error('Error saving daily oral health log:', error);
@@ -13270,7 +13307,14 @@ app.post('/api/patients/:id/radiographs/:radiographId/enhancement-feedback', ver
 // -------------------------------------------------------
 
 const MAX_PATIENT_AI_HISTORY_MESSAGES =
-    40;
+    Math.max(
+        6,
+        Number.parseInt(
+            process.env.PATIENT_AI_HISTORY_MESSAGES
+            || '16',
+            10
+        ) || 16
+    );
 
 const assertPatientAiAccess =
     (
@@ -14315,19 +14359,77 @@ app.post(
                             ?.careContext,
                 });
 
-            const reply =
-                requiredShortcutReply
-                || await geminiService
-                    .generateScopedReply({
-                        scope:
-                            'patient',
+            const wantsStream =
+                String(req.query.stream || '')
+                    .toLowerCase() === 'true'
+                && String(req.headers.accept || '')
+                    .includes('text/event-stream');
+            let reply = '';
 
-                        messages:
-                            aiMessages,
+            if (wantsStream) {
+                res.setHeader(
+                    'Content-Type',
+                    'text/event-stream; charset=utf-8'
+                );
+                res.setHeader(
+                    'Cache-Control',
+                    'no-cache, no-transform'
+                );
+                res.setHeader(
+                    'Connection',
+                    'keep-alive'
+                );
+                res.flushHeaders();
 
-                        additionalContext:
-                            mergedAssistantContext,
-                    });
+                if (requiredShortcutReply) {
+                    reply = requiredShortcutReply;
+                    res.write(
+                        `data: ${JSON.stringify({ text: reply })}\n\n`
+                    );
+                } else {
+                    const stream =
+                        await geminiService
+                            .generateScopedStream({
+                                scope:
+                                    'patient',
+
+                                messages:
+                                    aiMessages,
+
+                                additionalContext:
+                                    mergedAssistantContext,
+                            });
+
+                    if (stream) {
+                        for await (const chunk of stream) {
+                            if (!chunk?.text) continue;
+                            reply += chunk.text;
+                            res.write(
+                                `data: ${JSON.stringify({ text: chunk.text })}\n\n`
+                            );
+                        }
+                    } else {
+                        reply = geminiService.getRefusalText();
+                        res.write(
+                            `data: ${JSON.stringify({ text: reply })}\n\n`
+                        );
+                    }
+                }
+            } else {
+                reply =
+                    requiredShortcutReply
+                    || await geminiService
+                        .generateScopedReply({
+                            scope:
+                                'patient',
+
+                            messages:
+                                aiMessages,
+
+                            additionalContext:
+                                mergedAssistantContext,
+                        });
+            }
 
             const assistantMessage =
                 normalizeConversationMessage({
@@ -14405,8 +14507,10 @@ app.post(
                     - 1
                 ];
 
-            res.json({
-                reply,
+            const responsePayload = {
+                ...(!wantsStream
+                    ? { reply }
+                    : {}),
 
                 message:
                     serializeConversationMessage(
@@ -14414,10 +14518,25 @@ app.post(
                     ),
 
                 conversation:
-                    serializeConversation(
-                        conversation
-                    ),
-            });
+                    wantsStream
+                        ? serializeConversationSummary(
+                            conversation
+                        )
+                        : serializeConversation(
+                            conversation
+                        ),
+            };
+
+            if (wantsStream) {
+                res.write(
+                    `data: ${JSON.stringify(responsePayload)}\n\n`
+                );
+                res.write('data: [DONE]\n\n');
+                res.end();
+                return;
+            }
+
+            res.json(responsePayload);
         } catch (
             error
         ) {
@@ -14425,6 +14544,19 @@ app.post(
                 'Patient persisted AI conversation message error:',
                 error
             );
+
+            if (res.headersSent) {
+                res.write(
+                    `data: ${JSON.stringify({
+                        error:
+                            error.message
+                            || 'Server error processing AI conversation message.',
+                    })}\n\n`
+                );
+                res.write('data: [DONE]\n\n');
+                res.end();
+                return;
+            }
 
             res.status(
                 error.statusCode

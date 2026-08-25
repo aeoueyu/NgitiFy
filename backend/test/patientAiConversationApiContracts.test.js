@@ -94,6 +94,31 @@ test(
 );
 
 test(
+    'persisted Patient AI messaging supports incremental SSE replies',
+    () => {
+        assert.match(
+            SERVER_FILE,
+            /req\.query\.stream/
+        );
+
+        assert.match(
+            SERVER_FILE,
+            /generateScopedStream/
+        );
+
+        assert.match(
+            SERVER_FILE,
+            /text\/event-stream/
+        );
+
+        assert.match(
+            SERVER_FILE,
+            /data: \[DONE\]/
+        );
+    }
+);
+
+test(
     'conversation ownership is always scoped to authenticated Patient id',
     () => {
         assert.match(

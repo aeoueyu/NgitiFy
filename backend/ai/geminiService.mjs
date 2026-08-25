@@ -13,6 +13,7 @@ const MIN_RELEVANCE = Number.parseInt(process.env.AI_MIN_RELEVANCE || '2', 10);
 const MAX_CONTEXT_LENGTH = 6000;
 
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({}) : null;
+const knowledgeChunkCache = new Map();
 
 const getProviderErrorText = (error) => [
     error?.message,
@@ -217,13 +218,21 @@ function splitMarkdownIntoChunks(filePath, content) {
 }
 
 function loadKnowledgeChunks(folders = []) {
-    return folders.flatMap((folder) => {
+    const cacheKey = [...folders].sort().join('|');
+    if (knowledgeChunkCache.has(cacheKey)) {
+        return knowledgeChunkCache.get(cacheKey);
+    }
+
+    const chunks = folders.flatMap((folder) => {
         const folderPath = path.join(KNOWLEDGE_ROOT, folder);
         return listMarkdownFiles(folderPath).flatMap((filePath) => {
             const content = fs.readFileSync(filePath, 'utf8');
             return splitMarkdownIntoChunks(filePath, content);
         });
     });
+
+    knowledgeChunkCache.set(cacheKey, chunks);
+    return chunks;
 }
 
 function scoreChunk(queryTokens, chunk) {

@@ -21,6 +21,7 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
+import { fetch as expoFetch } from 'expo/fetch';
 
 import { AuthContext } from '../../context/AuthContext';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
@@ -48,6 +49,59 @@ const WELCOME_MESSAGE = {
   id: 'welcome',
   role: 'assistant',
   content: 'Hi! How can I help? Ask about your appointments, Electronic Medical Record (EMR), daily care, or how NgitiFy works.\n\nNgitiBot can explain your saved information but does not replace your dentist.',
+};
+
+const readEventStream = async (
+  response,
+  onEvent,
+) => {
+  const reader = response.body?.getReader?.();
+
+  if (!reader) {
+    throw new Error(
+      'Live AI responses are unavailable on this device.',
+    );
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  const processBlock = (block) => {
+    const data = block
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n');
+
+    if (!data || data === '[DONE]') return;
+
+    let event;
+
+    try {
+      event = JSON.parse(data);
+    } catch {
+      // Ignore malformed/incomplete events; the next complete SSE event
+      // still continues the response.
+      return;
+    }
+
+    onEvent(event);
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), {
+      stream: !done,
+    });
+
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() || '';
+    blocks.forEach(processBlock);
+
+    if (done) break;
+  }
+
+  if (buffer.trim()) processBlock(buffer);
 };
 
 const formatDateKey = (value) => {
@@ -1065,10 +1119,17 @@ export default function AiPatientCareCompanionScreen({
           role: 'user',
           content: text,
         };
+        const streamingAssistantId =
+          `assistant-stream-${Date.now()}`;
 
         setMessages((current) => [
           ...current,
           optimisticUserMessage,
+          {
+            id: streamingAssistantId,
+            role: 'assistant',
+            content: '',
+          },
         ]);
 
         setInput('');
@@ -1077,14 +1138,16 @@ export default function AiPatientCareCompanionScreen({
         setLastFailedPrompt('');
 
         try {
-          const response = await fetch(
-            `${API_BASE_URL}/api/my/ai-conversations/${conversation.id}/messages`,
+          const response = await expoFetch(
+            `${API_BASE_URL}/api/my/ai-conversations/${conversation.id}/messages?stream=true`,
             {
               method: 'POST',
               headers: {
                 ...authHeaders,
                 'Content-Type':
                   'application/json',
+                Accept:
+                  'text/event-stream',
               },
               body: JSON.stringify({
                 content: text,
@@ -1092,12 +1155,12 @@ export default function AiPatientCareCompanionScreen({
             },
           );
 
-          const payload =
-            await response
-              .json()
-              .catch(() => ({}));
-
           if (!response.ok) {
+            const payload =
+              await response
+                .json()
+                .catch(() => ({}));
+
             throw new Error(
               getChatErrorMessage(
                 response.status,
@@ -1105,6 +1168,38 @@ export default function AiPatientCareCompanionScreen({
               ),
             );
           }
+
+          let streamedReply = '';
+          let payload = {};
+
+          await readEventStream(
+            response,
+            (event) => {
+              if (event?.error) {
+                throw new Error(event.error);
+              }
+
+              if (event?.text) {
+                streamedReply += event.text;
+                setMessages((current) =>
+                  current.map((message) =>
+                    message.id
+                    === streamingAssistantId
+                      ? {
+                        ...message,
+                        content:
+                          streamedReply,
+                      }
+                      : message
+                  )
+                );
+              }
+
+              if (event?.conversation) {
+                payload = event;
+              }
+            },
+          );
 
           const persistedConversation =
             payload?.conversation
@@ -1125,6 +1220,7 @@ export default function AiPatientCareCompanionScreen({
           } else {
             const reply = String(
               payload?.reply
+              || streamedReply
               || '',
             ).trim();
 
@@ -1135,7 +1231,11 @@ export default function AiPatientCareCompanionScreen({
             }
 
             setMessages((current) => [
-              ...current,
+              ...current.filter(
+                (message) =>
+                  message.id
+                  !== streamingAssistantId,
+              ),
               {
                 id:
                   `assistant-${Date.now()}`,
@@ -1168,7 +1268,9 @@ export default function AiPatientCareCompanionScreen({
             current.filter(
               (message) =>
                 message.id
-                !== optimisticUserMessage.id,
+                !== optimisticUserMessage.id
+                && message.id
+                !== streamingAssistantId,
             ),
           );
 

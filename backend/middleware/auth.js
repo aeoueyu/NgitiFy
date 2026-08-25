@@ -1,6 +1,46 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+const LIVE_USER_CACHE_TTL_MS = Math.max(
+    1000,
+    Number.parseInt(process.env.AUTH_LIVE_USER_CACHE_TTL_MS || '5000', 10) || 5000
+);
+const MAX_LIVE_USER_CACHE_ENTRIES = 1000;
+const liveUserCache = new Map();
+
+const loadLiveUser = (userId) => {
+    const cacheKey = String(userId || '');
+    const now = Date.now();
+    const cached = liveUserCache.get(cacheKey);
+
+    if (cached && cached.expiresAt > now) {
+        return cached.promise;
+    }
+
+    const promise = User.findById(userId)
+        .select('status isArchived role email assignedBranch assignedBranches isDentist')
+        .lean()
+        .catch((error) => {
+            liveUserCache.delete(cacheKey);
+            throw error;
+        });
+
+    liveUserCache.set(cacheKey, {
+        expiresAt: now + LIVE_USER_CACHE_TTL_MS,
+        promise,
+    });
+
+    if (liveUserCache.size > MAX_LIVE_USER_CACHE_ENTRIES) {
+        for (const [key, entry] of liveUserCache) {
+            if (entry.expiresAt <= now || liveUserCache.size > MAX_LIVE_USER_CACHE_ENTRIES) {
+                liveUserCache.delete(key);
+            }
+        }
+    }
+
+    return promise;
+};
+
 const verifyToken = async (req, res, next) => {
     // Get the authorization header
     const authHeader = req.headers['authorization'];
@@ -17,12 +57,10 @@ const verifyToken = async (req, res, next) => {
         req.user = decoded; // Start with token payload, then enrich from the live user record.
 
         // ── Session Invalidation Guard ───────────────────────────────────────
-        // Check the user's live status from the database on every request.
-        // This ensures that deactivating any user immediately invalidates
-        // their active session without needing a token blacklist.
-        const liveUser = await User.findById(decoded.id)
-            .select('status isArchived role email assignedBranch assignedBranches isDentist')
-            .lean();
+        // Reuse a very short-lived lookup so parallel mobile screen requests do
+        // not all perform the same database query. Account changes still take
+        // effect within a few seconds without requiring a token blacklist.
+        const liveUser = await loadLiveUser(decoded.id);
 
         if (!liveUser) {
             return res.status(401).json({ message: 'Account not found. Please log in again.' });
