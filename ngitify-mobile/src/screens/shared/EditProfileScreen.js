@@ -5,6 +5,10 @@ import {
     ActivityIndicator, StatusBar, Image, Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import {
+    manipulateAsync,
+    SaveFormat,
+} from 'expo-image-manipulator';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AuthContext } from '../../context/AuthContext';
 import CustomModal from '../../components/CustomModal';
@@ -55,6 +59,63 @@ const formatDisplayDate = (dateStr) => {
 
 const MOBILE_PREFIX = '+63';
 const LANDLINE_PREFIX = '+632';
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+const getBase64ByteSize = (value = '') => {
+    const base64 = String(value).replace(/\s/g, '');
+    if (!base64) return 0;
+    const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+    return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+};
+const getResizeAction = (width, height, maxDimension) => {
+    if (!maxDimension || !width || !height || Math.max(width, height) <= maxDimension) {
+        return [];
+    }
+
+    return width >= height
+        ? [{ resize: { width: maxDimension } }]
+        : [{ resize: { height: maxDimension } }];
+};
+const compressProfileImage = async (asset = {}) => {
+    if (asset.base64 && getBase64ByteSize(asset.base64) <= MAX_PROFILE_IMAGE_BYTES) {
+        return asset.base64;
+    }
+
+    const attempts = [
+        { compress: 0.4 },
+        { compress: 0.3, maxDimension: 2560 },
+        { compress: 0.25, maxDimension: 2048 },
+        { compress: 0.2, maxDimension: 1600 },
+        { compress: 0.15, maxDimension: 1280 },
+        { compress: 0.1, maxDimension: 1024 },
+        { compress: 0.1, maxDimension: 768 },
+    ];
+
+    for (const attempt of attempts) {
+        const result = await manipulateAsync(
+            asset.uri,
+            getResizeAction(asset.width, asset.height, attempt.maxDimension),
+            {
+                base64: true,
+                compress: attempt.compress,
+                format: SaveFormat.JPEG,
+            },
+        );
+
+        if (result.base64 && getBase64ByteSize(result.base64) <= MAX_PROFILE_IMAGE_BYTES) {
+            return result.base64;
+        }
+    }
+
+    return '';
+};
+const showProfileImageSizeModal = () => {
+    showAppModal(
+        'Upload Failed',
+        'File exceeds the recommended 2mb size',
+        undefined,
+        { type: 'error' },
+    );
+};
 const REQUIRED_FIELDS = [
     'firstName', 'lastName', 'birthdate', 'gender', 'phone',
     'emergencyName', 'emergencyRelationship', 'emergencyPhone',
@@ -309,12 +370,19 @@ export default function EditProfileScreen({ navigation }) {
         });
         if (!result.canceled && result.assets?.[0]) {
             const asset = result.assets[0];
-            // Backend limit is 1.5MB for the base64 string
-            if (asset.base64 && asset.base64.length > 1.5 * 1024 * 1024) {
-                showAppModal('Image Too Large', 'Please choose a smaller image (under 1.5MB).');
+            let compressedBase64 = '';
+
+            try {
+                compressedBase64 = await compressProfileImage(asset);
+            } catch (error) {
+                console.error('Profile image compression failed:', error);
+            }
+
+            if (!compressedBase64) {
+                showProfileImageSizeModal();
                 return;
             }
-            setProfileImage(`data:image/jpeg;base64,${asset.base64}`);
+            setProfileImage(`data:image/jpeg;base64,${compressedBase64}`);
         }
     };
 
@@ -386,6 +454,16 @@ export default function EditProfileScreen({ navigation }) {
             const data = await res.json();
 
             if (!res.ok) {
+                if (
+                    res.status === 413
+                    || (
+                        data.field === 'profileImage'
+                        && /2\s*mb|too large|file size/i.test(data.message || '')
+                    )
+                ) {
+                    showProfileImageSizeModal();
+                    return;
+                }
                 setSaveError(data.message || 'Failed to save changes.');
                 return;
             }

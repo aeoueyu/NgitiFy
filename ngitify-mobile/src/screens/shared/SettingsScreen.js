@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import {
     Alert,
     View,
@@ -136,6 +136,13 @@ export default function SettingsScreen({ navigation }) {
     const [submittingEmailChange, setSubmittingEmailChange] = useState(false);
     const [emailFieldError, setEmailFieldError] = useState('');
     const [emailPasswordError, setEmailPasswordError] = useState('');
+    const emailSuccessModalTimer = useRef(null);
+
+    useEffect(() => () => {
+        if (emailSuccessModalTimer.current) {
+            clearTimeout(emailSuccessModalTimer.current);
+        }
+    }, []);
 
     const authHeader = { Authorization: `Bearer ${userToken}` };
 
@@ -507,12 +514,15 @@ export default function SettingsScreen({ navigation }) {
                 throw new Error(message);
             }
             setEmailModalVisible(false);
-            showAppModal(
-                'Verification Link Sent',
-                data.message || 'Check your new inbox and verify the address before signing in again.',
-                [{ text: 'OK', onPress: logout }],
-                { cancelable: false },
-            );
+            emailSuccessModalTimer.current = setTimeout(() => {
+                showAppModal(
+                    'Request Link Sent',
+                    'Verification email sent. Please check your inbox to reactivate your account. You will now be logged out. Please verify your new email before logging in again.',
+                    [{ text: 'OK', onPress: logout }],
+                    { cancelable: false },
+                );
+                emailSuccessModalTimer.current = null;
+            }, 350);
         } catch (error) {
             setEmailFieldError(error.message || 'Unable to request the email change.');
         } finally {
