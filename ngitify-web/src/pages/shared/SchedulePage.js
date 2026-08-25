@@ -458,7 +458,7 @@ export default function SchedulePage() {
     const { user } = useAuth();
     const { addToast } = useToast();
     const navigate = useNavigate();
-    const { config: systemConfig, loading: systemConfigLoading } = useSystemConfig();
+    const { config: systemConfig } = useSystemConfig();
 
     const role = user?.role || '';
     const currentUserId = user?.userId || user?.id || user?._id || '';
@@ -610,9 +610,6 @@ export default function SchedulePage() {
     }, []);
 
     const fetchPageData = useCallback(async ({ silent = false, suppressErrorToast = false } = {}) => {
-        if (systemConfigLoading) {
-            return;
-        }
         if (!silent) {
             setLoading(true);
         }
@@ -640,17 +637,23 @@ export default function SchedulePage() {
                 requests.push(authFetch('/branches?all=true'));
             }
 
-            const responses = await Promise.all(requests);
-            const appointmentsResponse = responses[0];
-            const patientsResponse = responses[1];
-            const dentistsResponse = responses[2];
+            // Attach the aggregate handler immediately so every request starts in
+            // parallel, but render the schedule as soon as its primary dataset is
+            // ready instead of waiting for form/filter metadata.
+            const responsesPromise = Promise.all(requests);
+            const appointmentsResponse = await requests[0];
 
             if (appointmentsResponse.ok) {
                 const appointmentData = await appointmentsResponse.json();
                 setAppointments(extractCollection(appointmentData, 'appointments').map(normalizeAppointment));
+                if (!silent) setLoading(false);
             } else {
                 throw new Error('Failed to load appointments.');
             }
+
+            const responses = await responsesPromise;
+            const patientsResponse = responses[1];
+            const dentistsResponse = responses[2];
 
             if (patientsResponse.ok) {
                 const patientPayload = await patientsResponse.json();
@@ -710,7 +713,7 @@ export default function SchedulePage() {
                 setLoading(false);
             }
         }
-    }, [addToast, assignedBranch, canChooseBranch, canViewQueue, selectedDateRange.from, selectedDateRange.to, systemConfigLoading]);
+    }, [addToast, assignedBranch, canChooseBranch, canViewQueue, selectedDateRange.from, selectedDateRange.to]);
 
     useEffect(() => {
         fetchPageData();
@@ -740,6 +743,10 @@ export default function SchedulePage() {
     }, [fetchPageData]);
 
     useEffect(() => {
+        if (!isFormOpen) {
+            setBlockedDates([]);
+            return;
+        }
         if (formState.formType !== 'appointment') {
             setBlockedDates([]);
             return;
@@ -771,9 +778,15 @@ export default function SchedulePage() {
         };
 
         fetchBlockedDates();
-    }, [assignedBranch, formState.branch, formState.date, formState.formType, todayString]);
+    }, [assignedBranch, formState.branch, formState.date, formState.formType, isFormOpen, todayString]);
 
     useEffect(() => {
+        if (!isFormOpen) {
+            setAllowedSlots([]);
+            setTakenSlots([]);
+            setSlotError('');
+            return;
+        }
         if (formState.formType !== 'appointment') {
             setAllowedSlots([]);
             setTakenSlots([]);
@@ -812,7 +825,7 @@ export default function SchedulePage() {
         };
 
         fetchSlots();
-    }, [assignedBranch, formState.branch, formState.date, formState.formType]);
+    }, [assignedBranch, formState.branch, formState.date, formState.formType, isFormOpen]);
 
     const minBookableDate = useMemo(
         () => findNextAvailableDate(todayString, blockedDates),

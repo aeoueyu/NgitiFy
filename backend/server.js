@@ -5789,8 +5789,10 @@ app.get('/api/assignable-dentists', verifyToken, async (req, res) => {
             query = applyBranchOwnershipFilter(query, req.user.assignedBranch);
         }
 
-        const dentists = await User.find(query).select(ACCOUNT_SECRET_PROJECTION);
-        res.json(dentists.map((dentist) => sanitizeUserForActor(dentist, req.user)));
+        const dentists = await User.find(query)
+            .select('_id name email role status isArchived assignedBranch assignedBranches')
+            .lean();
+        res.json(dentists);
     } catch (error) {
         console.error('Error fetching assignable dentists:', error);
         res.status(500).json({ message: 'Server error.' });
@@ -8615,7 +8617,8 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
         const surgeries = await Surgery.find(query)
             .populate('patient', 'name email contactNumber')
             .populate('dentist', 'name email role')
-            .sort({ date: -1 });
+            .sort({ date: -1 })
+            .lean();
 
         if (!isPatientSelfRequest) {
             return res.json(surgeries);
@@ -14732,7 +14735,9 @@ app.get('/api/queue', verifyToken, async (req, res) => {
             filter.createdAt = { $gte: startOfDay };
         }
  
-        let entries = await Queue.find(filter).sort({ createdAt: 1, ticketNumber: 1 });
+        let entries = await Queue.find(filter)
+            .sort({ createdAt: 1, ticketNumber: 1 })
+            .lean();
 
         if (req.user.role === 'dentist') {
             const dentistUser = await User.findById(req.user.id).select('name');
