@@ -13,6 +13,7 @@ import {
 import {
     Ionicons,
 } from '@expo/vector-icons';
+import { showAppModal } from '../../components/AppModalProvider';
 
 import PatientOnboardingShell
     from '../../components/onboarding/PatientOnboardingShell';
@@ -79,7 +80,7 @@ export default function OnboardingReadyScreen({
                     null
                 );
 
-                Alert.alert(
+                showAppModal(
                     'Onboarding not completed',
                     completionError?.message
                     || 'Your answers are still saved. Please try again.'

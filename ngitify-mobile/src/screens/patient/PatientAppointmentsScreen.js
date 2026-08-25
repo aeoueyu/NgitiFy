@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
 import { AuthContext } from '../../context/AuthContext';
+import { showAppModal } from '../../components/AppModalProvider';
 import {
     Header,
     PrimaryButton,
@@ -300,7 +301,7 @@ export default function PatientAppointmentsScreen({ navigation }) {
             if (!res.ok) throw new Error(data?.message || 'Unable to cancel this appointment.');
             closeAction();
             await fetchAppointments();
-            Alert.alert('Appointment Cancelled', 'Your appointment has been cancelled successfully.');
+            showAppModal('Appointment Cancelled', 'Your appointment has been cancelled successfully.');
         } catch (cancelError) {
             setActionError(cancelError?.message || 'Unable to cancel this appointment.');
         } finally {
@@ -332,7 +333,7 @@ export default function PatientAppointmentsScreen({ navigation }) {
             if (!res.ok) throw new Error(data?.message || 'Unable to reschedule this appointment.');
             closeAction();
             await fetchAppointments();
-            Alert.alert('Appointment Rescheduled', `Your appointment is now scheduled for ${formatDate(rescheduleDate)} at ${formatTime(rescheduleTime)}.`);
+            showAppModal('Appointment Rescheduled', `Your appointment is now scheduled for ${formatDate(rescheduleDate)} at ${formatTime(rescheduleTime)}.`);
         } catch (rescheduleError) {
             setActionError(rescheduleError?.message || 'Unable to reschedule this appointment.');
         } finally {

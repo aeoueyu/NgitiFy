@@ -9,6 +9,7 @@ import {
     Alert,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
+import { showAppModal } from '../../components/AppModalProvider';
 
 const PRIVACY_VERSION = 'v1.0';
 const PRIVACY_UPDATED_AT = 'May 3, 2026';
@@ -33,7 +34,7 @@ export default function AppPrivacyConsentScreen() {
 
     const handleAgree = async () => {
         if (!userToken) {
-            Alert.alert('Session expired', 'Please login again.');
+            showAppModal('Session expired', 'Please login again.');
             await logout();
             return;
         }
@@ -54,7 +55,7 @@ export default function AppPrivacyConsentScreen() {
             }
             await refreshUserInfo();
         } catch (error) {
-            Alert.alert('Consent not saved', error.message || 'Please try again.');
+            showAppModal('Consent not saved', error.message || 'Please try again.');
         } finally {
             setIsSaving(false);
         }

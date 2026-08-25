@@ -7,6 +7,7 @@ import TimeIcon from '../../assets/icons/Time.svg';
 import DentistIcon from '../../assets/icons/Dentist.svg';
 import SurgeryProcedureIcon from '../../assets/icons/SurgeryProcedure.svg';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
+import { showAppModal } from '../../components/AppModalProvider';
 
 export default function PreOpInstructionsScreen({ navigation }) {
     const [isChecked, setIsChecked] = useState(false);
@@ -14,7 +15,7 @@ export default function PreOpInstructionsScreen({ navigation }) {
 
     const handleSignAgreement = () => {
         setIsSigned(true);
-        Alert.alert("Digital Consent Signed", "Thank you. Your consent has been recorded. We will see you on your dental treatment date.");
+        showAppModal("Digital Consent Signed", "Thank you. Your consent has been recorded. We will see you on your dental treatment date.");
     };
 
     return (

@@ -7,6 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
+import { showAppModal } from '../../components/AppModalProvider';
 import BackIcon from '../../assets/icons/Back.svg';
 import { logActivity } from '../../utils/logActivity';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
@@ -268,7 +269,7 @@ export default function NotificationsScreen({ navigation }) {
                 setNotifications(prev =>
                     prev.map(n => n._id === item._id ? { ...n, isRead: false } : n)
                 );
-                Alert.alert('Update failed', 'The notification could not be marked as read. Please try again.');
+                showAppModal('Update failed', 'The notification could not be marked as read. Please try again.');
             }
         }
 
@@ -299,7 +300,7 @@ export default function NotificationsScreen({ navigation }) {
             }
         } catch {
             await fetchNotifications();
-            Alert.alert('Update failed', 'Notifications could not be marked as read. Please try again.');
+            showAppModal('Update failed', 'Notifications could not be marked as read. Please try again.');
         } finally {
             setMarkingAll(false);
         }

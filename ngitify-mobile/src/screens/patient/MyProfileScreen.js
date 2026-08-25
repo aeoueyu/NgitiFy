@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
+import { showAppModal } from '../../components/AppModalProvider';
 
 import regionsData from '../../utils/json/region.json';
 import provincesData from '../../utils/json/province.json';
@@ -261,7 +262,7 @@ export default function MyProfileScreen({ navigation }) {
                 message: 'Check out NgitiFy Dentime for your dental appointments and records.',
             });
         } catch (err) {
-            Alert.alert('Unable to share', 'Please try again in a moment.');
+            showAppModal('Unable to share', 'Please try again in a moment.');
         }
     };
 

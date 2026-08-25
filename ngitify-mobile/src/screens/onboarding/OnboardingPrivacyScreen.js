@@ -15,6 +15,7 @@ import {
 import {
     Ionicons,
 } from '@expo/vector-icons';
+import { showAppModal } from '../../components/AppModalProvider';
 
 import {
     SafeAreaView,
@@ -135,7 +136,7 @@ export default function OnboardingPrivacyScreen({
             } catch (
                 saveError
             ) {
-                Alert.alert(
+                showAppModal(
                     'Could not continue yet',
                     saveError?.message
                     || 'Please try again.'

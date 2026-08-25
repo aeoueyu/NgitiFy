@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import BackIcon from '../../assets/icons/Back.svg';
 import CustomModal from '../../components/CustomModal';
+import { showAppModal } from '../../components/AppModalProvider';
 import { logActivity } from '../../utils/logActivity';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
 import {
@@ -314,7 +315,7 @@ export default function AppointmentBookingScreen({ navigation }) {
 
     const handleNext = () => {
         if (!assignedBranch) {
-            Alert.alert(
+            showAppModal(
                 'Assigned Branch Required',
                 'Your account does not have an assigned branch yet. Please contact the clinic before booking an appointment.',
             );

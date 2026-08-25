@@ -16,6 +16,7 @@ import {
 
 import PatientOnboardingShell
     from '../../components/onboarding/PatientOnboardingShell';
+import { showAppModal } from '../../components/AppModalProvider';
 
 import {
     OnboardingFooterActions,
@@ -203,7 +204,7 @@ export default function OnboardingNotificationsScreen({
             } catch (
                 saveError
             ) {
-                Alert.alert(
+                showAppModal(
                     'Preferences not saved',
                     saveError?.message
                     || 'Your choices are still here. Please try again.'
@@ -228,7 +229,7 @@ export default function OnboardingNotificationsScreen({
             } catch (
                 saveError
             ) {
-                Alert.alert(
+                showAppModal(
                     'Could not continue yet',
                     saveError?.message
                     || 'Please try again.'

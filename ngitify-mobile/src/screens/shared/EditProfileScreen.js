@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AuthContext } from '../../context/AuthContext';
 import CustomModal from '../../components/CustomModal';
+import { showAppModal } from '../../components/AppModalProvider';
 import BackIcon from '../../assets/icons/Back.svg';
 import Calendar from '../../assets/images/calendar.svg';
 import { mobilePageTopInset } from '../../components/mobile/MobileUI';
@@ -296,7 +297,7 @@ export default function EditProfileScreen({ navigation }) {
         if (!isEditing) return;
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please allow access to your photo library to change your profile picture.');
+            showAppModal('Permission Required', 'Please allow access to your photo library to change your profile picture.');
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -310,7 +311,7 @@ export default function EditProfileScreen({ navigation }) {
             const asset = result.assets[0];
             // Backend limit is 1.5MB for the base64 string
             if (asset.base64 && asset.base64.length > 1.5 * 1024 * 1024) {
-                Alert.alert('Image Too Large', 'Please choose a smaller image (under 1.5MB).');
+                showAppModal('Image Too Large', 'Please choose a smaller image (under 1.5MB).');
                 return;
             }
             setProfileImage(`data:image/jpeg;base64,${asset.base64}`);

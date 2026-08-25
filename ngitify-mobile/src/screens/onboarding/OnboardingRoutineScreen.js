@@ -9,6 +9,7 @@ import {
 
 import PatientOnboardingShell
     from '../../components/onboarding/PatientOnboardingShell';
+import { showAppModal } from '../../components/AppModalProvider';
 
 import {
     OnboardingChoiceCard,
@@ -70,7 +71,7 @@ export default function OnboardingRoutineScreen({
             } catch (
                 saveError
             ) {
-                Alert.alert(
+                showAppModal(
                     'Could not save yet',
                     saveError?.message
                     || 'Your selections are still here. Please try again.'
@@ -108,7 +109,7 @@ export default function OnboardingRoutineScreen({
             } catch (
                 saveError
             ) {
-                Alert.alert(
+                showAppModal(
                     'Could not save yet',
                     saveError?.message
                     || 'Please try again.'

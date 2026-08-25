@@ -2,7 +2,15 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function CustomModal({ visible, title, message, type, onClose }) {
+export default function CustomModal({
+    visible,
+    title,
+    message,
+    type,
+    onClose,
+    buttons,
+    cancelable = true,
+}) {
     const icon = type === 'success'
         ? { name: 'checkmark-circle-outline', color: '#2e7d32' }
         : type === 'warning'
@@ -14,7 +22,9 @@ export default function CustomModal({ visible, title, message, type, onClose }) 
             transparent={true}
             animationType="fade"
             visible={visible}
-            onRequestClose={onClose}
+            onRequestClose={() => {
+                if (cancelable) onClose?.();
+            }}
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.modalCard}>
@@ -23,9 +33,25 @@ export default function CustomModal({ visible, title, message, type, onClose }) 
                     <Text style={styles.modalTitle}>{title}</Text>
                     <Text style={styles.modalMessage}>{message}</Text>
 
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                        <Text style={styles.closeButtonText}>Close</Text>
-                    </TouchableOpacity>
+                    <View style={styles.buttonGroup}>
+                        {(buttons?.length ? buttons : [{ text: 'OK', onPress: onClose }]).map((button, index) => (
+                            <TouchableOpacity
+                                key={`${button.text || 'OK'}-${index}`}
+                                style={[
+                                    styles.closeButton,
+                                    button.style === 'destructive' && styles.destructiveButton,
+                                ]}
+                                onPress={button.onPress || onClose}
+                            >
+                                <Text style={[
+                                    styles.closeButtonText,
+                                    button.style === 'destructive' && styles.destructiveButtonText,
+                                ]}>
+                                    {button.text || 'OK'}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </View>
             </View>
         </Modal>
@@ -78,9 +104,19 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'center',
     },
+    buttonGroup: {
+        width: '100%',
+        gap: 10,
+    },
     closeButtonText: {
         color: '#555',
         fontWeight: 'bold',
         fontSize: 14,
-    }
+    },
+    destructiveButton: {
+        backgroundColor: '#ffebee',
+    },
+    destructiveButtonText: {
+        color: '#c62828',
+    },
 });

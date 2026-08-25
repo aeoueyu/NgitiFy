@@ -16,6 +16,7 @@ import {
     Image,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
+import { showAppModal } from '../../components/AppModalProvider';
 import LogoutModal from '../../components/LogoutModal';
 import BackIcon from '../../assets/icons/Back.svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -236,7 +237,7 @@ export default function SettingsScreen({ navigation }) {
 
             return true;
         } catch (error) {
-            Alert.alert(
+            showAppModal(
                 'Setting Not Saved',
                 error.message
                 || 'Unable to save this setting. Please try again.'
@@ -270,7 +271,7 @@ export default function SettingsScreen({ navigation }) {
             !/^(?:[01]\d|2[0-3]):[0-5]\d$/
                 .test(normalized)
         ) {
-            Alert.alert(
+            showAppModal(
                 'Invalid Reminder Time',
                 'Use a valid 24-hour time in HH:MM format, for example 20:00.'
             );
@@ -320,7 +321,7 @@ export default function SettingsScreen({ navigation }) {
                 || normalized
             );
         } catch (error) {
-            Alert.alert(
+            showAppModal(
                 'Reminder Time Not Saved',
                 error.message
                 || 'Unable to save the reminder time. Please try again.'
@@ -506,7 +507,7 @@ export default function SettingsScreen({ navigation }) {
                 throw new Error(message);
             }
             setEmailModalVisible(false);
-            Alert.alert(
+            showAppModal(
                 'Verification Link Sent',
                 data.message || 'Check your new inbox and verify the address before signing in again.',
                 [{ text: 'OK', onPress: logout }],

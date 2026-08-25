@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../../components/CustomModal';
+import { showAppModal } from '../../components/AppModalProvider';
 import { API_BASE_URL } from '../../context/AuthContext';
 
 // ─── Password rules (mirrors SettingsScreen exactly) ──────────────────────────
@@ -116,7 +117,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             // Always restart cooldown — a code is only actually sent for valid patient emails.
             startCooldown();
         } catch {
-            Alert.alert('Error', 'Could not resend code. Please try again.');
+            showAppModal('Error', 'Could not resend code. Please try again.');
         } finally {
             setIsLoading(false);
         }

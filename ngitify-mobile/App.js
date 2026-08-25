@@ -14,14 +14,18 @@ import {
 
 import AppNavigator
     from './src/navigation/AppNavigator';
+import AppModalProvider
+    from './src/components/AppModalProvider';
 
 export default function App() {
     return (
         <SafeAreaProvider>
             <AuthProvider>
-                <PatientOnboardingProvider>
-                    <AppNavigator />
-                </PatientOnboardingProvider>
+                <AppModalProvider>
+                    <PatientOnboardingProvider>
+                        <AppNavigator />
+                    </PatientOnboardingProvider>
+                </AppModalProvider>
             </AuthProvider>
         </SafeAreaProvider>
     );
