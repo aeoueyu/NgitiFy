@@ -3018,7 +3018,17 @@ const buildPatientAiLiveContext = async ({
                 'treatmentLogs',
                 'oralHealthFactors',
                 'oralHealthLogs',
-                'radiographs',
+                'radiographs._id',
+                'radiographs.label',
+                'radiographs.date',
+                'radiographs.reviewSummary.status',
+                'radiographs.reviewSummary.approvedText',
+                'radiographs.reviewSummary.approvedAt',
+                'radiographs.reviewSummary.approvedBy',
+                'radiographs.annotations.toothNumber',
+                'radiographs.annotations.findingType',
+                'radiographs.annotations.note',
+                'radiographs.annotations.status',
             ].join(' ')
         )
         .lean();

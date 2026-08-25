@@ -462,6 +462,32 @@ test('allows AI to explain radiographs when an approved record exists', () => {
     assert.equal(shortcutReply, '');
 });
 
+test('patient AI live context projects radiograph explanations without loading image data', () => {
+    const serverSource = require('fs').readFileSync(
+        require('path').join(__dirname, '..', 'server.js'),
+        'utf8'
+    );
+    const liveContextSource = serverSource.slice(
+        serverSource.indexOf('const buildPatientAiLiveContext'),
+        serverSource.indexOf('const dentistCanAccessPatient')
+    );
+
+    for (const field of [
+        'radiographs.reviewSummary.status',
+        'radiographs.reviewSummary.approvedText',
+        'radiographs.reviewSummary.approvedAt',
+        'radiographs.reviewSummary.approvedBy',
+        'radiographs.annotations.findingType',
+        'radiographs.annotations.note',
+    ]) {
+        assert.match(liveContextSource, new RegExp(field.replaceAll('.', '\\.')));
+    }
+
+    assert.doesNotMatch(liveContextSource, /^\s*['"]radiographs['"],/m);
+    assert.doesNotMatch(liveContextSource, /radiographs\.url/);
+    assert.doesNotMatch(liveContextSource, /radiographs\.enhancedUrl/);
+});
+
 test('primitive client context is discarded from trusted live context', () => {
     const merged =
         mergePatientAiLiveContext({

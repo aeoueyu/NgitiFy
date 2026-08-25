@@ -810,6 +810,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
 
     // Per-tab state
     const [odontogramData, setOdontogramData] = useState({});
+    const [odontogramHistory, setOdontogramHistory] = useState([]);
     const [radiographs,    setRadiographs]    = useState([]);
     const [treatmentLogs,  setTreatmentLogs]  = useState([]);
     const [profile,        setProfile]        = useState(null);
@@ -830,10 +831,22 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         setTabLoading('odontogram', true);
         setTabError('odontogram', '');
         try {
-            const res = await fetch(`${API_BASE_URL}/api/my/odontogram`, { headers });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
+            const [odontogramRes, historyRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/my/odontogram`, { headers }),
+                fetch(`${API_BASE_URL}/api/my/odontogram-logs`, { headers }),
+            ]);
+            const [data, historyData] = await Promise.all([
+                odontogramRes.json().catch(() => ({})),
+                historyRes.json().catch(() => ([])),
+            ]);
+            if (!odontogramRes.ok) throw new Error(data.message || 'Could not load odontogram.');
+            if (!historyRes.ok) throw new Error(historyData.message || 'Could not load odontogram history.');
+
             setOdontogramData(data && typeof data === 'object' ? data : {});
+            setOdontogramHistory(
+                (Array.isArray(historyData) ? historyData : [])
+                    .sort((a, b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0))
+            );
             setTabFetched('odontogram');
         } catch (e) {
             setTabError('odontogram', e.message || 'Could not load odontogram.');
@@ -989,7 +1002,10 @@ export default function MedicalRecordsScreen({ navigation, route }) {
                     ) : errors.odontogram ? (
                         <ErrorState message={errors.odontogram} onRetry={fetchOdontogram} />
                     ) : (
-                        <PatientOdontogramChart data={odontogramData} />
+                        <PatientOdontogramChart
+                            data={odontogramData}
+                            history={odontogramHistory}
+                        />
                     )
                 )}
                 {activeTab === 'treatment' && (

@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Ellipse, G, Line, Path } from 'react-native-svg';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { mobileTheme } from '../../theme/mobileTheme';
+import {
+    DISPLAY_CONFIG,
+    IMPLANT_COLLAR_PATH,
+    IMPLANT_FIXTURE_PATH,
+    IMPLANT_HEAD_PATH,
+    IMPLANT_THREAD_PATHS,
+    LATERAL_PATHS,
+    OCCLUSAL_DIVIDERS,
+    OCCLUSAL_SURFACES,
+    getImplantTransform,
+} from './dentalPinGeometry';
 
 const UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
 const UPPER_LEFT = [21, 22, 23, 24, 25, 26, 27, 28];
@@ -657,48 +668,133 @@ function TopView({ toothNumber, statusKey, surfaces, stageKey, sizeStyle }) {
     );
 }
 
-const getWebsiteToothTransform = (toothNumber) => {
+const getDentalPinQuadrantTransform = (toothNumber) => {
     const quadrant = Math.floor(toothNumber / 10);
-    const transforms = [];
-
-    if (quadrant === 2 || quadrant === 3) {
-        transforms.push({ scaleX: -1 });
-    }
-
-    if (isUpperTooth(toothNumber)) {
-        transforms.push({ scaleY: -1 });
-    }
-
-    return transforms;
+    if (quadrant === 2) return [{ scaleX: -1 }];
+    if (quadrant === 3) return [{ scaleX: -1 }, { scaleY: -1 }];
+    if (quadrant === 4) return [{ scaleY: -1 }];
+    return [];
 };
+
+function DentalPinLateralView({ toothNumber, toothData }) {
+    const position = toothNumber % 10;
+    const paths = LATERAL_PATHS[position] || LATERAL_PATHS[1];
+    const scale = DISPLAY_CONFIG[position]?.scale || 0.7;
+    const width = Math.round(55 * scale);
+    const meta = getStatusMeta(toothData.status);
+    const missing = toothData.status === 'missing' || toothData.status === 'extraction-site';
+    const implant = toothData.status === 'implant';
+    const affected = toothData.status !== 'healthy';
+    const crownFill = affected && !missing ? meta.fill : '#ffffff';
+    const plannedDash = toothData.stage === 'planned' ? '4 3' : undefined;
+
+    return (
+        <Svg
+            width={width}
+            height={112}
+            viewBox={paths.viewBox}
+            style={{ transform: getDentalPinQuadrantTransform(toothNumber) }}
+            opacity={missing ? 0.38 : 1}
+        >
+            {!implant ? paths.roots.map((rootPath, index) => (
+                <Path
+                    key={`root-${index}`}
+                    d={rootPath}
+                    fill="rgba(231,214,181,0.82)"
+                    stroke="#bca986"
+                    strokeWidth={0.65}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+            )) : (
+                <G transform={getImplantTransform(paths)}>
+                    <Path d={IMPLANT_FIXTURE_PATH} fill="rgba(148,163,184,0.82)" stroke="#475569" strokeWidth={0.85} />
+                    {IMPLANT_THREAD_PATHS.map((threadPath, index) => (
+                        <Path key={`implant-thread-${index}`} d={threadPath} fill="none" stroke="rgba(248,250,252,0.92)" strokeWidth={0.95} strokeLinecap="round" />
+                    ))}
+                    <Path d={IMPLANT_COLLAR_PATH} fill="#64748b" stroke="#334155" strokeWidth={0.8} />
+                    <Path d={IMPLANT_HEAD_PATH} fill="#94a3b8" stroke="#475569" strokeWidth={0.75} />
+                </G>
+            )}
+            <Path
+                d={paths.crown}
+                fill={crownFill}
+                stroke={meta.stroke}
+                strokeWidth={0.7}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={plannedDash}
+            />
+            {paths.pulp && !implant ? (
+                <Path d={paths.pulp} fill="none" stroke="rgba(100,116,139,0.42)" strokeWidth={0.5} strokeLinecap="round" />
+            ) : null}
+            {toothData.status === 'root-canal' && paths.pulp ? (
+                <Path d={paths.pulp} fill="rgba(147,51,234,0.72)" stroke="none" />
+            ) : null}
+            {toothData.status === 'fractured' ? (
+                <Path d="M12 92 L26 105 L20 116 L38 130" fill="none" stroke="#dc2626" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
+            ) : null}
+        </Svg>
+    );
+}
+
+function DentalPinOcclusalView({ toothData }) {
+    const meta = getStatusMeta(toothData.status);
+    const surfaces = toothData.surfaces || [];
+    const affected = toothData.status !== 'healthy';
+    const wholeFill = affected && surfaces.length === 0 ? meta.fill : '#ffffff';
+    const plannedDash = toothData.stage === 'planned' ? '4 3' : undefined;
+
+    return (
+        <Svg width={38} height={38} viewBox="0 0 50 50">
+            <Path
+                d="M 25,3 A 22,22 0 1,1 25,47 A 22,22 0 1,1 25,3 Z"
+                fill={wholeFill}
+                stroke={meta.stroke}
+                strokeWidth={1.1}
+            />
+            {Object.entries(OCCLUSAL_SURFACES).map(([surface, path]) => {
+                const selected = surfaces.includes(surface);
+                return (
+                    <Path
+                        key={surface}
+                        d={path}
+                        fill={selected ? meta.fill : 'transparent'}
+                        stroke={selected ? meta.stroke : 'transparent'}
+                        strokeWidth={0.9}
+                        strokeDasharray={selected ? plannedDash : undefined}
+                    />
+                );
+            })}
+            {OCCLUSAL_DIVIDERS.map((path, index) => (
+                <Path key={`divider-${index}`} d={path} fill="none" stroke="rgba(100,116,139,0.52)" strokeWidth={0.8} strokeLinecap="round" />
+            ))}
+            {toothData.status === 'missing' || toothData.status === 'extraction-site' ? (
+                <G fill="none" stroke="#64748b" strokeWidth={3} strokeLinecap="round">
+                    <Path d="M10 10 L40 40" />
+                    <Path d="M40 10 L10 40" />
+                </G>
+            ) : null}
+            {toothData.status === 'implant' ? (
+                <Circle cx="25" cy="25" r="8" fill="none" stroke="#374151" strokeWidth={4} />
+            ) : null}
+        </Svg>
+    );
+}
 
 function WebsiteToothCell({ toothNumber, toothData, selected, onSelectTooth }) {
     const upper = isUpperTooth(toothNumber);
     const meta = getStatusMeta(toothData.status);
-    const lateralStyle = [
-        styles.websiteLateralView,
-        { transform: getWebsiteToothTransform(toothNumber) },
-    ];
     const toothTitle = `Tooth ${toothNumber} - ${toothData.statusLabel}`;
 
     const lateralView = (
-        <FaceView
+        <DentalPinLateralView
             toothNumber={toothNumber}
-            viewType="front"
-            statusKey={toothData.status}
-            surfaces={toothData.surfaces}
-            stageKey={toothData.stage}
-            sizeStyle={lateralStyle}
+            toothData={toothData}
         />
     );
     const topView = (
-        <TopView
-            toothNumber={toothNumber}
-            statusKey={toothData.status}
-            surfaces={toothData.surfaces}
-            stageKey={toothData.stage}
-            sizeStyle={styles.websiteOcclusalView}
-        />
+        <DentalPinOcclusalView toothData={toothData} />
     );
     const number = (
         <Text
@@ -823,7 +919,36 @@ const buildSurfaceSummary = (surfaces) => {
     return surfaces.map((surfaceCode) => `${surfaceCode} - ${SURFACE_LABELS[surfaceCode] || surfaceCode}`).join(', ');
 };
 
-export default function PatientOdontogramChart({ data }) {
+const formatHistoryDate = (value) => {
+    const date = new Date(value || 0);
+    if (Number.isNaN(date.getTime())) return 'Date unavailable';
+
+    return date.toLocaleString('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+};
+
+const getHistoryStatusLabel = (status) => {
+    if (!status) return 'None';
+    const normalized = normalizeStatusKey(status);
+    return getStatusMeta(normalized).label || String(status);
+};
+
+const buildHistoryHeadline = (log) => {
+    const stage = getStageMeta(normalizeStageKey(log?.stage)).label.toLowerCase();
+    const before = getHistoryStatusLabel(log?.statusBefore);
+    const after = log?.statusAfter ? getHistoryStatusLabel(log.statusAfter) : 'Cleared';
+
+    if (log?.eventType === 'created') return `${stage} finding recorded as ${after}`;
+    if (log?.eventType === 'cleared') return `${stage} finding cleared from ${before}`;
+    return `${stage} finding updated to ${after}`;
+};
+
+export default function PatientOdontogramChart({ data, history = [] }) {
     const [selectedTooth, setSelectedTooth] = useState(null);
     const [findingStageFilter, setFindingStageFilter] = useState('all');
 
@@ -1001,6 +1126,77 @@ export default function PatientOdontogramChart({ data }) {
                 </View>
             </View>
 
+            <View style={styles.historySection}>
+                <View style={styles.historyTitleRow}>
+                    <View style={styles.historyIconBubble}>
+                        <Ionicons name="time-outline" size={17} color={mobileTheme.colors.primaryDark} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.historyTitle}>Odontogram History</Text>
+                        <Text style={styles.historySubtitle}>Read-only updates recorded by your dental team</Text>
+                    </View>
+                </View>
+
+                {history.length ? history.map((log, index) => {
+                    const stageMeta = getStageMeta(normalizeStageKey(log.stage));
+                    const beforeStatus = getHistoryStatusLabel(log.statusBefore);
+                    const afterStatus = log.statusAfter ? getHistoryStatusLabel(log.statusAfter) : 'Cleared';
+                    const beforeSurfaces = buildSurfaceSummary(sanitizeSurfaces(log.surfacesBefore));
+                    const afterSurfaces = buildSurfaceSummary(sanitizeSurfaces(log.surfacesAfter));
+
+                    return (
+                        <View
+                            key={log._id || log.id || `${log.tooth}-${log.createdAt || index}`}
+                            style={styles.historyCard}
+                        >
+                            <View style={styles.historyCardHeader}>
+                                <View style={styles.historyToothBadge}>
+                                    <MaterialCommunityIcons name="tooth-outline" size={15} color={mobileTheme.colors.primaryDark} />
+                                    <Text style={styles.historyToothText}>Tooth {log.tooth || '—'}</Text>
+                                </View>
+                                <View style={[styles.stageBadge, { backgroundColor: stageMeta.badgeBg, borderColor: stageMeta.border }]}>
+                                    <View style={[styles.stageDot, { backgroundColor: stageMeta.accent }]} />
+                                    <Text style={[styles.stageBadgeText, { color: stageMeta.badgeText }]}>{stageMeta.label}</Text>
+                                </View>
+                            </View>
+
+                            <Text style={styles.historyHeadline}>{buildHistoryHeadline(log)}</Text>
+                            <Text style={styles.historyDate}>{formatHistoryDate(log.createdAt || log.updatedAt)}</Text>
+
+                            <View style={styles.historyChangeRow}>
+                                <View style={styles.historyChangeColumn}>
+                                    <Text style={styles.historyFieldLabel}>Previous</Text>
+                                    <Text style={styles.historyFieldValue}>{beforeStatus}</Text>
+                                    <Text style={styles.historySurfaceText}>{beforeSurfaces}</Text>
+                                </View>
+                                <Ionicons name="arrow-forward" size={16} color="#94a3b8" />
+                                <View style={styles.historyChangeColumn}>
+                                    <Text style={styles.historyFieldLabel}>Updated To</Text>
+                                    <Text style={styles.historyFieldValue}>{afterStatus}</Text>
+                                    <Text style={styles.historySurfaceText}>{afterSurfaces}</Text>
+                                </View>
+                            </View>
+
+                            {log.noteBefore || log.noteAfter ? (
+                                <View style={styles.historyNoteBox}>
+                                    <Text style={styles.historyFieldLabel}>Notes</Text>
+                                    {log.noteBefore ? <Text style={styles.historyNoteText}>Previous: {log.noteBefore}</Text> : null}
+                                    {log.noteAfter ? <Text style={styles.historyNoteText}>Updated: {log.noteAfter}</Text> : null}
+                                </View>
+                            ) : null}
+
+                            <Text style={styles.historyAuthor}>
+                                Updated by {log.updatedByName || log.updatedByRole || 'Dental team'}
+                            </Text>
+                        </View>
+                    );
+                }) : (
+                    <View style={styles.historyEmptyBox}>
+                        <Text style={styles.historyEmptyText}>No odontogram updates have been recorded yet.</Text>
+                    </View>
+                )}
+            </View>
+
             <View style={styles.readOnlyBanner}>
                 <Ionicons name="lock-closed-outline" size={14} color="#1565c0" style={{ marginRight: 8 }} />
                 <Text style={styles.readOnlyText}>View-only. Dentist updates will appear here after the mobile screen refreshes.</Text>
@@ -1148,25 +1344,25 @@ const styles = StyleSheet.create({
         paddingBottom: 12,
     },
     websiteChart: {
-        minWidth: 880,
+        minWidth: 1160,
     },
     websiteArchRow: {
-        minHeight: 130,
+        minHeight: 170,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
     },
     websiteArchLabel: {
-        width: 66,
-        paddingLeft: 8,
+        width: 92,
+        paddingLeft: 14,
         color: '#27364a',
-        fontSize: 11,
-        lineHeight: 14,
+        fontSize: 13,
+        lineHeight: 16,
         fontWeight: '700',
     },
     websiteArchLabelLeft: {
         paddingLeft: 0,
-        paddingRight: 8,
+        paddingRight: 14,
         textAlign: 'right',
     },
     websiteQuadrant: {
@@ -1175,12 +1371,12 @@ const styles = StyleSheet.create({
         gap: 2,
     },
     websiteMidline: {
-        width: 14,
-        height: 126,
+        width: 18,
+        height: 170,
     },
     websiteToothCell: {
-        width: 43,
-        height: 126,
+        width: 60,
+        height: 164,
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: 2,
@@ -1197,29 +1393,21 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(240,249,255,0.9)',
     },
     websiteDistalStart: {
-        marginRight: 6,
-    },
-    websiteLateralView: {
-        width: 38,
-        height: 78,
-    },
-    websiteOcclusalView: {
-        width: 32,
-        height: 28,
+        marginRight: 8,
     },
     websiteToothNumber: {
         height: 14,
         color: '#334155',
-        fontSize: 10,
-        lineHeight: 13,
+        fontSize: 12,
+        lineHeight: 14,
         fontWeight: '800',
         textAlign: 'center',
     },
     websiteCenterBand: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 14,
-        marginHorizontal: 74,
+        gap: 18,
+        marginHorizontal: 104,
         marginVertical: 4,
     },
     websiteCenterLine: {
@@ -1526,6 +1714,141 @@ const styles = StyleSheet.create({
         fontSize: 11,
         lineHeight: 16,
         color: mobileTheme.colors.textSoft,
+    },
+    historySection: {
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: mobileTheme.colors.border,
+        marginBottom: 16,
+        ...mobileTheme.shadows.soft,
+    },
+    historyTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 14,
+    },
+    historyIconBubble: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: mobileTheme.colors.primarySoft,
+    },
+    historyTitle: {
+        color: mobileTheme.colors.text,
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    historySubtitle: {
+        marginTop: 2,
+        color: mobileTheme.colors.textSoft,
+        fontSize: 11,
+        lineHeight: 16,
+    },
+    historyCard: {
+        padding: 14,
+        marginBottom: 10,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#dbe4ee',
+        backgroundColor: '#fcfdff',
+    },
+    historyCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        marginBottom: 9,
+    },
+    historyToothBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 9,
+        paddingVertical: 5,
+        borderRadius: 999,
+        backgroundColor: mobileTheme.colors.primarySoft,
+    },
+    historyToothText: {
+        color: mobileTheme.colors.primaryDark,
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    historyHeadline: {
+        color: mobileTheme.colors.text,
+        fontSize: 13,
+        lineHeight: 19,
+        fontWeight: '800',
+    },
+    historyDate: {
+        marginTop: 3,
+        marginBottom: 12,
+        color: mobileTheme.colors.textSoft,
+        fontSize: 10,
+    },
+    historyChangeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    historyChangeColumn: {
+        flex: 1,
+        minHeight: 76,
+        padding: 10,
+        borderRadius: 12,
+        backgroundColor: '#f8fafc',
+    },
+    historyFieldLabel: {
+        marginBottom: 3,
+        color: '#64748b',
+        fontSize: 9,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    historyFieldValue: {
+        color: mobileTheme.colors.text,
+        fontSize: 12,
+        lineHeight: 17,
+        fontWeight: '800',
+    },
+    historySurfaceText: {
+        marginTop: 3,
+        color: mobileTheme.colors.textSoft,
+        fontSize: 10,
+        lineHeight: 15,
+    },
+    historyNoteBox: {
+        marginTop: 10,
+        padding: 10,
+        borderRadius: 12,
+        backgroundColor: '#f8fafc',
+    },
+    historyNoteText: {
+        color: mobileTheme.colors.textMuted,
+        fontSize: 11,
+        lineHeight: 17,
+    },
+    historyAuthor: {
+        marginTop: 10,
+        color: mobileTheme.colors.textSoft,
+        fontSize: 10,
+        fontWeight: '600',
+    },
+    historyEmptyBox: {
+        padding: 16,
+        borderRadius: 14,
+        backgroundColor: mobileTheme.colors.surfaceAlt,
+    },
+    historyEmptyText: {
+        color: mobileTheme.colors.textSoft,
+        fontSize: 12,
+        lineHeight: 18,
+        textAlign: 'center',
     },
     readOnlyBanner: {
         backgroundColor: mobileTheme.colors.primarySoft,
