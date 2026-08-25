@@ -270,7 +270,50 @@ function selectKnowledge(scope, queryText) {
         .slice(0, config.maxChunks);
 }
 
-function formatAdditionalContext(additionalContext) {
+const prioritizePatientCareContext = (additionalContext) => {
+    if (
+        !additionalContext
+        || typeof additionalContext !== 'object'
+        || Array.isArray(additionalContext)
+        || !additionalContext.careContext
+        || typeof additionalContext.careContext !== 'object'
+    ) {
+        return additionalContext;
+    }
+
+    const {
+        careContext,
+        patientSession,
+        appointmentsSnapshot,
+        branchInfo,
+        appointmentAvailability,
+        ...remainingContext
+    } = additionalContext;
+    const {
+        radiographAvailability,
+        approvedRadiographRecords,
+        systemRecommendation,
+        oralHealthManagement,
+        ...remainingCareContext
+    } = careContext;
+
+    return {
+        careContext: {
+            radiographAvailability,
+            approvedRadiographRecords,
+            systemRecommendation,
+            oralHealthManagement,
+            ...remainingCareContext,
+        },
+        patientSession,
+        appointmentsSnapshot,
+        branchInfo,
+        appointmentAvailability,
+        ...remainingContext,
+    };
+};
+
+export function formatAdditionalContext(additionalContext) {
     if (!additionalContext) {
         return '';
     }
@@ -280,7 +323,9 @@ function formatAdditionalContext(additionalContext) {
     }
 
     try {
-        return JSON.stringify(additionalContext, null, 2).slice(0, MAX_CONTEXT_LENGTH);
+        return JSON.stringify(
+            prioritizePatientCareContext(additionalContext)
+        ).slice(0, MAX_CONTEXT_LENGTH);
     } catch {
         return String(additionalContext).slice(0, MAX_CONTEXT_LENGTH).trim();
     }

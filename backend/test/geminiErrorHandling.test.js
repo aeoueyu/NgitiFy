@@ -21,3 +21,35 @@ test('unknown Gemini errors do not expose provider details', async () => {
     assert.equal(error.message, 'The AI provider could not process this request.');
     assert.doesNotMatch(error.message, /secret provider diagnostic/);
 });
+
+test('patient context formatting preserves approved radiographs before the size limit', async () => {
+    const { formatAdditionalContext } = await import('../ai/geminiService.mjs');
+    const formatted = formatAdditionalContext({
+        patientSession: {
+            padding: 'x'.repeat(7000),
+        },
+        careContext: {
+            systemRecommendation: {
+                label: 'Recommended',
+            },
+            oralHealthManagement: {
+                recentLogs: [],
+            },
+            radiographAvailability: {
+                available: true,
+            },
+            approvedRadiographRecords: [
+                {
+                    approvedSummary: 'Dentist-approved explanation.',
+                },
+            ],
+        },
+    });
+
+    assert.ok(formatted.length <= 6000);
+    assert.ok(
+        formatted.indexOf('approvedRadiographRecords')
+        < formatted.indexOf('patientSession')
+    );
+    assert.match(formatted, /Dentist-approved explanation\./);
+});
