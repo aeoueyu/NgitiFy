@@ -112,6 +112,7 @@ export default function DatabaseBackup() {
     const [creating, setCreating] = useState(false);
     const [downloading, setDownloading] = useState(null);
     const [verifying, setVerifying] = useState(null);
+    const [operationProgress, setOperationProgress] = useState(null);
     const [savingSettings, setSavingSettings] = useState(false);
     const [settingsForm, setSettingsForm] = useState({
         enabled: false,
@@ -164,6 +165,45 @@ export default function DatabaseBackup() {
         loadData();
     }, [loadData]);
 
+    const statusHasActiveBackup = Boolean(status?.activeBackup);
+    const statusHasActiveVerification = Boolean(status?.activeVerification);
+
+    useEffect(() => {
+        if (!creating && !verifying && !statusHasActiveBackup && !statusHasActiveVerification) return undefined;
+
+        let mounted = true;
+        const loadProgress = async () => {
+            try {
+                const response = await authFetch('/backup/progress');
+                if (!response.ok || !mounted) return;
+                const payload = await response.json();
+                const isVerification = Boolean(verifying || payload.activeVerification);
+                const operation = isVerification
+                    ? payload.activeVerification
+                    : payload.activeBackup;
+                setStatus((current) => current ? { ...current, ...payload } : current);
+                if (!operation) {
+                    setOperationProgress(null);
+                    return;
+                }
+                setOperationProgress({
+                    type: isVerification ? 'verification' : 'backup',
+                    ...operation,
+                });
+            } catch {
+                // The main operation request remains authoritative; a missed
+                // progress poll should not fail the backup or verification.
+            }
+        };
+
+        loadProgress();
+        const intervalId = window.setInterval(loadProgress, 750);
+        return () => {
+            mounted = false;
+            window.clearInterval(intervalId);
+        };
+    }, [creating, statusHasActiveBackup, statusHasActiveVerification, verifying]);
+
     const schedulerEnabled = status?.scheduler?.enabled;
     const schedulerIntervalHours = status?.scheduler?.intervalHours;
     const schedulerRetentionCount = status?.scheduler?.retentionCount;
@@ -181,6 +221,7 @@ export default function DatabaseBackup() {
     const handleCreate = async () => {
         if (creating) return;
         setCreating(true);
+        setOperationProgress({ type: 'backup', progressPercent: 1, phase: 'Starting backup' });
         addToast('Creating a database backup. Please wait while the backup file is being prepared.', 'info');
 
         try {
@@ -188,6 +229,7 @@ export default function DatabaseBackup() {
             const data = await res.json().catch(() => ({}));
 
             if (res.ok) {
+                setOperationProgress((current) => ({ ...current, progressPercent: 100, phase: 'Backup complete' }));
                 const prunedCount = Number(data?.retention?.deletedCount || 0);
                 addToast(
                     prunedCount > 0
@@ -211,6 +253,7 @@ export default function DatabaseBackup() {
             addToast('Network error. The backup could not be created.', 'error');
         } finally {
             setCreating(false);
+            setOperationProgress(null);
         }
     };
 
@@ -244,6 +287,7 @@ export default function DatabaseBackup() {
         if (verifying) return;
 
         setVerifying(filename);
+        setOperationProgress({ type: 'verification', filename, progressPercent: 1, phase: 'Starting restore verification' });
         addToast('Verifying the backup by restoring it to a temporary database.', 'info');
 
         try {
@@ -256,6 +300,7 @@ export default function DatabaseBackup() {
                 return;
             }
 
+            setOperationProgress((current) => ({ ...current, progressPercent: 100, phase: 'Verification complete' }));
             addToast(data.message || 'Backup verified successfully.', 'success');
             await loadData();
         } catch (error) {
@@ -263,6 +308,7 @@ export default function DatabaseBackup() {
             addToast('Network error. Backup verification could not be completed.', 'error');
         } finally {
             setVerifying(null);
+            setOperationProgress(null);
         }
     };
 
@@ -324,6 +370,11 @@ export default function DatabaseBackup() {
     const mongorestore = status?.mongorestore || {};
     const storage = status?.storage || {};
     const activeBackup = status?.activeBackup || null;
+    const activeVerification = status?.activeVerification || null;
+    const visibleOperation = operationProgress
+        || (activeVerification ? { type: 'verification', ...activeVerification } : null)
+        || (activeBackup ? { type: 'backup', ...activeBackup } : null);
+    const visibleProgress = Math.min(100, Math.max(0, Number(visibleOperation?.progressPercent) || 0));
     const schedulerDirty = (
         settingsForm.enabled !== (scheduler.enabled === true)
         || clampWholeNumber(settingsForm.intervalHours, 24, 1, 168) !== clampWholeNumber(scheduler.intervalHours, 24, 1, 168)
@@ -360,7 +411,7 @@ export default function DatabaseBackup() {
                         disabled={createDisabled}
                     >
                         {creating
-                            ? <><FaSyncAlt className={styles.spinning} /> Creating...</>
+                            ? <><FaSyncAlt className={styles.spinning} /> Creating... {visibleProgress}%</>
                             : activeBackup
                                 ? <><FaClock /> Backup in Progress...</>
                                 : <><FaPlus /> Create Backup Now</>
@@ -420,12 +471,30 @@ export default function DatabaseBackup() {
                 </div>
             </div>
 
-            {activeBackup && (
+            {visibleOperation && (
                 <div className={styles.jobBanner}>
                     <FaSyncAlt className={styles.spinning} />
-                    <div>
-                        <strong>{activeBackup.filename}</strong> is currently being created.
-                        Started {formatDate(activeBackup.startedAt)} by {activeBackup.createdByName || getTriggerLabel(activeBackup.triggerType)}.
+                    <div className={styles.progressContent}>
+                        <div className={styles.progressHeading}>
+                            <strong>
+                                {visibleOperation.type === 'verification' ? 'Verify Restore' : 'Create Backup Now'}: {visibleProgress}%
+                            </strong>
+                            <span>{visibleOperation.phase || 'Working...'}</span>
+                        </div>
+                        <div
+                            className={styles.progressTrack}
+                            role="progressbar"
+                            aria-label={visibleOperation.type === 'verification' ? 'Restore verification progress' : 'Backup creation progress'}
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow={visibleProgress}
+                        >
+                            <span className={styles.progressFill} style={{ width: `${visibleProgress}%` }} />
+                        </div>
+                        <span className={styles.progressMeta}>
+                            {visibleOperation.filename || 'Preparing operation'}
+                            {visibleOperation.startedAt ? ` · Started ${formatDate(visibleOperation.startedAt)}` : ''}
+                        </span>
                     </div>
                 </div>
             )}
@@ -717,7 +786,7 @@ export default function DatabaseBackup() {
                                                             disabled={!canVerify || verifying === backup.filename || downloading === backup.filename}
                                                         >
                                                             {verifying === backup.filename
-                                                                ? <><FaSyncAlt className={styles.spinning} /> Verifying...</>
+                                                                ? <><FaSyncAlt className={styles.spinning} /> Verifying... {visibleOperation?.type === 'verification' ? `${visibleProgress}%` : ''}</>
                                                                 : <><FaShieldAlt /> Verify Restore</>
                                                             }
                                                         </button>

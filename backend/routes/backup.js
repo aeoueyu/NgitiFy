@@ -39,6 +39,8 @@ const DEFAULT_BACKUP_SETTINGS = Object.freeze({
 const backupRuntime = {
     isRunning: false,
     activeBackup: null,
+    isVerifying: false,
+    activeVerification: null,
     nextAutomaticBackupAt: null,
     schedulerTimer: null,
     probe: null,
@@ -494,9 +496,21 @@ const buildActiveBackupPayload = (log) => (
             triggerType: log.triggerType,
             createdByName: log.createdByName,
             startedAt: log.startedAt,
+            progressPercent: 10,
+            phase: 'Preparing database export',
         }
         : null
 );
+
+const updateActiveProgress = (operationKey, progressPercent, phase) => {
+    const current = backupRuntime[operationKey];
+    if (!current) return;
+    backupRuntime[operationKey] = {
+        ...current,
+        progressPercent: Math.min(99, Math.max(0, Math.round(Number(progressPercent) || 0))),
+        phase: normalizeText(phase) || current.phase || 'Working',
+    };
+};
 
 const reconcileInterruptedBackups = async () => {
     if (backupRuntime.interruptedRunsReconciled) {
@@ -607,17 +621,21 @@ const createBackupRun = async ({
     backupRuntime.activeBackup = buildActiveBackupPayload(log);
 
     try {
+        updateActiveProgress('activeBackup', 20, 'Exporting database');
         await runMongodumpArchive({
             command: probe.binary,
             mongoUri: process.env.MONGO_URI,
             outputPath,
         });
 
+        updateActiveProgress('activeBackup', 62, 'Calculating archive checksum');
         const [stats, checksumSha256] = await Promise.all([
             fs.promises.stat(outputPath),
             computeFileChecksum(outputPath),
         ]);
+        updateActiveProgress('activeBackup', 78, 'Saving backup archive');
         const storage = await backupStorage.uploadArchive(outputPath, filename);
+        updateActiveProgress('activeBackup', 90, 'Recording backup result');
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
 
@@ -647,6 +665,7 @@ const createBackupRun = async ({
         };
 
         try {
+            updateActiveProgress('activeBackup', 96, 'Applying backup retention policy');
             retention = {
                 ...(await applyRetentionPolicy()),
                 error: '',
@@ -664,6 +683,8 @@ const createBackupRun = async ({
             role: triggerType === 'scheduled' ? 'system' : 'administrator',
             details: `Database backup created: ${filename} (${(stats.size / 1024).toFixed(1)} KB, ${formatDurationLabel(durationMs)}, ${triggerType}).${retention.deletedCount > 0 ? ` Retention pruned ${retention.deletedCount} older backup(s).` : ''}${retention.error ? ` Retention warning: ${retention.error}` : ''}`,
         }).catch(() => {});
+
+        updateActiveProgress('activeBackup', 99, 'Finalizing backup');
 
         return {
             backup: log,
@@ -705,6 +726,12 @@ const createBackupRun = async ({
 const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName = 'Administrator' }) => {
     await reconcileInterruptedBackups();
 
+    if (backupRuntime.isVerifying) {
+        const error = new Error('A backup restore verification is already running.');
+        error.statusCode = 409;
+        throw error;
+    }
+
     const safeFilename = path.basename(filename);
     const backup = await BackupLog.findOne({ filename: safeFilename });
 
@@ -726,24 +753,37 @@ const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName
         throw error;
     }
 
-    const archive = await backupStorage.materializeArchive(backup);
-    const filePath = archive.filePath;
     const startedAt = new Date();
+    let archive = null;
     let restoreProbe = { available: false, version: '' };
     let tempDbName = '';
     let tempMongoUri = '';
 
+    backupRuntime.isVerifying = true;
+    backupRuntime.activeVerification = {
+        filename: safeFilename,
+        startedAt,
+        verifiedByName,
+        progressPercent: 8,
+        phase: 'Preparing backup archive',
+    };
+
     try {
+        archive = await backupStorage.materializeArchive(backup);
+        const filePath = archive.filePath;
+        updateActiveProgress('activeVerification', 18, 'Checking restore tool');
         restoreProbe = await probeMongorestore(true);
         const { databaseName: sourceDbName } = parseMongoUriParts(process.env.MONGO_URI);
         tempDbName = buildRestoreVerificationDbName(sourceDbName);
         tempMongoUri = buildMongoUriForDatabase(process.env.MONGO_URI, tempDbName);
 
+        updateActiveProgress('activeVerification', 30, 'Verifying archive checksum');
         const checksumSha256 = await computeFileChecksum(filePath);
         if (backup.checksumSha256 && checksumSha256 !== backup.checksumSha256) {
             throw new Error('Backup checksum mismatch. The archive may have been changed or corrupted.');
         }
 
+        updateActiveProgress('activeVerification', 48, 'Restoring into temporary database');
         await runMongorestoreArchive({
             command: restoreProbe.binary,
             mongoUri: process.env.MONGO_URI,
@@ -752,6 +792,7 @@ const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName
             targetDbName: tempDbName,
         });
 
+        updateActiveProgress('activeVerification', 78, 'Checking restored collections and documents');
         const { collectionCount, documentCount } = await countDocumentsInDatabase(tempMongoUri);
         if (collectionCount <= 0) {
             throw new Error('Restore verification produced no collections.');
@@ -760,6 +801,7 @@ const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
 
+        updateActiveProgress('activeVerification', 90, 'Recording verification result');
         const updatedBackup = await BackupLog.findByIdAndUpdate(
             backup._id,
             {
@@ -785,6 +827,8 @@ const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName
             role: 'administrator',
             details: `Database backup verified by restore test: ${safeFilename} (${collectionCount} collection(s), ${documentCount} document(s), ${formatDurationLabel(durationMs)}). Temporary database ${tempDbName} was dropped after verification.`,
         }).catch(() => {});
+
+        updateActiveProgress('activeVerification', 96, 'Removing temporary restore database');
 
         return updatedBackup;
     } catch (error) {
@@ -814,7 +858,9 @@ const verifyBackupArchive = async ({ filename, verifiedBy = null, verifiedByName
         throw error;
     } finally {
         if (tempMongoUri) await dropDatabaseIfExists(tempMongoUri).catch(() => {});
-        await archive.cleanup().catch(() => {});
+        if (archive) await archive.cleanup().catch(() => {});
+        backupRuntime.isVerifying = false;
+        backupRuntime.activeVerification = null;
     }
 };
 
@@ -969,6 +1015,7 @@ router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
                 updatedBy: backupRuntime.settings.updatedBy || '',
             },
             activeBackup: backupRuntime.activeBackup,
+            activeVerification: backupRuntime.activeVerification,
             summary: {
                 totalRuns,
                 successfulRuns,
@@ -982,6 +1029,13 @@ router.get('/backup/status', verifyToken, isAdmin, async (req, res) => {
         console.error('Error fetching backup status:', error);
         res.status(500).json({ message: 'Server error loading backup status.' });
     }
+});
+
+router.get('/backup/progress', verifyToken, isAdmin, (req, res) => {
+    res.json({
+        activeBackup: backupRuntime.activeBackup,
+        activeVerification: backupRuntime.activeVerification,
+    });
 });
 
 router.post('/backup/create', verifyToken, isAdmin, async (req, res) => {

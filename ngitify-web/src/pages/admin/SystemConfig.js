@@ -108,6 +108,49 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
     reader.readAsDataURL(file);
 });
 
+const REQUIRED_ERROR = 'Required';
+const buildRequiredConfigErrors = (config = {}) => {
+    const errors = {};
+    const requireText = (key, value) => {
+        if (!String(value || '').trim()) errors[key] = REQUIRED_ERROR;
+    };
+
+    requireText('clinicName', config.clinicName);
+    requireText('clinicContact', config.clinicContact);
+    requireText('clinicEmail', config.clinicEmail);
+    requireText('clinicAddress', config.clinicAddress);
+    requireText('activation', config.emailTemplates?.activation);
+    requireText('appointmentReminder', config.emailTemplates?.appointmentReminder);
+
+    if (config.clinicEmail && !isValidEmailFormat(config.clinicEmail)) {
+        errors.clinicEmail = INVALID_EMAIL_ADDRESS_MESSAGE;
+    }
+    const maxAppointments = Number(config.maxAppointmentsPerDay);
+    if (!Number.isFinite(maxAppointments) || maxAppointments < 1 || maxAppointments > 100) {
+        errors.maxAppointmentsPerDay = REQUIRED_ERROR;
+    }
+    if (!Array.isArray(config.allowedTimeSlots) || config.allowedTimeSlots.length === 0) {
+        errors.allowedTimeSlots = REQUIRED_ERROR;
+    }
+    if (!Array.isArray(config.onlineBookingProcedures)
+        || config.onlineBookingProcedures.length === 0
+        || config.onlineBookingProcedures.some((value) => !String(value || '').trim())) {
+        errors.onlineBookingProcedures = REQUIRED_ERROR;
+    }
+    if (!Array.isArray(config.clinicProcedures)
+        || config.clinicProcedures.length === 0
+        || config.clinicProcedures.some((value) => !String(value || '').trim())) {
+        errors.clinicProcedures = REQUIRED_ERROR;
+    }
+    if (config.featureToggles?.sessionTimeout) {
+        const timeout = Number(config.sessionTimeoutMinutes);
+        if (!Number.isFinite(timeout) || timeout < 5 || timeout > 120) {
+            errors.sessionTimeoutMinutes = REQUIRED_ERROR;
+        }
+    }
+    return errors;
+};
+
 const mergeWebsiteContent = (value = {}) => {
     const fallback = cloneWebsiteContentDefaults();
     return {
@@ -184,6 +227,24 @@ const SystemConfig = () => {
         setConfig(mergeSystemConfigState(loadedConfig));
     }, [loadedConfig]);
 
+    useEffect(() => {
+        if (!hasLoadedInitialConfig) return;
+        const requiredErrors = buildRequiredConfigErrors(config);
+        setConfigErrors((current) => {
+            const next = { ...current };
+            [
+                'clinicName', 'clinicContact', 'clinicEmail', 'clinicAddress',
+                'maxAppointmentsPerDay', 'allowedTimeSlots',
+                'onlineBookingProcedures', 'clinicProcedures',
+                'activation', 'appointmentReminder', 'sessionTimeoutMinutes',
+            ].forEach((key) => {
+                if (requiredErrors[key]) next[key] = requiredErrors[key];
+                else if (!(key === 'clinicEmail' && current[key] === INVALID_EMAIL_DOMAIN_MESSAGE)) delete next[key];
+            });
+            return next;
+        });
+    }, [config, hasLoadedInitialConfig]);
+
     const updateConfig = (updater) => {
         setConfig((prev) => mergeSystemConfigState(typeof updater === 'function' ? updater(prev) : updater));
     };
@@ -191,14 +252,6 @@ const SystemConfig = () => {
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         updateConfig((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-        if (name === 'clinicEmail') {
-            setConfigErrors((prev) => {
-                const next = { ...prev };
-                if (!value) delete next.clinicEmail;
-                else if (!isValidEmailFormat(value)) next.clinicEmail = INVALID_EMAIL_ADDRESS_MESSAGE;
-                return next;
-            });
-        }
     };
 
     useRealtimeSystemEmailValidation({
@@ -427,6 +480,19 @@ const SystemConfig = () => {
     };
 
     const handleSave = async () => {
+        const requiredErrors = buildRequiredConfigErrors(config);
+        if (Object.keys(requiredErrors).length > 0) {
+            setConfigErrors((prev) => ({ ...prev, ...requiredErrors }));
+            const clinicKeys = ['clinicName', 'clinicContact', 'clinicEmail', 'clinicAddress'];
+            const appointmentKeys = ['maxAppointmentsPerDay', 'allowedTimeSlots', 'onlineBookingProcedures', 'clinicProcedures'];
+            const emailKeys = ['activation', 'appointmentReminder'];
+            if (clinicKeys.some((key) => requiredErrors[key])) setActiveSection('clinic');
+            else if (appointmentKeys.some((key) => requiredErrors[key])) setActiveSection('appointments');
+            else if (emailKeys.some((key) => requiredErrors[key])) setActiveSection('emails');
+            else setActiveSection('features');
+            showErrorModal('Complete all required fields before saving.', 'Required fields missing');
+            return;
+        }
         if (config.clinicEmail && !isValidEmailFormat(config.clinicEmail)) {
             setConfigErrors((prev) => ({ ...prev, clinicEmail: INVALID_EMAIL_ADDRESS_MESSAGE }));
             showErrorModal(INVALID_EMAIL_ADDRESS_MESSAGE, 'Invalid clinic email');
@@ -481,6 +547,9 @@ const SystemConfig = () => {
                 showSuccessModal('System configuration saved successfully.', 'Changes saved');
             } else {
                 const data = await res.json().catch(() => ({}));
+                if (data.field) {
+                    setConfigErrors((prev) => ({ ...prev, [data.field]: data.message || REQUIRED_ERROR }));
+                }
                 showErrorModal(data.message || 'Failed to save configuration.', 'Save failed');
             }
         } catch {
@@ -1011,21 +1080,24 @@ const SystemConfig = () => {
                             <p className={styles.sectionDesc}>Basic information about your dental clinic.</p>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Clinic Name</label>
-                                <input type="text" name="clinicName" value={config.clinicName} onChange={handleChange} className={styles.input} />
+                                <label className={styles.label}>Clinic Name <span className={styles.requiredMark}>*</span></label>
+                                <input type="text" name="clinicName" value={config.clinicName} onChange={handleChange} className={`${styles.input} ${configErrors.clinicName ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicName)} required />
+                                {configErrors.clinicName && <span className={styles.errorText}>{configErrors.clinicName}</span>}
                             </div>
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Contact Number</label>
-                                <input type="text" name="clinicContact" value={config.clinicContact} onChange={handleChange} className={styles.input} />
+                                <label className={styles.label}>Contact Number <span className={styles.requiredMark}>*</span></label>
+                                <input type="text" name="clinicContact" value={config.clinicContact} onChange={handleChange} className={`${styles.input} ${configErrors.clinicContact ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicContact)} required />
+                                {configErrors.clinicContact && <span className={styles.errorText}>{configErrors.clinicContact}</span>}
                             </div>
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Email Address</label>
-                                <input type="email" name="clinicEmail" value={config.clinicEmail} onChange={handleChange} className={`${styles.input} ${configErrors.clinicEmail ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicEmail)} />
+                                <label className={styles.label}>Email Address <span className={styles.requiredMark}>*</span></label>
+                                <input type="email" name="clinicEmail" value={config.clinicEmail} onChange={handleChange} className={`${styles.input} ${configErrors.clinicEmail ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicEmail)} required />
                                 {configErrors.clinicEmail && <span className={styles.errorText}>{configErrors.clinicEmail}</span>}
                             </div>
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Address</label>
-                                <textarea name="clinicAddress" value={config.clinicAddress} onChange={handleChange} className={styles.textarea} rows={3} />
+                                <label className={styles.label}>Address <span className={styles.requiredMark}>*</span></label>
+                                <textarea name="clinicAddress" value={config.clinicAddress} onChange={handleChange} className={`${styles.textarea} ${configErrors.clinicAddress ? styles.inputError : ''}`} rows={3} aria-invalid={Boolean(configErrors.clinicAddress)} required />
+                                {configErrors.clinicAddress && <span className={styles.errorText}>{configErrors.clinicAddress}</span>}
                             </div>
                         </div>
                     )}
@@ -1036,22 +1108,25 @@ const SystemConfig = () => {
                             <p className={styles.sectionDesc}>Control scheduling limits and available time slots.</p>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Max Appointments Per Day</label>
+                                <label className={styles.label}>Max Appointments Per Day <span className={styles.requiredMark}>*</span></label>
                                 <input
                                     type="number"
                                     name="maxAppointmentsPerDay"
                                     value={config.maxAppointmentsPerDay}
                                     onChange={handleChange}
-                                    className={styles.inputSmall}
+                                    className={`${styles.inputSmall} ${configErrors.maxAppointmentsPerDay ? styles.inputError : ''}`}
+                                    aria-invalid={Boolean(configErrors.maxAppointmentsPerDay)}
+                                    required
                                     min={1}
                                     max={100}
                                 />
+                                {configErrors.maxAppointmentsPerDay && <span className={styles.errorText}>{configErrors.maxAppointmentsPerDay}</span>}
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Allowed Time Slots</label>
+                                <label className={styles.label}>Allowed Time Slots <span className={styles.requiredMark}>*</span></label>
                                 <p className={styles.helpText}>Check the time slots patients can book appointments.</p>
-                                <div className={styles.slotGrid}>
+                                <div className={`${styles.slotGrid} ${configErrors.allowedTimeSlots ? styles.requiredGroupError : ''}`}>
                                     {DEFAULT_SLOTS.map((slot) => (
                                         <label key={slot} className={`${styles.slotChip} ${config.allowedTimeSlots.includes(slot) ? styles.slotChipActive : ''}`}>
                                             <input
@@ -1064,10 +1139,11 @@ const SystemConfig = () => {
                                         </label>
                                     ))}
                                 </div>
+                                {configErrors.allowedTimeSlots && <span className={styles.errorText}>{configErrors.allowedTimeSlots}</span>}
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Online Booking Procedures</label>
+                                <label className={styles.label}>Online Booking Procedures <span className={styles.requiredMark}>*</span></label>
                                 <p className={styles.helpText}>Only these procedures will appear in the public website, patient web portal, and patient mobile booking flow.</p>
                                 <div className={styles.procedureList}>
                                     {(config.onlineBookingProcedures || []).map((procedure, index) => (
@@ -1076,7 +1152,7 @@ const SystemConfig = () => {
                                                 type="text"
                                                 value={procedure}
                                                 onChange={(e) => handleListInputChange('onlineBookingProcedures', index, e.target.value)}
-                                                className={styles.input}
+                                                className={`${styles.input} ${!String(procedure || '').trim() ? styles.inputError : ''}`}
                                                 placeholder="Enter bookable procedure name"
                                             />
                                             <button
@@ -1090,13 +1166,14 @@ const SystemConfig = () => {
                                         </div>
                                     ))}
                                 </div>
+                                {configErrors.onlineBookingProcedures && <span className={styles.errorText}>{configErrors.onlineBookingProcedures}</span>}
                                 <button type="button" className={styles.addProcedureBtn} onClick={() => handleAddListItem('onlineBookingProcedures')}>
                                     Add Online Booking Procedure
                                 </button>
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Clinic Procedures</label>
+                                <label className={styles.label}>Clinic Procedures <span className={styles.requiredMark}>*</span></label>
                                 <p className={styles.helpText}>These populate the internal service menus for staff booking, walk-in queueing, and treatment-performed records.</p>
                                 <div className={styles.procedureList}>
                                     {(config.clinicProcedures || []).map((procedure, index) => (
@@ -1105,7 +1182,7 @@ const SystemConfig = () => {
                                                 type="text"
                                                 value={procedure}
                                                 onChange={(e) => handleListInputChange('clinicProcedures', index, e.target.value)}
-                                                className={styles.input}
+                                                className={`${styles.input} ${!String(procedure || '').trim() ? styles.inputError : ''}`}
                                                 placeholder="Enter procedure name"
                                             />
                                             <button
@@ -1119,6 +1196,7 @@ const SystemConfig = () => {
                                         </div>
                                     ))}
                                 </div>
+                                {configErrors.clinicProcedures && <span className={styles.errorText}>{configErrors.clinicProcedures}</span>}
                                 <button type="button" className={styles.addProcedureBtn} onClick={() => handleAddListItem('clinicProcedures')}>
                                     Add Procedure
                                 </button>
@@ -1132,27 +1210,33 @@ const SystemConfig = () => {
                             <p className={styles.sectionDesc}>Customize the emails sent to users and patients.</p>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Account Activation Email</label>
+                                <label className={styles.label}>Account Activation Email <span className={styles.requiredMark}>*</span></label>
                                 <p className={styles.helpText}>Sent when a new staff account is created.</p>
                                 <textarea
                                     name="activation"
                                     value={config.emailTemplates?.activation || ''}
                                     onChange={handleTemplateChange}
-                                    className={styles.textarea}
+                                    className={`${styles.textarea} ${configErrors.activation ? styles.inputError : ''}`}
+                                    aria-invalid={Boolean(configErrors.activation)}
+                                    required
                                     rows={5}
                                 />
+                                {configErrors.activation && <span className={styles.errorText}>{configErrors.activation}</span>}
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Appointment Reminder Email</label>
+                                <label className={styles.label}>Appointment Reminder Email <span className={styles.requiredMark}>*</span></label>
                                 <p className={styles.helpText}>Sent to patients before their scheduled appointment.</p>
                                 <textarea
                                     name="appointmentReminder"
                                     value={config.emailTemplates?.appointmentReminder || ''}
                                     onChange={handleTemplateChange}
-                                    className={styles.textarea}
+                                    className={`${styles.textarea} ${configErrors.appointmentReminder ? styles.inputError : ''}`}
+                                    aria-invalid={Boolean(configErrors.appointmentReminder)}
+                                    required
                                     rows={5}
                                 />
+                                {configErrors.appointmentReminder && <span className={styles.errorText}>{configErrors.appointmentReminder}</span>}
                             </div>
                         </div>
                     )}
@@ -1183,16 +1267,19 @@ const SystemConfig = () => {
 
                             {config.featureToggles?.sessionTimeout && (
                                 <div className={styles.formGroup} style={{ marginTop: '20px' }}>
-                                    <label className={styles.label}>Session Timeout Duration (minutes)</label>
+                                    <label className={styles.label}>Session Timeout Duration (minutes) <span className={styles.requiredMark}>*</span></label>
                                     <input
                                         type="number"
                                         name="sessionTimeoutMinutes"
                                         value={config.sessionTimeoutMinutes}
                                         onChange={handleChange}
-                                        className={styles.inputSmall}
+                                        className={`${styles.inputSmall} ${configErrors.sessionTimeoutMinutes ? styles.inputError : ''}`}
+                                        aria-invalid={Boolean(configErrors.sessionTimeoutMinutes)}
+                                        required
                                         min={5}
                                         max={120}
                                     />
+                                    {configErrors.sessionTimeoutMinutes && <span className={styles.errorText}>{configErrors.sessionTimeoutMinutes}</span>}
                                 </div>
                             )}
                         </div>

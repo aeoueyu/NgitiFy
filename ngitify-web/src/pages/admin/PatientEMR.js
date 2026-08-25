@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useEffect } from 'react';
+import React, { Fragment, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from '../../styles/dentist/PatientEMR.module.css';
@@ -404,6 +404,8 @@ export default function PatientEMR({
 
     // Tab: Treatment Logs States
     const [logs, setLogs] = useState([]);
+    const [areLogsLoading, setAreLogsLoading] = useState(false);
+    const [areLogsLoaded, setAreLogsLoaded] = useState(false);
     const [logsSearchQuery, setLogsSearchQuery] = useState('');
     const [logsRangeFilter, setLogsRangeFilter] = useState('all');
     const [logsDateFrom, setLogsDateFrom] = useState('');
@@ -429,10 +431,14 @@ export default function PatientEMR({
     const [newLogFormErrors, setNewLogFormErrors] = useState({});
     const [expandedLogRows, setExpandedLogRows] = useState({});
     const [odontogramLogs, setOdontogramLogs] = useState([]);
+    const [areOdontogramLogsLoading, setAreOdontogramLogsLoading] = useState(false);
+    const [areOdontogramLogsLoaded, setAreOdontogramLogsLoaded] = useState(false);
     const [expandedOdontogramLogRows, setExpandedOdontogramLogRows] = useState({});
 
     // Tab: Radiograph States
     const [radiographs, setRadiographs] = useState([]);
+    const [areRadiographsLoading, setAreRadiographsLoading] = useState(false);
+    const [areRadiographsLoaded, setAreRadiographsLoaded] = useState(false);
     const [selectedRadiograph, setSelectedRadiograph] = useState(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [enhancingEngine, setEnhancingEngine] = useState('');
@@ -445,6 +451,7 @@ export default function PatientEMR({
     const [isDeletingRadiograph, setIsDeletingRadiograph] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+    const [isPreparingPrint, setIsPreparingPrint] = useState(false);
 
     const [branches, setBranches] = useState([]);
     const patientFullName = patient?.name?.first
@@ -458,12 +465,51 @@ export default function PatientEMR({
         ? `DentimeDentalClinicPxRecord_${sanitizeFilenamePart(patient?.name?.last)}${sanitizeFilenamePart(patient?.name?.first)}`
         : `DentimeDentalClinicPxRecord_${sanitizeFilenamePart(patientFullName) || 'PatientRecord'}`;
 
-    const loadOdontogramLogs = async (patientIdToLoad) => {
+    const loadTreatmentLogs = useCallback(async (patientIdToLoad) => {
+        if (!patientIdToLoad) return;
+        setAreLogsLoading(true);
+        try {
+            const { authFetch } = await import('../../utils/api');
+            const response = await authFetch(`/patients/${patientIdToLoad}/treatment-logs`);
+            if (!response.ok) throw new Error((await response.json()).message || 'Failed to load treatment history.');
+            const data = await response.json();
+            setLogs(data.map(normalizeTreatmentLogRecord).sort((a, b) => b.rawDate - a.rawDate));
+            setAreLogsLoaded(true);
+        } catch (error) {
+            console.error('Error fetching treatment history:', error);
+            addToast(error.message || 'Failed to load treatment history.', 'error');
+        } finally {
+            setAreLogsLoading(false);
+            setAreLogsLoaded(true);
+        }
+    }, [addToast]);
+
+    const loadRadiographs = useCallback(async (patientIdToLoad) => {
+        if (!patientIdToLoad) return;
+        setAreRadiographsLoading(true);
+        try {
+            const { authFetch } = await import('../../utils/api');
+            const response = await authFetch(`/patients/${patientIdToLoad}/radiographs`);
+            if (!response.ok) throw new Error((await response.json()).message || 'Failed to load radiographs.');
+            const data = await response.json();
+            setRadiographs(data.map(normalizeRadiographRecord));
+            setAreRadiographsLoaded(true);
+        } catch (error) {
+            console.error('Error fetching radiographs:', error);
+            addToast(error.message || 'Failed to load radiographs.', 'error');
+        } finally {
+            setAreRadiographsLoading(false);
+            setAreRadiographsLoaded(true);
+        }
+    }, [addToast]);
+
+    const loadOdontogramLogs = useCallback(async (patientIdToLoad) => {
         if (!patientIdToLoad) {
             setOdontogramLogs([]);
             return;
         }
 
+        setAreOdontogramLogsLoading(true);
         try {
             const { authFetch } = await import('../../utils/api');
             const response = await authFetch(`/patients/${patientIdToLoad}/odontogram-logs`);
@@ -478,11 +524,15 @@ export default function PatientEMR({
                 rawCreatedAt: new Date(log.createdAt || log.updatedAt || Date.now()),
             }));
             setOdontogramLogs(normalized.sort((a, b) => b.rawCreatedAt - a.rawCreatedAt));
+            setAreOdontogramLogsLoaded(true);
         } catch (error) {
             console.error('Error fetching odontogram history:', error);
             addToast(error.message || 'Failed to load odontogram history.', 'error');
+        } finally {
+            setAreOdontogramLogsLoading(false);
+            setAreOdontogramLogsLoaded(true);
         }
-    };
+    }, [addToast]);
 
     useEffect(() => {
         if (effectiveRole === 'patient' || isReadOnly) {
@@ -505,10 +555,17 @@ export default function PatientEMR({
 
         const fetchPatientData = async () => {
             setIsLoading(true);
+            setPatient(null);
+            setLogs([]);
+            setRadiographs([]);
+            setOdontogramLogs([]);
+            setAreLogsLoaded(false);
+            setAreRadiographsLoaded(false);
+            setAreOdontogramLogsLoaded(false);
             try {
                 const { authFetch } = await import('../../utils/api');
 
-                const patientRes = await authFetch(`/patients/${activePatientId}`);
+                const patientRes = await authFetch(`/patients/${activePatientId}?view=emr-profile`);
                 if (patientRes.ok) {
                     const patientData = await patientRes.json();
                     setPatient(patientData);
@@ -561,31 +618,6 @@ export default function PatientEMR({
                     addToast('Failed to load patient record.', 'error');
                 }
 
-                const logsRes = await authFetch(`/patients/${activePatientId}/treatment-logs`);
-                if (logsRes.ok) {
-                    const logsData = await logsRes.json();
-                    const normalized = logsData.map(normalizeTreatmentLogRecord);
-                    setLogs(normalized.sort((a, b) => b.rawDate - a.rawDate));
-                }
-
-                const radRes = await authFetch(`/patients/${activePatientId}/radiographs`);
-                if (radRes.ok) {
-                    const radData = await radRes.json();
-                    const normalizedRads = radData.map(normalizeRadiographRecord);
-                    setRadiographs(normalizedRads);
-                }
-
-                const odontogramLogsRes = await authFetch(`/patients/${activePatientId}/odontogram-logs`);
-                if (odontogramLogsRes.ok) {
-                    const odontogramLogsData = await odontogramLogsRes.json();
-                    const normalizedOdontogramLogs = odontogramLogsData.map((log) => ({
-                        ...log,
-                        id: log._id || log.id,
-                        rawCreatedAt: new Date(log.createdAt || log.updatedAt || Date.now()),
-                    }));
-                    setOdontogramLogs(normalizedOdontogramLogs.sort((a, b) => b.rawCreatedAt - a.rawCreatedAt));
-                }
-
             } catch (e) {
                 console.error('Error fetching patient data:', e);
                 addToast('Could not connect to the server.', 'error');
@@ -596,6 +628,22 @@ export default function PatientEMR({
 
         fetchPatientData();
     }, [activePatientId, addToast]);
+
+    useEffect(() => {
+        if (!patient || !activePatientId) return;
+        if (activeTab === 'treatmentLogs' && !areLogsLoaded && !areLogsLoading) {
+            loadTreatmentLogs(activePatientId);
+        }
+        if (activeTab === 'radiographs') {
+            if (!areRadiographsLoaded && !areRadiographsLoading) loadRadiographs(activePatientId);
+            if (!areLogsLoaded && !areLogsLoading) loadTreatmentLogs(activePatientId);
+        }
+        if (activeTab === 'odontogram' && !areOdontogramLogsLoaded && !areOdontogramLogsLoading) {
+            loadOdontogramLogs(activePatientId);
+        }
+    }, [activeTab, activePatientId, patient, areLogsLoaded, areLogsLoading, areRadiographsLoaded,
+        areRadiographsLoading, areOdontogramLogsLoaded, areOdontogramLogsLoading,
+        loadTreatmentLogs, loadRadiographs, loadOdontogramLogs]);
 
     const handleBack = () => {
         if (onClose) onClose(); 
@@ -728,9 +776,19 @@ export default function PatientEMR({
         },
     ] : [];
 
-    const handleExportPdf = () => {
+    const handleExportPdf = async () => {
         if (!patient) return;
-        setIsPrintPreviewOpen(true);
+        setIsPreparingPrint(true);
+        try {
+            await Promise.all([
+                areLogsLoaded ? Promise.resolve() : loadTreatmentLogs(activePatientId),
+                areRadiographsLoaded ? Promise.resolve() : loadRadiographs(activePatientId),
+                areOdontogramLogsLoaded ? Promise.resolve() : loadOdontogramLogs(activePatientId),
+            ]);
+            setIsPrintPreviewOpen(true);
+        } finally {
+            setIsPreparingPrint(false);
+        }
     };
 
     const handlePrintPreview = () => {
@@ -2807,8 +2865,8 @@ export default function PatientEMR({
                     </div>
                 </div>
                 <div className={styles.profileHeaderActions}>
-                    <button type="button" className={styles.exportActionBtn} onClick={handleExportPdf}>
-                        <FaFilePdf /> Export PDF
+                    <button type="button" className={styles.exportActionBtn} onClick={handleExportPdf} disabled={isPreparingPrint}>
+                        <FaFilePdf /> {isPreparingPrint ? 'Preparing...' : 'Export PDF'}
                     </button>
                 </div>
             </div>
@@ -2825,9 +2883,9 @@ export default function PatientEMR({
             <div className={styles.tabContentArea}>
                 {activeTab === 'overview'       && renderOverview()}
                 {activeTab === 'medicalHistory' && renderMedicalHistoryAligned()}
-                {activeTab === 'treatmentLogs'  && renderTreatmentLogs()}
-                {activeTab === 'odontogram'     && renderOdontogram()}
-                {activeTab === 'radiographs'    && renderRadiographs()}
+                {activeTab === 'treatmentLogs'  && (areLogsLoading ? <div className={styles.contentCard}>Loading treatment history...</div> : renderTreatmentLogs())}
+                {activeTab === 'odontogram'     && (areOdontogramLogsLoading ? <div className={styles.contentCard}>Loading odontogram...</div> : renderOdontogram())}
+                {activeTab === 'radiographs'    && (areRadiographsLoading ? <div className={styles.contentCard}>Loading radiographs...</div> : renderRadiographs())}
             </div>
         </div>
     );

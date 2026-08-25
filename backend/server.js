@@ -1466,7 +1466,9 @@ const SYSTEM_FEATURE_DISABLED_MESSAGES = {
 };
 const AUTO_CANCELLATION_REASON = 'Auto-cancelled: patient did not check in within 15 minutes of the appointment time.';
 const APPOINTMENT_CHECKIN_GRACE_MINUTES = 15;
-const PREDICTIVE_VISIT_DEFAULT_MONTHS = 6;
+// Keep automatically inferred preventive timing within a useful near-term
+// planning horizon. Explicit dentist-recorded follow-up dates remain authoritative.
+const PREDICTIVE_VISIT_DEFAULT_MONTHS = 3;
 const PREDICTIVE_VISIT_WINDOW_DAYS = 7;
 const PREDICTIVE_VISIT_DUE_SOON_DAYS = 14;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -5966,8 +5968,14 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
+        // EMR renders the profile before its clinical tabs. Avoid materializing and
+        // serializing large embedded histories (especially base64 radiographs) for
+        // that first paint; each tab has a dedicated, access-controlled endpoint.
+        const patientProjection = req.query.view === 'emr-profile'
+            ? `${ACCOUNT_SECRET_PROJECTION} -treatmentLogs -odontogram -odontogramLogs -radiographs -oralHealthLogs`
+            : ACCOUNT_SECRET_PROJECTION;
         const patient = await User.findById(req.params.id)
-            .select(ACCOUNT_SECRET_PROJECTION)
+            .select(patientProjection)
             .populate(LIFECYCLE_ACTOR_POPULATE);
         if (!patient) return res.status(404).json({ message: "Patient not found" });
 
@@ -12783,6 +12791,42 @@ app.put('/api/system-config', verifyToken, async (req, res) => {
     try {
         if (!['administrator', 'owner'].includes(req.user.role)) {
             return res.status(403).json({ message: 'Access denied. Admin only.' });
+        }
+
+        const requiredTextFields = [
+            ['clinicName', req.body?.clinicName],
+            ['clinicContact', req.body?.clinicContact],
+            ['clinicEmail', req.body?.clinicEmail],
+            ['clinicAddress', req.body?.clinicAddress],
+            ['activation', req.body?.emailTemplates?.activation],
+            ['appointmentReminder', req.body?.emailTemplates?.appointmentReminder],
+        ];
+        const missingTextField = requiredTextFields.find(([, value]) => !String(value || '').trim());
+        if (missingTextField) {
+            return res.status(400).json({ field: missingTextField[0], message: 'Required' });
+        }
+        if (!isValidEmailAddress(req.body.clinicEmail)) {
+            return res.status(400).json({ field: 'clinicEmail', message: 'Please enter a valid email address.' });
+        }
+        if (!Array.isArray(req.body.allowedTimeSlots) || req.body.allowedTimeSlots.length === 0) {
+            return res.status(400).json({ field: 'allowedTimeSlots', message: 'Required' });
+        }
+        for (const field of ['onlineBookingProcedures', 'clinicProcedures']) {
+            if (!Array.isArray(req.body[field])
+                || req.body[field].length === 0
+                || req.body[field].some((value) => !String(value || '').trim())) {
+                return res.status(400).json({ field, message: 'Required' });
+            }
+        }
+        const maxAppointments = Number(req.body.maxAppointmentsPerDay);
+        if (!Number.isFinite(maxAppointments) || maxAppointments < 1 || maxAppointments > 100) {
+            return res.status(400).json({ field: 'maxAppointmentsPerDay', message: 'Required' });
+        }
+        if (req.body?.featureToggles?.sessionTimeout) {
+            const timeoutMinutes = Number(req.body.sessionTimeoutMinutes);
+            if (!Number.isFinite(timeoutMinutes) || timeoutMinutes < 5 || timeoutMinutes > 120) {
+                return res.status(400).json({ field: 'sessionTimeoutMinutes', message: 'Required' });
+            }
         }
  
         const payload = normalizeSystemConfigPayload({

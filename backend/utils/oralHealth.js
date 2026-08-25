@@ -420,14 +420,26 @@ const buildExplainableVisitRecommendation = ({ basePrediction = null, oralHealth
         bg: escalation ? '#dceffc' : basePrediction.bg,
         recommendationBasis: escalation ? 'approved-safety-rule' : basePrediction.recommendationBasis,
         recommendationReason: escalation
-            ? `${escalation.explanation} Keep the planned visit window unless the clinic advises otherwise.`
+            ? `${escalation.explanation} Contact the clinic sooner instead of waiting for a routine visit window.`
             : basePrediction.recommendationReason,
         sourceLabels: [...new Set(sourceLabels)],
         explanationItems,
         contactClinicSooner: Boolean(escalation),
         contactClinicReason: escalation?.action || '',
         escalationRuleId: escalation?.ruleId || '',
-        hasVisitWindow: true,
+        // An urgent approved safety rule must not continue presenting a distant
+        // routine window as though it were the recommended action.
+        hasVisitWindow: !escalation,
+        recommendedDate: escalation ? '' : basePrediction.recommendedDate,
+        recommendedDateLabel: escalation ? '' : basePrediction.recommendedDateLabel,
+        recommendedDateKey: escalation ? '' : basePrediction.recommendedDateKey,
+        windowStart: escalation ? '' : basePrediction.windowStart,
+        windowEnd: escalation ? '' : basePrediction.windowEnd,
+        windowStartLabel: escalation ? '' : basePrediction.windowStartLabel,
+        windowEndLabel: escalation ? '' : basePrediction.windowEndLabel,
+        windowStartKey: escalation ? '' : basePrediction.windowStartKey,
+        windowEndKey: escalation ? '' : basePrediction.windowEndKey,
+        windowLabel: escalation ? '' : basePrediction.windowLabel,
         plannedCareSource: basePrediction.isFollowUpRecommendation ? 'Dentist Recommendation' : 'Routine / Default Information',
     };
 };

@@ -189,6 +189,42 @@
     line-height: 1.6;
 }
 
+.progressContent {
+    flex: 1;
+    min-width: 0;
+}
+
+.progressHeading {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.progressTrack {
+    width: 100%;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #dbeafe;
+    box-shadow: inset 0 0 0 1px rgba(1, 83, 139, 0.08);
+}
+
+.progressFill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #01538b, #0ea5e9);
+    transition: width 0.35s ease;
+}
+
+.progressMeta {
+    display: block;
+    margin-top: 7px;
+    color: #526b82;
+    font-size: 12px;
+}
+
 .statsRow {
     display: flex;
     gap: 14px;

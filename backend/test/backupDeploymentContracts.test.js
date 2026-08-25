@@ -35,3 +35,11 @@ test('production install provisions both MongoDB backup executables', () => {
     assert.match(installerSource, /mongorestore/);
     assert.match(installerSource, /mongodb-database-tools-debian12/);
 });
+
+test('backup creation and restore verification expose phase progress', () => {
+    assert.match(backupRouteSource, /router\.get\('\/backup\/progress'/);
+    assert.match(backupRouteSource, /activeBackup/);
+    assert.match(backupRouteSource, /activeVerification/);
+    assert.match(backupRouteSource, /progressPercent/);
+    assert.match(backupRouteSource, /Restoring into temporary database/);
+});

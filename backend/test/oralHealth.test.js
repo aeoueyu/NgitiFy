@@ -143,7 +143,9 @@ test('adds explainable contact-clinic guidance for an approved oral health safet
     assert.ok(prediction.sourceLabels.includes('Approved Safety Rule'));
     assert.ok(prediction.sourceLabels.includes('Dentist Recommendation'));
     assert.match(prediction.recommendationReason, /swelling/i);
-    assert.equal(prediction.windowLabel, 'September 1, 2026 - September 15, 2026');
+    assert.equal(prediction.hasVisitWindow, false);
+    assert.equal(prediction.windowLabel, '');
+    assert.match(prediction.recommendationReason, /instead of waiting/i);
 });
 
 test('does not postpone a dentist recommendation from low-concern patient logs', () => {

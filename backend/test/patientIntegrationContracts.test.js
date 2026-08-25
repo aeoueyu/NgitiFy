@@ -301,7 +301,7 @@ test(
 );
 
 test(
-    'approved escalation can recommend earlier professional contact without replacing the dentist visit window',
+    'approved escalation replaces a distant visit window with earlier professional contact guidance',
     () => {
         const prediction =
             buildExplainableVisitRecommendation({
@@ -376,7 +376,12 @@ test(
 
         assert.equal(
             prediction.windowLabel,
-            'September 1, 2026 - September 15, 2026'
+            ''
+        );
+
+        assert.equal(
+            prediction.hasVisitWindow,
+            false
         );
 
         assert.ok(

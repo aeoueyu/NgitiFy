@@ -1,4 +1,4 @@
-const SIX_MONTHS = 6;
+const ROUTINE_VISIT_MONTHS = 3;
 
 const getPredictionStatus = (nextVisit) => {
     const today = new Date();
@@ -41,7 +41,7 @@ const toValidDatedLogs = (logs = []) =>
 
 /**
  * Calculates the recommended next dental visit based on the last visit date.
- * Standard recommendation: checkup every 6 months.
+ * Default planning interval: checkup within 3 months.
  *
  * @param {string | Date | null} lastVisitDate
  * @returns {{ label: string, days: number, color: string, bg: string, nextDate: string } | null}
@@ -54,7 +54,7 @@ export const getVisitPrediction = (lastVisitDate) => {
     if (Number.isNaN(last.getTime())) return null;
 
     const nextVisit = new Date(last);
-    nextVisit.setMonth(nextVisit.getMonth() + SIX_MONTHS);
+    nextVisit.setMonth(nextVisit.getMonth() + ROUTINE_VISIT_MONTHS);
 
     return getPredictionStatus(nextVisit);
 };
