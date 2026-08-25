@@ -66,4 +66,12 @@ test('API contract enforces patient filtering while registration still owns clin
     const treatmentRoute = serverSource.slice(treatmentRouteStart, treatmentRouteEnd);
     assert.match(treatmentRoute, /buildPatientTreatmentLogPayload/);
     assert.doesNotMatch(treatmentRoute, /buildTreatmentLogPayload\(entry\)/);
+
+    const clinicalProfileStart = serverSource.indexOf("app.get('/api/my/clinical-profile'");
+    const clinicalProfileEnd = serverSource.indexOf("app.get('/api/my/treatment-logs'", clinicalProfileStart);
+    const clinicalProfileRoute = serverSource.slice(clinicalProfileStart, clinicalProfileEnd);
+    assert.match(clinicalProfileRoute, /req\.user\.role !== 'patient'/);
+    assert.match(clinicalProfileRoute, /medicalHistory/);
+    assert.match(clinicalProfileRoute, /dentalHistory/);
+    assert.match(clinicalProfileRoute, /reasonForConsultation/);
 });

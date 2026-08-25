@@ -46,7 +46,7 @@ export default function PatientEMRPage() {
     const [selectedPatientId, setSelectedPatientId] = useState('');
     const [emrMode, setEmrMode] = useState('view');
 
-    const canEditEmr = user?.role !== 'secretary';
+    const canEditEmr = user?.role === 'dentist';
 
     const fetchPatients = useCallback(async () => {
         setLoading(true);

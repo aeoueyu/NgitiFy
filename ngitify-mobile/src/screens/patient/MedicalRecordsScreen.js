@@ -802,7 +802,7 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
 // â”€â”€â”€ Main Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function MedicalRecordsScreen({ navigation, route }) {
-    const { userToken, userId, API_BASE_URL } = useContext(AuthContext);
+    const { userToken, API_BASE_URL } = useContext(AuthContext);
 
     const requestedTab = route?.params?.initialTab;
     const initialTab = TABS.some((tab) => tab.key === requestedTab) ? requestedTab : 'medical';
@@ -862,7 +862,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         setTabLoading('medical', true);
         setTabError('medical', '');
         try {
-            const res = await fetch(`${API_BASE_URL}/api/user/${userId}`, { headers });
+            const res = await fetch(`${API_BASE_URL}/api/my/clinical-profile`, { headers });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
             setProfile(data || null);
@@ -872,7 +872,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         } finally {
             setTabLoading('medical', false);
         }
-    }, [userToken, userId, API_BASE_URL]);
+    }, [userToken, API_BASE_URL]);
 
     const fetchTreatmentHistory = useCallback(async () => {
         setTabLoading('treatment', true);
@@ -900,7 +900,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         radiograph: fetchRadiographs,
     };
 
-    // Fetch on first tab activation (lazy per tab)
+    // Fetch on first tab activation (lazy per tab).
     useEffect(() => {
         if (!fetched[activeTab]) {
             FETCHERS[activeTab]();
@@ -912,21 +912,26 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         );
     }, [activeTab]);
 
+    // Clinical records can be updated by the clinic while this screen remains in
+    // the navigation stack. Refresh the visible tab whenever the screen regains
+    // focus so a newly recorded treatment or radiograph is not hidden by stale
+    // per-tab state.
+    useEffect(() => {
+        const unsubscribe = navigation?.addListener?.('focus', () => {
+            FETCHERS[activeTab]();
+        });
+        return typeof unsubscribe === 'function' ? unsubscribe : undefined;
+    }, [activeTab, navigation, fetchMedicalHistory, fetchTreatmentHistory, fetchOdontogram, fetchRadiographs]);
+
     useEffect(() => {
         if (activeTab !== 'odontogram') return undefined;
 
-        const refreshOdontogram = () => {
-            fetchOdontogram();
-        };
-
-        const unsubscribe = navigation?.addListener?.('focus', refreshOdontogram);
-        const intervalId = setInterval(refreshOdontogram, 30000);
+        const intervalId = setInterval(fetchOdontogram, 30000);
 
         return () => {
-            if (typeof unsubscribe === 'function') unsubscribe();
             clearInterval(intervalId);
         };
-    }, [activeTab, navigation, fetchOdontogram]);
+    }, [activeTab, fetchOdontogram]);
 
     // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     return (

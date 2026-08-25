@@ -375,11 +375,13 @@ export default function PatientEMR({
     const { config: systemConfig } = useSystemConfig();
     const { addToast } = useToast();
     const effectiveRole = roleOverride || user?.role || 'administrator';
-    const isReadOnly = forceReadOnly || effectiveRole === 'secretary';
+    // Every role can review the complete EMR within its normal patient/branch
+    // scope. Clinical management controls belong exclusively to dentists.
+    const isReadOnly = forceReadOnly || effectiveRole !== 'dentist';
     const canEditOdontogram = effectiveRole === 'dentist';
     const radiographUploadsEnabled = systemConfig?.featureToggles?.radiographUploads !== false;
     const canEditMedical = !isReadOnly;
-    const canManageTreatmentLog = ['administrator', 'owner', 'branch-manager', 'dentist'].includes(effectiveRole);
+    const canManageTreatmentLog = effectiveRole === 'dentist';
     const canAddTreatmentLog = effectiveRole === 'dentist';
     const canUploadRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;
     const canDeleteRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;

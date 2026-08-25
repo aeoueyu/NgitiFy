@@ -5963,7 +5963,7 @@ app.post('/api/patients/duplicate-check', verifyToken, async (req, res) => {
 });
 
 app.get('/api/patients/:id', verifyToken, async (req, res) => {
-    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner', 'patient'];
+    const allowedRoles = ['administrator', 'branch-manager', 'secretary', 'dentist', 'owner', 'co-owner', 'patient'];
     if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ message: 'Access denied.' });
     }
@@ -10390,8 +10390,7 @@ app.get('/api/appointments/blocked-dates', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
-    const allowedRoles = ['dentist', 'patient'];
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!canReadPatientClinicalRecord({ actorRole: req.user.role, actorId: req.user.id, patientId: req.params.id })) {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
@@ -11237,6 +11236,37 @@ app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, re
 // Patients can only read their own records.
 // Separate from the staff routes above which block role: 'patient'.
 // -------------------------------------------------------
+
+app.get('/api/my/clinical-profile', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'patient') {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        // Keep this projection explicit. The generic account profile endpoint is
+        // also used by staff directory views and may intentionally omit large or
+        // sensitive clinical fields for those callers.
+        const patient = await User.findById(req.user.id)
+            .select([
+                '_id',
+                'role',
+                'bloodType',
+                'reasonForConsultation',
+                'medicalHistory',
+                'dentalHistory',
+                'physician',
+                'consentAcknowledgement',
+                'dataPrivacyConsent',
+            ].join(' '))
+            .lean();
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        return res.json(patient);
+    } catch (error) {
+        console.error('Error fetching own clinical profile:', error);
+        return res.status(500).json({ message: 'Server error fetching clinical profile.' });
+    }
+});
 
 app.get('/api/my/treatment-logs', verifyToken, async (req, res) => {
     try {

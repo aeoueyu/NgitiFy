@@ -58,9 +58,20 @@ test('mobile Records exposes the four required read-only EMR tabs in order', () 
     assert.ok(tabBlock.indexOf("label: 'Odontogram'") < tabBlock.indexOf("label: 'Radiograph Images'"));
     assert.match(source, /: 'medical';/);
     assert.match(source, /\/api\/my\/treatment-logs/);
+    assert.match(source, /\/api\/my\/clinical-profile/);
     assert.match(source, /logs\.slice\(0, 4\)/);
     assert.match(source, /<FlatList/);
     assert.match(source, /Need to correct something\? Please contact the clinic\./);
+});
+
+test('patient radiograph viewer authenticates protected images and falls back to the original', () => {
+    const fs = require('node:fs');
+    const source = fs.readFileSync(path.join(__dirname, '..', '..', 'ngitify-mobile', 'src', 'screens', 'patient', 'PatientXRayView.js'), 'utf8');
+
+    assert.match(source, /headers: \{ Authorization: `Bearer \$\{userToken\}` \}/);
+    assert.match(source, /radiograph\?\.enhancedUrl/);
+    assert.match(source, /radiograph\?\.url/);
+    assert.match(source, /setImageCandidateIndex\(\(current\) => current \+ 1\)/);
 });
 
 test('patient profile editors do not submit or render protected clinical history', () => {

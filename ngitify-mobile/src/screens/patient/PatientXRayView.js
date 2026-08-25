@@ -16,10 +16,15 @@ export default function PatientXRayView({ navigation, route }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
+    const [imageCandidateIndex, setImageCandidateIndex] = useState(0);
 
     // Radiograph object passed from MedicalRecordsScreen (Radiographs tab)
     const radiograph = route?.params?.radiograph || null;
-    const displayRadiographUrl = radiograph?.enhancedUrl || radiograph?.url || '';
+    const imageCandidates = [...new Set([
+        radiograph?.enhancedUrl,
+        radiograph?.url,
+    ].filter(Boolean))];
+    const displayRadiographUrl = imageCandidates[imageCandidateIndex] || '';
 
     const dateStr = radiograph?.date
         ? new Date(radiograph.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -31,6 +36,22 @@ export default function PatientXRayView({ navigation, route }) {
 
     // Destructure userToken and API_BASE_URL from AuthContext if not already there:
     const { userToken, API_BASE_URL } = useContext(AuthContext);
+
+    useEffect(() => {
+        setImageCandidateIndex(0);
+        setImageError(false);
+        setImageLoading(Boolean(imageCandidates.length));
+    }, [radiograph?._id]);
+
+    const handleImageError = () => {
+        if (imageCandidateIndex < imageCandidates.length - 1) {
+            setImageCandidateIndex((current) => current + 1);
+            setImageLoading(true);
+            return;
+        }
+        setImageLoading(false);
+        setImageError(true);
+    };
 
     useEffect(() => {
         const label = route?.params?.radiograph?.label || 'Radiograph';
@@ -81,11 +102,20 @@ export default function PatientXRayView({ navigation, route }) {
                             )}
                             {!imageError ? (
                                 <Image
-                                    source={{ uri: displayRadiographUrl }}
+                                    source={{
+                                        uri: displayRadiographUrl,
+                                        // Base64/data URLs ignore headers. Protected API and
+                                        // object-storage proxy URLs require the same bearer
+                                        // token as the radiograph metadata request.
+                                        ...(displayRadiographUrl.startsWith('data:')
+                                            ? {}
+                                            : { headers: { Authorization: `Bearer ${userToken}` } }),
+                                    }}
+                                    key={displayRadiographUrl}
                                     style={[styles.xrayImage, imageLoading && { opacity: 0 }]}
                                     resizeMode="contain"
                                     onLoad={() => setImageLoading(false)}
-                                    onError={() => { setImageLoading(false); setImageError(true); }}
+                                    onError={handleImageError}
                                 />
                             ) : (
                                 <View style={styles.imageError}>

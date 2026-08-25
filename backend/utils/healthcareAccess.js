@@ -83,22 +83,22 @@ const isSameId = (left, right) => (
     Boolean(left && right) && String(left) === String(right)
 );
 
-const canReadPatientClinicalRecord = ({ actorRole, actorId, patientId }) => (
-    actorRole === 'dentist'
-    || (actorRole === 'patient' && isSameId(actorId, patientId))
-);
-
-const DENTAL_IMAGING_READ_ROLES = Object.freeze([
+const PATIENT_CLINICAL_READ_ROLES = Object.freeze([
     'administrator',
     'owner',
+    'co-owner',
     'branch-manager',
     'secretary',
     'dentist',
 ]);
 
-const canReadPatientDentalImaging = ({ actorRole, actorId, patientId }) => (
-    DENTAL_IMAGING_READ_ROLES.includes(String(actorRole || '').trim().toLowerCase())
+const canReadPatientClinicalRecord = ({ actorRole, actorId, patientId }) => (
+    PATIENT_CLINICAL_READ_ROLES.includes(String(actorRole || '').trim().toLowerCase())
     || (actorRole === 'patient' && isSameId(actorId, patientId))
+);
+
+const canReadPatientDentalImaging = ({ actorRole, actorId, patientId }) => (
+    canReadPatientClinicalRecord({ actorRole, actorId, patientId })
 );
 
 const canWritePatientClinicalRecord = (actorRole) => actorRole === 'dentist';
@@ -176,6 +176,7 @@ const canPatientCancelAppointment = (appointment = {}) => (
 module.exports = {
     ACCOUNT_SECRET_FIELDS,
     ACCOUNT_SECRET_PROJECTION,
+    PATIENT_CLINICAL_READ_ROLES,
     RESTRICTED_CLINICAL_FIELDS,
     canPatientCancelAppointment,
     canPatientRescheduleAppointment,

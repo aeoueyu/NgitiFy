@@ -18,17 +18,23 @@ const User = require('../models/User');
 
 const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 
-test('patient clinical access is self-only and clinical writes are dentist-only', () => {
+test('all staff roles can read clinical records, patients remain self-only, and writes are dentist-only', () => {
     assert.equal(canReadPatientClinicalRecord({ actorRole: 'patient', actorId: 'p1', patientId: 'p1' }), true);
     assert.equal(canReadPatientClinicalRecord({ actorRole: 'patient', actorId: 'p1', patientId: 'p2' }), false);
-    assert.equal(canReadPatientClinicalRecord({ actorRole: 'secretary', actorId: 's1', patientId: 'p1' }), false);
-    assert.equal(canReadPatientClinicalRecord({ actorRole: 'owner', actorId: 'o1', patientId: 'p1' }), false);
+    for (const actorRole of ['administrator', 'owner', 'co-owner', 'branch-manager', 'secretary', 'dentist']) {
+        assert.equal(canReadPatientClinicalRecord({ actorRole, actorId: `${actorRole}-1`, patientId: 'p1' }), true);
+    }
+    assert.equal(canReadPatientClinicalRecord({ actorRole: 'unknown', actorId: 'u1', patientId: 'p1' }), false);
     assert.equal(canWritePatientClinicalRecord('dentist'), true);
     assert.equal(canWritePatientClinicalRecord('administrator'), false);
+    assert.equal(canWritePatientClinicalRecord('owner'), false);
+    assert.equal(canWritePatientClinicalRecord('branch-manager'), false);
+    assert.equal(canWritePatientClinicalRecord('secretary'), false);
+    assert.equal(canWritePatientClinicalRecord('patient'), false);
 });
 
 test('all staff roles can view odontograms and radiographs while patients remain self-only', () => {
-    for (const actorRole of ['administrator', 'owner', 'branch-manager', 'secretary', 'dentist']) {
+    for (const actorRole of ['administrator', 'owner', 'co-owner', 'branch-manager', 'secretary', 'dentist']) {
         assert.equal(
             canReadPatientDentalImaging({ actorRole, actorId: `${actorRole}-1`, patientId: 'patient-1' }),
             true
@@ -39,7 +45,13 @@ test('all staff roles can view odontograms and radiographs while patients remain
     assert.equal(canReadPatientDentalImaging({ actorRole: 'unknown', actorId: 'u1', patientId: 'patient-1' }), false);
 });
 
-test('odontogram and radiograph read routes use the staff imaging permission', () => {
+test('treatment, odontogram, and radiograph read routes use shared staff read permissions', () => {
+    const treatmentRouteStart = serverSource.indexOf("app.get('/api/patients/:id/treatment-logs'");
+    const treatmentRouteEnd = serverSource.indexOf('\napp.', treatmentRouteStart + 1);
+    const treatmentRoute = serverSource.slice(treatmentRouteStart, treatmentRouteEnd);
+    assert.notEqual(treatmentRouteStart, -1);
+    assert.match(treatmentRoute, /canReadPatientClinicalRecord/);
+
     for (const routeMarker of [
         "app.get('/api/patients/:id/odontogram'",
         "app.get('/api/patients/:id/odontogram-logs'",
@@ -58,11 +70,13 @@ test('odontogram and radiograph read routes use the staff imaging permission', (
         'utf8'
     );
     assert.match(patientEmr, /const canEditOdontogram = effectiveRole === 'dentist'/);
+    assert.match(patientEmr, /const isReadOnly = forceReadOnly \|\| effectiveRole !== 'dentist'/);
+    assert.match(patientEmr, /const canManageTreatmentLog = effectiveRole === 'dentist'/);
     assert.match(patientEmr, /const canUploadRadiograph = effectiveRole === 'dentist'/);
     assert.match(patientEmr, /const canDeleteRadiograph = effectiveRole === 'dentist'/);
 });
 
-test('operational viewers receive no clinical fields or account recovery secrets', () => {
+test('authorized staff viewers receive clinical fields but no account recovery secrets', () => {
     const sanitized = sanitizeUserForActor({
         _id: 'p1', role: 'patient', email: 'patient@example.test',
         password: 'hash', resetPasswordOtp: '123456', activationToken: 'secret',
@@ -73,9 +87,13 @@ test('operational viewers receive no clinical fields or account recovery secrets
         odontogram: { 11: { status: 'filled' } }, radiographs: [{ analysis: { confidence: 0.9 } }],
     }, { id: 's1', role: 'secretary' });
     assert.equal(sanitized.email, 'patient@example.test');
-    for (const field of ['password', 'resetPasswordOtp', 'resetPasswordExpires', 'activationToken', 'activationTokenExpires', 'temporaryPasswordExpires', 'lastEmailChangeRequestedAt', 'isPasswordChanged', '__v', 'medicalHistory', 'treatmentLogs', 'odontogram', 'radiographs']) {
+    for (const field of ['password', 'resetPasswordOtp', 'resetPasswordExpires', 'activationToken', 'activationTokenExpires', 'temporaryPasswordExpires', 'lastEmailChangeRequestedAt', 'isPasswordChanged', '__v']) {
         assert.equal(sanitized[field], undefined);
     }
+    assert.deepEqual(sanitized.medicalHistory, { notes: 'private' });
+    assert.deepEqual(sanitized.treatmentLogs, [{ notes: 'private' }]);
+    assert.deepEqual(sanitized.odontogram, { 11: { status: 'filled' } });
+    assert.deepEqual(sanitized.radiographs, [{ analysis: { confidence: 0.9 } }]);
 });
 
 test('User JSON serialization strips account secrets as a final response safeguard', () => {
@@ -93,13 +111,12 @@ test('User JSON serialization strips account secrets as a final response safegua
     }
 });
 
-test('patient cross-access is denied across the complete operational role matrix', () => {
-    for (const actorRole of ['administrator', 'owner', 'branch-manager', 'secretary']) {
-        assert.equal(canReadPatientClinicalRecord({ actorRole, actorId: `${actorRole}-1`, patientId: 'patient-1' }), false);
+test('staff clinical read access covers the complete operational role matrix', () => {
+    for (const actorRole of ['administrator', 'owner', 'co-owner', 'branch-manager', 'secretary', 'dentist']) {
+        assert.equal(canReadPatientClinicalRecord({ actorRole, actorId: `${actorRole}-1`, patientId: 'patient-1' }), true);
     }
     assert.equal(canReadPatientClinicalRecord({ actorRole: 'patient', actorId: 'patient-1', patientId: 'patient-2' }), false);
     assert.equal(canReadPatientClinicalRecord({ actorRole: 'patient', actorId: 'patient-1', patientId: 'patient-1' }), true);
-    assert.equal(canReadPatientClinicalRecord({ actorRole: 'dentist', actorId: 'dentist-1', patientId: 'patient-1' }), true);
 });
 
 test('generic staff account field allowlists reject clinical and security fields for every target role', () => {
