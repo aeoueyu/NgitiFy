@@ -167,4 +167,11 @@ appointmentSchema.set('toJSON', {
     },
 });
 
+// Schedule queries are scoped by one of branch, dentist, or patient and then
+// constrained/sorted by date.
+appointmentSchema.index({ isArchived: 1, date: -1 });
+appointmentSchema.index({ branch: 1, isArchived: 1, date: -1 });
+appointmentSchema.index({ dentist: 1, isArchived: 1, date: -1 });
+appointmentSchema.index({ patient: 1, isArchived: 1, date: -1 });
+
 module.exports = mongoose.models.Appointment || mongoose.model('Appointment', appointmentSchema);

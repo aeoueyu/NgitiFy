@@ -14,4 +14,7 @@ const queueSchema = new mongoose.Schema({
     completedAt:    { type: Date, default: null }
 }, { timestamps: true });
 
+queueSchema.index({ branch: 1, createdAt: 1, ticketNumber: 1 });
+queueSchema.index({ patientId: 1, linkedAppointment: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Queue', queueSchema);

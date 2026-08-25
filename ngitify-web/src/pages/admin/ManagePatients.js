@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/ManagePatients.module.css';
 import tblStyles from '../../styles/wideTable.module.css';
@@ -9,8 +9,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { authFetch } from '../../utils/api';
 import { downloadCsvFile } from '../../utils/exportHelpers';
 
-import AddPatient from './AddPatient';
-import EditPatient from './EditPatient';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import ResendEmailButton from '../../components/common/ResendEmailButton';
 import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
@@ -23,6 +21,9 @@ import {
     matchesAccountLifecycleFilter as matchesPatientLifecycleFilter,
     shouldShowAccessRecovery,
 } from '../../utils/accountStatus';
+
+const AddPatient = lazy(() => import('./AddPatient'));
+const EditPatient = lazy(() => import('./EditPatient'));
 
 const hasPendingPreRegistration = (patient = {}) => Boolean(patient.pendingPreRegistration?.appointmentId);
 
@@ -92,10 +93,10 @@ export default function ManagePatients() {
         }
     }, []);
 
-    const fetchPatients = useCallback(async () => {
+    const fetchPatients = useCallback(async ({ silent = false } = {}) => {
         try {
-            setIsLoading(true);
-            const response = await authFetch('/patients?includeArchived=true');
+            if (!silent) setIsLoading(true);
+            const response = await authFetch('/patients?includeArchived=true&limit=500&view=management');
 
             if (response.ok) {
                 const data = await response.json();
@@ -119,7 +120,6 @@ export default function ManagePatients() {
                         isVerified: patient.isVerified,
                         isPasswordChanged: patient.isPasswordChanged === true,
                         temporaryPasswordExpires: patient.temporaryPasswordExpires || null,
-                        profileImage: patient.profileImage,
                         assignedBranch: patient.assignedBranch || patient.assignedBranches?.[0] || '',
                         pendingPreRegistration: patient.pendingPreRegistration || null,
                     };
@@ -130,7 +130,7 @@ export default function ManagePatients() {
         } catch (error) {
             console.error('Failed to fetch patients:', error);
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     }, []);
 
@@ -145,7 +145,7 @@ export default function ManagePatients() {
         if (!canReadPatients) return undefined;
 
         const refreshData = () => {
-            fetchPatients();
+            fetchPatients({ silent: true });
             fetchBranches();
         };
 
@@ -791,8 +791,10 @@ export default function ManagePatients() {
                 </div>
             )}
 
-            {isAddModalOpen && <AddPatient onClose={() => setIsAddModalOpen(false)} onSuccess={fetchPatients} />}
-            {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}
+            <Suspense fallback={null}>
+                {isAddModalOpen && <AddPatient onClose={() => setIsAddModalOpen(false)} onSuccess={fetchPatients} />}
+                {isEditModalOpen && selectedPatientId && <EditPatient patientId={selectedPatientId} onClose={handleCloseEditModal} onSuccess={fetchPatients} />}
+            </Suspense>
 
             {branchTransferState.patient && (
                 <div className={modalStyles.modalOverlay} onClick={closeBranchTransferModal}>

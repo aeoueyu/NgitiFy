@@ -562,4 +562,11 @@ userSchema.set('toJSON', {
     },
 });
 
+// Directory and management screens filter by role/branch/archive state and
+// consistently show newest accounts first. These indexes keep those list
+// queries from degrading into full collection scans as patient records grow.
+userSchema.index({ role: 1, isArchived: 1, createdAt: -1 });
+userSchema.index({ role: 1, assignedBranch: 1, isArchived: 1, createdAt: -1 });
+userSchema.index({ role: 1, assignedBranches: 1, isArchived: 1, createdAt: -1 });
+
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);

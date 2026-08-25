@@ -5862,9 +5862,10 @@ app.get('/api/patients', verifyToken, async (req, res) => {
         return res.status(403).json({ message: 'Access denied.' });
     }
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 50));
         const skip = (page - 1) * limit;
+        const listView = String(req.query.view || '').trim().toLowerCase();
         const includeArchived = parseBooleanQueryFlag(req.query.includeArchived);
         const archivedOnly = parseBooleanQueryFlag(req.query.archivedOnly);
         let baseFilter = applyArchiveVisibilityFilter({ role: 'patient' }, { includeArchived, archivedOnly });
@@ -5893,11 +5894,23 @@ app.get('/api/patients', verifyToken, async (req, res) => {
             ];
         }
 
-        const patients = await User.find(baseFilter)
-            .select(ACCOUNT_SECRET_PROJECTION)
+        const patientListProjection = listView === 'directory'
+            ? '_id name email contactNumber assignedBranch assignedBranches status isArchived'
+            : listView === 'management'
+                ? '_id name email status isArchived isVerified assignedBranch assignedBranches createdAt'
+                : ACCOUNT_SECRET_PROJECTION;
+
+        let patientQuery = User.find(baseFilter)
+            .select(patientListProjection)
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
+
+        if (listView === 'directory' || listView === 'management') {
+            patientQuery = patientQuery.lean();
+        }
+
+        const patients = await patientQuery;
 
         const total = await User.countDocuments(baseFilter);
 
@@ -8600,7 +8613,7 @@ app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) =
         }
 
         const surgeries = await Surgery.find(query)
-            .populate('patient', 'name email contactNumber profileImage')
+            .populate('patient', 'name email contactNumber')
             .populate('dentist', 'name email role')
             .sort({ date: -1 });
 

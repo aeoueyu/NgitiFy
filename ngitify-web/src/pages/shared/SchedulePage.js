@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     FaEdit,
@@ -23,11 +23,12 @@ import {
     isValidEmailFormat,
 } from '../../utils/patientIntake';
 import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
-import PatientEMR from '../admin/PatientEMR';
-import RegisterGuestPatient from '../admin/RegisterGuestPatient';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/shared/SchedulePage.module.css';
+
+const PatientEMR = lazy(() => import('../admin/PatientEMR'));
+const RegisterGuestPatient = lazy(() => import('../admin/RegisterGuestPatient'));
 
 const TREATMENT_CATEGORY_OPTIONS = [
     'General',
@@ -505,7 +506,7 @@ export default function SchedulePage() {
     const [dentists, setDentists] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [dateFilter, setDateFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState('today');
     const [customDateFrom, setCustomDateFrom] = useState(getTodayString());
     const [customDateTo, setCustomDateTo] = useState(getTodayString());
     const [searchQuery, setSearchQuery] = useState('');
@@ -623,7 +624,7 @@ export default function SchedulePage() {
                 authFetch(appointmentParams.toString()
                     ? `/appointments?${appointmentParams.toString()}`
                     : '/appointments'),
-                authFetch('/patients?limit=200'),
+                authFetch('/patients?limit=200&view=directory'),
                 authFetch('/assignable-dentists'),
             ];
 
@@ -2321,11 +2322,13 @@ export default function SchedulePage() {
                                     </button>
                                 </div>
                             ) : viewEntry.patientId ? (
-                                <PatientEMR
-                                    patientId={viewEntry.patientId}
-                                    embedded
-                                    roleOverride={role || 'administrator'}
-                                />
+                                <Suspense fallback={<div className={styles.emptyStateBox}>Loading patient record...</div>}>
+                                    <PatientEMR
+                                        patientId={viewEntry.patientId}
+                                        embedded
+                                        roleOverride={role || 'administrator'}
+                                    />
+                                </Suspense>
                             ) : (
                                 <div className={styles.emptyStateBox}>
                                     Link this walk-in to a patient account to open the full EMR here.
@@ -2735,15 +2738,17 @@ export default function SchedulePage() {
                 </div>
             )}
             {guestRegistrationTarget && (
-                <RegisterGuestPatient
-                    appointment={guestRegistrationTarget}
-                    onClose={() => setGuestRegistrationTarget(null)}
-                    onSuccess={async () => {
-                        setGuestRegistrationTarget(null);
-                        setViewEntry(null);
-                        await fetchPageData({ silent: true });
-                    }}
-                />
+                <Suspense fallback={null}>
+                    <RegisterGuestPatient
+                        appointment={guestRegistrationTarget}
+                        onClose={() => setGuestRegistrationTarget(null)}
+                        onSuccess={async () => {
+                            setGuestRegistrationTarget(null);
+                            setViewEntry(null);
+                            await fetchPageData({ silent: true });
+                        }}
+                    />
+                </Suspense>
             )}
             <ConfirmModal
                 isOpen={!!editingEntry && isConfirmingSave}
