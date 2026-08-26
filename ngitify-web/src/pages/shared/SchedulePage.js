@@ -1702,6 +1702,15 @@ export default function SchedulePage() {
         }
     };
 
+    const requestQuickStatusUpdate = (entry, status) => {
+        if (['confirmed', 'in-clinic'].includes(status) && !entry?.dentistId) {
+            addToast('Assign a dentist before confirming or checking in this appointment.', 'info');
+            openEditModal(entry, 'reassign');
+            return;
+        }
+        setPendingStatusTarget({ entry, status });
+    };
+
     const handleConfirmGuestAppointment = async (entry) => {
         if (!entry?.id) return;
         setIsSubmitting(true);
@@ -2625,7 +2634,7 @@ export default function SchedulePage() {
                                                     <button
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
-                                                        onClick={() => setPendingStatusTarget({ entry, status: 'confirmed' })}
+                                                        onClick={() => requestQuickStatusUpdate(entry, 'confirmed')}
                                                         title="Confirm Appointment"
                                                         aria-label="Confirm Appointment"
                                                     >
@@ -2647,7 +2656,7 @@ export default function SchedulePage() {
                                                     <button
                                                         type="button"
                                                         className={`${styles.actionIconButton} ${wideTable.iconAction} ${styles.completeIconButton}`}
-                                                        onClick={() => setPendingStatusTarget({ entry, status: 'in-clinic' })}
+                                                        onClick={() => requestQuickStatusUpdate(entry, 'in-clinic')}
                                                         title="Mark as In Clinic"
                                                         aria-label="Mark as In Clinic"
                                                     >

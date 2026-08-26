@@ -3295,6 +3295,50 @@ const getDentistDisplayName = (dentist) => {
     return fullName ? `Dr. ${fullName}` : 'To be assigned by the clinic';
 };
 
+const getDentistAssignmentName = (dentist) => {
+    if (!dentist?.name) return '';
+    return [dentist.name.first, dentist.name.middle, dentist.name.last]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(' ');
+};
+
+const dentistBelongsToBranch = (dentist, branch) => {
+    const normalizedBranch = String(branch || '').trim();
+    if (!normalizedBranch) return false;
+    const dentistBranches = Array.isArray(dentist?.assignedBranches) && dentist.assignedBranches.length > 0
+        ? dentist.assignedBranches
+        : (dentist?.assignedBranch ? [dentist.assignedBranch] : []);
+    return dentistBranches.some((entry) => String(entry || '').trim() === normalizedBranch);
+};
+
+const resolveAssignableDentist = async (dentistId, branch) => {
+    if (!dentistId || !mongoose.Types.ObjectId.isValid(String(dentistId))) return null;
+    const dentist = await User.findOne({
+        _id: dentistId,
+        status: 'active',
+        isArchived: { $ne: true },
+        $or: [
+            { role: 'dentist' },
+            { role: 'owner', isDentist: true },
+        ],
+    }).select('_id name email role isDentist status isArchived assignedBranch assignedBranches');
+    return dentist && dentistBelongsToBranch(dentist, branch) ? dentist : null;
+};
+
+const syncPatientAssignedDentist = async ({ patientId, dentist }) => {
+    if (!patientId || !dentist?._id) return;
+    await User.updateOne(
+        { _id: patientId, role: 'patient' },
+        {
+            $set: {
+                assignedDentistId: dentist._id,
+                assignedDentistName: getDentistAssignmentName(dentist),
+            },
+        }
+    );
+};
+
 const getPatientDisplayName = (appointment) => {
     if (appointment?.patient?.name) {
         return `${appointment.patient.name.first || ''} ${appointment.patient.name.last || ''}`.trim() || 'Patient';
@@ -8355,6 +8399,18 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         delete updateData.patient;
         delete updateData.source;
         delete updateData.branch;
+        let nextAssignedDentist = null;
+        if (updateData.dentist !== undefined) {
+            nextAssignedDentist = await resolveAssignableDentist(updateData.dentist, existing.branch);
+            if (!nextAssignedDentist) {
+                return res.status(400).json({
+                    field: 'dentist',
+                    code: 'INVALID_DENTIST_ASSIGNMENT',
+                    message: 'Select an active dentist assigned to this appointment branch.',
+                });
+            }
+            updateData.dentist = nextAssignedDentist._id;
+        }
         const currentDateKey = getManilaDayKey(existing.date);
         const requestedDateKey = updateData.date ? String(updateData.date).trim() : currentDateKey;
         const nextDate = updateData.date ? parseScheduleDateKey(requestedDateKey, '12:00') : existing.date;
@@ -8470,6 +8526,32 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         const timeChanged = updateData.time !== undefined && (existing.time || '') !== (nextTime || '');
         const scheduleChanged = dateChanged || timeChanged;
         const statusChanged = updateData.status !== undefined && (existing.status || '') !== (updatedSurgery.status || '');
+
+        if (dentistChanged && updatedSurgery.patient?._id && (nextAssignedDentist || updatedSurgery.dentist?._id)) {
+            await syncPatientAssignedDentist({
+                patientId: updatedSurgery.patient._id,
+                dentist: nextAssignedDentist || updatedSurgery.dentist,
+            });
+            await runPostSaveSideEffect('notifyPatient:dentistReassigned', () => createPatientNotification({
+                type: 'APPOINTMENT_CONFIRMED',
+                title: 'Dentist Assigned',
+                message: `Your appointment for ${updatedSurgery.procedure} is assigned to ${getDentistDisplayName(nextAssignedDentist || updatedSurgery.dentist)}.`,
+                patientId: updatedSurgery.patient._id,
+                relatedId: updatedSurgery._id,
+            }));
+
+            if (updatedSurgery.status === 'confirmed' && updatedSurgery.patient?.email) {
+                await runPostSaveSideEffect('email:dentistReassigned', () => sendAppointmentConfirmedEmail({
+                    email: updatedSurgery.patient.email,
+                    name: getPatientDisplayName(updatedSurgery),
+                    branch: updatedSurgery.branch,
+                    date: updatedSurgery.date,
+                    time: updatedSurgery.time,
+                    procedure: updatedSurgery.procedure,
+                    dentistName: getDentistDisplayName(nextAssignedDentist || updatedSurgery.dentist),
+                }));
+            }
+        }
 
         if (scheduleChanged) {
             updatedSurgery.statusReminderSentAt = null;
@@ -8759,6 +8841,14 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             return res.status(403).json({ message: 'Access denied. This appointment is not assigned to this dentist.' });
         }
 
+        if (['confirmed', 'in-clinic'].includes(status) && !currentSurgery.dentist && !dentistId) {
+            return res.status(400).json({
+                field: 'dentist',
+                code: 'DENTIST_ASSIGNMENT_REQUIRED',
+                message: 'Assign a dentist before confirming or checking in this appointment.',
+            });
+        }
+
         if (TERMINAL_STATUSES.includes(currentSurgery.status)) {
             return res.status(400).json({ message: 'Cannot change status of a completed or cancelled appointment.' });
         }
@@ -8783,7 +8873,18 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         if (preOpInstructions !== undefined) updateFields.preOpInstructions = preOpInstructions;
         if (date) updateFields.date = nextDate;
         if (time !== undefined) updateFields.time = nextTime;
-        if (dentistId !== undefined && req.user.role !== 'dentist') updateFields.dentist = dentistId || null;
+        let nextAssignedDentist = null;
+        if (dentistId !== undefined && req.user.role !== 'dentist') {
+            nextAssignedDentist = await resolveAssignableDentist(dentistId, currentSurgery.branch);
+            if (!nextAssignedDentist) {
+                return res.status(400).json({
+                    field: 'dentist',
+                    code: 'INVALID_DENTIST_ASSIGNMENT',
+                    message: 'Select an active dentist assigned to this appointment branch.',
+                });
+            }
+            updateFields.dentist = nextAssignedDentist._id;
+        }
         if (status === 'in-clinic') {
             const currentStamp = getCurrentScheduleStamp();
             updateFields.date = currentStamp.date;
@@ -8883,6 +8984,12 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
         const wasConfirmedNow = currentSurgery.status !== 'confirmed' && status === 'confirmed';
         const dentistChanged = String(currentSurgery.dentist || '') !== String(updatedSurgery.dentist?._id || '');
         const statusChanged = String(currentSurgery.status || '') !== String(updatedSurgery.status || '');
+        if (dentistChanged && updatedSurgery.patient?._id && (nextAssignedDentist || updatedSurgery.dentist?._id)) {
+            await syncPatientAssignedDentist({
+                patientId: updatedSurgery.patient._id,
+                dentist: nextAssignedDentist || updatedSurgery.dentist,
+            });
+        }
         if (wasConfirmedNow) {
             const patientName = getPatientDisplayName(updatedSurgery);
             const patientEmail = updatedSurgery.patient?.email || updatedSurgery.guestEmail || '';
@@ -10199,7 +10306,7 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Date, time, and procedure are required.' });
         }
 
-        const patientUser = await User.findById(req.user.id).select('name email role assignedBranch assignedBranches');
+        const patientUser = await User.findById(req.user.id).select('name email role assignedBranch assignedBranches assignedDentistId');
         if (!patientUser || patientUser.role !== 'patient') {
             return res.status(403).json({ message: 'Only patients can submit appointment requests.' });
         }
@@ -10239,9 +10346,10 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
             return res.status(slotCheck.statusCode).json({ message: slotCheck.message });
         }
 
+        const defaultDentist = await resolveAssignableDentist(patientUser.assignedDentistId, resolvedBranch);
         const newSurgery = new Surgery({
             patient: req.user.id,
-            dentist: req.body.dentistId || null,
+            dentist: defaultDentist?._id || null,
             branch: resolvedBranch,
             date: slotCheck.parsedDate,
             time: slotCheck.normalizedTime,
@@ -10276,6 +10384,20 @@ app.post('/api/appointments/request', verifyToken, async (req, res) => {
                 branch: resolvedBranch,
             })],
         ];
+
+        if (defaultDentist?._id) {
+            postResponseTasks.push([
+                'notifyDentist:patientAppointmentRequest',
+                () => Notification.create({
+                    type: 'NEW_APPOINTMENT',
+                    title: 'New Appointment Request',
+                    message: `${patientName} requested ${procedure} on ${formatEmailDateLabel(slotCheck.parsedDate)} at ${slotCheck.normalizedTime}.`,
+                    recipientId: defaultDentist._id,
+                    recipientRole: 'dentist',
+                    relatedId: newSurgery._id,
+                }),
+            ]);
+        }
 
         if (patientUser.email) {
             postResponseTasks.push([
