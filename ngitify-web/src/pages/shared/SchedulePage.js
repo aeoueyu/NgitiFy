@@ -547,6 +547,7 @@ export default function SchedulePage() {
     const [takenSlots, setTakenSlots] = useState([]);
     const [blockedDates, setBlockedDates] = useState([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
+    const [loadingDentistAvailability, setLoadingDentistAvailability] = useState(false);
     const [slotError, setSlotError] = useState('');
 
     const [viewEntry, setViewEntry] = useState(null);
@@ -917,14 +918,79 @@ export default function SchedulePage() {
             id: dentist._id || dentist.id,
             name: `Dr. ${dentist.name?.first || ''} ${dentist.name?.last || ''}`.trim(),
             branch: dentist.assignedBranch || dentist.assignedBranches?.[0] || '',
+            branches: dentist.assignedBranches?.length
+                ? dentist.assignedBranches
+                : (dentist.assignedBranch ? [dentist.assignedBranch] : []),
+            isOwnerDentist: dentist.role === 'owner' && dentist.isDentist === true,
+            unavailable: dentist.unavailable === true,
+            unavailableMessage: dentist.unavailableMessage || '',
         }));
         const baseList = isDentist
             ? activeList.filter((entry) => entry.id === currentUserId)
             : activeList;
         return formState.branch
-            ? baseList.filter((entry) => !entry.branch || entry.branch === formState.branch)
+            ? baseList.filter((entry) => (
+                entry.isOwnerDentist
+                || entry.branches.length === 0
+                || entry.branches.includes(formState.branch)
+            ))
             : baseList;
     }, [currentUserId, dentists, formState.branch, isDentist]);
+
+    useEffect(() => {
+        if (!isFormOpen || !canChooseDentist) return undefined;
+        const activeBranch = formState.branch || assignedBranch;
+        if (!activeBranch || !formState.date || !formState.time) {
+            setDentists((prev) => prev.map((dentist) => ({
+                ...dentist,
+                unavailable: false,
+                unavailableMessage: '',
+                conflictingBranch: '',
+            })));
+            setLoadingDentistAvailability(false);
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        const fetchDentistAvailability = async () => {
+            setLoadingDentistAvailability(true);
+            try {
+                const params = new URLSearchParams({
+                    branch: activeBranch,
+                    date: formState.date,
+                    time: formState.time,
+                });
+                if (editingEntry?.id) params.set('excludeAppointmentId', editingEntry.id);
+                const response = await authFetch(`/assignable-dentists?${params.toString()}`, {
+                    signal: controller.signal,
+                });
+                const data = await response.json().catch(() => []);
+                if (!response.ok) throw new Error(data.message || 'Could not check dentist availability.');
+                if (controller.signal.aborted) return;
+                const nextDentists = extractCollection(data, 'users').length
+                    ? extractCollection(data, 'users')
+                    : data;
+                setDentists(nextDentists.filter((entry) => entry.status === 'active' && !entry.isArchived));
+                setFormState((prev) => {
+                    const selected = nextDentists.find((entry) => (entry._id || entry.id) === prev.dentistId);
+                    return selected?.unavailable ? { ...prev, dentistId: '', assignedDentist: '' } : prev;
+                });
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    setDentists((prev) => prev.map((dentist) => ({
+                        ...dentist,
+                        unavailable: false,
+                        unavailableMessage: '',
+                    })));
+                }
+            } finally {
+                if (!controller.signal.aborted) setLoadingDentistAvailability(false);
+            }
+        };
+
+        fetchDentistAvailability();
+        return () => controller.abort();
+    }, [assignedBranch, canChooseDentist, editingEntry?.id, formState.branch, formState.date, formState.time, isFormOpen]);
     const reportBranchOptions = useMemo(() => (
         [...new Set([
             ...branches.map((entry) => entry.name),
@@ -1951,13 +2017,20 @@ export default function SchedulePage() {
                                         className={`${styles.formControl} ${formErrors.dentistId ? styles.errorBorder : ''}`}
                                         value={formState.dentistId}
                                         onChange={handleFormFieldChange}
-                                        disabled={false}
+                                        disabled={loadingDentistAvailability}
                                     >
-                                        <option value="">{showWalkInFields ? 'Optional for walk-ins' : 'Select dentist'}</option>
+                                        <option value="">{loadingDentistAvailability ? 'Checking availability...' : (showWalkInFields ? 'Optional for walk-ins' : 'Select dentist')}</option>
                                         {dentistOptions.map((dentist) => (
-                                            <option key={dentist.id} value={dentist.id}>{dentist.name}</option>
+                                            <option key={dentist.id} value={dentist.id} disabled={dentist.unavailable}>
+                                                {dentist.name}{dentist.unavailable ? ` - ${dentist.unavailableMessage || 'Not available at this time'}` : ''}
+                                            </option>
                                         ))}
                                     </select>
+                                    {dentistOptions.filter((dentist) => dentist.unavailable).map((dentist) => (
+                                        <span key={`${dentist.id}-availability`} className={styles.helperText}>
+                                            {dentist.name} - {dentist.unavailableMessage || 'Not available at this time'}
+                                        </span>
+                                    ))}
                                     {formErrors.dentistId && <span className={styles.errorText}>{formErrors.dentistId}</span>}
                                 </div>
                             ) : (

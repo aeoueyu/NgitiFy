@@ -50,3 +50,27 @@ test('staff reassignment synchronizes the patient dentist used by directory and 
     assert.match(serverSource, /assignedDentistName:\s*getDentistAssignmentName\(dentist\)/);
     assert.match(serverSource, /dentistCanAccessPatient/);
 });
+
+test('owner-dentists are assignable clinic-wide while regular dentists remain branch scoped', () => {
+    const serverSource = readFile('backend/server.js');
+
+    assert.match(
+        serverSource,
+        /dentist\?\.role === 'owner' && dentist\?\.isDentist === true\) return true/
+    );
+    assert.match(serverSource, /findOwnerDentistScheduleConflict/);
+    assert.match(serverSource, /branch:\s*\{ \$ne: normalizedBranch \}/);
+    assert.match(serverSource, /status:\s*\{ \$in: \['pending', 'confirmed', 'in-clinic'\] \}/);
+});
+
+test('owner-dentist cross-branch conflicts are disabled and explained in the schedule form', () => {
+    const serverSource = readFile('backend/server.js');
+    const scheduleSource = readFile('ngitify-web/src/pages/shared/SchedulePage.js');
+    const assignableRoute = extractRoute(serverSource, "app.get('/api/assignable-dentists'");
+
+    assert.match(assignableRoute, /unavailable:\s*Boolean\(conflict\)/);
+    assert.match(assignableRoute, /Not available \(already scheduled at \$\{conflict\.branch\}\)/);
+    assert.match(scheduleSource, /disabled=\{dentist\.unavailable\}/);
+    assert.match(scheduleSource, /dentist\.unavailableMessage/);
+    assert.match(serverSource, /code:\s*'DENTIST_NOT_AVAILABLE'/);
+});

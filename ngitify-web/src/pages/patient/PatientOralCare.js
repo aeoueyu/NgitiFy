@@ -771,7 +771,7 @@ export default function PatientOralCare() {
                     {saving ? 'Saving...' : selectedLog ? 'Save Changes' : 'Save Entry'}
                 </button>
                 <button type="button" className={styles.buttonSecondary} onClick={() => navigate('/patient/appointments?mode=book')}>
-                    Book Preventive Visit
+                    Book Predictive Visit
                 </button>
             </div>
         </article>
@@ -969,7 +969,7 @@ export default function PatientOralCare() {
                         Open NgitiBot
                     </button>
                     <button type="button" className={styles.buttonPrimary} onClick={() => navigate('/patient/appointments?mode=book')}>
-                        Book Preventive Visit
+                        Book Predictive Visit
                     </button>
                 </>
             )}

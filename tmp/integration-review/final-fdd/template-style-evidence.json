@@ -1,0 +1,143 @@
+{
+  "input": "C:\\Users\\Administrator\\Desktop\\NGITIFY DENTIME\\output\\Ngitify_Integration_Testing_Valid_Inputs_Sample_Wording.docx",
+  "fonts_by_char_count": {
+    "Aptos": 117667
+  },
+  "direct_run_formatting_runs": 2358,
+  "direct_paragraph_formatting_paragraphs": 0,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 8,
+      "text": "INTEGRATION TEST DOCUMENT",
+      "style": "Normal"
+    },
+    {
+      "para_index": 9,
+      "text": "INTEGRATION TEST DOCUMENT",
+      "style": "Normal"
+    },
+    {
+      "para_index": 10,
+      "text": "Application/System Name",
+      "style": "Normal"
+    },
+    {
+      "para_index": 16,
+      "text": "User/Access Type",
+      "style": "Normal"
+    },
+    {
+      "para_index": 20,
+      "text": "Date Tested",
+      "style": "Normal"
+    },
+    {
+      "para_index": 22,
+      "text": "Type of System",
+      "style": "Normal"
+    },
+    {
+      "para_index": 26,
+      "text": "Pre-conditions",
+      "style": "Normal"
+    },
+    {
+      "para_index": 32,
+      "text": "Verification Steps",
+      "style": "Normal"
+    },
+    {
+      "para_index": 38,
+      "text": "Modules",
+      "style": "Normal"
+    },
+    {
+      "para_index": 39,
+      "text": "Action Description",
+      "style": "Normal"
+    },
+    {
+      "para_index": 40,
+      "text": "Action Description",
+      "style": "Normal"
+    },
+    {
+      "para_index": 41,
+      "text": "Expected Results",
+      "style": "Normal"
+    },
+    {
+      "para_index": 42,
+      "text": "Actual Results",
+      "style": "Normal"
+    },
+    {
+      "para_index": 43,
+      "text": "Remarks",
+      "style": "Normal"
+    },
+    {
+      "para_index": 314,
+      "text": "INTEGRATION TEST DOCUMENT",
+      "style": "Normal"
+    },
+    {
+      "para_index": 315,
+      "text": "INTEGRATION TEST DOCUMENT",
+      "style": "Normal"
+    },
+    {
+      "para_index": 316,
+      "text": "Application/System Name",
+      "style": "Normal"
+    },
+    {
+      "para_index": 322,
+      "text": "User/Access Type",
+      "style": "Normal"
+    },
+    {
+      "para_index": 326,
+      "text": "Date Tested",
+      "style": "Normal"
+    },
+    {
+      "para_index": 328,
+      "text": "Type of System",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_run_formatting": [
+      {
+        "para_index": 8,
+        "run_text": "INTEGRATION TEST DOCUMENT",
+        "style": "Normal"
+      },
+      {
+        "para_index": 9,
+        "run_text": "INTEGRATION TEST DOCUMENT",
+        "style": "Normal"
+      },
+      {
+        "para_index": 10,
+        "run_text": "Application/System Name",
+        "style": "Normal"
+      },
+      {
+        "para_index": 11,
+        "run_text": "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMEN",
+        "style": "Normal"
+      },
+      {
+        "para_index": 12,
+        "run_text": "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMEN",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

@@ -78,7 +78,7 @@ export const getStaticOralCarePreview = (prediction = null, oralHealth = null) =
   const suggestedNextAction = prediction?.contactClinicSooner
     ? prediction.contactClinicReason
     : prediction?.label === 'Overdue'
-    ? 'Book your next preventive visit this week and mention any gum bleeding or sensitivity.'
+    ? 'Book your next predictive visit this week and mention any gum bleeding or sensitivity.'
     : hasVisitWindow
       ? 'Plan a cleaning or check-up within this window and keep tracking daily care habits.'
       : 'Ask the clinic to confirm your next recommended visit timing.';

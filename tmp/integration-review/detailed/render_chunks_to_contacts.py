@@ -4,7 +4,7 @@ import pymupdf
 from PIL import Image, ImageDraw, ImageOps
 
 
-SOURCE = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\tmp\integration-review\fdd\render-chunks")
+SOURCE = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\tmp\integration-review\final-fdd\render-chunks")
 PAGES = SOURCE / "pages"
 CONTACTS = SOURCE / "contacts"
 

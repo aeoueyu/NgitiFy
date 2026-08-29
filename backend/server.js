@@ -3306,10 +3306,56 @@ const getDentistAssignmentName = (dentist) => {
 const dentistBelongsToBranch = (dentist, branch) => {
     const normalizedBranch = String(branch || '').trim();
     if (!normalizedBranch) return false;
+    // Owner-dentists are clinic-wide. Their saved branch is only a profile
+    // default and must not limit where staff can assign them.
+    if (dentist?.role === 'owner' && dentist?.isDentist === true) return true;
     const dentistBranches = Array.isArray(dentist?.assignedBranches) && dentist.assignedBranches.length > 0
         ? dentist.assignedBranches
         : (dentist?.assignedBranch ? [dentist.assignedBranch] : []);
     return dentistBranches.some((entry) => String(entry || '').trim() === normalizedBranch);
+};
+
+const findOwnerDentistScheduleConflict = async ({
+    dentistId,
+    branch,
+    date,
+    time,
+    excludeAppointmentId = '',
+}) => {
+    if (!dentistId || !mongoose.Types.ObjectId.isValid(String(dentistId))) return null;
+    const normalizedBranch = String(branch || '').trim();
+    const normalizedTime = String(time || '').trim();
+    const dateKey = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())
+        ? date.trim()
+        : (date ? getManilaDateKey(date) : '');
+    if (!normalizedBranch || !normalizedTime || !dateKey) return null;
+
+    const ownerDentist = await User.findOne({
+        _id: dentistId,
+        role: 'owner',
+        isDentist: true,
+        status: 'active',
+        isArchived: { $ne: true },
+    }).select('_id').lean();
+    if (!ownerDentist) return null;
+
+    const start = parseScheduleDateKey(dateKey, '00:00');
+    const end = parseScheduleDateKey(dateKey, '23:59');
+    if (!start || !end) return null;
+
+    const query = {
+        dentist: ownerDentist._id,
+        branch: { $ne: normalizedBranch },
+        date: { $gte: start, $lte: end },
+        time: normalizedTime,
+        status: { $in: ['pending', 'confirmed', 'in-clinic'] },
+        isArchived: false,
+    };
+    if (excludeAppointmentId && mongoose.Types.ObjectId.isValid(String(excludeAppointmentId))) {
+        query._id = { $ne: excludeAppointmentId };
+    }
+
+    return Surgery.findOne(query).select('_id branch date time').lean();
 };
 
 const resolveAssignableDentist = async (dentistId, branch) => {
@@ -5858,13 +5904,54 @@ app.get('/api/assignable-dentists', verifyToken, async (req, res) => {
             if (!req.user.assignedBranch) {
                 return res.status(403).json({ message: `${req.user.role} has no assigned branch.` });
             }
-            query = applyBranchOwnershipFilter(query, req.user.assignedBranch);
+            query = {
+                $and: [
+                    query,
+                    {
+                        $or: [
+                            { role: 'owner', isDentist: true },
+                            buildBranchOwnershipFilter(req.user.assignedBranch),
+                        ],
+                    },
+                ],
+            };
         }
 
         const dentists = await User.find(query)
-            .select('_id name email role status isArchived assignedBranch assignedBranches')
+            .select('_id name email role isDentist status isArchived assignedBranch assignedBranches')
             .lean();
-        res.json(dentists);
+        const requestedBranch = String(
+            ['branch-manager', 'secretary'].includes(req.user.role)
+                ? req.user.assignedBranch
+                : (req.query.branch || req.user.assignedBranch || '')
+        ).trim();
+        const requestedDate = String(req.query.date || '').trim();
+        const requestedTime = String(req.query.time || '').trim();
+        const excludeAppointmentId = String(req.query.excludeAppointmentId || '').trim();
+
+        if (!requestedBranch || !requestedDate || !requestedTime) {
+            return res.json(dentists);
+        }
+
+        const annotatedDentists = await Promise.all(dentists.map(async (dentist) => {
+            if (dentist.role !== 'owner' || dentist.isDentist !== true) return dentist;
+            const conflict = await findOwnerDentistScheduleConflict({
+                dentistId: dentist._id,
+                branch: requestedBranch,
+                date: requestedDate,
+                time: requestedTime,
+                excludeAppointmentId,
+            });
+            return {
+                ...dentist,
+                unavailable: Boolean(conflict),
+                unavailableMessage: conflict
+                    ? `Not available (already scheduled at ${conflict.branch})`
+                    : '',
+                conflictingBranch: conflict?.branch || '',
+            };
+        }));
+        return res.json(annotatedDentists);
     } catch (error) {
         console.error('Error fetching assignable dentists:', error);
         res.status(500).json({ message: 'Server error.' });
@@ -7969,6 +8056,19 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
             }
         }
 
+        let assignedDentist = null;
+        if (surgeryData.dentist) {
+            assignedDentist = await resolveAssignableDentist(surgeryData.dentist, surgeryData.branch);
+            if (!assignedDentist) {
+                return res.status(400).json({
+                    field: 'dentist',
+                    code: 'INVALID_DENTIST_ASSIGNMENT',
+                    message: 'Select an active dentist available for this appointment branch.',
+                });
+            }
+            surgeryData.dentist = assignedDentist._id;
+        }
+
         if (surgeryData.source !== 'Walk-in') {
             const slotCheck = await validateBookableAppointmentSlot({
                 date: surgeryData.date,
@@ -7980,6 +8080,22 @@ app.post(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) 
             }
             surgeryData.date = slotCheck.parsedDate;
             surgeryData.time = slotCheck.normalizedTime;
+        }
+
+        if (assignedDentist) {
+            const conflict = await findOwnerDentistScheduleConflict({
+                dentistId: assignedDentist._id,
+                branch: surgeryData.branch,
+                date: surgeryData.date,
+                time: surgeryData.time,
+            });
+            if (conflict) {
+                return res.status(409).json({
+                    field: 'dentist',
+                    code: 'DENTIST_NOT_AVAILABLE',
+                    message: `This owner dentist is not available because they are already scheduled at ${conflict.branch}.`,
+                });
+            }
         }
 
         const newSurgery = new Surgery(surgeryData);
@@ -8406,7 +8522,7 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
                 return res.status(400).json({
                     field: 'dentist',
                     code: 'INVALID_DENTIST_ASSIGNMENT',
-                    message: 'Select an active dentist assigned to this appointment branch.',
+                    message: 'Select an active dentist available for this appointment branch.',
                 });
             }
             updateData.dentist = nextAssignedDentist._id;
@@ -8416,6 +8532,28 @@ app.put(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (req
         const nextDate = updateData.date ? parseScheduleDateKey(requestedDateKey, '12:00') : existing.date;
         const nextTime = updateData.time !== undefined ? updateData.time : existing.time;
         const nextDateTime = buildAppointmentDateTime(nextDate, nextTime);
+
+        const checksOwnerDentistAvailability = (
+            updateData.dentist !== undefined
+            || updateData.date !== undefined
+            || updateData.time !== undefined
+        ) && !['completed', 'cancelled'].includes(String(updateData.status || existing.status).toLowerCase());
+        if (checksOwnerDentistAvailability) {
+            const conflict = await findOwnerDentistScheduleConflict({
+                dentistId: nextAssignedDentist?._id || existing.dentist,
+                branch: existing.branch,
+                date: nextDate,
+                time: nextTime,
+                excludeAppointmentId: existing._id,
+            });
+            if (conflict) {
+                return res.status(409).json({
+                    field: 'dentist',
+                    code: 'DENTIST_NOT_AVAILABLE',
+                    message: `This owner dentist is not available because they are already scheduled at ${conflict.branch}.`,
+                });
+            }
+        }
 
         if (updateData.procedure !== undefined && !(await isClinicProcedureAllowed(updateData.procedure))) {
             return res.status(400).json({ message: 'Please select a valid clinic procedure.' });
@@ -8880,7 +9018,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 return res.status(400).json({
                     field: 'dentist',
                     code: 'INVALID_DENTIST_ASSIGNMENT',
-                    message: 'Select an active dentist assigned to this appointment branch.',
+                    message: 'Select an active dentist available for this appointment branch.',
                 });
             }
             updateFields.dentist = nextAssignedDentist._id;
@@ -8889,6 +9027,22 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             const currentStamp = getCurrentScheduleStamp();
             updateFields.date = currentStamp.date;
             updateFields.time = currentStamp.time;
+        }
+        if (!['completed', 'cancelled'].includes(status)) {
+            const assignmentConflict = await findOwnerDentistScheduleConflict({
+                dentistId: nextAssignedDentist?._id || currentSurgery.dentist,
+                branch: currentSurgery.branch,
+                date: updateFields.date || nextDate,
+                time: updateFields.time !== undefined ? updateFields.time : nextTime,
+                excludeAppointmentId: currentSurgery._id,
+            });
+            if (assignmentConflict) {
+                return res.status(409).json({
+                    field: 'dentist',
+                    code: 'DENTIST_NOT_AVAILABLE',
+                    message: `This owner dentist is not available because they are already scheduled at ${assignmentConflict.branch}.`,
+                });
+            }
         }
         if (performedProcedure !== undefined) {
             updateFields.performedProcedure = String(performedProcedure || '').trim();

@@ -4,8 +4,8 @@ from pathlib import Path
 from docx import Document
 
 
-SOURCE = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\output\Ngitify_Integration_Testing_FDD_Aligned.docx")
-OUTDIR = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\tmp\integration-review\fdd\render-chunks")
+SOURCE = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\output\Ngitify_Integration_Testing_Final_FDD.docx")
+OUTDIR = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\tmp\integration-review\final-fdd\render-chunks")
 NAMES = ["mobile-patient", "admin", "owner", "branch-manager", "dentist", "secretary", "web-patient"]
 CHUNK_SIZE = 25
 

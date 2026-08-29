@@ -49,12 +49,16 @@ const NAV_ITEMS = [
     label: 'Calendar',
   },
   {
-    id: 'trends',
-    label: 'Trends',
+    id: 'predictive-visit',
+    label: 'Predictive Visit',
+  },
+  {
+    id: 'oral-health-management',
+    label: 'Oral Health Management',
   },
   {
     id: 'education',
-    label: 'Learn',
+    label: 'Dental Health Education',
   },
 ];
 
@@ -725,6 +729,19 @@ export default function OralCareInsightsScreen({
       [
         logs,
         selectedDateKey,
+      ],
+    );
+
+  const todayLog =
+    useMemo(
+      () =>
+        findLogByDate(
+          logs,
+          todayKey,
+        ),
+      [
+        logs,
+        todayKey,
       ],
     );
 
@@ -2393,40 +2410,101 @@ export default function OralCareInsightsScreen({
       </SurfaceCard>
     );
 
-  const renderToday =
+  const renderTodaySummary =
     () => (
       <>
         <SectionLabel
-          eyebrow="Oral Health Management"
-          title={
-            selectedDateKey
-              === todayKey
-              ? "Today's Oral Health"
-              : 'Selected Date'
-          }
-          actionLabel={
-            selectedDateKey
-              === todayKey
-              ? undefined
-              : 'Today'
-          }
-          onActionPress={
-            goToToday
-          }
+          eyebrow="Today"
+          title="Your Health Summary"
         />
 
-        {renderWeekStrip()}
+        <SurfaceCard style={styles.cardGap}>
+          <Text style={styles.heroEyebrow}>Predictive Visit</Text>
+          <Text style={styles.cardTitle}>{preview.hero.title}</Text>
+          <Text style={styles.cardBody}>{preview.hero.headline}</Text>
+          <Text style={styles.helperText}>{preview.hero.whyThisShowing}</Text>
+          <SecondaryButton
+            label="View Predictive Visit"
+            icon="calendar-outline"
+            onPress={() => setActiveTab('predictive-visit')}
+          />
+        </SurfaceCard>
 
-        {renderSelectedLogCard()}
+        <SurfaceCard style={styles.cardGap}>
+          <Text style={styles.heroEyebrow}>Oral Health Management</Text>
+          <Text style={styles.cardTitle}>
+            {todayLog ? "Today's log is saved" : 'No oral health log for today'}
+          </Text>
+          <Text style={styles.cardBody}>
+            {todayLog
+              ? 'Review your saved care habits, symptoms, and risk factors.'
+              : 'Add a daily log to keep your oral health history and trends up to date.'}
+          </Text>
+          <SecondaryButton
+            label="Open Oral Health Management"
+            icon="pulse-outline"
+            onPress={() => setActiveTab('oral-health-management')}
+          />
+        </SurfaceCard>
 
-        <SectionLabel
-          eyebrow="Recommended Visit Window"
-          title="Your Current Visit Guidance"
-        />
+        <SurfaceCard style={styles.cardGap}>
+          <Text style={styles.heroEyebrow}>Dental Health Education</Text>
+          <Text style={styles.cardTitle}>
+            {educationArticles[0]?.title || 'Learn About Your Oral Health'}
+          </Text>
+          <Text style={styles.cardBody}>
+            {educationArticles[0]?.summary
+              || 'Browse approved Dental Health Education from your patient account.'}
+          </Text>
+          <SecondaryButton
+            label="Open Dental Health Education"
+            icon="book-outline"
+            onPress={() => setActiveTab('education')}
+          />
+        </SurfaceCard>
+      </>
+    );
 
-        <SurfaceCard
-          style={styles.heroCard}
-        >
+  const renderDetailTab =
+    () => (
+      <>
+        {activeTab !== 'predictive-visit' ? (
+          <>
+            <SectionLabel
+              eyebrow="Oral Health Management"
+              title={
+                selectedDateKey
+                  === todayKey
+                  ? "Today's Oral Health"
+                  : 'Selected Date'
+              }
+              actionLabel={
+                selectedDateKey
+                  === todayKey
+                  ? undefined
+                  : 'Today'
+              }
+              onActionPress={
+                goToToday
+              }
+            />
+
+            {renderWeekStrip()}
+
+            {renderSelectedLogCard()}
+          </>
+        ) : null}
+
+        {activeTab !== 'oral-health-management' ? (
+          <>
+            <SectionLabel
+              eyebrow="Predictive Visit"
+              title="Your Current Visit Guidance"
+            />
+
+            <SurfaceCard
+              style={styles.heroCard}
+            >
           <View
             style={
               styles.heroTopRow
@@ -2623,7 +2701,7 @@ export default function OralCareInsightsScreen({
           </Text>
 
           <PrimaryButton
-            label="Book Preventive Visit"
+            label="Book Predictive Visit"
             icon="calendar-outline"
             onPress={() =>
               navigation.navigate(
@@ -2644,20 +2722,24 @@ export default function OralCareInsightsScreen({
               )
             }
           />
-        </SurfaceCard>
+            </SurfaceCard>
+          </>
+        ) : null}
 
-        <SectionLabel
-          eyebrow="Oral Health Management"
-          title="Current Factors"
-          actionLabel="Open"
-          onActionPress={() =>
-            setFactorsVisible(true)
-          }
-        />
+        {activeTab !== 'predictive-visit' ? (
+          <>
+            <SectionLabel
+              eyebrow="Oral Health Management"
+              title="Current Factors"
+              actionLabel="Open"
+              onActionPress={() =>
+                setFactorsVisible(true)
+              }
+            />
 
-        <SurfaceCard
-          style={styles.cardGap}
-        >
+            <SurfaceCard
+              style={styles.cardGap}
+            >
           <Text
             style={styles.cardTitle}
           >
@@ -2698,19 +2780,19 @@ export default function OralCareInsightsScreen({
                 </View>
               ))}
           </View>
-        </SurfaceCard>
+            </SurfaceCard>
 
-        <SectionLabel
-          eyebrow="Care Focus"
-          title={
-            preview.carePlan
-              .title
-          }
-        />
+            <SectionLabel
+              eyebrow="Care Focus"
+              title={
+                preview.carePlan
+                  .title
+              }
+            />
 
-        <SurfaceCard
-          style={styles.cardGap}
-        >
+            <SurfaceCard
+              style={styles.cardGap}
+            >
           <Text
             style={styles.cardBody}
           >
@@ -2744,9 +2826,12 @@ export default function OralCareInsightsScreen({
                 </Text>
               </View>
             ))}
-        </SurfaceCard>
+            </SurfaceCard>
+          </>
+        ) : null}
 
-        <TouchableOpacity
+        {activeTab === 'today' ? (
+          <TouchableOpacity
           style={
             styles.educationShortcut
           }
@@ -2807,7 +2892,8 @@ export default function OralCareInsightsScreen({
                 .primaryDark
             }
           />
-        </TouchableOpacity>
+          </TouchableOpacity>
+        ) : null}
       </>
     );
 
@@ -3662,25 +3748,31 @@ export default function OralCareInsightsScreen({
     () => {
       switch (activeTab) {
         case 'calendar':
-          return renderCalendar();
+          return (
+            <>
+              {renderCalendar()}
+              {renderTrends()}
+            </>
+          );
 
-        case 'trends':
-          return renderTrends();
+        case 'predictive-visit':
+        case 'oral-health-management':
+          return renderDetailTab();
 
         case 'education':
           return renderEducation();
 
         case 'today':
         default:
-          return renderToday();
+          return renderTodaySummary();
       }
     };
 
   return (
     <Screen>
       <Header
-        title="Oral Health Management"
-        subtitle="Daily care, trends, and visit guidance"
+        title="Health"
+        subtitle="Predictive visits, oral health, trends, and education"
       />
 
       <View

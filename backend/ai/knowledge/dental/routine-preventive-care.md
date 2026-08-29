@@ -7,7 +7,7 @@ Dentime may explain routine preventive care in simple patient language. This inf
 - A routine dental check-up usually lets the dentist look for signs of decay, gum irritation, plaque build-up, wear, or other issues that need closer review.
 - Professional cleaning or oral prophylaxis focuses on removing plaque, tartar, and surface stains that regular home care may miss.
 - Patients may still need brushing, flossing, and other daily care even when they get regular cleanings.
-- A six-month interval is a common routine for preventive visits unless the dentist gives a different schedule.
+- A six-month interval is a common routine for predictive visits unless the dentist gives a different schedule.
 - Common patient wording can include check-up, consultation, cleaning, oral prophylaxis, linis ng ngipin, and cleaning sa ngipon.
 
 ## Dental x-rays and routine records

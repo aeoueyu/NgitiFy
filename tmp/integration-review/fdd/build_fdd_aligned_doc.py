@@ -8,7 +8,7 @@ from docx.oxml.ns import qn
 
 
 SOURCE = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\output\Ngitify_Integration_Testing_Valid_Inputs_Sample_Wording.docx")
-OUTPUT = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\output\Ngitify_Integration_Testing_FDD_Aligned.docx")
+OUTPUT = Path(r"C:\Users\Administrator\Desktop\NGITIFY DENTIME\output\Ngitify_Integration_Testing_Final_FDD.docx")
 
 
 def c(module, action, expected):
@@ -71,9 +71,9 @@ def status_flow(module, action, entity, result_verb):
     ]
 
 
-def notifications_activity_settings_logout():
+def notifications_activity_settings_logout(notification_module="Notification"):
     rows = [
-        c("Notification", "Click Notification on the navigation menu", "Displays the Notifications page"),
+        c(notification_module, f"Click {notification_module} on the navigation menu", "Displays the Notifications page"),
         c("Activity Logs", "Click Activity Logs on the navigation menu", "Displays the Activity Logs page"),
         c("Account Settings / View Profile", "Click View Profile button", "Displays the user profile information"),
     ]
@@ -102,7 +102,7 @@ def schedule_management():
     return rows
 
 
-def user_accounts_management():
+def user_accounts_management(final_action="Reset User Password"):
     rows = [
         simple_view("User Accounts Management", "View User Accounts List", "Displays the user accounts list"),
         c("User Accounts Management / Search User Accounts", "Input a valid user name or email, then click Search button", "System searches the database and displays matching user accounts"),
@@ -110,7 +110,10 @@ def user_accounts_management():
     rows += create_flow("User Accounts Management / Create User Account", "user account", "Create User Account")
     rows += edit_flow("User Accounts Management / Edit User Account Details", "user account", "Edit User Account Details")
     rows += status_flow("User Accounts Management / Deactivate User Account", "Deactivate User Account", "user account", "deactivates")
-    rows += status_flow("User Accounts Management / Reset User Password", "Reset User Password", "user password", "resets")
+    if final_action == "Archive User Account":
+        rows += status_flow("User Accounts Management / Archive User Account", "Archive User Account", "user account", "archives")
+    else:
+        rows += status_flow("User Accounts Management / Reset User Password", "Reset User Password", "user password", "resets")
     return rows
 
 
@@ -123,8 +126,8 @@ def patient_profile(edit=True, export=False):
     return rows
 
 
-def staff_emr(history_edit=False, history_print=False, radiograph_export=True):
-    rows = patient_profile(edit=True)
+def staff_emr(history_edit=False, history_print=False, radiograph_upload=False, radiograph_delete=False):
+    rows = patient_profile(edit=False)
     rows += [
         simple_view("Patient EMR / Medical and Dental History", "View Medical History", "Displays the selected patient medical history"),
         simple_view("Patient EMR / Medical and Dental History", "View Dental History", "Displays the selected patient dental history"),
@@ -143,10 +146,11 @@ def staff_emr(history_edit=False, history_print=False, radiograph_export=True):
         simple_view("Patient EMR / Digital Odontogram", "View Digital Odontogram", "Displays the selected patient digital odontogram"),
         simple_view("Patient EMR / Digital Odontogram", "View Tooth History", "Displays the selected tooth history"),
         simple_view("Patient EMR / Radiograph", "View X-ray Images", "Displays the selected patient X-ray images"),
-        simple_view("Patient EMR / Radiograph", "View Enhanced X-ray Images", "Displays the enhanced X-ray images"),
     ]
-    if radiograph_export:
-        rows.append(c("Patient EMR / Radiograph", "Click Export X-ray Images button", "System downloads the selected X-ray images"))
+    if radiograph_upload:
+        rows += create_flow("Patient EMR / Radiograph", "radiograph", "Upload Radiograph")
+    if radiograph_delete:
+        rows += status_flow("Patient EMR / Radiograph", "Delete Radiograph", "radiograph", "removes")
     return rows
 
 
@@ -167,11 +171,16 @@ def material_usage():
     ]
 
 
-def ai_image_enhancer():
+def ai_image_enhancer(module="AI-Assisted Image Enhancer"):
     return [
-        c("AI-Assisted Image Enhancer", "Click Select Radiograph Image button", "Displays the radiograph image selection window"),
-        c("AI-Assisted Image Enhancer", "Click Run AI Enhancement button", "System enhances the selected radiograph image and displays a success message"),
-        c("AI-Assisted Image Enhancer", "Click View Enhanced Image button", "Displays the enhanced radiograph image"),
+        c(module, "Click Select Radiograph Image button", "Displays the radiograph image selection window"),
+        c(module, "Click Run Adaptive Enhancement button", "System enhances the selected radiograph image and displays a success message"),
+        c(module, "Click View Enhanced Image button", "Displays the enhanced radiograph image"),
+        c(module, "Click Review AI Summary button", "Displays the AI radiograph summary"),
+        c(module, "Input the correct radiograph findings, then click Save Findings button", "Displays a user confirmation prompt"),
+        c(module, "Click Confirm button", "System removes the confirmation prompt, saves the radiograph findings in the database, and displays a success message"),
+        c(module, "Click OK button", "Removes the success message"),
+        c(module, "Click Cancel button", "Removes the confirmation prompt and leaves the radiograph findings unchanged"),
     ]
 
 
@@ -194,16 +203,9 @@ def supply_stock():
 def branch_analytics():
     rows = [
         simple_view("Branch Management and Expansion Analytics", "View Clinic Branches List", "Displays the clinic branches list"),
-        simple_view("Branch Management and Expansion Analytics", "View Individual Branch Details", "Displays the selected branch details"),
-        simple_view("Branch Management and Expansion Analytics", "View Branch Revenue Graphs", "Displays the selected branch revenue graphs"),
+        simple_view("Branch Management and Expansion Analytics", "View Individual Branch Analytics", "Displays the selected branch analytics"),
     ]
-    rows += edit_flow("Branch Management and Expansion Analytics", "user account", "Edit User Account Details")
-    rows += [
-        simple_view("Branch Management and Expansion Analytics", "View Patient Growth Analytics", "Displays the patient growth analytics"),
-        simple_view("Branch Management and Expansion Analytics", "Compare Multi-branch Performance Metrics", "Displays the multi-branch performance metrics"),
-        c("Branch Management and Expansion Analytics", "Click Export Analytics Report as PDF button", "System downloads the branch analytics PDF report"),
-        c("Branch Management and Expansion Analytics", "Click Export Analytics Report as CSV button", "System downloads the branch analytics CSV report"),
-    ]
+    rows += edit_flow("Branch Management and Expansion Analytics", "branch details", "Edit Branch Details")
     return rows
 
 
@@ -228,35 +230,25 @@ def branch_transfer():
         c("Branch Transfer Management", "Input a valid item name or branch, then click Search button", "System searches the database and displays matching transfer records"),
         c("Branch Transfer Management", "Click Create Transfer Request button", "Displays the create transfer request form"),
         c("Branch Transfer Management", "Click the source branch", "Displays the selected source branch"),
-        c("Branch Transfer Management", "Click the destination branch", "Displays the selected destination branch"),
-        c("Branch Transfer Management", "Input the items and quantities completely, then click Add to Transfer List button", "System adds the items and quantities to the transfer list"),
-        c("Branch Transfer Management", "Click Submit Transfer Request button", "Displays a user confirmation prompt"),
-        c("Branch Transfer Management", "Click Confirm button", "System removes the confirmation prompt, saves the transfer request in the database, and displays a success message"),
-        c("Branch Transfer Management", "Click OK button", "Removes the success message"),
-        c("Branch Transfer Management", "Click Cancel button", "Removes the confirmation prompt and leaves the transfer request unchanged"),
     ]
-    rows += status_flow("Branch Transfer Management / Approve Incoming Transfer", "Approve Incoming Transfer Request", "incoming transfer request", "approves")
-    rows += status_flow("Branch Transfer Management / Reject Incoming Transfer", "Reject Incoming Transfer Request", "incoming transfer request", "rejects")
-    rows += edit_flow("Branch Transfer Management / Dispatch Status", "transfer dispatch shipment status", "Update Transfer Dispatch Shipment Status")
     return rows
 
 
 def database_backup():
     return [
         c("Database Backup", "Click Refresh button", "System refreshes the database backup information"),
-        c("Database Backup", "Click Create Backup Now button", "Displays a user confirmation prompt"),
+        simple_view("Database Backup", "View Backup Storage Status", "Displays the backup storage status"),
+        simple_view("Database Backup", "View Local Backup Availability", "Displays the local backup availability"),
+        simple_view("Database Backup", "View Cloud Backup Availability", "Displays the cloud backup availability"),
+        simple_view("Database Backup", "View Scheduled Backup Interval Time", "Displays the scheduled backup interval time"),
+        simple_view("Database Backup", "View Retention Period", "Displays the database backup retention period"),
+        c("Database Backup", "Click Create Backup button", "Displays a user confirmation prompt"),
         c("Database Backup", "Click Confirm button", "System removes the confirmation prompt, creates the database backup, and displays a success message"),
         c("Database Backup", "Click OK button", "Removes the success message"),
         c("Database Backup", "Click Cancel button", "Removes the confirmation prompt and does not create a database backup"),
-        simple_view("Database Backup", "View Backup Binary Availability Warning", "Displays the backup binary availability warning"),
-        simple_view("Database Backup", "View Local Protection Path Notice", "Displays the local protection path notice"),
-        simple_view("Database Backup", "View Total Runs Count", "Displays the total backup runs count"),
-        simple_view("Database Backup", "View Successful Runs Count", "Displays the successful backup runs count"),
-        simple_view("Database Backup", "View Failed Runs Count", "Displays the failed backup runs count"),
-        simple_view("Database Backup", "View Auto Backup Interval Duration", "Displays the automatic backup interval duration"),
-        simple_view("Database Backup", "View Local Retention Days Limit", "Displays the local retention days limit"),
-        simple_view("Database Backup", "View Automatic Backups Toggle State", "Displays the automatic backups toggle state"),
-        simple_view("Database Backup", "View Scheduled Backup Interval Time", "Displays the scheduled backup interval time"),
+        simple_view("Database Backup", "View Backup History", "Displays the database backup history"),
+        simple_view("Database Backup", "View Successful and Failed Backup Count", "Displays the successful and failed database backup count"),
+        c("Database Backup", "Click Download Available Backup button", "System downloads the selected available database backup"),
     ]
 
 
@@ -286,11 +278,12 @@ def audit_trail():
 
 def patient_readonly_emr(mobile=False):
     prefix = "Electronic Medical Record (EMR)" if mobile else "Patient EMR"
-    rows = [
-        simple_view(f"{prefix} / Patient Profile", "View Patient Profile", "Displays the patient profile"),
-    ]
-    rows += edit_flow(f"{prefix} / Patient Profile", "patient profile", "Edit Profile" if mobile else "Edit Patient Profile")
+    rows = []
     if not mobile:
+        rows += [
+            simple_view(f"{prefix} / Patient Profile", "View Patient Details Header", "Displays the patient details header"),
+        ]
+        rows += edit_flow(f"{prefix} / Patient Profile", "patient profile", "Edit Patient Profile")
         rows.append(c(f"{prefix} / Patient Profile", "Click Export PDF button", "System downloads the patient profile PDF"))
     rows += [
         c(f"{prefix} / Medical and Dental History", "Click Medical and Dental History tab", "Displays the Medical and Dental History section"),
@@ -303,6 +296,8 @@ def patient_readonly_emr(mobile=False):
         c(f"{prefix} / Radiograph Images", "Click Radiographs tab", "Displays the Radiograph Images section"),
         simple_view(f"{prefix} / Radiograph Images", "View Uploaded X-ray Images", "Displays the uploaded X-ray images"),
     ]
+    if not mobile:
+        rows.append(simple_view(f"{prefix} / Radiograph Images", "View Radiograph Summary and Findings", "Displays the radiograph summary and findings"))
     return rows
 
 
@@ -313,7 +308,7 @@ def patient_ai_engagement(mobile=False):
         c(f"{module} / NgitiBot", "Input a patient care question, then click Send button", "System processes the question and displays the NgitiBot response"),
         c(f"{module} / Dental Health Education", "Click Dental Health Education button", "Displays the dental health educational materials"),
         c(f"{module} / Oral Health Management", "Click Oral Health Management button", "Displays the Oral Health Management page"),
-        c(f"{module} / Predictive Visit", "Click Predictive Visit button", "Displays the AI-generated recommendations for the next visit"),
+        c(f"{module} / Predictive Visit", "Click Predictive Visit button", "Displays the dentist-recommended visit or AI-generated recommendations for the next visit"),
     ]
 
 
@@ -349,7 +344,7 @@ MOBILE_PATIENT = (
     + patient_appointments()
     + patient_ai_engagement(mobile=True)
     + patient_readonly_emr(mobile=True)
-    + notifications_activity_settings_logout()
+    + notifications_activity_settings_logout("Notifications")
 )
 
 
@@ -357,13 +352,10 @@ ADMIN = (
     auth("administrator")
     + dashboard()
     + schedule_management()
-    + user_accounts_management()
+    + user_accounts_management(final_action="Archive User Account")
     + staff_emr(history_edit=True, history_print=False)
-    + material_usage()
-    + ai_image_enhancer()
     + branch_analytics()
     + supply_stock()
-    + emr_synchronization()
     + branch_transfer()
     + database_backup()
     + integrity_tools()
@@ -378,12 +370,11 @@ OWNER = (
     + dashboard()
     + schedule_management()
     + user_accounts_management()
-    + staff_emr(history_edit=False, history_print=True)
+    + staff_emr(history_edit=True, history_print=False, radiograph_upload=True, radiograph_delete=True)
     + material_usage()
-    + ai_image_enhancer()
+    + ai_image_enhancer("AI-Assisted Radiograph Review")
     + branch_analytics()
     + supply_stock()
-    + emr_synchronization()
     + branch_transfer()
     + notifications_activity_settings_logout()
 )
@@ -394,9 +385,8 @@ BRANCH_MANAGER = (
     + dashboard()
     + schedule_management()
     + user_accounts_management()
-    + staff_emr(history_edit=False, history_print=True)
+    + staff_emr(history_edit=True, history_print=False)
     + supply_stock()
-    + emr_synchronization()
     + branch_transfer()
     + notifications_activity_settings_logout()
 )
@@ -405,8 +395,11 @@ BRANCH_MANAGER = (
 DENTIST = (
     auth("dentist")
     + dashboard()
-    + schedule_management()
-    + staff_emr(history_edit=True, history_print=True)
+    + [
+        simple_view("Schedule Management", "View Schedule List", "Displays the schedule list"),
+        simple_view("Schedule Management", "View Schedule Details", "Displays the selected schedule details"),
+    ]
+    + staff_emr(history_edit=True, history_print=False)
     + material_usage()
     + ai_image_enhancer()
     + notifications_activity_settings_logout()
