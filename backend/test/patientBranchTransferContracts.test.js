@@ -37,3 +37,15 @@ test('staff UI disables branch transfer for inactive patients', () => {
     assert.match(managePatients, /Activate account before transferring branches/);
     assert.match(managePatients, /getPatientLifecycleKey\(patient\) !== 'active'/);
 });
+
+test('old-branch EMR access explains that the patient was transferred', () => {
+    const server = readFile('backend/server.js');
+    const patientEmr = readFile('ngitify-web/src/pages/admin/PatientEMR.js');
+    const patientRoute = extractRoute(server, "app.get('/api/patients/:id'");
+
+    assert.match(patientRoute, /PATIENT_TRANSFERRED_TO_ANOTHER_BRANCH/);
+    assert.match(patientRoute, /PATIENT_TRANSFERRED_BRANCH_MESSAGE/);
+    assert.match(server, /This patient has already been transferred to another branch/);
+    assert.match(patientEmr, /setPatientLoadError\(message\)/);
+    assert.match(patientEmr, /patientLoadError \|\| 'Patient record not found\.'/);
+});

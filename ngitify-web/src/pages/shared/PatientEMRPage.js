@@ -34,7 +34,7 @@ const getLatestTreatmentLog = (patient) => {
 
 const getBranchLabel = (patient) => patient.assignedBranch || patient.assignedBranches?.[0] || '';
 
-export default function PatientEMRPage() {
+export default function PatientEMRPage({ patientScope = '' }) {
     const { addToast } = useToast();
     const { user } = useAuth();
 
@@ -46,12 +46,15 @@ export default function PatientEMRPage() {
     const [selectedPatientId, setSelectedPatientId] = useState('');
     const [emrMode, setEmrMode] = useState('view');
 
-    const canEditEmr = user?.role === 'dentist';
+    const isMyPatientsView = patientScope === 'my-patients';
+    const canEditEmr = user?.role === 'dentist'
+        || (user?.role === 'owner' && user?.isDentist === true);
 
     const fetchPatients = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await authFetch('/patients?limit=200');
+            const scopeQuery = isMyPatientsView ? '&scope=my-patients' : '';
+            const response = await authFetch(`/patients?limit=200${scopeQuery}`);
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(payload.message || 'Failed to load patient records.');
@@ -79,7 +82,7 @@ export default function PatientEMRPage() {
         } finally {
             setLoading(false);
         }
-    }, [addToast]);
+    }, [addToast, isMyPatientsView]);
 
     useEffect(() => {
         fetchPatients();
@@ -142,9 +145,11 @@ export default function PatientEMRPage() {
             <div className={adminStyles.container}>
                 <header className={adminStyles.header}>
                     <div>
-                        <h1 className={adminStyles.title}>Patient EMR</h1>
+                        <h1 className={adminStyles.title}>{isMyPatientsView ? 'My Patient' : 'Patient EMR'}</h1>
                         <p className={adminStyles.subtitle}>
-                            Review complete patient records and open the EMR in view or edit mode.
+                            {isMyPatientsView
+                                ? 'View patients assigned to you or patients whose completed treatment you handled.'
+                                : 'Review complete patient records and open the EMR in view or edit mode.'}
                         </p>
                     </div>
                 </header>
@@ -245,7 +250,7 @@ export default function PatientEMRPage() {
                                     <td colSpan={4} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
                                         <div className={styles.emptyState}>
                                             <FaFileMedical className={styles.emptyIcon} />
-                                            No results found
+                                            {isMyPatientsView ? 'No patients assigned to or treated by you yet' : 'No results found'}
                                         </div>
                                     </td>
                                 </tr>

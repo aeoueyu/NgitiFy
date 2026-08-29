@@ -368,6 +368,11 @@ export default function PatientMedicalRecords() {
                                                         <h4 className={styles.timelineTitle}>{item.procedure || 'Treatment recorded'}</h4>
                                                         <p className={styles.timelineMeta}>{formatDateDisplay(item.date)} • {item.category || 'Other'}</p>
                                                         <p className={styles.timelineText}>{item.branch || 'Clinic visit recorded in Dentime.'}</p>
+                                                        {item.nextAppointment ? (
+                                                            <p className={styles.timelineText}>
+                                                                Next appointment: {formatDateDisplay(item.nextAppointment)}
+                                                            </p>
+                                                        ) : null}
                                                     </div>
                                                 </div>
                                             ))}

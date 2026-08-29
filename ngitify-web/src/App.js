@@ -214,6 +214,7 @@ function App() {
                   <Route path="/owner/manage-staffs/owners"          element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
                   <Route path="/owner/patients/:patientId/emr"      element={<AdminPatientEMR />} />
                   <Route path="/owner/patient-emr"                  element={<PatientEMRPage />} />
+                  <Route path="/owner/my-patients"                  element={<PatientEMRPage patientScope="my-patients" />} />
                   <Route path="/owner/material-usage"               element={<DentistMaterialUsage />} />
                   <Route path="/owner/branches"                     element={<BranchManagement />} />
                   <Route path="/owner/branches/analytics"           element={<BranchAnalytics />} />

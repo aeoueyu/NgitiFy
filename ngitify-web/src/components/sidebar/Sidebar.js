@@ -311,6 +311,7 @@ export default function Sidebar() {
                             {navItem(schedulePath, FaCalendarAlt, 'Schedule')}
                             {sectionLabel('Patients')}
                             {(isAdmin || isOwner || isBranchManager || isSecretary || isDentistUser) && navItem(managePatientsPath, FaUserInjured, 'Manage Patients')}
+                            {isOwner && user?.isDentist === true && navItem('/owner/my-patients', FaNotesMedical, 'My Patient')}
                         </>
                     )}
 
@@ -330,6 +331,7 @@ export default function Sidebar() {
                             {navItem('/owner/notifications', FaBell, 'Notifications', notifBadge)}
                             {navItem('/owner/branches', FaCodeBranch, 'Branches')}
                             {navItem('/owner/inventory', FaBoxes, 'Inventory', inventoryBadge)}
+                            {user?.isDentist === true && navItem('/owner/material-usage', FaBoxes, 'Material Usage')}
                             {navItem('/owner/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
@@ -345,13 +347,13 @@ export default function Sidebar() {
                     {(isAdmin || isBranchManager) && navItem(inventoryPath, FaBoxes, 'Inventory', inventoryBadge)}
                     {canReadInventory && !isAdmin && !isBranchManager && !isSecretary && !isOwner && !isDentistUser && navItem(inventoryPath, FaBoxes, 'Inventory')}
 
-                    {isDentistUser && (
+                    {isDentistUser && !isOwner && (
                         <>
                             {sectionLabel('Clinic')}
-                            {navItem(isOwner ? '/owner/material-usage' : '/dentist/material-usage', FaBoxes, 'Material Usage')}
+                            {navItem('/dentist/material-usage', FaBoxes, 'Material Usage')}
                             {sectionLabel('System')}
-                            {navItem(isOwner ? '/owner/notifications' : '/dentist/notifications', FaBell, 'Notifications', notifBadge)}
-                            {navItem(isOwner ? '/owner/activity-logs' : '/dentist/activity-logs', FaHistory, 'Activity Logs')}
+                            {navItem('/dentist/notifications', FaBell, 'Notifications', notifBadge)}
+                            {navItem('/dentist/activity-logs', FaHistory, 'Activity Logs')}
                         </>
                     )}
 

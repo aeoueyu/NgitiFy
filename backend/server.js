@@ -60,6 +60,7 @@ const {
     canWritePatientClinicalRecord,
     getDisallowedStaffAccountUpdateFields,
     getRestrictedClinicalUpdateFields,
+    hasDentistClinicalAccess,
     isPatientPublishedRadiograph,
     isSameId,
     pickAllowedStaffAccountUpdateFields,
@@ -302,6 +303,14 @@ const buildNonInterpretiveRadiographPayload = (radiograph = {}) => {
     };
 };
 
+const AUTOMATIC_TREATMENT_LOG_TOKEN_PATTERN = /\[AUTO-(?:APPOINTMENT|QUEUE):[^\]]+\]/g;
+const stripAutomaticTreatmentLogMetadata = (value = '') => (
+    String(value || '').replace(AUTOMATIC_TREATMENT_LOG_TOKEN_PATTERN, '').trim()
+);
+const isAutomaticTreatmentLog = (entry = {}) => (
+    Boolean(String(entry.notes || '').match(AUTOMATIC_TREATMENT_LOG_TOKEN_PATTERN))
+);
+
 const buildTreatmentLogPayload = (entry = {}) => ({
     _id: entry._id,
     id: entry._id || entry.id,
@@ -309,7 +318,8 @@ const buildTreatmentLogPayload = (entry = {}) => ({
     procedure: entry.procedure || '',
     tooth: entry.tooth || '',
     category: entry.category || 'Other',
-    notes: entry.notes || '',
+    notes: stripAutomaticTreatmentLogMetadata(entry.notes),
+    isAutomatic: isAutomaticTreatmentLog(entry),
     dentistId: entry.dentistId || null,
     dentistName: entry.dentistName || '',
     branch: entry.branch || '',
@@ -2344,6 +2354,7 @@ const canManagePatientLifecycle = ({ actor, patient }) => {
 };
 
 const INACTIVE_PATIENT_TRANSFER_MESSAGE = 'Activate this patient account before transferring branches. Inactive patient accounts cannot be transferred.';
+const PATIENT_TRANSFERRED_BRANCH_MESSAGE = 'This patient has already been transferred to another branch. Their EMR is no longer available from your assigned branch.';
 const isPatientAccountActive = (patient) => (
     String(patient?.status || '').trim().toLowerCase() === 'active'
     && patient?.isArchived !== true
@@ -3251,6 +3262,26 @@ const dentistCanAccessPatient = async (dentistId, patientId) => {
     });
 
     return Boolean(assignedAppointment);
+};
+
+const dentistCanAddTreatmentLogForPatient = async (dentistId, patientId) => {
+    if (!dentistId || !patientId) return false;
+
+    const directlyAssignedPatient = await User.exists({
+        _id: patientId,
+        role: 'patient',
+        assignedDentistId: dentistId,
+    });
+
+    if (directlyAssignedPatient) return true;
+
+    const completedTreatment = await Surgery.exists({
+        dentist: dentistId,
+        patient: patientId,
+        status: 'completed',
+    });
+
+    return Boolean(completedTreatment);
 };
 
 const getClinicContactDetails = async () => {
@@ -4581,6 +4612,7 @@ const reconcilePatientTreatmentLogsFromCompletedAppointments = async (patientId)
             category: normalizeTreatmentCategory(
                 inferTreatmentCategoryFromProcedure(appointment.performedProcedure || appointment.procedure)
             ),
+            nextAppointment: appointment.nextAppointment || null,
             sourceKey: `[AUTO-APPOINTMENT:${appointment._id}]`,
         });
     }
@@ -6027,6 +6059,7 @@ app.get('/api/patients', verifyToken, async (req, res) => {
         const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 50));
         const skip = (page - 1) * limit;
         const listView = String(req.query.view || '').trim().toLowerCase();
+        const patientScope = String(req.query.scope || '').trim().toLowerCase();
         const includeArchived = parseBooleanQueryFlag(req.query.includeArchived);
         const archivedOnly = parseBooleanQueryFlag(req.query.archivedOnly);
         let baseFilter = applyArchiveVisibilityFilter({ role: 'patient' }, { includeArchived, archivedOnly });
@@ -6039,7 +6072,21 @@ app.get('/api/patients', verifyToken, async (req, res) => {
             baseFilter = applyBranchOwnershipFilter(baseFilter, req.user.assignedBranch);
         }
 
-        if (req.user.role === 'dentist') {
+        if (patientScope === 'my-patients') {
+            if (!hasDentistClinicalAccess(req.user)) {
+                return res.status(403).json({ message: 'Dentist access is required to view My Patient.' });
+            }
+
+            const treatedPatientIds = await Surgery.distinct('patient', {
+                dentist: req.user.id,
+                patient: { $ne: null },
+                status: 'completed',
+            });
+            baseFilter.$or = [
+                { assignedDentistId: req.user.id },
+                { _id: { $in: treatedPatientIds } },
+            ];
+        } else if (req.user.role === 'dentist') {
             const dentistUser = await User.findById(req.user.id).select('name');
             const assignedPatientIds = await Surgery.distinct('patient', {
                 dentist: req.user.id,
@@ -6147,7 +6194,10 @@ app.get('/api/patients/:id', verifyToken, async (req, res) => {
 
             const patientBranches = patient.assignedBranches || (patient.assignedBranch ? [patient.assignedBranch] : []);
             if (!patientBranches.includes(req.user.assignedBranch)) {
-                return res.status(403).json({ message: 'Access denied. This patient belongs to a different branch.' });
+                return res.status(403).json({
+                    code: 'PATIENT_TRANSFERRED_TO_ANOTHER_BRANCH',
+                    message: PATIENT_TRANSFERRED_BRANCH_MESSAGE,
+                });
             }
         }
 
@@ -9085,6 +9135,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             if (normalizedAmountCharged === null || normalizedAmountPaid === null) {
                 return res.status(400).json({ message: 'Please provide the amount charged and amount paid before completing the appointment.' });
             }
+            updateFields.nextAppointment = normalizedNextAppointment;
         }
 
         const scheduleChanged = (
@@ -10759,16 +10810,16 @@ app.get('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
-    if (req.user.role !== 'dentist') {
-        return res.status(403).json({ message: 'Access denied. Only dentists can add treatment logs.' });
+    if (!hasDentistClinicalAccess(req.user)) {
+        return res.status(403).json({ message: 'Access denied. Dentist access is required to add treatment logs.' });
     }
     try {
         const patient = await User.findById(req.params.id);
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
-        const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+        const canAccess = await dentistCanAddTreatmentLogForPatient(req.user.id, patient._id);
         if (!canAccess) {
-            return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
+            return res.status(403).json({ message: 'Access denied. Treatment logs can only be added for patients assigned to or treated by this dentist.' });
         }
 
         const { date, procedure, tooth, category, branch, notes, amountCharged, amountPaid, nextAppointment } = req.body;
@@ -10837,6 +10888,55 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error adding treatment log:', error);
         res.status(500).json({ message: 'Server error adding treatment log.' });
+    }
+});
+
+
+// -------------------------------------------------------
+// TREATMENT LOGS: UPDATE clinical notes on the dentist's log
+// -------------------------------------------------------
+
+app.patch('/api/patients/:id/treatment-logs/:logId/notes', verifyToken, async (req, res) => {
+    if (!hasDentistClinicalAccess(req.user)) {
+        return res.status(403).json({ message: 'Access denied. Dentist access is required to update treatment notes.' });
+    }
+
+    try {
+        const patient = await User.findById(req.params.id);
+        if (!patient) return res.status(404).json({ message: 'Patient not found.' });
+
+        const canAccess = await dentistCanAddTreatmentLogForPatient(req.user.id, patient._id);
+        if (!canAccess) {
+            return res.status(403).json({ message: 'Access denied. Treatment notes can only be updated for patients assigned to or treated by this dentist.' });
+        }
+
+        const treatmentLog = patient.treatmentLogs.id(req.params.logId);
+        if (!treatmentLog) return res.status(404).json({ message: 'Treatment log not found.' });
+
+        if (!isSameId(treatmentLog.dentistId, req.user.id)) {
+            return res.status(403).json({ message: 'Access denied. A dentist can only update notes on their own treatment log.' });
+        }
+
+        const normalizedNotes = stripAutomaticTreatmentLogMetadata(req.body?.notes);
+        if (normalizedNotes.length > 2000) {
+            return res.status(400).json({ message: 'Treatment notes cannot exceed 2000 characters.' });
+        }
+
+        const metadataTokens = String(treatmentLog.notes || '').match(AUTOMATIC_TREATMENT_LOG_TOKEN_PATTERN) || [];
+        treatmentLog.notes = [...new Set(metadataTokens), normalizedNotes].filter(Boolean).join(' ');
+        await patient.save();
+
+        await AuditLog.create({
+            action: 'UPDATE_TREATMENT_NOTES',
+            user: req.user?.email,
+            role: req.user?.role,
+            details: `Updated treatment notes for treatment log ${treatmentLog._id} on patient ID ${patient._id}.`,
+        });
+
+        res.json(buildTreatmentLogPayload(treatmentLog));
+    } catch (error) {
+        console.error('Error updating treatment notes:', error);
+        res.status(500).json({ message: 'Server error updating treatment notes.' });
     }
 });
 
@@ -11586,6 +11686,7 @@ app.get('/api/my/clinical-profile', verifyToken, async (req, res) => {
         return res.status(500).json({ message: 'Server error fetching clinical profile.' });
     }
 });
+
 
 app.get('/api/my/treatment-logs', verifyToken, async (req, res) => {
     try {

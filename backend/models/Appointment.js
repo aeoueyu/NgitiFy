@@ -117,6 +117,7 @@ const appointmentSchema = new mongoose.Schema({
 
     procedure: { type: String, required: true },
     performedProcedure: { type: String, trim: true, default: '' },
+    nextAppointment: { type: Date, default: null },
     notes: { type: String },
 
     status: {

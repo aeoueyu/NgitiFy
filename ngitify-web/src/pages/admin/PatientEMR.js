@@ -25,7 +25,7 @@ import {
     FaUserMd, FaPhoneAlt, FaEnvelope, FaArrowLeft, FaMapMarkerAlt,
     FaSyringe, FaNotesMedical, FaSearch, FaPlus, FaTimes, FaFilter,
     FaUpload, FaMagic, FaRobot, FaCalendarAlt, FaIdCard, FaFilePdf,
-    FaChild, FaVenusMars, FaBirthdayCake, FaTrash
+    FaChild, FaVenusMars, FaBirthdayCake, FaTrash, FaEdit
 } from 'react-icons/fa';
 import Odontogram from '../dentist/Odontogram';
 
@@ -132,7 +132,7 @@ const normalizeTextValue = (value) => value ? String(value) : 'Not specified';
 const buildDetailRows = (pairs = []) => pairs.map(([label, value]) => [label, value || 'Not specified']);
 const normalizeTreatmentNotes = (value) => {
     const text = String(value || '').trim();
-    return /^\[AUTO-APPOINTMENT:[^\]]+\]$/.test(text) ? '' : text;
+    return text.replace(/\[AUTO-(?:APPOINTMENT|QUEUE):[^\]]+\]/g, '').trim();
 };
 const RADIOGRAPH_VARIANT_LABELS = {
     basic: 'Adaptive Enhance',
@@ -382,14 +382,17 @@ export default function PatientEMR({
     const { config: systemConfig } = useSystemConfig();
     const { addToast } = useToast();
     const effectiveRole = roleOverride || user?.role || 'administrator';
+    const hasDentistTreatmentAccess = effectiveRole === 'dentist'
+        || (effectiveRole === 'owner' && user?.isDentist === true);
     // Every role can review the complete EMR within its normal patient/branch
-    // scope. Clinical management controls belong exclusively to dentists.
+    // scope. Owner-dentists receive the treatment-log creation control only;
+    // the API still verifies their relationship to the selected patient.
     const isReadOnly = forceReadOnly || effectiveRole !== 'dentist';
     const canEditOdontogram = effectiveRole === 'dentist';
     const radiographUploadsEnabled = systemConfig?.featureToggles?.radiographUploads !== false;
     const canEditMedical = !isReadOnly;
     const canManageTreatmentLog = effectiveRole === 'dentist';
-    const canAddTreatmentLog = effectiveRole === 'dentist';
+    const canAddTreatmentLog = !forceReadOnly && hasDentistTreatmentAccess;
     const canUploadRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;
     const canDeleteRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;
     const canEnhanceRadiograph = effectiveRole === 'dentist' && radiographUploadsEnabled;
@@ -403,6 +406,7 @@ export default function PatientEMR({
     const [activeTab, setActiveTab] = useState('overview');
     const [patient, setPatient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [patientLoadError, setPatientLoadError] = useState('');
 
     // Tab: Medical History States
     const [medicalHistory, setMedicalHistory] = useState(INITIAL_MEDICAL_HISTORY);
@@ -422,6 +426,9 @@ export default function PatientEMR({
     const [logsCategory, setLogsCategory] = useState('All');
     const [deleteLogTarget, setDeleteLogTarget] = useState(null);
     const [isDeletingLog, setIsDeletingLog] = useState(false);
+    const [notesLogTarget, setNotesLogTarget] = useState(null);
+    const [treatmentNotes, setTreatmentNotes] = useState('');
+    const [isSavingTreatmentNotes, setIsSavingTreatmentNotes] = useState(false);
     
     // Add Log Modal
     const [isAddLogOpen, setIsAddLogOpen] = useState(false);
@@ -565,6 +572,7 @@ export default function PatientEMR({
         const fetchPatientData = async () => {
             setIsLoading(true);
             setPatient(null);
+            setPatientLoadError('');
             setLogs([]);
             setRadiographs([]);
             setOdontogramLogs([]);
@@ -575,8 +583,9 @@ export default function PatientEMR({
                 const { authFetch } = await import('../../utils/api');
 
                 const patientRes = await authFetch(`/patients/${activePatientId}?view=emr-profile`);
+                const patientPayload = await patientRes.json().catch(() => ({}));
                 if (patientRes.ok) {
-                    const patientData = await patientRes.json();
+                    const patientData = patientPayload;
                     setPatient(patientData);
                     if (patientData.medicalHistory) {
                         const toCSV = (val) =>
@@ -624,12 +633,16 @@ export default function PatientEMR({
                         setMedicalForm(normalizedHistory);
                     }
                 } else {
-                    addToast('Failed to load patient record.', 'error');
+                    const message = patientPayload.message || 'Failed to load patient record.';
+                    setPatientLoadError(message);
+                    addToast(message, 'error');
                 }
 
             } catch (e) {
                 console.error('Error fetching patient data:', e);
-                addToast('Could not connect to the server.', 'error');
+                const message = 'Could not connect to the server.';
+                setPatientLoadError(message);
+                addToast(message, 'error');
             } finally {
                 setIsLoading(false);
             }
@@ -1827,6 +1840,47 @@ export default function PatientEMR({
         }
     };
 
+    const canEditTreatmentNotes = (log) => (
+        !forceReadOnly
+        && hasDentistTreatmentAccess
+        && String(log?.dentistId || '') === String(user?.id || user?._id || '')
+    );
+
+    const openTreatmentNotesEditor = (log) => {
+        setNotesLogTarget(log);
+        setTreatmentNotes(log?.notes || '');
+    };
+
+    const handleSaveTreatmentNotes = async () => {
+        if (!notesLogTarget || isSavingTreatmentNotes) return;
+
+        setIsSavingTreatmentNotes(true);
+        try {
+            const { authFetch } = await import('../../utils/api');
+            const response = await authFetch(
+                `/patients/${activePatientId}/treatment-logs/${notesLogTarget.id}/notes`,
+                {
+                    method: 'PATCH',
+                    body: JSON.stringify({ notes: treatmentNotes }),
+                }
+            );
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Failed to update treatment notes.');
+
+            const updatedLog = normalizeTreatmentLogRecord(data);
+            setLogs((prev) => prev.map((log) => (
+                String(log.id) === String(updatedLog.id) ? updatedLog : log
+            )));
+            setNotesLogTarget(null);
+            setTreatmentNotes('');
+            addToast('Treatment notes updated successfully.', 'success');
+        } catch (error) {
+            addToast(error.message || 'Failed to update treatment notes.', 'error');
+        } finally {
+            setIsSavingTreatmentNotes(false);
+        }
+    };
+
     const toggleLogRow = (logId) => {
         setExpandedLogRows((prev) => ({ ...prev, [logId]: !prev[logId] }));
     };
@@ -2031,6 +2085,15 @@ export default function PatientEMR({
                                                 <div>
                                                     <span className={styles.expandedDetailLabel}>Notes</span>
                                                     <p className={styles.expandedDetailValue}>{log.notes || '-'}</p>
+                                                    {canEditTreatmentNotes(log) ? (
+                                                        <button
+                                                            type="button"
+                                                            className={styles.expandInlineBtn}
+                                                            onClick={() => openTreatmentNotesEditor(log)}
+                                                        >
+                                                            <FaEdit /> {log.notes ? 'Edit Notes' : 'Add Notes'}
+                                                        </button>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         </div>
@@ -2057,6 +2120,51 @@ export default function PatientEMR({
                 onConfirm={handleDeleteTreatmentLog}
                 onCancel={() => !isDeletingLog && setDeleteLogTarget(null)}
             />
+
+            {notesLogTarget ? (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalCard} style={{ maxWidth: '620px' }}>
+                        <h3 className={styles.modalTitle}>Treatment Notes</h3>
+                        <p style={{ margin: '0 0 18px', color: '#64748b', lineHeight: 1.6 }}>
+                            Add clinical notes for {notesLogTarget.procedure || 'this completed treatment'}.
+                        </p>
+                        <div className={styles.formGroup} style={{ textAlign: 'left' }}>
+                            <label htmlFor="treatment-notes">Clinical notes and follow-up instructions</label>
+                            <textarea
+                                id="treatment-notes"
+                                className={styles.textareaField}
+                                value={treatmentNotes}
+                                onChange={(event) => setTreatmentNotes(event.target.value)}
+                                maxLength={2000}
+                                rows={7}
+                                placeholder="Add treatment findings, remarks, or follow-up instructions"
+                                disabled={isSavingTreatmentNotes}
+                            />
+                            <span style={{ marginTop: '6px', color: '#64748b', fontSize: '12px' }}>
+                                {treatmentNotes.length}/2000 characters
+                            </span>
+                        </div>
+                        <div className={styles.modalButtonGroup}>
+                            <button
+                                type="button"
+                                className={styles.cancelBtn}
+                                onClick={() => setNotesLogTarget(null)}
+                                disabled={isSavingTreatmentNotes}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.saveBtn}
+                                onClick={handleSaveTreatmentNotes}
+                                disabled={isSavingTreatmentNotes}
+                            >
+                                {isSavingTreatmentNotes ? 'Saving...' : 'Save Notes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             {canAddTreatmentLog && isAddLogOpen && (
                 <div className={styles.modalOverlay}>
@@ -2849,7 +2957,9 @@ export default function PatientEMR({
 
     if (!patient) {
         const notFoundContent = (
-            <div style={{ textAlign: 'center', padding: '100px', color: '#ef4444', fontWeight: 'bold' }}>Patient record not found.</div>
+            <div style={{ textAlign: 'center', padding: '100px 40px', color: '#b45309', fontWeight: 'bold', lineHeight: 1.7 }}>
+                {patientLoadError || 'Patient record not found.'}
+            </div>
         );
         if (onClose) {
             return (

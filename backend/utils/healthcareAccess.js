@@ -103,6 +103,11 @@ const canReadPatientDentalImaging = ({ actorRole, actorId, patientId }) => (
 
 const canWritePatientClinicalRecord = (actorRole) => actorRole === 'dentist';
 
+const hasDentistClinicalAccess = (actor = {}) => (
+    actor.role === 'dentist'
+    || (actor.role === 'owner' && actor.isDentist === true)
+);
+
 const getRestrictedClinicalUpdateFields = (payload = {}) => (
     RESTRICTED_CLINICAL_FIELDS.filter((field) => payload[field] !== undefined)
 );
@@ -187,6 +192,7 @@ module.exports = {
     getAllowedStaffAccountUpdateFields,
     getDisallowedStaffAccountUpdateFields,
     getRestrictedClinicalUpdateFields,
+    hasDentistClinicalAccess,
     isPatientPublishedRadiograph,
     isSameId,
     pickAllowedStaffAccountUpdateFields,

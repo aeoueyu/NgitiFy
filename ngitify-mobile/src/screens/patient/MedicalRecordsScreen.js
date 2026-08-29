@@ -235,10 +235,20 @@ function TreatmentTab({ logs, loading, error, onRetry }) {
                                 style={{ paddingLeft: 8, paddingTop: 2 }}
                             />
                         </View>
-                        {isOpen && log.branch ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 12 }}>
-                                <Ionicons name="location-outline" size={12} color="#aaa" style={{ marginRight: 4 }} />
-                                <Text style={[styles.logBranch, { paddingHorizontal: 0, paddingBottom: 0 }]}>{log.branch}</Text>
+                        {isOpen && (log.branch || log.nextAppointment) ? (
+                            <View style={{ paddingHorizontal: 14, paddingBottom: 12, gap: 7 }}>
+                                {log.branch ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="location-outline" size={12} color="#aaa" style={{ marginRight: 4 }} />
+                                        <Text style={[styles.logBranch, { paddingHorizontal: 0, paddingBottom: 0 }]}>{log.branch}</Text>
+                                    </View>
+                                ) : null}
+                                {log.nextAppointment ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="calendar-outline" size={12} color="#01538b" style={{ marginRight: 4 }} />
+                                        <Text style={[styles.logBranch, { paddingHorizontal: 0, paddingBottom: 0, color: '#01538b' }]}>Next appointment: {new Date(log.nextAppointment).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                                    </View>
+                                ) : null}
                             </View>
                         ) : null}
                     </TouchableOpacity>

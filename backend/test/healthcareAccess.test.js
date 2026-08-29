@@ -11,6 +11,7 @@ const {
     canWritePatientClinicalRecord,
     getDisallowedStaffAccountUpdateFields,
     getRestrictedClinicalUpdateFields,
+    hasDentistClinicalAccess,
     isPatientPublishedRadiograph,
     sanitizeUserForActor,
 } = require('../utils/healthcareAccess');
@@ -31,6 +32,13 @@ test('all staff roles can read clinical records, patients remain self-only, and 
     assert.equal(canWritePatientClinicalRecord('branch-manager'), false);
     assert.equal(canWritePatientClinicalRecord('secretary'), false);
     assert.equal(canWritePatientClinicalRecord('patient'), false);
+});
+
+test('dentist clinical access includes qualified owner-dentists only', () => {
+    assert.equal(hasDentistClinicalAccess({ role: 'dentist' }), true);
+    assert.equal(hasDentistClinicalAccess({ role: 'owner', isDentist: true }), true);
+    assert.equal(hasDentistClinicalAccess({ role: 'owner', isDentist: false }), false);
+    assert.equal(hasDentistClinicalAccess({ role: 'administrator', isDentist: true }), false);
 });
 
 test('all staff roles can view odontograms and radiographs while patients remain self-only', () => {
@@ -72,8 +80,24 @@ test('treatment, odontogram, and radiograph read routes use shared staff read pe
     assert.match(patientEmr, /const canEditOdontogram = effectiveRole === 'dentist'/);
     assert.match(patientEmr, /const isReadOnly = forceReadOnly \|\| effectiveRole !== 'dentist'/);
     assert.match(patientEmr, /const canManageTreatmentLog = effectiveRole === 'dentist'/);
+    assert.match(patientEmr, /const canAddTreatmentLog = !forceReadOnly && hasDentistTreatmentAccess/);
     assert.match(patientEmr, /const canUploadRadiograph = effectiveRole === 'dentist'/);
     assert.match(patientEmr, /const canDeleteRadiograph = effectiveRole === 'dentist'/);
+});
+
+test('treatment logs require dentist access and an assigned or completed-treatment relationship', () => {
+    const routeStart = serverSource.indexOf("app.post('/api/patients/:id/treatment-logs'");
+    const routeEnd = serverSource.indexOf('\napp.', routeStart + 1);
+    const route = serverSource.slice(routeStart, routeEnd);
+    const accessHelperStart = serverSource.indexOf('const dentistCanAddTreatmentLogForPatient');
+    const accessHelperEnd = serverSource.indexOf('\n};', accessHelperStart) + 3;
+    const accessHelper = serverSource.slice(accessHelperStart, accessHelperEnd);
+
+    assert.notEqual(routeStart, -1);
+    assert.match(route, /hasDentistClinicalAccess\(req\.user\)/);
+    assert.match(route, /dentistCanAddTreatmentLogForPatient\(req\.user\.id, patient\._id\)/);
+    assert.match(accessHelper, /assignedDentistId: dentistId/);
+    assert.match(accessHelper, /status: 'completed'/);
 });
 
 test('authorized staff viewers receive clinical fields but no account recovery secrets', () => {
