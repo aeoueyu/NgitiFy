@@ -33,6 +33,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
     const isBranchManager = user?.role === 'branch-manager';
 
     const fileInputRef = useRef(null);
+    const touchedFieldsRef = useRef({});
+    const hasSubmittedRef = useRef(false);
     const [profileImage, setProfileImage] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [errors, setErrors] = useState({});
@@ -128,13 +130,26 @@ export default function AddSecretary({ onClose, onSuccess }) {
         return newErrors;
     };
 
-    const syncFormErrors = () => {
+    const syncFormErrors = ({ revealAll = hasSubmittedRef.current } = {}) => {
         const newErrors = getValidationErrors();
         setErrors((prev) => ({
-            ...Object.fromEntries(Object.entries(prev).filter(([key]) => NON_VALIDATION_ERROR_KEYS.includes(key))),
-            ...newErrors,
+            ...Object.fromEntries(Object.entries(prev).filter(([key, value]) => (
+                NON_VALIDATION_ERROR_KEYS.includes(key)
+                || key === 'submit'
+                || (key === 'email' && hasDuplicateEmailError(value))
+            ))),
+            ...Object.fromEntries(Object.entries(newErrors).filter(([key]) => revealAll || touchedFieldsRef.current[key])),
         }));
         return newErrors;
+    };
+
+    const handleFormFocusCapture = (event) => {
+        if (event.target?.name) touchedFieldsRef.current[event.target.name] = true;
+    };
+
+    const handleFormBlurCapture = (event) => {
+        if (event.target?.name) touchedFieldsRef.current[event.target.name] = true;
+        syncFormErrors();
     };
 
     useEffect(() => {
@@ -142,7 +157,8 @@ export default function AddSecretary({ onClose, onSuccess }) {
     }, [formData]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const validateForm = () => {
-        const newErrors = syncFormErrors();
+        hasSubmittedRef.current = true;
+        const newErrors = syncFormErrors({ revealAll: true });
         if (Object.keys(newErrors).length > 0) scrollToFirstInvalidField(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -227,7 +243,7 @@ export default function AddSecretary({ onClose, onSuccess }) {
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} noValidate>
+                <form onSubmit={handleSubmit} onFocusCapture={handleFormFocusCapture} onBlurCapture={handleFormBlurCapture} noValidate>
                     <div className={styles.uploadSection}>
                         <div className={styles.imageWrapper} onClick={triggerFileInput}>
                             {profileImage ? <img src={profileImage} alt="Profile" className={styles.previewImage} /> : <div className={styles.uploadPlaceholder}><span>Upload Photo</span></div>}

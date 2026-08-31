@@ -520,7 +520,7 @@ export default function SecretaryDashboard() {
                     </div>
                 </section>
 
-                <div className={styles['quick-actions-bar']}>
+                <div className={styles['quick-actions-bar']} data-ngitibot-avoid>
                     <button
                         className={`${styles['quick-action-btn']} ${styles.secondary}`}
                         onClick={() => navigate('/secretary/patients/add')}

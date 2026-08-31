@@ -612,7 +612,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <div className={styles['quick-actions-bar']}>
+                <div className={styles['quick-actions-bar']} data-ngitibot-avoid>
                     <button 
                         className={`${styles['quick-action-btn']} ${styles['secondary']}`} 
                         onClick={() => navigate('/admin/manage-users/patients', { state: { openAddModal: true } })} 

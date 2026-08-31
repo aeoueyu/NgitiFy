@@ -4030,7 +4030,7 @@ button.toolCard:focus-visible {
 .patientAiLauncher {
     position: fixed;
     right: 24px;
-    bottom: 24px;
+    bottom: var(--ngitibot-launcher-bottom, 24px);
     z-index: 1160;
     width: 64px;
     height: 64px;
@@ -4301,7 +4301,7 @@ button.toolCard:focus-visible {
 @media (max-width: 600px), (max-height: 620px) {
     .patientAiLauncher {
         right: 18px;
-        bottom: 18px;
+        bottom: var(--ngitibot-launcher-bottom, 18px);
         width: 58px;
         height: 58px;
     }

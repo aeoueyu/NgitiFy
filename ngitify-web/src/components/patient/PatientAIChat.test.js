@@ -23,6 +23,7 @@ describe('PatientAIChat', () => {
 
     beforeEach(() => {
         jest.useFakeTimers();
+        document.querySelectorAll('[data-ngitibot-avoid]').forEach((element) => element.remove());
     });
 
     afterEach(() => {
@@ -77,5 +78,24 @@ describe('PatientAIChat', () => {
         });
 
         expect(screen.getByTestId('patient-ai-window').getAttribute('data-open')).toBe('true');
+    });
+
+    test('moves the launcher above a marked lower-right action bar', () => {
+        const actionBar = document.createElement('div');
+        actionBar.setAttribute('data-ngitibot-avoid', '');
+        actionBar.getBoundingClientRect = () => ({
+            left: window.innerWidth - 200,
+            right: window.innerWidth - 20,
+            top: window.innerHeight - 80,
+            bottom: window.innerHeight - 20,
+            width: 180,
+            height: 60,
+        });
+        document.body.appendChild(actionBar);
+
+        renderChat();
+
+        expect(screen.getByRole('button', { name: 'Open NgitiBot' }).style.getPropertyValue('--ngitibot-launcher-bottom'))
+            .toBe('92px');
     });
 });

@@ -468,7 +468,7 @@ export default function DentistDashboard() {
                     </div>
                 </div>
 
-                <div className={styles['quick-actions-bar']}>
+                <div className={styles['quick-actions-bar']} data-ngitibot-avoid>
                     <button
                         className={`${styles['quick-action-btn']} ${styles.secondary}`}
                         onClick={() => navigate('/dentist/patients')}
