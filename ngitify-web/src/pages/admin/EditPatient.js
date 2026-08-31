@@ -19,8 +19,6 @@ import {
     INVALID_EMAIL_ADDRESS_MESSAGE,
     INVALID_LANDLINE_FORMAT_MESSAGE,
     INVALID_MOBILE_FORMAT_MESSAGE,
-    INVALID_SIGNED_DATE_MESSAGE,
-    LAST_DENTAL_VISIT_FUTURE_MESSAGE,
     MEDICAL_CONDITION_OPTIONS,
     NATIONALITY_OPTIONS,
     OCCUPATION_OPTIONS,
@@ -84,7 +82,6 @@ const initialDentalHistory = {
 };
 
 const boolToSelect = (value) => value === true ? 'yes' : value === false ? 'no' : '';
-const selectToBool = (value) => value === 'yes' ? true : value === 'no' ? false : undefined;
 const formatDateInputValue = (value) => normalizeDateInputValue(value);
 
 const getTodayDate = () => getTodayDateInManila();
@@ -94,9 +91,7 @@ const dataPrivacyReviewGroups = [
 
 const EDIT_PATIENT_STEPS = [
     { key: 'identity', label: 'Identity' },
-    { key: 'contacts', label: 'Contacts & Branch' },
-    { key: 'medical', label: 'Medical & Dental' },
-    { key: 'consent', label: 'Consent & Review' },
+    { key: 'contacts', label: 'Contacts' },
 ];
 
 const EDIT_PATIENT_SECTION_FIELDS = {
@@ -129,38 +124,6 @@ const EDIT_PATIENT_SECTION_FIELDS = {
         'guardian_name',
         'guardian_relationship',
         'guardian_contactNumber',
-    ],
-    2: [
-        'dentalHistory_lastExamDate',
-        'dentalHistory_hadTreatmentReaction',
-        'dentalHistory_reactionDetails',
-        'dentalHistory_hasConfidentialInfo',
-        'medicalHistory_inGoodHealth',
-        'medicalHistory_underMedicalTreatment',
-        'medicalHistory_medicalTreatmentDetails',
-        'medicalHistory_hadSeriousIllnessOrSurgery',
-        'medicalHistory_seriousIllnessOrSurgeryDetails',
-        'medicalHistory_hadHospitalization',
-        'medicalHistory_hospitalizationDetails',
-        'medicalHistory_isTakingMedication',
-        'medicalHistory_medications',
-        'medicalHistory_usesTobacco',
-        'medicalHistory_usesAlcoholOrDrugs',
-        'medicalHistory_hasAllergies',
-        'medicalHistory_allergies',
-        'medicalHistory_isPregnant',
-        'medicalHistory_isNursing',
-        'medicalHistory_takingBirthControl',
-        'physician_specialtyOther',
-        'physician_officeNumber',
-    ],
-    3: [
-        'dataPrivacyConsent_signerName',
-        'dataPrivacyConsent_signedAt',
-        'dataPrivacyConsent_acknowledged',
-        'consentAcknowledgement_signerName',
-        'consentAcknowledgement_signedAt',
-        'consentAcknowledgement_acknowledged',
     ],
 };
 
@@ -543,21 +506,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
     const getValidationErrors = () => {
         const nextErrors = {};
-        const requiredYesNoFields = [
-            ['dentalHistory', 'hadTreatmentReaction'],
-            ['dentalHistory', 'hasConfidentialInfo'],
-            ['medicalHistory', 'inGoodHealth'],
-            ['medicalHistory', 'underMedicalTreatment'],
-            ['medicalHistory', 'hadSeriousIllnessOrSurgery'],
-            ['medicalHistory', 'hadHospitalization'],
-            ['medicalHistory', 'isTakingMedication'],
-            ['medicalHistory', 'usesTobacco'],
-            ['medicalHistory', 'usesAlcoholOrDrugs'],
-            ['medicalHistory', 'hasAllergies'],
-            ['medicalHistory', 'isPregnant'],
-            ['medicalHistory', 'isNursing'],
-            ['medicalHistory', 'takingBirthControl'],
-        ];
 
         ['firstName', 'lastName', 'birthdate', 'gender', 'email'].forEach((field) => {
             if (!formData[field]) {
@@ -619,9 +567,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             }
         }
 
-        if (formData.physician.officeNumber && !isValidLandlineNumber(formData.physician.officeNumber)) {
-            nextErrors.physician_officeNumber = INVALID_LANDLINE_FORMAT_MESSAGE;
-        }
         if (!formData.civilStatus) {
             nextErrors.civilStatus = REQUIRED_MESSAGE;
         }
@@ -637,38 +582,9 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
         if (formData.religion === 'Other' && !formData.religionOther.trim()) {
             nextErrors.religionOther = REQUIRED_MESSAGE;
         }
-        if (formData.physician.specialty === 'Other' && !formData.physician.specialtyOther.trim()) {
-            nextErrors.physician_specialtyOther = REQUIRED_MESSAGE;
-        }
-        if (!formData.consentAcknowledgement.acknowledged) {
-            nextErrors.consentAcknowledgement_acknowledged = REQUIRED_MESSAGE;
-        }
-        if (!formData.consentAcknowledgement.signerName.trim()) {
-            nextErrors.consentAcknowledgement_signerName = REQUIRED_MESSAGE;
-        }
-        if (!formData.dataPrivacyConsent.acknowledged) {
-            nextErrors.dataPrivacyConsent_acknowledged = REQUIRED_MESSAGE;
-        }
-        if (!formData.dataPrivacyConsent.signerName.trim()) {
-            nextErrors.dataPrivacyConsent_signerName = REQUIRED_MESSAGE;
-        }
         if (formData.birthdate && isFutureDateInManila(formData.birthdate)) {
             nextErrors.birthdate = BIRTHDATE_FUTURE_MESSAGE;
         }
-        if (formData.dentalHistory.lastExamDate && isFutureDateInManila(formData.dentalHistory.lastExamDate)) {
-            nextErrors.dentalHistory_lastExamDate = LAST_DENTAL_VISIT_FUTURE_MESSAGE;
-        }
-        if (formData.consentAcknowledgement.signedAt && isFutureDateInManila(formData.consentAcknowledgement.signedAt)) {
-            nextErrors.consentAcknowledgement_signedAt = INVALID_SIGNED_DATE_MESSAGE;
-        }
-        if (formData.dataPrivacyConsent.signedAt && isFutureDateInManila(formData.dataPrivacyConsent.signedAt)) {
-            nextErrors.dataPrivacyConsent_signedAt = INVALID_SIGNED_DATE_MESSAGE;
-        }
-        requiredYesNoFields.forEach(([section, field]) => {
-            if (!formData[section][field]) {
-                nextErrors[`${section}_${field}`] = REQUIRED_MESSAGE;
-            }
-        });
         return nextErrors;
     };
 
@@ -782,10 +698,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
             homePhone: toLandlinePayload(formData.homePhone),
             occupation: formData.occupation || undefined,
             civilStatus: formData.civilStatus || undefined,
-            bloodType: formData.bloodType || undefined,
             workPhone: toLandlinePayload(formData.workPhone),
-            referredBy: formData.referredBy || undefined,
-            reasonForConsultation: formData.reasonForConsultation || undefined,
             emergencyContact: {
                 name: formData.emergencyContact.name || undefined,
                 relationship: formData.emergencyContact.relationship || undefined,
@@ -797,55 +710,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                 contactNumber: toMobilePayload(formData.guardian.contactNumber),
                 occupation: formData.guardian.occupation || undefined,
             } : null,
-            physician: {
-                name: formData.physician.name || undefined,
-                specialty: (formData.physician.specialty === 'Other' ? formData.physician.specialtyOther.trim() : formData.physician.specialty) || undefined,
-                officeAddress: formData.physician.officeAddress || undefined,
-                officeNumber: toLandlinePayload(formData.physician.officeNumber),
-            },
-            medicalHistory: {
-                allergies: [...formData.medicalHistory.allergies, ...(formData.medicalHistory.allergyOther ? [formData.medicalHistory.allergyOther.trim()] : [])].filter(Boolean),
-                conditions: [...formData.medicalHistory.conditions, ...(formData.medicalHistory.conditionOther ? [formData.medicalHistory.conditionOther.trim()] : [])].filter(Boolean),
-                medications: formData.medicalHistory.medications ? formData.medicalHistory.medications.split(',').map((item) => item.trim()).filter(Boolean) : undefined,
-                notes: formData.medicalHistory.notes || undefined,
-                inGoodHealth: selectToBool(formData.medicalHistory.inGoodHealth),
-                underMedicalTreatment: selectToBool(formData.medicalHistory.underMedicalTreatment),
-                medicalTreatmentDetails: formData.medicalHistory.medicalTreatmentDetails || undefined,
-                hadSeriousIllnessOrSurgery: selectToBool(formData.medicalHistory.hadSeriousIllnessOrSurgery),
-                seriousIllnessOrSurgeryDetails: formData.medicalHistory.seriousIllnessOrSurgeryDetails || undefined,
-                hadHospitalization: selectToBool(formData.medicalHistory.hadHospitalization),
-                hospitalizationDetails: formData.medicalHistory.hospitalizationDetails || undefined,
-                isTakingMedication: selectToBool(formData.medicalHistory.isTakingMedication),
-                hasAllergies: selectToBool(formData.medicalHistory.hasAllergies),
-                usesTobacco: selectToBool(formData.medicalHistory.usesTobacco),
-                usesAlcoholOrDrugs: selectToBool(formData.medicalHistory.usesAlcoholOrDrugs),
-                bleedingTime: formData.medicalHistory.bleedingTime || undefined,
-                bloodPressure: formData.medicalHistory.bloodPressure || undefined,
-                isPregnant: selectToBool(formData.medicalHistory.isPregnant),
-                isNursing: selectToBool(formData.medicalHistory.isNursing),
-                takingBirthControl: selectToBool(formData.medicalHistory.takingBirthControl),
-            },
-            dentalHistory: {
-                chiefComplaint: formData.reasonForConsultation || undefined,
-                lastExamDate: formData.dentalHistory.lastExamDate || undefined,
-                hadTreatmentReaction: selectToBool(formData.dentalHistory.hadTreatmentReaction),
-                reactionDetails: formData.dentalHistory.reactionDetails || undefined,
-                hasConfidentialInfo: selectToBool(formData.dentalHistory.hasConfidentialInfo),
-            },
-            consentAcknowledgement: {
-                acknowledged: Boolean(formData.consentAcknowledgement.acknowledged),
-                signerName: formData.consentAcknowledgement.signerName.trim() || undefined,
-                signerRole: formData.consentAcknowledgement.signerRole || (isMinor ? 'Parent/Guardian' : 'Patient'),
-                signedAt: formData.consentAcknowledgement.signedAt || new Date().toISOString(),
-                version: 'Dentime Patient Form v6.1',
-            },
-            dataPrivacyConsent: {
-                acknowledged: Boolean(formData.dataPrivacyConsent.acknowledged),
-                signerName: formData.dataPrivacyConsent.signerName.trim() || undefined,
-                signerRole: formData.dataPrivacyConsent.signerRole || (isMinor ? 'Parent/Guardian' : 'Patient'),
-                signedAt: formData.dataPrivacyConsent.signedAt || new Date().toISOString(),
-                version: 'Data Privacy Act of 2012',
-            },
             homeAddress: { country: 'Philippines', ...formData.homeAddress },
         };
 
@@ -939,7 +803,7 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             </button>
                             <div className={styles.header}>
                                 <h2>Edit <span className={styles.highlight}>Patient</span> Profile</h2>
-                                <p>Update the patient's records below.</p>
+                                <p>Update the patient's identity and contact details below.</p>
                             </div>
                         </div>
 
@@ -1013,9 +877,9 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
 
                             {currentStep === 1 && (
                                 <PatientRegistrationSectionCard
-                                    eyebrow="Contacts & Branch"
-                                    title="Contacts and Branch"
-                                    description="Update the emergency contact, guardian details, and branch information."
+                                    eyebrow="Contacts"
+                                    title="Contact Details"
+                                    description="Update the emergency contact and guardian details."
                                 >
                             <div className={styles.row}>
                                 <div className={styles.formGroup}><label>EMERGENCY CONTACT NAME <span style={{ color: 'red' }}>*</span></label><input className={`${styles.inputField} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} name="emergencyContact_name" value={formData.emergencyContact.name} onChange={handleNestedNameChange('emergencyContact', 'name')} disabled={isSaving} />{errors.emergencyContact_name && <span className={styles.errorText}>{errors.emergencyContact_name}</span>}</div>
@@ -1037,12 +901,6 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                                 </>
                             )}
 
-                            <div className={styles.row}>
-                                <div className={styles.formGroup}><label>REFERRED BY</label><input className={styles.inputField} name="referredBy" value={formData.referredBy} onChange={handlePersonalChange} disabled={isSaving} /></div>
-                                <div className={styles.formGroup}><label>REASON FOR CONSULTATION</label><input className={styles.inputField} name="reasonForConsultation" value={formData.reasonForConsultation} onChange={handlePersonalChange} disabled={isSaving} /></div>
-                                <div className={styles.formGroup} />
-                            </div>
-
                             {(isBranchManager || branchOptions.length > 0) && (
                                 <>
                                     <hr className={styles.divider} />
@@ -1059,7 +917,8 @@ export default function EditPatient({ patientId, onClose, onSuccess }) {
                             )}
                             <div className={styles.buttonGroup}>
                                 <button type="button" className={styles.cancelBtn} onClick={() => setCurrentStep(0)} disabled={isSaving}>Back to Identity</button>
-                                <button type="button" className={styles.submitBtn} onClick={() => handleStepAdvance(2)} disabled={isSaving}>Continue to Medical</button>
+                                <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSaving}>Cancel</button>
+                                <button type="submit" className={styles.submitBtn} disabled={isSaving || !hasChanges}>{isSaving ? 'Saving Changes...' : 'Update Patient'}</button>
                             </div>
                                 </PatientRegistrationSectionCard>
                             )}

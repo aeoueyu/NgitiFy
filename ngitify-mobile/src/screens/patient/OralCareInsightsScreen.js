@@ -2701,7 +2701,7 @@ export default function OralCareInsightsScreen({
           </Text>
 
           <PrimaryButton
-            label="Book Predictive Visit"
+            label="Book Appointment"
             icon="calendar-outline"
             onPress={() =>
               navigation.navigate(

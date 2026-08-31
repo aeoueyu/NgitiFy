@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
+const readRepositoryFile = (relativePath) => fs.readFileSync(path.join(__dirname, '..', '..', relativePath), 'utf8');
 const { classifyPatientAppointments, getInitialPastVisits } = require(path.join('..', '..', 'ngitify-mobile', 'src', 'utils', 'patientVisitHistory'));
 const { buildTrendChartData, buildFrequencyRows, getRecentCheckIns } = require(path.join('..', '..', 'ngitify-mobile', 'src', 'utils', 'oralCareTrends'));
 
@@ -46,6 +48,13 @@ test('frequency graph values use actual unique log counts', () => {
 test('recent check-ins are newest first and initially limited to three', () => {
     const logs = ['01', '05', '03', '04'].map((day) => ({ logDateKey: `2026-08-${day}` }));
     assert.deepEqual(getRecentCheckIns(logs).map((log) => log.logDateKey), ['2026-08-05', '2026-08-04', '2026-08-03']);
+});
+
+test('mobile predictive visit action uses the standard Book Appointment label', () => {
+    const screen = readRepositoryFile('ngitify-mobile/src/screens/patient/OralCareInsightsScreen.js');
+
+    assert.match(screen, /label="Book Appointment"/);
+    assert.doesNotMatch(screen, /label="Book Predictive Visit"/);
 });
 
 test('mobile Records exposes the four required read-only EMR tabs in order', () => {
