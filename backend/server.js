@@ -13539,13 +13539,12 @@ app.delete('/api/material-usage/:id', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 // RADIOGRAPH ENHANCER
 // -------------------------------------------------------
-const ENHANCE_ALLOWED = ['dentist'];
 app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
     try {
         if (!(await assertSystemFeatureEnabled(res, 'radiographUploads'))) {
             return;
         }
-        if (!ENHANCE_ALLOWED.includes(req.user.role)) {
+        if (!hasDentistClinicalAccess(req.user)) {
             return res.status(403).json({ message: 'Access denied. Only dentists can enhance radiographs.' });
         }
 
@@ -13626,7 +13625,7 @@ app.post('/api/radiographs/enhance', verifyToken, async (req, res) => {
 
 app.post('/api/patients/:id/radiographs/:radiographId/enhancement-feedback', verifyToken, async (req, res) => {
     try {
-        if (!ENHANCE_ALLOWED.includes(req.user.role)) {
+        if (!hasDentistClinicalAccess(req.user)) {
             return res.status(403).json({ message: 'Access denied. Only dentists can review radiograph enhancements.' });
         }
 
@@ -14214,7 +14213,7 @@ const aiChatLimiter = rateLimit({
 // AI-ASSISTED RADIOGRAPH REVIEW (dentist decision support)
 // -------------------------------------------------------
 const requireDentistRadiograph = async (req, res) => {
-    if (req.user.role !== 'dentist') {
+    if (!hasDentistClinicalAccess(req.user)) {
         res.status(403).json({ message: 'Access denied. Radiograph interpretation tools are limited to dentists.' });
         return null;
     }

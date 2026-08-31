@@ -6,13 +6,24 @@ const { buildPatientAiRadiographContext } = require('../utils/patientAi');
 
 const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 
-test('radiograph review mutation endpoints are authenticated and dentist scoped', () => {
+test('radiograph review mutation endpoints accept qualified dentists and remain patient scoped', () => {
     for (const route of ['/analyze', '/detections/:detectionId', '/annotations', '/generate-summary', '/cancel-summary-revision', '/approve-summary']) {
         assert.ok(serverSource.includes(route));
     }
     assert.match(serverSource, /const requireDentistRadiograph/);
-    assert.match(serverSource, /req\.user\.role !== 'dentist'/);
+    assert.match(serverSource, /if \(!hasDentistClinicalAccess\(req\.user\)\)/);
     assert.match(serverSource, /dentistCanAccessPatient\(req\.user\.id, patient\._id\)/);
+});
+
+test('owner-dentists can enhance and review enhancements only within their patient scope', () => {
+    const enhancementRoutes = serverSource.slice(
+        serverSource.indexOf("app.post('/api/radiographs/enhance'"),
+        serverSource.indexOf('// AI PATIENT CARE COMPANION')
+    );
+
+    assert.equal((enhancementRoutes.match(/hasDentistClinicalAccess\(req\.user\)/g) || []).length, 2);
+    assert.equal((enhancementRoutes.match(/dentistCanAccessPatient\(req\.user\.id, patient\._id\)/g) || []).length, 2);
+    assert.doesNotMatch(enhancementRoutes, /ENHANCE_ALLOWED/);
 });
 
 test('patient radiograph serialization omits raw analysis and unapproved summary drafts', () => {
