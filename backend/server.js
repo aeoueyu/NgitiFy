@@ -6252,13 +6252,18 @@ app.put('/api/patients/:id', verifyToken, async (req, res) => {
             }
         }
 
-        if (!canWritePatientClinicalRecord(req.user.role)) {
-            const restrictedFields = getRestrictedClinicalUpdateFields(req.body);
-            if (restrictedFields.length) {
+        const restrictedFields = getRestrictedClinicalUpdateFields(req.body);
+        if (restrictedFields.length) {
+            if (!canWritePatientClinicalRecord(req.user)) {
                 return res.status(403).json({
                     message: 'Access denied. Clinical records may only be changed by an assigned dentist.',
                     fields: restrictedFields,
                 });
+            }
+
+            const canAccess = await dentistCanAccessPatient(req.user.id, currentPatient._id);
+            if (!canAccess) {
+                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
             }
         }
 
@@ -10953,7 +10958,7 @@ app.patch('/api/patients/:id/treatment-logs/:logId/notes', verifyToken, async (r
 // -------------------------------------------------------
 
 app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, res) => {
-    if (!canWritePatientClinicalRecord(req.user.role)) {
+    if (!canWritePatientClinicalRecord(req.user)) {
         return res.status(403).json({ message: 'Access denied. Only dentists can delete treatment history entries.' });
     }
     try {
@@ -10967,11 +10972,9 @@ app.delete('/api/patients/:id/treatment-logs/:logId', verifyToken, async (req, r
             }
         }
 
-        if (req.user.role === 'dentist') {
-            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
-            if (!canAccess) {
-                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
-            }
+        const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+        if (!canAccess) {
+            return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
         }
 
         const logIndex = patient.treatmentLogs.findIndex(
@@ -11368,7 +11371,7 @@ app.get('/api/patients/:id/odontogram-logs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
-    if (!canWritePatientClinicalRecord(req.user.role)) {
+    if (!canWritePatientClinicalRecord(req.user)) {
         return res.status(403).json({ message: 'Access denied. Only dentists can update the odontogram.' });
     }
     // Phase 5: Secretary has read-only access to EMR — block write
@@ -11386,11 +11389,9 @@ app.put('/api/patients/:id/odontogram', verifyToken, async (req, res) => {
             }
         }
 
-        if (req.user.role === 'dentist') {
-            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
-            if (!canAccess) {
-                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
-            }
+        const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+        if (!canAccess) {
+            return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
         }
 
         const normalizedPayload = normalizeOdontogramPayload(req.body);
@@ -11499,7 +11500,7 @@ app.get('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
-    if (!canWritePatientClinicalRecord(req.user.role)) {
+    if (!canWritePatientClinicalRecord(req.user)) {
         return res.status(403).json({ message: 'Access denied. Only dentists can upload radiograph images.' });
     }
     // Phase 5: Secretary has read-only access to EMR — block upload
@@ -11538,11 +11539,9 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             }
         }
 
-        if (req.user.role === 'dentist') {
-            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
-            if (!canAccess) {
-                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
-            }
+        const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+        if (!canAccess) {
+            return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
         }
 
         let linkedVisit = null;
@@ -11550,7 +11549,7 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             if (!mongoose.isValidObjectId(visitId)) return res.status(400).json({ message: 'The selected visit is invalid.' });
             linkedVisit = await Appointment.findOne({ _id: visitId, patient: patient._id }).select('_id branch dentist');
             if (!linkedVisit) return res.status(400).json({ message: 'The selected visit does not belong to this patient.' });
-        } else if (req.user.role === 'dentist') {
+        } else if (hasDentistClinicalAccess(req.user)) {
             linkedVisit = await Appointment.findOne({ patient: patient._id, dentist: req.user.id, status: 'in-clinic' }).sort({ date: -1 }).select('_id branch dentist');
         }
 
@@ -11573,7 +11572,7 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
             findings: String(findings || '').trim(),
             notes: notes || '',
             uploadedBy: req.user?.id || null,
-            providerId: req.user?.role === 'dentist' ? req.user.id : null,
+            providerId: hasDentistClinicalAccess(req.user) ? req.user.id : null,
             branch: linkedVisit?.branch || patient.assignedBranch || getScopedBranchForUser(req.user) || '',
             visitId: linkedVisit?._id || null,
             analysis: { status: 'not-analyzed', detections: [] },
@@ -11606,7 +11605,7 @@ app.post('/api/patients/:id/radiographs', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 
 app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, res) => {
-    if (!canWritePatientClinicalRecord(req.user.role)) {
+    if (!canWritePatientClinicalRecord(req.user)) {
         return res.status(403).json({ message: 'Access denied. Only dentists can delete radiograph images.' });
     }
     // Phase 5: Secretary has read-only access to EMR — block delete
@@ -11628,11 +11627,9 @@ app.delete('/api/patients/:id/radiographs/:entryId', verifyToken, async (req, re
             }
         }
 
-        if (req.user.role === 'dentist') {
-            const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
-            if (!canAccess) {
-                return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
-            }
+        const canAccess = await dentistCanAccessPatient(req.user.id, patient._id);
+        if (!canAccess) {
+            return res.status(403).json({ message: 'Access denied. This patient is not assigned to this dentist.' });
         }
 
         const index = (patient.radiographs || []).findIndex(

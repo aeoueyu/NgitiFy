@@ -19,7 +19,7 @@ const User = require('../models/User');
 
 const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 
-test('all staff roles can read clinical records, patients remain self-only, and writes are dentist-only', () => {
+test('all staff roles can read clinical records, patients remain self-only, and writes require dentist qualification', () => {
     assert.equal(canReadPatientClinicalRecord({ actorRole: 'patient', actorId: 'p1', patientId: 'p1' }), true);
     assert.equal(canReadPatientClinicalRecord({ actorRole: 'patient', actorId: 'p1', patientId: 'p2' }), false);
     for (const actorRole of ['administrator', 'owner', 'co-owner', 'branch-manager', 'secretary', 'dentist']) {
@@ -27,8 +27,10 @@ test('all staff roles can read clinical records, patients remain self-only, and 
     }
     assert.equal(canReadPatientClinicalRecord({ actorRole: 'unknown', actorId: 'u1', patientId: 'p1' }), false);
     assert.equal(canWritePatientClinicalRecord('dentist'), true);
+    assert.equal(canWritePatientClinicalRecord({ role: 'owner', isDentist: true }), true);
     assert.equal(canWritePatientClinicalRecord('administrator'), false);
     assert.equal(canWritePatientClinicalRecord('owner'), false);
+    assert.equal(canWritePatientClinicalRecord({ role: 'owner', isDentist: false }), false);
     assert.equal(canWritePatientClinicalRecord('branch-manager'), false);
     assert.equal(canWritePatientClinicalRecord('secretary'), false);
     assert.equal(canWritePatientClinicalRecord('patient'), false);
@@ -161,6 +163,16 @@ test('generic staff account field allowlists reject clinical and security fields
 
 test('non-dentist patient updates identify protected clinical fields', () => {
     assert.deepEqual(getRestrictedClinicalUpdateFields({ name: {}, medicalHistory: {}, odontogram: {} }), ['medicalHistory', 'odontogram']);
+});
+
+test('owner-dentist clinical updates use live dentist qualification and patient relationship checks', () => {
+    const routeStart = serverSource.indexOf("app.put('/api/patients/:id'");
+    const routeEnd = serverSource.indexOf('\napp.', routeStart + 1);
+    const route = serverSource.slice(routeStart, routeEnd);
+
+    assert.match(route, /canWritePatientClinicalRecord\(req\.user\)/);
+    assert.match(route, /dentistCanAccessPatient\(req\.user\.id, currentPatient\._id\)/);
+    assert.doesNotMatch(route, /canWritePatientClinicalRecord\(req\.user\.role\)/);
 });
 
 test('patients only receive published radiographs with approved summaries', () => {

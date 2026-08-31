@@ -101,11 +101,13 @@ const canReadPatientDentalImaging = ({ actorRole, actorId, patientId }) => (
     canReadPatientClinicalRecord({ actorRole, actorId, patientId })
 );
 
-const canWritePatientClinicalRecord = (actorRole) => actorRole === 'dentist';
-
 const hasDentistClinicalAccess = (actor = {}) => (
     actor.role === 'dentist'
     || (actor.role === 'owner' && actor.isDentist === true)
+);
+
+const canWritePatientClinicalRecord = (actor = {}) => (
+    hasDentistClinicalAccess(typeof actor === 'string' ? { role: actor } : actor)
 );
 
 const getRestrictedClinicalUpdateFields = (payload = {}) => (
